@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests.NodeManager;
@@ -1556,8 +1557,9 @@ namespace Opc.Ua.Server.Tests
             bool compensateDetach,
             bool deleteNode = false)
         {
+            var clock = new FakeTimeProvider();
             Mock<IServerInternal> server = DeterministicServerMock.Create(
-                out MonitoredItemQueueFactory queueFactory);
+                out MonitoredItemQueueFactory queueFactory, clock);
             using (queueFactory)
             using (ManagerOwner owner = CreateManager(server.Object, path))
             {
@@ -1595,14 +1597,16 @@ namespace Opc.Ua.Server.Tests
                 var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var failure = new InvalidOperationException("Injected unsubscribe failure.");
                 using var transitionCancellation = new CancellationTokenSource();
-                bool compensationTokenCanCancel = true;
+                CancellationToken requestToken = default;
+                CancellationToken compensationToken = default;
                 owner.AsyncManager.EventSubscriptionCallback = async (unsubscribe, ct) =>
                 {
                     if (unsubscribe)
                     {
+                        requestToken = ct;
                         throw failure;
                     }
-                    compensationTokenCanCancel = ct.CanBeCanceled;
+                    compensationToken = ct;
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(ct).ConfigureAwait(false);
                 };
@@ -1610,7 +1614,8 @@ namespace Opc.Ua.Server.Tests
                 Task transition;
                 if (deleteNode)
                 {
-                    transition = owner.DeleteNodeAsync(source.NodeId).AsTask();
+                    transition = owner.AsyncManager.DeleteNodeAsync(
+                        owner.SystemContext, source.NodeId, transitionCancellation.Token).AsTask();
                 }
                 else
                 {
@@ -1624,6 +1629,20 @@ namespace Opc.Ua.Server.Tests
                 try
                 {
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    if (compensateDetach)
+                    {
+                        transitionCancellation.Cancel();
+                        clock.Advance(TimeSpan.FromSeconds(5) - TimeSpan.FromTicks(1));
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(requestToken, Is.EqualTo(transitionCancellation.Token));
+                            Assert.That(requestToken.IsCancellationRequested, Is.True);
+                            Assert.That(compensationToken.CanBeCanceled, Is.True);
+                            Assert.That(compensationToken, Is.Not.EqualTo(requestToken));
+                            Assert.That(compensationToken.IsCancellationRequested, Is.False,
+                                "Compensation must survive request cancellation until its own deadline.");
+                        }
+                    }
                     creation = CreateIndependentDataChangeItemAsync(owner.AsyncManager, value.NodeId);
                     created = await creation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
@@ -1644,7 +1663,9 @@ namespace Opc.Ua.Server.Tests
                         InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
                             async () => await transition.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
                         Assert.That(error, Is.SameAs(failure));
-                        Assert.That(compensationTokenCanCancel, Is.False);
+                        clock.Advance(TimeSpan.FromTicks(1));
+                        Assert.That(compensationToken.IsCancellationRequested, Is.False,
+                            "Completed compensation must retire its deadline timer.");
                     }
                     else
                     {

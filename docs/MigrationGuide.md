@@ -845,11 +845,20 @@ implementation detail, and can no longer do so.
 
 Applications migrating from 1.5.x have a server-wide budget for retained
 intermediate-message buffers. With the reference server's 4 MiB maximum message
-size, the default budget is **64 MiB**, and channels without an activated session
-may fill only the lower **32 MiB**. A chunk that does not fit discards its partial
+size, the default budget is **64 MiB**. Under SharedOnly, channels without an
+activated Session may retain chunks only while total usage remains within the
+lower **32 MiB**. Balanced instead divides the same total between shared memory
+and memory reserved for specific kinds of work. With a 65,536-byte buffer limit,
+16.25 MiB is reserved for verified startup traffic and 16.25 MiB for continuity
+or reconnect traffic, leaving 31.5 MiB shared. Other traffic cannot borrow these
+reserves. Channels already carrying an activated Session can use the continuity
+reserve for incomplete messages. A chunk that does not fit discards its partial
 message and closes the channel with `BadTcpNotEnoughResources`. Final chunks,
 single-chunk requests, response buffers, and client buffers are not charged to
-this reassembly budget.
+this reassembly budget. Once a complete request has been decoded, separate
+limits control how many requests may wait, execute, or remain parked, and how
+much request data they may retain. A request refused at that stage receives
+`BadServerTooBusy`, even if it fitted in a single transport chunk.
 
 For workloads with many simultaneous large requests, set
 `WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
@@ -862,17 +871,8 @@ Server-channel `ChannelLifetime` also bounds an unfinished message from its
 first retained chunk, even if more chunks keep arriving. Size this lifetime
 for legitimate large transfers without relying on continuation chunks to
 extend it indefinitely. A zero or negative value uses the 30-second default
-for message assembly; it does not disable assembly cleanup. See
+for message assembly. It does not disable assembly cleanup. See
 [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
-
-Kestrel TCP and UACP WebSocket listeners honor configured connection-admission
-and channel limits, including pending admissions. Size `MaxChannelCount` for
-the intended deployment rather than relying on these bindings to ignore it.
-Managed channel membership is based on committed live sessions rather than
-activation-response counts. Custom session managers can implement the optional
-`ISessionBindingProvider` capability; custom hosts can inject a provider without
-changing existing callback contracts. A lookup snapshot does not replace normal
-request authentication and authorization.
 
 ## Migrating channel subclasses that override HandleIncomingMessage
 
@@ -968,6 +968,27 @@ There is no optional-capability fallback: `UserManagement` requires these member
 and no longer keeps metadata only in memory, so a store that cannot persist
 metadata should reject the write by returning `false` rather than silently
 accepting it.
+
+## ContentFilter NULL semantics follow OPC 10000-4 1.05.07
+
+`FilterEvaluator` applies the NULL rules of
+[OPC 10000-4 §7.7.3](https://reference.opcfoundation.org/Core/Part4/v105/docs/7.7.3)
+to event where-clauses and every other `ContentFilter`:
+
+- An element with a null operand evaluates to NULL (except `IsNull`), and a
+  filter that ends as NULL is FALSE. `Equals(field, 0)` no longer matches an
+  event without that field, and `Not(Equals(field, 5))` no longer matches it
+  either.
+- `IsNull` is TRUE for the null value of a nullable built-in type (a null
+  String, ByteString, NodeId, the all-zero Guid, `DateTime.MinValue`, …) and for
+  a null or empty array, which
+  [OPC 10000-6 §5.1.11](https://reference.opcfoundation.org/Core/Part6/v105/docs/5.1.11)
+  treats as the same. A zero, `false` or a Good StatusCode is a value.
+- Operands that cannot be converted to a common type make `Between` FALSE
+  instead of NULL.
+
+Clients whose where-clauses relied on the old matching of missing fields should
+test them explicitly with `IsNull`, for example `Or(IsNull(field), Equals(field, 0))`.
 
 ## Migrating from 1.05.377 to 1.05.378
 

@@ -47,7 +47,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase
+    public partial class ServerBase : IServerBase, IResourceIsolationProviderSource, IRequestParkingPolicySource
     {
         /// <summary>
         /// Initializes object with default values.
@@ -76,12 +76,25 @@ namespace Opc.Ua
         public ServerBase(
             ITelemetryContext telemetry,
             ITransportBindingRegistry? transportBindings)
+            : this(telemetry, transportBindings, requestParkingPolicy: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a server with optional transport bindings and a custom-handler parking policy.
+        /// The policy supplements intrinsic Publish support and does not override DecoupleHeldPublishRequests.
+        /// </summary>
+        public ServerBase(
+            ITelemetryContext telemetry,
+            ITransportBindingRegistry? transportBindings,
+            IRequestParkingPolicy? requestParkingPolicy)
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger(this);
             m_transportBindings = transportBindings;
+            RequestParkingPolicy = requestParkingPolicy;
         }
 
         /// <summary>
@@ -210,6 +223,12 @@ namespace Opc.Ua
         public IServiceResponseMutator? ResponseMutator { get; set; }
 
         /// <summary>
+        /// Gets or sets the optional custom-handler parking policy. Configure it before starting the server.
+        /// Publish parking remains intrinsic; DecoupleHeldPublishRequests disables all worker decoupling.
+        /// </summary>
+        public IRequestParkingPolicy? RequestParkingPolicy { get; set; }
+
+        /// <summary>
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of EndpointDescription.</returns>
@@ -227,7 +246,7 @@ namespace Opc.Ua
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken = default)
         {
-            m_requestQueue.ScheduleIncomingRequest(request);
+            m_requestQueue.ScheduleIncomingRequest(request, cancellationToken);
         }
 
         /// <summary>
@@ -646,7 +665,9 @@ namespace Opc.Ua
                 minRequestThreadCount,
                 maxRequestThreadCount,
                 maxQueuedRequestCount,
-                decoupleHeldPublishRequests);
+                decoupleHeldPublishRequests,
+                ResourceIsolationProvider,
+                configuration.TransportQuotas?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize);
 
             // a fresh request queue re-arms the shutdown sequence for the (re)started server.
             lock (m_stopLock)
@@ -666,6 +687,14 @@ namespace Opc.Ua
         protected void StopRequestQueue()
         {
             m_requestQueue?.Dispose();
+        }
+
+        /// <summary>
+        /// Cancels admissions and drains executing and parked requests before server state is torn down.
+        /// </summary>
+        protected ValueTask StopRequestQueueAsync(CancellationToken cancellationToken = default)
+        {
+            return m_requestQueue?.StopAsync(cancellationToken) ?? default;
         }
 
         /// <summary>
@@ -890,12 +919,15 @@ namespace Opc.Ua
             using CertificateEntryCollection entries = certificates.SnapshotApplicationCertificates();
             foreach (CertificateEntry entry in entries)
             {
-                if (constraints.Any(policy => !policy.SupportedCertificateTypes.Contains(entry.CertificateType)))
+                if (!CertificateIdentifier.IsRsaCertificateType(entry.CertificateType))
                 {
                     continue;
                 }
                 using RSA? key = entry.Certificate.GetRSAPublicKey();
-                if (key != null)
+                if (key != null &&
+                    constraints.All(policy =>
+                        key.KeySize >= policy.MinAsymmetricKeyLength &&
+                        (policy.MaxAsymmetricKeyLength <= 0 || key.KeySize <= policy.MaxAsymmetricKeyLength)))
                 {
                     return entry.AddRef();
                 }
@@ -983,6 +1015,12 @@ namespace Opc.Ua
         /// Set before startup. Managed servers supply their session manager by default.
         /// </summary>
         public ISessionBindingProvider? SessionBindingProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the shared resource-isolation policy used by listeners and decoded request dispatch.
+        /// Configure before startup; the host owns explicitly supplied providers.
+        /// </summary>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider { get; set; }
 
         /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
@@ -1138,7 +1176,8 @@ namespace Opc.Ua
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0,
                     ChunkReassemblyBudget = chunkReassemblyBudget,
-                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider
+                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider,
+                    ResourceIsolationProvider = ResourceIsolationProvider
                 };
 
                 settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;
@@ -2122,73 +2161,74 @@ namespace Opc.Ua
             Message = "Unexpected error disposing transport listener {Name}.")]
         public static partial void ServerBaseLogMessage0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 1, Level = LogLevel.Information,
             Message = "Create Reverse Connection to Client at {Url}.")]
-        public static partial void ServerBaseLogMessage1(this ILogger logger, global::System.Uri url);
+        public static partial void ServerBaseLogMessage1(this ILogger logger, Uri url);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 2, Level = LogLevel.Error,
             Message = "Unexpected error closing a listener {Name}.")]
         public static partial void ServerBaseLogMessage2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 3, Level = LogLevel.Error,
             Message = "Unexpected error disposing a listener {Name}.")]
         public static partial void ServerBaseLogMessage3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 4, Level = LogLevel.Error,
             Message = "Failed to update Instance Certificates: {ApplicationCertificateCount}")]
         public static partial void ServerBaseLogMessage4(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             int applicationCertificateCount);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 5, Level = LogLevel.Error,
             Message = "Could not load {Scheme} Stack Listener.")]
         public static partial void ServerBaseLogMessage5(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? scheme);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 6, Level = LogLevel.Warning,
             Message = "Unable to get host addresses for hostname {Name}.")]
         public static partial void ServerBaseLogMessage6(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 7, Level = LogLevel.Error,
             Message = "Unable to get host addresses for DNS hostname {Name}.")]
         public static partial void ServerBaseLogMessage7(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 8, Level = LogLevel.Error,
             Message = "Unable to check aliases for hostname {Name}.")]
         public static partial void ServerBaseLogMessage8(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 9, Level = LogLevel.Debug,
             Message = "Too many operations. Active threads: {Count}")]
-        public static partial void ServerBaseLogMessage9(this ILogger logger, int count);
+        public static partial void RequestQueueFull(this ILogger logger, int count);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 10, Level = LogLevel.Error,
             Message = "Unexpected error processing incoming request.")]
-        public static partial void ServerBaseLogMessage10(this ILogger logger, global::System.Exception? exception);
+        public static partial void RequestQueueProcessingFailed(
+            this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 11, Level = LogLevel.Error,
             Message = "Failed to fault an incoming request after an error.")]
-        public static partial void ServerBaseLogMessage11(this ILogger logger, global::System.Exception? exception);
+        public static partial void RequestFaultDeliveryFailed(
+            this ILogger logger, Exception? exception);
     }
-
 }

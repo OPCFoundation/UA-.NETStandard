@@ -580,6 +580,27 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        [Test]
+        public void AdmissionDoesNotReclaimActiveHandshakePartialMessageOrServiceRequest()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.StartOpeningForTest(1);
+            Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+            channel.OpenForTest();
+            using (IDisposable request = channel.TrackPendingRequest())
+            {
+                Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+            }
+            byte[] part = channel.TakeBufferForTest(32);
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(part));
+            Assert.That(channel.TryIdleCleanupForAdmission(), Is.False);
+            channel.ReleaseSavedPartsForTest(1);
+            Assert.That(channel.TryIdleCleanupForAdmission(), Is.True);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task FirstChunkExceedingTheRequestChunkLimitReleasesThePartialMessageAsync(bool isFinal)
@@ -1065,6 +1086,69 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// The shape of CTT GDS Application Directory 005.js: a Call request whose
+        /// String input argument is MaxStringLength + 10 %, sent in two chunks.
+        /// The Bad_EncodingLimitsExceeded ServiceFault (OPC 10000-4 §5.3) echoes
+        /// the RequestHandle (OPC 10000-4 §7.34), read from the first chunk.
+        /// </summary>
+        [Test]
+        public async Task OversizedCallArgumentInChunkedRequestFaultEchoesRequestHandleAsync()
+        {
+            const int maxStringLength = 1000;
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, maxStringLength: maxStringLength);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            var request = new CallRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AuthenticationToken = new NodeId(Guid.NewGuid()),
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 18
+                },
+                MethodsToCall =
+                [
+                    new CallMethodRequest
+                    {
+                        ObjectId = new NodeId(141u, 2),
+                        MethodId = new NodeId(143u, 2),
+                        InputArguments = [new Variant(new string('u', maxStringLength + (maxStringLength / 10)))]
+                    }
+                ]
+            };
+            var encodeContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            encodeContext.MaxStringLength = 0;
+            byte[] body = BinaryEncoder.EncodeMessage(request, encodeContext);
+            int split = body.Length / 2;
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal: false,
+                    sequenceNumber: 1,
+                    requestId: 7,
+                    body: body.AsSpan(0, split).ToArray()))
+                .ConfigureAwait(false);
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal: true,
+                    sequenceNumber: 2,
+                    requestId: 7,
+                    body: body.AsSpan(split).ToArray()))
+                .ConfigureAwait(false);
+
+            ServiceFault fault = await ReadSentServiceFaultAsync(transport, expectedRequestId: 7)
+                .ConfigureAwait(false);
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(18u));
+        }
+
+        /// <summary>
         /// A discovery-only channel rejects a non-discovery request from its
         /// encoding id before decoding it; the ServiceFault still echoes the
         /// RequestHandle, for a single-chunk request as well as for the first
@@ -1546,6 +1630,152 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RenewalUsesBoundedHandshakeCapacityAndReleasesItAsync(bool reject)
+        {
+            var pool = new TrackingArrayPool();
+            var policy = new RecordingIsolation { Refuse = reject, ExpectedStage = ResourceIsolationStage.Handshake };
+            using TestServerChannel channel = CreateOpenChannel(pool, isolation: policy);
+
+            await channel.FeedReceivedChunkAsync(channel.CreateTruncatedOpenChunkForTest(0)).ConfigureAwait(false);
+
+            Assert.That(policy.AcquireCalls, Is.EqualTo(1));
+            Assert.That(policy.OutstandingBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            if (reject)
+            {
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(pool.RentCount, Is.EqualTo(1), "Rejected renewal must not allocate a decrypted body.");
+            }
+        }
+
+        [Test]
+        public void CustomProviderWithoutReassemblyCapabilityPreservesSessionlessBudgetThreshold()
+        {
+            var pool = new TrackingArrayPool();
+            var policy = new RecordingIsolation();
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rental = probe.GetRentedLengthForTest(32);
+            var budget = new ChunkReassemblyBudget(4L * rental, rental);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, isolation: policy);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(policy.OutstandingBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CustomReassemblyCapabilityReplacesThresholdIndependentlyOfRequestOrdering(bool fairScheduling)
+        {
+            var pool = new TrackingArrayPool();
+            var recording = new RecordingIsolation { UseFairScheduling = fairScheduling };
+            var policy = new ReassemblyIsolation(recording);
+            using TestServerChannel probe = CreateOpenChannel(pool);
+            int rental = probe.GetRentedLengthForTest(32);
+            var budget = new ChunkReassemblyBudget(4L * rental, rental);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, isolation: policy);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(channel.TakeBufferForTest(32)));
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(budget.ReservedBytes, Is.EqualTo(2L * rental));
+            Assert.That(recording.OutstandingBytes, Is.EqualTo(2L * rental));
+            channel.ReleaseSavedPartsForTest(1);
+            Assert.That(recording.OutstandingBytes, Is.Zero);
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [TestCase("complete")]
+        [TestCase("abort")]
+        [TestCase("close")]
+        [TestCase("quota")]
+        public async Task ReassemblyIsolationLeasesFollowMessageOwnershipAsync(string release)
+        {
+            var pool = new TrackingArrayPool();
+            var policy = new RecordingIsolation();
+            using TestServerChannel channel = CreateOpenChannel(pool, isolation: policy);
+            if (release == "quota")
+            {
+                channel.SetMaxRequestChunkCountForTest(2);
+            }
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 1, 1)).ConfigureAwait(false);
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 2, 1)).ConfigureAwait(false);
+            Assert.That(policy.Classifications, Is.EqualTo(1));
+            Assert.That(policy.OutstandingBytes, Is.EqualTo(2 * pool.LastMinimumLength));
+            if (release == "close")
+            {
+                channel.CloseForTest();
+            }
+            else if (release == "complete")
+            {
+                channel.ReleaseSavedPartsForTest(1);
+            }
+            else
+            {
+                ArraySegment<byte> chunk = channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message, release == "abort", 3, 1);
+                if (release == "abort")
+                {
+                    BitConverter.GetBytes(TcpMessageType.Message | TcpMessageType.Abort).CopyTo(chunk.Array!, 0);
+                }
+                await channel.FeedReceivedChunkAsync(chunk).ConfigureAwait(false);
+            }
+            Assert.That(policy.OutstandingBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task IsolationRejectionDiscardsPartialMessageAndFinalOnlyRequestDoesNotConsumeCapacityAsync()
+        {
+            var pool = new TrackingArrayPool();
+            var policy = new RecordingIsolation();
+            using TestServerChannel channel = CreateOpenChannel(pool, isolation: policy);
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 1, 1)).ConfigureAwait(false);
+            policy.Refuse = true;
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 2, 1)).ConfigureAwait(false);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(policy.OutstandingBytes, Is.Zero);
+            using TestServerChannel healthy = CreateOpenChannel(pool, isolation: policy);
+            int delivered = 0;
+            healthy.SetRequestReceivedCallback((_, _, _) => delivered++);
+            await healthy.FeedReceivedChunkAsync(
+                healthy.CreateRequestChunkForTest(1, 1, new ReadRequest(), intermediate: false)).ConfigureAwait(false);
+            Assert.That(delivered, Is.EqualTo(1));
+            Assert.That(policy.Classifications, Is.EqualTo(1));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        [Test]
+        public void IsolationClassificationClosureReleasesCandidateLeaseAndBuffer()
+        {
+            var pool = new TrackingArrayPool();
+            var policy = new RecordingIsolation();
+            using TestServerChannel channel = CreateOpenChannel(pool, isolation: policy);
+            policy.OnClassify = channel.CloseForTest;
+            byte[] buffer = channel.TakeBufferForTest(32);
+
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(buffer));
+
+            Assert.That(policy.OutstandingBytes, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+        }
+
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024,
@@ -1553,7 +1783,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             FakeTimeProvider clock = null,
             int? channelLifetime = null,
             ChunkReassemblyBudget budget = null,
-            ISessionBindingProvider bindingProvider = null)
+            ISessionBindingProvider bindingProvider = null,
+            IServerResourceIsolationProvider isolation = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.Create(telemetry);
@@ -1566,7 +1797,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 MaxBufferSize = maxBufferSize,
                 MaxMessageSize = 4 * 1024 * 1024,
                 ChunkReassemblyBudget = budget,
-                SessionBindingProvider = bindingProvider
+                SessionBindingProvider = bindingProvider,
+                ResourceIsolationProvider = isolation
             };
             if (channelLifetime.HasValue)
             {
@@ -2153,6 +2385,121 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             private int m_sendCount;
+        }
+
+        private sealed class RecordingIsolation : IServerResourceIsolationProvider
+        {
+            public bool UseFairScheduling { get; set; } = true;
+            public event Action<ResourceIsolationStage> CapacityAvailable
+            {
+                add { }
+                remove { }
+            }
+
+            public int Classifications { get; private set; }
+            public long OutstandingBytes { get; private set; }
+            public int AcquireCalls { get; private set; }
+            public ResourceIsolationStage ExpectedStage { get; set; } = ResourceIsolationStage.ReassemblyBytes;
+            public bool Refuse { get; set; }
+            public Action OnClassify { get; set; }
+
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ResourceIsolationOwner Classify(
+                SecureChannelContext channelContext, NodeId authenticationToken = default,
+                bool sessionEstablishment = false, bool controlRequest = false)
+            {
+                Classifications++;
+                OnClassify?.Invoke();
+                return new ResourceIsolationOwner(
+                    "test-owner", ResourceIsolationClass.Established, 1,
+                    [1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024]);
+            }
+
+            public bool IsCurrent(
+                ResourceIsolationOwner owner, SecureChannelContext channelContext,
+                NodeId authenticationToken = default, bool sessionEstablishment = false, bool controlRequest = false)
+            {
+                return true;
+            }
+
+            public bool TryAcquire(
+                ResourceIsolationStage stage, ResourceIsolationOwner owner, long amount,
+                out IDisposable lease, out ResourceIsolationFailure failure)
+            {
+                AcquireCalls++;
+                Assert.That(stage, Is.EqualTo(ExpectedStage));
+                failure = default;
+                if (Refuse)
+                {
+                    lease = null;
+                    return false;
+                }
+                OutstandingBytes += amount;
+                lease = new Reservation(this, amount);
+                return true;
+            }
+
+            private sealed class Reservation(RecordingIsolation owner, long amount) : IDisposable
+            {
+                public void Dispose()
+                {
+                    if (Interlocked.Exchange(ref m_released, 1) == 0)
+                    {
+                        owner.OutstandingBytes -= amount;
+                    }
+                }
+                private int m_released;
+            }
+        }
+
+        /// <summary>
+        /// Adds the optional reassembly capability without changing the recording provider's ordering choice.
+        /// </summary>
+        private sealed class ReassemblyIsolation(RecordingIsolation inner) :
+            IServerResourceIsolationProvider, IResourceIsolationReassemblyProvider
+        {
+            public bool UseFairScheduling => inner.UseFairScheduling;
+
+            public event Action<ResourceIsolationStage> CapacityAvailable
+            {
+                add => inner.CapacityAvailable += value;
+                remove => inner.CapacityAvailable -= value;
+            }
+
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            {
+                return inner.ClassifyConnection(remoteEndpoint);
+            }
+
+            public ResourceIsolationOwner Classify(
+                SecureChannelContext context, NodeId token = default, bool sessionEstablishment = false,
+                bool controlRequest = false)
+            {
+                return inner.Classify(context, token, sessionEstablishment, controlRequest);
+            }
+
+            public ResourceIsolationOwner ClassifyReassembly(SecureChannelContext context)
+            {
+                return inner.Classify(context);
+            }
+
+            public bool IsCurrent(
+                ResourceIsolationOwner owner, SecureChannelContext context, NodeId token = default,
+                bool sessionEstablishment = false, bool controlRequest = false)
+            {
+                return inner.IsCurrent(owner, context, token, sessionEstablishment, controlRequest);
+            }
+
+            public bool TryAcquire(
+                ResourceIsolationStage stage, ResourceIsolationOwner owner, long amount,
+                out IDisposable lease, out ResourceIsolationFailure failure)
+            {
+                return inner.TryAcquire(stage, owner, amount, out lease, out failure);
+            }
         }
 
         private sealed class TrackingArrayPool : ArrayPool<byte>

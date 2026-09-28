@@ -134,7 +134,7 @@ namespace SiteComposition
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+            await LoadPredefinedNodesAsync(SystemContext, externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
             NodeManagerBuilder builder = CreateFluentBuilder(SiteNamespaceIndex);

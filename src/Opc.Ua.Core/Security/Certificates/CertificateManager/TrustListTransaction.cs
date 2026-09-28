@@ -110,6 +110,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
+            m_addTrusted.RemoveAll(candidate =>
+                string.Equals(candidate.Thumbprint, certificate.Thumbprint, StringComparison.OrdinalIgnoreCase));
             m_addTrusted.Add(certificate);
             return Task.CompletedTask;
         }
@@ -125,7 +127,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(thumbprint));
             }
 
-            m_removeTrusted.Add(thumbprint);
+            m_addTrusted.RemoveAll(certificate =>
+                string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase));
+            m_removeTrusted.Add(thumbprint.ToUpperInvariant());
             return Task.CompletedTask;
         }
 
@@ -140,6 +144,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
+            m_addIssuer.RemoveAll(candidate =>
+                string.Equals(candidate.Thumbprint, certificate.Thumbprint, StringComparison.OrdinalIgnoreCase));
             m_addIssuer.Add(certificate);
             return Task.CompletedTask;
         }
@@ -155,7 +161,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(thumbprint));
             }
 
-            m_removeIssuer.Add(thumbprint);
+            m_addIssuer.RemoveAll(certificate =>
+                string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase));
+            m_removeIssuer.Add(thumbprint.ToUpperInvariant());
             return Task.CompletedTask;
         }
 
@@ -168,6 +176,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
+            m_addCrls.RemoveAll(candidate => candidate.RawData.AsSpan().SequenceEqual(crl.RawData));
             m_addCrls.Add(crl);
             return Task.CompletedTask;
         }
@@ -181,6 +190,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
+            m_addCrls.RemoveAll(candidate => candidate.RawData.AsSpan().SequenceEqual(crl.RawData));
             m_removeCrls.Add(crl);
             return Task.CompletedTask;
         }
@@ -192,6 +202,13 @@ namespace Opc.Ua
 
             bool trustChanged = false;
             bool crlChanged = false;
+
+            using ICertificateStore? issuerStore = m_manager.OpenIssuerStore(TrustList);
+            if (issuerStore == null && (m_removeIssuer.Count > 0 || m_addIssuer.Count > 0))
+            {
+                throw ServiceResultException.ConfigurationError(
+                    "The trust list has no issuer store for the staged issuer changes.");
+            }
 
             try
             {
@@ -226,12 +243,6 @@ namespace Opc.Ua
                     }
                 }
 
-                using ICertificateStore? issuerStore = m_manager.OpenIssuerStore(TrustList);
-                if (issuerStore == null && (m_removeIssuer.Count > 0 || m_addIssuer.Count > 0))
-                {
-                    throw ServiceResultException.ConfigurationError(
-                        "The trust list has no issuer store for the staged issuer changes.");
-                }
                 if (issuerStore != null)
                 {
                     foreach (string thumbprint in m_removeIssuer)

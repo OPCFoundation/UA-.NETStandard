@@ -139,11 +139,15 @@ when read, without invoking application callbacks. The expiry timer raises
 failures are logged without interrupting other subscribers or lease operations.
 Lease validity starts at the write attempt, not at receipt of
 its reply; an expired or superseded operation cannot restore leadership. A
-fresh, confirmed acquisition is required after expiry. The UTC lease record is
-also bounded by local elapsed time, so moving the local clock backwards cannot
-extend authority. Replicas still require unique identities, suitably synchronized
-clocks and a linearizable compare-and-swap store; this local safety mechanism
-does not replace backend fencing or provide consensus.
+fresh, confirmed acquisition is required after expiry. Overlapping successful
+calls can confirm the same owned lease without waiting for one another.
+A failed store observation started before a newer successful confirmation cannot
+revoke or reschedule that confirmed lease; a fresh ownership-loss observation
+still revokes authority. Expiry and disposal invalidate all outstanding attempts.
+The UTC lease record is also bounded by local elapsed time, so moving the local
+clock backwards cannot extend authority. Replicas still require unique identities,
+suitably synchronized clocks and a linearizable compare-and-swap store; this local
+safety mechanism does not replace backend fencing or provide consensus.
 
 Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `RedundancySupport`, `ServiceLevel`, `EstimatedReturnTime`, `RedundantServerArray`, `ServerUriArray`, and `CurrentServerId` as applicable. `ServerRedundancyInfo.ServiceLevelSubrange` is calculated with `ServiceLevels.GetSubrange`.
 

@@ -67,6 +67,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public Func<bool>? OnIsCreationInProgress { get; set; }
 
         private bool m_isCreationInProgress;
+        public bool IsIntentionallyDeleted { get; set; }
         public TimeSpan CurrentPublishingInterval { get; set; }
         public byte CurrentPriority { get; set; }
         public uint CurrentLifetimeCount { get; set; }

@@ -32,9 +32,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
@@ -458,7 +456,8 @@ namespace Opc.Ua.Subscriptions.Tests
             for (int value = 1; value <= 6; value++)
             {
                 await FireDataChangeAsync(manager, new DataValueChange(
-                    collection.Added[value % 2], new DataValue(Variant.From(value)), null)).ConfigureAwait(false);
+                    collection.Added[value == 1 ? 1 : 0], new DataValue(Variant.From(value)), null))
+                    .ConfigureAwait(false);
             }
             await subscription.DisposeAsync().ConfigureAwait(false);
 
@@ -466,6 +465,8 @@ namespace Opc.Ua.Subscriptions.Tests
             while (await enumerator.MoveNextAsync().ConfigureAwait(false))
             {
                 Assert.That(enumerator.Current.Value.WrappedValue.TryGetValue(out int value), Is.True);
+                Assert.That(enumerator.Current.MonitoredItem,
+                    Is.SameAs(collection.Added[value == 1 ? 1 : 0]));
                 values.Add(value);
             }
             Assert.That(values, Is.EqualTo(expected));

@@ -178,7 +178,7 @@ namespace Opc.Ua.Sessions.Tests
                 Factory = context.Factory,
                 CertificateValidator = null,
                 ServerCertificates = null,
-                MaxChannelCount = 4
+                MaxChannelCount = 103
             };
         }
     }

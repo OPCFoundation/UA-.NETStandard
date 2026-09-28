@@ -140,7 +140,10 @@ not guarantee that an already-sent request was not processed by the server.
 Once the session and subscriptions are restored, publishing resumes through the
 same subscription-facing interface. Temporarily clearing server-side subscription
 identifiers does not replace existing workers. Pool limits and actual subscription
-removal still apply. With transfer-on-recreate enabled, an invalid old subscription
+removal still apply. Intentional deletion, including setting the V2 subscription's
+`Disabled` option, retires its worker demand even if it remains registered.
+Successful creation restores demand; recovery-only resets preserve it.
+With transfer-on-recreate enabled, an invalid old subscription
 falls back to recreation. A
 [managed-session channel deadline](Sessions.md#shared-retry-budget-with-managedsession)
 cancels recovery and hands control to the outer reconnect policy. After expiry,
@@ -767,6 +770,13 @@ When full, `DiscardOldest` chooses between evicting the oldest buffered entry
 and discarding the incoming entry. `StreamingSubscription.DroppedNotificationCount`
 reports the cumulative local drops across data-change and event streams.
 
+For a multi-node stream, this is one shared queue, not a per-node allocation.
+With `DiscardOldest` enabled, a busy node can evict a quiet node's only queued
+value. There is no local guarantee that each node's latest value remains buffered,
+and overflow increments the drop counter rather than failing the stream. Use
+separate single-node streams, consumed independently, when per-node retention is
+required. Server-side per-monitored-item queues do not change this local policy.
+
 The streaming subscription guarantees three invariants:
 
 1. **Lazy subscription creation.** No OPC UA `CreateSubscription`
@@ -787,6 +797,8 @@ and the server may retain the subscription until its configured lifetime expires
 Publish workers survive recovery for subscriptions that the V2 engine actually
 created. A never-created subscription does not inherit worker retention from a
 classic subscription or a V2 subscription that has already been removed.
+An intentionally disabled or deleted subscription likewise contributes no
+retained demand until it is created again.
 
 Cancellation propagates the natural way: pass a `CancellationToken` to
 `SubscribeXxxAsync` *or* the outer `await foreach` (via

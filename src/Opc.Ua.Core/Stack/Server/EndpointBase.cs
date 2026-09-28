@@ -40,7 +40,8 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for UA endpoints.
     /// </summary>
-    public abstract partial class EndpointBase : IEndpointBase, ITransportListenerCallback
+    public abstract partial class EndpointBase :
+        IEndpointBase, ITransportListenerCallback, IResourceIsolationProviderSource, IRequestParkingPolicySource
     {
         /// <summary>
         /// Initializes the object when it is created by the WCF framework.
@@ -93,6 +94,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider =>
+            (m_server as IResourceIsolationProviderSource)?.ResourceIsolationProvider;
+
+        /// <inheritdoc/>
+        public IRequestParkingPolicy? RequestParkingPolicy =>
+            (m_server as IRequestParkingPolicySource)?.RequestParkingPolicy;
+
+        /// <inheritdoc/>
         public ValueTask<IServiceResponse> ProcessRequestAsync(
             SecureChannelContext secureChannelContext,
             IServiceRequest request,
@@ -108,7 +117,15 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(request));
             }
 
-            var incomingRequest = new EndpointIncomingRequest(this, secureChannelContext, request);
+            EndpointIncomingRequest incomingRequest;
+            try
+            {
+                incomingRequest = new EndpointIncomingRequest(this, secureChannelContext, request);
+            }
+            catch (Exception e)
+            {
+                return new ValueTask<IServiceResponse>(CreateFault(request, e));
+            }
             return incomingRequest.ProcessAsync(cancellationToken);
         }
 

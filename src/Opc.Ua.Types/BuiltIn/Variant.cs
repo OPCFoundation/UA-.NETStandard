@@ -8118,6 +8118,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns true if the variant holds an array or matrix without
+        /// elements. A null array counts as empty because OPC 10000-6
+        /// 5.1.11 treats null, empty and zero-length arrays as semantically
+        /// the same.
+        /// </summary>
+        public bool IsEmptyArray
+            => !IsNull &&
+                !TypeInfo.IsScalar &&
+                m_value is null or IElementContainer { IsEmpty: true };
+
+        /// <summary>
         /// Returns a variant with a default value of the provided type info.
         /// </summary>
         /// <returns></returns>

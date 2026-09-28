@@ -189,7 +189,9 @@ namespace Opc.Ua.Bindings
             m_quotas = new ChannelQuotas(messageContext)
             {
                 SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
-                SessionBindingProvider = settings.SessionBindingProvider
+                SessionBindingProvider = settings.SessionBindingProvider,
+                ResourceIsolationProvider = settings.ResourceIsolationProvider,
+                HandshakeTimeout = settings.HandshakeTimeout
             };
             if (configuration != null)
             {
@@ -217,7 +219,12 @@ namespace Opc.Ua.Bindings
             m_channels = new ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>();
             m_callback = callback;
             m_reverseConnectListener = settings.ReverseConnectListener;
-            m_admission = new UaScConnectionAdmission(settings.MaxChannelCount, settings.ConnectionRateLimiter);
+            m_admission = new UaScConnectionAdmission(
+                settings.MaxChannelCount,
+                settings.ConnectionRateLimiter,
+                settings.ResourceIsolationProvider,
+                m_quotas.HandshakeTimeout,
+                telemetry: Telemetry);
 
             m_host = BuildHost(baseAddress);
             await m_host.StartAsync(ct).ConfigureAwait(false);
@@ -616,7 +623,14 @@ namespace Opc.Ua.Bindings
                             transport);
                         await handler(this, args).ConfigureAwait(false);
                         accepted = args.Accepted;
-                        if (!accepted)
+                        if (accepted)
+                        {
+                            if (transport is IUaSCHandshakeCompletionSource completion)
+                            {
+                                completion.CompleteHandshake();
+                            }
+                        }
+                        else
                         {
                             // Caller rejected the handoff: re-attach the
                             // transport so the existing channel can keep

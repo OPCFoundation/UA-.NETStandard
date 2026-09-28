@@ -422,8 +422,9 @@ namespace Opc.Ua.Configuration
                 .CertificatePasswordProvider;
 
             Certificate? certificate = await CertificateIdentifierResolver
-                .LoadPrivateKeyAsync(
+                .LoadPrivateKeyWithStoreResolverAsync(
                     id,
+                    configuration.CertificateManager as ICertificateStoreResolver,
                     passwordProvider,
                     configuration.ApplicationUri,
                     m_telemetry,
@@ -460,7 +461,7 @@ namespace Opc.Ua.Configuration
                     certificate = await CertificateIdentifierResolver
                         .ResolveAsync(
                             id,
-                            registry: null,
+                            registry: configuration.CertificateManager,
                             needPrivateKey: false,
                             configuration.ApplicationUri,
                             m_telemetry,
@@ -486,8 +487,9 @@ namespace Opc.Ua.Configuration
                                 SubjectName = id.SubjectName
                             };
                             certificate = await CertificateIdentifierResolver
-                                .LoadPrivateKeyAsync(
+                                .LoadPrivateKeyWithStoreResolverAsync(
                                     id2,
+                                    configuration.CertificateManager as ICertificateStoreResolver,
                                     passwordProvider,
                                     configuration.ApplicationUri,
                                     m_telemetry,
@@ -986,13 +988,12 @@ namespace Opc.Ua.Configuration
             ICertificatePasswordProvider? passwordProvider = configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
-            await newCertificate.AddToStoreAsync(
-                    id.StoreType!,
-                    id.StorePath!,
-                    passwordProvider?.GetPassword(id),
-                    m_telemetry,
-                    ct)
-                .ConfigureAwait(false);
+            using (ICertificateStore store = CertificateIdentifierResolver.OpenStore(id, m_telemetry,
+                configuration.CertificateManager as ICertificateStoreResolver) ??
+                throw ServiceResultException.ConfigurationError("Application certificate store is not configured."))
+            {
+                await store.AddAsync(newCertificate, passwordProvider?.GetPassword(id), ct).ConfigureAwait(false);
+            }
 
             // ensure the certificate is trusted.
             if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
@@ -1005,8 +1006,9 @@ namespace Opc.Ua.Configuration
             // private-key handle (the in-memory cert from CreateForXxx is a
             // builder-produced ephemeral instance).
             Certificate? reloaded = await CertificateIdentifierResolver
-                .LoadPrivateKeyAsync(
+                .LoadPrivateKeyWithStoreResolverAsync(
                     id,
+                    configuration.CertificateManager as ICertificateStoreResolver,
                     passwordProvider,
                     configuration.ApplicationUri,
                     m_telemetry,
@@ -1058,7 +1060,7 @@ namespace Opc.Ua.Configuration
             Certificate? certificate = await CertificateIdentifierResolver
                 .ResolveAsync(
                     id,
-                    registry: null,
+                    registry: configuration.CertificateManager,
                     needPrivateKey: false,
                     configuration.ApplicationUri,
                     m_telemetry,
@@ -1072,7 +1074,8 @@ namespace Opc.Ua.Configuration
 
             // delete trusted peer certificate.
             if (configuration.SecurityConfiguration != null &&
-                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
+                configuration.SecurityConfiguration.TrustedPeerCertificates != null &&
+                !string.IsNullOrEmpty(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath))
             {
                 string? thumbprint = id.Thumbprint;
 
@@ -1083,9 +1086,11 @@ namespace Opc.Ua.Configuration
 
                 if (!string.IsNullOrEmpty(thumbprint))
                 {
-                    using ICertificateStore store = configuration.SecurityConfiguration
-                        .TrustedPeerCertificates
-                        .OpenStore(m_telemetry!);
+                    using ICertificateStore store = configuration.CertificateManager is ICertificateStoreResolver resolver
+                        ? resolver.OpenCertificateStore(
+                            configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath!,
+                            configuration.SecurityConfiguration.TrustedPeerCertificates.StoreType)
+                        : configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry!);
                     if (store != null)
                     {
                         bool deleted = await store.DeleteAsync(thumbprint!, ct)
@@ -1102,7 +1107,7 @@ namespace Opc.Ua.Configuration
             if (certificate != null)
             {
                 using ICertificateStore? store = CertificateIdentifierResolver
-                    .OpenStore(id, m_telemetry);
+                    .OpenStore(id, m_telemetry, configuration.CertificateManager as ICertificateStoreResolver);
                 if (store != null)
                 {
                     bool deleted = await store.DeleteAsync(certificate.Thumbprint, ct)
@@ -1144,9 +1149,11 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                using ICertificateStore? store = configuration.SecurityConfiguration
-                    .TrustedPeerCertificates
-                    .OpenStore(m_telemetry!);
+                using ICertificateStore? store = configuration.CertificateManager is ICertificateStoreResolver resolver
+                    ? resolver.OpenCertificateStore(
+                        configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath!,
+                        configuration.SecurityConfiguration.TrustedPeerCertificates.StoreType)
+                    : configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry!);
 
                 if (store == null)
                 {

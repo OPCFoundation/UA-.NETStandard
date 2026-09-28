@@ -44,6 +44,11 @@ namespace Opc.Ua
     internal static class ServerEventIds
     {
         /// <summary>
+        /// Event identifier offset for runtime resource isolation.
+        /// </summary>
+        public const int ResourceIsolation = 700;
+
+        /// <summary>
         /// Event identifier offset for aggregate calculation messages.
         /// </summary>
         public const int AggregateCalculator = 0;
@@ -302,6 +307,16 @@ namespace Opc.Ua
         /// Event identifier offset for isolated event-delivery failures.
         /// </summary>
         public const int EventManager = 670;
+
+        /// <summary>
+        /// Event identifier offset for directory cursor cleanup.
+        /// </summary>
+        public const int DirectoryBrowser = 680;
+
+        /// <summary>
+        /// Event identifier offset for service-dispatch reference resolution.
+        /// </summary>
+        public const int NodeManagerServiceDispatcher = 690;
     }
 
     /// <summary>

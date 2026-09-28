@@ -50,24 +50,9 @@ namespace BasicFluentApiServer
         {
         }
 
-        public override async ValueTask CreateAddressSpaceAsync(
-            IDictionary<NodeId,
-            IList<IReference>> externalReferences,
-            CancellationToken cancellationToken = default)
-        {
-            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
-                .ConfigureAwait(false);
-
-            NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndex);
-
-            Configure(builder);
-
-            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
-
-            await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-        }
-
-        private void Configure(NodeManagerBuilder builder)
+        protected override ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
+            CancellationToken cancellationToken)
         {
             FolderState devices = builder.AddFolder("Devices").Node;
 
@@ -120,6 +105,8 @@ namespace BasicFluentApiServer
                     .WithValueRank(ValueRanks.Scalar)
                     .WithDescription("The product of the two integers.")
                 );
+
+            return default;
         }
 
         private ServiceResult OnAdd(

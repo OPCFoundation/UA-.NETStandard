@@ -3342,7 +3342,8 @@ namespace Opc.Ua.Client
                 connection,
                 channel,
                 budget: null,
-                ct);
+                ct,
+                bindSuppliedChannel: channel != null);
         }
 
         /// <summary>
@@ -3444,23 +3445,25 @@ namespace Opc.Ua.Client
             bool recreateSubscriptions = true,
             bool requireTokenReuse = false,
             SessionClient? recoveryClient = null,
-            bool networkRecovery = false)
+            bool networkRecovery = false,
+            bool bindSuppliedChannel = false)
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
 
             NodeId previousSessionId = SessionId;
-            IClientChannelManager? manager = m_channelManager;
-            IManagedTransportChannel? oldManagedLease = m_managedChannel;
+            IManagedTransportChannel? oldManagedLease = ManagedChannel;
+            IClientChannelManager? manager = oldManagedLease?.Manager ?? ChannelManager;
             IManagedTransportChannel? newManagedLease = null;
             bool managedLeaseActivated = false;
             ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
             bool resetReconnect = false;
             bool publishingPaused = false;
+            bool reused = false;
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (Reconnecting)
+                if (Reconnecting || (bindSuppliedChannel && ChannelRecoveryInProgress))
                 {
                     m_reconnectLock.Release();
                     throw ServiceResultException.Create(
@@ -3556,6 +3559,10 @@ namespace Opc.Ua.Client
                 if (channel != null)
                 {
                     TransportChannel = channel;
+                    if (bindSuppliedChannel)
+                    {
+                        BindReconnectedChannel(channel);
+                    }
                 }
                 else if (manager != null)
                 {
@@ -3621,7 +3628,6 @@ namespace Opc.Ua.Client
                 // existing session on the failover server by reusing the current
                 // AuthenticationToken instead of CreateSession. Any failure
                 // falls through to the full re-authentication below.
-                bool reused = false;
                 if ((EnableTokenReuseFailover || requireTokenReuse || networkRecovery) &&
                     !SessionId.IsNull &&
                     (!m_serverNonce.IsNull || m_endpoint.Description.SecurityMode == MessageSecurityMode.None))
@@ -3808,6 +3814,18 @@ namespace Opc.Ua.Client
                         m_reconnectLock.Release();
                     }
                 }
+            }
+
+            if (reused)
+            {
+                ct.ThrowIfCancellationRequested();
+                await StartKeepAliveTimerAsync().ConfigureAwait(false);
+#if OPCUA_V1_CLIENT
+                if (m_engine is ClassicSubscriptionEngine)
+                {
+                    StartPublishing(OperationTimeout, true);
+                }
+#endif
             }
         }
 
@@ -4079,7 +4097,8 @@ namespace Opc.Ua.Client
                 connection,
                 channel,
                 budget: null,
-                ct);
+                ct,
+                bindSuppliedChannel: channel != null);
         }
 
         /// <summary>
@@ -4116,7 +4135,8 @@ namespace Opc.Ua.Client
             ITransportChannel? channel,
             IRetryBudget? budget,
             CancellationToken ct,
-            SessionClient? recoveryClient = null)
+            SessionClient? recoveryClient = null,
+            bool bindSuppliedChannel = false)
         {
             ThrowIfDisposed();
 
@@ -4127,8 +4147,8 @@ namespace Opc.Ua.Client
             // sharing it are notified in parallel via OnReconnectAsync.
             // A fresh reverse connection must reach the manager before this
             // session takes admission, because the manager calls the session back.
-            IClientChannelManager? mgr = m_channelManager;
-            IManagedTransportChannel? managed = m_managedChannel;
+            IManagedTransportChannel? managed = ManagedChannel;
+            IClientChannelManager? mgr = managed?.Manager ?? ChannelManager;
             if (channel == null &&
                 mgr != null &&
                 managed != null)
@@ -4145,7 +4165,8 @@ namespace Opc.Ua.Client
                     channel,
                     budget,
                     ct,
-                    recoveryClient: recoveryClient).ConfigureAwait(false);
+                    recoveryClient: recoveryClient,
+                    bindSuppliedChannel: bindSuppliedChannel).ConfigureAwait(false);
                 return;
             }
 
@@ -4165,7 +4186,7 @@ namespace Opc.Ua.Client
             try
             {
                 bool reconnecting = Reconnecting;
-                if (reconnecting)
+                if (reconnecting || (bindSuppliedChannel && ChannelRecoveryInProgress))
                 {
                     m_reconnectLock.Release();
                     m_logger.SessionAlreadyAttemptingReconnect();
@@ -4277,6 +4298,10 @@ namespace Opc.Ua.Client
                 else if (channel != null)
                 {
                     TransportChannel = channel;
+                    if (bindSuppliedChannel)
+                    {
+                        BindReconnectedChannel(channel);
+                    }
                 }
                 else
                 {
@@ -5222,7 +5247,7 @@ namespace Opc.Ua.Client
                     {
                         m_logger.KeepAliveReadFailedServiceResultEndpointUrl(
                             error,
-                            Endpoint?.EndpointUrl,
+                            m_endpoint.Description?.EndpointUrl,
                             GoodPublishRequestCount,
                             OutstandingRequestCount,
                             SessionId);
@@ -5329,9 +5354,11 @@ namespace Opc.Ua.Client
                 //keep alive read timed out
                 TimeSpan elapsed = m_timeProvider.GetElapsedTime(
                     Interlocked.Read(ref m_lastKeepAliveTimestamp));
+                // Log the configured endpoint: ClientBase.Endpoint dereferences the
+                // transport channel, which is null once the channel was detached.
                 m_logger.KEEPALIVELATEDurationMsEndpointUrl(
                     elapsed.TotalMilliseconds,
-                    Endpoint?.EndpointUrl,
+                    m_endpoint.Description?.EndpointUrl,
                     GoodPublishRequestCount,
                     OutstandingRequestCount,
                     SessionId);

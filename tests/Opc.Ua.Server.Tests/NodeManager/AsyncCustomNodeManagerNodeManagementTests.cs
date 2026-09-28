@@ -531,13 +531,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ParentNodeId = parentId,
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 BrowseName = new QualifiedName("SameName", ns),
-                NodeClass = NodeClass.Object
+                NodeClass = NodeClass.Object,
+                TypeDefinition = ObjectTypeIds.BaseObjectType
             };
 
             (ServiceResult firstResult, NodeId firstId) = await h.Manager
                 .AddNodeAsync(h.OperationContext, first).ConfigureAwait(false);
-            Assume.That(ServiceResult.IsGood(firstResult), Is.True);
-            Assume.That(firstId.IsNull, Is.False);
+            Assert.That(ServiceResult.IsGood(firstResult), Is.True, $"expected Good result; got {firstResult}");
+            Assert.That(firstId.IsNull, Is.False);
 
             // Second child under same parent with same browse name fails.
             var second = new AddNodesItem
@@ -545,7 +546,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ParentNodeId = parentId,
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
                 BrowseName = new QualifiedName("SameName", ns),
-                NodeClass = NodeClass.Object
+                NodeClass = NodeClass.Object,
+                TypeDefinition = ObjectTypeIds.BaseObjectType
             };
 
             (ServiceResult secondResult, NodeId secondId) = await h.Manager

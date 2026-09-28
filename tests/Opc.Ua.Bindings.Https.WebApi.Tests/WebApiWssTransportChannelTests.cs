@@ -31,7 +31,11 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.WebSockets;
+using System.Reflection;
+using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -42,6 +46,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Client.WebApi;
 
@@ -207,15 +212,15 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             // path is covered by the integration tests against the
             // reference server.
             const string token = "abc.def.ghi";
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThatAsync(async () =>
             {
                 using WebApiWssTransportChannel channel = await OpenChannelAsync(
                     new WebApiClientOptions { BearerToken = token })
                     .ConfigureAwait(false);
-            })!;
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed),
+            }, Throws.TypeOf<ServiceResultException>()
+                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadSecurityChecksFailed),
                 "Bearer-prefix sub-protocol over plain ws:// must be rejected with " +
-                "BadSecurityChecksFailed.");
+                "BadSecurityChecksFailed.").ConfigureAwait(false);
         }
 
         [Test]
@@ -778,6 +783,390 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AttributableDecodeFailurePreservesParkedAndSubsequentRequestsAsync(bool unknownType)
+        {
+            var releaseParked = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseServer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_socketScript = async (socket, ct) =>
+            {
+                IServiceRequest parked = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                IServiceRequest rejected = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                byte[] bytes = EncodeInvalidReadResponse(rejected.RequestHeader.RequestHandle, unknownType);
+                await SendResponseBytesAsync(socket, bytes, ct).ConfigureAwait(false);
+                IServiceRequest probe = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                await SendResponseAsync(socket, new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = probe.RequestHeader.RequestHandle },
+                    Results = [new DataValue(new Variant(303))]
+                }, ct).ConfigureAwait(false);
+                await releaseParked.Task.WaitAsync(ct).ConfigureAwait(false);
+                await SendResponseAsync(socket, new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = parked.RequestHeader.RequestHandle },
+                    Results = [new DataValue(new Variant(101))]
+                }, ct).ConfigureAwait(false);
+                await releaseServer.Task.WaitAsync(ct).ConfigureAwait(false);
+            };
+            var configuration = EndpointConfiguration.Create();
+            configuration.MaxArrayLength = 1;
+            using WebApiWssTransportChannel channel = await OpenChannelAsync(configuration: configuration)
+                .ConfigureAwait(false);
+            Task<IServiceResponse> parkedRequest = channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } }).AsTask();
+            Task<IServiceResponse> rejectedRequest = channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 202 } }).AsTask();
+            try
+            {
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await rejectedRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                Assert.That(failure.StatusCode, Is.EqualTo(unknownType
+                    ? StatusCodes.BadDecodingError
+                    : StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(parkedRequest.IsCompleted, Is.False,
+                    "An attributable response-decoding failure must not terminate the parked request.");
+
+                IServiceResponse probe = await channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 303 } })
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                AssertReadResponse(probe, 303, 303);
+                Assert.That(parkedRequest.IsCompleted, Is.False);
+
+                releaseParked.TrySetResult(true);
+                IServiceResponse parked = await parkedRequest.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                AssertReadResponse(parked, 101, 101);
+            }
+            finally
+            {
+                releaseParked.TrySetResult(true);
+                releaseServer.TrySetResult(true);
+                await channel.CloseAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                await ObserveTerminatedRequestAsync(parkedRequest).ConfigureAwait(false);
+                await ObserveTerminatedRequestAsync(rejectedRequest).ConfigureAwait(false);
+            }
+        }
+
+        [TestCase("framing")]
+        [TestCase("missing-handle")]
+        [TestCase("never-issued-handle")]
+        public async Task UnattributableMalformedResponseClosesAllPendingRequestsAsync(string malformed)
+        {
+            var releaseServer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_socketScript = async (socket, ct) =>
+            {
+                _ = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                IServiceRequest lastRequest = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                byte[] bytes;
+                if (malformed == "framing")
+                {
+                    bytes = "{\"UaTypeId\":\"i=632\",\"UaBody\":"u8.ToArray();
+                }
+                else
+                {
+                    bytes = EncodeInvalidReadResponse(lastRequest.RequestHeader.RequestHandle + 1, true);
+                    if (malformed == "missing-handle")
+                    {
+                        JsonObject envelope = JsonNode.Parse(bytes)!.AsObject();
+                        envelope["UaBody"]!["ResponseHeader"]!.AsObject().Remove("RequestHandle");
+                        bytes = Encoding.UTF8.GetBytes(envelope.ToJsonString());
+                    }
+                }
+                await SendResponseBytesAsync(socket, bytes, ct).ConfigureAwait(false);
+                await releaseServer.Task.WaitAsync(ct).ConfigureAwait(false);
+            };
+            using WebApiWssTransportChannel channel = await OpenChannelAsync().ConfigureAwait(false);
+            Task<IServiceResponse> first = channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } }).AsTask();
+            Task<IServiceResponse> second = channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 202 } }).AsTask();
+            try
+            {
+                foreach (Task<IServiceResponse> pending in new[] { first, second })
+                {
+                    ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                }
+                ServiceResultException subsequent = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await channel.SendRequestAsync(
+                        new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 303 } })
+                        .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                Assert.That(subsequent.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
+            }
+            finally
+            {
+                releaseServer.TrySetResult(true);
+                await channel.CloseAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                await ObserveTerminatedRequestAsync(first).ConfigureAwait(false);
+                await ObserveTerminatedRequestAsync(second).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task CallerCancellationBeforeSendLockPreservesConnectionAsync()
+        {
+            int receivedRequestCount = 0;
+            m_responder = request =>
+            {
+                Interlocked.Increment(ref receivedRequestCount);
+                return DefaultResponder(request);
+            };
+            using WebApiWssTransportChannel channel = await OpenChannelAsync().ConfigureAwait(false);
+            object connection = GetConnection(channel);
+            SemaphoreSlim sendLock = GetSendLock(connection);
+            using var cancellation = new CancellationTokenSource();
+            await sendLock.WaitAsync().ConfigureAwait(false);
+            Task<IServiceResponse> cancelled = channel.SendRequestAsync(new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 101 },
+                MaxAge = 111
+            }, cancellation.Token).AsTask();
+            try
+            {
+                Assert.That(cancelled.IsCompleted, Is.False);
+                cancellation.Cancel();
+                await Assert.ThatAsync(
+                    () => cancelled.WaitAsync(TimeSpan.FromSeconds(5)),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                Assert.That(m_lastRequest, Is.Null);
+            }
+            finally
+            {
+                cancellation.Cancel();
+                sendLock.Release();
+                await ObserveTerminatedRequestAsync(cancelled).ConfigureAwait(false);
+            }
+
+            IServiceResponse probe = await channel.SendRequestAsync(new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 202 },
+                MaxAge = 222
+            }).AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(probe, Is.TypeOf<ReadResponse>());
+            Assert.That(probe.ResponseHeader.RequestHandle, Is.EqualTo(202));
+            Assert.That(probe.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(m_lastRequest, Is.TypeOf<ReadRequest>());
+            Assert.That(((ReadRequest)m_lastRequest!).MaxAge, Is.EqualTo(222));
+            Assert.That(Volatile.Read(ref receivedRequestCount), Is.EqualTo(1),
+                "Releasing the send lock must not transmit the already-cancelled request before the healthy probe.");
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ShutdownCancelsAndDrainsAnOwnedStartedSendAsync(bool dispose)
+        {
+            var parkedReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseServer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_socketScript = async (socket, ct) =>
+            {
+                _ = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                parkedReceived.TrySetResult(true);
+                await releaseServer.Task.WaitAsync(ct).ConfigureAwait(false);
+            };
+            using var handler = new SendGateHandler();
+            using var invoker = new HttpMessageInvoker(handler);
+            using var socket = new ClientWebSocket();
+            socket.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolOpenApi);
+            await socket.ConnectAsync(m_baseUri, invoker, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            SendGateStream gate = await handler.StreamCreated.WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            using WebApiWssTransportChannel channel = CreateConnectedChannel(socket, TimeProvider.System);
+            object connection = GetConnection(channel);
+            Type connectionType = connection.GetType();
+            var receiver = (Task)connectionType.GetProperty("Receiver")!.GetValue(connection)!;
+            var drained = (TaskCompletionSource<bool>)connectionType
+                .GetField("m_operationsDrained", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(connection)!;
+            FieldInfo operationCount = connectionType
+                .GetField("m_operationCount", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            SemaphoreSlim sendLock = GetSendLock(connection);
+            using var closeCancellation = new CancellationTokenSource();
+            Task<IServiceResponse> parked = channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } }).AsTask();
+            Task<IServiceResponse>? held = null;
+            Task shutdown = Task.CompletedTask;
+            try
+            {
+                await parkedReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                gate.HoldCancellationCleanup = true;
+                gate.Arm();
+                held = channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 202 } }).AsTask();
+                CancellationToken sendToken = await gate.Started.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                Assert.That(sendLock.CurrentCount, Is.Zero);
+                if (dispose)
+                {
+                    shutdown = Task.Run(channel.Dispose);
+                    await shutdown.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                else
+                {
+                    shutdown = channel.CloseAsync(closeCancellation.Token).AsTask();
+                    closeCancellation.Cancel();
+                }
+                await gate.CancellationObserved.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(sendToken.IsCancellationRequested, Is.True);
+                Assert.That(gate.Completed.IsCompleted, Is.False);
+                Assert.That(operationCount.GetValue(connection), Is.EqualTo(1));
+                Assert.That(drained.Task.IsCompleted, Is.False);
+                Assert.That(receiver.IsCompleted, Is.False);
+                if (!dispose)
+                {
+                    Assert.That(shutdown.IsCompleted, Is.False);
+                }
+                foreach (Task<IServiceResponse> pending in new[] { parked, held })
+                {
+                    ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
+                }
+
+                gate.ReleaseCancellationCleanup();
+                await gate.Completed.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await receiver.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await shutdown.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(drained.Task.IsCompletedSuccessfully, Is.True);
+                Assert.That(operationCount.GetValue(connection), Is.Zero);
+                Assert.ThrowsAsync<ObjectDisposedException>(sendLock.WaitAsync);
+            }
+            finally
+            {
+                gate.Release();
+                gate.ReleaseCancellationCleanup();
+                releaseServer.TrySetResult(true);
+                channel.Dispose();
+                await shutdown.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await receiver.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await ObserveTerminatedRequestAsync(parked).ConfigureAwait(false);
+                if (held != null)
+                {
+                    await ObserveTerminatedRequestAsync(held).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task StartedSendSurvivesCallerCancellationAndRetiredDecodeFailureAsync(
+            bool timeout,
+            bool unknownType)
+        {
+            var parkedReceived = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseParked = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseServer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_socketScript = async (socket, ct) =>
+            {
+                IServiceRequest parked = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                parkedReceived.TrySetResult(true);
+                IServiceRequest retired = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                await SendResponseBytesAsync(socket,
+                    EncodeInvalidReadResponse(retired.RequestHeader.RequestHandle, unknownType), ct)
+                    .ConfigureAwait(false);
+                IServiceRequest probe = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                await SendResponseAsync(socket, new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = probe.RequestHeader.RequestHandle },
+                    Results = [new DataValue(new Variant(303))]
+                }, ct).ConfigureAwait(false);
+                await releaseParked.Task.WaitAsync(ct).ConfigureAwait(false);
+                await SendResponseAsync(socket, new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = parked.RequestHeader.RequestHandle },
+                    Results = [new DataValue(new Variant(101))]
+                }, ct).ConfigureAwait(false);
+                await releaseServer.Task.WaitAsync(ct).ConfigureAwait(false);
+            };
+            using var handler = new SendGateHandler();
+            using var invoker = new HttpMessageInvoker(handler);
+            using var socket = new ClientWebSocket();
+            socket.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolOpenApi);
+            await socket.ConnectAsync(m_baseUri, invoker, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            SendGateStream gate = await handler.StreamCreated.WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            var clock = new FakeTimeProvider();
+            using WebApiWssTransportChannel channel = CreateConnectedChannel(socket, clock);
+            using var cancellation = new CancellationTokenSource();
+            Task<IServiceResponse> parkedRequest = channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } }).AsTask();
+            Task<IServiceResponse>? retiredRequest = null;
+            Task<IServiceResponse>? probeRequest = null;
+            try
+            {
+                await parkedReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                gate.Arm();
+                channel.OperationTimeout = 1000;
+                retiredRequest = channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 202 } },
+                    cancellation.Token).AsTask();
+                CancellationToken sendToken = await gate.Started.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                Assert.That(GetSendLock(GetConnection(channel)).CurrentCount, Is.Zero);
+                Assert.That(sendToken.CanBeCanceled, Is.True);
+
+                if (timeout)
+                {
+                    clock.Advance(TimeSpan.FromSeconds(1) - TimeSpan.FromTicks(1));
+                    Assert.That(retiredRequest.IsCompleted, Is.False);
+                    clock.Advance(TimeSpan.FromTicks(1));
+                    ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await retiredRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
+                }
+                else
+                {
+                    cancellation.Cancel();
+                    await Assert.ThatAsync(() => retiredRequest.WaitAsync(TimeSpan.FromSeconds(5)),
+                        Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                }
+                Assert.That(sendToken.IsCancellationRequested, Is.False);
+                Assert.That(gate.Completed.IsCompleted, Is.False,
+                    "The caller must finish while the real socket write is still held after its first frame byte.");
+                Assert.That(socket.State, Is.EqualTo(WebSocketState.Open));
+                Assert.That(parkedRequest.IsCompleted, Is.False);
+                channel.OperationTimeout = 0;
+                probeRequest = channel.SendRequestAsync(
+                    new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 303 } }).AsTask();
+                Assert.That(probeRequest.IsCompleted, Is.False);
+
+                gate.Release();
+                await gate.Completed.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                IServiceResponse probe = await probeRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                AssertReadResponse(probe, 303, 303);
+                Assert.That(parkedRequest.IsCompleted, Is.False);
+                releaseParked.TrySetResult(true);
+                IServiceResponse parked = await parkedRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                AssertReadResponse(parked, 101, 101);
+            }
+            finally
+            {
+                gate.Release();
+                gate.ReleaseCancellationCleanup();
+                releaseParked.TrySetResult(true);
+                releaseServer.TrySetResult(true);
+                await channel.CloseAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                await ObserveTerminatedRequestAsync(parkedRequest).ConfigureAwait(false);
+                if (retiredRequest != null)
+                {
+                    await ObserveTerminatedRequestAsync(retiredRequest).ConfigureAwait(false);
+                }
+                if (probeRequest != null)
+                {
+                    await ObserveTerminatedRequestAsync(probeRequest).ConfigureAwait(false);
+                }
+            }
+        }
+
         [TestCase("zero")]
         [TestCase("reserved")]
         [TestCase("neverIssued")]
@@ -872,8 +1261,70 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 "Wire-handle translation must not mutate the caller request.");
         }
 
+        private static object GetConnection(WebApiWssTransportChannel channel)
+        {
+            return typeof(WebApiWssTransportChannel)
+                .GetField("m_connection", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(channel)!;
+        }
+
+        private static SemaphoreSlim GetSendLock(object connection)
+        {
+            return (SemaphoreSlim)connection.GetType()
+                .GetField("m_sendLock", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(connection)!;
+        }
+
+        private static void AssertReadResponse(IServiceResponse response, uint handle, int value)
+        {
+            Assert.That(response, Is.TypeOf<ReadResponse>());
+            var read = (ReadResponse)response;
+            Assert.That(read.ResponseHeader.RequestHandle, Is.EqualTo(handle));
+            Assert.That(read.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(read.Results, Has.Count.EqualTo(1));
+            Assert.That(read.Results[0].WrappedValue, Is.EqualTo(new Variant(value)));
+        }
+
+        private static async Task ObserveTerminatedRequestAsync(Task<IServiceResponse> request)
+        {
+            try
+            {
+                await request.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ServiceResultException exception) when (
+                exception.StatusCode == StatusCodes.BadConnectionClosed ||
+                exception.StatusCode == StatusCodes.BadDecodingError ||
+                exception.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                exception.StatusCode == StatusCodes.BadRequestTimeout)
+            {
+            }
+        }
+
+        private WebApiWssTransportChannel CreateConnectedChannel(ClientWebSocket socket, TimeProvider timeProvider)
+        {
+            var telemetry = new TelemetryStub();
+            var channel = new WebApiWssTransportChannel(telemetry, timeProvider: timeProvider);
+            var quotas = new ChannelQuotas(new ServiceMessageContext(telemetry, m_messageContext!.Factory)
+            {
+                MaxArrayLength = 1
+            });
+            Type channelType = typeof(WebApiWssTransportChannel);
+            Type connectionType = channelType.GetNestedType("Connection", BindingFlags.NonPublic)!;
+            object connection = Activator.CreateInstance(connectionType, socket, quotas, NullLogger.Instance)!;
+            channelType.GetField("m_connection", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(channel, connection);
+            channelType.GetField("m_quotas", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(channel, quotas);
+            var opened = (TaskCompletionSource<bool>)connectionType.GetProperty("Opened")!.GetValue(connection)!;
+            opened.SetResult(true);
+            connectionType.GetMethod("Start")!.Invoke(connection, null);
+            return channel;
+        }
+
         private async Task<WebApiWssTransportChannel> OpenChannelAsync(
-            WebApiClientOptions? options = null)
+            WebApiClientOptions? options = null,
+            EndpointConfiguration? configuration = null)
         {
             var channel = new WebApiWssTransportChannel(new TelemetryStub(), options);
             var settings = new TransportChannelSettings
@@ -887,7 +1338,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     // don't have to stub GetEndpoints.
                     ServerCertificate = ByteString.From(0x01, 0x02, 0x03)
                 },
-                Configuration = EndpointConfiguration.Create(),
+                Configuration = configuration ?? EndpointConfiguration.Create(),
                 Factory = m_messageContext!.Factory,
                 NamespaceUris = new NamespaceTable()
             };
@@ -975,17 +1426,41 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             return JsonDecoder.DecodeMessage<IServiceRequest>(bytes, m_messageContext!);
         }
 
-        private async Task SendResponseAsync(WebSocket socket, IServiceResponse response, CancellationToken ct)
+        private byte[] EncodeInvalidReadResponse(uint requestHandle, bool unknownType)
         {
-            byte[] responseBytes;
-            using (var stream = new MemoryStream())
+            byte[] bytes = EncodeResponse(new ReadResponse
             {
-                using (var encoder = new JsonEncoder(stream, m_messageContext!, JsonEncoderOptions.Compact))
-                {
-                    encoder.EncodeMessage(response, response.TypeId);
-                }
-                responseBytes = stream.ToArray();
+                ResponseHeader = new ResponseHeader { RequestHandle = requestHandle },
+                Results = unknownType
+                    ? [new DataValue(new Variant(202))]
+                    : [new DataValue(new Variant(202)), new DataValue(new Variant(203))]
+            });
+            if (unknownType)
+            {
+                JsonObject envelope = JsonNode.Parse(bytes)!.AsObject();
+                envelope["UaTypeId"] = "i=4294967295";
+                bytes = Encoding.UTF8.GetBytes(envelope.ToJsonString());
             }
+            return bytes;
+        }
+
+        private byte[] EncodeResponse(IServiceResponse response)
+        {
+            using var stream = new MemoryStream();
+            using (var encoder = new JsonEncoder(stream, m_messageContext!, JsonEncoderOptions.Compact))
+            {
+                encoder.EncodeMessage(response, response.TypeId);
+            }
+            return stream.ToArray();
+        }
+
+        private Task SendResponseAsync(WebSocket socket, IServiceResponse response, CancellationToken ct)
+        {
+            return SendResponseBytesAsync(socket, EncodeResponse(response), ct);
+        }
+
+        private static async Task SendResponseBytesAsync(WebSocket socket, byte[] responseBytes, CancellationToken ct)
+        {
             await socket.SendAsync(
                 new ArraySegment<byte>(responseBytes), WebSocketMessageType.Text, endOfMessage: true, ct)
                 .ConfigureAwait(false);
@@ -1038,6 +1513,213 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .GetProperty(nameof(IServiceResponse.ResponseHeader))!
                 .SetValue(response, header);
             return response;
+        }
+
+        private sealed class SendGateHandler : DelegatingHandler
+        {
+            public SendGateHandler()
+                : base(new SocketsHttpHandler { UseProxy = false })
+            {
+            }
+
+            public Task<SendGateStream> StreamCreated => m_streamCreated.Task;
+
+            protected override async Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                HttpResponseMessage response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                HttpContent original = response.Content;
+                Stream stream = await original.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                var gate = new SendGateStream(stream);
+                // StreamContent would expose a read-only wrapper, but an upgraded WebSocket needs duplex access.
+                response.Content = new UpgradedStreamContent(original, gate);
+                m_streamCreated.TrySetResult(gate);
+                return response;
+            }
+
+            private readonly TaskCompletionSource<SendGateStream> m_streamCreated =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private sealed class UpgradedStreamContent(HttpContent original, Stream stream) : HttpContent
+        {
+            protected override Stream CreateContentReadStream(CancellationToken cancellationToken)
+            {
+                return stream;
+            }
+
+            protected override Task<Stream> CreateContentReadStreamAsync()
+            {
+                return Task.FromResult(stream);
+            }
+
+            protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
+            {
+                return Task.FromResult(stream);
+            }
+
+            protected override Task SerializeToStreamAsync(Stream target, TransportContext? context)
+            {
+                throw new NotSupportedException();
+            }
+
+            protected override bool TryComputeLength(out long length)
+            {
+                length = 0;
+                return false;
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    original.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+        }
+
+        private sealed class SendGateStream(Stream inner) : Stream
+        {
+            public override bool CanRead => inner.CanRead;
+            public override bool CanSeek => false;
+            public override bool CanWrite => inner.CanWrite;
+            public override long Length => throw new NotSupportedException();
+
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public Task<CancellationToken> Started => m_started.Task;
+            public Task Completed => m_completed.Task;
+            public Task CancellationObserved => m_cancellationObserved.Task;
+            public bool HoldCancellationCleanup { get; set; }
+
+            public void Arm()
+            {
+                Interlocked.Exchange(ref m_armed, 1);
+            }
+
+            public void Release()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            public void ReleaseCancellationCleanup()
+            {
+                m_releaseCancellationCleanup.TrySetResult(true);
+            }
+
+            public override async ValueTask WriteAsync(
+                ReadOnlyMemory<byte> buffer,
+                CancellationToken cancellationToken = default)
+            {
+                if (buffer.IsEmpty || Interlocked.CompareExchange(ref m_armed, 0, 1) != 1)
+                {
+                    await inner.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                await inner.WriteAsync(buffer[..1], cancellationToken).ConfigureAwait(false);
+                m_started.TrySetResult(cancellationToken);
+                try
+                {
+                    await m_release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    await inner.WriteAsync(buffer[1..], cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    m_cancellationObserved.TrySetResult(true);
+                    if (HoldCancellationCleanup)
+                    {
+                        await m_releaseCancellationCleanup.Task.ConfigureAwait(false);
+                    }
+                    throw;
+                }
+                finally
+                {
+                    m_completed.TrySetResult(true);
+                }
+            }
+
+            public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                return WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+            }
+
+            public override ValueTask<int> ReadAsync(
+                Memory<byte> buffer,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.ReadAsync(buffer, cancellationToken);
+            }
+
+            public override Task<int> ReadAsync(
+                byte[] buffer,
+                int offset,
+                int count,
+                CancellationToken cancellationToken)
+            {
+                return inner.ReadAsync(buffer, offset, count, cancellationToken);
+            }
+
+            public override Task FlushAsync(CancellationToken cancellationToken)
+            {
+                return inner.FlushAsync(cancellationToken);
+            }
+
+            public override void Flush()
+            {
+                throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    inner.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            private readonly TaskCompletionSource<CancellationToken> m_started =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_completed =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_cancellationObserved =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_releaseCancellationCleanup =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private int m_armed;
         }
 
         private sealed class CloseConnectionSentinel : Exception

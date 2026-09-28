@@ -397,7 +397,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value type="10" typename="QString" data="100"/>
+           <Value type="10" typename="QString" data="200"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -16578,7 +16578,7 @@
          </Column>
          <Column column="1">
           <ItemData role="0" rolename="DisplayRole">
-           <Value type="10" typename="QString" data="60"/>
+           <Value type="10" typename="QString" data="30"/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>

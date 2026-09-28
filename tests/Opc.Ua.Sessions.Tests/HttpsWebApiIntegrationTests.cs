@@ -118,7 +118,7 @@ namespace Opc.Ua.Sessions.Tests
                 SecurityNone = true,
                 UriScheme = Utils.UriSchemeOpcHttps,
                 HttpsMutualTls = false,
-                MaxChannelCount = 8,
+                MaxChannelCount = 103,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security,
                 TransportBindingRegistry = registry
             };

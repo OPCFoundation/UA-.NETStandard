@@ -840,6 +840,17 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Queues one lifecycle invocation after related-node synchronization, outside the transition lock.
+        /// </summary>
+        internal void ScheduleTransitionObserver(Action observer)
+        {
+            lock (m_transitionLock)
+            {
+                m_transitionObserverQueue.Enqueue(observer);
+            }
+        }
+
         private void DispatchTransitionCompletions()
         {
             if (m_transitionLock.IsHeldByCurrentThread)
@@ -848,7 +859,8 @@ namespace Opc.Ua
             }
             lock (m_transitionLock)
             {
-                if (m_dispatchingCompletions || m_transitionCompletionOrder.Count == 0)
+                if (m_dispatchingCompletions ||
+                    (m_transitionCompletionOrder.Count == 0 && m_transitionObserverQueue.Count == 0))
                 {
                     return;
                 }
@@ -863,15 +875,22 @@ namespace Opc.Ua
                     Action completion;
                     lock (m_transitionLock)
                     {
-                        if (m_transitionCompletionOrder.Count == 0)
+                        if (m_transitionCompletionOrder.Count != 0)
+                        {
+                            NodeId nodeId = m_transitionCompletionOrder.Dequeue();
+                            completion = m_transitionCompletions[nodeId];
+                            m_transitionCompletions.Remove(nodeId);
+                        }
+                        else if (m_transitionObserverQueue.Count != 0)
+                        {
+                            completion = m_transitionObserverQueue.Dequeue();
+                        }
+                        else
                         {
                             m_dispatchingCompletions = false;
                             drained = true;
                             return;
                         }
-                        NodeId nodeId = m_transitionCompletionOrder.Dequeue();
-                        completion = m_transitionCompletions[nodeId];
-                        m_transitionCompletions.Remove(nodeId);
                     }
                     completion();
                 }
@@ -1020,6 +1039,7 @@ namespace Opc.Ua
         private readonly Lock m_transitionLock = new();
         private readonly Dictionary<NodeId, Action> m_transitionCompletions = [];
         private readonly Queue<NodeId> m_transitionCompletionOrder = [];
+        private readonly Queue<Action> m_transitionObserverQueue = [];
         private bool m_dispatchingCompletions;
 
         /// <summary>

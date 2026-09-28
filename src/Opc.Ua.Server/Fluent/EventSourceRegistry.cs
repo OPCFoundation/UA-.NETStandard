@@ -545,9 +545,9 @@ namespace Opc.Ua.Server.Fluent
                     {
                         ready.Add(entry.Ready.Task);
                     }
-                    else if (!entry.StoppingTask.IsCompleted &&
-                        (entry.Options.AlwaysOn || entry.Notifier.AreEventsMonitored))
+                    else if (entry.Options.AlwaysOn || entry.Notifier.AreEventsMonitored)
                     {
+                        // The drain may finish after activation was deferred; still await the replacement.
                         ready.Add(WaitForStoppedSourceReadinessAsync(
                             entry, entry.StoppingTask, m_managerCts.Token));
                     }

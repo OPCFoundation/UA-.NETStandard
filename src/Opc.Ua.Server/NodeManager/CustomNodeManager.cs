@@ -205,7 +205,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            Dispose();
+            try
+            {
+                Dispose();
+            }
+            finally
+            {
+                BeginDisposal();
+            }
             await m_disposalCompleted.Task.ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
@@ -215,10 +222,14 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposing)
+            if (disposing)
             {
-                return;
+                BeginDisposal();
             }
+        }
+
+        private void BeginDisposal()
+        {
             lock (m_operationLifetimeLock)
             {
                 if (m_disposed)
@@ -867,7 +878,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeState? Find(NodeId nodeId)
         {
-            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            using NodeManagerOperation? operation = TryBeginNodeManagerOperation();
+            if (!operation.HasValue)
+            {
+                return null;
+            }
             if (PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
             {
                 return node;
@@ -1541,8 +1556,8 @@ namespace Opc.Ua.Server
         [Obsolete("Use FindPredefinedNode<T> instead.")]
         public NodeState? FindPredefinedNode(NodeId nodeId, Type expectedType)
         {
-            using NodeManagerOperation operation = BeginNodeManagerOperation();
-            if (nodeId.IsNull)
+            using NodeManagerOperation? operation = TryBeginNodeManagerOperation();
+            if (!operation.HasValue || nodeId.IsNull)
             {
                 return null;
             }
@@ -1567,8 +1582,8 @@ namespace Opc.Ua.Server
         /// <returns>Returns null if not found or not of the correct type.</returns>
         public T? FindPredefinedNode<T>(NodeId nodeId) where T : NodeState
         {
-            using NodeManagerOperation operation = BeginNodeManagerOperation();
-            if (nodeId.IsNull)
+            using NodeManagerOperation? operation = TryBeginNodeManagerOperation();
+            if (!operation.HasValue || nodeId.IsNull)
             {
                 return null;
             }
@@ -6334,21 +6349,38 @@ namespace Opc.Ua.Server
 
         private NodeManagerOperation BeginNodeManagerOperation()
         {
-            lock (m_operationLifetimeLock)
-            {
-                if (m_disposed)
-                {
-                    throw new ObjectDisposedException(GetType().Name);
-                }
-                m_operationCount++;
-                return new NodeManagerOperation(this);
-            }
+            return TryBeginNodeManagerOperation() ?? throw new ObjectDisposedException(GetType().Name);
         }
 
-        private void CompleteNodeManagerOperation()
+        private NodeManagerOperation? TryBeginNodeManagerOperation()
         {
             lock (m_operationLifetimeLock)
             {
+                NodeManagerOperationContext? previous = m_operationContext.Value;
+                if (m_disposed && previous?.Active != true)
+                {
+                    return null;
+                }
+                var context = new NodeManagerOperationContext(previous);
+                m_operationContext.Value = context;
+                m_operationCount++;
+                return new NodeManagerOperation(this, context);
+            }
+        }
+
+        private void CompleteNodeManagerOperation(NodeManagerOperationContext context)
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (!context.Active)
+                {
+                    return;
+                }
+                context.Active = false;
+                if (ReferenceEquals(m_operationContext.Value, context))
+                {
+                    m_operationContext.Value = context.Previous;
+                }
                 m_operationCount--;
                 if (m_disposed && m_operationCount == 0)
                 {
@@ -6379,19 +6411,28 @@ namespace Opc.Ua.Server
             }
         }
 
+        private sealed class NodeManagerOperationContext(NodeManagerOperationContext? previous)
+        {
+            public NodeManagerOperationContext? Previous { get; } = previous;
+
+            public bool Active { get; set; } = true;
+        }
+
         private readonly struct NodeManagerOperation : IDisposable
         {
-            public NodeManagerOperation(CustomNodeManager2 owner)
+            public NodeManagerOperation(CustomNodeManager2 owner, NodeManagerOperationContext context)
             {
                 m_owner = owner;
+                m_context = context;
             }
 
             public void Dispose()
             {
-                m_owner.CompleteNodeManagerOperation();
+                m_owner.CompleteNodeManagerOperation(m_context);
             }
 
             private readonly CustomNodeManager2 m_owner;
+            private readonly NodeManagerOperationContext m_context;
         }
 
         private IReadOnlyList<string>? m_namespaceUris;
@@ -6417,6 +6458,7 @@ namespace Opc.Ua.Server
         private readonly TaskCompletionSource<bool> m_disposalCompleted =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int m_operationCount;
+        private readonly AsyncLocal<NodeManagerOperationContext?> m_operationContext = new();
         private bool m_disposed;
     }
 }

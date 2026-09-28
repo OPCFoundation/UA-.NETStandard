@@ -41,11 +41,15 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -57,6 +61,159 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [NonParallelizable]
     public sealed class KestrelAdmissionTests
     {
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task StartupCompletesRestHandshakeBeforeContributorsButPreservesUacpDeadlineAsync(
+            bool sharedHost,
+            bool uacp)
+        {
+            var provider = new CountingIsolationProvider();
+            var clock = new FakeTimeProvider();
+            var admission = new UaScConnectionAdmission(2, null, provider, timeProvider: clock);
+            bool contributorCalled = false;
+            var contributor = new Mock<IHttpsListenerStartupContributor>();
+            contributor.Setup(value => value.Configure(
+                It.IsAny<IApplicationBuilder>(), It.IsAny<HttpsTransportListener>()))
+                .Callback<IApplicationBuilder, HttpsTransportListener>((branch, _) =>
+                    branch.Run(context =>
+                    {
+                        contributorCalled = true;
+                        Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                        Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.EqualTo(uacp ? 1 : 0));
+                        context.Response.StatusCode = (int)HttpStatusCode.NoContent;
+                        return Task.CompletedTask;
+                    }));
+            await using var listener = new HttpsTransportListener(
+                Utils.UriSchemeHttps, NUnitTelemetryContext.Create(), [contributor.Object]);
+            using ServiceProvider services = new ServiceCollection().AddLogging().AddOptions().BuildServiceProvider();
+            var application = new ApplicationBuilder(services);
+            if (sharedHost)
+            {
+                var shared = new SharedKestrelHost(new SharedHostKey("localhost", 48443), "test-certificate");
+                shared.AddListener("/rest", listener);
+                new SharedHostStartup().Configure(application, new SharedHostAccessor { Instance = shared });
+            }
+            else
+            {
+                new Startup().Configure(application, listener);
+            }
+            RequestDelegate pipeline = application.Build();
+            await using var connection = new TestConnectionContext
+            {
+                RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 1234)
+            };
+            await HttpsTransportListener.RunHttpsConnectionAsync(connection, async physical =>
+            {
+                physical.Features.Set<IHttpRequestFeature>(new HttpRequestFeature());
+                physical.Features.Set<IHttpResponseFeature>(new HttpResponseFeature());
+                var http = new DefaultHttpContext(physical.Features);
+                http.Request.Path = "/rest";
+                http.Request.Method = "GET";
+                var webSocket = new Mock<IHttpWebSocketFeature>();
+                webSocket.SetupGet(value => value.IsWebSocketRequest).Returns(uacp);
+                http.Features.Set(webSocket.Object);
+                if (uacp)
+                {
+                    http.Request.Headers["Sec-WebSocket-Protocol"] = Profiles.OpcUaWsSubProtocolUacp;
+                }
+                await pipeline(http).ConfigureAwait(false);
+                Assert.That(contributorCalled, Is.True);
+                clock.Advance(TimeSpan.FromMinutes(3));
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(uacp ? 0 : 1));
+                if (uacp)
+                {
+                    await AssertAbortedAsync(connection).ConfigureAwait(false);
+                }
+                else
+                {
+                    Assert.That(connection.ConnectionClosed.IsCancellationRequested, Is.False);
+                }
+            }, admission).ConfigureAwait(false);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+        }
+
+        [Test]
+        public async Task HttpsPhysicalAdmissionPrecedesTlsAndDoesNotCountHttpRequestsAsConnectionsAsync()
+        {
+            var provider = new CountingIsolationProvider();
+            var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter();
+            var admission = new UaScConnectionAdmission(2, limiter, provider);
+            await using var connection = new TestConnectionContext
+            {
+                RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 1234)
+            };
+            await HttpsTransportListener.RunHttpsConnectionAsync(connection, physical =>
+            {
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.EqualTo(1));
+                var http = new DefaultHttpContext(physical.Features);
+                HttpsTransportListener.CompleteHttpHandshake(http);
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                HttpsTransportListener.CompleteHttpHandshake(http);
+                Assert.That(limiter.Calls, Is.EqualTo(1));
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                return Task.CompletedTask;
+            }, admission).ConfigureAwait(false);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+        }
+
+        [Test]
+        public async Task HttpsRuntimeRejectionNeverEntersTlsOrConsumesLegacyTokensAsync()
+        {
+            var provider = new CountingIsolationProvider(rejectedStage: ResourceIsolationStage.Handshake);
+            var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter();
+            var admission = new UaScConnectionAdmission(2, limiter, provider);
+            await using var connection = new TestConnectionContext();
+            int tlsCalls = 0;
+            await HttpsTransportListener.RunHttpsConnectionAsync(connection, _ =>
+            {
+                tlsCalls++;
+                return Task.CompletedTask;
+            }, admission).ConfigureAwait(false);
+            Assert.That(tlsCalls, Is.Zero);
+            Assert.That(limiter.Calls, Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            await AssertAbortedAsync(connection).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task RuntimeOwnerRejectionPrecedesLegacyLimiterAndChannelAllocationAsync()
+        {
+            var provider = new CountingIsolationProvider(connectionLimit: 2, ownerLimit: 1);
+            var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter();
+            await using var harness = new HandlerHarness(limiter, provider: provider);
+            await using var first = new TestConnectionContext
+            {
+                RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 1234)
+            };
+            Task running = harness.Handler.OnConnectedAsync(first);
+            try
+            {
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.EqualTo(1));
+                await using var rejected = new TestConnectionContext
+                {
+                    RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 5678)
+                };
+                await harness.Handler.OnConnectedAsync(rejected).ConfigureAwait(false);
+                await AssertAbortedAsync(rejected).ConfigureAwait(false);
+                Assert.That(limiter.Calls, Is.EqualTo(1));
+                Assert.That(harness.Channels, Has.Count.EqualTo(1));
+            }
+            finally
+            {
+                first.Abort();
+                await running.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+        }
+
         [Test]
         public async Task RejectAllLimiterPreventsChannelAllocationAsync()
         {
@@ -120,7 +277,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(true)]
         public async Task ReverseHandoffRetainsCapacityUntilTransportCloseOrStopAsync(bool stopListener)
         {
-            await using var harness = new HandlerHarness(reverse: true);
+            var provider = new CountingIsolationProvider();
+            var clock = new FakeTimeProvider();
+            await using var harness = new HandlerHarness(reverse: true, provider: provider, clock: clock);
             await using var connection = new TestConnectionContext();
             var adoption = new TaskCompletionSource<IUaSCByteTransport>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -133,15 +292,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Task handler = harness.Handler.OnConnectedAsync(connection);
             try
             {
-                uint id = harness.Channels.Keys.Single();
-                Assert.That(await harness.Listener.TransferListenerChannelAsync(
-                    id, "urn:test:server", new Uri("opc.tcp://localhost:4840")).ConfigureAwait(false), Is.True);
+                await connection.SendFrameAsync(WssAdmissionTests.CreateReverseHello()).ConfigureAwait(false);
                 IUaSCByteTransport adopted = await adoption.Task.WaitAsync(TimeSpan.FromSeconds(5))
                     .ConfigureAwait(false);
                 try
                 {
+                    await provider.WaitForHandshakeCompletionAsync().ConfigureAwait(false);
+                    clock.Advance(TimeSpan.FromMinutes(3));
                     Assert.That(harness.Channels, Is.Empty);
                     Assert.That(handler.IsCompleted, Is.False);
+                    Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+                    Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
                     Assert.That(harness.Listener.TryAdmitConnection(null, out _), Is.False);
                     if (stopListener)
                     {
@@ -153,6 +314,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     }
                     await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     await AssertAbortedAsync(connection).ConfigureAwait(false);
+                    Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
                     if (!stopListener)
                     {
                         Assert.That(harness.Listener.TryAdmitConnection(
@@ -334,13 +496,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class HandlerHarness : IAsyncDisposable
         {
-            public HandlerHarness(IConnectionRateLimiter? limiter = null, bool reverse = false)
+            public HandlerHarness(
+                IConnectionRateLimiter? limiter = null,
+                bool reverse = false,
+                IServerResourceIsolationProvider? provider = null,
+                TimeProvider? clock = null)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
                 Listener = new KestrelTcpTransportListener(telemetry);
-                SetField(Listener, "m_admission", new UaScConnectionAdmission(1, limiter));
-                SetField(Listener, "m_quotas", new ChannelQuotas(context));
+                SetField(Listener, "m_admission", new UaScConnectionAdmission(
+                    1, limiter, provider, timeProvider: clock));
+                SetField(Listener, "m_quotas", new ChannelQuotas(context)
+                {
+                    ResourceIsolationProvider = provider
+                });
                 SetField(Listener, "m_bufferManager", new BufferManager(DefaultBufferManagerFactory.Instance
                     .Create("kestrel-admission", 65536, telemetry)));
                 SetField(Listener, "m_channels", Channels);
@@ -387,6 +557,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     _ = CancelConnectionAsync();
                 }
+            }
+
+            public async ValueTask SendFrameAsync(ReadOnlyMemory<byte> frame)
+            {
+                await m_input.Writer.WriteAsync(frame).ConfigureAwait(false);
             }
 
             public override async ValueTask DisposeAsync()

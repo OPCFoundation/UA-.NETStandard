@@ -194,11 +194,16 @@ namespace Opc.Ua.Client
         /// <param name="serverRedundancy">
         /// Optional bounds for the best-effort server-redundancy refresh. Defaults to two seconds per operation.
         /// </param>
-        /// <param name="reverseConnectManager">Optional reverse-connect manager.</param>
+        /// <param name="reverseConnectManager">
+        /// Optional reverse-connect manager. Required to obtain fresh reverse connections during recovery.
+        /// </param>
         /// <param name="connectGate">Optional shared initial connect
         /// admission gate.</param>
-        /// <param name="connection">Optional waiting reverse connection. It is
-        /// single-use and therefore consumed by the initial connect only.</param>
+        /// <param name="connection">
+        /// Optional single-use reverse connection, consumed by the initial connect only.
+        /// Without <paramref name="reverseConnectManager"/>, subsequent recovery cannot obtain another
+        /// connection and fails through the reconnect policy; it never falls back to an outbound connection.
+        /// </param>
         /// <param name="updateBeforeConnect">Overrides
         /// <see cref="ConfiguredEndpoint.UpdateBeforeConnect"/> when set.</param>
         /// <param name="ct">Cancellation token.</param>
@@ -269,8 +274,14 @@ namespace Opc.Ua.Client
         /// <param name="redundancyHandler">An optional server redundancy handler.</param>
         /// <param name="telemetry">The telemetry context, defaulting to the factory's context.</param>
         /// <param name="channelManager">The optional shared channel manager.</param>
-        /// <param name="reverseConnectManager">The optional reverse-connect manager.</param>
-        /// <param name="connection">The waiting connection used only for the initial connect.</param>
+        /// <param name="reverseConnectManager">
+        /// The optional reverse-connect manager, required to obtain fresh reverse connections during recovery.
+        /// </param>
+        /// <param name="connection">
+        /// The single-use reverse connection used only for the initial connect.
+        /// Without <paramref name="reverseConnectManager"/>, subsequent recovery fails through the reconnect
+        /// policy rather than falling back to an outbound connection.
+        /// </param>
         /// <param name="updateBeforeConnect">An optional override for endpoint discovery.</param>
         /// <param name="ct">Cancellation for connecting.</param>
         /// <returns>The connected managed session.</returns>
@@ -306,8 +317,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> locales = default;
             if (options.PreferredLocales != null)
             {
-                string[] names = [.. options.PreferredLocales];
-                locales = names;
+                locales = (string[])[.. options.PreferredLocales];
             }
 #pragma warning disable CS0618 // Preserve eager identities; TODO: remove when the compatibility option is retired.
             IUserIdentity? identity = options.Identity;
@@ -857,6 +867,11 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            if (channel != null && m_session?.ChannelRecoveryInProgress == true)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "Session is already attempting to reconnect.");
+            }
             ConnectionStateBudgetOperation? operation = connection == null && channel == null
                 ? null
                 : (_, token) => HandleManualReconnectAsync(connection, channel, ct, token);
@@ -1606,7 +1621,16 @@ namespace Opc.Ua.Client
                         connection = await WaitForRecoveryConnectionAsync(
                             InnerSession.ConfiguredEndpoint, linked.Token).ConfigureAwait(false);
                     }
-                    await InnerSession.ReconnectAsync(connection, channel, linked.Token).ConfigureAwait(false);
+                    Session session = InnerSession;
+                    IManagedTransportChannel? previousChannel = session.ManagedChannel;
+                    try
+                    {
+                        await session.ReconnectAsync(connection, channel, linked.Token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        RebindManagedChannelEvents(session, previousChannel);
+                    }
                 }
                 await RefreshRedundancyInfoBestEffortAsync(linked.Token).ConfigureAwait(false);
                 return ServiceResult.Good;
@@ -2304,8 +2328,12 @@ namespace Opc.Ua.Client
                 // OnReconnectAsync. The outer state machine only takes
                 // over when the channel manager terminally faults the
                 // channel.
-                if (Volatile.Read(ref m_channelReconnectInProgress) > 0 ||
-                    (session is Session inner && inner.ChannelRecoveryInProgress))
+                bool recovering = session is Session inner
+                    ? inner.ChannelRecoveryInProgress ||
+                        inner.ManagedChannel?.State is
+                            ChannelState.TransportReconnecting or ChannelState.TransportConnectedSessionReactivating
+                    : Volatile.Read(ref m_channelReconnectInProgress) > 0;
+                if (recovering)
                 {
                     long since = Volatile.Read(ref m_channelReconnectStartedAt);
                     m_logger.ManagedSessionKeepAliveFailureSuppressedWhile(
@@ -2326,6 +2354,10 @@ namespace Opc.Ua.Client
             IManagedTransportChannel channel,
             ChannelStateChange change)
         {
+            if (!ReferenceEquals(m_session?.ManagedChannel, channel))
+            {
+                return;
+            }
             RaiseChannelStateChanged(change);
 
             // Track whether the manager is in the middle of a
@@ -2868,7 +2900,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// A caller supplied reverse connection. A waiting connection can only
         /// be used once, so it is consumed by the first connect attempt and
-        /// every later reconnect falls back to the normal connect paths.
+        /// later recovery requires the reverse-connect manager to supply a fresh
+        /// connection. An outbound fallback is never permitted.
         /// </summary>
         private ITransportWaitingConnection? m_initialConnection;
         private bool m_reverseConnectRequired;

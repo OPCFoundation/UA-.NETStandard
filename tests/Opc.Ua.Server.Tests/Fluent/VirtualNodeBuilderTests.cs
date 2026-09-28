@@ -601,6 +601,331 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(results[2].Targets[0].TargetId, Is.EqualTo(new ExpandedNodeId(target)));
         }
 
+        [TestCase("none", false, false)]
+        [TestCase("starting", false, false)]
+        [TestCase("external-handle", false, false)]
+        [TestCase("external-metadata", false, false)]
+        [TestCase("later-handle", false, false)]
+        [TestCase("later-translate", false, false)]
+        [TestCase("final-handle", false, false)]
+        [TestCase("final-metadata", false, false)]
+        [TestCase("final-metadata", false, true)]
+        [TestCase("starting", true, false)]
+        [TestCase("external-handle", true, false)]
+        [TestCase("external-metadata", true, false)]
+        [TestCase("later-handle", true, false)]
+        [TestCase("later-translate", true, false)]
+        [TestCase("final-handle", true, false)]
+        [TestCase("final-metadata", true, false)]
+        public async Task DispatcherMultiElementPathsPreserveFailureBoundariesAsync(
+            string failureStage,
+            bool cancel,
+            bool onlyFailedBranch)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            using var cancellation = new CancellationTokenSource();
+            const string externalNamespaceUri = "urn:virtual-dispatcher:external";
+            ushort externalNamespace = server.Object.NamespaceUris.GetIndexOrAppend(externalNamespaceUri);
+            NodeId source = manager.VirtualId("source");
+            NodeId[] branches =
+            [
+                new NodeId("branch-0", externalNamespace),
+                new NodeId("branch-1", externalNamespace),
+                new NodeId("branch-2", externalNamespace)
+            ];
+            NodeId[] leaves =
+            [
+                new NodeId("leaf-0", externalNamespace),
+                new NodeId("leaf-1", externalNamespace),
+                new NodeId("leaf-2", externalNamespace)
+            ];
+            var branchName = new QualifiedName("Branch", manager.TestNamespaceIndex);
+            var leafName = new QualifiedName("Leaf", manager.TestNamespaceIndex);
+            var nodes = new Dictionary<NodeId, BaseObjectState>();
+            for (int ii = 0; ii < branches.Length; ii++)
+            {
+                nodes.Add(branches[ii], new BaseObjectState(null) { NodeId = branches[ii], BrowseName = branchName });
+                nodes.Add(leaves[ii], new BaseObjectState(null) { NodeId = leaves[ii], BrowseName = leafName });
+            }
+            int failures = 0;
+            bool failedBranchMetadataRead = false;
+            var translated = new List<NodeId>();
+            void Fail(CancellationToken token)
+            {
+                failures++;
+                if (cancel)
+                {
+                    cancellation.Cancel();
+                    throw new OperationCanceledException(token);
+                }
+                throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+            }
+            manager.Builder.ResolveNodes(id => id == source, (_, id, token) =>
+            {
+                if (failureStage == "starting")
+                {
+                    Fail(token);
+                }
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = id,
+                    BrowseName = new QualifiedName("Root", manager.TestNamespaceIndex)
+                };
+                foreach (NodeId branch in branches)
+                {
+                    if (!onlyFailedBranch || branch == branches[1])
+                    {
+                        node.AddReference(ReferenceTypeIds.HasComponent, false, branch);
+                    }
+                }
+                return new ValueTask<NodeState?>(node);
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            var external = new Mock<IAsyncNodeManager>();
+            external.SetupGet(value => value.NamespaceUris).Returns([externalNamespaceUri]);
+            external.Setup(value => value.GetManagerHandleAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns((NodeId id, CancellationToken token) =>
+                {
+                    if ((id == branches[1] &&
+                        (failureStage == "external-handle" ||
+                            (failureStage == "later-handle" && failedBranchMetadataRead))) ||
+                        (id == leaves[1] && failureStage == "final-handle"))
+                    {
+                        Fail(token);
+                    }
+                    return nodes.TryGetValue(id, out BaseObjectState? node)
+                        ? new ValueTask<object>(node)
+                        : throw new AssertionException($"Unexpected external node {id}.");
+                });
+            external.Setup(value => value.GetNodeMetadataAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<object>(),
+                    It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, object handle, BrowseResultMask _, CancellationToken token) =>
+                {
+                    var node = (BaseObjectState)handle;
+                    if (node.NodeId == branches[1])
+                    {
+                        failedBranchMetadataRead = true;
+                        if (failureStage == "external-metadata")
+                        {
+                            Fail(token);
+                        }
+                    }
+                    if (node.NodeId == leaves[1] && failureStage == "final-metadata")
+                    {
+                        Fail(token);
+                    }
+                    return new ValueTask<NodeMetadata>(new NodeMetadata(node, node.NodeId)
+                    {
+                        NodeClass = NodeClass.Object,
+                        BrowseName = node.BrowseName,
+                        DisplayName = new LocalizedText(node.BrowseName.Name),
+                        TypeDefinition = ObjectTypeIds.BaseObjectType
+                    });
+                });
+            external.Setup(value => value.TranslateBrowsePathAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<object>(), It.IsAny<RelativePathElement>(),
+                    It.IsAny<IList<ExpandedNodeId>>(), It.IsAny<IList<NodeId>>(), It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, object handle, RelativePathElement element,
+                    IList<ExpandedNodeId> targets, IList<NodeId> _, CancellationToken token) =>
+                {
+                    var node = (BaseObjectState)handle;
+                    translated.Add(node.NodeId);
+                    Assert.That(element.TargetName, Is.EqualTo(leafName),
+                        "The external manager must be reached for the second relative element.");
+                    if (node.NodeId == branches[1] && failureStage == "later-translate")
+                    {
+                        Fail(token);
+                    }
+                    int branchIndex = Array.IndexOf(branches, node.NodeId);
+                    Assert.That(branchIndex, Is.GreaterThanOrEqualTo(0));
+                    targets.Add(leaves[branchIndex]);
+                    return default;
+                });
+            using MasterNodeManager master = CreateMaster(server, manager, external.Object);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None);
+            ArrayOf<BrowsePath> requests =
+            [
+                new BrowsePath
+                {
+                    StartingNode = source,
+                    RelativePath = new RelativePath
+                    {
+                        Elements =
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                                TargetName = branchName
+                            },
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                                TargetName = leafName
+                            }
+                        ]
+                    }
+                }
+            ];
+
+            if (cancel)
+            {
+                OperationCanceledException failure = Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await master.TranslateBrowsePathsToNodeIdsAsync(context, requests, cancellation.Token)
+                        .ConfigureAwait(false))!;
+                Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
+                Assert.That(failures, Is.EqualTo(1));
+                Assert.That(translated, Does.Not.Contain(branches[2]));
+                return;
+            }
+
+            (ArrayOf<BrowsePathResult> results, _) = await master.TranslateBrowsePathsToNodeIdsAsync(
+                context, requests, cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            StatusCode expectedStatus = failureStage == "starting"
+                ? StatusCodes.BadResourceUnavailable
+                : onlyFailedBranch ? StatusCodes.BadNoMatch : StatusCodes.Good;
+            Assert.That(results[0].StatusCode, Is.EqualTo(expectedStatus));
+            ExpandedNodeId[] expectedTargets = failureStage switch
+            {
+                "starting" => [],
+                "none" => [leaves[0], leaves[1], leaves[2]],
+                _ when onlyFailedBranch => [],
+                _ => [leaves[0], leaves[2]]
+            };
+            Assert.That(results[0].Targets.ConvertAll(target => target.TargetId),
+                Is.EqualTo(expectedTargets));
+            foreach (BrowsePathTarget target in results[0].Targets)
+            {
+                Assert.That(target.RemainingPathIndex, Is.EqualTo(uint.MaxValue));
+            }
+            Assert.That(failures, Is.EqualTo(failureStage == "none" ? 0 : 1));
+            NodeId[] expectedBranches = failureStage switch
+            {
+                "starting" => [],
+                "external-handle" or "external-metadata" or "later-handle" => [branches[0], branches[2]],
+                _ when onlyFailedBranch => [branches[1]],
+                _ => branches
+            };
+            Assert.That(translated, Is.EqualTo(expectedBranches));
+        }
+
+        [Test]
+        public async Task ReferencedVirtualTargetFailureDoesNotDiscardHealthySiblingsAsync(
+            [Values] bool browse,
+            [Values] bool invalidIdentity)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            using MasterNodeManager master = CreateMaster(server, manager);
+            NodeId sourceId = manager.VirtualId("source");
+            NodeId first = manager.VirtualId("target-0");
+            NodeId failed = manager.VirtualId("target-1");
+            NodeId last = manager.VirtualId("target-2");
+            var targetName = new QualifiedName("Target", manager.TestNamespaceIndex);
+            manager.Builder.ResolveNodes(id => id.NamespaceIndex == manager.TestNamespaceIndex, (_, id, _) =>
+            {
+                if (id == failed && !invalidIdentity)
+                {
+                    throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
+                }
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = id == failed ? manager.VirtualId("wrong") : id,
+                    BrowseName = targetName
+                };
+                if (id == sourceId)
+                {
+                    node.AddReference(ReferenceTypeIds.HasComponent, false, first);
+                    node.AddReference(ReferenceTypeIds.HasComponent, false, failed);
+                    node.AddReference(ReferenceTypeIds.HasComponent, false, last);
+                }
+                return new ValueTask<NodeState?>(node);
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null,
+                browse ? RequestType.Browse : RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None);
+
+            ArrayOf<ExpandedNodeId> targets = await BrowseOrTranslateAsync(
+                manager, context, sourceId, targetName, browse, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(targets.ToArray(), Is.EquivalentTo(new ExpandedNodeId[] { first, last }));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StartingVirtualNodeFailureStillPropagatesForBrowseAndTranslateAsync(bool browse)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            using MasterNodeManager master = CreateMaster(server, manager);
+            NodeId source = manager.VirtualId("source");
+            var failure = new ServiceResultException(StatusCodes.BadResourceUnavailable);
+            manager.Builder.ResolveNodes(id => id == source, (_, _, _) => throw failure);
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null,
+                browse ? RequestType.Browse : RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None);
+
+            ServiceResultException actual = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await BrowseOrTranslateAsync(manager, context, source,
+                    new QualifiedName("Target", manager.TestNamespaceIndex), browse, CancellationToken.None)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(actual.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReferencedVirtualTargetCancellationStillPropagatesForBrowseAndTranslateAsync(bool browse)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using MonitoredItemQueueFactory queueFactory = queues;
+            await using var manager = new TestVirtualManager(server.Object);
+            using MasterNodeManager master = CreateMaster(server, manager);
+            using var cancellation = new CancellationTokenSource();
+            NodeId source = manager.VirtualId("source");
+            NodeId cancelled = manager.VirtualId("target-0");
+            NodeId later = manager.VirtualId("target-1");
+            var targetName = new QualifiedName("Target", manager.TestNamespaceIndex);
+            var resolved = new List<NodeId>();
+            manager.Builder.ResolveNodes(id => id.NamespaceIndex == manager.TestNamespaceIndex, (_, id, token) =>
+            {
+                resolved.Add(id);
+                if (id == cancelled)
+                {
+                    cancellation.Cancel();
+                    throw new OperationCanceledException(token);
+                }
+                var node = new BaseObjectState(null) { NodeId = id, BrowseName = targetName };
+                if (id == source)
+                {
+                    node.AddReference(ReferenceTypeIds.HasComponent, false, cancelled);
+                    node.AddReference(ReferenceTypeIds.HasComponent, false, later);
+                }
+                return new ValueTask<NodeState?>(node);
+            });
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null,
+                browse ? RequestType.Browse : RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None);
+
+            OperationCanceledException failure = Assert.CatchAsync<OperationCanceledException>(async () =>
+                await BrowseOrTranslateAsync(manager, context, source, targetName, browse, cancellation.Token)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(resolved, Does.Contain(cancelled));
+            Assert.That(resolved, Does.Not.Contain(later));
+        }
+
         [Test]
         public async Task VirtualResolverCancellationStopsReadBatchAsync()
         {
@@ -1302,6 +1627,45 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(released, Is.EquivalentTo(ids));
         }
 
+        private static async Task<ArrayOf<ExpandedNodeId>> BrowseOrTranslateAsync(
+            TestVirtualManager manager,
+            OperationContext context,
+            NodeId sourceId,
+            QualifiedName targetName,
+            bool browse,
+            CancellationToken cancellationToken)
+        {
+            object handle = await manager.GetManagerHandleAsync(sourceId, cancellationToken).ConfigureAwait(false)
+                ?? throw new AssertionException("The registered virtual source must have a manager handle.");
+            if (browse)
+            {
+                using var continuation = new ContinuationPoint
+                {
+                    Manager = manager,
+                    NodeToBrowse = handle,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ResultMask = BrowseResultMask.All
+                };
+                var references = new List<ReferenceDescription>();
+                ContinuationPoint? next = await manager.BrowseAsync(
+                    context, continuation, references, cancellationToken).ConfigureAwait(false);
+                Assert.That(next, Is.Null);
+                return references.ConvertAll(reference => reference.NodeId).ToArrayOf();
+            }
+            var targets = new List<ExpandedNodeId>();
+            var unresolved = new List<NodeId>();
+            await manager.TranslateBrowsePathAsync(context, handle,
+                new RelativePathElement
+                {
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    TargetName = targetName
+                },
+                targets, unresolved, cancellationToken).ConfigureAwait(false);
+            Assert.That(unresolved, Is.Empty);
+            return targets.ToArrayOf();
+        }
+
         private static IVirtualNodeBuilder RegisterVariables(TestVirtualManager manager, NodeId invalid)
         {
             return manager.Builder.ResolveNodes(id => id.NamespaceIndex == manager.TestNamespaceIndex, (_, id, _) =>
@@ -1336,7 +1700,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(ServiceResult.IsGood(errors[3]), Is.True);
         }
 
-        private static MasterNodeManager CreateMaster(Mock<IServerInternal> server, TestVirtualManager manager)
+        private static MasterNodeManager CreateMaster(
+            Mock<IServerInternal> server,
+            TestVirtualManager manager,
+            IAsyncNodeManager? externalManager = null)
         {
             var factory = new Mock<IMainNodeManagerFactory>();
             factory.Setup(value => value.CreateConfigurationNodeManager())
@@ -1345,7 +1712,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .Returns(new Mock<ICoreNodeManager>().Object);
             server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
             var master = new MasterNodeManager(server.Object,
-                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, null, [manager]);
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, null,
+                externalManager == null ? [manager] : [manager, externalManager]);
             server.SetupGet(value => value.NodeManager).Returns(master);
             return master;
         }

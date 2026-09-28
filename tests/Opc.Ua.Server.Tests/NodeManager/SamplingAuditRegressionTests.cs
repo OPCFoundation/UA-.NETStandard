@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -206,13 +207,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var monitoredItems = new Mock<IMonitoredItemManager>();
-                using var manager = new TestNodeManager(server.Object, monitoredItems.Object)
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
+                manager.PendingCall = async cancellationToken =>
                 {
-                    PendingCall = async cancellationToken =>
-                    {
-                        entered.TrySetResult(true);
-                        await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    }
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    Assert.That(manager.Find(manager.RetainedNode.NodeId), Is.SameAs(manager.RetainedNode));
+                    Assert.That(manager.FindPredefinedNode<BaseDataVariableState>(manager.RetainedNode.NodeId),
+                        Is.SameAs(manager.RetainedNode));
+                    Assert.That(FindPredefinedNodeByType(manager), Is.SameAs(manager.RetainedNode));
+                    DataValue[] values = [default];
+                    ServiceResult[] errors = [ServiceResult.Good];
+                    manager.Read(context, 0,
+                        [new ReadValueId { NodeId = manager.RetainedNode.NodeId, AttributeId = Attributes.Value }],
+                        values, errors);
+                    Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(1)));
                 };
                 IAsyncNodeManager adapter = manager.ToAsyncNodeManager();
                 IDisposable owner = throughAdapter ? (IDisposable)adapter : manager;
@@ -255,6 +265,176 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(manager.RetainedNodes, Is.Zero);
                 });
                 monitoredItems.Verify(value => value.ApplyChanges(), Times.Once);
+            }
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ReturnedOperationContextCannotAdmitWorkDuringOrAfterDisposalAsync(
+            bool asynchronous,
+            bool whileDraining)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (OperationContext context = CreateContext())
+            {
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
+                ExecutionContext capturedContext = null;
+                if (asynchronous)
+                {
+                    manager.PendingCall = _ =>
+                    {
+                        capturedContext = ExecutionContext.Capture();
+                        return default;
+                    };
+                    await manager.CallAsync(context, [], [], []).ConfigureAwait(false);
+                }
+                else
+                {
+                    manager.RetainedNode.OnSimpleReadValue = (_, _, ref value) =>
+                    {
+                        capturedContext = ExecutionContext.Capture();
+                        return ServiceResult.Good;
+                    };
+                    DataValue[] values = [default];
+                    ServiceResult[] errors = [ServiceResult.Good];
+                    manager.Read(context, 0,
+                        [new ReadValueId { NodeId = manager.RetainedNode.NodeId, AttributeId = Attributes.Value }],
+                        values, errors);
+                    manager.RetainedNode.OnSimpleReadValue = null;
+                    Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(1)));
+                }
+                Assert.That(capturedContext, Is.Not.Null);
+                using (capturedContext)
+                {
+                    var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    manager.PendingCall = async cancellationToken =>
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        Assert.That(manager.Find(manager.RetainedNode.NodeId), Is.SameAs(manager.RetainedNode));
+                    };
+                    Task operation = manager.CallAsync(context, [], [], []).AsTask();
+                    Task disposal = Task.CompletedTask;
+                    try
+                    {
+                        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        disposal = manager.DisposeAsync().AsTask();
+                        Assert.That(disposal.IsCompleted, Is.False);
+                        if (!whileDraining)
+                        {
+                            release.TrySetResult(true);
+                            await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                            await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        }
+                        Assert.That(manager.RetainedNodes, Is.EqualTo(whileDraining ? 1 : 0));
+                        monitoredItems.Verify(value => value.Dispose(), Times.Exactly(whileDraining ? 0 : 1));
+
+                        ExecutionContext.Run(capturedContext, _ =>
+                        {
+                            Assert.That(() => manager.Read(context, 0, [], [], []),
+                                Throws.TypeOf<ObjectDisposedException>());
+                            Assert.That(manager.Find(manager.RetainedNode.NodeId), Is.Null);
+                            Assert.That(
+                                manager.FindPredefinedNode<BaseDataVariableState>(manager.RetainedNode.NodeId),
+                                Is.Null);
+                            Assert.That(FindPredefinedNodeByType(manager), Is.Null);
+                        }, null);
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                        await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    }
+                }
+                Assert.That(manager.RetainedNodes, Is.Zero);
+                monitoredItems.Verify(value => value.Dispose(), Times.Once);
+                monitoredItems.Verify(value => value.ApplyChanges(), Times.Exactly(asynchronous ? 2 : 1));
+            }
+        }
+
+        [Test]
+        public async Task DisposeAsyncStartsBaseDrainWhenLegacyOverrideOmitsBaseAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (OperationContext context = CreateContext())
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                var manager = new TestNodeManager(server.Object, monitoredItems.Object)
+                {
+                    CallBaseDispose = false,
+                    PendingCall = async ct =>
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                };
+                Task operation = manager.CallAsync(context, [], [], []).AsTask();
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Task disposal = manager.DisposeAsync().AsTask();
+                try
+                {
+                    Assert.That(disposal.IsCompleted, Is.False);
+                    Assert.That(manager.RetainedNodes, Is.EqualTo(1));
+                    monitoredItems.Verify(value => value.Dispose(), Times.Never);
+                    release.TrySetResult(true);
+                    await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    Assert.That(manager.DisposalCalls, Is.EqualTo(1));
+                    Assert.That(manager.RetainedNodes, Is.Zero);
+                    monitoredItems.Verify(value => value.Dispose(), Times.Once);
+                    Assert.That(() => manager.Read(context, 0, [], [], []),
+                        Throws.TypeOf<ObjectDisposedException>());
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    manager.DisposeBaseResources();
+                    await operation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        public async Task AdapterAsyncDisposalInvokesNonIdempotentOverrideOnceAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var cleanup = new CancellationTokenSource())
+            {
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                var manager = new TestNodeManager(server.Object, monitoredItems.Object)
+                {
+                    Disposing = () =>
+                    {
+                        cleanup.Cancel();
+                        cleanup.Dispose();
+                    }
+                };
+                try
+                {
+                    await DisposeAsync((IDisposable)manager.ToAsyncNodeManager())
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    Assert.That(manager.DisposalCalls, Is.EqualTo(1));
+                    Assert.That(manager.RetainedNodes, Is.Zero);
+                    monitoredItems.Verify(value => value.Dispose(), Times.Once);
+                }
+                finally
+                {
+                    manager.DisposeBaseResources();
+                }
             }
         }
 
@@ -506,7 +686,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "CreateMonitoredItems", "RestoreMonitoredItems", "ModifyMonitoredItems", "DeleteMonitoredItems",
                 "TransferMonitoredItems", "SetMonitoringMode", "SubscribeToEvents", "SubscribeToAllEvents",
                 "ConditionRefresh", "SessionActivated", "Snapshot", "CanAttach", "Attach", "Detach", "Recover",
-                "Find", "FindPredefinedNode", "GetManagerHandle", "GetNodeMetadata", "GetPermissionMetadata",
+                "Find", "FindPredefinedNode", "FindPredefinedNodeByType",
+                "GetManagerHandle", "GetNodeMetadata", "GetPermissionMetadata",
                 "TranslateBrowsePath", "Browse", "DeleteNode", "CreateNode", "CreateAddressSpace", "DeleteAddressSpace",
                 "AddReferences", "DeleteReference", "FindMethodState", "IsNodeInView", "ValidateRolePermissions",
                 "ValidateEventRolePermissions", "ValidateEventReceivePermissions")] string operationName)
@@ -545,8 +726,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         failure = exception;
                     }
-                    Assert.That(failure, Is.TypeOf<ObjectDisposedException>());
-                    Assert.That(failure.ObjectName, Is.EqualTo(manager.GetType().Name));
+                    if (operationName is "Find" or "FindPredefinedNode" or "FindPredefinedNodeByType")
+                    {
+                        Assert.That(failure, Is.Null);
+                    }
+                    else
+                    {
+                        Assert.That(failure, Is.TypeOf<ObjectDisposedException>());
+                        Assert.That(failure.ObjectName, Is.EqualTo(manager.GetType().Name));
+                    }
                 }
                 finally
                 {
@@ -632,10 +820,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await lifecycle.RecoverMonitoredItemAsync(null, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Find":
-                    manager.Find(manager.RetainedNode.NodeId);
+                    Assert.That(manager.Find(manager.RetainedNode.NodeId), Is.Null);
                     break;
                 case "FindPredefinedNode":
-                    manager.FindPredefinedNode<BaseDataVariableState>(manager.RetainedNode.NodeId);
+                    Assert.That(manager.FindPredefinedNode<BaseDataVariableState>(manager.RetainedNode.NodeId),
+                        Is.Null);
+                    break;
+                case "FindPredefinedNodeByType":
+                    Assert.That(FindPredefinedNodeByType(manager), Is.Null);
                     break;
                 case "GetManagerHandle":
                     manager.GetManagerHandle(manager.RetainedNode.NodeId);
@@ -691,6 +883,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        private static NodeState FindPredefinedNodeByType(TestNodeManager manager)
+        {
+            // Bind the legacy overload without suppressing obsolete or prefer-generic diagnostics.
+            MethodInfo method = typeof(CustomNodeManager2)
+                .GetMethod(nameof(CustomNodeManager2.FindPredefinedNode), [typeof(NodeId), typeof(Type)])!;
+#if NET8_0_OR_GREATER
+            Func<NodeId, Type, NodeState> lookup = method.CreateDelegate<Func<NodeId, Type, NodeState>>(manager);
+#else
+            var lookup = (Func<NodeId, Type, NodeState>)method
+                .CreateDelegate(typeof(Func<NodeId, Type, NodeState>), manager);
+#endif
+            return lookup(manager.RetainedNode.NodeId, typeof(BaseDataVariableState));
+        }
+
         private static Task DisposeAsync(IDisposable owner)
         {
             if (owner is IAsyncDisposable asynchronous)
@@ -731,9 +937,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public Func<CancellationToken, ValueTask> PendingCall { get; set; }
 
+            public Action Disposing { get; set; }
+
+            public bool CallBaseDispose { get; set; } = true;
+
+            public int DisposalCalls { get; private set; }
+
             public int RetainedNodes => PredefinedNodes.Count;
 
             public BaseDataVariableState RetainedNode { get; }
+
+            public void DisposeBaseResources()
+            {
+                base.Dispose(true);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                DisposalCalls++;
+                Disposing?.Invoke();
+                if (CallBaseDispose)
+                {
+                    base.Dispose(disposing);
+                }
+            }
 
             protected override async ValueTask CallInternalAsync(
                 OperationContext context,
