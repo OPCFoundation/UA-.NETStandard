@@ -260,7 +260,8 @@ namespace Opc.Ua.Server.FileSystem
                         "Deleting file-system objects is not allowed.")
                 };
             }
-            if (!host.TryGetProviderPath(objectToDelete, out string providerPath, out _, out bool isRoot))
+            if (!host.TryGetProviderPath(objectToDelete, out string providerPath, out bool isDirectory,
+                    out bool isRoot))
             {
                 return new DeleteFileMethodStateResult
                 {
@@ -284,6 +285,15 @@ namespace Opc.Ua.Server.FileSystem
                     ServiceResult = ServiceResult.Create(StatusCodes.BadNotFound,
                         "The file-system object is not organized by this directory.")
                 };
+            }
+            // A file-typed NodeId naming a directory (or the reverse) does not identify an
+            // object organized by this directory (Part 20 4.3.5 Bad_NotFound), so it must not
+            // recursively delete the directory.
+            ServiceResult kindResult = await CheckEntryKindAsync(
+                host.Provider, providerPath, isDirectory, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(kindResult))
+            {
+                return new DeleteFileMethodStateResult { ServiceResult = kindResult };
             }
             // Checking for open files and blocking new opens is one step, so an open
             // cannot slip in between the lock check and the provider delete.
@@ -541,7 +551,9 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (entry != null && entry.Value.IsDirectory != expectDirectory)
             {
-                return ServiceResult.Create(StatusCodes.BadInvalidArgument,
+                // Part 20 4.3.5/4.3.6: a NodeId of the wrong kind names no object organized
+                // by the directory.
+                return ServiceResult.Create(StatusCodes.BadNotFound,
                     "Source NodeId does not match the kind of the file-system object.");
             }
             return ServiceResult.Good;

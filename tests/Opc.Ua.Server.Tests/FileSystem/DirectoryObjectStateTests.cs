@@ -429,6 +429,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             provider.SetupGet(p => p.MountName).Returns("TestMount");
             provider.SetupGet(p => p.IsWritable).Returns(true);
             provider
+                .Setup(p => p.GetEntryAsync("locked.txt", It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<FileSystemEntry?>(new FileSystemEntry(
+                    "locked.txt", "locked.txt", false, 0, true, DateTime.UtcNow, string.Empty)));
+            provider
                 .Setup(p => p.DeleteAsync("locked.txt", It.IsAny<CancellationToken>()))
                 .Returns<string, CancellationToken>((_, _) => throw new IOException("locked"));
             UseProvider(provider.Object);

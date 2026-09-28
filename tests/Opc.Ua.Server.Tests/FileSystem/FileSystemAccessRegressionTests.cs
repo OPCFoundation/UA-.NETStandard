@@ -261,9 +261,33 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 m_manager.SystemContext, root.MoveOrCopy, root.NodeId, FileId("a"), DirId("a/b"),
                 createCopy, string.Empty, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            // Part 20 4.3.6: a NodeId of the wrong kind names no organized object.
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
             Assert.That(System.IO.Directory.Exists(Path.Combine(m_root, "a", "b", "a")), Is.False);
             Assert.That(System.IO.Directory.Exists(Path.Combine(m_root, "a")), Is.True);
+        }
+
+        /// <summary>
+        /// Spec gap Delete kind: a file-typed NodeId naming a directory (or a directory-typed
+        /// NodeId naming a file) is not an object organized by the directory (Part 20 4.3.5),
+        /// so Delete returns Bad_NotFound and removes nothing.
+        /// </summary>
+        [Test]
+        public async Task DeleteWithMismatchedNodeIdKindReturnsNotFoundAsync()
+        {
+            DirectoryObjectState root = CreateRoot();
+            DirectoryObjectState a = CreateDirectory("a");
+
+            ServiceResult directoryAsFile = await DeleteAsync(root, FileId("a")).ConfigureAwait(false);
+            ServiceResult fileAsDirectory = await DeleteAsync(a, DirId("a/x.txt")).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(directoryAsFile.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+                Assert.That(fileAsDirectory.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+                Assert.That(System.IO.Directory.Exists(Path.Combine(m_root, "a", "b")), Is.True);
+                Assert.That(System.IO.File.Exists(Path.Combine(m_root, "a", "x.txt")), Is.True);
+            });
         }
 
         /// <summary>
