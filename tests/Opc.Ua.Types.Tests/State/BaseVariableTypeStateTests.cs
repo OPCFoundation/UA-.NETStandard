@@ -78,6 +78,30 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void WriteValueWithIndexRangeIsNotSupported()
+        {
+            // Part 4 5.11.4.4: Bad_WriteNotSupported "is also used if writing of
+            // IndexRanges is not supported for a Node".
+            SystemContext context = CreateSystemContext();
+            var variableType = new BaseDataVariableTypeState
+            {
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                Value = Variant.From([1, 2, 3]),
+                WriteMask = AttributeWriteMask.ValueForVariableType
+            };
+
+            ServiceResult result = variableType.WriteAttribute(
+                context,
+                Attributes.Value,
+                NumericRange.Parse("1"),
+                new DataValue(Variant.From([9])));
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
+            Assert.That(variableType.Value.GetInt32Array(), Is.EqualTo([1, 2, 3]));
+        }
+
+        [Test]
         public void WriteValueIsDeniedByUserWriteMask()
         {
             // Part 3 5.2.8: bit ValueForVariableType of the UserWriteMask guards the

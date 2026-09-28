@@ -452,8 +452,32 @@ namespace Opc.Ua.Types.Tests.State
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, range, dv).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadIndexRangeInvalid),
+            Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadWriteNotSupported),
                 "The simple async write hook does not support index-range writes.");
+        }
+
+        [Test]
+        public void WriteAttributeRejectsIndexRangeOnSimpleSyncHandler()
+        {
+            // Part 4 5.11.4.4: Bad_WriteNotSupported "is also used if writing of
+            // IndexRanges is not supported for a Node".
+            SystemContext ctx = CreateSystemContext();
+            BaseDataVariableState v = CreateReadableVariable();
+            bool called = false;
+            v.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref Variant _) =>
+            {
+                called = true;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = v.WriteAttribute(
+                ctx,
+                Attributes.Value,
+                NumericRange.Parse("0:3"),
+                new DataValue(new Variant(11.0)));
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
+            Assert.That(called, Is.False);
         }
 
         // -----------------------------------------------------------------

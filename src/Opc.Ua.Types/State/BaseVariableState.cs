@@ -1782,10 +1782,12 @@ namespace Opc.Ua
             // check for simple write value handler.
             if (onSimpleWriteValue != null)
             {
-                // index range writes not supported.
+                // index range writes not supported by the simple handler
+                // (Part 4 5.11.4.4: Bad_WriteNotSupported "is also used if
+                // writing of IndexRanges is not supported for a Node").
                 if (!indexRange.IsNull)
                 {
-                    return StatusCodes.BadIndexRangeInvalid;
+                    return StatusCodes.BadWriteNotSupported;
                 }
 
                 result = onSimpleWriteValue(context, this, ref value);
@@ -2096,10 +2098,11 @@ namespace Opc.Ua
                 }
 
                 // simple async write path mirrors OnSimpleWriteValue:
-                // index-range writes are not supported through this hook.
+                // index-range writes are not supported through this hook
+                // (Part 4 5.11.4.4: Bad_WriteNotSupported).
                 if (!indexRange.IsNull)
                 {
-                    return StatusCodes.BadIndexRangeInvalid;
+                    return StatusCodes.BadWriteNotSupported;
                 }
 
                 if (sourceTimestamp == DateTimeUtc.MinValue)
