@@ -131,6 +131,7 @@
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
     <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
     <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
+    <Project Path="src/Opc.Ua.PackML/Opc.Ua.PackML.csproj" />
     <Project Path="src/Opc.Ua.Machinery/Opc.Ua.Machinery.csproj" />
     <Project Path="src/Opc.Ua.Machinery.Jobs/Opc.Ua.Machinery.Jobs.csproj" />
     <Project Path="src/Opc.Ua.Machinery.Result/Opc.Ua.Machinery.Result.csproj" />
