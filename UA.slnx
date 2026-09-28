@@ -27,6 +27,10 @@
     <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
     <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
   </Folder>
+  <Folder Name="/samples/Machinery/">
+    <Project Path="samples/Machinery/MachineryServer/MachineryServer.csproj" />
+    <Project Path="samples/Machinery/MachineryClient/MachineryClient.csproj" />
+  </Folder>
   <Folder Name="/samples/Isa95/">
     <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
   </Folder>
