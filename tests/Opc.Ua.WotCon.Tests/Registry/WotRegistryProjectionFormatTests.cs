@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -237,51 +238,76 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task RestoredPlanAdmissionRunsBeforeAnyRuntimePublication(
             string format, string contentType, WoTDocumentKindEnum storedKind)
         {
-            var store = new InMemoryWotRegistryStore();
-            using var service = new WotRegistryService(store);
-            await service.UpsertResourceAsync(new WotUpsertResourceRequest
+            string root = Path.Combine(TestContext.CurrentContext.WorkDirectory, "format-restore", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
             {
-                GroupId = "plans",
-                ResourceId = "source",
-                Content = ByteString.From(TestMaterialization.Td("urn:registry:projection:source"))
-            }).ConfigureAwait(false);
-            WotRegistryMutationResult accepted = await service.UpsertResourceAsync(
-                Request(WoTDocumentKindEnum.ThingDescription)).ConfigureAwait(false);
-            WotResource resource = accepted.Resource!;
-            WotResourceVersion original = resource.DefaultVersion!;
-            var replacedVersion = new WotResourceVersion(
-                original.VersionId, original.Digest, original.ContentLength, contentType, format,
-                original.CreatedAt, original.ModifiedAt)
+                WotUpsertResourceRequest plan = Request(WoTDocumentKindEnum.ThingDescription);
+                using (var store = new FileWotRegistryStore(root))
+                using (var initial = new WotRegistryService(store))
+                {
+                    await initial.InitializeAsync().ConfigureAwait(false);
+                    await initial.UpsertResourceAsync(new WotUpsertResourceRequest
+                    {
+                        GroupId = "plans",
+                        ResourceId = "source",
+                        Content = ByteString.From(TestMaterialization.Td("urn:registry:projection:source"))
+                    }).ConfigureAwait(false);
+                    Assert.That((await initial.UpsertResourceAsync(plan).ConfigureAwait(false)).Changed, Is.True);
+                }
+                string manifestPath = Path.Combine(root, "manifest.json");
+                JsonObject manifest = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+                JsonObject group = manifest["Groups"]!.AsArray().OfType<JsonObject>()
+                    .Single(value => value["GroupId"]!.GetValue<string>() == "plans");
+                JsonObject resource = group["Resources"]!.AsArray().OfType<JsonObject>()
+                    .Single(value => value["ResourceId"]!.GetValue<string>() == "view");
+                resource["Kind"] = (int)storedKind;
+                JsonObject version = resource["Versions"]![0]!.AsObject();
+                version["Format"] = format;
+                version["ContentType"] = contentType;
+                File.WriteAllText(manifestPath, manifest.ToJsonString());
+
+                await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+                var registrations = runtime.Lifecycle.Registrations;
+                using var restoredStore = new FileWotRegistryStore(root);
+                using var service = new WotRegistryService(restoredStore);
+                if (storedKind != WoTDocumentKindEnum.ThingDescription)
+                {
+                    await Assert.ThatAsync(async () => await service.InitializeAsync().ConfigureAwait(false),
+                        Throws.TypeOf<InvalidDataException>()).ConfigureAwait(false);
+                    Assert.That(runtime.Lifecycle.Registrations, Is.EqualTo(registrations));
+                    Assert.That(service.Current.RefreshGeneration, Is.Zero);
+                    return;
+                }
+                await service.InitializeAsync().ConfigureAwait(false);
+                Assert.That(await service.ReadContentAsync(service.Current.FindResource("plans", "view")!.DefaultVersion!)
+                    .ConfigureAwait(false), Is.EqualTo(plan.Content));
+                WoTValidationOutcomeDataType validation = await service.ValidateResourceAsync("plans", "view")
+                    .ConfigureAwait(false);
+                Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                var host = new FakeWotProjectionHost();
+                using var viewHost = new LifecycleWotViewProjectionHost(runtime.Lifecycle);
+                using var coordinator = new WotMaterializationCoordinator(
+                    service, runtime.Observe(host.RecordCommitted),
+                    documentConverter: new FakeWotDocumentConverter(), viewProjectionHost: viewHost);
+
+                WotRefreshResult refresh = await coordinator.RefreshAsync(new WotRefreshRequest
+                {
+                    Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
+                }).ConfigureAwait(false);
+
+                Assert.That(host.Operations, Is.Empty, "An invalid plan cannot publish its atomic unit's sources first.");
+                Assert.That(runtime.Lifecycle.Registrations, Is.EqualTo(registrations));
+                Assert.That(refresh.NewGeneration, Is.Zero);
+                WoTResourceLoadResultDataType result = refresh.Results.Single(value => value.ResourceId == "view");
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(result.Phase, Is.EqualTo(WoTPhaseEnum.FormatValidation));
+                Assert.That(result.LoadState, Is.EqualTo(WoTLoadStateEnum.Failed));
+            }
+            finally
             {
-                DocumentId = original.DocumentId,
-                Title = original.Title
-            };
-            var replaced = new WotResource(
-                resource.GroupId, resource.ResourceId, storedKind, [replacedVersion],
-                defaultVersionId: replacedVersion.VersionId, thingId: resource.ThingId, title: resource.Title);
-            WotResourceGroup group = service.Current.FindGroup("plans")!;
-            WotRegistrySnapshot restored = service.Current.WithGroup(
-                group.WithResources(group.Resources.SetItem(resource.ResourceId, replaced), group.Epoch),
-                service.Current.Generation + 1);
-            await store.CommitAsync(restored).ConfigureAwait(false);
-            await service.InitializeAsync().ConfigureAwait(false);
-
-            WoTValidationOutcomeDataType validation = await service.ValidateResourceAsync("plans", "view")
-                .ConfigureAwait(false);
-            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
-            var host = new FakeWotProjectionHost();
-            var viewHost = new InMemoryWotViewProjectionHost();
-            using var coordinator = new WotMaterializationCoordinator(
-                service, host, documentConverter: new FakeWotDocumentConverter(), viewProjectionHost: viewHost);
-
-            WotRefreshResult refresh = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
-
-            Assert.That(host.Operations, Is.Empty, "An invalid stored plan cannot publish its sources first.");
-            Assert.That(viewHost.Applied, Is.Empty);
-            WoTResourceLoadResultDataType result = refresh.Results.Single(value => value.ResourceId == "view");
-            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
-            Assert.That(result.Phase, Is.EqualTo(WoTPhaseEnum.FormatValidation));
-            Assert.That(result.LoadState, Is.EqualTo(WoTLoadStateEnum.Failed));
+                Directory.Delete(root, recursive: true);
+            }
         }
 
         [Test]
