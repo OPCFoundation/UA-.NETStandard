@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -356,6 +357,14 @@ namespace Opc.Ua.Client.WebApi
             using HttpResponseMessage response = await m_httpClient
                 .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token)
                 .ConfigureAwait(false);
+
+            // Translate throttling (HTTP 429/503, e.g. a rate limiter gate) into
+            // BadServerTooBusy with the Retry-After hint, like HttpsTransportChannel.
+            if ((int)response.StatusCode == 429 ||
+                response.StatusCode == HttpStatusCode.ServiceUnavailable)
+            {
+                throw HttpsTransportChannel.CreateServerTooBusyException(response);
+            }
 
             response.EnsureSuccessStatusCode();
 

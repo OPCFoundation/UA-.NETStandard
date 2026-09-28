@@ -30,6 +30,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
@@ -185,22 +186,40 @@ namespace Opc.Ua.Client.Tests.WebApi
             Assert.That(unchanged, Is.EqualTo(new Uri("https://localhost:4843/ua")));
         }
 
-        [Test]
-        public async Task SendRequestMapsHttpErrorStatusToServiceResultExceptionAsync()
+        [TestCase(503)]
+        [TestCase(429)]
+        public async Task SendRequestMapsThrottlingToServerTooBusyAsync(int status)
         {
             using WebApiTransportChannel channel = await OpenChannelAsync(
-                new StubHandler((_, _) => Task.FromResult(
-                    new HttpResponseMessage(HttpStatusCode.ServiceUnavailable))))
+                new StubHandler((_, _) =>
+                {
+                    var response = new HttpResponseMessage((HttpStatusCode)status);
+                    response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromSeconds(2));
+                    return Task.FromResult(response);
+                }))
                 .ConfigureAwait(false);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
                     .ConfigureAwait(false));
-#if NET5_0_OR_GREATER
+            // Same on every target framework (the library maps the status code
+            // itself instead of relying on HttpRequestException.StatusCode).
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
-#else
+            Assert.That(ex.Result.AdditionalInfo, Is.EqualTo("RetryAfterMs=2000"));
+        }
+
+        [Test]
+        public async Task SendRequestMapsHttpErrorStatusToServiceResultExceptionAsync()
+        {
+            using WebApiTransportChannel channel = await OpenChannelAsync(
+                new StubHandler((_, _) => Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.InternalServerError))))
+                .ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
+                    .ConfigureAwait(false));
             Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
-#endif
             Assert.That(ex.InnerException, Is.TypeOf<HttpRequestException>());
         }
 

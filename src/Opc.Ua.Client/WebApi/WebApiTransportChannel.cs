@@ -444,15 +444,8 @@ namespace Opc.Ua.Client.WebApi
 
         private static StatusCode MapRequestFailure(HttpRequestException exception)
         {
-#if NET5_0_OR_GREATER
-            // EnsureSuccessStatusCode: translate throttling (e.g. a rate limiter
-            // gate) into BadServerTooBusy like HttpsTransportChannel does.
-            if (exception.StatusCode is HttpStatusCode status &&
-                ((int)status == 429 || status == HttpStatusCode.ServiceUnavailable))
-            {
-                return StatusCodes.BadServerTooBusy;
-            }
-#endif
+            // Throttling (HTTP 429/503) never gets here: WebApiClient already
+            // turned it into BadServerTooBusy before EnsureSuccessStatusCode.
             return HttpsTransportChannel.MapRequestFailure(exception);
         }
 

@@ -934,7 +934,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         disposal = Task.Run(s.Dispose, CancellationToken.None);
                     }
-                    disposed.TrySetResult(disposal.Wait(TimeSpan.FromSeconds(5), CancellationToken.None));
+                    disposed.TrySetResult(disposal.Wait((int)TimeSpan.FromSeconds(5).TotalMilliseconds, CancellationToken.None));
                 }
             };
             await subscription.CreateAsync(ct).ConfigureAwait(false);

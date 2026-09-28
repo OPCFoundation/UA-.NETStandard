@@ -194,7 +194,7 @@ namespace Opc.Ua.Client.Tests.Identity
             {
                 if (policy.TokenType == UserTokenType.UserName &&
                     policy.SecurityPolicyUri != null &&
-                    policy.SecurityPolicyUri.Contains("ECC_", System.StringComparison.Ordinal) &&
+                    CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
                     policy.SecurityPolicyUri != currentPolicyUri)
                 {
                     eccPolicyUri = policy.SecurityPolicyUri;
