@@ -2245,8 +2245,9 @@ configuration. The helpers register the condition, add the
 ancestors with `EventNotifiers.SubscribeToEvents`. The source is also
 registered as a root notifier so clients subscribing to the `Server`
 object receive condition events. `.MonitorVariable(variable)` sets the
-alarm's `InputNode` to the variable; `SourceNode` keeps naming the object
-that carries the `HasCondition` reference:
+alarm's `SourceNode`, `SourceName` and `InputNode` to the variable and makes
+it the condition source: the variable gets a `HasCondition` reference to the
+alarm and the object gets a `HasEventSource` reference to the variable:
 
 ```csharp
 builder.Node("Pumps/Pump #1/Events")

@@ -331,14 +331,24 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 }));
             var file = new FileObjectState(manager.SystemContext, FileId(manager, "a/b/y.txt"), "a/b/y.txt", "y.txt");
 
+            ServiceResult openDuringDelete;
+            ServiceResult deleted;
+#pragma warning disable CA2025 // awaited in the finally below, before the manager is disposed
             Task<ServiceResult> delete = DeleteAsync(manager, CreateDirectory(manager, "a"), DirId(manager, "a/b"));
-            await deleteEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+#pragma warning restore CA2025
+            try
+            {
+                await deleteEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
-            (ServiceResult openDuringDelete, _) = await FileReadRegressionTests.CallAsync(
-                file.Open!, manager.SystemContext, file.NodeId, [(byte)0x01]).ConfigureAwait(false);
-
-            releaseDelete.TrySetResult(true);
-            ServiceResult deleted = await delete.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                (openDuringDelete, _) = await FileReadRegressionTests.CallAsync(
+                    file.Open!, manager.SystemContext, file.NodeId, [(byte)0x01]).ConfigureAwait(false);
+            }
+            finally
+            {
+                // the delete must finish before the manager is disposed.
+                releaseDelete.TrySetResult(true);
+                deleted = await delete.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
 
             Assert.Multiple(() =>
             {

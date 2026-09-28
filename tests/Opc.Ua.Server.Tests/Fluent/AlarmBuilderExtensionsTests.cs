@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void MonitorVariableSetsInputNodeAndKeepsSourceOnConditionSource()
+        public void MonitorVariableMakesTheVariableTheConditionSource()
         {
             (NodeManagerBuilder b, _, BaseDataVariableState src) = CreateBuilder();
             var rootId = new NodeId("Root", kNs);
@@ -199,11 +199,16 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             ab.MonitorVariable(src);
 
-            // SourceNode must stay on the Object that carries the
-            // HasCondition reference (Part 9 5.5.2 ConditionSource).
-            Assert.That(ab.Alarm.SourceNode!.Value, Is.EqualTo(rootId));
-            Assert.That(ab.Alarm.SourceName!.Value, Is.EqualTo("Root"));
+            // The Variable becomes the ConditionSource the events name (Part 9 5.5.2):
+            // HasCondition to the alarm and HasEventSource from the owning Object.
+            Assert.That(ab.Alarm.SourceNode!.Value, Is.EqualTo(src.NodeId));
+            Assert.That(ab.Alarm.SourceName!.Value, Is.EqualTo("Temp"));
             Assert.That(ab.Alarm.InputNode.Value, Is.EqualTo(src.NodeId));
+            Assert.That(src.ReferenceExists(ReferenceTypeIds.HasCondition, false, ab.Alarm.NodeId), Is.True);
+            Assert.That(ab.Alarm.Parent!.NodeId, Is.EqualTo(rootId));
+            Assert.That(
+                ab.Alarm.Parent.ReferenceExists(ReferenceTypeIds.HasEventSource, false, src.NodeId),
+                Is.True);
         }
 
         [Test]
