@@ -104,6 +104,12 @@ namespace Opc.Ua.SourceGeneration
         public string UnresolvedNamespaceExpression { get; } = string.Empty;
 
         /// <summary>
+        /// The encodeable base type whose data type definition cannot be
+        /// resolved (MODELGEN038), or empty.
+        /// </summary>
+        public string UnresolvedBaseDefinition { get; } = string.Empty;
+
+        /// <summary>
         /// Check whether the generator can handle the node.
         /// </summary>
         public static bool Handles(SyntaxNode node, CancellationToken ct)
@@ -199,6 +205,13 @@ namespace Opc.Ua.SourceGeneration
                 IReadOnlyList<TypeSourceGeneratorDiagnostic> diags =
                     TypeSourceGenerator.ValidateAndFilter(
                         Model, out IReadOnlyList<TypeFieldModel> valid);
+
+                // Encode writes the base fields first, which the definition
+                // can only describe through the base type's definition.
+                if (Model.IsDerived && Model.BaseDefinitionActivator == null)
+                {
+                    UnresolvedBaseDefinition = symbol.BaseType.ToDisplayString();
+                }
 
                 ValidFields = EquatableArray<TypeFieldModel>.From(valid);
                 Diagnostics = EquatableArray<(bool, string)>.From(
@@ -399,11 +412,21 @@ namespace Opc.Ua.SourceGeneration
                 if (comp.UnsupportedReason == null &&
                     comp.UnresolvedNamespaceExpression.Length == 0 &&
                     comp.ErrorMessage == null &&
-                    comp.Diagnostics.Count == 0)
+                    comp.Diagnostics.Count == 0 &&
+                    comp.UnresolvedBaseDefinition.Length == 0)
                 {
                     continue;
                 }
                 Location location = comp.Location.ToLocation(compilation);
+                if (comp.UnresolvedBaseDefinition.Length > 0)
+                {
+                    sourceContext.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.DataTypeBaseDefinitionUnresolved,
+                            location,
+                            comp.TypeName,
+                            comp.UnresolvedBaseDefinition));
+                }
                 if (comp.UnsupportedReason != null)
                 {
                     sourceContext.ReportDiagnostic(

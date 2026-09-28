@@ -924,7 +924,10 @@ namespace Opc.Ua.SourceGeneration
             // A StructureField ValueRank is -1 or >= 1, never 0 (OPC 10000-3
             // 8.51), and a matrix field has at least two dimensions (OPC
             // 10000-6 5.2.5). MatrixOf<T> does not tell the rank: publish a
-            // two dimensional matrix of unknown lengths.
+            // two dimensional matrix of unknown lengths. A value of another
+            // rank is still encoded with all its dimensions, but a consumer
+            // checking the published rank may reject it; a field of a fixed
+            // rank above two is declared in a model design instead.
             string valueRank = field.IsMatrix
                 ? "global::Opc.Ua.ValueRanks.TwoDimensions"
                 : field.IsArray

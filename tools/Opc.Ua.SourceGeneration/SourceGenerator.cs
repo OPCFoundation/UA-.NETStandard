@@ -402,6 +402,27 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         /// <summary>
+        /// A <c>[DataType]</c> class derives from an encodeable type whose data
+        /// type definition cannot be found (no <c>[DataType]</c> attribute and
+        /// no activator exposing a definition, or a generic base). Encode
+        /// writes the base fields first, but the published StructureDefinition
+        /// can only list the class's own fields, so it does not describe the
+        /// encoding (OPC 10000-3 8.48).
+        /// </summary>
+        public static readonly DiagnosticDescriptor DataTypeBaseDefinitionUnresolved = new(
+            id: "MODELGEN038",
+            title: "[DataType] base type definition cannot be resolved",
+            messageFormat: (LocalizableString)("[DataType] type '{0}' derives from '{1}', whose data type " +
+                "definition cannot be resolved. The published StructureDefinition lists only the fields " +
+                "of '{0}' although the base fields are encoded first. Annotate the base type with " +
+                "[DataType] or derive from a type that has a generated activator."),
+            category: Name,
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>
         public static bool TryGetDiagnostic(

@@ -31,3 +31,4 @@ MODELGEN034 | ModelSourceGenerator | Error | WoT model virtual NodeSet2 path col
 MODELGEN035 | ModelSourceGenerator | Error | [NodeManager] namespace URI could not be resolved
 MODELGEN036 | ModelSourceGenerator | Error | [NodeManager] class is not supported
 MODELGEN037 | ModelSourceGenerator | Error | [DataType] type is not supported
+MODELGEN038 | ModelSourceGenerator | Warning | [DataType] base type definition cannot be resolved

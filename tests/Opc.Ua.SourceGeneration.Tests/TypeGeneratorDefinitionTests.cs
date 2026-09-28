@@ -795,7 +795,9 @@ namespace Opc.Ua.SourceGeneration
                 bool canOmit = verbose.CanOmitFields;
                 atDeclared.Encode(verbose);
                 string verboseJson = verbose.CloseAndReturnText();
-                Assert.That(verboseJson.Contains("\"Count\":0"), Is.EqualTo(!canOmit), verboseJson);
+                Assert.That(
+                    verboseJson,
+                    canOmit ? Does.Not.Contain("\"Count\":0") : Does.Contain("\"Count\":0"));
             }
 
             // An empty string is a value, only null is the String default.

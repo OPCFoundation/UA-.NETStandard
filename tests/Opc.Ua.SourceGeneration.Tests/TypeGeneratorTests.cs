@@ -310,6 +310,63 @@ namespace TestApp.Structs
         }
 
         /// <summary>
+        /// D1: a [DataType] class deriving from an encodeable whose
+        /// definition cannot be resolved (a hand-written IEncodeable here)
+        /// encodes the base fields first, but its StructureDefinition can only
+        /// list its own fields (OPC 10000-3 8.48). That was silent; it is now
+        /// reported (MODELGEN038). A [DataType] base is resolved and is not.
+        /// </summary>
+        [Test]
+        public void UnresolvedBaseDefinitionIsReported()
+        {
+            const string source =
+                """
+                using Opc.Ua;
+
+                namespace TestApp.Bases
+                {
+                    public class HandBase : IEncodeable
+                    {
+                        public int A { get; set; }
+                        public virtual ExpandedNodeId TypeId => ExpandedNodeId.Null;
+                        public virtual ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
+                        public virtual ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
+                        public virtual void Encode(IEncoder encoder) { encoder.WriteInt32("A", A); }
+                        public virtual void Decode(IDecoder decoder) { A = decoder.ReadInt32("A"); }
+                        public virtual bool IsEqual(IEncodeable encodeable) { return encodeable is HandBase b && b.A == A; }
+                        public virtual object Clone() { return MemberwiseClone(); }
+                    }
+
+                    [DataType(Namespace = "urn:bases")]
+                    public partial class HandDerived : HandBase
+                    {
+                        public int B { get; set; }
+                    }
+
+                    [DataType(Namespace = "urn:bases")]
+                    public partial class GenBase
+                    {
+                        public int C { get; set; }
+                    }
+
+                    [DataType(Namespace = "urn:bases")]
+                    public partial class GenDerived : GenBase
+                    {
+                        public int D { get; set; }
+                    }
+                }
+                """;
+            GeneratorRunResult result = RunGenerator(source, expectWarnings: true);
+
+            Diagnostic[] unresolved = [.. result.Diagnostics.Where(d => d.Id == "MODELGEN038")];
+            Assert.That(unresolved, Has.Length.EqualTo(1));
+            Assert.That(unresolved[0].Severity, Is.EqualTo(DiagnosticSeverity.Warning));
+            string message = unresolved[0].GetMessage(CultureInfo.InvariantCulture);
+            Assert.That(message, Does.Contain("TestApp.Bases.HandDerived"));
+            Assert.That(message, Does.Contain("TestApp.Bases.HandBase"));
+        }
+
+        /// <summary>
         /// Regression: a nested [DataType] was completed by an unrelated
         /// top-level type of the same name. It is now emitted inside partial
         /// declarations of its containing types, and the namespace-level
