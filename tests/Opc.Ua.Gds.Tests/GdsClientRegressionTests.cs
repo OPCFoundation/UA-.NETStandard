@@ -201,6 +201,41 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// The client creation is shared by concurrent acquisitions; cancelling
+        /// the caller that started it must not cancel the creation the other
+        /// callers are waiting for.
+        /// </summary>
+        [Test]
+        public void AccessTokenProviderCancellationOfFirstCallerDoesNotFailOthers()
+        {
+            int factoryCalls = 0;
+            var creation = new TaskCompletionSource<AuthorizationServiceClient>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new GdsAccessTokenProvider(
+                ct =>
+                {
+                    factoryCalls++;
+                    // A factory that honours the token it is given.
+                    ct.Register(() => creation.TrySetCanceled(ct));
+                    return new ValueTask<AuthorizationServiceClient>(creation.Task);
+                },
+                "urn:authority");
+            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority", Audience = "urn:target" };
+
+            using var firstCallerCts = new CancellationTokenSource();
+            Task first = provider.AcquireAsync(metadata, firstCallerCts.Token).AsTask();
+            Task second = provider.AcquireAsync(metadata, CancellationToken.None).AsTask();
+
+            firstCallerCts.Cancel();
+            Assert.CatchAsync<OperationCanceledException>(async () => await first.ConfigureAwait(false));
+            Assert.That(second.IsCompleted, Is.False);
+
+            creation.TrySetException(new InvalidOperationException("creation finished"));
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await second.ConfigureAwait(false));
+            Assert.That(factoryCalls, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// A server returning fewer output arguments than the method defines
         /// must surface as a ServiceResultException, not IndexOutOfRange.
         /// </summary>

@@ -136,9 +136,14 @@ namespace Opc.Ua.Gds.Client
                 return Task.FromResult(m_client);
             }
 
+            Task<AuthorizationServiceClient> clientTask;
             lock (m_gate)
             {
-                Task<AuthorizationServiceClient> clientTask = m_clientTask ??= CreateClientAsync(ct);
+                // The creation is shared by every concurrent caller, so it must
+                // not be bound to the token of whichever caller started it:
+                // cancelling that caller would fail all the others. Each caller
+                // applies its own token to the wait instead.
+                clientTask = m_clientTask ??= CreateClientAsync(CancellationToken.None);
 
                 // A factory that fails synchronously completes the task before
                 // the assignment above, so the reset in CreateClientAsync runs
@@ -147,8 +152,8 @@ namespace Opc.Ua.Gds.Client
                 {
                     m_clientTask = null;
                 }
-                return clientTask;
             }
+            return clientTask.WaitAsync(ct);
         }
 
         private async Task<AuthorizationServiceClient> CreateClientAsync(CancellationToken ct)
