@@ -121,6 +121,8 @@
     <Project Path="src/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
     <Project Path="src/Opc.Ua.Di/Opc.Ua.Di.csproj" />
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
+    <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
+    <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd/Opc.Ua.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Server/Opc.Ua.OpenUsd.Server.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Client/Opc.Ua.OpenUsd.Client.csproj" />

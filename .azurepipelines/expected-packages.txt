@@ -29,6 +29,7 @@ OPCFoundation.NetStandard.Opc.Ua.Core.Types
 OPCFoundation.NetStandard.Opc.Ua.Di
 OPCFoundation.NetStandard.Opc.Ua.Di.Client
 OPCFoundation.NetStandard.Opc.Ua.Di.Server
+OPCFoundation.NetStandard.Opc.Ua.ECM
 OPCFoundation.NetStandard.Opc.Ua.Gds
 OPCFoundation.NetStandard.Opc.Ua.Gds.Client
 OPCFoundation.NetStandard.Opc.Ua.Gds.Server
@@ -50,6 +51,7 @@ OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server
+OPCFoundation.NetStandard.Opc.Ua.PADIM
 OPCFoundation.NetStandard.Opc.Ua.Positioning
 OPCFoundation.NetStandard.Opc.Ua.Positioning.Client
 OPCFoundation.NetStandard.Opc.Ua.Positioning.Server
