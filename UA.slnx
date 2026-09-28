@@ -31,6 +31,10 @@
     <Project Path="samples/Machinery/MachineryServer/MachineryServer.csproj" />
     <Project Path="samples/Machinery/MachineryClient/MachineryClient.csproj" />
   </Folder>
+  <Folder Name="/samples/Pumps/">
+    <Project Path="samples/Pumps/PumpsServer/PumpsServer.csproj" />
+    <Project Path="samples/Pumps/PumpsClient/PumpsClient.csproj" />
+  </Folder>
   <Folder Name="/samples/Isa95/">
     <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
   </Folder>
