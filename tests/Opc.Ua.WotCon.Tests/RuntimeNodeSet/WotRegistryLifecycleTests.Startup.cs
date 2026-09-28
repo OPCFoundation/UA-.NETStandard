@@ -102,28 +102,37 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private NodeManagerRegistration m_registryRegistration = null!;
         private FileWotRegistryStore? m_startupStore;
 
-        private sealed class DeadlineProjectionHost(IWotProjectionHost inner) : IWotProjectionHost
+        private sealed class DeadlineProjectionHost(IWotInvocationProjectionHost inner) : IWotInvocationProjectionHost
         {
             public int AddCalls => Volatile.Read(ref m_addCalls);
 
             public bool DeadlineExpired => Volatile.Read(ref m_deadlineExpired) != 0;
 
-            public async ValueTask<WotProjectionHandle> AddAsync(
+            public bool SupportsPreparedPublication => inner.SupportsPreparedPublication;
+
+            public ArrayOf<WoTAtomicityEnum> SupportedAtomicities => inner.SupportedAtomicities;
+
+            public IWotProjectionPublicationCapture CapturePublication()
+            {
+                return new DeadlineCapture(this, inner.CapturePublication());
+            }
+
+            public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+                ArrayOf<WotProjectionChange> changes,
+                IWotPreparedViewPublication? views = null,
+                CancellationToken cancellationToken = default)
+            {
+                RecordAdditions(changes);
+                IWotPreparedProjectionPublication prepared = await WithDeadlineAsync(
+                    token => inner.PrepareAsync(changes, views, token), cancellationToken).ConfigureAwait(false);
+                return new DeadlinePublication(this, prepared);
+            }
+
+            public ValueTask<WotProjectionHandle> AddAsync(
                 WotProjectionDocument document, CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_addCalls);
-                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                deadline.CancelAfter(TimeSpan.FromSeconds(5));
-                try
-                {
-                    return await inner.AddAsync(document, deadline.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (
-                    deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-                {
-                    Interlocked.Exchange(ref m_deadlineExpired, 1);
-                    throw;
-                }
+                return WithDeadlineAsync(token => inner.AddAsync(document, token), cancellationToken);
             }
 
             public ValueTask<WotProjectionHandle> ShadowReloadAsync(
@@ -145,8 +154,126 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 return inner.RemoveAsync(handle, cancellationToken);
             }
 
+            private void RecordAdditions(ArrayOf<WotProjectionChange> changes)
+            {
+                foreach (WotProjectionChange change in changes)
+                {
+                    if (change.Current is null && change.Document is not null)
+                    {
+                        Interlocked.Increment(ref m_addCalls);
+                    }
+                }
+            }
+
+            private async ValueTask<T> WithDeadlineAsync<T>(
+                Func<CancellationToken, ValueTask<T>> action, CancellationToken cancellationToken)
+            {
+                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                deadline.CancelAfter(TimeSpan.FromSeconds(5));
+                try
+                {
+                    return await action(deadline.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (
+                    deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                {
+                    Interlocked.Exchange(ref m_deadlineExpired, 1);
+                    throw;
+                }
+            }
+
             private int m_addCalls;
             private int m_deadlineExpired;
+
+            private sealed class DeadlineCapture(
+                DeadlineProjectionHost owner, IWotProjectionPublicationCapture capture)
+                : IWotProjectionPublicationCapture
+            {
+                public async ValueTask<IWotProjectionPublication> BeginAsync(
+                    CancellationToken cancellationToken = default)
+                {
+                    IWotProjectionPublication invocation = await owner.WithDeadlineAsync(
+                        capture.BeginAsync, cancellationToken).ConfigureAwait(false);
+                    return new DeadlineInvocation(owner, invocation);
+                }
+            }
+
+            private sealed class DeadlineInvocation(
+                DeadlineProjectionHost owner, IWotProjectionPublication inner) : IWotProjectionValidationPublication
+            {
+                public bool IsCurrent => inner.IsCurrent;
+
+                public async ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+                    ArrayOf<WotProjectionChange> changes,
+                    IWotPreparedViewPublication? views = null,
+                    CancellationToken cancellationToken = default)
+                {
+                    owner.RecordAdditions(changes);
+                    IWotPreparedProjectionPublication prepared = await owner.WithDeadlineAsync(
+                        token => inner.PrepareAsync(changes, views, token), cancellationToken).ConfigureAwait(false);
+                    return new DeadlinePublication(owner, prepared);
+                }
+
+                public async ValueTask<IWotPreparedProjectionPublication> PrepareReadImagesAsync(
+                    ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default)
+                {
+                    IWotPreparedProjectionPublication prepared = await owner.WithDeadlineAsync(
+                        token => inner.PrepareReadImagesAsync(images, token), cancellationToken).ConfigureAwait(false);
+                    return new DeadlinePublication(owner, prepared);
+                }
+
+                public async ValueTask ValidateAsync(
+                    ArrayOf<WotProjectionChange> changes,
+                    Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask> inspectAsync,
+                    IWotPreparedViewPublication? views = null,
+                    CancellationToken cancellationToken = default)
+                {
+                    if (inner is not IWotProjectionValidationPublication validation)
+                    {
+                        throw new NotSupportedException("The wrapped source owner does not support private validation.");
+                    }
+                    await owner.WithDeadlineAsync(async token =>
+                    {
+                        await validation.ValidateAsync(changes, inspectAsync, views, token).ConfigureAwait(false);
+                        return true;
+                    }, cancellationToken).ConfigureAwait(false);
+                }
+
+                public ValueTask DisposeAsync()
+                {
+                    return inner.DisposeAsync();
+                }
+            }
+
+            private sealed class DeadlinePublication(
+                DeadlineProjectionHost owner, IWotPreparedProjectionPublication inner) : IWotPreparedProjectionPublication
+            {
+                public ArrayOf<WotProjectionHandle> Projections => inner.Projections;
+                public WotPreparedViewGraphState? ViewGraph => inner.ViewGraph;
+                public bool IsCommitted => inner.IsCommitted;
+                public Exception? CleanupFailure => inner.CleanupFailure;
+
+                public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
+                {
+                    inner.BindReadImages(images);
+                }
+
+                public async ValueTask CommitAsync(
+                    Func<CancellationToken, ValueTask> decideAsync, Action publishCommittedState,
+                    CancellationToken cancellationToken = default)
+                {
+                    await owner.WithDeadlineAsync(async token =>
+                    {
+                        await inner.CommitAsync(decideAsync, publishCommittedState, token).ConfigureAwait(false);
+                        return true;
+                    }, cancellationToken).ConfigureAwait(false);
+                }
+
+                public ValueTask DisposeAsync()
+                {
+                    return inner.DisposeAsync();
+                }
+            }
         }
     }
 }

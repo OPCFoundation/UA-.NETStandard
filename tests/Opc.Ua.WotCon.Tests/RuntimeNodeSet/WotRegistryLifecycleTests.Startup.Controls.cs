@@ -580,11 +580,28 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
         }
 
-        private sealed class RemovalDeadlineProjectionHost(IWotProjectionHost inner) : IWotProjectionHost
+        private sealed class RemovalDeadlineProjectionHost(IWotInvocationProjectionHost inner) : IWotInvocationProjectionHost
         {
             public int RemoveCalls => Volatile.Read(ref m_removeCalls);
 
             public bool DeadlineExpired => Volatile.Read(ref m_deadlineExpired) != 0;
+
+            public bool SupportsPreparedPublication => inner.SupportsPreparedPublication;
+
+            public ArrayOf<WoTAtomicityEnum> SupportedAtomicities => inner.SupportedAtomicities;
+
+            public IWotProjectionPublicationCapture CapturePublication()
+            {
+                return inner.CapturePublication();
+            }
+
+            public ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
+                ArrayOf<WotProjectionChange> changes,
+                IWotPreparedViewPublication? views = null,
+                CancellationToken cancellationToken = default)
+            {
+                return inner.PrepareAsync(changes, views, cancellationToken);
+            }
 
             public ValueTask<WotProjectionHandle> AddAsync(
                 WotProjectionDocument document, CancellationToken cancellationToken = default)
