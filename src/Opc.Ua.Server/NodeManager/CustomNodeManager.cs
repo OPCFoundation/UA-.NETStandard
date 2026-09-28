@@ -2874,9 +2874,10 @@ namespace Opc.Ua.Server
         {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
+            bool hasSemanticChangeFlag = AsyncCustomNodeManager.HasSemanticChangeFlag(property);
 
-            if (propertyName
-                is not BrowseNames.EURange
+            if (!hasSemanticChangeFlag &&
+                propertyName is not BrowseNames.EURange
                     and not BrowseNames.InstrumentRange
                     and not BrowseNames.EngineeringUnits
                     and not BrowseNames.Title
@@ -2901,6 +2902,7 @@ namespace Opc.Ua.Server
             // owning node is monitored (Part 3 5.6.2).
             NodeState? changedNode = property.Parent;
             if (changedNode != null &&
+                !hasSemanticChangeFlag &&
                 !AsyncCustomNodeManager.IsSemanticChangeProperty(changedNode, propertyName))
             {
                 return;
@@ -2927,7 +2929,7 @@ namespace Opc.Ua.Server
 
                 if (propertyState != null &&
                     propertyState.NodeId == property.NodeId &&
-                    AsyncCustomNodeManager.IsSemanticChangeProperty(node, propertyName))
+                    (hasSemanticChangeFlag || AsyncCustomNodeManager.IsSemanticChangeProperty(node, propertyName)))
                 {
                     monitoredItem.SetSemanticsChanged();
 

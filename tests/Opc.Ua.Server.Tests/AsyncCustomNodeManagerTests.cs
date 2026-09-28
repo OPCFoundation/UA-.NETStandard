@@ -2769,6 +2769,67 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that a change of any Property whose AccessLevel has the SemanticChange bit
+        /// raises a SemanticChangeEvent, not only the properties of the well-known node types
+        /// (Part 3 5.6.2); without the bit such a property raises none.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task WriteSemanticChangeFlaggedPropertyAsyncRaisesSemanticChangeEventAsync(
+            bool semanticChangeFlag)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var owner = new BaseObjectState(null);
+            owner.CreateAsPredefinedNode(context);
+            owner.NodeId = new NodeId("SemanticOwner", nsIdx);
+            owner.BrowseName = new QualifiedName("SemanticOwner", nsIdx);
+            owner.TypeDefinitionId = ObjectTypeIds.BaseObjectType;
+
+            var property = new PropertyState(null);
+            property.CreateAsPredefinedNode(context);
+            property.NodeId = new NodeId("SemanticOwner.Mode", nsIdx);
+            property.BrowseName = new QualifiedName("Mode", nsIdx);
+            property.Value = 0;
+            property.DataType = DataTypeIds.Int32;
+            property.ValueRank = ValueRanks.Scalar;
+            property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            byte accessLevel = AccessLevels.CurrentReadOrWrite;
+            if (semanticChangeFlag)
+            {
+                accessLevel |= AccessLevels.SemanticChange;
+            }
+            property.AccessLevel = accessLevel;
+            property.UserAccessLevel = accessLevel;
+            owner.AddChild(property);
+
+            await manager.AddNodeAsync(context, default, owner).ConfigureAwait(false);
+
+            var writeErrors = new List<ServiceResult> { null };
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = property.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(7))
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
+            Assert.That(property.Value, Is.EqualTo(7));
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e =>
+                    e is SemanticChangeEventState &&
+                    ((SemanticChangeEventState)e).Changes.Value[0].Affected == owner.NodeId)),
+                semanticChangeFlag ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
         /// Verifies that adding references registers external references.
         /// </summary>
         [Test]

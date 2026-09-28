@@ -5059,9 +5059,10 @@ namespace Opc.Ua.Server
         {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
+            bool hasSemanticChangeFlag = HasSemanticChangeFlag(property);
 
-            if (propertyName
-                is not BrowseNames.EURange
+            if (!hasSemanticChangeFlag &&
+                propertyName is not BrowseNames.EURange
                     and not BrowseNames.InstrumentRange
                     and not BrowseNames.EngineeringUnits
                     and not BrowseNames.Title
@@ -5086,6 +5087,7 @@ namespace Opc.Ua.Server
             // owning node is monitored (Part 3 5.6.2).
             NodeState? changedNode = property.Parent;
             if (changedNode != null &&
+                !hasSemanticChangeFlag &&
                 !IsSemanticChangeProperty(changedNode, propertyName))
             {
                 return;
@@ -5112,7 +5114,7 @@ namespace Opc.Ua.Server
 
                 if (propertyState != null &&
                     propertyState.NodeId == property.NodeId &&
-                    IsSemanticChangeProperty(node, propertyName))
+                    (hasSemanticChangeFlag || IsSemanticChangeProperty(node, propertyName)))
                 {
                     monitoredItem.SetSemanticsChanged();
 
@@ -5139,6 +5141,15 @@ namespace Opc.Ua.Server
             {
                 RaiseSemanticChangeEvent(systemContext, changedNode, property);
             }
+        }
+
+        /// <summary>
+        /// Returns true if the property's AccessLevel(Ex) has the SemanticChange bit set;
+        /// a change of such a property raises a SemanticChangeEvent (Part 3 5.6.2).
+        /// </summary>
+        internal static bool HasSemanticChangeFlag(PropertyState property)
+        {
+            return (property.AccessLevelEx & AccessLevels.SemanticChange) != 0;
         }
 
         /// <summary>
