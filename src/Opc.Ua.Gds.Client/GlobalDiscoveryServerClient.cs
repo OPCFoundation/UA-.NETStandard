@@ -1051,7 +1051,7 @@ namespace Opc.Ua.Gds.Client
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return m_directory ?? throw ServiceResultException.Create(
-                StatusCodes.BadNotConnected,
+                StatusCodes.BadServerNotConnected,
                 "The GDS client was disconnected before the call could be made.");
         }
 
@@ -1064,7 +1064,7 @@ namespace Opc.Ua.Gds.Client
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             return m_certificateDirectory ?? throw ServiceResultException.Create(
-                StatusCodes.BadNotConnected,
+                StatusCodes.BadServerNotConnected,
                 "The GDS client was disconnected before the call could be made.");
         }
 
