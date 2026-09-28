@@ -127,17 +127,19 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
             var trigger = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var otherRunning = new ManualResetEventSlim(false);
             using var releaseOther = new ManualResetEventSlim(false);
-            Task disposal = null;
+            var spawned = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             Assert.That(session.RunBackgroundWork("spawner", () =>
             {
                 // Captures the execution context of the work item.
-                disposal = trigger.Task.ContinueWith(
+                spawned.SetResult(trigger.Task.ContinueWith(
                     _ => session.Dispose(),
                     CancellationToken.None,
                     TaskContinuationOptions.None,
-                    TaskScheduler.Default);
+                    TaskScheduler.Default));
             }), Is.True);
+            // Background work items may run concurrently; wait until the spawner ran.
+            Task disposal = await spawned.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             Assert.That(session.RunBackgroundWork("other", () =>
             {
                 otherRunning.Set();
