@@ -875,12 +875,15 @@ namespace Opc.Ua.SourceGeneration
                 isEncodeable,
                 isEnum);
 
-            // A field whose value equals the default is omitted on encode
-            // (DefaultValueHandling.Exclude) and a missing field keeps the
-            // value the constructor assigned on decode. Both only agree when
-            // "default" is the value the property is initialized with. That is
-            // only known for a literal initializer (or none) that no
-            // constructor overrides; otherwise the field is always encoded.
+            // A field whose value equals the type default (OPC 10000-6 Table 1)
+            // may be omitted on encode (DefaultValueHandling.Exclude), and a
+            // missing field keeps the value the constructor assigned on decode
+            // (a deliberate leniency, so configuration files may leave fields
+            // out). Both only agree with a conformant peer, which decodes a
+            // missing field as the type default (5.4.1, 5.3.5), when the
+            // declared default is the type default: no initializer (or a
+            // default literal) that no constructor overrides. Any other
+            // declared default makes the field always encoded.
             string defaultValueLiteral = null;
             bool hasNonConstantInitializer = false;
             ExpressionSyntax initializer = GetPropertyInitializerSyntax(prop);

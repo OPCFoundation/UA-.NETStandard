@@ -443,14 +443,20 @@ namespace Opc.Ua.SourceGeneration
                     field.PropertyName);
             }
 
-            // Omitting a field is only round-trip safe when a missing field
-            // decodes to the omitted value: the property initializer (or the
-            // CLR default without one). An initializer that cannot be
-            // compared against keeps the field on the wire. A SetIfMissing
-            // field decodes a missing field as the CLR default whatever the
-            // initializer, so only the CLR default may be omitted.
+            // OPC 10000-6 5.4.1/5.4.2.1 (and 5.3.5 for XML): a Compact encoder
+            // may only omit a field whose value is the default of its type
+            // (Table 1: 0, false, null, ...), because a conformant decoder
+            // reads a missing field as that type default. The field is
+            // therefore only omitted when its value is the type default and
+            // a missing field also decodes to the type default here: a
+            // SetIfMissing field always does; an Exclude field keeps its
+            // declared default, so only when that is the type default too (no
+            // initializer, or a default literal). A field with any other or
+            // an unknown declared default is always written, and nothing is
+            // omitted when the encoder cannot omit fields (binary, Verbose).
             if ((field.DefaultValueHandling & 1) == 0 &&
-                (IsSetIfMissing(field) || !field.HasNonConstantInitializer))
+                (IsSetIfMissing(field) ||
+                    (!field.HasNonConstantInitializer && field.DefaultValueLiteral == null)))
             {
                 encodeLine = CoreUtils.Format(
                     "if (!encoder.CanOmitFields || {0}) {1}",
@@ -581,6 +587,12 @@ namespace Opc.Ua.SourceGeneration
                     field.FieldName.Escape());
             }
 
+            // Without SetIfMissing a missing field keeps the declared default
+            // instead of the type default OPC 10000-6 5.4.1/5.3.5 prescribe.
+            // This is a deliberate leniency so configuration files can leave
+            // fields out; the encoder never omits a field whose declared
+            // default differs from the type default, so values this SDK
+            // writes still round trip with conformant peers.
             if ((field.DefaultValueHandling & 2) == 0)
             {
                 decodeLine = CoreUtils.Format(
@@ -1229,7 +1241,9 @@ namespace Opc.Ua.SourceGeneration
                 ["Single"] = "{0} != 0f",
                 ["float"] = "{0} != 0f",
                 ["Double"] = "{0} != 0.0",
-                ["String"] = "!string.IsNullOrEmpty({0})",
+                // The String default is null (OPC 10000-6 Table 1); an empty
+                // string is a value and is written.
+                ["String"] = "{0} != null",
                 ["DateTime"] = "{0} != global::System.DateTime.MinValue",
                 ["DateTimeUtc"] = "!{0}.IsNull",
                 ["Guid"] = "{0} != global::System.Guid.Empty",
@@ -1272,10 +1286,6 @@ namespace Opc.Ua.SourceGeneration
             if (field.IsArray || field.IsMatrix)
             {
                 return $"!{field.PropertyName}.IsNull";
-            }
-            if (field.DefaultValueLiteral != null && !IsSetIfMissing(field))
-            {
-                return $"{field.PropertyName} != {field.DefaultValueLiteral}";
             }
             if (field.IsEnum ||
                 !NotDefaultCheckExpression.TryGetValue(field.ShortTypeName, out string expr))

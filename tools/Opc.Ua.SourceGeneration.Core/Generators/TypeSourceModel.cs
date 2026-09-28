@@ -333,9 +333,11 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// The literal (number, string, boolean) the property is
-        /// initialized with, or null if it has no such initializer. With
-        /// DefaultValueHandling.Exclude a value equal to it is omitted, as
-        /// a missing field decodes to it.
+        /// initialized with, or null if it has no such initializer (or one
+        /// equal to the type default). A missing field decodes to it with
+        /// DefaultValueHandling.Exclude, which differs from the type default
+        /// a conformant peer decodes a missing field as (OPC 10000-6 5.4.1),
+        /// so such a field is never omitted.
         /// </summary>
         public string DefaultValueLiteral { get; set; }
 

@@ -136,11 +136,12 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(Get(decoded, "Label"), Is.Null);
             Assert.That(Get(decoded, "Stamp"), Is.EqualTo(DateTimeUtc.MinValue));
 
-            // The declared defaults still round trip (and are omitted).
+            // The declared defaults still round trip. They are not the type
+            // defaults, so they are written even in Compact (E7).
             object defaults = Create("Cfg");
-            string json = EncodeCompactJson((IEncodeable)defaults);
-            Assert.That(json, Does.Not.Contain("Retries"));
-            Assert.That(json, Does.Not.Contain("Tag"));
+            string json = EncodeJson((IEncodeable)defaults, JsonEncoderOptions.Compact);
+            Assert.That(json, Does.Contain("Retries"));
+            Assert.That(json, Does.Contain("Tag"));
             object decodedDefaults = JsonRoundTrip((IEncodeable)defaults);
             Assert.That(Get(decodedDefaults, "Retries"), Is.EqualTo(3));
             Assert.That(Get(decodedDefaults, "Enabled"), Is.True);
@@ -633,7 +634,7 @@ namespace Opc.Ua.SourceGeneration
             Set(zero, "Count", 0);
             Set(zero, "Flag", false);
             Set(zero, "Text", null);
-            string zeroJson = EncodeCompactJson(zero);
+            string zeroJson = EncodeJson(zero, JsonEncoderOptions.Compact);
             Assert.That(zeroJson, Does.Not.Contain("Count"));
             object decodedZero = JsonRoundTrip(zero);
             Assert.That(Get(decodedZero, "Count"), Is.Zero);
@@ -712,11 +713,12 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(Get(decoded, "Timeout"), Is.Zero, "constructor assigned backing field");
             Assert.That(Get(decoded, "Port"), Is.Zero, "backing field initializer");
 
-            // Known defaults are still omitted: the backing field literal and
-            // the CLR default of properties nothing assigns.
+            // Only type defaults are omitted (Compact): the CLR default of
+            // properties nothing assigns. The backing field literal 4840 is
+            // not the type default and is written (E7).
             var defaults = (IEncodeable)Activator.CreateInstance(cfgType);
-            string json = EncodeCompactJson(defaults);
-            Assert.That(json, Does.Not.Contain("Port"));
+            string json = EncodeJson(defaults, JsonEncoderOptions.Compact);
+            Assert.That(json, Does.Contain("Port"));
             Assert.That(json, Does.Not.Contain("Plain"));
             Assert.That(json, Does.Not.Contain("Untouched"));
             Assert.That(json, Does.Contain("Retries"));
@@ -728,6 +730,86 @@ namespace Opc.Ua.SourceGeneration
             var zero = (IEncodeable)Activator.CreateInstance(initializedType);
             Set(zero, "Count", 0);
             Assert.That(Get(JsonRoundTrip(zero), "Count"), Is.Zero, "set by a helper the constructor calls");
+        }
+
+        /// <summary>
+        /// E7: a Compact encoding may only omit a field whose value is the
+        /// default of its type (OPC 10000-6 5.4.1, 5.4.2.1, Table 1), since
+        /// a conformant decoder reads a missing field as the type default. A
+        /// field declared with another default (initializer 4840) was
+        /// omitted at 4840 and decoded as 0 by a peer; it is now always
+        /// written. A field without initializer is omitted at the type
+        /// default when the encoder can omit fields and written otherwise.
+        /// </summary>
+        [Test]
+        public void OnlyTypeDefaultValuesAreOmitted()
+        {
+            const string source =
+                """
+                #nullable enable
+                using Opc.Ua;
+
+                namespace TestApp.TypeDefaults
+                {
+                    [DataType(Namespace = "urn:defs", DataTypeId = "i=1")]
+                    public partial class Endpoint
+                    {
+                        public int Port { get; set; } = 4840;
+                        public int Count { get; set; }
+                        public string? Name { get; set; }
+                    }
+                }
+                """;
+            Assembly assembly = CompileAndLoad(source, out string generated);
+            Type type = assembly.GetType("TestApp.TypeDefaults.Endpoint", throwOnError: true);
+            Assert.That(generated, Does.Contain("if (!encoder.CanOmitFields || Count != 0) encoder.WriteInt32(\"Count\", Count);"));
+            Assert.That(generated, Does.Not.Contain("|| Port"));
+            ServiceMessageContext context = CreateContext();
+            context.Factory.Builder.AddEncodeableTypes(assembly).Commit();
+
+            // Port at its declared default 4840 is written, also in Compact.
+            var atDeclared = (IEncodeable)Activator.CreateInstance(type);
+            Assert.That(EncodeJson(atDeclared, JsonEncoderOptions.Compact), Does.Contain("\"Port\":4840"));
+            Assert.That(EncodeJson(atDeclared, JsonEncoderOptions.Verbose), Does.Contain("\"Port\":4840"));
+            Assert.That(EncodeXml(context, atDeclared), Does.Contain("<Port>4840</Port>"));
+            Assert.That(Get(JsonRoundTrip(atDeclared), "Port"), Is.EqualTo(4840));
+
+            // Port at the type default 0 is written too (the Compact
+            // JsonEncoder itself drops a 0 value, which a conformant decoder
+            // reads back as 0).
+            var atTypeDefault = (IEncodeable)Activator.CreateInstance(type);
+            Set(atTypeDefault, "Port", 0);
+            Assert.That(EncodeJson(atTypeDefault, JsonEncoderOptions.Verbose), Does.Contain("\"Port\":0"));
+            Assert.That(EncodeXml(context, atTypeDefault), Does.Contain("<Port>0</Port>"));
+            Assert.That(Get(JsonRoundTrip(atTypeDefault), "Port"), Is.Zero, "JSON");
+            Assert.That(Get(XmlRoundTrip(context, atTypeDefault, atTypeDefault.TypeId), "Port"), Is.Zero, "XML");
+
+            // Count at the type default is omitted in Compact and written
+            // whenever the encoder cannot omit fields (Verbose, binary).
+            Assert.That(EncodeJson(atDeclared, JsonEncoderOptions.Compact), Does.Not.Contain("Count"));
+            using (var verbose = new JsonEncoder(m_context, JsonEncoderOptions.Verbose))
+            {
+                bool canOmit = verbose.CanOmitFields;
+                atDeclared.Encode(verbose);
+                string verboseJson = verbose.CloseAndReturnText();
+                Assert.That(verboseJson.Contains("\"Count\":0"), Is.EqualTo(!canOmit), verboseJson);
+            }
+
+            // An empty string is a value, only null is the String default.
+            var empty = (IEncodeable)Activator.CreateInstance(type);
+            Set(empty, "Name", string.Empty);
+            Assert.That(EncodeJson(empty, JsonEncoderOptions.Compact), Does.Contain("\"Name\":\"\""));
+            Assert.That(Get(JsonRoundTrip(empty), "Name"), Is.EqualTo(string.Empty));
+            Assert.That(EncodeJson(atDeclared, JsonEncoderOptions.Compact), Does.Not.Contain("Name"));
+        }
+
+        private static string EncodeXml(ServiceMessageContext context, IEncodeable value)
+        {
+            using var encoder = new XmlEncoder(context);
+            encoder.PushNamespace(NamespaceUri);
+            encoder.WriteEncodeable("Value", value, value.TypeId);
+            encoder.PopNamespace();
+            return encoder.CloseAndReturnText();
         }
 
         /// <summary>
@@ -1022,9 +1104,9 @@ namespace Opc.Ua.SourceGeneration
             return encoder.CloseAndReturnBuffer();
         }
 
-        private string EncodeJson(IEncodeable value)
+        private string EncodeJson(IEncodeable value, JsonEncoderOptions options = null)
         {
-            using var encoder = new JsonEncoder(m_context);
+            using var encoder = new JsonEncoder(m_context, options);
             value.Encode(encoder);
             return encoder.CloseAndReturnText();
         }
