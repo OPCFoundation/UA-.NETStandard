@@ -85,6 +85,7 @@ OPCFoundation.NetStandard.Opc.Ua.Robotics
 OPCFoundation.NetStandard.Opc.Ua.Robotics.Client
 OPCFoundation.NetStandard.Opc.Ua.Robotics.Server
 OPCFoundation.NetStandard.Opc.Ua.Scales
+OPCFoundation.NetStandard.Opc.Ua.Scales.Client
 OPCFoundation.NetStandard.Opc.Ua.Scales.Server
 OPCFoundation.NetStandard.Opc.Ua.Security.Certificates
 OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11
