@@ -234,9 +234,13 @@ namespace Opc.Ua.Server.Tests
             m_requestManager.RequestReceived(context);
 
             // Act
-            // Wait for timer to expire since TimeoutHint = 100ms. Note the original timer runs every 1000ms.
-            // We need to wait a bit more than 1000ms.
-            await Task.Delay(1200).ConfigureAwait(false);
+            // Wait for timer to expire since TimeoutHint = 100ms. The timer runs every 1000ms;
+            // poll instead of a fixed delay so a loaded runner cannot miss the first tick.
+            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!eventFired && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(100).ConfigureAwait(false);
+            }
 
             // Assert
             Assert.That(eventFired, Is.True);
