@@ -156,13 +156,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// The four policies are the ones the Binding states. A value outside
-        /// them is not quietly read as the most destructive one: the target is
-        /// removed, and nothing else is unloaded or marked failed, because no
-        /// rule said to.
+        /// Undefined policies are rejected before changing the target or its dependents.
         /// </summary>
         [Test]
-        public async Task APolicyTheServerDoesNotKnowTouchesNoDependentAsync()
+        public async Task UnknownDeletePolicyIsRejectedWithoutChangingResourcesAsync()
         {
             await RegisterAsync(
                 WotRegistryGroups.ThingModels,
@@ -176,21 +173,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a"))
                 .ConfigureAwait(false);
 
-            WotDeleteResult result = await m_registry.DeleteResourceAsync(
+            WotRegistrySnapshot before = m_registry.Current;
+            int changes = 0;
+            m_registry.Changed += (_, _) => changes++;
+            await Assert.ThatAsync(async () => await m_registry.DeleteResourceAsync(
                 WotRegistryGroups.ThingModels,
                 "tm-a",
-                (WoTDeletePolicyEnum)0x7F).ConfigureAwait(false);
+                (WoTDeletePolicyEnum)0x7F).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentOutOfRangeException>().With.Property("ParamName").EqualTo("policy"))
+                .ConfigureAwait(false);
 
             WotResource? dependent = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "td-a");
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
-                Assert.That(result.Deleted, Is.True);
-                Assert.That(result.Dependents, Has.Length.EqualTo(1));
-                Assert.That(result.Unloaded, Is.Empty);
-                Assert.That(result.Failed, Is.Empty);
+                Assert.That(m_registry.Current, Is.SameAs(before));
+                Assert.That(m_registry.Current.FindResource(WotRegistryGroups.ThingModels, "tm-a"), Is.Not.Null);
+                Assert.That(changes, Is.Zero);
+                Assert.That(m_host.Operations, Is.Empty);
                 Assert.That(dependent, Is.Not.Null);
                 Assert.That(dependent!.Enabled, Is.True);
             });
