@@ -292,13 +292,31 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             // deactivation) and no new plan may be activated (rollback ordering).
             host.FailShadowReload = true;
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/v2")).ConfigureAwait(false);
-            await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRegistrySnapshot before = registry.Current;
+            WotCommittedPublicationState published = coordinator.CommittedPublication;
+            var registrations = m_runtime.Lifecycle.Registrations;
+            await Assert.ThatAsync(async () =>
+                await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false),
+                Throws.TypeOf<System.IO.IOException>().With.Message.EqualTo("Injected shadow reload failure."))
+                .ConfigureAwait(false);
 
             Assert.That(binders.DeactivatedPlans, Is.Empty,
                 "A failed shadow switch must not deactivate the still-active old plan.");
             Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(1),
                 "A failed shadow switch must not activate the new plan.");
             Assert.That(binders.ActivatedPlans[0], Is.SameAs(planV1));
+            Assert.That(registry.Current, Is.SameAs(before));
+            Assert.That(coordinator.CommittedPublication, Is.SameAs(published));
+            Assert.That(m_runtime.Lifecycle.Registrations, Is.EqualTo(registrations));
+            Assert.That(recorder.IndexOf("shadow"), Is.EqualTo(-1));
+
+            host.FailShadowReload = false;
+            WotRefreshResult retry = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(retry.Summary.Failed, Is.Zero);
+            Assert.That(retry.NewGeneration, Is.EqualTo(published.RefreshGeneration + 1));
+            Assert.That(binders.DeactivatedPlans, Has.Count.EqualTo(1));
+            Assert.That(binders.DeactivatedPlans[0], Is.SameAs(planV1));
+            Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(2));
         }
 
         private PreparedWotTestRuntime? m_runtime;
