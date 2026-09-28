@@ -453,9 +453,10 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that the at-time fallback gives up with Bad_TooManyOperations
-        /// instead of scanning an unbounded number of raw values for a bound, even
-        /// when the provider ignores the MaxValues bound of the request.
+        /// Verifies that the at-time fallback stops scanning an unbounded number of raw
+        /// values for a bound, even when the provider ignores the MaxValues bound of the
+        /// request, and reports Bad_BoundNotSupported for the affected requested time
+        /// (Part 11 4.6 / Table 25) instead of failing the whole operation.
         /// </summary>
         [Test]
         public async Task DispatchAtTimeReadFallbackCapsBufferedRawValuesAsync()
@@ -509,8 +510,19 @@ namespace Opc.Ua.Server.Tests.Historian
                 result,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            Assert.That(ServiceResult.IsGood(error), Is.True, error.ToString());
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(2));
+            Assert.That(
+                history.DataValues.ToList().Exists(v => v.StatusCode == StatusCodes.BadBoundNotSupported),
+                Is.True);
+            Assert.That(
+                history.DataValues.ToList().TrueForAll(
+                    v => v.StatusCode != StatusCodes.BadBoundNotSupported ||
+                        v.SourceTimestamp == BaseTime ||
+                        v.SourceTimestamp == BaseTime.AddMilliseconds(samples.Length)),
+                Is.True);
         }
 
         /// <summary>

@@ -752,7 +752,10 @@ stepped or sloped interpolation and the result carries the Interpolated bits.
 `UseSimpleBounds=true` uses the nearest raw values as bounds; it does not return
 the nearest sample. `UseSimpleBounds=false` uses the nearest non-Bad values and
 marks the result Uncertain when Bad samples were skipped. Providers without
-this interface use the same calculation through the raw-read fallback.
+this interface use the same calculation through the raw-read fallback. When the
+fallback scans 100,000 raw values without finding a bound for a requested time,
+that time returns `Bad_BoundNotSupported` (Part 11 §4.6) and the other requested
+times are still answered.
 
 ### Annotations
 

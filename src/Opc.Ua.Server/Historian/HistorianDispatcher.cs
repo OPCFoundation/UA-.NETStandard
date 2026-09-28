@@ -1375,9 +1375,15 @@ namespace Opc.Ua.Server.Historian
                     .ConfigureAwait(false);
                 if (samples == null)
                 {
-                    result.StatusCode = StatusCodes.BadTooManyOperations;
-                    result.ContinuationPoint = ByteString.Empty;
-                    return StatusCodes.BadTooManyOperations;
+                    // Part 11 4.6 / 6.2.2 Table 25: the search limit was reached before a
+                    // bound was found, so this requested time gets Bad_BoundNotSupported
+                    // while the other requested times are still answered.
+                    produced.Add(new DataValue(
+                        Variant.Null,
+                        StatusCodes.BadBoundNotSupported,
+                        requestedTime,
+                        DateTimeUtc.MinValue));
+                    continue;
                 }
                 produced.Add(AggregateCalculator.CalculateAtTime(
                     samples.ToArrayOf(),
