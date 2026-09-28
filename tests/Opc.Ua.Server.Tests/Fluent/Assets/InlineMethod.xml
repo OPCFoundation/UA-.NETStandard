@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+-->
+<!--
+  A method that declares its arguments inline on an ObjectType child,
+  without a separate method type declaration.
+-->
+<opc:ModelDesign
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns="urn:opcfoundation.org:2026-09:InlineMethod"
+  TargetNamespace="urn:opcfoundation.org:2026-09:InlineMethod"
+  TargetXmlNamespace="urn:opcfoundation.org:2026-09:InlineMethod:Types"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2026-09-01T00:00:00Z">
+
+  <opc:Namespaces>
+    <opc:Namespace Name="InlineMethodModel" Prefix="InlineMethodModel"
+      XmlNamespace="urn:opcfoundation.org:2026-09:InlineMethod:Types"
+      XmlPrefix="InlineMethodModel">urn:opcfoundation.org:2026-09:InlineMethod</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:ObjectType SymbolicName="ThermostatType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Method SymbolicName="Boost" ModellingRule="Mandatory">
+        <opc:InputArguments>
+          <opc:Argument Name="Degrees" DataType="ua:Double" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="NewSetpoint" DataType="ua:Double" />
+        </opc:OutputArguments>
+      </opc:Method>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="Thermostat" TypeDefinition="ThermostatType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+</opc:ModelDesign>
