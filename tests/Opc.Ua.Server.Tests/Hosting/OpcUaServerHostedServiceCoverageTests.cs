@@ -394,6 +394,52 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
+        /// Verifies that disabling anonymous access without explicit UserTokenPolicies does not
+        /// advertise the implicit Anonymous policy: endpoints list the user identity tokens the
+        /// server accepts (Part 4 7.14, 7.41), here the UserName token of the default authenticator.
+        /// </summary>
+        [Test]
+        public async Task HostedServiceDoesNotAdvertiseAnonymousWhenDisabledByDefaultsAsync()
+        {
+            RegistryCaptureServer.Reset();
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddSingleton(Mock.Of<IUserDatabase>());
+                    services.AddSingleton(Mock.Of<IUserManagement>());
+                    services.AddOpcUa()
+                        .AddServer<RegistryCaptureServer>(o =>
+                        {
+                            ConfigureHostedOptions(o, "AnonymousNotAdvertised");
+                            o.Identity.Defaults.EnableAnonymous = false;
+                            o.Identity.Defaults.EnableUserNamePassword = true;
+                            o.Identity.Defaults.EnableX509 = false;
+                            o.Identity.Defaults.EnableJwt = false;
+                        });
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+
+            EndpointDescription[] endpoints = [.. RegistryCaptureServer.StartedInstance!.GetEndpoints()];
+            Assert.That(endpoints, Is.Not.Empty);
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                UserTokenPolicy[] policies = [.. endpoint.UserIdentityTokens];
+                UserTokenType[] tokenTypes = [.. policies.Select(p => p.TokenType)];
+                Assert.That(tokenTypes, Does.Not.Contain(UserTokenType.Anonymous));
+                Assert.That(tokenTypes, Does.Contain(UserTokenType.UserName));
+            }
+        }
+
+        /// <summary>
         /// Verifies that the budget registered through the fluent builder is the
         /// one the hosted server bounds incomplete messages with.
         /// </summary>

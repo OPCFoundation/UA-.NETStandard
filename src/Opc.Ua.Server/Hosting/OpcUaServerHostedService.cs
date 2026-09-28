@@ -536,7 +536,27 @@ namespace Opc.Ua.Server.Hosting
                 m_identityRegistrations,
                 m_services,
                 certificateValidator);
-            if (authenticators.Exists(a => a is AnonymousRejectingAuthenticator))
+            ServerConfiguration? serverConfiguration =
+                m_application?.ApplicationConfiguration?.ServerConfiguration;
+            if (authenticators.Exists(a => a is AnonymousRejectingAuthenticator) &&
+                m_options.UserTokenPolicies.Count == 0 &&
+                !HasSuppliedConfiguration &&
+                serverConfiguration != null)
+            {
+                // The Anonymous policy is only the implicit default: an endpoint lists the
+                // user identity tokens the Server accepts (Part 4 7.14, 7.41), so advertise
+                // the token types of the registered authenticators instead.
+                serverConfiguration.UserTokenPolicies = ReplaceDefaultAnonymousUserTokenPolicy(
+                    serverConfiguration.UserTokenPolicies,
+                    authenticators);
+                if (serverConfiguration.UserTokenPolicies.IsEmpty)
+                {
+                    // no authenticator accepts a token: the server falls back to the
+                    // Anonymous policy, which is always rejected.
+                    m_logger.UserTokenPolicyTokenTypeIsConfiguredWithout(UserTokenType.Anonymous);
+                }
+            }
+            else if (authenticators.Exists(a => a is AnonymousRejectingAuthenticator))
             {
                 foreach (UserTokenType tokenType in
                     GetAdvertisedUserTokenTypes(m_application?.ApplicationConfiguration))
@@ -596,6 +616,45 @@ namespace Opc.Ua.Server.Hosting
             }
 
             return authenticators;
+        }
+
+        /// <summary>
+        /// Removes the Anonymous policies and adds one policy for each non-anonymous token
+        /// type the authenticators accept that is not advertised yet.
+        /// </summary>
+        internal static ArrayOf<UserTokenPolicy> ReplaceDefaultAnonymousUserTokenPolicy(
+            ArrayOf<UserTokenPolicy> policies,
+            IReadOnlyList<IUserTokenAuthenticator> authenticators)
+        {
+            var result = new List<UserTokenPolicy>();
+            for (int i = 0; i < policies.Count; i++)
+            {
+                if (policies[i].TokenType != UserTokenType.Anonymous)
+                {
+                    result.Add(policies[i]);
+                }
+            }
+
+            foreach (IUserTokenAuthenticator authenticator in authenticators)
+            {
+                if (authenticator.TokenType == UserTokenType.Anonymous ||
+                    result.Exists(p =>
+                        p.TokenType == authenticator.TokenType &&
+                        (authenticator.TokenType != UserTokenType.IssuedToken ||
+                            p.IssuedTokenType == authenticator.IssuedTokenProfileUri)))
+                {
+                    continue;
+                }
+
+                var policy = new UserTokenPolicy(authenticator.TokenType);
+                if (authenticator.TokenType == UserTokenType.IssuedToken)
+                {
+                    policy.IssuedTokenType = authenticator.IssuedTokenProfileUri;
+                }
+                result.Add(policy);
+            }
+
+            return new ArrayOf<UserTokenPolicy>(result.ToArray());
         }
 
         private void RegisterIdentityAugmenters()

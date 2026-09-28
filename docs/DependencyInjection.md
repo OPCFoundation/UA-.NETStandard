@@ -704,8 +704,9 @@ these controls explicitly for every deployment:
 - Enable `IncludeEccPolicies` only when the deployment certificates and clients
   support the advertised ECC policies.
 - Configure `UserTokenPolicies` together with matching authenticators. An empty
-  list advertises `Anonymous`; adding a token policy alone does not authenticate
-  it. See [Identity Providers](IdentityProviders.md) and
+  list advertises `Anonymous` (or, when the identity defaults disable anonymous
+  access, the token types of the registered authenticators); adding a token
+  policy alone does not authenticate it. See [Identity Providers](IdentityProviders.md) and
   [Role-Based User Management](RoleBasedUserManagement.md).
 - Keep certificate auto-accept disabled and provision trust lists. For
   advanced validation, use the shared
@@ -940,7 +941,11 @@ services.AddOpcUa().AddServer(o =>
 ```
 
 Bindable from `OpcUa:Server:UserTokenPolicies`. When the list is empty
-the hosted service falls back to a single `Anonymous` policy.
+the hosted service falls back to a single `Anonymous` policy. If the
+identity defaults disable anonymous access (`EnableAnonymous = false`),
+that implicit `Anonymous` policy is not advertised; the endpoints list
+one policy per token type of the registered authenticators instead
+(OPC 10000-4 §7.14: the user identity tokens the server accepts).
 
 ### Identity (server)
 

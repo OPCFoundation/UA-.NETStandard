@@ -269,6 +269,41 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(authenticators, Has.None.TypeOf<AnonymousAuthenticator>());
         }
 
+        /// <summary>
+        /// With anonymous access disabled and no explicit UserTokenPolicies the implicit
+        /// Anonymous policy is not advertised; the endpoint lists the token types the
+        /// authenticators accept instead (Part 4 7.14, 7.41).
+        /// </summary>
+        [Test]
+        public void DisabledAnonymousDefaultsReplaceDefaultAnonymousPolicy()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer(o =>
+            {
+                o.Identity.Defaults.EnableAnonymous = false;
+                o.Identity.Defaults.EnableUserNamePassword = true;
+                o.Identity.Defaults.EnableX509 = false;
+                o.Identity.Defaults.EnableJwt = false;
+            }).AddIdentityAuthenticator<UserNameStubAuthenticator>();
+            using ServiceProvider sp = services.BuildServiceProvider();
+            List<IUserTokenAuthenticator> authenticators = OpcUaServerHostedService.CreateIdentityAuthenticators(
+                sp.GetServices<OpcUaServerIdentityAuthenticatorRegistration>(), sp, null);
+            authenticators.Add(new IssuedTokenStubAuthenticator());
+
+            ArrayOf<UserTokenPolicy> policies = OpcUaServerHostedService.ReplaceDefaultAnonymousUserTokenPolicy(
+                new ArrayOf<UserTokenPolicy>(new[] { new UserTokenPolicy(UserTokenType.Anonymous) }),
+                authenticators);
+
+            UserTokenPolicy[] result = [.. policies];
+            Assert.That(result.Select(p => p.TokenType), Is.EqualTo(new[]
+            {
+                UserTokenType.UserName,
+                UserTokenType.IssuedToken
+            }));
+            Assert.That(result[1].IssuedTokenType, Is.EqualTo(IssuedTokenStubAuthenticator.ProfileUri));
+        }
+
         [Test]
         public void NoIdentityRegistrationKeepsAnonymousDefault()
         {
@@ -279,6 +314,25 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             Assert.That(authenticators, Has.Exactly(1).TypeOf<AnonymousAuthenticator>());
             Assert.That(authenticators, Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// IssuedToken authenticator stub.
+        /// </summary>
+        private sealed class IssuedTokenStubAuthenticator : IUserTokenAuthenticator
+        {
+            public const string ProfileUri = "http://opcfoundation.org/UA/UserToken#JWT";
+
+            public UserTokenType TokenType => UserTokenType.IssuedToken;
+
+            public string IssuedTokenProfileUri => ProfileUri;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+            }
         }
 
         /// <summary>
