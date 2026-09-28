@@ -1184,10 +1184,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(after.DesiredVersionId, Is.EqualTo("v2"));
                 Assert.That(after.DefaultVersion!.HasContent, Is.True);
                 Assert.That(after.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
-                Assert.That(after.Validation, Is.SameAs(expectedValidation));
+                Assert.That(after.Validation!.IsEqual(expectedValidation), Is.True);
                 Assert.That(after.FindVersion("v2"), Is.Not.Null);
                 Assert.That(after.FindVersion("v3")!.HasContent, Is.False);
             });
+            WoTValidationOutcomeDataType detached = after.Validation!;
+            detached.FormatReason = "Caller-owned mutation";
+            Assert.That(after.Validation!.IsEqual(expectedValidation), Is.True);
+            Assert.That(after.FindVersion("v2")!.Validation!.IsEqual(expectedValidation), Is.True);
         }
 
         [Test]
@@ -1248,11 +1252,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(after.DesiredVersionId, Is.EqualTo("v2"));
                 Assert.That(after.DefaultVersion!.VersionId, Is.EqualTo("v2"));
                 Assert.That(after.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
-                Assert.That(after.Validation, Is.SameAs(expectedSelected.Validation));
+                Assert.That(after.Validation!.IsEqual(expectedSelected.Validation), Is.True);
                 Assert.That(after.ThingId, Is.EqualTo(expectedSelected.DocumentId));
                 Assert.That(after.Title, Is.EqualTo(expectedSelected.Title));
                 Assert.That(after.FindVersion("v4")!.HasContent, Is.False);
             });
+            WoTValidationOutcomeDataType detached = after.Validation!;
+            detached.CompatibilityReason = "Caller-owned mutation";
+            Assert.That(after.Validation!.IsEqual(expectedSelected.Validation), Is.True);
+            Assert.That(after.FindVersion("v2")!.Validation!.IsEqual(expectedSelected.Validation), Is.True);
         }
 
         private static WotUpsertResourceRequest Request(
