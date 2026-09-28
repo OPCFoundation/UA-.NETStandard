@@ -194,7 +194,14 @@ namespace Opc.Ua.Schema.Tests
                 }
             }
 
-            Assert.That(errors, Is.Empty, xml + "\n" + schema.ToSchemaString());
+            var document = XDocument.Parse(schema.ToSchemaString());
+            Assert.Multiple(() =>
+            {
+                Assert.That(errors, Is.Empty, xml + "\n" + schema.ToSchemaString());
+
+                // Part 6 5.3.6 declares the EncodingMask as xs:unsignedLong.
+                Assert.That(Attribute(document, "EncodingMask", "type"), Does.EndWith(":unsignedLong"));
+            });
         }
 
         /// <summary>

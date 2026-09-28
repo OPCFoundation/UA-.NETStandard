@@ -158,11 +158,12 @@ namespace Opc.Ua.Schema.Xsd
                     if (hasOptionalFields)
                     {
                         // Part 6 5.3.6: the XML encoding of a structure with optional
-                        // fields starts with the EncodingMask of the present fields.
+                        // fields starts with the EncodingMask of the present fields,
+                        // declared as xs:unsignedLong like the example in 5.3.6.
                         sequence.Items.Add(new XmlSchemaElement
                         {
                             Name = "EncodingMask",
-                            SchemaTypeName = Xs("unsignedInt")
+                            SchemaTypeName = Xs("unsignedLong")
                         });
                     }
                     AddStructureFields(
