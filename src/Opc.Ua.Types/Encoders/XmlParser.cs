@@ -727,7 +727,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? identifierText = ReadString("Identifier");
+                string? identifierText = XmlDecoder.TrimNodeIdText(ReadString("Identifier"));
                 PopNamespace();
 
                 NodeId value;
@@ -765,7 +765,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? identifierText = ReadString("Identifier");
+                string? identifierText = XmlDecoder.TrimNodeIdText(ReadString("Identifier"));
                 PopNamespace();
 
                 ExpandedNodeId value;

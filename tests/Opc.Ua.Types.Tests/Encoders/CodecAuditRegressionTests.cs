@@ -403,6 +403,51 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        [TestCase("\n  i=85\n", "i=85")]
+        [TestCase("ns=2;i=5 ", "ns=2;i=5")]
+        [TestCase("\n  ns=1;s=Tag \n", "ns=1;s=Tag \n")]
+        [TestCase(" s= a ", "s= a ")]
+        [TestCase("\n  nsu=urn:x;s=b \n", "nsu=urn:x;s=b \n")]
+        public void XmlNodeIdIdentifierIgnoresLayoutWhitespace(string identifier, string expected)
+        {
+            // ReadString keeps xs:string whitespace, but the NodeId parsers
+            // accept none, so a pretty-printed Identifier failed to decode.
+            ServiceMessageContext context = CreateContext();
+            string xml =
+                "<Node xmlns=\"" + kNs + "\"><Identifier>" + identifier + "</Identifier></Node>";
+            bool isAbsolute = expected.StartsWith("nsu=", StringComparison.Ordinal);
+
+            if (!isAbsolute)
+            {
+                using var decoder = new XmlDecoder(
+                    XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                    context);
+                decoder.PushNamespace(kNs);
+                Assert.That(decoder.ReadNodeId("Node"), Is.EqualTo(NodeId.Parse(expected)));
+
+                using var parser = new XmlParser(xml, context);
+                parser.PushNamespace(kNs);
+                Assert.That(parser.ReadNodeId("Node"), Is.EqualTo(NodeId.Parse(expected)));
+            }
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                context))
+            {
+                decoder.PushNamespace(kNs);
+                Assert.That(
+                    decoder.ReadExpandedNodeId("Node"),
+                    Is.EqualTo(ExpandedNodeId.Parse(expected)));
+            }
+
+            using var expandedParser = new XmlParser(xml, context);
+            expandedParser.PushNamespace(kNs);
+            Assert.That(
+                expandedParser.ReadExpandedNodeId("Node"),
+                Is.EqualTo(ExpandedNodeId.Parse(expected)));
+        }
+
+        [Test]
         public void XmlStringLengthIsMeasuredInBytesNotCharacters()
         {
             // The XML codec counted UTF-16 code units while the binary and JSON

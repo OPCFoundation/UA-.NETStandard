@@ -731,7 +731,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? identifierText = ReadString("Identifier");
+                string? identifierText = TrimNodeIdText(ReadString("Identifier"));
                 PopNamespace();
 
                 NodeId value;
@@ -769,7 +769,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? identifierText = ReadString("Identifier");
+                string? identifierText = TrimNodeIdText(ReadString("Identifier"));
                 PopNamespace();
 
                 ExpandedNodeId value;
@@ -3020,6 +3020,49 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
             return value;
+        }
+
+        /// <summary>
+        /// Removes the layout whitespace around the Identifier text of an
+        /// XML NodeId/ExpandedNodeId. ReadString keeps whitespace (xs:string),
+        /// but the parsers accept none. Leading whitespace is never part of
+        /// the id, trailing whitespace is only kept for string ids ("s=").
+        /// </summary>
+        internal static string? TrimNodeIdText(string? text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return text;
+            }
+
+            string trimmed = text!.TrimStart();
+
+            // skip the svr=/svu=/nsu=/ns= prefixes to find the id type.
+            int start = 0;
+            while (HasPrefixAt(trimmed, start, "svr=") ||
+                HasPrefixAt(trimmed, start, "svu=") ||
+                HasPrefixAt(trimmed, start, "nsu=") ||
+                HasPrefixAt(trimmed, start, "ns="))
+            {
+                int separator = trimmed.IndexOf(';', start);
+                if (separator < 0)
+                {
+                    break;
+                }
+                start = separator + 1;
+            }
+
+            if (HasPrefixAt(trimmed, start, "s="))
+            {
+                return trimmed;
+            }
+
+            return trimmed.TrimEnd();
+
+            static bool HasPrefixAt(string value, int index, string prefix)
+            {
+                return string.CompareOrdinal(value, index, prefix, 0, prefix.Length) == 0;
+            }
         }
 
         /// <summary>
