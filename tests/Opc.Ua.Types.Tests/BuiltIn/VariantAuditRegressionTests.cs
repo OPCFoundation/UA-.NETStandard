@@ -665,6 +665,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void XmlElementWithHarmlessDoctypeStaysValid()
+        {
+            // Prohibiting DTDs made any DOCTYPE invalidate the value; the DTD
+            // is now skipped instead (its entities still never expand).
+            var xml = (XmlElement)"<!DOCTYPE note><note>hi</note>";
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(xml.AsXElement()?.Value, Is.EqualTo("hi"));
+                Assert.That(xml.IsValid, Is.True);
+                Assert.That(xml, Is.EqualTo((XmlElement)"<note>hi</note>"));
+            });
+        }
+
+        [Test]
         public void ByteStringCompareToEmptyArrayIsPositive()
         {
             // T2-6: a non empty byte string sorted before an empty array.

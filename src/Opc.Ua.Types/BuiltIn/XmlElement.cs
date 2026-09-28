@@ -373,9 +373,12 @@ namespace Opc.Ua
                 Encoding.UTF8.GetBytes(OuterXml ?? string.Empty));
             // XElement.Load(Stream) parses DTDs and expands entities, which
             // lets a tiny untrusted payload expand to megabytes on every
-            // comparison. Use the safe defaults (no DTD, no resolver) and keep
-            // the whitespace handling of XElement.Load.
+            // comparison. Use the safe defaults (no resolver) and keep the
+            // whitespace handling of XElement.Load. The DTD is skipped rather
+            // than rejected so that a harmless DOCTYPE keeps the value valid;
+            // its entities are never defined, so they cannot expand.
             XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
+            settings.DtdProcessing = DtdProcessing.Ignore;
             settings.IgnoreWhitespace = true;
             using var reader = XmlReader.Create(stream, settings);
             return XElement.Load(reader, LoadOptions.SetBaseUri);
