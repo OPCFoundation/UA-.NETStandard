@@ -377,15 +377,16 @@ namespace Opc.Ua
             int[] dim,
             IEqualityComparer<T> comparer)
         {
-            // Compare the shape first: empty matrices of different shape
-            // (e.g. [0,5] and [5,0]) are different values.
-            if (!dim.SequenceEqual(DimensionsNoCopy))
-            {
-                return false;
-            }
+            // Every empty matrix is equal regardless of its dimensions and
+            // hashes alike (see GetHashCode); non-empty matrices must also
+            // agree on their shape.
             if (IsEmpty)
             {
                 return other.IsEmpty;
+            }
+            if (!dim.SequenceEqual(DimensionsNoCopy))
+            {
+                return false;
             }
 #if !DEBUG && NET8_0_OR_GREATER
             return m_memory.Span.SequenceEqual(other, comparer);

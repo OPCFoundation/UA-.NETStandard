@@ -548,18 +548,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void EmptyMatricesOfDifferentShapeAreNotEqual()
+        public void EmptyMatricesOfDifferentShapeAreEqualAndHashAlike()
         {
-            // T2-2: [0,5] and [5,0] were equal but hashed differently.
+            // T2-2: [0,5] and [5,0] were equal but hashed differently. Every
+            // empty matrix is one value, so they must also hash alike.
             var a = new MatrixOf<int>(new ReadOnlyMemory<int>(Array.Empty<int>()), [0, 5]);
             var b = new MatrixOf<int>(new ReadOnlyMemory<int>(Array.Empty<int>()), [5, 0]);
-            var c = new MatrixOf<int>(new ReadOnlyMemory<int>(Array.Empty<int>()), [0, 5]);
 
             Assert.Multiple(() =>
             {
-                Assert.That(IsEqual(a, b), Is.False);
-                Assert.That(IsEqual(a, c), Is.True);
-                Assert.That(a.GetHashCode(), Is.EqualTo(c.GetHashCode()));
+                Assert.That(IsEqual(a, b), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
             });
         }
 
