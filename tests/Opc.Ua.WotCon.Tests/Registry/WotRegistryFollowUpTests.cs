@@ -370,8 +370,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
-        [Test]
-        public async Task SameByteMetadataUpdatePreservesMaterializationState()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SameBytesDistinguishLabelsFromAdmissionMetadata(bool changeAdmission)
         {
             var store = new RecordingRegistryStore();
             using var service = new WotRegistryService(store);
@@ -405,7 +406,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
             update.ContentType = "application/wot+json";
             update.Format = "WoT-TD/1.1+profile";
 
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(update).ConfigureAwait(false);
+            WotRegistryMutationResult result = changeAdmission
+                ? await service.UpsertResourceAsync(update).ConfigureAwait(false)
+                : await service.AddVersionLabelAsync(
+                    WotRegistryGroups.ThingDescriptions, "metadata-state", "v1",
+                    "note", "retained", before.FindVersion("v1")!.Epoch).ConfigureAwait(false);
             WotResource after = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "metadata-state")!;
@@ -414,19 +419,34 @@ namespace Opc.Ua.WotCon.Tests.Registry
             {
                 Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
                 Assert.That(changes, Has.Count.EqualTo(1));
-                Assert.That(changes[0].ProjectionOnly, Is.True);
-                Assert.That(materializationRequests, Is.Zero);
+                Assert.That(changes[0].ProjectionOnly, Is.EqualTo(!changeAdmission));
+                Assert.That(materializationRequests, Is.EqualTo(changeAdmission ? 1 : 0));
                 Assert.That(store.BlobStore.WriteCount, Is.Zero);
-                Assert.That(after.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
-                Assert.That(after.Validation, Is.SameAs(validation));
-                Assert.That(after.Diagnostics, Is.EqualTo(before.Diagnostics));
-                Assert.That(after.FindVersion("v1")!.Validation, Is.SameAs(versionValidation));
+                Assert.That(after.LoadState, Is.EqualTo(
+                    changeAdmission ? WoTLoadStateEnum.Unloaded : WoTLoadStateEnum.Active));
+                if (changeAdmission)
+                {
+                    Assert.That(after.Validation, Is.Null);
+                    Assert.That(after.FindVersion("v1")!.Validation, Is.Null);
+                }
+                else
+                {
+                    Assert.That(after.Validation!.IsEqual(validation), Is.True);
+                    Assert.That(after.FindVersion("v1")!.Validation!.IsEqual(versionValidation), Is.True);
+                    Assert.That(after.FindVersion("v1")!.Labels["note"], Is.EqualTo("retained"));
+                    Assert.That(after.Diagnostics, Is.EqualTo(before.Diagnostics));
+                }
+                Assert.That(after.FindVersion("v1")!.Digest, Is.EqualTo(before.FindVersion("v1")!.Digest));
+                Assert.That(after.FindVersion("v1")!.Epoch, Is.EqualTo(before.FindVersion("v1")!.Epoch + 1));
                 Assert.That(after.MetaEpoch, Is.EqualTo(before.MetaEpoch));
             });
+            Assert.That(await service.ReadContentAsync(after.FindVersion("v1")!).ConfigureAwait(false),
+                Is.EqualTo(ByteString.From(content)));
         }
 
-        [Test]
-        public async Task DesiredVersionContentDrivesMaterializationButMetadataDoesNot()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DesiredVersionDistinguishesLabelsFromAdmissionAndContent(bool changeAdmission)
         {
             var store = new RecordingRegistryStore();
             using (var service = new WotRegistryService(store))
@@ -468,7 +488,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 expectedDigestHex: before.FindVersion("v2")!.DigestHex);
             metadata.ContentType = "application/wot+json";
 
-            await reloaded.UpsertResourceAsync(metadata).ConfigureAwait(false);
+            if (changeAdmission)
+            {
+                await reloaded.UpsertResourceAsync(metadata).ConfigureAwait(false);
+            }
+            else
+            {
+                await reloaded.AddVersionLabelAsync(
+                    WotRegistryGroups.ThingDescriptions, "desired-materialization", "v2",
+                    "note", "retained", before.FindVersion("v2")!.Epoch).ConfigureAwait(false);
+            }
             WotResource afterMetadata = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "desired-materialization")!;
@@ -486,10 +515,23 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.Multiple(() =>
             {
                 Assert.That(changes, Has.Count.EqualTo(2));
-                Assert.That(changes[0].ProjectionOnly, Is.True);
-                Assert.That(afterMetadata.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
-                Assert.That(afterMetadata.Validation, Is.SameAs(validation));
-                Assert.That(afterMetadata.Diagnostics, Is.EqualTo(before.Diagnostics));
+                Assert.That(changes[0].ProjectionOnly, Is.EqualTo(!changeAdmission));
+                Assert.That(afterMetadata.LoadState, Is.EqualTo(
+                    changeAdmission ? WoTLoadStateEnum.Unloaded : WoTLoadStateEnum.Active));
+                if (changeAdmission)
+                {
+                    Assert.That(afterMetadata.Validation, Is.Null);
+                    Assert.That(afterMetadata.Diagnostics, Is.Empty);
+                }
+                else
+                {
+                    Assert.That(afterMetadata.Validation!.IsEqual(validation), Is.True);
+                    Assert.That(afterMetadata.Diagnostics, Is.EqualTo(before.Diagnostics));
+                    Assert.That(afterMetadata.FindVersion("v2")!.Labels["note"], Is.EqualTo("retained"));
+                }
+                Assert.That(afterMetadata.FindVersion("v2")!.Digest, Is.EqualTo(before.FindVersion("v2")!.Digest));
+                Assert.That(afterMetadata.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(afterMetadata.DesiredVersionId, Is.EqualTo("v2"));
                 Assert.That(changes[1].ProjectionOnly, Is.False);
                 Assert.That(afterContent.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
                 Assert.That(afterContent.Validation, Is.Null);
