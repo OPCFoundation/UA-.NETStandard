@@ -314,10 +314,14 @@ namespace Opc.Ua
             {
                 return IsNull;
             }
-            // Only zero based arrays whose elements can be T can be equal.
+            // Only zero based arrays whose elements can be T can be equal
+            // (object arrays of boxed T and enum arrays over T included).
             // Equals must not throw for arrays of foreign element types.
             Type? elementType = other.GetType().GetElementType();
-            if (elementType == null || !typeof(T).IsAssignableFrom(elementType))
+            if (elementType == null ||
+                !(typeof(T).IsAssignableFrom(elementType) ||
+                    elementType == typeof(object) ||
+                    (elementType.IsEnum && Enum.GetUnderlyingType(elementType) == typeof(T))))
             {
                 return false;
             }
@@ -328,7 +332,16 @@ namespace Opc.Ua
                     return false;
                 }
             }
-            var m = new MatrixOf<T>(other);
+            MatrixOf<T> m;
+            try
+            {
+                m = new MatrixOf<T>(other);
+            }
+            catch (Exception ex) when (ex is InvalidCastException or ArgumentException)
+            {
+                // An element that is not a T (or a null for a value type).
+                return false;
+            }
             return Equals(in m, comparer);
         }
 

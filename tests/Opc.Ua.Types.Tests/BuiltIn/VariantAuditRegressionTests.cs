@@ -580,6 +580,24 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void MatrixEqualsCastableArrayComparesElementWise()
+        {
+            // E-5: arrays of boxed T and of enums over T compared equal
+            // before T2-3 and must still do so, without throwing otherwise.
+            MatrixOf<int> matrix = new int[,] { { 1 } };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(matrix, (object)new object[,] { { 1 } }), Is.True);
+                Assert.That(IsEqual(matrix, (object)new object[,] { { 2 } }), Is.False);
+                Assert.That(IsEqual(matrix, (object)new object[,] { { "x" } }), Is.False);
+                Assert.That(IsEqual(matrix, (object)new object[1, 1]), Is.False);
+                Assert.That(IsEqual(matrix, (object)new AuditTestEnum[,] { { AuditTestEnum.One } }), Is.True);
+                Assert.That(IsEqual(matrix, (object)new AuditTestEnum[,] { { AuditTestEnum.Two } }), Is.False);
+            });
+        }
+
+        [Test]
         public void VariantWithTypedNullHashesLikeVariantNull()
         {
             // T2-4: typed null payloads equal Variant.Null and must hash to 0.
