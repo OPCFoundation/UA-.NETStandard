@@ -1098,6 +1098,56 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void ClearChangeMasksDoesNotLoseBitsSetConcurrently()
+        {
+            // A bit set by another thread while ClearChangeMasks takes the pending bits
+            // must either be reported now or stay pending; the plain &= could drop it.
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            int reported = 0;
+            node.OnStateChanged = (context, sender, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.NonValue) != 0)
+                {
+                    Interlocked.Increment(ref reported);
+                }
+            };
+
+            // a single setter: races between two plain |= setters are not covered.
+            using var done = new CancellationTokenSource();
+            var clearer = Task.Run(() =>
+            {
+                while (!done.IsCancellationRequested)
+                {
+                    node.ClearChangeMasks(m_context, false);
+                }
+            });
+
+            try
+            {
+                for (int ii = 0; ii < 20000; ii++)
+                {
+                    int before = Volatile.Read(ref reported);
+                    // the clearer may be taking the Value bit while NonValue is set.
+                    node.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                    node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    while (Volatile.Read(ref reported) == before)
+                    {
+                        Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)),
+                            "A change mask bit was lost.");
+                        Thread.Yield();
+                    }
+                }
+            }
+            finally
+            {
+                done.Cancel();
+                clearer.Wait();
+            }
+        }
+
+        [Test]
         public void ClearChangeMasksKeepsMaskWhenHandlerThrows()
         {
             BaseObjectState node = CreateObjectNode();

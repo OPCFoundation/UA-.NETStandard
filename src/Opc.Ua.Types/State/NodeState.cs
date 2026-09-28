@@ -3266,15 +3266,13 @@ namespace Opc.Ua
                 }
             }
 
-            NodeStateChangeMasks changeMasks = m_changeMasks;
+            // take the reported bits before dispatching, so a change made while the
+            // handlers run (by another writer or by a handler) keeps its bit and is
+            // reported by the next call instead of being wiped afterwards.
+            NodeStateChangeMasks changeMasks = TakeChangeMasks();
 
             if (changeMasks != NodeStateChangeMasks.None)
             {
-                // take the reported bits before dispatching, so a change made while the
-                // handlers run (by another writer or by a handler) keeps its bit and is
-                // reported by the next call instead of being wiped afterwards.
-                m_changeMasks &= ~changeMasks;
-
                 try
                 {
                     RaiseStateChanged(context, changeMasks);
@@ -3282,9 +3280,44 @@ namespace Opc.Ua
                 catch
                 {
                     // not reported: keep the bits for the next call.
-                    m_changeMasks |= changeMasks;
+                    RestoreChangeMasks(changeMasks);
                     throw;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Atomically takes (reads and clears) the pending change masks. A bit set by a
+        /// concurrent setter is either taken here or stays set for the next call; it is
+        /// never lost as with a plain read followed by <c>&amp;=</c>.
+        /// </summary>
+        private NodeStateChangeMasks TakeChangeMasks()
+        {
+            ref int bits = ref Unsafe.As<NodeStateChangeMasks, int>(ref m_changeMasks);
+            return (NodeStateChangeMasks)Interlocked.Exchange(ref bits, 0);
+        }
+
+        /// <summary>
+        /// Atomically sets the change masks that were taken but could not be reported.
+        /// </summary>
+        private void RestoreChangeMasks(NodeStateChangeMasks changeMasks)
+        {
+            ref int bits = ref Unsafe.As<NodeStateChangeMasks, int>(ref m_changeMasks);
+            int current = Volatile.Read(ref bits);
+
+            while (true)
+            {
+                int previous = Interlocked.CompareExchange(
+                    ref bits,
+                    current | (int)changeMasks,
+                    current);
+
+                if (previous == current)
+                {
+                    return;
+                }
+
+                current = previous;
             }
         }
 
@@ -3352,13 +3385,11 @@ namespace Opc.Ua
                 }
             }
 
-            NodeStateChangeMasks changeMasks = m_changeMasks;
+            // take the reported bits before dispatching (see ClearChangeMasks).
+            NodeStateChangeMasks changeMasks = TakeChangeMasks();
 
             if (changeMasks != NodeStateChangeMasks.None)
             {
-                // take the reported bits before dispatching (see ClearChangeMasks).
-                m_changeMasks &= ~changeMasks;
-
                 try
                 {
                     OnStateChanged?.Invoke(context, this, changeMasks);
@@ -3369,7 +3400,7 @@ namespace Opc.Ua
                 catch
                 {
                     // not reported: keep the bits for the next call.
-                    m_changeMasks |= changeMasks;
+                    RestoreChangeMasks(changeMasks);
                     throw;
                 }
             }
