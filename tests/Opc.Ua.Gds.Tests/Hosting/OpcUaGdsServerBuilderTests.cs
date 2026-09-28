@@ -302,6 +302,37 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Is.EqualTo("CN=GlobalDiscoveryServer CA, O=OPC Foundation"));
         }
 
+        /// <summary>
+        /// OPC 10000-12 §7.8.3.3: the DefaultApplicationGroup is mandatory, so
+        /// configured groups without it get the default group appended.
+        /// </summary>
+        [Test]
+        public void ConfiguredGroupsWithoutDefaultGetDefaultApplicationGroup()
+        {
+            var options = new GdsServerOptions { ApplicationName = "Gds" };
+            var httpsGroup = new GdsCertificateGroupOptions
+            {
+                Id = "DefaultHttpsGroup",
+                SubjectName = "CN=Https CA"
+            };
+            httpsGroup.CertificateTypes.Add("HttpsCertificateType");
+            options.CertificateGroups.Add(httpsGroup);
+
+            GlobalDiscoveryServerConfiguration configuration =
+                GdsServerHostedService.BuildGdsConfiguration(options, "pki");
+
+            Assert.That(configuration.CertificateGroups.Count, Is.EqualTo(2));
+            Assert.That(configuration.CertificateGroups[0].Id, Is.EqualTo("DefaultHttpsGroup"));
+            CertificateGroupConfiguration defaultGroup = configuration.CertificateGroups[1];
+            Assert.That(defaultGroup.Id, Is.EqualTo("Default"));
+            Assert.That(defaultGroup.SubjectName, Is.EqualTo("CN=Gds CA, O=OPC Foundation"));
+
+            options.CertificateGroups[0].Id = "defaultapplicationgroup";
+            configuration = GdsServerHostedService.BuildGdsConfiguration(options, "pki");
+            Assert.That(configuration.CertificateGroups.Count, Is.EqualTo(1),
+                "A configured DefaultApplicationGroup must not be duplicated.");
+        }
+
         [Test]
         public void AddGdsServerCanCoexistWithAddServer()
         {

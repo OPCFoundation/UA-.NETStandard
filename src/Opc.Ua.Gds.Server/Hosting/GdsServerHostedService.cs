@@ -402,11 +402,18 @@ namespace Opc.Ua.Gds.Server.Hosting
 
             // OPC 10000-12 §7.8.3.3: the DefaultApplicationGroup is mandatory,
             // without a certificate group the GDS cannot issue certificates.
-            ArrayOf<CertificateGroupConfiguration> certificateGroups = options.CertificateGroups.Count > 0
-                ? options.CertificateGroups
-                    .Select(group => ToCertificateGroupConfiguration(group, baseCertificateGroupStorePath))
-                    .ToArrayOf()
-                : [CreateDefaultApplicationGroup(ResolveApplicationName(options), baseCertificateGroupStorePath)];
+            // Configured groups that do not include it get it appended, so the
+            // mandatory group is always backed by a CA.
+            var groups = options.CertificateGroups
+                .Select(group => ToCertificateGroupConfiguration(group, baseCertificateGroupStorePath))
+                .ToList();
+            if (!groups.Any(group => IsDefaultApplicationGroupId(group.Id)))
+            {
+                groups.Add(CreateDefaultApplicationGroup(
+                    ResolveApplicationName(options),
+                    baseCertificateGroupStorePath));
+            }
+            ArrayOf<CertificateGroupConfiguration> certificateGroups = groups.ToArrayOf();
 
             return new GlobalDiscoveryServerConfiguration
             {
@@ -417,6 +424,16 @@ namespace Opc.Ua.Gds.Server.Hosting
                 CertificateGroups = certificateGroups,
                 KnownHostNames = []
             };
+        }
+
+        /// <summary>
+        /// Whether <paramref name="groupId"/> selects the DefaultApplicationGroup
+        /// (the ids ApplicationsNodeManager maps onto that standard node).
+        /// </summary>
+        private static bool IsDefaultApplicationGroupId(string? groupId)
+        {
+            return string.Equals(groupId, "Default", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase);
         }
 
         private static CertificateGroupConfiguration CreateDefaultApplicationGroup(

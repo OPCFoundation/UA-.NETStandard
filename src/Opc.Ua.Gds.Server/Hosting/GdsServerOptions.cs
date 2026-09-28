@@ -161,8 +161,9 @@ namespace Opc.Ua.Gds.Server.Hosting
         public string BaseCertificateGroupStorePath { get; set; } = string.Empty;
 
         /// <summary>
-        /// The certificate groups the GDS issues certificates for. When
-        /// empty, the mandatory <c>DefaultApplicationGroup</c> (Id
+        /// The certificate groups the GDS issues certificates for. When no
+        /// group has the Id <c>Default</c> (or <c>DefaultApplicationGroup</c>),
+        /// the mandatory <c>DefaultApplicationGroup</c> (Id
         /// <c>Default</c>, <c>RsaSha256ApplicationCertificateType</c>) is
         /// configured with its CA under
         /// <c>{BaseCertificateGroupStorePath}/default</c>. Bindable from
