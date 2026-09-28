@@ -224,6 +224,28 @@ namespace Opc.Ua.Schema.Tests
         }
 
         /// <summary>
+        /// A4-7: a LocalizedText with a locale but no text, as written by JsonEncoder.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void GeneratedSchemaValidatesLocalizedTextWithLocaleOnly(bool verbose)
+        {
+            UaTypeDescription sampleType = SchemaTestData.Structure(
+                3934,
+                "LocaleOnlySample",
+                SchemaTestData.Field("Label", SchemaTestData.BuiltIn(BuiltInType.LocalizedText)));
+            IUaSchema schema = SchemaTestData.CreateProvider(sampleType)
+                .CreateSchema(
+                    sampleType,
+                    verbose ? UaSchemaFormat.JsonVerbose : UaSchemaFormat.JsonCompact);
+            JsonNode instance = Encode(verbose, e => e.WriteLocalizedText("Label", new LocalizedText("en-US", (string)null!)));
+
+            EvaluationResults results = Evaluate(schema, instance);
+
+            Assert.That(results.IsValid, Is.True, instance.ToJsonString() + "\n" + Errors(results));
+        }
+
+        /// <summary>
         /// S1-10: unions and structures with optional fields as written by JsonEncoder.
         /// </summary>
         [TestCase(true)]

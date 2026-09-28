@@ -109,7 +109,8 @@ namespace Opc.Ua.Schema.Json
             return Object(new JsonObject
             {
                 ["Locale"] = new JsonObject { ["type"] = "string" },
-                ["Text"] = new JsonObject { ["type"] = "string" }
+                // the verbose encoding writes "Text": null for a LocalizedText that only has a locale.
+                ["Text"] = new JsonObject { ["type"] = new JsonArray("string", "null") }
             });
         }
 
