@@ -295,6 +295,54 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns true if the operand value is a null value (OPC 10000-4
+        /// 1.05.07 §7.7.3: "values which do not exist").
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 1.05.07 Table 1 decides which built-in types have a null
+        /// value: String, DateTime (MinValue), Guid (all zeros), ByteString,
+        /// XmlElement, NodeId, ExpandedNodeId, QualifiedName, LocalizedText,
+        /// ExtensionObject, DataValue, Variant and DiagnosticInfo. Boolean, the
+        /// numbers, StatusCode and enumerations are not nullable, so false or 0
+        /// is a value. Null, empty and zero-length arrays are the same (§5.1.11).
+        /// </remarks>
+        internal static bool IsNullValue(Variant value)
+        {
+            if (value.IsNull)
+            {
+                return true;
+            }
+
+            if (!value.TypeInfo.IsScalar)
+            {
+                return value.IsEmptyArray;
+            }
+
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                case BuiltInType.SByte:
+                case BuiltInType.Byte:
+                case BuiltInType.Int16:
+                case BuiltInType.UInt16:
+                case BuiltInType.Int32:
+                case BuiltInType.UInt32:
+                case BuiltInType.Int64:
+                case BuiltInType.UInt64:
+                case BuiltInType.Float:
+                case BuiltInType.Double:
+                case BuiltInType.StatusCode:
+                case BuiltInType.Enumeration:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    return false;
+                default:
+                    return value.ValueIsDefaultOrNull;
+            }
+        }
+
+        /// <summary>
         /// And FilterOperator
         /// </summary>
         private Variant And(ContentFilterElement element)
@@ -399,6 +447,12 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(lhs) || IsNullValue(rhs))
+            {
+                return default;
+            }
+
             return lhs & rhs;
         }
 
@@ -412,6 +466,12 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(lhs) || IsNullValue(rhs))
+            {
+                return default;
+            }
+
             return lhs | rhs;
         }
 
@@ -424,6 +484,12 @@ namespace Opc.Ua
 
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
+
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(lhs) || IsNullValue(rhs))
+            {
+                return default;
+            }
 
             if (lhs.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
             {
@@ -443,7 +509,13 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
-            // return null if the types are not comparable.
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(lhs) || IsNullValue(rhs))
+            {
+                return default;
+            }
+
+            // types that cannot be compared evaluate to FALSE.
             int compareResult = lhs.CompareTo(rhs);
             return compareResult is not int.MinValue and > 0;
         }
@@ -458,7 +530,13 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
-            // return null if the types are not comparable.
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(lhs) || IsNullValue(rhs))
+            {
+                return default;
+            }
+
+            // types that cannot be compared evaluate to FALSE.
             int compareResult = lhs.CompareTo(rhs);
             return compareResult is not int.MinValue and >= 0;
         }
@@ -473,7 +551,13 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
-            // return null if the types are not comparable.
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(lhs) || IsNullValue(rhs))
+            {
+                return default;
+            }
+
+            // types that cannot be compared evaluate to FALSE.
             int compareResult = lhs.CompareTo(rhs);
             return compareResult is not int.MinValue and < 0;
         }
@@ -488,7 +572,13 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
-            // return null if the types are not comparable.
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(lhs) || IsNullValue(rhs))
+            {
+                return default;
+            }
+
+            // types that cannot be compared evaluate to FALSE.
             int compareResult = lhs.CompareTo(rhs);
             return compareResult is not int.MinValue and <= 0;
         }
@@ -504,12 +594,18 @@ namespace Opc.Ua
             Variant min = GetValue(operands[1]);
             Variant max = GetValue(operands[2]);
 
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(value) || IsNullValue(min) || IsNullValue(max))
+            {
+                return default;
+            }
+
             // check if never in range no matter what happens with the upper bound.
             int minCompareResult = value.CompareTo(min);
             if (minCompareResult == int.MinValue)
             {
-                // return null if the types are not comparable.
-                return default;
+                // operands of types that cannot be compared evaluate to FALSE.
+                return false;
             }
 
             if (minCompareResult < 0)
@@ -521,8 +617,8 @@ namespace Opc.Ua
             int maxCompareResult = value.CompareTo(max);
             if (maxCompareResult == int.MinValue)
             {
-                // return null if the types are not comparable.
-                return default;
+                // operands of types that cannot be compared evaluate to FALSE.
+                return false;
             }
 
             return maxCompareResult <= 0;
@@ -536,16 +632,25 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 0);
 
             Variant value = GetValue(operands[0]);
+            if (IsNullValue(value))
+            {
+                return default;
+            }
 
-            // check for a match.
+            // InList is TRUE if any Equals is TRUE (§7.7.3). A null list operand
+            // makes its Equals NULL, so without a match the element is NULL.
+            bool nullOperand = false;
             for (int ii = 1; ii < operands.Length; ii++)
             {
                 Variant rhs = GetValue(operands[ii]);
+                if (IsNullValue(rhs))
+                {
+                    nullOperand = true;
+                    continue;
+                }
 
                 if (value.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
                 {
-                    // a non-matching string operand only rules out this operand,
-                    // not the rest of the list.
                     if (lhsString.Equals(
                         rhsString,
                         ContentFilter.EqualsOperatorDefaultStringComparison))
@@ -561,7 +666,11 @@ namespace Opc.Ua
                 }
             }
 
-            // no match.
+            if (nullOperand)
+            {
+                return default;
+            }
+
             return false;
         }
 
@@ -584,6 +693,14 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 2);
 
             Variant firstOperand = GetValue(operands[0]);
+            Variant secondOperand = GetValue(operands[1]);
+
+            // an element with a null operand evaluates to NULL (§7.7.3).
+            if (IsNullValue(firstOperand) || IsNullValue(secondOperand))
+            {
+                return default;
+            }
+
             string? lhs;
             if (firstOperand.TryGetValue(out LocalizedText firstOperandLocalizedText))
             {
@@ -594,7 +711,6 @@ namespace Opc.Ua
                 lhs = firstOperand.GetString();
             }
 
-            Variant secondOperand = GetValue(operands[1]);
             string? rhs;
             if (secondOperand.TryGetValue(out LocalizedText secondOperandLocalizedText))
             {
@@ -623,7 +739,7 @@ namespace Opc.Ua
 
             Variant rhs = GetValue(operands[0]);
 
-            return rhs.IsNull;
+            return IsNullValue(rhs);
         }
 
         /// <summary>
