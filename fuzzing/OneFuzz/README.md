@@ -126,11 +126,17 @@ the scripts above. Manifest, corpus, dictionary, host, shared harness, OneFuzz s
 publication-script changes trigger this gate. Zero failed/skipped cases are required;
 the retained drop and local evidence do not constitute a service canary.
 
-This repository no longer contains a pipeline that submits the drop to the OneFuzz
-service; the Azure DevOps `onefuzz.yml` pipeline that did so has been removed. An
-authorized internal owner who submits a drop does so outside this repository, with
-their own ownership profile, corpora and `onefuzz-task` credentials. Never commit
-private ownership metadata.
+[.azurepipelines\onefuzz.yml](../../.azurepipelines/onefuzz.yml) is opt-in: no PR,
+branch, or scheduled triggers. Its default builds/tests only. An authorized internal
+owner can explicitly set `submit: true`, provide the ownership profile/corpora,
+install and authorize `onefuzz-task@0`, and supply the task's secret variables.
+Use the explicit `ownershipProfileSecureFile` parameter to download an authorized
+Azure secure file without committing private ownership metadata. Alternatively,
+provide `ownershipProfilePath` for a file made available by the owner's
+`prepareSteps`. Those optional steps can prepare a complete external `corpusRoot`;
+without that override, publication materializes declared fixture generators automatically.
+The task uses `onefuzzOSes: azurelinux3` and `onefuzzDropDirectory`. Its Ubuntu
+build agent is **not** evidence of the resolved Azure Linux worker image.
 
 No script submits or uploads anything. Build/publication checks do not establish
 the hidden service instrumenter's compatibility, provision cloud corpora, verify

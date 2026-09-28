@@ -305,7 +305,7 @@ the signed release workflow can promote an intentional mixed-version set.
 
 **GitHub Actions runs all CI for `master`.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml) builds, signs and publishes the packages. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress, stability and long-haul suites.
 
-`master` carries no Azure Pipelines definition. The PowerShell helpers that remain under [`.azurepipelines/`](../.azurepipelines) are used by the GitHub Actions workflows; the directory keeps its historical name so those paths stay stable. Branches that still carry their own `azure-pipelines.yml` (`master378`, the 1.x `release/*` lines and the frozen `release/2.0.0`) keep their Azure validation; see [Azure Pipelines on other branches](#azure-pipelines-on-other-branches).
+The only Azure Pipelines definition left on `master` is the manually queued, opt-in [`.azurepipelines/onefuzz.yml`](../.azurepipelines/onefuzz.yml), kept because submission to the internal OneFuzz service requires the Azure DevOps-only `onefuzz-task`; it has no push, PR or schedule trigger. The other PowerShell helpers that remain under [`.azurepipelines/`](../.azurepipelines) are used by the GitHub Actions workflows; the directory keeps its historical name so those paths stay stable. Branches that still carry their own `azure-pipelines.yml` (`master378`, the 1.x `release/*` lines and the frozen `release/2.0.0`) keep their Azure validation; see [Azure Pipelines on other branches](#azure-pipelines-on-other-branches).
 
 ### What runs where
 
@@ -399,7 +399,7 @@ The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/chec
 
 Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red check green.
 
-> The script lives under `.azurepipelines/` for historical reasons only; nothing there is Azure-specific any more.
+> The script lives under `.azurepipelines/` for historical reasons only; it is not Azure-specific.
 
 Two things about the `ignore` globs regularly catch people out. `samples/**` is ignored, so a sample can carry
 tests for its own sake — a wrong kinematics solver would make a sample lie — without those lines counting
@@ -472,7 +472,7 @@ GitHub Actions applies its "Approve and run workflows" gate to outside contribut
 
 ### Azure Pipelines on other branches
 
-`master` no longer carries `azure-pipelines.yml`, `azure-pipelines-preview.yml` or the Azure templates, so a push to `master` (or to a branch cut from it) gives the Azure definitions nothing to run. The Azure DevOps definitions themselves live in the Azure DevOps portal, not in this repository. Disabling their `master` triggers there (definition 14's push trigger and service-side schedule, definition 16's build-completion trigger, and the stale definition 13) is an administrator task and stops any residual "file not found" runs. Preserve the definitions, their artifacts, feeds, secure files, pools and service connections — `master378`, the 1.x `release/*` lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and still use them.
+`master` no longer carries `azure-pipelines.yml`, `azure-pipelines-preview.yml` or the Azure CI templates, so a push to `master` (or to a branch cut from it) gives those Azure definitions nothing to run. The OneFuzz definition, which points at `.azurepipelines/onefuzz.yml`, is unaffected and stays manual. The Azure DevOps definitions themselves live in the Azure DevOps portal, not in this repository. Disabling their `master` triggers there (definition 14's push trigger and service-side schedule, definition 16's build-completion trigger, and the stale definition 13) is an administrator task and stops any residual "file not found" runs. Preserve the definitions, their artifacts, feeds, secure files, pools and service connections — `master378`, the 1.x `release/*` lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and still use them.
 
 > **Before cutting a canonical `release/2.<minor>` branch:** the `Release` ruleset requires `OPCFoundation.UA-.NETStandard` for *every* `refs/heads/release/*`. A new 2.x branch is cut from `master` and has no Azure pipeline, so that Azure context would never report and would block every pull request into the new line. Exclude the new ref from that ruleset — or add a 2.x ruleset requiring `build-and-test summary` — as part of creating the branch. The existing 1.x lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and must keep the Azure requirement.
 

@@ -129,7 +129,7 @@ public class EncoderTests : FuzzTargetTestsBase
    to cross-target malformed-input replay. Validate both the local host and published callback.
 9. **Update this `Fuzzing.md`.** Add a row to the area table.
 
-The Azure pipeline test template recursively discovers fuzz test projects. GitHub Actions
+The CI test matrix discovers fuzz test projects like any other test project. GitHub Actions
 also has an explicit fuzz replay matrix, including changes only to seeds, dictionaries and
 scripts. `Scripts/test-fuzzing.ps1` runs the applicable projects and rejects empty or skipped
 test runs. `fuzz-parity.runsettings` includes generated protocol methods in fuzz-only production
@@ -327,7 +327,8 @@ Create a public validation drop without internal credentials:
 The publisher uses isolated SDK outputs, materializes declared generated corpora in controlled
 artifacts, and replays the published callbacks. It never uploads or submits jobs. Without
 `-OwnershipProfile <approved-profile.json>`, it does **not** emit a service-submittable
-`OneFuzzConfig.json`. See `fuzzing/OneFuzz` for the ownership profile contract. Existing output/work directories are rejected, not deleted.
+`OneFuzzConfig.json`. See `fuzzing/OneFuzz` and `.azurepipelines/onefuzz.yml` for the ownership
+profile and internal pipeline contract. Existing output/work directories are rejected, not deleted.
 
 The service mode is `OneFuzz=true`: managed net10.0 class libraries from the same source,
 without the local runner or direct SharpFuzz dependency. Internal worker configuration uses
