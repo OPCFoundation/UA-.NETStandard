@@ -531,6 +531,58 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 Is.True);
         }
 
+        /// <summary>
+        /// OPC 10000-4 7.7.3 IsNull: a String-typed Variant holding a null
+        /// string is a null value, like it is for every other operator.
+        /// </summary>
+        [Test]
+        public void IsNullWithNullStringOperandYieldsTrue()
+        {
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new LiteralOperand(Variant.From((string)null))))
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new LiteralOperand(Variant.From(string.Empty))))
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3: a NULL Like operand makes the element NULL, so
+        /// it does not turn into TRUE when negated.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public void LikeWithNullStringOperandIsNull(bool lhsNull, bool rhsNull)
+        {
+            ContentFilterElement like = Element(
+                FilterOperator.Like,
+                new LiteralOperand(lhsNull ? Variant.From((string)null) : Variant.From("abc")),
+                new LiteralOperand(rhsNull ? Variant.From((string)null) : Variant.From("a%")));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), like)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                Filter(Element(FilterOperator.Not, new ElementOperand(1)), like)
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        [Test]
+        public void CastWithNullStringOperandIsNull()
+        {
+            ContentFilterElement cast = Element(
+                FilterOperator.Cast,
+                new LiteralOperand(Variant.From((string)null)),
+                new LiteralOperand(Variant.From(DataTypeIds.String)));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), cast)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
         [Test]
         public void OrNullStringCompareWithTrueRightYieldsTrue()
         {

@@ -498,7 +498,7 @@ namespace Opc.Ua
         {
             if (!value.TypeInfo.IsScalar ||
                 value.TypeInfo.BuiltInType is not (BuiltInType.Boolean or BuiltInType.String) ||
-                IsNullOperand(value))
+                IsNullValue(value))
             {
                 return false;
             }
@@ -799,7 +799,8 @@ namespace Opc.Ua
         /// <see cref="LikePattern"/>.
         /// </summary>
         /// <remarks>
-        /// The operator resolves to FALSE if an operand cannot be resolved to a
+        /// A NULL operand makes the element NULL; otherwise the operator
+        /// resolves to FALSE if an operand cannot be resolved to a
         /// string. A pattern that is not a valid search string is treated the
         /// same way: it matches nothing. A literal pattern operand is already
         /// rejected with Bad_FilterOperandInvalid when the filter is validated
@@ -872,7 +873,8 @@ namespace Opc.Ua
             // get the value to cast.
             Variant value = GetValue(operands[0]);
 
-            if (value.IsNull)
+            // a NULL operand makes the element NULL (OPC 10000-4 7.7.3).
+            if (IsNullValue(value))
             {
                 return default;
             }
