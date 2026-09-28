@@ -2471,9 +2471,10 @@ namespace Opc.Ua
                     value = NodeId.Null;
                     return true;
                 case JsonValueKind.String:
+                    string text = element.GetString()!;
                     if (ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString()!,
+                        text,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
@@ -2484,6 +2485,15 @@ namespace Opc.Ua
                         // a NodeId cannot reference another server ("svr=").
                         expandedNodeId.ServerIndex == 0)
                     {
+                        if (!string.IsNullOrEmpty(expandedNodeId.NamespaceUri))
+                        {
+                            // Part 6 5.4.2.10: a NamespaceUri that cannot be
+                            // mapped to a NamespaceIndex decodes as a String
+                            // NodeId in namespace 0 holding the JSON string.
+                            value = new NodeId(text, 0);
+                            return true;
+                        }
+
                         value = ExpandedNodeId.ToNodeId(
                             expandedNodeId,
                             Context.NamespaceUris,

@@ -136,6 +136,27 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadNodeIdWithUnknownNamespaceUriDecodesAsStringNodeId(bool parseStrict)
+        {
+            // Part 6 5.4.2.10: an unmappable NamespaceUri decodes to a String
+            // NodeId in namespace 0 holding the JSON string (was NodeId.Null).
+            const string text = "nsu=urn:not-registered;s=Tag1";
+            ServiceMessageContext context = NewContext();
+            int count = context.NamespaceUris.Count;
+            using var decoder = new JsonDecoder(
+                "{\"Value\":\"" + text + "\",\"Values\":[\"" + text + "\"]}",
+                context,
+                new JsonDecoderOptions { ParseStrict = parseStrict });
+
+            Assert.That(decoder.ReadNodeId(JsonProperties.Value), Is.EqualTo(new NodeId(text, 0)));
+            ArrayOf<NodeId> values = decoder.ReadNodeIdArray("Values");
+            Assert.That(values.Count, Is.EqualTo(1));
+            Assert.That(values[0], Is.EqualTo(new NodeId(text, 0)));
+            Assert.That(context.NamespaceUris.Count, Is.EqualTo(count));
+        }
+
         [Test]
         public void SetMappingTablesWithoutUpdateDoesNotAppendUnknownUri()
         {
