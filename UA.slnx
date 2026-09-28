@@ -340,6 +340,7 @@
     <Project Path="tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
