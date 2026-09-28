@@ -622,12 +622,39 @@ namespace Opc.Ua.Server
                 return FailedUpdate(StatusCodes.BadInvalidState, targets);
             }
 
+            // A deferred (RestartDelayTime) apply has not changed the
+            // CurrentVersion yet, so the version check above cannot detect it:
+            // a second update would silently race the scheduled one.
+            bool deferredApplyPending;
+            lock (m_lock)
+            {
+                deferredApplyPending = m_deferredApplyPending;
+            }
+
+            if (deferredApplyPending)
+            {
+                CloseWriteHandle(fileHandle);
+                return FailedUpdate(StatusCodes.BadInvalidState, targets);
+            }
+
             // §7.8.5.2 validation before apply: an invalid configuration is
-            // rejected before any change is made (no partial update).
+            // rejected before any change is made (no partial update). A
+            // target-aware provider receives the Targets ("Contents of the
+            // file which are not referenced by a target are ignored").
+            var targetProvider = m_provider as IApplicationConfigurationFileTargetProvider;
+            ApplicationConfigurationUpdatePlan? plan = null;
             try
             {
-                await m_provider.ValidateConfigurationAsync(proposed, cancellationToken)
-                    .ConfigureAwait(false);
+                if (targetProvider != null)
+                {
+                    plan = await targetProvider.ValidateConfigurationAsync(proposed, targets, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await m_provider.ValidateConfigurationAsync(proposed, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
             catch (ServiceResultException ex)
             {
@@ -638,12 +665,59 @@ namespace Opc.Ua.Server
                 return FailedUpdate(ex.StatusCode, targets);
             }
 
+            // §7.8.5.2 UpdateResults: "If any element is not Good then no
+            // changes are applied and the Method return code is Uncertain."
+            if (plan != null && HasBadTargetResult(plan.TargetResults, targets.Count))
+            {
+                CloseWriteHandle(fileHandle);
+                ReportConfigurationUpdatedAuditEvent(
+                    context, objectId, method.NodeId, inputArguments, StatusCodes.Uncertain, oldVersion, oldVersion);
+                return new ConfigurationFileCloseAndUpdateMethodStateResult
+                {
+                    ServiceResult = StatusCodes.Uncertain,
+                    UpdateResults = plan.TargetResults.Count == targets.Count
+                        ? plan.TargetResults
+                        : FailureResults(StatusCodes.BadInternalError, targets),
+                    NewVersion = 0,
+                    UpdateId = Uuid.Empty
+                };
+            }
+
+            // §7.8.5.2 RestartDelayTime: "How long the Server should wait
+            // before applying the configuration changes if applying the
+            // configuration changes will interrupt active Sessions." The
+            // response is returned first and the apply runs afterwards.
+            if (targetProvider != null && plan!.InterruptsSessions && restartDelayTime > 0)
+            {
+                return ScheduleDeferredApply(
+                    context,
+                    objectId,
+                    method.NodeId,
+                    inputArguments,
+                    targetProvider,
+                    proposed,
+                    targets,
+                    fileHandle,
+                    plan,
+                    oldVersion,
+                    revertAfterTime,
+                    restartDelayTime);
+            }
+
             // §7.8.5.2 atomic apply: on failure the provider leaves the active
             // configuration unchanged, so there is nothing to roll back.
             try
             {
-                await m_provider.ApplyConfigurationAsync(proposed, cancellationToken)
-                    .ConfigureAwait(false);
+                if (targetProvider != null)
+                {
+                    await targetProvider.ApplyConfigurationAsync(proposed, targets, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await m_provider.ApplyConfigurationAsync(proposed, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
             catch (ServiceResultException ex)
             {
@@ -682,6 +756,165 @@ namespace Opc.Ua.Server
                 NewVersion = newVersion,
                 UpdateId = updateId
             };
+        }
+
+        /// <summary>
+        /// Completes a <c>CloseAndUpdate</c> whose apply interrupts active
+        /// Sessions: the response is returned now and the validated targets are
+        /// applied once <paramref name="restartDelayTime"/> has elapsed
+        /// (§7.8.5.2). The revert window, when confirmation is required, runs
+        /// from the response as the Client is told to reconnect after
+        /// <c>RestartDelayTime</c> but no later than
+        /// <c>RestartDelayTime + RevertAfterTime</c>.
+        /// </summary>
+        private ConfigurationFileCloseAndUpdateMethodStateResult ScheduleDeferredApply(
+            ISystemContext context,
+            NodeId objectId,
+            NodeId methodId,
+            ArrayOf<Variant> inputArguments,
+            IApplicationConfigurationFileTargetProvider targetProvider,
+            ByteString proposed,
+            ArrayOf<ConfigurationUpdateTargetType> targets,
+            uint fileHandle,
+            ApplicationConfigurationUpdatePlan plan,
+            uint oldVersion,
+            double revertAfterTime,
+            double restartDelayTime)
+        {
+            lock (m_lock)
+            {
+                m_deferredApplyPending = true;
+            }
+
+            Uuid updateId = Uuid.Empty;
+            if (m_provider.RequiresConfirmation)
+            {
+                updateId = Uuid.NewUuid();
+                ScheduleRevert(updateId, restartDelayTime, revertAfterTime, context);
+            }
+
+            CloseWriteHandle(fileHandle);
+
+            bool scheduled = m_backgroundWork.Run("DeferredApply", async ct =>
+            {
+                try
+                {
+                    try
+                    {
+                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(restartDelayTime), ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        await targetProvider.ApplyConfigurationAsync(proposed, targets, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        m_logger.ConfigurationFileUpdateFailedWhileApplying(ex);
+                        AbandonPendingRevert(updateId);
+                        StatusCode failure = ex is ServiceResultException sre
+                            ? sre.StatusCode
+                            : StatusCodes.BadInternalError;
+                        ReportConfigurationUpdatedAuditEvent(
+                            context, objectId, methodId, inputArguments, failure, oldVersion, oldVersion);
+                        return;
+                    }
+
+                    uint appliedVersion = m_provider.CurrentVersion;
+                    RefreshVersionNodes(context);
+                    ReportConfigurationUpdatedAuditEvent(
+                        context, objectId, methodId, inputArguments, StatusCodes.Good, oldVersion, appliedVersion);
+                    m_logger.ConfigurationFileUpdatedToVersion(
+                        appliedVersion,
+                        m_provider.RequiresConfirmation ? "is" : "not");
+                }
+                finally
+                {
+                    lock (m_lock)
+                    {
+                        m_deferredApplyPending = false;
+                    }
+                }
+            });
+
+            if (!scheduled)
+            {
+                // Shutting down: nothing will be applied.
+                AbandonPendingRevert(updateId);
+                lock (m_lock)
+                {
+                    m_deferredApplyPending = false;
+                }
+                return FailedUpdate(StatusCodes.BadShutdown, targets);
+            }
+
+            m_logger.ConfigurationFileApplyDeferred(restartDelayTime);
+
+            return new ConfigurationFileCloseAndUpdateMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                UpdateResults = SuccessResults(targets),
+                NewVersion = plan.NewVersion,
+                UpdateId = updateId
+            };
+        }
+
+        /// <summary>
+        /// Drops the revert scheduled for <paramref name="updateId"/> when the
+        /// update it guards was never applied.
+        /// </summary>
+        private void AbandonPendingRevert(Uuid updateId)
+        {
+            if (updateId.Guid == Guid.Empty)
+            {
+                return;
+            }
+
+            bool matches;
+            lock (m_lock)
+            {
+                matches = m_pendingUpdateId.Guid == updateId.Guid;
+                if (matches)
+                {
+                    m_pendingUpdateId = Uuid.Empty;
+                }
+            }
+
+            if (matches)
+            {
+                CancelPendingRevert();
+            }
+        }
+
+        private static bool HasBadTargetResult(ArrayOf<StatusCode> results, int targetCount)
+        {
+            if (results.Count == 0)
+            {
+                return false;
+            }
+
+            if (results.Count != targetCount)
+            {
+                // The provider broke the contract; treat it as a rejection
+                // rather than applying an update of unknown scope.
+                return true;
+            }
+
+            for (int i = 0; i < results.Count; i++)
+            {
+                if (!StatusCode.IsGood(results[i]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private async ValueTask<ConfigurationFileConfirmUpdateMethodStateResult> ConfirmUpdateAsync(
@@ -1046,6 +1279,7 @@ namespace Opc.Ua.Server
         private long m_activityGeneration;
         private Uuid m_pendingUpdateId;
         private CancellationTokenSource? m_pendingRevertCts;
+        private bool m_deferredApplyPending;
     }
 
     internal static partial class ApplicationConfigurationFileLog
@@ -1086,5 +1320,9 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 7, Level = LogLevel.Error,
             Message = "Error while reporting the ConfigurationUpdatedAuditEvent.")]
         public static partial void ErrorWhileReportingConfigurationUpdatedAuditEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.ApplicationConfigurationFile + 8, Level = LogLevel.Information,
+            Message = "ConfigurationFile update interrupts active Sessions; applying after the RestartDelayTime of {Delay} ms.")]
+        public static partial void ConfigurationFileApplyDeferred(this ILogger logger, double delay);
     }
 }

@@ -607,6 +607,18 @@ stream body (a serialized `UABinaryFileDataType` whose `SupportedDataType` is
 `ApplicationConfigurationDataType`) and is treated opaquely by the node manager,
 so the concrete encoding is entirely the provider's responsibility.
 
+A provider that also implements `IApplicationConfigurationFileTargetProvider`
+receives the `CloseAndUpdate` `Targets` (§7.8.5.2: contents not referenced by a
+target are ignored). Its target-aware `ValidateConfigurationAsync` returns an
+`ApplicationConfigurationUpdatePlan`: any non-Good per-target result rejects the
+whole update with `Uncertain` and those `UpdateResults`, and
+`InterruptsSessions = true` defers the apply by the Client-supplied
+`RestartDelayTime` so the Client receives the response first (the response then
+carries the plan's `NewVersion`; a second update is rejected with
+`Bad_InvalidState` until the deferred apply has run). Providers that only
+implement `IApplicationConfigurationFileProvider` keep applying the whole file
+immediately.
+
 #### TrustList Size Limits (OPC UA Part 12 §8.4.5)
 
 `ServerConfiguration.MaxTrustListSize` advertises, in bytes, the largest
