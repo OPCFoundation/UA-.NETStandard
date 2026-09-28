@@ -41,6 +41,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
     [Parallelizable]
     public class FilterEvaluatorCoverageTests
     {
+        private static readonly int[] s_twoIntegers = [1, 2];
         private IFilterContext m_context;
         private CoverageFilterTarget m_target;
 
@@ -567,14 +568,99 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(Filter(equals, bitwise).Evaluate(m_context, m_target), Is.True);
         }
 
+        /// <summary>
+        /// OPC 10000-4 7.7.3 Table 121: Double, Float and StatusCode only have an
+        /// explicit conversion to an integer, so a bitwise element is NULL.
+        /// </summary>
         [TestCase(FilterOperator.BitwiseAnd)]
         [TestCase(FilterOperator.BitwiseOr)]
         public void BitwiseWithNonIntegerOperandsIsNull(FilterOperator op)
         {
+            Variant[] nonIntegers =
+            [
+                Variant.From(1.0),
+                Variant.From(1.0f),
+                new Variant(new StatusCode(1u)),
+                Variant.From(Uuid.Empty),
+                Variant.From("abc"),
+                Variant.From(s_twoIntegers),
+                Variant.Null
+            ];
+            foreach (Variant nonInteger in nonIntegers)
+            {
+                ContentFilterElement bitwise = Element(
+                    op,
+                    new LiteralOperand(nonInteger),
+                    new LiteralOperand(Variant.From(1)));
+                Assert.That(
+                    Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), bitwise)
+                        .Evaluate(m_context, m_target),
+                    Is.True,
+                    nonInteger.ToString());
+            }
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3: Boolean and String operands have an implicit
+        /// conversion to integers (Table 121) and a one element array converts
+        /// implicitly to a scalar, so the bitwise operators accept them.
+        /// </summary>
+        [TestCase(FilterOperator.BitwiseAnd, true, 0x0F, 0x01)]
+        [TestCase(FilterOperator.BitwiseOr, true, 0xF0, 0xF1)]
+        [TestCase(FilterOperator.BitwiseAnd, "12", 0x0F, 0x0C)]
+        [TestCase(FilterOperator.BitwiseOr, "12", 0x03, 0x0F)]
+        public void BitwiseImplicitlyConvertsOperandsToIntegers(
+            FilterOperator op,
+            object lhs,
+            int rhs,
+            int expected)
+        {
+            Variant lhsValue = lhs is bool b ? Variant.From(b) : Variant.From((string)lhs);
+            Variant[] lhsForms = [lhsValue, lhs is bool b2
+                ? Variant.From(new[] { b2 })
+                : Variant.From(new[] { (string)lhs })];
+            Variant[] rhsForms = [Variant.From(rhs), Variant.From(new[] { rhs })];
+            foreach (Variant lhsForm in lhsForms)
+            {
+                foreach (Variant rhsForm in rhsForms)
+                {
+                    ContentFilterElement equals = Element(
+                        FilterOperator.Equals,
+                        new ElementOperand(1),
+                        new LiteralOperand(Variant.From(expected)));
+                    ContentFilterElement bitwise = Element(
+                        op,
+                        new LiteralOperand(lhsForm),
+                        new LiteralOperand(rhsForm));
+                    Assert.That(
+                        Filter(equals, bitwise).Evaluate(m_context, m_target),
+                        Is.True,
+                        $"{lhsForm} {op} {rhsForm}");
+                }
+            }
+        }
+
+        [Test]
+        public void BitwiseWithBooleanOperandsUsesByte()
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new ElementOperand(1),
+                new LiteralOperand(Variant.From((byte)1)));
             ContentFilterElement bitwise = Element(
-                op,
+                FilterOperator.BitwiseAnd,
                 new LiteralOperand(Variant.From(true)),
                 new LiteralOperand(Variant.From(true)));
+            Assert.That(Filter(equals, bitwise).Evaluate(m_context, m_target), Is.True);
+        }
+
+        [Test]
+        public void BitwiseWithUnparsableStringIsNull()
+        {
+            ContentFilterElement bitwise = Element(
+                FilterOperator.BitwiseOr,
+                new LiteralOperand(Variant.From("0x1G")),
+                new LiteralOperand(Variant.From((byte)1)));
             Assert.That(
                 Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), bitwise)
                     .Evaluate(m_context, m_target),
