@@ -102,6 +102,7 @@ namespace Opc.Ua
         /// Updates the table of namespace uris.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="strings"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException">More entries than a UInt16 index can address.</exception>
         public void Update(IEnumerable<string> strings)
         {
             if (strings == null)
@@ -109,9 +110,20 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(strings));
             }
 
+            // same bound as Append (see ThrowIfFull), so the (ushort) index casts cannot wrap.
+            List<string> updated = [.. strings];
+
+            if (updated.Count > ushort.MaxValue)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The string table cannot hold more than {0} entries.",
+                    ushort.MaxValue);
+            }
+
             lock (m_syncRoot)
             {
-                m_strings = [.. strings];
+                m_strings = updated;
 
 #if DEBUG
                 if (m_shared)

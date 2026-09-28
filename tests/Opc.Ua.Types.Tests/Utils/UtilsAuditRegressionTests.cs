@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
 
@@ -347,6 +348,33 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.Throws<ServiceResultException>(() => table.Append("urn:test:overflow"));
             Assert.That(table.Count, Is.EqualTo(ushort.MaxValue));
             Assert.That(table.GetIndexOrAppend("urn:test:65534"), Is.EqualTo(65534));
+        }
+
+        [Test]
+        public void StringTableUpdateRejectsIndexesBeyondUInt16()
+        {
+            // Update and the copy constructors bypassed the bound, so the (ushort)
+            // index casts could still wrap onto existing entries.
+            var strings = new string[ushort.MaxValue + 1];
+            strings[0] = "http://opcfoundation.org/UA/";
+            for (int ii = 1; ii < strings.Length; ii++)
+            {
+                strings[ii] = "urn:test:" + ii.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            var table = new StringTable(["urn:test:kept"]);
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => table.Update(strings));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(table.Count, Is.EqualTo(1));
+
+            Assert.Throws<ServiceResultException>(() => _ = new StringTable(strings));
+            Assert.Throws<ServiceResultException>(() => _ = new NamespaceTable(strings));
+            Assert.Throws<ServiceResultException>(() => new NamespaceTable().Update(strings));
+
+            // the largest table that still fits is accepted.
+            var fits = new NamespaceTable(strings.Take(ushort.MaxValue));
+            Assert.That(fits.Count, Is.EqualTo(ushort.MaxValue));
         }
 
         [Test]
