@@ -450,6 +450,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             const int monitoredItemsPerSubscription = 50;
             const int subscriptions = 50;
             const int maxServerPublishRequest = 20;
+            // Server revises the requested publishing interval of 0 to 100 ms
+            const int samplingInterval = 100;
 
             for (int i = 0; i < subscriptions; i++)
             {
@@ -475,7 +477,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                             StartNodeId = nextNode,
                             // Sample at the revised publishing interval to keep
                             // the server load of 2500 items bounded on CI hosts
-                            SamplingInterval = 100
+                            SamplingInterval = samplingInterval
                         });
                 }
                 var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
