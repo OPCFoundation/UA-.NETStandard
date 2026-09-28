@@ -3973,7 +3973,11 @@ namespace Opc.Ua.Schema.Model
             }
             decimal id = 0;
             var filteredParameters = new List<Parameter>();
-            DataTypeDesign optionSet = node is DataTypeDesign { IsOptionSet: true } design ? design : null;
+            var optionSet = node as DataTypeDesign;
+            if (optionSet != null && !optionSet.IsOptionSet)
+            {
+                optionSet = null;
+            }
             decimal nextOptionSetBit = 1;
             var usedBits = new Dictionary<int, Parameter>();
 

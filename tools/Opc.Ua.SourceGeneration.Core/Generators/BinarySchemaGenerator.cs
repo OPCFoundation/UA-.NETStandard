@@ -532,7 +532,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     context.Out.WriteLine(
                         "<!-- {0} = {1}: the value does not fit the xs:int of an EnumeratedValue. -->",
-                        field.Name.Replace("--", "- -"),
+                        field.Name.Replace('-', '_'),
                         field.Identifier);
                     return null;
                 }
