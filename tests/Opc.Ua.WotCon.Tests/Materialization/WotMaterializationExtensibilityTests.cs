@@ -51,18 +51,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed class WotMaterializationExtensibilityTests
     {
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_registry = new WotRegistryService();
+            m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
             m_host = new FakeWotProjectionHost();
+            m_preparedHost = m_runtime.Observe(m_host.RecordCommitted);
             m_converter = new FakeWotDocumentConverter();
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
             m_coordinator?.Dispose();
-            m_registry.Dispose();
+            if (m_runtime is not null)
+            {
+                await m_runtime.DisposeAsync().ConfigureAwait(false);
+                m_runtime = null;
+            }
+            m_coordinator = null;
         }
 
         [Test]
@@ -71,7 +78,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var contributor = new RecordingContributor();
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetContributors: [contributor]);
 
@@ -91,7 +98,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task NoContributorLeavesMaterializationUnchangedAsync()
         {
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_preparedHost, documentConverter: m_converter);
 
             await RegisterAsync("a").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -105,7 +112,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetContributors: [new DataTypeContributor()]);
 
@@ -128,7 +135,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_converter.RequiredNamespace = kDependencyNamespace;
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetResolver: new DecliningResolver());
 
@@ -148,7 +155,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_converter.RequiredNamespace = kDependencyNamespace;
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetResolver: new StubResolver(kDependencyNamespace));
 
@@ -165,7 +172,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task NoResolverLeavesAKnownDocumentUnaffectedAsync()
         {
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_preparedHost, documentConverter: m_converter);
 
             await RegisterAsync("a").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -189,6 +196,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private WotRegistryService m_registry = null!;
         private FakeWotProjectionHost m_host = null!;
+        private IWotInvocationProjectionHost m_preparedHost = null!;
+        private PreparedWotTestRuntime? m_runtime;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator? m_coordinator;
 

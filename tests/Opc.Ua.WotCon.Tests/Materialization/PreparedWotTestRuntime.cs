@@ -150,9 +150,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return inner.ImmediateReloadAsync(current, document, cancellationToken);
             }
 
-            public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
+            public async ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
             {
-                return inner.RemoveAsync(handle, cancellationToken);
+                await inner.RemoveAsync(handle, cancellationToken).ConfigureAwait(false);
+                published([WotProjectionChange.Remove(handle)]);
             }
         }
 
