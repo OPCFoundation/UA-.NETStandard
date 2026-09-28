@@ -148,14 +148,22 @@ namespace Opc.Ua.Server.FileSystem
             ForgetHandle(nodeId);
         }
 
-        bool IFileSystemHost.HasOpenHandles(string providerPath)
+        bool IFileSystemHost.TryBeginMutation(string providerPath)
         {
-            FileHandle[] handles;
             lock (m_lock)
             {
-                handles = [.. m_handles.Values];
+                return FileSystemDirectoryOperations.TryBeginMutation(
+                    Provider, m_handles.Values, m_mutations, providerPath);
             }
-            return FileSystemDirectoryOperations.HasOpenHandles(Provider, handles, providerPath);
+        }
+
+        void IFileSystemHost.EndMutation(string providerPath)
+        {
+            lock (m_lock)
+            {
+                FileSystemDirectoryOperations.EndMutation(
+                    Provider, m_handles.Values, m_mutations, providerPath);
+            }
         }
 
         bool IFileSystemHost.CanUserWrite(ISystemContext context)
@@ -483,6 +491,7 @@ namespace Opc.Ua.Server.FileSystem
                     return handle;
                 }
                 handle = new FileHandle(Provider, providerPath);
+                FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                 m_handles.Add(identity, handle);
                 return handle;
             }
@@ -615,6 +624,11 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         private readonly Dictionary<string, FileHandle> m_handles = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Path identities of the Delete and Move mutations currently running; guarded by m_lock.
+        /// </summary>
+        private readonly List<string> m_mutations = [];
         private readonly Lock m_lock = new();
         private bool m_fileSystemDisposed;
 

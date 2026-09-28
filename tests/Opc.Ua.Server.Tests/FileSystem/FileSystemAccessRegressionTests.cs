@@ -247,6 +247,124 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(System.IO.Directory.Exists(Path.Combine(m_root, "a", "b", "a")), Is.False);
         }
 
+        /// <summary>
+        /// Review D-7: an open still waiting for its provider stream locks the file, so a
+        /// Delete or Move issued in that window is rejected instead of racing the open.
+        /// </summary>
+        [Test]
+        public async Task PendingOpenLocksFileAgainstDeleteAndMoveAsync()
+        {
+            var openEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseOpen = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using FileSystemNodeManager manager = CreateGatedManager(provider => provider
+                .Setup(p => p.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns<string, CancellationToken>(async (path, ct) =>
+                {
+                    openEntered.TrySetResult(true);
+                    await releaseOpen.Task.ConfigureAwait(false);
+                    return await m_physical.OpenReadAsync(path, ct).ConfigureAwait(false);
+                }));
+            var file = new FileObjectState(manager.SystemContext, FileId(manager, "a/b/y.txt"), "a/b/y.txt", "y.txt");
+
+            Task<(ServiceResult Result, System.Collections.Generic.List<Variant> Output)> open =
+                FileReadRegressionTests.CallAsync(file.Open!, manager.SystemContext, file.NodeId, [(byte)0x01])
+                    .AsTask();
+            await openEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            ServiceResult deleteFile = await DeleteAsync(manager, CreateDirectory(manager, "a/b"), FileId(manager, "a/b/y.txt"))
+                .ConfigureAwait(false);
+            ServiceResult deleteDirectory = await DeleteAsync(manager, CreateDirectory(manager, "a"), DirId(manager, "a/b"))
+                .ConfigureAwait(false);
+            DirectoryObjectState root = CreateRoot(manager);
+            MoveOrCopyMethodStateResult move = await root.MoveOrCopy!.OnCallAsync!(
+                manager.SystemContext, root.MoveOrCopy, root.NodeId, DirId(manager, "a"), DirId(manager, "c"),
+                false, string.Empty, CancellationToken.None).ConfigureAwait(false);
+
+            releaseOpen.TrySetResult(true);
+            (ServiceResult opened, _) = await open.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(deleteFile.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(deleteDirectory.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(move.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(ServiceResult.IsGood(opened), Is.True, opened.ToString());
+                Assert.That(System.IO.File.Exists(Path.Combine(m_root, "a", "b", "y.txt")), Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Review D-7: while a Delete runs, a new open of a file below the deleted path is
+        /// refused instead of opening a stream on an entry that is being removed.
+        /// </summary>
+        [Test]
+        public async Task OpenIsRefusedWhileDeleteOfAncestorRunsAsync()
+        {
+            var deleteEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseDelete = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using FileSystemNodeManager manager = CreateGatedManager(provider => provider
+                .Setup(p => p.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns<string, CancellationToken>(async (path, ct) =>
+                {
+                    deleteEntered.TrySetResult(true);
+                    await releaseDelete.Task.ConfigureAwait(false);
+                    await m_physical.DeleteAsync(path, ct).ConfigureAwait(false);
+                }));
+            var file = new FileObjectState(manager.SystemContext, FileId(manager, "a/b/y.txt"), "a/b/y.txt", "y.txt");
+
+            Task<ServiceResult> delete = DeleteAsync(manager, CreateDirectory(manager, "a"), DirId(manager, "a/b"));
+            await deleteEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            (ServiceResult openDuringDelete, _) = await FileReadRegressionTests.CallAsync(
+                file.Open!, manager.SystemContext, file.NodeId, [(byte)0x01]).ConfigureAwait(false);
+
+            releaseDelete.TrySetResult(true);
+            ServiceResult deleted = await delete.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(openDuringDelete.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(ServiceResult.IsGood(deleted), Is.True, deleted.ToString());
+                Assert.That(System.IO.Directory.Exists(Path.Combine(m_root, "a", "b")), Is.False);
+            });
+
+            // The block ends with the mutation: other files open again.
+            var other = new FileObjectState(manager.SystemContext, FileId(manager, "a/x.txt"), "a/x.txt", "x.txt");
+            uint handle = await FileReadRegressionTests.OpenAsync(other, manager.SystemContext).ConfigureAwait(false);
+            Assert.That(handle, Is.Not.Zero);
+        }
+
+        /// <summary>
+        /// Creates a node manager over a provider that forwards to the physical mount
+        /// except for the members <paramref name="configure"/> overrides.
+        /// </summary>
+        private FileSystemNodeManager CreateGatedManager(Action<Mock<IFileSystemProvider>> configure)
+        {
+            m_physical = new PhysicalFileSystemProvider(m_root, "Gated");
+            var provider = new Mock<IFileSystemProvider>(MockBehavior.Strict);
+            provider.SetupGet(p => p.MountName).Returns("Gated");
+            provider.SetupGet(p => p.IsWritable).Returns(true);
+            provider.Setup(p => p.GetEntryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns<string, CancellationToken>((path, ct) => m_physical.GetEntryAsync(path, ct));
+            provider.Setup(p => p.EnumerateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns<string, CancellationToken>((path, ct) => m_physical.EnumerateAsync(path, ct));
+            provider.Setup(p => p.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns<string, CancellationToken>((path, ct) => m_physical.OpenReadAsync(path, ct));
+            provider.Setup(p => p.OpenWriteAsync(
+                    It.IsAny<string>(), It.IsAny<FileWriteMode>(), It.IsAny<CancellationToken>()))
+                .Returns<string, FileWriteMode, CancellationToken>(
+                    (path, mode, ct) => m_physical.OpenWriteAsync(path, mode, ct));
+            provider.Setup(p => p.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns<string, CancellationToken>((path, ct) => m_physical.DeleteAsync(path, ct));
+            provider.Setup(p => p.MoveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns<string, string, CancellationToken>(
+                    (source, target, ct) => m_physical.MoveAsync(source, target, ct));
+            configure(provider);
+            var manager = new FileSystemNodeManager(m_server.Object, new ApplicationConfiguration(), provider.Object);
+            manager.SystemContext.SessionId = new NodeId(101, 1);
+            return manager;
+        }
+
         private NodeId FileId(string providerPath)
         {
             return FileSystemNodeId.BuildFile(providerPath, m_manager.NamespaceIndex);
@@ -257,22 +375,49 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return FileSystemNodeId.BuildDirectory(providerPath, m_manager.NamespaceIndex);
         }
 
+        private static NodeId FileId(FileSystemNodeManager manager, string providerPath)
+        {
+            return FileSystemNodeId.BuildFile(providerPath, manager.NamespaceIndex);
+        }
+
+        private static NodeId DirId(FileSystemNodeManager manager, string providerPath)
+        {
+            return FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex);
+        }
+
         private DirectoryObjectState CreateRoot()
         {
-            return new DirectoryObjectState(m_manager.SystemContext,
-                FileSystemNodeId.BuildRoot(m_manager.NamespaceIndex), string.Empty, "Root", isRoot: true);
+            return CreateRoot(m_manager);
+        }
+
+        private static DirectoryObjectState CreateRoot(FileSystemNodeManager manager)
+        {
+            return new DirectoryObjectState(manager.SystemContext,
+                FileSystemNodeId.BuildRoot(manager.NamespaceIndex), string.Empty, "Root", isRoot: true);
         }
 
         private DirectoryObjectState CreateDirectory(string providerPath)
         {
-            return new DirectoryObjectState(m_manager.SystemContext,
-                DirId(providerPath), providerPath, Path.GetFileName(providerPath), isRoot: false);
+            return CreateDirectory(m_manager, providerPath);
         }
 
-        private async Task<ServiceResult> DeleteAsync(DirectoryObjectState directory, NodeId objectToDelete)
+        private static DirectoryObjectState CreateDirectory(FileSystemNodeManager manager, string providerPath)
+        {
+            return new DirectoryObjectState(manager.SystemContext,
+                FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex), providerPath,
+                Path.GetFileName(providerPath), isRoot: false);
+        }
+
+        private Task<ServiceResult> DeleteAsync(DirectoryObjectState directory, NodeId objectToDelete)
+        {
+            return DeleteAsync(m_manager, directory, objectToDelete);
+        }
+
+        private static async Task<ServiceResult> DeleteAsync(
+            FileSystemNodeManager manager, DirectoryObjectState directory, NodeId objectToDelete)
         {
             DeleteFileMethodStateResult result = await directory.DeleteFileSystemObject!.OnCallAsync!(
-                m_manager.SystemContext, directory.DeleteFileSystemObject, directory.NodeId, objectToDelete,
+                manager.SystemContext, directory.DeleteFileSystemObject, directory.NodeId, objectToDelete,
                 CancellationToken.None).ConfigureAwait(false);
             return result.ServiceResult;
         }
@@ -298,6 +443,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         private string m_root;
+        private PhysicalFileSystemProvider m_physical;
         private Mock<IServerInternal> m_server;
         private MonitoredItemQueueFactory m_queues;
         private FileSystemNodeManager m_manager;

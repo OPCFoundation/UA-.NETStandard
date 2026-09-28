@@ -310,6 +310,13 @@ namespace Opc.Ua.Server.FileSystem
                     error = StatusCodes.BadShutdown;
                     return false;
                 }
+                if (m_openBlocks != 0)
+                {
+                    // A Delete or MoveOrCopy of this file or an ancestor directory is running.
+                    error = ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "The file is being deleted or moved.");
+                    return false;
+                }
                 if (m_write != null && !wantsWrite)
                 {
                     // Part 20 4.2.2: a file open for writing cannot be opened for reading.
@@ -491,6 +498,51 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Blocks new opens for a Delete or MoveOrCopy of this file or an ancestor
+        /// directory. Fails, without blocking, while the file is open, including an
+        /// open whose provider stream is still pending, so that the lock check and
+        /// the mutation cannot interleave with an open.
+        /// </summary>
+        internal bool TryBlockOpens()
+        {
+            lock (m_lock)
+            {
+                if (m_write != null || m_reads.Count != 0)
+                {
+                    return false;
+                }
+                m_openBlocks++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Blocks new opens of a handle created while a mutation of its path or an
+        /// ancestor directory is running.
+        /// </summary>
+        internal void BlockOpens()
+        {
+            lock (m_lock)
+            {
+                m_openBlocks++;
+            }
+        }
+
+        /// <summary>
+        /// Releases one block taken by <see cref="TryBlockOpens"/> or <see cref="BlockOpens"/>.
+        /// </summary>
+        internal void UnblockOpens()
+        {
+            lock (m_lock)
+            {
+                if (m_openBlocks > 0)
+                {
+                    m_openBlocks--;
+                }
+            }
+        }
+
         private uint CreateFileHandle()
         {
             uint fileHandle;
@@ -524,6 +576,11 @@ namespace Opc.Ua.Server.FileSystem
         /// Prevents new open reservations after the handle bag has been disposed.
         /// </summary>
         private bool m_disposed;
+
+        /// <summary>
+        /// Number of running Delete or MoveOrCopy mutations that currently refuse new opens.
+        /// </summary>
+        private int m_openBlocks;
 
         /// <summary>
         /// Retains a session-owned open reservation and its eventual provider stream.

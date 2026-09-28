@@ -285,7 +285,9 @@ namespace Opc.Ua.Server.FileSystem
                         "The file-system object is not organized by this directory.")
                 };
             }
-            if (host.HasOpenHandles(providerPath))
+            // Checking for open files and blocking new opens is one step, so an open
+            // cannot slip in between the lock check and the provider delete.
+            if (!host.TryBeginMutation(providerPath))
             {
                 return new DeleteFileMethodStateResult
                 {
@@ -332,6 +334,10 @@ namespace Opc.Ua.Server.FileSystem
                     ServiceResult = ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied,
                         "Failed to delete file-system object.")
                 };
+            }
+            finally
+            {
+                host.EndMutation(providerPath);
             }
         }
 
@@ -403,7 +409,9 @@ namespace Opc.Ua.Server.FileSystem
                         "A directory cannot be moved or copied into itself.")
                 };
             }
-            if (!createCopy && host.HasOpenHandles(sourcePath))
+            // A move checks for open files and blocks new opens in one step, so an
+            // open cannot slip in between the lock check and the provider move.
+            if (!createCopy && !host.TryBeginMutation(sourcePath))
             {
                 return new MoveOrCopyMethodStateResult
                 {
@@ -457,6 +465,13 @@ namespace Opc.Ua.Server.FileSystem
                     ServiceResult = ServiceResult.Create(ex, StatusCodes.BadBrowseNameDuplicated,
                         "Failed to move or copy.")
                 };
+            }
+            finally
+            {
+                if (!createCopy)
+                {
+                    host.EndMutation(sourcePath);
+                }
             }
         }
 
@@ -520,22 +535,80 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <summary>
-        /// Whether one of the handles has an open file at, or below, the provider path.
+        /// Blocks new opens of every handle at, or below, the provider path and records
+        /// the mutation so handles created while it runs start blocked. Fails, leaving
+        /// nothing blocked, when one of those files is open or has an open pending.
+        /// The caller holds the host lock that guards <paramref name="handles"/> and
+        /// <paramref name="mutations"/>.
         /// </summary>
-        internal static bool HasOpenHandles(
+        internal static bool TryBeginMutation(
             IFileSystemProvider provider,
             IEnumerable<FileHandle> handles,
+            List<string> mutations,
             string providerPath)
         {
             string identity = GetPathIdentity(provider, providerPath);
+            var blocked = new List<FileHandle>();
             foreach (FileHandle handle in handles)
             {
-                if (handle.OpenCount > 0 && IsSameOrDescendant(provider, handle.ProviderPath, identity))
+                if (!IsSameOrDescendant(provider, handle.ProviderPath, identity))
                 {
-                    return true;
+                    continue;
+                }
+                if (!handle.TryBlockOpens())
+                {
+                    foreach (FileHandle blockedHandle in blocked)
+                    {
+                        blockedHandle.UnblockOpens();
+                    }
+                    return false;
+                }
+                blocked.Add(handle);
+            }
+            mutations.Add(identity);
+            return true;
+        }
+
+        /// <summary>
+        /// Ends a mutation started by <see cref="TryBeginMutation"/> and unblocks the
+        /// handles at, or below, its path. The caller holds the host lock.
+        /// </summary>
+        internal static void EndMutation(
+            IFileSystemProvider provider,
+            IEnumerable<FileHandle> handles,
+            List<string> mutations,
+            string providerPath)
+        {
+            string identity = GetPathIdentity(provider, providerPath);
+            if (!mutations.Remove(identity))
+            {
+                return;
+            }
+            foreach (FileHandle handle in handles)
+            {
+                if (IsSameOrDescendant(provider, handle.ProviderPath, identity))
+                {
+                    handle.UnblockOpens();
                 }
             }
-            return false;
+        }
+
+        /// <summary>
+        /// Blocks a newly created handle once for every running mutation of its path
+        /// or of an ancestor directory. The caller holds the host lock.
+        /// </summary>
+        internal static void BlockForRunningMutations(
+            IFileSystemProvider provider,
+            List<string> mutations,
+            FileHandle handle)
+        {
+            foreach (string identity in mutations)
+            {
+                if (IsSameOrDescendant(provider, handle.ProviderPath, identity))
+                {
+                    handle.BlockOpens();
+                }
+            }
         }
 
         /// <summary>

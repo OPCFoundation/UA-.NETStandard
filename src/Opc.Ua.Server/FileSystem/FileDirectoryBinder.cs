@@ -344,6 +344,7 @@ namespace Opc.Ua.Server.FileSystem
                     }
 
                     handle = new FileHandle(Provider, providerPath);
+                    FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                     m_handles.Add(identity, handle);
                     return handle;
                 }
@@ -393,15 +394,23 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             /// <inheritdoc/>
-            public bool HasOpenHandles(string providerPath)
+            public bool TryBeginMutation(string providerPath)
             {
-                FileHandle[] handles;
                 lock (m_lock)
                 {
-                    handles = new FileHandle[m_handles.Count];
-                    m_handles.Values.CopyTo(handles, 0);
+                    return FileSystemDirectoryOperations.TryBeginMutation(
+                        Provider, m_handles.Values, m_mutations, providerPath);
                 }
-                return FileSystemDirectoryOperations.HasOpenHandles(Provider, handles, providerPath);
+            }
+
+            /// <inheritdoc/>
+            public void EndMutation(string providerPath)
+            {
+                lock (m_lock)
+                {
+                    FileSystemDirectoryOperations.EndMutation(
+                        Provider, m_handles.Values, m_mutations, providerPath);
+                }
             }
 
             /// <inheritdoc/>
@@ -900,6 +909,11 @@ namespace Opc.Ua.Server.FileSystem
 
             private readonly SemaphoreSlim m_gate = new(1, 1);
             private readonly Dictionary<string, FileHandle> m_handles = new(StringComparer.Ordinal);
+
+            /// <summary>
+            /// Path identities of the Delete and Move mutations currently running; guarded by m_lock.
+            /// </summary>
+            private readonly List<string> m_mutations = [];
             private readonly Dictionary<NodeId, MaterializedNode> m_nodesById = [];
             private readonly Dictionary<string, MaterializedNode> m_nodesByPath = new(StringComparer.Ordinal);
             private readonly ISystemContext m_context;
