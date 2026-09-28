@@ -280,6 +280,91 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(result.GetProperty("actual").GetBoolean(), Is.EqualTo(expectedMatch));
         }
 
+        [TestCase("2.0.0-preview.6", true, Description = "Public release-line preview")]
+        [TestCase("2.0.1-preview.0", true, Description = "Zero preview number")]
+        [TestCase("2.1.0-preview.12", true, Description = "Multi-digit preview number")]
+        [TestCase("2.0.0", false, Description = "Stable is not a preview")]
+        [TestCase("2.0.0-preview.1.gabc123def0", false, Description = "Non-public build carries a commit id")]
+        [TestCase("2.0.0-preview.6+gabc123def0", false, Description = "Build metadata")]
+        [TestCase("2.0.0-preview", false, Description = "Unnumbered preview")]
+        [TestCase("2.0.0-preview.06", false, Description = "Leading zero in the preview number")]
+        [TestCase("2.0.0-rc.1", false, Description = "Other prerelease label")]
+        [TestCase("2.0.0.0-preview.1", false, Description = "Four-component version")]
+        [TestCase("2.0-preview.6", false, Description = "Two-component version")]
+        public async Task TestPromotablePreviewPackageVersionAsync(string version, bool expectedPreview)
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                @{ actual = (Test-PromotablePreviewPackageVersion -Version '{{version}}') } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.That(result.GetProperty("actual").GetBoolean(), Is.EqualTo(expectedPreview));
+        }
+
+        [TestCase("refs/heads/release/2.0", "2.0.0-preview.6", true)]
+        [TestCase("refs/heads/release/2.0", "2.0.1-preview.3", true)]
+        [TestCase("refs/heads/release/2.0", "2.0.0", true, Description = "Stable still accepted")]
+        [TestCase("refs/heads/release/2.0", "2.1.0-preview.1", false, Description = "Other minor line")]
+        [TestCase("refs/heads/release/2.0", "2.0.0-preview.6.gabc123def0", false, Description = "Non-public build")]
+        [TestCase("refs/heads/release/2.0", "2.0.0-preview.6+gabc123def0", false, Description = "Build metadata")]
+        [TestCase("refs/heads/release/2.0.0", "2.0.0-preview.6", false, Description = "Retired three-component branch")]
+        [TestCase("refs/heads/master", "2.0.0-preview.6", false, Description = "master never promotes")]
+        [TestCase("refs/heads/Release/2.0", "2.0.0-preview.6", false, Description = "Case-sensitive like nbgv")]
+        public async Task TestCanonicalReleaseBranchForPreviewPackageVersionAsync(
+            string ruleRef,
+            string version,
+            bool expectedMatch)
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                @{
+                    allowed = (Test-CanonicalReleaseBranchForPackageVersion -Ref '{{ruleRef}}' -Version '{{version}}' -AllowPreview)
+                    stableOnly = (Test-CanonicalReleaseBranchForPackageVersion -Ref '{{ruleRef}}' -Version '{{version}}')
+                } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("allowed").GetBoolean(), Is.EqualTo(expectedMatch));
+                Assert.That(
+                    result.GetProperty("stableOnly").GetBoolean(),
+                    Is.EqualTo(expectedMatch && !version.Contains('-', StringComparison.Ordinal)),
+                    "Without -AllowPreview the stable gate must keep rejecting every preview.");
+            });
+        }
+
+        [Test]
+        public void ReleaseWorkflowPromotesAPreviewOnlyWhenDispatchedAsOne()
+        {
+            // nuget-publish.yml never pushes to nuget.org, so release.yml is
+            // the only path there for a preview too. It must default to the
+            // stable channel, accept a preview only when the dispatcher asked
+            // for one, and require the candidate's recorded channel to agree.
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    workflow,
+                    Does.Match(@"channel:\s*\n(?:\s+.*\n)*?\s+default: stable\s*\n"),
+                    "The channel input must default to 'stable'.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("-AllowPreview:($channel -ceq 'preview')"),
+                    "Only a preview dispatch may relax the release-branch version gate.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("Test-PromotablePreviewPackageVersion -Version $expectedBaseVersion"),
+                    "A preview dispatch must require a public release-line preview version.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("$manifest.channel -cne $channel"),
+                    "The candidate's recorded channel must match the dispatched channel.");
+            });
+        }
+
         [Test]
         public async Task GetPreviewPackageBuildNumberMatchesCommittedPropsFileAsync()
         {
