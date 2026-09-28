@@ -85,7 +85,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase('\u0085', "\\u0085")]
         [TestCase('\u2028', "\\u2028")]
         [TestCase('\u2029', "\\u2029")]
-        public void UnicodeNewLine_IsEscaped(char newLine, string expected)
+        public void UnicodeNewLineIsEscaped(char newLine, string expected)
         {
             string input = "a" + newLine + "b";
 

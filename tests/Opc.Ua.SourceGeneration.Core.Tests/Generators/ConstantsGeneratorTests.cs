@@ -261,7 +261,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// backslash, quote or line separator broke the generated Namespaces class.
         /// </summary>
         [Test]
-        public void Emit_NamespaceAndVersionWithSpecialCharacters_AreEscaped()
+        public void EmitNamespaceAndVersionWithSpecialCharactersAreEscaped()
         {
             var targetNamespace = new Namespace
             {
@@ -534,7 +534,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// different browse names", so the outcome depended on declaration order.
         /// </summary>
         [Test]
-        public void Emit_SymbolicNameAfterCollidingDefaultInstanceBrowseName_ReplacesIt()
+        public void EmitSymbolicNameAfterCollidingDefaultInstanceBrowseNameReplacesIt()
         {
             var targetNamespace = new Namespace
             {

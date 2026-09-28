@@ -505,7 +505,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// differ (e.g. BrowseName "Axis 1", SymbolicName "Axis1") never resolved.
         /// </summary>
         [Test]
-        public void Emit_ObjectChildWithDistinctBrowseName_ResolvesByBrowseName()
+        public void EmitObjectChildWithDistinctBrowseNameResolvesByBrowseName()
         {
             ObjectTypeDesign childType = CreateObjectType("AxisType");
             ObjectTypeDesign parent = CreateObjectType("RobotType");
@@ -534,7 +534,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// </summary>
         [TestCase(ModellingRule.OptionalPlaceholder)]
         [TestCase(ModellingRule.MandatoryPlaceholder)]
-        public void Emit_PlaceholderObjectChild_EmitsNoAccessor(ModellingRule rule)
+        public void EmitPlaceholderObjectChildEmitsNoAccessor(ModellingRule rule)
         {
             ObjectTypeDesign childType = CreateObjectType("MotorType");
             ObjectTypeDesign parent = CreateObjectType("PowerTrainType");
@@ -561,7 +561,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// name, so it must be given the BrowseName, not the SymbolicName.
         /// </summary>
         [Test]
-        public void Emit_MethodWithDistinctBrowseName_PassesBrowseNameToFallback()
+        public void EmitMethodWithDistinctBrowseNamePassesBrowseNameToFallback()
         {
             MethodDesign method = CreateMethod("StartMotion");
             method.BrowseName = "Start Motion";
@@ -582,7 +582,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// accessor returning it was, which does not compile (CS0246).
         /// </summary>
         [Test]
-        public void Emit_ObjectChildOfExcludedType_EmitsNoAccessor()
+        public void EmitObjectChildOfExcludedTypeEmitsNoAccessor()
         {
             ObjectTypeDesign draftType = CreateObjectType("DiagnosticsType");
             ObjectTypeDesign motorType = CreateObjectType("MotorType");
@@ -615,7 +615,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// excluded supertype. It now derives from the nearest emitted ancestor.
         /// </summary>
         [Test]
-        public void Emit_ExcludedSupertype_DerivesFromNearestEmittedAncestor()
+        public void EmitExcludedSupertypeDerivesFromNearestEmittedAncestor()
         {
             ObjectTypeDesign rootType = CreateObjectType("MachineBaseType", CreateMethod("Ping"));
             ObjectTypeDesign draftType = CreateObjectType("DraftMachineType", CreateMethod("Ping"));
@@ -645,7 +645,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// deriving from, and returning, the referenced proxies.
         /// </summary>
         [Test]
-        public void Emit_ForeignTypeEmittedByReference_IgnoresLocalExclusions()
+        public void EmitForeignTypeEmittedByReferenceIgnoresLocalExclusions()
         {
             ObjectTypeDesign foreignRoot = CreateObjectType("DeviceBaseType", kForeignNamespaceUri);
             ObjectTypeDesign foreignType = CreateObjectType("DeprecatedDeviceType", kForeignNamespaceUri);
@@ -677,7 +677,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// the reference did emit and no accessor returns the missing proxy.
         /// </summary>
         [Test]
-        public void Emit_ForeignTypeExcludedByReference_SkipsItsProxy()
+        public void EmitForeignTypeExcludedByReferenceSkipsItsProxy()
         {
             ObjectTypeDesign foreignRoot = CreateObjectType("DeviceBaseType", kForeignNamespaceUri);
             ObjectTypeDesign foreignType = CreateObjectType("DraftDeviceType", kForeignNamespaceUri);
@@ -747,7 +747,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// Variant has no overloads.
         /// </summary>
         [Test]
-        public void Emit_OptionalValueTypeArguments_AreNotNullable()
+        public void EmitOptionalValueTypeArgumentsAreNotNullable()
         {
             MethodDesign method = CreateMethod(
                 "Configure",

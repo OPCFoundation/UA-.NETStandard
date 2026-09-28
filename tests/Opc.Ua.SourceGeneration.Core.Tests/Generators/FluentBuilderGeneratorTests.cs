@@ -530,7 +530,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// instance carries, so it could never resolve.
         /// </summary>
         [Test]
-        public void EmittedFluentBuilders_PlaceholderChildHasNoAccessor()
+        public void EmittedFluentBuildersPlaceholderChildHasNoAccessor()
         {
             string fb = GetFluentBuilders();
 
@@ -764,7 +764,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// per-type accessors over names nothing uses.
         /// </summary>
         [Test]
-        public void EmitWithoutManagerWrappers_DoesNotValidateWrapperNames()
+        public void EmitWithoutManagerWrappersDoesNotValidateWrapperNames()
         {
             Assert.DoesNotThrow(() => GenerateWrappers(
                 "Device",
@@ -779,7 +779,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// or another nested type (CS0102).
         /// </summary>
         [Test]
-        public void EmitNestedWrapperCollisions_AreReported()
+        public void EmitNestedWrapperCollisionsAreReported()
         {
             // Object Boiler inside object Boiler: nested BoilerBuilder in BoilerBuilder.
             Assert.That(
@@ -802,7 +802,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// </summary>
         [TestCase("Context")]
         [TestCase("AddObject")]
-        public void EmitRootNamedAfterATypedBuilderMember_ReportsTheCollision(string rootName)
+        public void EmitRootNamedAfterATypedBuilderMemberReportsTheCollision(string rootName)
         {
             Assert.That(
                 () => GenerateWrappers(rootName, []),
@@ -810,7 +810,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void EmitDistinctNestedWrappers_Generates()
+        public void EmitDistinctNestedWrappersGenerates()
         {
             string builders = GenerateWrappers(
                 "Plant",
@@ -997,7 +997,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// never generated (CS0246).
         /// </summary>
         [Test]
-        public void EmitTypeAccessors_ChildOfExcludedType_IsSkipped()
+        public void EmitTypeAccessorsChildOfExcludedTypeIsSkipped()
         {
             const string namespaceUri = "http://test.org/UA/Excluded/";
             var targetNamespace = new Namespace

@@ -801,7 +801,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// system and only the last one was generated.
         /// </summary>
         [Test]
-        public void BoundManagersWithTheSameClassNameInDifferentNamespaces_BothSurvive()
+        public void BoundManagersWithTheSameClassNameInDifferentNamespacesBothSurvive()
         {
             const string designFile = "TestModel.xml";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);

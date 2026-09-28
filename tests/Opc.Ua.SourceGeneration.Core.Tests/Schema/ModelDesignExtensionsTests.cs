@@ -1888,7 +1888,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// Expected: Returns the literal NodeId.Parse form.
         /// </summary>
         [Test]
-        public void GetDefaultDotNetValue_NodeIdWithNamespaceWithoutNamespaceTable_ReturnsNodeIdParse()
+        public void GetDefaultDotNetValueNodeIdWithNamespaceWithoutNamespaceTableReturnsNodeIdParse()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -5985,7 +5985,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// </summary>
         [TestCase(ValueRank.Array)]
         [TestCase(ValueRank.OneOrMoreDimensions)]
-        public void GetArrayDimensionsAsCode_ArrayValueRank_ReturnsDimensions(ValueRank valueRank)
+        public void GetArrayDimensionsAsCodeArrayValueRankReturnsDimensions(ValueRank valueRank)
         {
             // Arrange
             const string arrayDimensions = "1,2,3";
@@ -6008,7 +6008,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase(ValueRank.ScalarOrArray)]
         [TestCase(ValueRank.ScalarOrOneDimension)]
         [TestCase(ValueRank.Any)]
-        public void GetArrayDimensionsAsCode_NonArrayValueRank_ReturnsNull(ValueRank valueRank)
+        public void GetArrayDimensionsAsCodeNonArrayValueRankReturnsNull(ValueRank valueRank)
         {
             Assert.That(valueRank.GetArrayDimensionsAsCode("1,2,3"), Is.Null);
             Assert.That(valueRank.GetArrayDimensionsAsCode("0"), Is.Null);
@@ -9308,7 +9308,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("BaseDataVariableState<int>", "BaseDataVariableState<string>", false)]
         [TestCase("BaseDataVariableState<double>", "BaseDataVariableState<bool>", false)]
         [TestCase("BaseDataVariableState<CustomType>", "BaseDataVariableState<AnotherType>", false)]
-        public void IsOverriddenWithSameClass_BothBaseDataVariableStateWithDifferentArguments_ReturnsFalse(
+        public void IsOverriddenWithSameClassBothBaseDataVariableStateWithDifferentArgumentsReturnsFalse(
             string mergedClassName, string overriddenClassName, bool expected)
         {
             // Arrange

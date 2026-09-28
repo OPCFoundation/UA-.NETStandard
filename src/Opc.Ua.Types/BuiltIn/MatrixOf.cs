@@ -783,6 +783,36 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// <see cref="IsValidInlineMatrix(ReadOnlySpan{int}, int)"/> that
+        /// also applies the configured <paramref name="maxArrayLength"/>
+        /// (0 = unlimited) to the product of the non zero dimensions, like the
+        /// binary decoder: the shape of an empty matrix such as [0, 70000]
+        /// is bounded too, not only its (zero) element count.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the shape
+        /// exceeds <paramref name="maxArrayLength"/>.</exception>
+        internal static bool IsValidInlineMatrix(
+            ReadOnlySpan<int> dimensions,
+            int elementCount,
+            int maxArrayLength)
+        {
+            if (!TryGetInlineMatrixElementCount(dimensions, out int count, out int shapeLength))
+            {
+                return false;
+            }
+            if (maxArrayLength > 0 && shapeLength > maxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}",
+                    maxArrayLength,
+                    shapeLength);
+            }
+            return elementCount < 0 || elementCount == count;
+        }
+
+        /// <summary>
         /// Computes the number of values that follow the dimensions of an
         /// inline matrix (OPC 10000-6 5.2.5 Table 28): 0 if any dimension is
         /// &lt;= 0, otherwise the product of the dimensions.

@@ -481,6 +481,62 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(DelegateEncodeable.LastRead.GetBoolean(), Is.True, "XmlParser");
         }
 
+        /// <summary>
+        /// The JSON and XML decoders bound the shape of an empty inline
+        /// matrix by MaxArrayLength like the binary decoder: [0, 70000] has no
+        /// values but is rejected under a limit of 65535.
+        /// </summary>
+        [Test]
+        public void EmptyInlineMatrixShapeIsBoundedByTheTextDecoders()
+        {
+            ServiceMessageContext context = CreateContext();
+            context.MaxArrayLength = 65535;
+            var type = TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions);
+
+            using (var json = new JsonDecoder(
+                "{\"M\":{\"Array\":[],\"Dimensions\":[0,70000]},\"E\":{\"Dimensions\":[0,70000],\"Array\":[]}}",
+                context))
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => json.ReadVariantValue("M", type));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded), "JSON M");
+                ex = Assert.Throws<ServiceResultException>(
+                    () => json.ReadEncodeableMatrix<InlineMatrixFieldTests.Pair>("E"));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded), "JSON E");
+            }
+
+            string xml =
+                "<Root xmlns=\"" + Namespaces.OpcUaXsd + "\">" +
+                "<M><Dimensions><Int32>0</Int32><Int32>70000</Int32></Dimensions><Elements /></M>" +
+                "<E><Dimensions><Int32>0</Int32><Int32>70000</Int32></Dimensions></E>" +
+                "</Root>";
+            DelegateEncodeable.Reader = d =>
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => d.ReadVariantValue("M", type));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded), "XML M");
+                ex = Assert.Throws<ServiceResultException>(
+                    () => d.ReadEncodeableMatrix<InlineMatrixFieldTests.Pair>("E"));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded), "XML E");
+                return Variant.From(true);
+            };
+            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml)))
+            using (var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings()))
+            using (var xmlDecoder = new XmlDecoder(reader, context))
+            {
+                xmlDecoder.PushNamespace(Namespaces.OpcUaXsd);
+                DelegateEncodeable.LastRead = default;
+                xmlDecoder.ReadEncodeable<DelegateEncodeable>("Root");
+                Assert.That(DelegateEncodeable.LastRead.GetBoolean(), Is.True, "XmlDecoder");
+            }
+
+            using var parser = new XmlParser(xml, context);
+            parser.PushNamespace(Namespaces.OpcUaXsd);
+            DelegateEncodeable.LastRead = default;
+            parser.ReadEncodeable<DelegateEncodeable>("Root");
+            Assert.That(DelegateEncodeable.LastRead.GetBoolean(), Is.True, "XmlParser");
+        }
+
         private static IEnumerable<Variant> MatrixValues()
         {
             yield return Variant.From(default(MatrixOf<double>));

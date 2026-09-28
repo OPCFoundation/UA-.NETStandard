@@ -51,7 +51,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// because the nested template for the value was empty.
         /// </summary>
         [Test]
-        public void Embed_Utf16TextResource_EmitsEscapedConstString()
+        public void EmbedUtf16TextResourceEmitsEscapedConstString()
         {
             string content = Embed(new TextResource(
                 "Greeting",
@@ -68,7 +68,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// Same as above for the text reader backed resource.
         /// </summary>
         [Test]
-        public void Embed_Utf16TextReaderResource_EmitsConstString()
+        public void EmbedUtf16TextReaderResourceEmitsConstString()
         {
             using var reader = new StringReader("abc");
             string content = Embed(new TextReaderResource("Letters", reader, AsUtf16: true));
@@ -81,7 +81,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// is not allowed as a const initializer (CS0133).
         /// </summary>
         [Test]
-        public void Embed_EmptyUtf16Resource_EmitsEmptyLiteral()
+        public void EmbedEmptyUtf16ResourceEmitsEmptyLiteral()
         {
             string content = Embed(new TextResource("Nothing", string.Empty, AsUtf16: true));
 

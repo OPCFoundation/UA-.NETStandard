@@ -48,7 +48,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
     public class GeneratorsCancellationTests
     {
         [Test]
-        public void GenerateCode_CancelledToken_ThrowsAndEmitsNothing()
+        public void GenerateCodeCancelledTokenThrowsAndEmitsNothing()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();
@@ -74,7 +74,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         }
 
         [Test]
-        public void GenerateStack_CancelledToken_ThrowsAndEmitsNothing()
+        public void GenerateStackCancelledTokenThrowsAndEmitsNothing()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();

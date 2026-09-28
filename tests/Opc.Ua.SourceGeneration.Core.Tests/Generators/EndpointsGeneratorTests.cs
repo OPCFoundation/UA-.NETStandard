@@ -144,7 +144,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// throw: the request-field guard used <c>||</c> and dereferenced a null request.
         /// </summary>
         [Test]
-        public void Emit_ServiceWithoutRequestFields_DoesNotThrow()
+        public void EmitServiceWithoutRequestFieldsDoesNotThrow()
         {
             using var memoryStream = new MemoryStream();
             m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>()))

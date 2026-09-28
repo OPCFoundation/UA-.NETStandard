@@ -455,7 +455,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// unknown trailer and keeps everything before it.
         /// </summary>
         [Test]
-        public void Read_StopsAtAnUnknownTrailerVersion()
+        public void ReadStopsAtAnUnknownTrailerVersion()
         {
             ModelDependencyV1 dependency = BuildTrailerSnapshot(
                 methodStateName: "DoItMethodType",
@@ -482,7 +482,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// Payloads whose trailers are all known still read completely.
         /// </summary>
         [Test]
-        public void Read_KnownTrailersStillRoundTrip()
+        public void ReadKnownTrailersStillRoundTrip()
         {
             ModelDependencyV1 dependency = BuildTrailerSnapshot(
                 methodStateName: "DoItMethodType",
@@ -499,7 +499,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// only a namespace were not written, so they read back as null / empty.
         /// </summary>
         [Test]
-        public void WriteThenRead_RoundTripsEmptyGuidAndNamespaceOnlyMethodIdentity()
+        public void WriteThenReadRoundTripsEmptyGuidAndNamespaceOnlyMethodIdentity()
         {
             var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Edge/" };
             dependency.Nodes.Add(new DependencyNode
@@ -533,7 +533,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// fields round trip through the structure field trailer.
         /// </summary>
         [Test]
-        public void WriteThenRead_RoundTripsStructureFieldFlags()
+        public void WriteThenReadRoundTripsStructureFieldFlags()
         {
             ModelDependencyV1 dependency = BuildStructureSnapshot(withFlags: true, fluent: null);
 
@@ -597,7 +597,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// of it is skipped instead of failing the payload.
         /// </summary>
         [Test]
-        public void Read_SkipsAnUnknownStructureFieldTrailerVersion()
+        public void ReadSkipsAnUnknownStructureFieldTrailerVersion()
         {
             ModelDependencyV1 withFlags = BuildStructureSnapshot(withFlags: true, fluent: null);
             byte[] full = Inflate(withFlags.ToBase64Payload());
@@ -620,7 +620,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// a child without a table reads back without one.
         /// </summary>
         [Test]
-        public void WriteThenRead_RoundTripsDefaultValueNamespaceTables()
+        public void WriteThenReadRoundTripsDefaultValueNamespaceTables()
         {
             ModelDependencyV1 dependency = BuildValueSnapshot(withTables: true, withFlags: true);
 
@@ -706,7 +706,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// of it is skipped instead of failing the payload.
         /// </summary>
         [Test]
-        public void Read_SkipsAnUnknownValueNamespaceTrailerVersion()
+        public void ReadSkipsAnUnknownValueNamespaceTrailerVersion()
         {
             ModelDependencyV1 withTables = BuildValueSnapshot(withTables: true, withFlags: false);
             byte[] full = Inflate(withTables.ToBase64Payload());

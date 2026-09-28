@@ -3110,7 +3110,7 @@ namespace Opc.Ua
                             int[] dims = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
                                 dimensions.ToArray() ?? [],
                                 structures.Count);
-                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count))
+                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count, Context.MaxArrayLength))
                             {
                                 values = structures.ToMatrix(
                                     MatrixOf.NormalizeInlineMatrixDimensions(dims));
@@ -3162,7 +3162,7 @@ namespace Opc.Ua
                             int[] dims = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
                                 dimensions.ToArray() ?? [],
                                 structures.Count);
-                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count))
+                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count, Context.MaxArrayLength))
                             {
                                 values = structures.ToMatrix(
                                     MatrixOf.NormalizeInlineMatrixDimensions(dims));
@@ -3763,7 +3763,7 @@ namespace Opc.Ua
                         dimensionElement,
                         out ArrayOf<int> dims) ||
                         (readRawValue
-                            ? !MatrixOf.IsValidInlineMatrix(dims.Span)
+                            ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
                             : !MatrixOf.IsValidMatrix(dims.Span)))
                     {
                         value = default;

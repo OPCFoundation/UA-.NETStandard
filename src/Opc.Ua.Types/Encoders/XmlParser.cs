@@ -2060,7 +2060,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The element type of the matrix.</typeparam>
         /// <exception cref="ServiceResultException"></exception>
-        private static MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
+        private MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
         {
             // The inline matrix of a structure field has at least two
             // dimensions (OPC 10000-6 5.2.5 Table 28, 5.3.4); a dimension
@@ -2070,7 +2070,7 @@ namespace Opc.Ua
                 dimensions,
                 elements.Count);
             MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
-            if (!MatrixOf.IsValidInlineMatrix(dimensions, elements.Count))
+            if (!MatrixOf.IsValidInlineMatrix(dimensions, elements.Count, Context.MaxArrayLength))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -2635,7 +2635,7 @@ namespace Opc.Ua
                         MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
                     }
                     if (readRawValue
-                        ? !MatrixOf.IsValidInlineMatrix(dimensions)
+                        ? !MatrixOf.IsValidInlineMatrix(dimensions, -1, Context.MaxArrayLength)
                         : !MatrixOf.IsValidMatrix(dimensions))
                     {
                         throw ServiceResultException.Create(
@@ -2652,7 +2652,7 @@ namespace Opc.Ua
                     {
                         // An empty inline matrix has no element to take the type
                         // from; it must have a zero dimension.
-                        if (!MatrixOf.IsValidInlineMatrix(dimensions, 0))
+                        if (!MatrixOf.IsValidInlineMatrix(dimensions, 0, Context.MaxArrayLength))
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -2685,7 +2685,7 @@ namespace Opc.Ua
             MatrixOf<T> ToMatrix<T>(ArrayOf<T> elements, int[] dimensions)
             {
                 if (readRawValue
-                    ? !MatrixOf.IsValidInlineMatrix(dimensions, elements.Count)
+                    ? !MatrixOf.IsValidInlineMatrix(dimensions, elements.Count, Context.MaxArrayLength)
                     : !MatrixOf.IsValidMatrix(dimensions, elements.Count))
                 {
                     throw ServiceResultException.Create(
