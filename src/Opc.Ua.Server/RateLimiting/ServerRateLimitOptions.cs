@@ -47,13 +47,13 @@ namespace Opc.Ua.Server
     public sealed class ServerRateLimitOptions
     {
         /// <summary>
-        /// The default maximum number of connections admitted per second, per
-        /// remote address (sustained token-bucket replenishment rate).
+        /// The default maximum number of connections admitted per second, server-wide
+        /// (sustained token-bucket replenishment rate).
         /// </summary>
         public const int DefaultConnectionsPerSecond = 500;
 
         /// <summary>
-        /// The default connection burst (token-bucket capacity), per remote address.
+        /// The default connection burst (token-bucket capacity), server-wide.
         /// </summary>
         public const int DefaultConnectionBurst = 1000;
 
@@ -84,7 +84,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets or sets the sustained inbound-connection admission rate per second,
-        /// server-wide (a single bucket shared across all remote peers). Zero or
+        /// server-wide. Balanced/TrustedReservations partition this total into non-borrowable
+        /// bootstrap, reconnect and provisioned-owner tokens plus shared tokens. Zero or
         /// negative selects <see cref="DefaultConnectionsPerSecond"/>.
         /// </summary>
         public int ConnectionsPerSecond { get; set; } = DefaultConnectionsPerSecond;
@@ -92,6 +93,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the inbound-connection burst capacity, server-wide. Zero
         /// or negative selects <see cref="DefaultConnectionBurst"/>.
+        /// Protected profiles reserve one token per protected rate bucket inside this total.
         /// </summary>
         public int ConnectionBurst { get; set; } = DefaultConnectionBurst;
 

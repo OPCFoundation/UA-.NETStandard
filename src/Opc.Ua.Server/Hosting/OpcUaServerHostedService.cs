@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -152,6 +153,43 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        /// <summary>
+        /// Applies DI isolation overrides before startup, leaving externally supplied providers host-owned.
+        /// </summary>
+        internal static void ApplyResourceIsolation(
+            StandardServer server,
+            IServiceProvider services,
+            OpcUaServerOptions options)
+        {
+            ServerResourceIsolationOptions? isolation = services.GetService<ServerResourceIsolationOptions>();
+            if (isolation == null &&
+                (services.GetServices<IConfigureOptions<ServerResourceIsolationOptions>>().Any() ||
+                 services.GetServices<IPostConfigureOptions<ServerResourceIsolationOptions>>().Any()))
+            {
+                isolation = services.GetRequiredService<IOptions<ServerResourceIsolationOptions>>().Value;
+            }
+            server.ResourceIsolationOptions = isolation ?? options.ResourceIsolation;
+            server.ResourceIsolationClassifier = services.GetService<IResourceIsolationClassifier>();
+            if (services.GetService<IServerResourceIsolationProvider>() is { } provider)
+            {
+                server.ResourceIsolationProvider = provider;
+            }
+        }
+
+        /// <summary>
+        /// Applies an optional DI policy while preserving a policy supplied by the server factory when absent.
+        /// </summary>
+        internal static void ApplyRequestParking(ServerBase server, IServiceProvider services)
+        {
+            if (services.GetService<IRequestParkingPolicy>() is { } policy)
+            {
+                server.RequestParkingPolicy = policy;
+            }
+        }
+
+        /// <summary>
+        /// Applies host configuration and injected features before startup, then waits for host shutdown.
+        /// </summary>
         private async Task RunServerAsync(CancellationToken stoppingToken)
         {
             ICertificateManager? certificateManager =
@@ -250,6 +288,7 @@ namespace Opc.Ua.Server.Hosting
             m_server.HistoryContinuationPointStore =
                 m_services.GetService<IHistoryContinuationPointStore>();
             m_server.MonitoredItemQueueFactory = m_services.GetService<IMonitoredItemQueueFactory>();
+            ApplyRequestParking(m_server, m_services);
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
                 m_server.TransportBindings = transportBindings;
@@ -282,6 +321,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 m_server.SessionBindingProvider = sessionBindingProvider;
             }
+            ApplyResourceIsolation(m_server, m_services, m_options);
 
             foreach (OpcUaServerNodeManagerRegistration reg in
                 m_services.GetServices<OpcUaServerNodeManagerRegistration>())
@@ -293,6 +333,7 @@ namespace Opc.Ua.Server.Hosting
                         throw new InvalidOperationException(
                             "The node-manager factories callback returned a null factory."));
                 }
+
                 if (reg.SyncFactory is not null)
                 {
                     m_server.AddNodeManager(reg.SyncFactory);

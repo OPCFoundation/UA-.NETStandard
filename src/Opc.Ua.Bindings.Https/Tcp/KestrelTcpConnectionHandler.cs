@@ -51,17 +51,21 @@ namespace Opc.Ua.Bindings
             m_owner = owner ?? throw new ArgumentNullException(nameof(owner));
         }
 
+        /// <summary>
+        /// Retains physical admission through channel handoff until the underlying connection closes.
+        /// </summary>
         public override async Task OnConnectedAsync(ConnectionContext connection)
         {
-            if (!m_owner.TryAdmitConnection(connection.RemoteEndPoint, out UaScConnectionAdmission.Lease? lease))
-            {
-                m_owner.Logger.KestrelTcpConnectionRejected();
-                connection.Abort();
-                return;
-            }
-
+            bool admitted = m_owner.TryAdmitConnection(
+                connection.RemoteEndPoint, out UaScConnectionAdmission.Lease? lease);
             using (lease)
             {
+                if (!admitted || lease == null)
+                {
+                    m_owner.Logger.KestrelTcpConnectionRejected();
+                    connection.Abort();
+                    return;
+                }
                 lease.SetAbortAction(connection.Abort);
                 uint channelId = m_owner.NextChannelId();
                 TcpListenerChannel? channel = null;

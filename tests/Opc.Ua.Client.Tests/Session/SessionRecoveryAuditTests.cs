@@ -136,6 +136,8 @@ namespace Opc.Ua.Client.Tests
             var alternateRequests = new ConcurrentQueue<Type>();
             var clock = new ObservableFakeTimeProvider();
             using var alternateKeepAlive = new SemaphoreSlim(0);
+            using var keepAliveResponse = new SemaphoreSlim(0);
+            var completedKeepAlives = System.Threading.Channels.Channel.CreateUnbounded<KeepAliveEventArgs>();
             int transports = 0;
             int activations = 0;
             await using var harness = new SessionChannelHarness(timeProvider: clock, configureChannel: channel =>
@@ -153,7 +155,7 @@ namespace Opc.Ua.Client.Tests
                             It.Is<Uri>(uri => uri.Host == "localhost"),
                             It.IsAny<TransportChannelSettings>(), It.IsAny<CancellationToken>()))
                         .Throws(new ServiceResultException(StatusCodes.BadCommunicationError));
-                    channel.RequestHandler = (request, _) =>
+                    channel.RequestHandler = async (request, ct) =>
                     {
                         if (request is ActivateSessionRequest or CreateSessionRequest)
                         {
@@ -170,8 +172,9 @@ namespace Opc.Ua.Client.Tests
                             read.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State)
                         {
                             alternateKeepAlive.Release();
+                            await keepAliveResponse.WaitAsync(ct).ConfigureAwait(false);
                         }
-                        return new ValueTask<IServiceResponse>(channel.CreateResponse(request));
+                        return channel.CreateResponse(request);
                     };
                 }
             });
@@ -187,6 +190,13 @@ namespace Opc.Ua.Client.Tests
                 networkRedundancy: new NetworkRedundancyOptions { AlternateEndpoints = [alternate] },
                 ct: cancellation.Token).ConfigureAwait(false);
             NodeId initialId = session.SessionId;
+            session.KeepAlive += (current, args) =>
+            {
+                if (current.TransportChannel.EndpointDescription.EndpointUrl == alternate.Description.EndpointUrl)
+                {
+                    completedKeepAlives.Writer.TryWrite(args);
+                }
+            };
             session.StateMachine.TriggerReconnect();
             await session.StateMachine.WaitForConnectedAsync(cancellation.Token).ConfigureAwait(false);
 
@@ -207,6 +217,15 @@ namespace Opc.Ua.Client.Tests
                 clock.Advance(TimeSpan.FromMilliseconds(session.KeepAliveInterval));
                 Assert.That(await alternateKeepAlive.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
                     "A successful recovery must continue reading server state on the alternate path.");
+                Assert.That(completedKeepAlives.Reader.TryPeek(out _), Is.False,
+                    "Sending the keepalive read must not count as processing its response.");
+                keepAliveResponse.Release();
+                // RequestCompleted resets the timer before KeepAlive is raised. Do not advance
+                // fake time while that reset is still in flight.
+                KeepAliveEventArgs completed = await completedKeepAlives.Reader.ReadAsync(cancellation.Token)
+                    .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(completed.Status, Is.Null);
+                Assert.That(completed.CurrentState, Is.EqualTo(ServerState.Running));
             }
         }
 

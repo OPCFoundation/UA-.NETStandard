@@ -413,6 +413,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
+            using IDisposable usage = TrackPendingRequest();
             PendingRequestDispatch? pending = null;
             bool ownsBuffer;
 
@@ -701,6 +702,25 @@ namespace Opc.Ua.Bindings
         {
             // Communication is active on the channel
             UpdateLastActiveTime();
+
+            IDisposable? renewalLease = null;
+            bool renewalAdmitted = true;
+            if (State == TcpChannelState.Open && Quotas.ResourceIsolationProvider is { } isolation)
+            {
+                ResourceIsolationOwner owner = isolation.Classify(new SecureChannelContext(
+                    GlobalChannelId, EndpointDescription, RequestEncoding.Binary,
+                    ClientCertificate?.RawData, ServerCertificate?.RawData, ChannelThumbprint,
+                    (Transport?.RemoteEndpoint as System.Net.IPEndPoint)?.Address));
+                renewalAdmitted = isolation.TryAcquire(
+                    ResourceIsolationStage.Handshake, owner, 1, out renewalLease, out _);
+            }
+            using IDisposable? retainedRenewal = renewalLease;
+            if (!renewalAdmitted)
+            {
+                ForceChannelFaultCore(
+                    StatusCodes.BadTcpNotEnoughResources, "Secure channel renewal capacity is exhausted.");
+                return false;
+            }
 
             // validate the channel state.
             if (State is not TcpChannelState.Opening and not TcpChannelState.Open)

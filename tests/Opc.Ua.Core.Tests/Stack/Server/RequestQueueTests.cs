@@ -34,11 +34,15 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Server
 {
+    /// <summary>
+    /// Verifies worker sizing, request completion and parked-request dispatch.
+    /// </summary>
     [TestFixture]
     [Category("Server")]
     [SetCulture("en-us")]
@@ -100,6 +104,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             private readonly RequestParkSink m_parkSink = new();
         }
 
+        /// <summary>
+        /// Hosts configurable production request queues and controllable test handlers.
+        /// </summary>
         private sealed class TestServer : ServerBase
         {
             public TestServer()
@@ -107,11 +114,31 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
             }
 
+            /// <summary>
+            /// Gets the actual number of retained queue workers, including idle workers.
+            /// </summary>
+            public int WorkerCount
+            {
+                get
+                {
+                    FieldInfo queueField = typeof(ServerBase).GetField(
+                        "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var queue = (RequestQueue)queueField.GetValue(this);
+                    FieldInfo countField = typeof(RequestQueue).GetField(
+                        "m_totalThreadCount", BindingFlags.NonPublic | BindingFlags.Instance);
+                    return (int)countField.GetValue(queue);
+                }
+            }
+
+            /// <summary>
+            /// Replaces the default queue with the requested worker and admission envelope.
+            /// </summary>
             public void ReplaceRequestQueue(
                 int minThreads,
                 int maxThreads,
                 int maxQueue,
-                bool decoupleHeldPublishRequests = true)
+                bool decoupleHeldPublishRequests = true,
+                IServerResourceIsolationProvider provider = null)
             {
                 FieldInfo field = typeof(ServerBase).GetField(
                     "m_requestQueue",
@@ -121,8 +148,21 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 oldQueue?.Dispose();
 
                 var newQueue = new RequestQueue(
-                    this, minThreads, maxThreads, maxQueue, decoupleHeldPublishRequests);
+                    this, minThreads, maxThreads, maxQueue, decoupleHeldPublishRequests, provider, 10);
                 field.SetValue(this, newQueue);
+            }
+
+            /// <summary>
+            /// Fair scheduling does not reserve the maximum worker envelope before demand exists.
+            /// </summary>
+            [Test]
+            public void FairQueueStartsOnlyItsMinimumWorkers()
+            {
+                var provider = new Mock<IServerResourceIsolationProvider>();
+                provider.SetupGet(value => value.UseFairScheduling).Returns(true);
+                using var server = new TestServer();
+                server.ReplaceRequestQueue(2, 16, 100, provider: provider.Object);
+                Assert.That(server.WorkerCount, Is.EqualTo(2));
             }
 
             protected override Task ProcessRequestAsync(IEndpointIncomingRequest request, CancellationToken cancellationToken = default)
