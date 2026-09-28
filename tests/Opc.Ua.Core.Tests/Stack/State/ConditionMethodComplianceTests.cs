@@ -300,6 +300,72 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// A4-4: a comment on a branch re-keys the branch table by the new EventId, so the
+        /// branch is held (and refreshed) once and Acknowledge + Confirm remove it for good.
+        /// </summary>
+        [Test]
+        public void BranchCommentKeepsBranchTableKeyedByCurrentEventId()
+        {
+            TestAlarm alarm = CreateAlarm();
+            alarm.AutoReportStateChanges = true;
+            alarm.ConfirmedState = new TwoStateVariableState(alarm);
+            alarm.ConfirmedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.ConfirmedState), default, false);
+            alarm.SetConfirmedState(m_context, true);
+            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+            MonitorEvents(alarm);
+
+            var branch = (AcknowledgeableConditionState)alarm.CreateBranch(m_context, new NodeId(42));
+            Assert.That(branch, Is.Not.Null);
+            branch.SetAcknowledgedState(m_context, false);
+            branch.SetConfirmedState(m_context, false);
+            ByteString b1 = branch.EventId.Value;
+
+            ServiceResult comment = alarm.CallAddComment(m_context, b1, LocalizedText.From("branch"));
+            Assert.That(ServiceResult.IsGood(comment), Is.True, comment.ToString());
+            Assert.That(branch.EventId.Value, Is.Not.EqualTo(b1));
+            Assert.That(alarm.GetBranches().Keys, Is.EquivalentTo(new[] { branch.EventId.Value.ToHexString() }));
+
+            ServiceResult ack = alarm.CallAcknowledge(m_context, branch.EventId.Value);
+            Assert.That(ServiceResult.IsGood(ack), Is.True, ack.ToString());
+            Assert.That(alarm.GetBranchCount(), Is.EqualTo(1));
+
+            alarm.Retain.Value = true;
+            var refreshed = new List<IFilterTarget>();
+            alarm.ConditionRefresh(m_context, refreshed, true);
+            Assert.That(refreshed.FindAll(e => ReferenceEquals(e, branch)), Has.Count.EqualTo(1));
+
+            ServiceResult confirm = alarm.CallConfirm(m_context, branch.EventId.Value);
+            Assert.That(ServiceResult.IsGood(confirm), Is.True, confirm.ToString());
+            Assert.That(alarm.GetBranchCount(), Is.Zero);
+        }
+
+        /// <summary>
+        /// A4-4: replacing or removing a branch entry by EventId never leaves a second entry
+        /// of the same branch behind.
+        /// </summary>
+        [Test]
+        public void ReplaceAndRemoveBranchEventKeepOneEntryPerBranch()
+        {
+            TestAlarm alarm = CreateAlarm();
+            alarm.AutoReportStateChanges = true;
+            alarm.EventId.Value = Uuid.NewUuid().ToByteString();
+
+            ConditionState branch = alarm.CreateBranch(m_context, new NodeId(42));
+            Assert.That(branch, Is.Not.Null);
+            ByteString b1 = branch.EventId.Value;
+            ServiceResult comment = alarm.CallAddComment(m_context, b1, LocalizedText.From("branch"));
+            Assert.That(ServiceResult.IsGood(comment), Is.True, comment.ToString());
+
+            // an original EventId the table does not hold must not leave the old entry behind.
+            alarm.CallReplaceBranchEvent(Uuid.NewUuid().ToByteString(), branch);
+            Assert.That(alarm.GetBranchCount(), Is.EqualTo(1));
+
+            alarm.CallRemoveBranchEvent(branch.EventId.Value);
+            Assert.That(alarm.GetBranchCount(), Is.Zero);
+        }
+
+        /// <summary>
         /// S1-3: AddComment rejects unknown EventIds and a branch comment only goes to the branch.
         /// </summary>
         [Test]
@@ -386,6 +452,31 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(selected, Is.EqualTo(Variant.From(1u)));
         }
 
+        /// <summary>
+        /// A4-8: a rejected negative response is not audited as the valid option 0.
+        /// </summary>
+        [Test]
+        public void RejectedNegativeRespondIsNotAuditedAsOptionZero()
+        {
+            var dialog = new TestDialog(null);
+            dialog.Create(m_context, new NodeId(2), QualifiedName.From("Dialog"), default, true);
+            dialog.SetEnableState(m_context, true);
+            dialog.DialogState.Id.Value = true;
+            dialog.ResponseOptionSet.Value = [LocalizedText.From("Yes"), LocalizedText.From("No")];
+            dialog.OnRespond = (_, _, _) => ServiceResult.Good;
+            List<IFilterTarget> events = MonitorEvents(dialog);
+
+            ServiceResult result = dialog.CallRespond(m_context, -1);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadDialogResponseInvalid));
+
+            AuditConditionRespondEventState audit = FindEvent<AuditConditionRespondEventState>(events);
+            Assert.That(audit.Status.Value, Is.False);
+            var property = audit.FindChild(
+                m_context, QualifiedName.From(BrowseNames.SelectedResponse)) as BaseVariableState;
+            Assert.That(property == null || property.WrappedValue.IsNull, Is.True,
+                property?.WrappedValue.ToString());
+        }
+
         private TestAlarm CreateAlarm(TimeProvider timeProvider = null)
         {
             var alarm = new TestAlarm(m_telemetry, null, timeProvider);
@@ -468,6 +559,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
             public ServiceResult CallAddComment(ISystemContext context, ByteString eventId, LocalizedText comment)
             {
                 return OnAddCommentCalled(context, AddComment, NodeId, eventId, comment);
+            }
+
+            public void CallReplaceBranchEvent(ByteString originalEventId, ConditionState branch)
+            {
+                ReplaceBranchEvent(originalEventId, branch);
+            }
+
+            public void CallRemoveBranchEvent(ByteString eventId)
+            {
+                RemoveBranchEvent(eventId);
             }
 
             public ServiceResult CallTimedShelve(ISystemContext context, double shelvingTime)

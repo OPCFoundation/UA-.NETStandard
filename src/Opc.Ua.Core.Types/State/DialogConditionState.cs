@@ -205,12 +205,17 @@ namespace Opc.Ua
                         Variant.From(new Variant[] { selectedResponse }),
                         false);
 
-                    // SelectedResponse is a UInt32 property (Part 9 5.10.5).
-                    e.SetChildValue(
-                        context,
-                        BrowseNames.SelectedResponse,
-                        selectedResponse >= 0 ? (uint)selectedResponse : 0u,
-                        false);
+                    // SelectedResponse is a UInt32 property (Part 9 5.10.5). A negative request
+                    // has no UInt32 form and is left unset rather than audited as a valid option;
+                    // InputArguments still carries the requested value.
+                    if (selectedResponse >= 0)
+                    {
+                        e.SetChildValue(
+                            context,
+                            BrowseNames.SelectedResponse,
+                            (uint)selectedResponse,
+                            false);
+                    }
 
                     ReportEvent(context, e);
                 }

@@ -327,7 +327,10 @@ namespace Opc.Ua
             {
                 m_branches ??= [];
                 m_branches.Remove(originalKey);
-                m_branches.Add(newKey, alarm);
+
+                // the branch may already be keyed by an older or its current EventId.
+                RemoveBranchEntry(alarm);
+                m_branches[newKey] = alarm;
             }
         }
 
@@ -341,7 +344,26 @@ namespace Opc.Ua
 
             lock (m_branchesLock)
             {
-                m_branches?.Remove(key);
+                if (m_branches == null)
+                {
+                    return;
+                }
+
+                // remove every entry of the branch, not only the one keyed by this EventId.
+                if (m_branches.TryGetValue(key, out ConditionState? branch))
+                {
+                    RemoveBranchEntry(branch);
+                    return;
+                }
+
+                foreach (ConditionState candidate in m_branches.Values)
+                {
+                    if (candidate.EventId!.Value == eventId) // ConditionState.Initialize creates EventId
+                    {
+                        RemoveBranchEntry(candidate);
+                        return;
+                    }
+                }
             }
         }
 
@@ -489,6 +511,14 @@ namespace Opc.Ua
                 root.RecordEventId(this, eventId.Value);
                 eventId.Value = Uuid.NewUuid().ToByteString();
                 root.RecordEventId(this, eventId.Value);
+
+                // the branch table is keyed by EventId: keep the entry of a branch in step
+                // with its new EventId (e.g. after a comment on the branch).
+                if (!ReferenceEquals(root, this))
+                {
+                    root.RekeyBranchIfPresent(this);
+                }
+
                 time.Value = DateTimeUtc.Now;
                 ReceiveTime!.Value = time.Value; // ConditionState.Initialize creates ReceiveTime
 
@@ -1008,13 +1038,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Re-keys a branch by its current EventId if it is in the branch table.
+        /// </summary>
+        private void RekeyBranchIfPresent(ConditionState branch)
+        {
+            string newKey = branch.EventId!.Value.ToHexString(); // ConditionState.Initialize creates EventId
+
+            lock (m_branchesLock)
+            {
+                if (RemoveBranchEntry(branch))
+                {
+                    m_branches![newKey] = branch;
+                }
+            }
+        }
+
+        /// <summary>
         /// Removes every branch table entry of the branch. Caller holds the branches lock.
         /// </summary>
-        private void RemoveBranchEntry(ConditionState branch)
+        /// <returns>True if the branch had an entry.</returns>
+        private bool RemoveBranchEntry(ConditionState branch)
         {
             if (m_branches == null)
             {
-                return;
+                return false;
             }
 
             List<string>? keys = null;
@@ -1026,13 +1073,17 @@ namespace Opc.Ua
                 }
             }
 
-            if (keys != null)
+            if (keys == null)
             {
-                foreach (string key in keys)
-                {
-                    m_branches.Remove(key);
-                }
+                return false;
             }
+
+            foreach (string key in keys)
+            {
+                m_branches.Remove(key);
+            }
+
+            return true;
         }
 
         /// <summary>
