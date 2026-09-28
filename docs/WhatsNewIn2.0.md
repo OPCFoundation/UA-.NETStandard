@@ -13,15 +13,14 @@ enable; the linked guides contain API contracts, examples, and limitations.
   - [Client](#client)
   - [Source generators and modeling](#source-generators-and-modeling)
   - [Type system and immutability](#type-system-and-immutability)
+  - [Performance, memory, and pooling](#performance-memory-and-pooling)
   - [Async, cancellation, and `TimeProvider`](#async-cancellation-and-timeprovider)
   - [Native AOT](#native-aot)
-  - [OPC UA services](#opc-ua-services)
   - [OPC UA companion-spec coverage](#opc-ua-companion-spec-coverage)
   - [Security and certificates](#security-and-certificates)
   - [Global Discovery Server](#global-discovery-server)
   - [Part 14 PubSub modernization](#part-14-pubsub-modernization)
   - [High availability and redundancy](#high-availability-and-redundancy)
-  - [Performance, memory, and pooling](#performance-memory-and-pooling)
   - [Tooling and diagnostics](#tooling-and-diagnostics)
 - [Further reading](#further-reading)
 
@@ -32,7 +31,7 @@ enable; the linked guides contain API contracts, examples, and limitations.
 | Application development | Host clients and servers through one dependency-injection builder; generate model types and typed client proxies instead of writing service plumbing. |
 | Client connections | Use `ManagedSession` for reconnection and failover, with callback-based or asynchronous streaming subscriptions. |
 | Data and deployment | Use strongly typed values, arrays, and matrices; publish supported applications with Native AOT. |
-| Server capabilities | Add historian providers, alarms, state machines, file access, and companion models through reusable services. |
+| Server capabilities | Add historian providers, alarms, state machines, file access, and the models in the [specification catalogue](#opc-ua-companion-spec-coverage) through reusable services. |
 | Security and discovery | Manage certificate lifecycles and identities through providers, and integrate GDS pull/push management and token services. |
 | PubSub and availability | Compose publishers/subscribers with transport packages, or opt into redundancy and distributed state for client/server deployments. |
 
@@ -73,6 +72,15 @@ array, and matrix data. Runtime complex-type loading supports server-defined
 structures and enumerations without requiring a generated CLR class for each type.
 See [Complex Types](ComplexTypes.md) and [Schema Generation](SchemaGeneration.md).
 
+### Performance, memory, and pooling
+
+Value-type representations and pooled buffers reduce allocations in encoding and
+notification paths. Server work also improves resource lifetime and repeated
+permission checks. These changes do not imply that every workload is faster;
+use the measured results and sizing guidance for your deployment.
+See [Benchmarks](Benchmarks.md), [Server Scalability](ServerScalability.md),
+and [Rate Limiting](RateLimiting.md).
+
 ### Async, cancellation, and `TimeProvider`
 
 `AsyncCustomNodeManager` supports asynchronous service and data-source operations.
@@ -89,43 +97,57 @@ providers and the default complex-type builder; the optional Reflection.Emit
 builder still requires runtime code generation.
 See [Native AOT](NativeAoT.md) and [Complex Types](ComplexTypes.md#type-builders).
 
-### OPC UA services
-
-Reusable client and server components cover these application tasks:
-
-| Task | Guide |
-| --- | --- |
-| Raise, acknowledge, and stream alarms | [Alarms and Conditions](AlarmsAndConditions.md) |
-| Store and query history, including processed values | [Historical Access](HistoricalAccess.md) and [Aggregates](Aggregates.md) |
-| Define and observe state transitions | [State Machines](StateMachines.md) |
-| Discover aliases and manage address-space nodes | [Alias Names](AliasNames.md) and [Node Management](NodeManagement.md) |
-| Transfer files and administer roles | [File System Client](FileSystemClient.md) and [Role-Based User Management](RoleBasedUserManagement.md) |
-
-The guides describe provider requirements and supported operations; this overview
-is not a claim of complete implementation or certification for every specification.
-
 ### OPC UA companion-spec coverage
 
-The SDK adds model libraries, hosting support, and client helpers for industrial
-domains and asset connectivity:
+The SDK adds model libraries, hosting support, and client helpers for the following
+services and domains. Core OPC UA specification parts are listed separately from
+domain-specific companions and draft extensions.
 
-| Domain | Guide |
-| --- | --- |
-| Device composition and software updates | [Device Integration](DeviceIntegration.md) and [Software Update](SoftwareUpdate.md) |
-| Motion-device systems and controllers | [Robotics](Robotics.md) |
-| Relative and geographic positioning | [Positioning](Positioning.md) |
-| Perception, media, and feedback | [Vision](Vision.md) |
-| Model catalogues, deployments, and inference | [AI Model Management](AI.md) |
-| Web of Things connectivity and conversion | [WoT Connectivity](WoTConnectivity.md), [WoT / NodeSet Conversion](WoTNodeSetConversion.md), and [WoT Bindings](WotBindings.md) |
+**Core specification services and models**
 
-Vision, AI Model Management, and Robot Intent use draft models. Their guides
-identify provisional contracts and distinguish model coverage from runtime behavior.
+| Capability | Specification | Guide |
+| --- | --- | --- |
+| Alarms and conditions | OPC 10000-9 | [Alarms and Conditions](AlarmsAndConditions.md) |
+| Historical access and aggregates | OPC 10000-11 and OPC 10000-13 | [Historical Access](HistoricalAccess.md) and [Aggregates](Aggregates.md) |
+| State machines | OPC 10000-16 | [State Machines](StateMachines.md) |
+| Alias names | OPC 10000-17 | [Alias Names](AliasNames.md) |
+| Node and reference management | OPC 10000-4 | [Node Management](NodeManagement.md) |
+| File transfer and file systems | OPC 10000-5 Annex C and OPC 10000-20 | [File System Client](FileSystemClient.md) |
+| Roles and user management | OPC 10000-18 | [Role-Based User Management](RoleBasedUserManagement.md) |
+
+**Companion and extension models**
+
+| Domain | Specification or status | Guide |
+| --- | --- | --- |
+| Device composition and software updates | OPC 10000-100 (Devices) | [Device Integration](DeviceIntegration.md) and [Software Update](SoftwareUpdate.md) |
+| Motion-device systems and controllers | OPC 40010-1 (Robotics), over OPC 10000-200 (Industrial Automation) | [Robotics](Robotics.md) |
+| Task-level robot commands | Robot Intent (draft) | [Robot Intent](Robotics.md#robot-intent) |
+| Manufacturing resources and job control | OPC 10030 (ISA-95 Common Model) and OPC 10031-4 (Job Control V1/V2) | [ISA-95](ISA95.md) |
+| Relative and geographic positioning | OPC 10000-210 (RSL) and OPC 10000-211 (GPOS) | [Positioning](Positioning.md) |
+| Perception, media, and feedback | Vision (draft) | [Vision](Vision.md) |
+| Model catalogues, deployments, and inference | AI Model Management and Inference (draft) | [AI Model Management](AI.md) |
+| Resource registration, versioning, and federation | xRegistry abstract base model (draft) | [xRegistry](XRegistry.md) |
+| Scene bindings and address-space materialization | OpenUSD Bindings and OpenUSD Scene (both draft) | [OpenUSD](OpenUsd.md) |
+| Web of Things connectivity and conversion | OPC 10100-1, with preview registry extensions | [WoT Connectivity](WoTConnectivity.md), [WoT / NodeSet Conversion](WoTNodeSetConversion.md), and [WoT Bindings](WotBindings.md) |
+
+The samples also generate **OPC 40223 (Pumps)** and **OPC 40001-1 (Machinery)**
+models in the [pump server](../samples/DI/PumpDeviceIntegrationServer/README.md),
+and the draft [Generators model](../samples/OpenUsd/GeneratorServer/Generators.md)
+in the generator server. These are sample-local models, not additional standalone SDK libraries.
+
+Draft entries are identified by model name rather than an unverified specification
+number; their namespace URIs and NodeIds remain provisional. The guides describe
+provider requirements and supported operations. Model coverage does not imply
+complete runtime implementation or certification for every specification.
 
 ### Security and certificates
 
 Reference-counted certificates and `CertificateManager` provide explicit ownership,
-trust-list management, rotation, and lifecycle notifications. Identity and crypto
-providers support application-specific authentication and hardware-held keys.
+trust-list management, rotation, and lifecycle notifications. Identity providers
+support application-specific authentication. Pluggable crypto providers let an
+application replace platform cryptography with another library, a remote service,
+or hardware such as a TPM, HSM, or PKCS#11 token. Providers can be selected by
+purpose and security policy, including support for hardware-held private keys.
 ECC SecureChannel and user-token policies require .NET 8-or-later stack assets;
 curve and cipher availability also depends on the platform.
 See [Certificate Manager](CertificateManager.md), [Identity Providers](IdentityProviders.md),
@@ -157,15 +179,6 @@ mirroring with eventual or strong consistency choices. Kubernetes integration
 provides deployment, discovery, and readiness support.
 See [High Availability](HighAvailability.md), [Replica-Consistent NodeIds](ReplicaNodeIdentity.md),
 and [Kubernetes](Kubernetes.md) for configuration and deployment constraints.
-
-### Performance, memory, and pooling
-
-Value-type representations and pooled buffers reduce allocations in encoding and
-notification paths. Server work also improves resource lifetime and repeated
-permission checks. These changes do not imply that every workload is faster;
-use the measured results and sizing guidance for your deployment.
-See [Benchmarks](Benchmarks.md), [Server Scalability](ServerScalability.md),
-and [Rate Limiting](RateLimiting.md).
 
 ### Tooling and diagnostics
 
