@@ -252,6 +252,45 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         }
 
         [Test]
+        public void EqualsTreatsEmptyArraysOfSameDataTypeAsEqual()
+        {
+            // Part 4 7.7.3: "When testing for equality, a Server shall treat null and
+            // empty arrays of the same DataType as equal", whatever their shape.
+            var emptyRows = Variant.From(new int[0, 2].ToMatrixOf());
+            var emptyColumns = Variant.From(new int[2, 0].ToMatrixOf());
+            ArrayOf<int> emptyArray = [];
+
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, emptyColumns)
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, Variant.From(emptyArray))
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, Variant.From(ArrayOf<int>.Null))
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+
+            // a different DataType or a non-empty operand is still unequal.
+            Assert.That(
+                BuildBinaryFilter(
+                    FilterOperator.Equals,
+                    emptyRows,
+                    Variant.From(new double[2, 0].ToMatrixOf()))
+                    .Evaluate(m_filterContext, m_target),
+                Is.False);
+            Assert.That(
+                BuildBinaryFilter(
+                    FilterOperator.Equals,
+                    emptyRows,
+                    Variant.From(new int[1, 1].ToMatrixOf()))
+                    .Evaluate(m_filterContext, m_target),
+                Is.False);
+        }
+
+        [Test]
         public void GreaterThanTrue()
         {
             Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.GreaterThan, Variant.From(10), Variant.From(5));

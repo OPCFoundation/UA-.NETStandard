@@ -612,7 +612,30 @@ namespace Opc.Ua
                     ContentFilter.EqualsOperatorDefaultStringComparison);
             }
 
-            return lhs.ValueEquals(rhs);
+            return lhs.ValueEquals(rhs) || AreEmptyArraysOfSameType(lhs, rhs);
+        }
+
+        /// <summary>
+        /// Whether both operands are null or empty arrays or matrices of the
+        /// same DataType, which the Equals and InList operators treat as equal
+        /// (OPC 10000-4 7.7.3: "a Server shall treat null and empty arrays of
+        /// the same DataType as equal"). Variant.ValueEquals also compares the
+        /// dimensions of a matrix, so empty matrices of different shape (or an
+        /// empty matrix and an empty array) are only equal here.
+        /// </summary>
+        private static bool AreEmptyArraysOfSameType(Variant lhs, Variant rhs)
+        {
+            return !lhs.TypeInfo.IsScalar &&
+                !rhs.TypeInfo.IsScalar &&
+                lhs.TypeInfo.BuiltInType == rhs.TypeInfo.BuiltInType &&
+                IsNullOrEmptyArray(lhs) &&
+                IsNullOrEmptyArray(rhs);
+        }
+
+        private static bool IsNullOrEmptyArray(Variant value)
+        {
+            return value.AsBoxedObject(Variant.BoxingBehavior.Legacy) is not Array array ||
+                array.Length == 0;
         }
 
         /// <summary>
@@ -779,7 +802,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (value.ValueEquals(rhs))
+                if (value.ValueEquals(rhs) || AreEmptyArraysOfSameType(value, rhs))
                 {
                     return true;
                 }
