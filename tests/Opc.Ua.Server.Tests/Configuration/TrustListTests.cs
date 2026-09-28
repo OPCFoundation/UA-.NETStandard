@@ -1725,6 +1725,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void WriteOpenWhileAnotherSessionReadsReturnsBadNotWritableAndKeepsReader()
+        {
+            TrustListState node = CreateNode();
+            CreateTrustList(node);
+            var liveSessions = new List<ISession>();
+            var sessionManager = new Mock<ISessionManager>();
+            sessionManager.Setup(manager => manager.GetSessions()).Returns(() => [.. liveSessions]);
+            var readerId = new NodeId(Guid.NewGuid(), 1);
+            var writerId = new NodeId(Guid.NewGuid(), 1);
+            liveSessions.Add(CreateSession(readerId));
+            liveSessions.Add(CreateSession(writerId));
+            ServerSystemContext reader = CreateServerContext(sessionManager.Object, readerId);
+            ServerSystemContext writer = CreateServerContext(sessionManager.Object, writerId);
+
+            uint readHandle = 0;
+            ServiceResult readOpen = node.Open.OnCall(
+                reader, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref readHandle);
+            Assert.That(ServiceResult.IsGood(readOpen), Is.True);
+
+            // OPC 10000-20 §4.2.2: a file that is already open cannot be
+            // opened for writing; the reader's download must survive.
+            uint writeHandle = 0;
+            ServiceResult blocked = node.Open.OnCall(
+                writer,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref writeHandle);
+            Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+
+            ByteString data = default;
+            ServiceResult read = node.Read.OnCall(
+                reader, node.Read, node.NodeId, readHandle, 16, ref data);
+            Assert.That(ServiceResult.IsGood(read), Is.True, read.ToString());
+            Assert.That(data.Length, Is.GreaterThan(0));
+
+            // Once the reading Session is gone its handle no longer blocks.
+            liveSessions.RemoveAt(0);
+            ServiceResult writeOpen = node.Open.OnCall(
+                writer,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref writeHandle);
+            Assert.That(ServiceResult.IsGood(writeOpen), Is.True, writeOpen.ToString());
+            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+        }
+
+        [Test]
         public void WriteOpenAbandonedByClosedSessionIsReleasedForAnotherSession()
         {
             TrustListState node = CreateNode();

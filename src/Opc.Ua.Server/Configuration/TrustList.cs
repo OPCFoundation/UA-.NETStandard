@@ -756,11 +756,17 @@ namespace Opc.Ua.Server
                 {
                     // OPC 10000-20 §4.2.2: a file that is open for writing
                     // cannot be opened again (Bad_NotReadable for a read,
-                    // Bad_NotWritable for a write). Another Session's upload
-                    // must therefore never be evicted. The owning Session may
-                    // still replace its own open so a client that lost its
-                    // handle is not locked out until its Session closes.
-                    if (m_strm != null && m_openForWrite && !Utils.IsEqual(m_sessionId, sessionId))
+                    // Bad_NotWritable for a write), and a file that is open at
+                    // all cannot be opened for writing (Bad_NotWritable).
+                    // Another Session's handle must therefore never be evicted
+                    // by a write open, nor its upload by any open. Handles of
+                    // Sessions that no longer exist were released above. The
+                    // owning Session may still replace its own open so a
+                    // client that lost its handle is not locked out until its
+                    // Session closes.
+                    if (m_strm != null &&
+                        (m_openForWrite || isWriteMode) &&
+                        !Utils.IsEqual(m_sessionId, sessionId))
                     {
                         strm.Dispose();
                         return new OpenMethodStateResult
