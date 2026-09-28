@@ -312,9 +312,15 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 if (m_openBlocks != 0)
                 {
-                    // A Delete or MoveOrCopy of this file or an ancestor directory is running.
-                    error = ServiceResult.Create(StatusCodes.BadInvalidState,
-                        "The file is being deleted or moved.");
+                    // A Delete or MoveOrCopy of this file or an ancestor directory is running,
+                    // so the file is locked. Part 20 4.2.2 result table: Bad_NotReadable "File
+                    // might be locked and thus not readable" for a read open, Bad_InvalidState
+                    // "The file is locked and thus not writable" for a write open.
+                    error = wantsWrite
+                        ? ServiceResult.Create(StatusCodes.BadInvalidState,
+                            "The file is being deleted or moved and thus not writable.")
+                        : ServiceResult.Create(StatusCodes.BadNotReadable,
+                            "The file is being deleted or moved and thus not readable.");
                     return false;
                 }
                 if (m_write != null && !wantsWrite)

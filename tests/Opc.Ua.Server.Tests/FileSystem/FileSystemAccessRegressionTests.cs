@@ -356,6 +356,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             var file = new FileObjectState(manager.SystemContext, FileId(manager, "a/b/y.txt"), "a/b/y.txt", "y.txt");
 
             ServiceResult openDuringDelete;
+            ServiceResult writeOpenDuringDelete;
             ServiceResult deleted;
 #pragma warning disable CA2025 // awaited in the finally below, before the manager is disposed
             Task<ServiceResult> delete = DeleteAsync(manager, CreateDirectory(manager, "a"), DirId(manager, "a/b"));
@@ -366,6 +367,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
                 (openDuringDelete, _) = await FileReadRegressionTests.CallAsync(
                     file.Open!, manager.SystemContext, file.NodeId, [(byte)0x01]).ConfigureAwait(false);
+                (writeOpenDuringDelete, _) = await FileReadRegressionTests.CallAsync(
+                    file.Open!, manager.SystemContext, file.NodeId, [(byte)0x02]).ConfigureAwait(false);
             }
             finally
             {
@@ -376,7 +379,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             Assert.Multiple(() =>
             {
-                Assert.That(openDuringDelete.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                // Part 20 4.2.2: a locked file is not readable / not writable.
+                Assert.That(openDuringDelete.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+                Assert.That(writeOpenDuringDelete.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(ServiceResult.IsGood(deleted), Is.True, deleted.ToString());
                 Assert.That(System.IO.Directory.Exists(Path.Combine(m_root, "a", "b")), Is.False);
             });
