@@ -59,35 +59,71 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task SetUpAsync()
         {
             m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
-            m_registry = await m_runtime.CreateRegistryAsync(
-                compatibilityMode: WotProjectionCompatibilityMode.DraftProjection11).ConfigureAwait(false);
-            m_host = new FakeWotProjectionHost();
-            m_converter = new ViewSourceConverter();
-            m_viewHost = new LifecycleWotViewProjectionHost(m_runtime.Lifecycle);
-            m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_runtime.Observe(m_host.RecordCommitted),
-                converterOptions: new WotNodeSetConverterOptions
-                {
-                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-                },
-                documentConverter: m_converter,
-                viewProjectionHost: m_viewHost)
+            bool initialized = false;
+            try
             {
-                ServerNamespaceUris = m_runtime.Namespaces
-            };
-            NodeManagerRegistration registration = await m_runtime.Lifecycle.AddAsync(
-                new WotRegistryNodeManagerFactory(
-                    new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
-            m_registryManager = (WotRegistryNodeManager)registration.NodeManager;
+                m_registry = await m_runtime.CreateRegistryAsync(
+                    compatibilityMode: WotProjectionCompatibilityMode.DraftProjection11).ConfigureAwait(false);
+                m_host = new FakeWotProjectionHost();
+                m_converter = new ViewSourceConverter();
+                m_viewHost = new LifecycleWotViewProjectionHost(m_runtime.Lifecycle);
+                m_coordinator = new WotMaterializationCoordinator(
+                    m_registry, m_runtime.Observe(m_host.RecordCommitted),
+                    converterOptions: new WotNodeSetConverterOptions
+                    {
+                        ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+                    },
+                    documentConverter: m_converter,
+                    viewProjectionHost: m_viewHost)
+                {
+                    ServerNamespaceUris = m_runtime.Namespaces
+                };
+                NodeManagerRegistration registration = await m_runtime.Lifecycle.AddAsync(
+                    new WotRegistryNodeManagerFactory(
+                        new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
+                    callerContext: null).ConfigureAwait(false);
+                m_registryManager = (WotRegistryNodeManager)registration.NodeManager;
+                initialized = true;
+            }
+            finally
+            {
+                if (!initialized)
+                {
+                    await TearDownAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         [TearDown]
         public async Task TearDownAsync()
         {
-            m_coordinator.Dispose();
-            m_viewHost.Dispose();
-            await m_runtime.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                m_coordinator?.Dispose();
+            }
+            finally
+            {
+                m_coordinator = null!;
+                try
+                {
+                    m_viewHost?.Dispose();
+                }
+                finally
+                {
+                    m_viewHost = null!;
+                    try
+                    {
+                        if (m_runtime is not null)
+                        {
+                            await m_runtime.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        m_runtime = null!;
+                    }
+                }
+            }
         }
 
         [Test]
