@@ -336,10 +336,26 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     field + ":\n" + generatedField + "\n" + runtimeField);
             }
 
+            // The Dimensions of an XML Matrix must be greater than zero (OPC
+            // 10000-6 5.3.1.17): an empty matrix field is written as null,
+            // which is equivalent to an empty array (5.1.11).
+            IEncodeable expected = original;
+            IEncodeable expectedStructure = structure;
+            if (content == Content.Empty)
+            {
+                expected = CreateGrids(Content.Null);
+                Set(expected, "Row", ArrayOf.Empty<double>());
+                expectedStructure = Decode(
+                    Codec.Binary,
+                    runtimeContext,
+                    Encode(Codec.Binary, generatedContext, expected, typeId),
+                    typeId);
+            }
+
             IEncodeable decoded = Decode(codec, generatedContext, generatedXml, typeId);
-            Assert.That(decoded.IsEqual(original), Is.True, "generated round trip");
+            Assert.That(decoded.IsEqual(expected), Is.True, "generated round trip");
             IEncodeable decodedStructure = Decode(codec, runtimeContext, runtimeXml, typeId);
-            Assert.That(decodedStructure.IsEqual(structure), Is.True, "definition driven round trip");
+            Assert.That(decodedStructure.IsEqual(expectedStructure), Is.True, "definition driven round trip");
         }
 
         private void AssertDefinitionDrivenValues(IStructure structure, Content content)

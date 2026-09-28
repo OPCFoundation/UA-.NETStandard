@@ -138,7 +138,7 @@ namespace Opc.Ua.SourceGeneration
 
             // The declared defaults still round trip (and are omitted).
             object defaults = Create("Cfg");
-            string json = EncodeJson((IEncodeable)defaults);
+            string json = EncodeCompactJson((IEncodeable)defaults);
             Assert.That(json, Does.Not.Contain("Retries"));
             Assert.That(json, Does.Not.Contain("Tag"));
             object decodedDefaults = JsonRoundTrip((IEncodeable)defaults);
@@ -318,7 +318,11 @@ namespace Opc.Ua.SourceGeneration
             object json = JsonRoundTrip(img);
             Assert.That(EncodeBinary((IEncodeable)json), Is.EqualTo(EncodeBinary(img)), "JSON");
             object xml = XmlRoundTrip(generatedContext, img, typeId);
-            Assert.That(EncodeBinary((IEncodeable)xml), Is.EqualTo(EncodeBinary(img)), "XML");
+            // XML Matrix dimensions must be > 0 (OPC 10000-6 5.3.1.17): the
+            // empty Names matrix is written as null (null == empty, 5.1.11).
+            IEncodeable expectedXml = CreateImg();
+            Set(expectedXml, "Names", default(MatrixOf<string>));
+            Assert.That(EncodeBinary((IEncodeable)xml), Is.EqualTo(EncodeBinary(expectedXml)), "XML");
         }
 
         private IEncodeable CreateImg()
@@ -629,7 +633,7 @@ namespace Opc.Ua.SourceGeneration
             Set(zero, "Count", 0);
             Set(zero, "Flag", false);
             Set(zero, "Text", null);
-            string zeroJson = EncodeJson(zero);
+            string zeroJson = EncodeCompactJson(zero);
             Assert.That(zeroJson, Does.Not.Contain("Count"));
             object decodedZero = JsonRoundTrip(zero);
             Assert.That(Get(decodedZero, "Count"), Is.Zero);
@@ -711,7 +715,7 @@ namespace Opc.Ua.SourceGeneration
             // Known defaults are still omitted: the backing field literal and
             // the CLR default of properties nothing assigns.
             var defaults = (IEncodeable)Activator.CreateInstance(cfgType);
-            string json = EncodeJson(defaults);
+            string json = EncodeCompactJson(defaults);
             Assert.That(json, Does.Not.Contain("Port"));
             Assert.That(json, Does.Not.Contain("Plain"));
             Assert.That(json, Does.Not.Contain("Untouched"));
@@ -1021,6 +1025,17 @@ namespace Opc.Ua.SourceGeneration
         private string EncodeJson(IEncodeable value)
         {
             using var encoder = new JsonEncoder(m_context);
+            value.Encode(encoder);
+            return encoder.CloseAndReturnText();
+        }
+
+        /// <summary>
+        /// Only the CompactEncoding omits fields at their default; the
+        /// VerboseEncoding includes all fields (OPC 10000-6 5.4.1).
+        /// </summary>
+        private string EncodeCompactJson(IEncodeable value)
+        {
+            using var encoder = new JsonEncoder(m_context, JsonEncoderOptions.Compact);
             value.Encode(encoder);
             return encoder.CloseAndReturnText();
         }
