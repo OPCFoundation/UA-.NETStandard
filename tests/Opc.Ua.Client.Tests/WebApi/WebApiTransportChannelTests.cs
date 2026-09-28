@@ -367,6 +367,43 @@ namespace Opc.Ua.Client.Tests.WebApi
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        [Test]
+        public void PublicClientConstructorRejectsCredentialsOverPlainHttp()
+        {
+            using var httpClient = new HttpClient(new StubHandler((_, _) => Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.OK))))
+            {
+                BaseAddress = new Uri("http://localhost:4843/")
+            };
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => new WebApiClient(httpClient, new WebApiClientOptions { BearerToken = "secret" }));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(httpClient.DefaultRequestHeaders.Authorization, Is.Null,
+                "The credentials must not be installed on the caller's client.");
+        }
+
+        [Test]
+        public void PublicClientRejectsCredentialsWhenPlainHttpBaseAddressIsSetLater()
+        {
+            int sent = 0;
+            using var httpClient = new HttpClient(new StubHandler((_, _) =>
+            {
+                sent++;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            }));
+            using var client = new WebApiClient(
+                httpClient,
+                new WebApiClientOptions { BearerToken = "secret" });
+            httpClient.BaseAddress = new Uri("http://localhost:4843/");
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ReadAsync(NewReadRequest(), CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(sent, Is.Zero);
+        }
+
         private static ReadRequest NewReadRequest()
         {
             return new ReadRequest { RequestHeader = new RequestHeader() };

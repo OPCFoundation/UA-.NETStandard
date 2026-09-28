@@ -88,8 +88,15 @@ namespace Opc.Ua.Client.WebApi
         /// </summary>
         /// <param name="httpClient">The HTTP client to use.</param>
         /// <param name="options">Configuration options.</param>
+        /// <exception cref="ServiceResultException">
+        /// <c>BadSecurityChecksFailed</c> when credentials are configured and the
+        /// client's base address is not <c>https://</c>.</exception>
         public WebApiClient(HttpClient httpClient, WebApiClientOptions? options = null)
-            : this(httpClient, ownsHttpClient: false, configureHttpClient: true, options)
+            : this(
+                ThrowIfCredentialsOverPlainHttp(httpClient, options),
+                ownsHttpClient: false,
+                configureHttpClient: true,
+                options)
         {
         }
 
@@ -196,6 +203,22 @@ namespace Opc.Ua.Client.WebApi
                 : new HttpClient();
             httpClient.BaseAddress = normalizedAddress;
             return new WebApiClient(httpClient, ownsHttpClient: true, configureHttpClient: true, options);
+        }
+
+        /// <summary>
+        /// Checks a caller-supplied client before its default headers are
+        /// written, so credentials are never installed on a non-TLS client.
+        /// </summary>
+        private static HttpClient ThrowIfCredentialsOverPlainHttp(
+            HttpClient httpClient,
+            WebApiClientOptions? options)
+        {
+            if (httpClient?.BaseAddress != null)
+            {
+                ThrowIfCredentialsOverPlainHttp(httpClient.BaseAddress, options);
+            }
+            // A null client is rejected by the constructor it is passed to.
+            return httpClient!;
         }
 
         /// <summary>
@@ -316,6 +339,20 @@ namespace Opc.Ua.Client.WebApi
                     nameof(request));
             }
             ThrowIfDisposed();
+
+            // The caller may set BaseAddress after construction (or not at
+            // all), so check the address this request is actually sent to.
+            if (m_authorization != null)
+            {
+                Uri? effectiveBase = m_baseAddress ?? m_httpClient.BaseAddress;
+                if (effectiveBase == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Web API credentials require an https:// base address.");
+                }
+                ThrowIfCredentialsOverPlainHttp(effectiveBase, m_options);
+            }
 
             byte[] body = WebApiBodyCodec.EncodeBody(
                 request,

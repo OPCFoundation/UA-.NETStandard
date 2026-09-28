@@ -237,11 +237,11 @@ namespace Opc.Ua.Client.FileSystem
                 {
                     return;
                 }
-                if (state.Equals(ObjectIds.FileTransferStateMachineType_ReadTransfer) ||
-                    state.Equals(ObjectIds.FileTransferStateMachineType_Idle))
+                // Part 20 4.4.3: Read fails until the state reaches
+                // ReadTransfer. Idle means generation has not started yet,
+                // so keep waiting (bounded by the caller's token).
+                if (state.Equals(ObjectIds.FileTransferStateMachineType_ReadTransfer))
                 {
-                    // ReadTransfer: ready. Idle: no transfer in progress, so
-                    // there is nothing to wait for.
                     return;
                 }
                 if (state.Equals(ObjectIds.FileTransferStateMachineType_Error))

@@ -153,7 +153,10 @@ namespace Opc.Ua.Client.ModelChange
             }
             catch
             {
-                if (LeaveStartWait(waitEpoch))
+                CancellationTokenSource? cts = null;
+                Task? pumpTask = null;
+                bool detached = false;
+                lock (m_stateLock)
                 {
                     // Only tear down the generation this call waited for: a
                     // failing pump clears IsTracking from its own finally, so
@@ -161,68 +164,85 @@ namespace Opc.Ua.Client.ModelChange
                     // the time this cleanup runs, and stopping unconditionally
                     // would cancel that replacement instead. A caller that
                     // joined the start and is still waiting keeps it alive.
-                    await StopTrackingCoreAsync(waitEpoch, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    // The last-waiter decision and the detach share this lock
+                    // so a caller cannot join a generation that is being torn
+                    // down.
+                    if (LeaveStartWaitLocked(waitEpoch))
+                    {
+                        detached = TryDetachLocked(out cts, out pumpTask);
+                    }
+                }
+                if (detached)
+                {
+                    await CompleteStopAsync(cts, pumpTask).ConfigureAwait(false);
                 }
                 throw;
             }
-            LeaveStartWait(waitEpoch);
+            lock (m_stateLock)
+            {
+                LeaveStartWaitLocked(waitEpoch);
+            }
         }
 
         /// <summary>
         /// Leaves the wait for <paramref name="epoch"/> to become ready.
         /// Returns <c>true</c> when this was the last waiter of the current
-        /// generation.
+        /// generation. Must be called under <see cref="m_stateLock"/>.
         /// </summary>
-        private bool LeaveStartWait(long epoch)
+        private bool LeaveStartWaitLocked(long epoch)
         {
-            lock (m_stateLock)
-            {
-                return m_trackingEpoch == epoch && --m_startWaiters == 0;
-            }
+            return m_trackingEpoch == epoch && --m_startWaiters == 0;
         }
 
         /// <inheritdoc/>
-        public ValueTask StopTrackingAsync(CancellationToken ct = default)
+        public async ValueTask StopTrackingAsync(CancellationToken ct = default)
         {
-            return StopTrackingCoreAsync(null, ct);
+            CancellationTokenSource? cts;
+            Task? pumpTask;
+            lock (m_stateLock)
+            {
+                if (!TryDetachLocked(out cts, out pumpTask))
+                {
+                    return;
+                }
+            }
+            await CompleteStopAsync(cts, pumpTask).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Stops tracking. When <paramref name="epoch"/> is given the stop
-        /// applies only while that generation is still the current one, so an
-        /// owner cleaning up after its own failed start cannot tear down a
-        /// replacement started in the meantime.
+        /// Detaches the current generation so no later caller can join it.
+        /// Must be called under <see cref="m_stateLock"/>.
         /// </summary>
-        private async ValueTask StopTrackingCoreAsync(long? epoch, CancellationToken ct)
+        private bool TryDetachLocked(out CancellationTokenSource? cts, out Task? pumpTask)
         {
-            Task? pumpTask;
-            CancellationTokenSource? cts;
+            cts = null;
+            pumpTask = null;
 
-            lock (m_stateLock)
+            // Not gated on IsTracking alone: a pump that ended or faulted
+            // on its own already cleared the flag while leaving its token
+            // source and task behind, and returning here would leak them -
+            // the next StartTrackingAsync would overwrite the fields.
+            if (!IsTracking && m_cts == null && m_pumpTask == null)
             {
-                if (epoch.HasValue && m_trackingEpoch != epoch.Value)
-                {
-                    return;
-                }
-
-                // Not gated on IsTracking alone: a pump that ended or faulted
-                // on its own already cleared the flag while leaving its token
-                // source and task behind, and returning here would leak them -
-                // the next StartTrackingAsync would overwrite the fields.
-                if (!IsTracking && m_cts == null && m_pumpTask == null)
-                {
-                    return;
-                }
-
-                IsTracking = false;
-                cts = m_cts;
-                pumpTask = m_pumpTask;
-                m_cts = null;
-                m_pumpTask = null;
-                m_startReadyTask = null;
+                return false;
             }
 
+            IsTracking = false;
+            cts = m_cts;
+            pumpTask = m_pumpTask;
+            m_cts = null;
+            m_pumpTask = null;
+            m_startReadyTask = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Cancels and awaits a detached generation.
+        /// </summary>
+        private static async ValueTask CompleteStopAsync(
+            CancellationTokenSource? cts,
+            Task? pumpTask)
+        {
             if (cts != null)
             {
                 try

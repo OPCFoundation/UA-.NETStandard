@@ -112,6 +112,25 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
+        public async Task GenerateForReadKeepsWaitingWhileStateIsIdleAsync()
+        {
+            // Idle means generation has not started yet; only ReadTransfer
+            // makes Read possible (Part 20 4.4.3).
+            using var harness = TempTransferHarness.Create();
+            harness.UseCompletionStateMachine(
+                ObjectIds.FileTransferStateMachineType_Idle,
+                ObjectIds.FileTransferStateMachineType_ReadPrepare,
+                ObjectIds.FileTransferStateMachineType_ReadTransfer);
+
+            UaFileStream stream = await harness.Client
+                .GenerateFileForReadAsync(default, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(harness.StateReads, Is.EqualTo(3));
+            await stream.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
         public void GenerateForReadThrowsAndClosesHandleWhenStateMachineFails()
         {
             using var harness = TempTransferHarness.Create();
