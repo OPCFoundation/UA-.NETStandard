@@ -83,13 +83,6 @@ namespace Opc.Ua.SourceGeneration
         public string BaseTypeReference { get; set; }
 
         /// <summary>
-        /// The size in bits of the underlying type of an enum (8, 16, 32
-        /// or 64), which the bits of a negative [Flags] member value are
-        /// taken from.
-        /// </summary>
-        public int EnumUnderlyingBits { get; set; } = 32;
-
-        /// <summary>
         /// The accessibility modifier of the generated partial declaration,
         /// or <c>null</c> to derive it from <see cref="IsInternal"/>. Set for
         /// a nested type, whose accessibility can be
@@ -142,7 +135,8 @@ namespace Opc.Ua.SourceGeneration
         public bool IsEnum { get; set; }
 
         /// <summary>
-        /// True if the type is a flags enum (OptionSet).
+        /// True if the type is a [Flags] enum. It is still encoded and
+        /// published as an Enumeration, not as an OptionSet.
         /// </summary>
         public bool IsFlags { get; set; }
 

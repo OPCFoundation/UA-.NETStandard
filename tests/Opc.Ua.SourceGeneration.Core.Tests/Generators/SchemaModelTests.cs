@@ -171,6 +171,34 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(choice, Does.Contain("<xs:choice minOccurs=\"0\">"));
         }
 
+        /// <summary>
+        /// D5: only a Structure field allowing subtypes is an ExtensionObject
+        /// (OPC 10000-6 5.1.7); an abstract non-structure field allowing
+        /// subtypes is written as a Variant and described as one.
+        /// </summary>
+        [Test]
+        public void SubtypedNonStructureFieldsAreVariants()
+        {
+            string subtyped = Element(m_bsd, "opc:StructuredType", "Subtyped");
+            Assert.That(subtyped, Does.Contain("<opc:Field Name=\"Num\" TypeName=\"ua:Variant\" />"));
+            Assert.That(subtyped, Does.Contain("<opc:Field Name=\"Any\" TypeName=\"ua:Variant\" />"));
+            Assert.That(subtyped, Does.Contain("<opc:Field Name=\"Nested\" TypeName=\"ua:ExtensionObject\" />"));
+        }
+
+        /// <summary>
+        /// D5: an EnumeratedValue Value is an xs:int (OPC 10000-5 C.2.7), so
+        /// the mask of bit 31 or above is not written as a value.
+        /// </summary>
+        [Test]
+        public void OptionSetMasksBeyondXsIntAreLeftOut()
+        {
+            string bits = Element(m_bsd, "opc:EnumeratedType", "HighBits");
+            Assert.That(bits, Does.Contain("<opc:EnumeratedValue Name=\"Low\" Value=\"1\" />"));
+            Assert.That(bits, Does.Not.Contain("Value=\"2147483648\""));
+            Assert.That(bits, Does.Not.Contain("Name=\"Top\""));
+            Assert.That(bits, Does.Contain("<!-- Top = 2147483648"));
+        }
+
         private static string Element(string schema, string element, string name)
         {
             string start = "<" + element + " Name=\"" + name + "\"";
@@ -216,6 +244,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 <opc:Fields>
                   <opc:Field Name="Nothing" Identifier="0" />
                   <opc:Field Name="One" BitMask="0001" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="HighBits" BaseType="ua:UInt32" IsOptionSet="true">
+                <opc:Fields>
+                  <opc:Field Name="Low" BitMask="0001" />
+                  <opc:Field Name="Top" BitMask="80000000" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="Subtyped" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Num" DataType="ua:Number" AllowSubTypes="true" />
+                  <opc:Field Name="Any" DataType="ua:BaseDataType" AllowSubTypes="true" />
+                  <opc:Field Name="Nested" DataType="BaseA" AllowSubTypes="true" />
                 </opc:Fields>
               </opc:DataType>
               <opc:DataType SymbolicName="BaseA" BaseType="ua:Structure">

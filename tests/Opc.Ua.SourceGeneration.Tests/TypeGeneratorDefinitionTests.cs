@@ -423,11 +423,14 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// D-11: the EnumField value of an OptionSet is the bit position;
-        /// the zero member and combined members name no bit.
+        /// D4 (d): a [Flags] enum is encoded as an Enumeration (Int32), while
+        /// an OptionSet of up to 64 bits is a UInteger subtype encoded as that
+        /// integer (OPC 10000-3 5.8.2, 8.40). Publishing it as an OptionSet
+        /// described another wire format; it is published as the
+        /// enumeration it is encoded as, with all members and their values.
         /// </summary>
         [Test]
-        public void FlagsEnumDefinitionUsesBitPositions()
+        public void FlagsEnumDefinitionIsTheEncodedEnumeration()
         {
             Type activator = m_assembly.GetType("TestApp.Defs.PermActivator", throwOnError: true);
             var source = (IDataTypeDefinitionSource)activator
@@ -435,10 +438,10 @@ namespace Opc.Ua.SourceGeneration
                 .GetValue(null);
             var definition = (EnumDefinition)source.GetDataTypeDefinition(m_namespaceUris);
 
-            Assert.That(definition.IsOptionSet, Is.True);
+            Assert.That(definition.IsOptionSet, Is.False);
             Assert.That(
                 definition.Fields.ToArray().Select(f => (f.Name, f.Value)),
-                Is.EqualTo(new[] { ("Read", 0L), ("Write", 1L), ("Exec", 2L) }));
+                Is.EqualTo(new[] { ("None", 0L), ("Read", 1L), ("Write", 2L), ("Exec", 4L), ("ReadWrite", 3L) }));
         }
 
         /// <summary>
@@ -577,10 +580,10 @@ namespace Opc.Ua.SourceGeneration
                 Is.EqualTo(new[] { ("Invalid", -1L), ("A", 0L), ("B", 1L) }));
 
             EnumDefinition bits = GetEnumDefinition(assembly, "TestApp.Minus.BitsActivator");
-            Assert.That(bits.IsOptionSet, Is.True);
+            Assert.That(bits.IsOptionSet, Is.False);
             Assert.That(
                 bits.Fields.ToArray().Select(f => (f.Name, f.Value)),
-                Is.EqualTo(new[] { ("Low", 0L), ("High", 31L) }));
+                Is.EqualTo(new[] { ("None", 0L), ("Low", 1L), ("High", (long)int.MinValue) }));
         }
 
         /// <summary>
@@ -916,12 +919,12 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// D-5: the bit of a negative [Flags] member was computed from the
-        /// value sign-extended to 32 bits, dropping the high bit of an sbyte
-        /// or short backed enum as "multi-bit" and truncating a long one.
+        /// D-5 / D4 (d): a [Flags] enum of any backing type is published as
+        /// the enumeration it is encoded as, with its member values (a
+        /// negative high bit included), not as OptionSet bit positions.
         /// </summary>
         [Test]
-        public void FlagsEnumHighBitUsesUnderlyingWidth()
+        public void FlagsEnumPublishesMemberValuesOfAnyWidth()
         {
             const string source =
                 """
@@ -961,19 +964,25 @@ namespace Opc.Ua.SourceGeneration
                 """;
             Assembly assembly = CompileAndLoad(source, out _);
 
+            EnumDefinition small = GetEnumDefinition(assembly, "TestApp.Widths.SmallActivator");
+            Assert.That(small.IsOptionSet, Is.False);
             Assert.That(
-                GetEnumDefinition(assembly, "TestApp.Widths.SmallActivator")
-                    .Fields.ToArray().Select(f => (f.Name, f.Value)),
-                Is.EqualTo(new[] { ("Low", 0L), ("High", 7L) }));
+                small.Fields.ToArray().Select(f => (f.Name, f.Value)),
+                Is.EqualTo(new[] { ("None", 0L), ("Low", 1L), ("High", (long)sbyte.MinValue) }));
             Assert.That(
                 GetEnumDefinition(assembly, "TestApp.Widths.MediumActivator")
                     .Fields.ToArray().Select(f => (f.Name, f.Value)),
-                Is.EqualTo(new[] { ("Low", 0L), ("High", 15L) }));
+                Is.EqualTo(new[] { ("None", 0L), ("Low", 1L), ("High", (long)short.MinValue) }));
             Assert.That(
                 GetEnumDefinition(assembly, "TestApp.Widths.LargeActivator")
                     .Fields.ToArray().Select(f => (f.Name, f.Value)),
-                Is.EqualTo(new[] { ("Low", 0L), ("High", 63L) }),
-                "a multi-bit long member names no bit");
+                Is.EqualTo(new[]
+                {
+                    ("None", 0L),
+                    ("Low", 1L),
+                    ("High", long.MinValue),
+                    ("Wide", unchecked((long)0xFFFFFFFF80000000))
+                }));
         }
 
         /// <summary>

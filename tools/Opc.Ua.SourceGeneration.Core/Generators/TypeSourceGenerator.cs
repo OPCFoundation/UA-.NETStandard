@@ -853,16 +853,19 @@ namespace Opc.Ua.SourceGeneration
 
             if (model.IsEnum)
             {
-                // The attribute model does not distinguish an OptionSet from a
-                // plain enumeration beyond the [Flags] attribute, so flags
-                // enums are emitted as option sets.
-                context.Template.AddReplacement(Tokens.IsOptionSet, model.IsFlags);
+                // Every enum, [Flags] included, is registered as an
+                // EnumeratedType and encoded as an Enumeration (Int32). An
+                // OptionSet of up to 64 bits is a UInteger subtype encoded as
+                // that integer (OPC 10000-3 5.8.2, 8.40), so publishing a
+                // [Flags] enum as an OptionSet would describe a different wire
+                // format (the width for byte/short/long backing, the text form
+                // in XML and JSON). It is published as the enumeration it is
+                // encoded as: all members with their values.
+                context.Template.AddReplacement(Tokens.IsOptionSet, false);
                 context.Template.AddReplacement(
                     Tokens.ListOfFields,
                     DataTypeTemplates.EnumField,
-                    model.IsFlags
-                        ? GetOptionSetFields(model.EnumMembers, model.EnumUnderlyingBits)
-                        : model.EnumMembers,
+                    model.EnumMembers,
                     WriteTemplate_ListOfEnumDefinitionFields);
                 return context.Template.Render();
             }
@@ -997,60 +1000,6 @@ namespace Opc.Ua.SourceGeneration
                 return CoreUtils.Format("unchecked((long){0}UL)", unsignedValue);
             }
             return "0";
-        }
-
-        /// <summary>
-        /// The fields of an OptionSet are the single bits, with the bit
-        /// position as value (OPC 10000-3 8.40). A [Flags] enum also has
-        /// a zero ("None") member and may have combined members; neither
-        /// names a bit.
-        /// </summary>
-        private static List<TypeEnumMember> GetOptionSetFields(
-            IReadOnlyList<TypeEnumMember> members,
-            int underlyingBits)
-        {
-            // The bits of a negative value of a signed backing type are the
-            // two's complement in the width of that type, not of the long it
-            // was parsed as (-32768 of a short is bit 15 only).
-            ulong widthMask = underlyingBits is > 0 and < 64
-                ? (1UL << underlyingBits) - 1
-                : ulong.MaxValue;
-            var fields = new List<TypeEnumMember>();
-            foreach (TypeEnumMember member in members)
-            {
-                ulong mask;
-                if (long.TryParse(
-                    member.Value,
-                    System.Globalization.NumberStyles.Integer,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out long signedMask))
-                {
-                    mask = unchecked((ulong)signedMask) & widthMask;
-                }
-                else if (!ulong.TryParse(
-                    member.Value,
-                    System.Globalization.NumberStyles.Integer,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out mask))
-                {
-                    continue;
-                }
-                if (mask == 0 || (mask & (mask - 1)) != 0)
-                {
-                    continue;
-                }
-                int bit = 0;
-                while ((mask & 1) == 0)
-                {
-                    mask >>= 1;
-                    bit++;
-                }
-                fields.Add(member with
-                {
-                    Value = bit.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                });
-            }
-            return fields;
         }
 
         /// <summary>

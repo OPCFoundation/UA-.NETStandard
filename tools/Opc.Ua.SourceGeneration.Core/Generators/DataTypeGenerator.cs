@@ -293,10 +293,15 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(
                     Tokens.IsOptionSet,
                     dataType.IsOptionSet);
+                // The fields of an OptionSet are its bits (OPC 10000-3 8.52):
+                // a zero ("no bits set") value names no bit and is left out.
                 context.Template.AddReplacement(
                     Tokens.ListOfFields,
                     DataTypeTemplates.EnumField,
-                    dataType.Fields ?? [],
+                    dataType.IsOptionSet
+                        ? (dataType.Fields ?? []).Where(
+                            f => ModelDesignExtensions.TryGetOptionSetBit(f.Identifier, out _)).ToArray()
+                        : dataType.Fields ?? [],
                     WriteTemplate_ListOfEnumDefinitionFields);
             }
             else
@@ -315,12 +320,15 @@ namespace Opc.Ua.SourceGeneration
                 // The kind is a property of the whole encoding, inherited
                 // fields included: the base Encode writes an inherited
                 // AllowSubTypes field as an ExtensionObject and an inherited
-                // optional field under the encoding mask. Optional fields
-                // win over subtyped values, no StructureType expresses both.
+                // optional field under the encoding mask. No StructureType
+                // expresses optional and subtyped fields together, the
+                // validator rejects that (OPC 10000-6 F.13). IsOptional is
+                // ignored for a union (OPC 10000-3 8.51), which is encoded
+                // with a switch field, never an encoding mask.
                 StructureType structureType = dataType.IsUnion
                     ? StructureType.Union
                     : StructureType.Structure;
-                if (fields.Any(f => f.IsOptional))
+                if (!dataType.IsUnion && fields.Any(f => f.IsOptional))
                 {
                     structureType = StructureType.StructureWithOptionalFields;
                 }
@@ -375,17 +383,12 @@ namespace Opc.Ua.SourceGeneration
             if (dataType.IsOptionSet)
             {
                 // The EnumField value of an OptionSet is the bit position
-                // (OPC 10000-3 8.40). The identifier is the bit mask which,
-                // for a UInt64 based OptionSet, can use bit 63 and, for a
-                // subtype of the OptionSet structure, bits beyond 63 - so
-                // the position is derived in decimal, not through a long.
-                decimal mask = field.Identifier > 0 ? decimal.Truncate(field.Identifier) : 0;
-                int value = 0;
-                while (mask != 0 && decimal.Remainder(mask, 2) == 0)
-                {
-                    mask /= 2;
-                    value++;
-                }
+                // (OPC 10000-3 8.52). The identifier is the single-bit mask
+                // (the validator rejects others) which, for a UInt64 based
+                // OptionSet, can use bit 63 and, for a subtype of the
+                // OptionSet structure, bits beyond 63 - so the position is
+                // derived in decimal, not through a long.
+                ModelDesignExtensions.TryGetOptionSetBit(field.Identifier, out int value);
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
                     value);

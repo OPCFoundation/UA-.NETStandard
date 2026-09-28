@@ -524,6 +524,19 @@ namespace Opc.Ua.SourceGeneration
 
             if (dataType.BasicDataType == BasicDataType.Enumeration)
             {
+                // EnumeratedValue Value is an xs:int (OPC 10000-5 C.2.7), so
+                // an OptionSet mask of bit 31 or above has no valid value. The
+                // names only document the type (C.2.4) and the length comes
+                // from LengthInBits, so such a bit is left out and noted.
+                if (field.Identifier > int.MaxValue || field.Identifier < int.MinValue)
+                {
+                    context.Out.WriteLine(
+                        "<!-- {0} = {1}: the value does not fit the xs:int of an EnumeratedValue. -->",
+                        field.Name.Replace("--", "- -"),
+                        field.Identifier);
+                    return null;
+                }
+
                 context.Out.WriteLine(
                     "<opc:EnumeratedValue Name=\"{0}\" Value=\"{1}\" />",
                     field.Name.AsXmlAttributeValue(),
@@ -551,7 +564,13 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces);
 
-            if (field.AllowSubTypes)
+            // Only a Structure field allowing subtypes is written as an
+            // ExtensionObject (OPC 10000-6 5.1.7). A field of any other type
+            // allowing subtypes is encoded like its DataType: an abstract one
+            // (BaseDataType, Number, ...) as a Variant, which GetBinaryDataType
+            // already returns.
+            if (field.AllowSubTypes &&
+                field.DataTypeNode.BasicDataType is BasicDataType.UserDefined or BasicDataType.Structure)
             {
                 fieldDataType = "ua:ExtensionObject";
             }

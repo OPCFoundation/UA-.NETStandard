@@ -722,13 +722,6 @@ namespace Opc.Ua.SourceGeneration
                 IsEnum = true,
                 IsFlags = symbol.GetAttributes().Any(a =>
                     a.AttributeClass?.Name == "FlagsAttribute"),
-                EnumUnderlyingBits = symbol.EnumUnderlyingType?.SpecialType switch
-                {
-                    SpecialType.System_SByte or SpecialType.System_Byte => 8,
-                    SpecialType.System_Int16 or SpecialType.System_UInt16 => 16,
-                    SpecialType.System_Int64 or SpecialType.System_UInt64 => 64,
-                    _ => 32
-                },
                 EnumMembers = EquatableArray<TypeEnumMember>.From(members)
             }, symbol);
         }

@@ -1226,6 +1226,27 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// The bit an OptionSet field mask (the design Identifier) selects.
+        /// An OptionSet field names exactly one bit (OPC 10000-3 8.40, 8.52);
+        /// false for a zero mask (the "no bits set" value) or a mask of
+        /// several bits.
+        /// </summary>
+        public static bool TryGetOptionSetBit(decimal mask, out int bit)
+        {
+            bit = 0;
+            if (mask <= 0 || decimal.Truncate(mask) != mask)
+            {
+                return false;
+            }
+            while (decimal.Remainder(mask, 2) == 0)
+            {
+                mask /= 2;
+                bit++;
+            }
+            return mask == 1;
+        }
+
+        /// <summary>
         /// The ArrayDimensions a StructureField publishes for the field. A
         /// StructureField ValueRank is -1 or &gt;= 1, never 0 (OPC 10000-3
         /// 8.51), and a multi-dimensional field has at least two dimensions
