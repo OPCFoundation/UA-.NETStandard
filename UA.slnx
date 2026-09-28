@@ -149,6 +149,7 @@
     <Project Path="src/Opc.Ua.Pumps.Client/Opc.Ua.Pumps.Client.csproj" />
     <Project Path="src/Opc.Ua.Pumps.Server/Opc.Ua.Pumps.Server.csproj" />
     <Project Path="src/Opc.Ua.Scales/Opc.Ua.Scales.csproj" />
+    <Project Path="src/Opc.Ua.Scales.Server/Opc.Ua.Scales.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
