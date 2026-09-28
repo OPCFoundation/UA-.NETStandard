@@ -55,6 +55,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         IIsa95JobStatusSourceV2,
         IIsa95JobExecutionController,
         IIsa95JobOrderCatalog,
+        IIsa95JobResponseCatalog,
         IIsa95JobOrderCatalogChangeSource,
         IDisposable
     {
@@ -128,6 +129,32 @@ namespace Opc.Ua.ISA95.Server.Providers
                 }
                 return new ValueTask<ArrayOf<V2.ISA95JobOrderAndStateDataType>>(
                     orders.ToArrayOf());
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ArrayOf<V2.ISA95JobResponseDataType>> GetJobResponsesV2Async(
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+
+                // Expired responses are dropped here as well, so the published
+                // list never shows a response the request methods would already
+                // refuse to return.
+                PurgeExpired(Now());
+
+                var responses = new List<Isa95JobResponse>(m_responses.Values);
+                SortResponses(responses);
+                var projected = new List<V2.ISA95JobResponseDataType>(responses.Count);
+                foreach (Isa95JobResponse response in responses)
+                {
+                    projected.Add(Isa95JobControlConversions.ToV2Response(response));
+                }
+                return new ValueTask<ArrayOf<V2.ISA95JobResponseDataType>>(
+                    projected.ToArrayOf());
             }
         }
 

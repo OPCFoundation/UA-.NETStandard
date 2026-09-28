@@ -84,6 +84,7 @@ namespace Opc.Ua.ISA95.Server
             services.TryAddSingleton<IIsa95JobStatusSourceV2>(Resolve);
             services.TryAddSingleton<IIsa95JobExecutionController>(Resolve);
             services.TryAddSingleton<IIsa95JobOrderCatalog>(Resolve);
+            services.TryAddSingleton<IIsa95JobResponseCatalog>(Resolve);
             services.TryAddSingleton<IIsa95JobOrderCatalogChangeSource>(Resolve);
 
             return services;
