@@ -464,7 +464,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .SelectMany(f => f.Value.Split('\n'))
                 .Select(l => l.Trim())
                 .Where(l => l.StartsWith("baseState.WrappedValue", System.StringComparison.Ordinal) &&
-                    l.IndexOf("GetIndexOrAppend", System.StringComparison.Ordinal) >= 0)];
+                    ContainsOrdinal(l, "GetIndexOrAppend"))];
 #pragma warning restore CA2249
         }
 

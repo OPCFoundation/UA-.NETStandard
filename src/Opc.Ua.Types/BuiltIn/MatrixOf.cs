@@ -54,6 +54,7 @@ namespace Opc.Ua
         IConvertableToArray,
         IConvertableToMatrix,
         IMatrixOf,
+        IElementContainer,
         IEquatable<MatrixOf<T>>,
         IEquatable<Array>,
         IEquatable<ArrayOf<T>>,

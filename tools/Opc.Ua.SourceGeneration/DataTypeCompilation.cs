@@ -665,7 +665,7 @@ namespace Opc.Ua.SourceGeneration
                 BaseTypeReference = baseTypeIsEncodeable
                     ? symbol.BaseType.GetFullyQualifiedTypeName()
                     : null
-            };
+            }, symbol);
         }
 
         /// <summary>
@@ -683,7 +683,16 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
             string ns = baseType.GetFullNamespace();
-            string activatorName = baseType.Name + "Activator";
+            // Nested types get a namespace-level activator named after their
+            // nesting chain (see WithNesting), e.g. Outer_InnerActivator.
+            string symbolName = baseType.Name;
+            for (INamedTypeSymbol containing = baseType.ContainingType;
+                containing != null;
+                containing = containing.ContainingType)
+            {
+                symbolName = containing.Name + "_" + symbolName;
+            }
+            string activatorName = symbolName + "Activator";
             string activator = string.IsNullOrEmpty(ns)
                 ? "global::" + activatorName
                 : "global::" + ns + "." + activatorName;
