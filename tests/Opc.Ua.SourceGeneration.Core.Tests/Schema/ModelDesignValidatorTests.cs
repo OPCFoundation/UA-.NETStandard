@@ -600,6 +600,50 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// A subtype of the OptionSet structure has no upper bit (OPC 10000-3
+        /// 8.40): a BitMask beyond 64 bits was ignored (the field got an
+        /// implicit bit) and implicit bits stopped at 95 (decimal masks).
+        /// </summary>
+        [Test]
+        public void ValidateStructureOptionSetSupportsBitsBeyond95()
+        {
+            const string path = "memory://huge-option-set-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(OptionSetDesign(
+                $"""
+                <opc:DataType SymbolicName="HugeSet" BaseType="ua:OptionSet" IsOptionSet="true">
+                  <opc:Fields>
+                    <opc:Field Name="First" />
+                    <opc:Field Name="B95" BitMask="8{new string('0', 23)}" />
+                    <opc:Field Name="B96" />
+                    <opc:Field Name="B130" BitMask="4{new string('0', 32)}" />
+                    <opc:Field Name="B131" />
+                  </opc:Fields>
+                </opc:DataType>
+                """)));
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([path], [], null);
+
+            var optionSet = (DataTypeDesign)validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "HugeSet");
+            Assert.That(
+                optionSet.Fields.Select(f => f.TryGetOptionSetBit(out int bit) ? bit : -1),
+                Is.EqualTo(s_hugeSetBits));
+            var decoded = (Opc.Ua.LocalizedText[])optionSet.Children.Items
+                .OfType<VariableDesign>()
+                .First(v => v.SymbolicName.Name == "OptionSetValues")
+                .DecodedValue;
+            Assert.That(decoded, Has.Length.EqualTo(132));
+            Assert.That(decoded[95].Text, Is.EqualTo("B95"));
+            Assert.That(decoded[96].Text, Is.EqualTo("B96"));
+            Assert.That(decoded[129].IsNull, Is.True);
+            Assert.That(decoded[130].Text, Is.EqualTo("B130"));
+            Assert.That(decoded[131].Text, Is.EqualTo("B131"));
+        }
+
+        private static readonly int[] s_hugeSetBits = [0, 95, 96, 130, 131];
+
+        /// <summary>
         /// D4: an OptionSet field names one bit (OPC 10000-3 8.40, 8.52); a
         /// mask of several bits, or a bit used twice, is rejected.
         /// </summary>

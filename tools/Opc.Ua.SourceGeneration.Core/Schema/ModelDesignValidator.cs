@@ -2264,7 +2264,7 @@ namespace Opc.Ua.Schema.Model
                 var bits = new SortedDictionary<int, Parameter>();
                 foreach (Parameter parameter in dataType.Fields)
                 {
-                    if (ModelDesignExtensions.TryGetOptionSetBit(parameter.Identifier, out int bit) &&
+                    if (parameter.TryGetOptionSetBit(out int bit) &&
                         bit < bitCount &&
                         !bits.ContainsKey(bit))
                     {
@@ -3978,7 +3978,7 @@ namespace Opc.Ua.Schema.Model
             {
                 optionSet = null;
             }
-            decimal nextOptionSetBit = 1;
+            int nextOptionSetBit = 0;
             var usedBits = new Dictionary<int, Parameter>();
 
             foreach (Parameter parameter in parameters)
@@ -4019,6 +4019,16 @@ namespace Opc.Ua.Schema.Model
                         parameter.Identifier = BitConverter.ToUInt64(bytes, 0);
                         parameter.IdentifierSpecified = true;
                     }
+                    else if (optionSet != null &&
+                        ModelDesignExtensions.TryGetOptionSetBitFromBitMask(parameter.BitMask, out int maskBit))
+                    {
+                        // A subtype of the OptionSet structure has no upper
+                        // bit (OPC 10000-3 8.40); a mask wider than 64 bits
+                        // is kept as its bit position.
+                        parameter.OptionSetBit = maskBit;
+                        parameter.Identifier = ModelDesignExtensions.GetOptionSetMask(maskBit);
+                        parameter.IdentifierSpecified = true;
+                    }
                 }
 
                 if (!parameter.IdentifierSpecified)
@@ -4036,14 +4046,8 @@ namespace Opc.Ua.Schema.Model
                     }
                     else if (optionSet != null)
                     {
-                        if (nextOptionSetBit == 0)
-                        {
-                            throw Exception(
-                                "The OptionSet {0} has no bit left for the field {1}.",
-                                optionSet.SymbolicId.Name,
-                                name);
-                        }
-                        id = nextOptionSetBit;
+                        parameter.OptionSetBit = nextOptionSetBit;
+                        id = ModelDesignExtensions.GetOptionSetMask(nextOptionSetBit);
                     }
                     else
                     {
@@ -4865,17 +4869,17 @@ namespace Opc.Ua.Schema.Model
         /// value (it names no bit and is not published as a field); a mask
         /// of several bits, or a bit two fields share, is rejected.
         /// </summary>
-        /// <returns>The mask of the bit after the field's bit.</returns>
-        private decimal ValidateOptionSetField(
+        /// <returns>The bit after the field's bit.</returns>
+        private int ValidateOptionSetField(
             DataTypeDesign optionSet,
             Parameter field,
             Dictionary<int, Parameter> usedBits)
         {
-            if (field.Identifier == 0)
+            if (field.OptionSetBit == null && field.Identifier == 0)
             {
-                return 1;
+                return 0;
             }
-            if (!ModelDesignExtensions.TryGetOptionSetBit(field.Identifier, out int bit))
+            if (!field.TryGetOptionSetBit(out int bit))
             {
                 throw Exception(
                     "The OptionSet {0} has the field {1} with the mask {2}, which is not a single bit " +
@@ -4893,8 +4897,7 @@ namespace Opc.Ua.Schema.Model
                     bit);
             }
             usedBits.Add(bit, field);
-            // 0 when the design masks (decimal, 96 bits) have no next bit.
-            return bit < 95 ? field.Identifier * 2 : 0;
+            return bit + 1;
         }
 
         /// <summary>

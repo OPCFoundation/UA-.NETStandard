@@ -527,6 +527,58 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// A subtype of the OptionSet structure has no upper bit (OPC 10000-3
+        /// 8.40); bits of 96 and above were rejected because the decimal
+        /// design mask cannot hold them. The bit position is now kept
+        /// explicitly.
+        /// </summary>
+        [Test]
+        public void ImportStructureOptionSetAcceptsBitsBeyond95()
+        {
+            Import(
+                """
+                <UADataType NodeId="i=22" BrowseName="Structure" IsAbstract="true">
+                    <DisplayName>Structure</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
+                    </References>
+                </UADataType>
+                <UADataType NodeId="i=12755" BrowseName="OptionSet">
+                    <DisplayName>OptionSet</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+                    </References>
+                </UADataType>
+                <UADataType NodeId="ns=1;i=3004" BrowseName="1:HugeOptions">
+                    <DisplayName>HugeOptions</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=12755</Reference>
+                    </References>
+                    <Definition Name="1:HugeOptions">
+                        <Field Name="B1" Value="1" />
+                        <Field Name="B130" Value="130" />
+                    </Definition>
+                </UADataType>
+                """,
+                out NodeSetReaderSettings settings);
+
+            var dataType = (DataTypeDesign)settings.NodesById[new NodeId(3004u, 1)];
+
+            Assert.That(dataType.Fields.Select(x => x.Name), Is.EqualTo(s_hugeOptionNames));
+            Assert.That(dataType.Fields[1].OptionSetBit, Is.EqualTo(130));
+            Assert.That(dataType.Fields[1].BitMask, Is.EqualTo("4" + new string('0', 32)));
+            Assert.That(dataType.Fields[1].TryGetOptionSetBit(out int bit), Is.True);
+            Assert.That(bit, Is.EqualTo(130));
+            Assert.That(dataType.Fields[0].Identifier, Is.EqualTo(2m));
+            Assert.That(
+                ModelDesignExtensions.TryGetOptionSetBitFromBitMask(dataType.Fields[1].BitMask, out bit),
+                Is.True);
+            Assert.That(bit, Is.EqualTo(130));
+        }
+
+        private static readonly string[] s_hugeOptionNames = ["B1", "B130"];
+
+        /// <summary>
         /// N-14 / A2-2: valid bit positions still map onto their masks. Bit 63
         /// was computed with a signed shift and imported as a negative mask,
         /// which the generator emitted as a negative UInt64 enum constant

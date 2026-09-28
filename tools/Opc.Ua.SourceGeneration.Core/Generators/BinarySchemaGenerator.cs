@@ -305,6 +305,7 @@ namespace Opc.Ua.SourceGeneration
                         AllowSubTypes = field.AllowSubTypes,
                         IsOptional = field.IsOptional,
                         BitMask = field.BitMask,
+                        OptionSetBit = field.OptionSetBit,
                         DefaultValue = field.DefaultValue,
                         ReleaseStatus = field.ReleaseStatus
                     });

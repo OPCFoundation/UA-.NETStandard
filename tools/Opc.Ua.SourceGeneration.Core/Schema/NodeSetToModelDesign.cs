@@ -889,20 +889,6 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
-        /// The mask of an OptionSet bit. Computed in decimal (exact up to
-        /// bit 95), since a signed shift turns bit 63 into a negative mask.
-        /// </summary>
-        private static decimal GetBitMask(int bit)
-        {
-            decimal mask = 1m;
-            for (int ii = 0; ii < bit; ii++)
-            {
-                mask *= 2;
-            }
-            return mask;
-        }
-
-        /// <summary>
         /// The number of bits a numeric OptionSet can use: the width of the
         /// integer type it derives from (OPC 10000-3 5.8.2). A type that only
         /// derives from the abstract UInteger/Integer is allowed the 64 bits of
@@ -1019,14 +1005,14 @@ namespace Opc.Ua.Schema.Model
                             // bits of its base integer type (OPC 10000-3 5.8.2:
                             // 8 for a Byte, 32 for a UInt32, ...), while a
                             // subtype of the OptionSet structure (8.40) carries
-                            // its bits in a ByteString with no upper bound; the
-                            // design Parameter.Identifier that holds the mask is
-                            // an xs:decimal, which limits those to 96 bits. A
-                            // field without a usable position is reported and
-                            // left out, so one bad field does not abort the
-                            // import of every model.
+                            // its bits in a ByteString with no upper bound, so
+                            // the position is kept in OptionSetBit (the decimal
+                            // Identifier mask only reaches bit 95). A field
+                            // without a usable position is reported and left
+                            // out, so one bad field does not abort the import
+                            // of every model.
                             int maxBits = isStructureOptionSet
-                                ? kMaxDecimalMaskBits
+                                ? int.MaxValue
                                 : GetNumericOptionSetBitCount(input);
                             if (ii.Value < 0 || ii.Value >= maxBits)
                             {
@@ -1040,11 +1026,9 @@ namespace Opc.Ua.Schema.Model
                                 continue;
                             }
 
-                            decimal mask = GetBitMask(ii.Value);
-                            field.BitMask = mask <= ulong.MaxValue
-                                ? ((ulong)mask).ToString("X8", CultureInfo.InvariantCulture)
-                                : null;
-                            field.Identifier = mask;
+                            field.OptionSetBit = ii.Value;
+                            field.BitMask = ModelDesignExtensions.GetOptionSetBitMask(ii.Value);
+                            field.Identifier = ModelDesignExtensions.GetOptionSetMask(ii.Value);
                             field.IdentifierSpecified = true;
                         }
                         else if (output.IsEnumeration)
@@ -3438,10 +3422,6 @@ namespace Opc.Ua.Schema.Model
         /// Placeholder for the (unknown) local server at index 0 of the server
         /// table. The converter has no running server.
         /// </summary>
-        /// <summary>
-        /// The bits a decimal OptionSet mask can represent exactly.
-        /// </summary>
-        private const int kMaxDecimalMaskBits = 96;
 
         private const string kLocalServerUri = "urn:opcfoundation.org:SourceGeneration:LocalServer";
 

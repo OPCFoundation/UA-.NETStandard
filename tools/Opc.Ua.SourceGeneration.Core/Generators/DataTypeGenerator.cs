@@ -300,7 +300,7 @@ namespace Opc.Ua.SourceGeneration
                     DataTypeTemplates.EnumField,
                     dataType.IsOptionSet
                         ? (dataType.Fields ?? []).Where(
-                            f => ModelDesignExtensions.TryGetOptionSetBit(f.Identifier, out _)).ToArray()
+                            f => f.TryGetOptionSetBit(out _)).ToArray()
                         : dataType.Fields ?? [],
                     WriteTemplate_ListOfEnumDefinitionFields);
             }
@@ -386,9 +386,10 @@ namespace Opc.Ua.SourceGeneration
                 // (OPC 10000-3 8.52). The identifier is the single-bit mask
                 // (the validator rejects others) which, for a UInt64 based
                 // OptionSet, can use bit 63 and, for a subtype of the
-                // OptionSet structure, bits beyond 63 - so the position is
-                // derived in decimal, not through a long.
-                ModelDesignExtensions.TryGetOptionSetBit(field.Identifier, out int value);
+                // OptionSet structure, any bit (kept as the explicit bit
+                // position beyond what the decimal mask holds) - so the
+                // position is never derived through a long.
+                field.TryGetOptionSetBit(out int value);
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
                     value);

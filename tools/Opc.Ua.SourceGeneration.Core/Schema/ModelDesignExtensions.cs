@@ -1247,6 +1247,96 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// The bit an OptionSet field names: its explicit
+        /// <see cref="Parameter.OptionSetBit"/> (any position, a subtype of
+        /// the OptionSet structure has no upper bit, OPC 10000-3 8.40) or
+        /// else the bit of its Identifier mask. False for the zero ("no bits
+        /// set") value and a mask of several bits.
+        /// </summary>
+        public static bool TryGetOptionSetBit(this Parameter field, out int bit)
+        {
+            if (field?.OptionSetBit is int explicitBit && explicitBit >= 0)
+            {
+                bit = explicitBit;
+                return true;
+            }
+            bit = 0;
+            return field != null && TryGetOptionSetBit(field.Identifier, out bit);
+        }
+
+        /// <summary>
+        /// The decimal mask of an OptionSet bit, or 0 when the bit is beyond
+        /// what a decimal represents exactly (bit 96 and above); such a bit
+        /// is carried by <see cref="Parameter.OptionSetBit"/>. Computed in
+        /// decimal since a signed shift turns bit 63 into a negative mask.
+        /// </summary>
+        public static decimal GetOptionSetMask(int bit)
+        {
+            if (bit is < 0 or >= kMaxDecimalMaskBits)
+            {
+                return 0;
+            }
+            decimal mask = 1m;
+            for (int ii = 0; ii < bit; ii++)
+            {
+                mask *= 2;
+            }
+            return mask;
+        }
+
+        /// <summary>
+        /// The hexadecimal BitMask of an OptionSet bit (at least 8 digits),
+        /// for any bit position.
+        /// </summary>
+        public static string GetOptionSetBitMask(int bit)
+        {
+            string mask = "1248"[bit % 4] + new string('0', bit / 4);
+            return mask.Length < 8 ? mask.PadLeft(8, '0') : mask;
+        }
+
+        /// <summary>
+        /// The bit a hexadecimal BitMask of any length selects; false when
+        /// the mask is not a single bit.
+        /// </summary>
+        public static bool TryGetOptionSetBitFromBitMask(string bitMask, out int bit)
+        {
+            bit = 0;
+            string mask = bitMask?.Trim().TrimStart('0');
+            if (string.IsNullOrEmpty(mask))
+            {
+                return false;
+            }
+            int zeros = 0;
+            for (int ii = mask.Length - 1; ii > 0; ii--)
+            {
+                if (mask[ii] != '0')
+                {
+                    return false;
+                }
+                zeros++;
+            }
+            int lead = mask[0] switch
+            {
+                '1' => 0,
+                '2' => 1,
+                '4' => 2,
+                '8' => 3,
+                _ => -1
+            };
+            if (lead < 0)
+            {
+                return false;
+            }
+            bit = (zeros * 4) + lead;
+            return true;
+        }
+
+        /// <summary>
+        /// The bits a decimal OptionSet mask can represent exactly.
+        /// </summary>
+        private const int kMaxDecimalMaskBits = 96;
+
+        /// <summary>
         /// The ArrayDimensions a StructureField publishes for the field. A
         /// StructureField ValueRank is -1 or &gt;= 1, never 0 (OPC 10000-3
         /// 8.51), and a multi-dimensional field has at least two dimensions

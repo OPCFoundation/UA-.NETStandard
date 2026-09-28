@@ -266,6 +266,46 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(values, Is.EqualTo(s_bigOptionsValues));
         }
 
+        /// <summary>
+        /// A subtype of the OptionSet structure has no upper bit (OPC 10000-3
+        /// 8.40): bit 130 is published as EnumField value 130.
+        /// </summary>
+        [Test]
+        public void StructureOptionSetUsingBit130Generates()
+        {
+            string model = Model.Replace(
+                "</opc:ModelDesign>",
+                $"""
+                  <opc:DataType SymbolicName="HugeOptions" BaseType="ua:OptionSet" IsOptionSet="true">
+                    <opc:Fields>
+                      <opc:Field Name="H0" Identifier="1" />
+                      <opc:Field Name="H130" BitMask="4{new string('0', 32)}" />
+                      <opc:Field Name="H131" />
+                    </opc:Fields>
+                  </opc:DataType>
+                </opc:ModelDesign>
+                """,
+                StringComparison.Ordinal);
+            string dataTypes = Generate(model)
+                .Single(f => f.Key.EndsWith("DataTypes.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            string[] values =
+            [
+                .. s_hugeOptionsNames.Select(name =>
+                {
+                    int field = dataTypes.IndexOf($"Name = \"{name}\"", StringComparison.Ordinal);
+                    Assert.That(field, Is.GreaterThanOrEqualTo(0), name);
+                    int value = dataTypes.IndexOf("Value = ", field, StringComparison.Ordinal) + 8;
+                    int end = dataTypes.IndexOf(',', value);
+                    return name + "=" + dataTypes[value..end];
+                })
+            ];
+            Assert.That(values, Is.EqualTo(s_hugeOptionsValues));
+        }
+
+        private static readonly string[] s_hugeOptionsNames = ["H0", "H130", "H131"];
+        private static readonly string[] s_hugeOptionsValues = ["H0=0", "H130=130", "H131=131"];
         private static readonly string[] s_bigOptionsNames = ["B0", "B64", "B95"];
         private static readonly string[] s_bigOptionsValues = ["B0=0", "B64=64", "B95=95"];
 

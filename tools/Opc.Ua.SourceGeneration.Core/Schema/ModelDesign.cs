@@ -1510,6 +1510,18 @@ namespace Opc.Ua.Schema.Model
         [XmlIgnore]
         public bool IsInherited { get; set; }
 
+        /// <summary>
+        /// The bit position an OptionSet field names (the EnumField Value,
+        /// OPC 10000-3 8.52), when known as a position rather than through
+        /// the <see cref="Identifier"/> mask. A subtype of the OptionSet
+        /// structure (8.40) has no upper bit, while the decimal Identifier
+        /// only holds masks up to bit 95; for a higher bit the Identifier
+        /// is 0 and this carries the bit. Read the bit with
+        /// <see cref="ModelDesignExtensions.TryGetOptionSetBit(Parameter, out int)"/>.
+        /// </summary>
+        [XmlIgnore]
+        public int? OptionSetBit { get; set; }
+
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
@@ -1532,6 +1544,7 @@ namespace Opc.Ua.Schema.Model
                 Identifier == other.Identifier &&
                 IdentifierSpecified == other.IdentifierSpecified &&
                 BitMask == other.BitMask &&
+                OptionSetBit == other.OptionSetBit &&
                 XmlQualifiedNameEqualityComparer.Default.Equals(DataType, other.DataType) &&
                 ValueRank == other.ValueRank &&
                 ArrayDimensions == other.ArrayDimensions &&
@@ -1551,6 +1564,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(Identifier);
             hash.Add(IdentifierSpecified);
             hash.Add(BitMask);
+            hash.Add(OptionSetBit);
             hash.Add(DataType, XmlQualifiedNameEqualityComparer.Default);
             hash.Add(ValueRank);
             hash.Add(ArrayDimensions);
