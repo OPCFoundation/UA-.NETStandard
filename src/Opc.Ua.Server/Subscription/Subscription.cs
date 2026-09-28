@@ -1732,17 +1732,18 @@ namespace Opc.Ua.Server
                 messages,
                 availableSequenceNumberList,
                 out moreNotifications,
-                out uint evictedMessageCount);
+                out uint discardedMessageCount);
             moreNotifications |= m_itemsToPublish.Count > 0;
 
-            if (evictedMessageCount > 0)
+            if (discardedMessageCount > 0)
             {
-                // Messages evicted from the retransmission queue were discarded before the
-                // client acknowledged them (Part 5 SubscriptionDiagnosticsDataType). The
-                // UnacknowledgedMessageCount is recomputed from the queue by Publish.
+                // Messages dropped unsent on overflow or evicted from the retransmission queue
+                // were discarded before the client acknowledged them (Part 5
+                // SubscriptionDiagnosticsDataType). The UnacknowledgedMessageCount is recomputed
+                // from the queue by Publish.
                 lock (m_diagnosticsLock)
                 {
-                    Diagnostics.DiscardedMessageCount += evictedMessageCount;
+                    Diagnostics.DiscardedMessageCount += discardedMessageCount;
                     MarkDiagnosticsDirty();
                 }
             }
