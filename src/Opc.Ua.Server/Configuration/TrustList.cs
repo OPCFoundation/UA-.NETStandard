@@ -47,6 +47,11 @@ namespace Opc.Ua.Server
         private const int kDefaultTrustListCapacity = 1 * 1024 * 1024;
 
         /// <summary>
+        /// The default <c>ActivityTimeout</c> of OPC 10000-12 §7.8.2.1 in milliseconds.
+        /// </summary>
+        private const double kDefaultActivityTimeout = 60000;
+
+        /// <summary>
         /// The default resource-protection safety ceiling (1&#160;MiB) used to
         /// bound the actually-enforced TrustList size when no explicit ceiling
         /// is supplied and the advertised <c>MaxTrustListSize</c> is 0
@@ -528,6 +533,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            StopActivityTimerNoLock(handle);
             handle.Stream.Dispose();
             m_node.OpenCount!.Value = (ushort)Math.Min(m_handles.Count, ushort.MaxValue);
             return handle.ForWrite;
@@ -555,6 +561,106 @@ namespace Opc.Ua.Server
             {
                 m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
             }
+        }
+
+        /// <summary>
+        /// The <c>ActivityTimeout</c> in milliseconds: the value of the
+        /// node's ActivityTimeout Property, or the 60 000 ms default of
+        /// OPC 10000-12 §7.8.2.1 when it is absent or not positive.
+        /// </summary>
+        internal double ActivityTimeout
+        {
+            get
+            {
+                double timeout = m_node.ActivityTimeout?.Value ?? 0;
+                return timeout > 0 ? timeout : kDefaultActivityTimeout;
+            }
+        }
+
+        /// <summary>
+        /// Closes the handle <paramref name="fileHandle"/> as if its
+        /// <c>ActivityTimeout</c> had elapsed. Exposed for tests; routed
+        /// through the same generation check the timer callback uses.
+        /// </summary>
+        internal void ExpireForInactivity(uint fileHandle)
+        {
+            long generation;
+            lock (m_lock)
+            {
+                if (!m_handles.TryGetValue(fileHandle, out OpenHandle? handle))
+                {
+                    return;
+                }
+                generation = handle.ActivityGeneration;
+            }
+
+            OnActivityTimerExpired(fileHandle, generation);
+        }
+
+        /// <summary>
+        /// Re-arms the <c>ActivityTimeout</c> timer of <paramref name="handle"/>
+        /// (OPC 10000-12 §7.8.2.1: the time since the last Method call on the
+        /// handle). The caller holds <see cref="m_lock"/>.
+        /// </summary>
+        private void RestartActivityTimerNoLock(OpenHandle handle, ISystemContext context)
+        {
+            StopActivityTimerNoLock(handle);
+
+            TimeProvider timeProvider = context is ServerSystemContext serverContext &&
+                serverContext.Server is ITimeProviderProvider provider
+                    ? provider.TimeProvider
+                    : TimeProvider.System;
+            long generation = handle.ActivityGeneration;
+            handle.ActivityTimer = timeProvider.CreateTimer(
+                static state =>
+                {
+                    var activityState = (ActivityTimerState)state!;
+                    activityState.Owner.OnActivityTimerExpired(
+                        activityState.FileHandle,
+                        activityState.Generation);
+                },
+                new ActivityTimerState(this, handle.Id, generation),
+                TimeSpan.FromMilliseconds(ActivityTimeout),
+                Timeout.InfiniteTimeSpan);
+        }
+
+        /// <summary>
+        /// Stops the <c>ActivityTimeout</c> timer of <paramref name="handle"/>
+        /// and supersedes a callback that is already queued. The caller holds
+        /// <see cref="m_lock"/>.
+        /// </summary>
+        private static void StopActivityTimerNoLock(OpenHandle handle)
+        {
+            handle.ActivityGeneration++;
+            handle.ActivityTimer?.Dispose();
+            handle.ActivityTimer = null;
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.8.2.1: when the <c>ActivityTimeout</c> elapses the
+        /// TrustList is closed by the Server and any changes are discarded.
+        /// Ignored when the handle was closed or used since the timer was armed.
+        /// </summary>
+        private void OnActivityTimerExpired(uint fileHandle, long generation)
+        {
+            bool closedWriter;
+            lock (m_lock)
+            {
+                if (!m_handles.TryGetValue(fileHandle, out OpenHandle? handle) ||
+                    handle.ActivityGeneration != generation)
+                {
+                    return;
+                }
+
+                closedWriter = RemoveHandleNoLock(handle);
+            }
+
+            if (closedWriter)
+            {
+                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            }
+
+            m_logger.TrustListHandleClosedAfterInactivity(fileHandle, ActivityTimeout);
         }
 
         /// <summary>
@@ -827,7 +933,9 @@ namespace Opc.Ua.Server
                     }
                     while (fileHandle == 0 || m_handles.ContainsKey(fileHandle));
 
-                    m_handles.Add(fileHandle, new OpenHandle(fileHandle, sessionId, strm, isWriteMode));
+                    var handle = new OpenHandle(fileHandle, sessionId, strm, isWriteMode);
+                    m_handles.Add(fileHandle, handle);
+                    RestartActivityTimerNoLock(handle, context);
                     m_node.OpenCount!.Value = (ushort)Math.Min(m_handles.Count, ushort.MaxValue);
                 }
 
@@ -934,6 +1042,7 @@ namespace Opc.Ua.Server
                 data = ByteString.From(buffer)[..bytesRead];
 
                 handle.TotalBytesProcessed += bytesRead;
+                RestartActivityTimerNoLock(handle, context);
             }
 
             return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
@@ -1014,6 +1123,7 @@ namespace Opc.Ua.Server
 
                 handle.Stream.Write(data.ToArray(), 0, data.Length);
                 handle.TotalBytesProcessed += data.Length;
+                RestartActivityTimerNoLock(handle, context);
             }
 
             return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
@@ -1179,6 +1289,9 @@ namespace Opc.Ua.Server
                     };
                 }
 
+                // The update now runs to completion; the ActivityTimeout must
+                // not close the handle while its content is being applied.
+                StopActivityTimerNoLock(handle);
                 strm = handle.Stream;
             }
 
@@ -2507,6 +2620,34 @@ namespace Opc.Ua.Server
             public bool ForWrite { get; }
 
             public long TotalBytesProcessed { get; set; }
+
+            /// <summary>
+            /// The ActivityTimeout timer; re-armed by every Method call on
+            /// the handle.
+            /// </summary>
+            public ITimer? ActivityTimer { get; set; }
+
+            /// <summary>
+            /// Incremented whenever the timer is re-armed or stopped, so a
+            /// callback of a superseded timer is ignored.
+            /// </summary>
+            public long ActivityGeneration { get; set; }
+        }
+
+        private sealed class ActivityTimerState
+        {
+            public ActivityTimerState(TrustList owner, uint fileHandle, long generation)
+            {
+                Owner = owner;
+                FileHandle = fileHandle;
+                Generation = generation;
+            }
+
+            public TrustList Owner { get; }
+
+            public uint FileHandle { get; }
+
+            public long Generation { get; }
         }
     }
 
@@ -2545,5 +2686,12 @@ namespace Opc.Ua.Server
         public static partial void TrustListAbandonedHandleReleased(
             this ILogger logger,
             NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 5, Level = LogLevel.Information,
+            Message = "Closed the TrustList handle {FileHandle} after {ActivityTimeout} ms of inactivity.")]
+        public static partial void TrustListHandleClosedAfterInactivity(
+            this ILogger logger,
+            uint fileHandle,
+            double activityTimeout);
     }
 }

@@ -33,6 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -400,6 +401,98 @@ namespace Opc.Ua.Server.Tests
                 context, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
             Assert.That(ServiceResult.IsGood(write), Is.True, write.ToString());
             Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.8.2.1: if no Method is called on an open handle for
+        /// ActivityTimeout (default 60 000 ms) the Server closes the TrustList
+        /// and discards the changes, so an idle writer of a live Session does
+        /// not block other Sessions forever.
+        /// </summary>
+        [Test]
+        public void IdleWriteHandleIsClosedAfterActivityTimeout()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var liveSessions = new List<ISession>();
+            var sessionManager = new Mock<ISessionManager>();
+            sessionManager.Setup(manager => manager.GetSessions()).Returns(() => [.. liveSessions]);
+            var writerId = new NodeId(Guid.NewGuid(), 1);
+            var otherId = new NodeId(Guid.NewGuid(), 1);
+            liveSessions.Add(CreateSession(writerId));
+            liveSessions.Add(CreateSession(otherId));
+            ServerSystemContext writer = CreateServerContext(sessionManager.Object, writerId, timeProvider);
+            ServerSystemContext other = CreateServerContext(sessionManager.Object, otherId, timeProvider);
+            Assert.That(trustList.ActivityTimeout, Is.EqualTo(60000));
+
+            uint writeHandle = 0;
+            ServiceResult writeOpen = node.Open.OnCall(
+                writer,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref writeHandle);
+            Assert.That(ServiceResult.IsGood(writeOpen), Is.True);
+
+            // Every Method call on the handle restarts the timeout.
+            timeProvider.Advance(TimeSpan.FromSeconds(50));
+            ServiceResult write = node.Write.OnCall(
+                writer, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
+            Assert.That(ServiceResult.IsGood(write), Is.True, write.ToString());
+            timeProvider.Advance(TimeSpan.FromSeconds(50));
+            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+
+            uint otherHandle = 0;
+            ServiceResult blocked = node.Open.OnCall(
+                other,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref otherHandle);
+            Assert.That(blocked.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+
+            timeProvider.Advance(TimeSpan.FromSeconds(11));
+            Assert.That(node.OpenCount.Value, Is.Zero);
+
+            ServiceResult staleWrite = node.Write.OnCall(
+                writer, node.Write, node.NodeId, writeHandle, ByteString.From(new byte[] { 1 }));
+            Assert.That(staleWrite.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+
+            ServiceResult reopen = node.Open.OnCall(
+                other,
+                node.Open,
+                node.NodeId,
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
+                ref otherHandle);
+            Assert.That(ServiceResult.IsGood(reopen), Is.True, reopen.ToString());
+        }
+
+        [Test]
+        public void ActivityTimeoutPropertyValueIsHonored()
+        {
+            TrustListState node = CreateNode();
+            var systemContext = new SystemContext(m_telemetry)
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+            node.CreateOrReplaceActivityTimeout(systemContext, node);
+            node.ActivityTimeout.Value = 5000;
+            TrustList trustList = CreateTrustList(node);
+            SessionSystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+            Assert.That(trustList.ActivityTimeout, Is.EqualTo(5000));
+
+            uint readHandle = 0;
+            node.Open.OnCall(context, node.Open, node.NodeId, (byte)OpenFileMode.Read, ref readHandle);
+            Assert.That(node.OpenCount.Value, Is.EqualTo((ushort)1));
+
+            trustList.ExpireForInactivity(readHandle);
+            Assert.That(node.OpenCount.Value, Is.Zero);
+            ByteString data = default;
+            ServiceResult read = node.Read.OnCall(
+                context, node.Read, node.NodeId, readHandle, 16, ref data);
+            Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -2338,9 +2431,16 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
-        private ServerSystemContext CreateServerContext(ISessionManager sessionManager, NodeId sessionId)
+        private ServerSystemContext CreateServerContext(
+            ISessionManager sessionManager,
+            NodeId sessionId,
+            TimeProvider timeProvider = null)
         {
             var server = new Mock<IServerInternal>();
+            if (timeProvider != null)
+            {
+                server.As<ITimeProviderProvider>().Setup(s => s.TimeProvider).Returns(timeProvider);
+            }
             server.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             server.Setup(s => s.ServerUris).Returns(new StringTable());
             server.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
