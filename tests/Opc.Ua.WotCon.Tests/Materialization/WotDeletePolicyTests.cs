@@ -657,7 +657,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task FailedReloadKeepsRetiredResourceStateAndBindingsInactive()
+        public async Task FailedRetirementPreparationKeepsResourcesAndBindingsActiveForRetry()
         {
             var binders = new RecordingDeleteBinderRegistry();
             m_coordinator.Dispose();
@@ -668,13 +668,37 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 documentConverter: m_converter);
             await RegisterModelAndInstanceAsync();
             m_host.FailNextReload = true;
+            WotRegistrySnapshot before = m_registry.Current;
+            WotCommittedPublicationState published = m_coordinator.CommittedPublication;
+            var registrations = m_runtime!.Lifecycle.Registrations;
+            int operations = m_host.Operations.Count;
+            int activated = binders.ActivatedPlans.Count;
 
-            WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(new WotDeleteRequest
+            var request = new WotDeleteRequest
             {
                 GroupId = WotRegistryGroups.ThingModels,
                 ResourceId = "tm-a",
                 Policy = WoTDeletePolicyEnum.Retire
+            };
+            await Assert.ThatAsync(async () => await m_coordinator.DeleteAsync(request).ConfigureAwait(false),
+                Throws.TypeOf<IOException>().With.Message.EqualTo("Injected projection reload failure."))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_registry.Current, Is.SameAs(before));
+                Assert.That(m_coordinator.CommittedPublication, Is.SameAs(published));
+                Assert.That(m_runtime.Lifecycle.Registrations, Is.EqualTo(registrations));
+                Assert.That(m_host.Operations, Has.Count.EqualTo(operations));
+                Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(activated));
+                Assert.That(binders.DeactivatedPlans, Is.Empty);
+                Assert.That(ModelResource()!.Enabled, Is.True);
+                Assert.That(ModelResource()!.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(ModelResource()!.ActiveVersionId,
+                    Is.EqualTo(before.FindResource(WotRegistryGroups.ThingModels, "tm-a")!.ActiveVersionId));
+                Assert.That(m_coordinator.Generation, Is.EqualTo(before.RefreshGeneration));
             });
+            WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(request).ConfigureAwait(false);
             WotRefreshResult retry = await m_coordinator.RefreshAsync(
                 new WotRefreshRequest());
 
@@ -682,8 +706,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.Multiple(() =>
             {
                 Assert.That(outcome.Delete.Retired, Is.True);
-                Assert.That(outcome.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(outcome.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
                 Assert.That(outcome.Summary.Retired, Is.EqualTo(1));
+                Assert.That(outcome.Generation, Is.EqualTo(before.RefreshGeneration + 1));
                 Assert.That(retired.Enabled, Is.False);
                 Assert.That(retired.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
                 Assert.That(retired.ActiveVersionId, Is.Null);
@@ -694,6 +719,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     binders.ActivatedPlans.Count(plan => plan.ResourceXid == ModelXid),
                     Is.EqualTo(1));
                 Assert.That(retry.Summary.Retired, Is.Zero);
+                Assert.That(retry.NewGeneration, Is.EqualTo(outcome.Generation));
+                Assert.That(retry.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
             });
         }
 
