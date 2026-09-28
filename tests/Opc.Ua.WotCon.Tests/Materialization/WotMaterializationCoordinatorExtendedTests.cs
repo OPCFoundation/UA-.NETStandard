@@ -275,7 +275,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task OversizedResolverResponseIsReportedAsBindingFailure()
+        public async Task OversizedResolverResponseFailsDependencyResolutionBeforePublication()
         {
             var events = new List<WotMaterializationEventArgs>();
             var resolver = new RecordingResolver(_ => new MemoryStream(new byte[16]));
@@ -294,11 +294,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+                Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(result.Results.Single().Phase, Is.EqualTo(WoTPhaseEnum.DependencyResolution));
+                Assert.That(result.Results.Single().Message, Does.Contain("urn:oversized").And.Contain("exceeded 8"));
                 Assert.That(resolver.RequestedNamespaces, Does.Contain("urn:oversized"));
+                Assert.That(m_host.Operations, Is.Empty);
+                Assert.That(result.NewGeneration, Is.Zero);
+                Assert.That(m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!
+                    .RootNodeId.IsNull, Is.True);
                 Assert.That(
                     events.Any(e =>
-                        e.Kind == WotMaterializationEventKind.BindingFailure &&
+                        e.Kind == WotMaterializationEventKind.LoadFailure &&
+                        e.Phase == WoTPhaseEnum.DependencyResolution &&
+                        e.ResourceId == "td-a" && e.Generation == 0 &&
                         e.Reason.Contains("exceeded", StringComparison.Ordinal)),
                     Is.True);
             });
