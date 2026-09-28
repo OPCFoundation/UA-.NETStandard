@@ -1,9 +1,12 @@
 # Dependency Injection
 
-This document describes the unified `Microsoft.Extensions.DependencyInjection`
-surface for the OPC UA .NET Standard libraries. The surface is rooted in
-a single `services.AddOpcUa()` call that returns an `IOpcUaBuilder` on
-which every feature library hangs its own fluent `.AddXxx(...)` extension.
+This guide describes the unified `Microsoft.Extensions.DependencyInjection`
+surface for OPC UA .NET Standard libraries. Start with
+`services.AddOpcUa()`, which returns an `IOpcUaBuilder`. Feature libraries
+extend the builder with their own fluent `.AddXxx(...)` methods.
+For a complete, runnable client and server, see
+[Getting started](GettingStarted.md); this guide is the reference for the
+builder extensions.
 
 The dependency injection surface is consistent across:
 
@@ -23,12 +26,59 @@ The dependency injection surface is consistent across:
   `src/Opc.Ua.PubSub.Server`) — see [`PubSub.md`](PubSub.md)
   for the full library reference.
 
-The non-dependency-injection public constructors and factories of every library
-(`new ApplicationInstance(telemetry)`, `new StandardServer(telemetry)`,
-`new LdsServer(telemetry)`, `new ManagedSession(...)` etc.) remain
-unchanged. Use dependency injection when you want the .NET Generic Host to own application
-lifetime, logging, and configuration; use the manual constructors when
-you need finer control.
+Public constructors and factories remain available for applications that do
+not use dependency injection. Examples include `new ApplicationInstance(telemetry)`,
+`new StandardServer(telemetry)`, `new LdsServer(telemetry)`, and
+`new ManagedSession(...)`. Use dependency injection when you want the .NET
+Generic Host to manage application lifetime, logging, and configuration. Use
+the manual constructors when you need finer control.
+
+## Contents
+
+- [Quick reference](#quick-reference)
+- [Root: `services.AddOpcUa()`](#root-servicesaddopcua)
+  - [Buffer managers](#buffer-managers)
+- [Shared application configuration](#shared-application-configuration)
+  - [Application identity and certificate defaults](#application-identity-and-certificate-defaults)
+  - [Advanced application certificate validation](#advanced-application-certificate-validation)
+- [Options binding](#options-binding)
+- [Server feature](#server-feature)
+  - [Server metadata](#server-metadata)
+  - [Node-manager factories](#node-manager-factories)
+  - [Post-startup tasks](#post-startup-tasks)
+  - [Alias-name stores and standard browse nodes](#alias-name-stores-and-standard-browse-nodes)
+  - [Localized resources](#localized-resources)
+  - [Migrating with an existing configuration XML file](#migrating-with-an-existing-configuration-xml-file)
+  - [Server security and resource controls](#server-security-and-resource-controls)
+  - [First-class server options](#first-class-server-options)
+  - [Committed session bindings](#committed-session-bindings)
+  - [Server-side reverse connect](#server-side-reverse-connect)
+  - [Operation limits](#operation-limits)
+  - [User token policies](#user-token-policies)
+  - [Identity (server)](#identity-server)
+  - [Fluent shortcuts and one-shot presets](#fluent-shortcuts-and-one-shot-presets)
+  - [Positioning](#positioning)
+  - [Robotics](#robotics)
+- [Client feature](#client-feature)
+  - [Client: using an existing configuration XML file](#client-using-an-existing-configuration-xml-file)
+  - [Client: loading the configuration eagerly](#client-loading-the-configuration-eagerly)
+  - [Fluent shortcuts](#fluent-shortcuts)
+  - [Identity (client)](#identity-client)
+- [Complex types](#complex-types)
+- [Alarms and conditions](#alarms-and-conditions)
+- [Client-side reverse connect](#client-side-reverse-connect)
+- [Channel manager](#channel-manager)
+- [Application instance (advanced)](#application-instance-advanced)
+- [GDS Client](#gds-client)
+- [GDS Server](#gds-server)
+  - [Identity (GDS server)](#identity-gds-server)
+- [LDS Server](#lds-server)
+- [WoT Connectivity Server](#wot-connectivity-server)
+- [WoT Connectivity Client](#wot-connectivity-client)
+- [Combined hosts](#combined-hosts)
+- [Native AOT](#native-aot)
+- [Telemetry](#telemetry)
+- [See also](#see-also)
 
 ## Quick reference
 
@@ -231,12 +281,15 @@ When both features are registered, the shared configuration has `ApplicationType
 | `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the per-user local application-data directory (`Environment.SpecialFolder.LocalApplicationData`). The shared temporary directory is not used, because other local users could pre-create it. Configuration fails if no application-data directory is available. When certificate stores of an earlier version (which defaulted to the temporary directory) exist but the new default does not, a warning names both paths: configure `PkiRoot` or move the stores to keep the existing application certificate. Configure a persistent, access-controlled location in production. |
 | Application certificates and stores | Directory-backed application, trusted peer/issuer, HTTPS, user, and rejected stores are created below `PkiRoot`; default RSA and supported ECC application-certificate identifiers are selected. |
 
-The security builder starts with secure defaults: unknown certificates are not
-auto-accepted, the application certificate is not copied into a shared trusted
-store, SHA-1 certificates and unknown revocation status are rejected, nonce
-validation errors are not suppressed, certificate chains are sent, the minimum
-RSA key size is 2048, and at most five rejected certificates are retained.
-Validated-certificate caching is off unless enabled explicitly.
+The security builder uses these secure defaults:
+
+- It does not auto-accept unknown certificates or copy the application
+  certificate into a shared trusted store.
+- It rejects SHA-1 certificates and unknown revocation status.
+- It does not suppress nonce-validation errors.
+- It sends certificate chains and requires an RSA key size of at least 2048.
+- It retains at most five rejected certificates.
+- It disables validated-certificate caching unless explicitly enabled.
 
 ### Advanced application certificate validation
 
@@ -642,21 +695,24 @@ subclass works too:
 builder.Services.AddOpcUa().AddServer<MyServer>("MyServer.Config.xml");
 ```
 
-On this path the file is authoritative: the `OpcUaServerOptions` knobs
-that feed the configuration builder (`ApplicationName`, `EndpointUrls`,
-`PkiRoot`, policy toggles, transport quotas, `ReverseConnect`,
-`ConfigureBuilder`, ...)
-are not applied, and the file also takes precedence over a shared
-application registered with `ConfigureApplication(...)`. Options that
-act on the hosted server itself (`Identity`, `ConfigureRateLimits`) and
-runtime registrations (`AddNodeManager`, `AddNodeManagers`, startup tasks,
-authenticators, metadata, resources, and alias settings) keep working.
-Configuration-building shortcuts such as `AddReverseConnect` and
-`ConfigureOperationLimits` do not override file settings. To override
-individual file settings from code, use `ConfigureLoadedConfiguration`,
-also exposed as the optional `AddServer` callback below. It runs after
-the file is loaded and validated but before certificates are checked
-and the server starts:
+On this path, the file is authoritative and takes precedence over any
+application registered with `ConfigureApplication(...)`. The file also
+overrides configuration-builder settings from `OpcUaServerOptions`, including:
+
+- `ApplicationName`, `EndpointUrls`, and `PkiRoot`
+- Security-policy toggles and transport quotas
+- `ReverseConnect` and `ConfigureBuilder`
+
+Hosted-server settings such as `Identity` and `ConfigureRateLimits` still
+apply, as do runtime registrations such as node managers, startup tasks,
+authenticators, metadata, resources, and alias settings. Configuration
+shortcuts such as `AddReverseConnect` and `ConfigureOperationLimits` do not
+override file settings.
+
+To override individual file settings in code, use
+`ConfigureLoadedConfiguration`, also available through the optional
+`AddServer` callback below. It runs after the file is loaded and validated,
+but before the server checks certificates or starts:
 
 ```csharp
 builder.Services
@@ -1883,7 +1939,7 @@ services.AddOpcUa()
 
 - [Sessions](Sessions.md) — `ManagedSession`, reconnect, subscription engines.
 - [Source Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — `IAsyncNodeManagerFactory` from a model design XML.
-- [Native AOT](NativeAoT.md) — AOT testing setup.
+- [Native AOT](NativeAoT.md) — publishing applications and the AOT test harness.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
 - [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.

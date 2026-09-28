@@ -3060,6 +3060,53 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// Tests GetClassName with a child method that declares its arguments inline.
+        /// Input: MethodDesign child of an ObjectType, no TypeDefinition, with arguments.
+        /// Expected: References use the base MethodState because no typed class is
+        /// generated; the declaration name keeps the typed class name.
+        /// </summary>
+        [Test]
+        public void GetClassName_InlineMethodWithArguments_ReferencesBaseMethodState()
+        {
+            // Arrange
+            var mockMethod = new MethodDesign
+            {
+                SymbolicId = new XmlQualifiedName("ThermostatType_Boost", "http://test.org"),
+                SymbolicName = new XmlQualifiedName("Boost", "http://test.org"),
+                TypeDefinition = null,
+                HasArguments = true,
+                InputArguments =
+                [
+                    new Parameter
+                    {
+                        Name = "Degrees",
+                        DataType = new XmlQualifiedName("Double", "http://opcfoundation.org/UA/")
+                    }
+                ]
+            };
+            Namespace[] namespaces = [];
+
+            // Act
+            string reference = mockMethod.GetNodeStateClassName("http://test.org", namespaces);
+            string factory = mockMethod.GetNodeStateClassName(
+                "http://test.org",
+                namespaces,
+                asFactory: true);
+            string declaration = mockMethod.GetNodeStateClassName(
+                "http://test.org",
+                namespaces,
+                applyStandardFallback: false);
+
+            // Assert
+            Assert.Multiple(() =>
+            {
+                Assert.That(reference, Is.EqualTo("global::Opc.Ua.MethodState"));
+                Assert.That(factory, Is.EqualTo("new global::Opc.Ua.MethodState"));
+                Assert.That(declaration, Is.EqualTo("BoostMethodState"));
+            });
+        }
+
+        /// <summary>
         /// Tests GetClassName with a MethodDesign that has TypeDefinition not ending with Type suffixes and has arguments.
         /// Input: MethodDesign with TypeDefinition not ending in "Type" or "MethodType", HasArguments=true.
         /// Expected: Returns "{className}MethodState" where className is from TypeDefinition.

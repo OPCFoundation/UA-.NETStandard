@@ -81,6 +81,10 @@ namespace Opc.Ua.Client
                 => m_session.OperationTimeout;
 
             /// <inheritdoc/>
+            public double SessionTimeout
+                => m_session.SessionTimeout;
+
+            /// <inheritdoc/>
             public ServerState ServerState
                 => m_session.m_serverState;
 
