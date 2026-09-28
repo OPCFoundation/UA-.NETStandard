@@ -7316,7 +7316,9 @@ namespace Opc.Ua.Server.Tests
                         request => request.StartTime == filter.StartTime &&
                             request.EndTime == now.UtcDateTime &&
                             request.IsForward &&
-                            request.ReturnBounds),
+                            request.ReturnBounds &&
+                            // no provider limit: the page is still bounded by the priming cap.
+                            request.PageLimit == 100_001u),
                     It.IsAny<HistorianResumeToken>(),
                     It.IsAny<CancellationToken>()),
                 Times.Exactly(2));

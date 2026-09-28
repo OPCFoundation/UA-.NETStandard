@@ -8425,6 +8425,11 @@ namespace Opc.Ua.Server
                 StartTime = aggregateFilter.StartTime,
                 EndTime = utcNow,
                 MaxValues = capabilities.MaxReturnDataValues,
+                // Never let the provider materialise more than the priming cap in one
+                // page: MaxReturnDataValues may be zero (no provider limit).
+                PageLimit = capabilities.MaxReturnDataValues > 0
+                    ? Math.Min(capabilities.MaxReturnDataValues, kMaxInitialHistoryPageLimit)
+                    : kMaxInitialHistoryPageLimit,
                 IsForward = true,
                 ReturnBounds = true
             };
@@ -10429,6 +10434,11 @@ namespace Opc.Ua.Server
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;
         private const int kMaxInitialHistoryValues = 100_000;
+
+        /// <summary>
+        /// One value more than the priming cap, so a page that reaches it still trips the cap.
+        /// </summary>
+        private const uint kMaxInitialHistoryPageLimit = kMaxInitialHistoryValues + 1;
     }
 
     /// <summary>
