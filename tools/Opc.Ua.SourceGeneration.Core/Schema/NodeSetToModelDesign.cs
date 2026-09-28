@@ -902,6 +902,29 @@ namespace Opc.Ua.Schema.Model
             return mask;
         }
 
+        /// <summary>
+        /// The number of bits a numeric OptionSet can use: the width of the
+        /// integer type it derives from (OPC 10000-3 5.8.2). A type that only
+        /// derives from the abstract UInteger/Integer is allowed the 64 bits of
+        /// the widest one.
+        /// </summary>
+        private int GetNumericOptionSetBitCount(UADataType dataType)
+        {
+            if (IsTypeOf(dataType, DataTypeIds.Byte) || IsTypeOf(dataType, DataTypeIds.SByte))
+            {
+                return 8;
+            }
+            if (IsTypeOf(dataType, DataTypeIds.UInt16) || IsTypeOf(dataType, DataTypeIds.Int16))
+            {
+                return 16;
+            }
+            if (IsTypeOf(dataType, DataTypeIds.UInt32) || IsTypeOf(dataType, DataTypeIds.Int32))
+            {
+                return 32;
+            }
+            return 64;
+        }
+
         private void UpdateDataTypeDesign(UADataType input, DataTypeDesign output)
         {
             if (input == null || output == null)
@@ -991,15 +1014,20 @@ namespace Opc.Ua.Schema.Model
                         if (output.IsOptionSet)
                         {
                             // The Value of an OptionSet field is its bit
-                            // position. It defaults to -1 when absent. A
-                            // numeric OptionSet is at most a UInt64, while a
-                            // subtype of the OptionSet structure carries its
-                            // bits in a ByteString and may use any position
-                            // (up to the 96 bits a decimal mask can hold). A
+                            // position (OPC 10000-3 8.52). It defaults to -1
+                            // when absent. A numeric OptionSet can only use the
+                            // bits of its base integer type (OPC 10000-3 5.8.2:
+                            // 8 for a Byte, 32 for a UInt32, ...), while a
+                            // subtype of the OptionSet structure (8.40) carries
+                            // its bits in a ByteString with no upper bound; the
+                            // design Parameter.Identifier that holds the mask is
+                            // an xs:decimal, which limits those to 96 bits. A
                             // field without a usable position is reported and
                             // left out, so one bad field does not abort the
                             // import of every model.
-                            int maxBits = isStructureOptionSet ? kMaxDecimalMaskBits : 64;
+                            int maxBits = isStructureOptionSet
+                                ? kMaxDecimalMaskBits
+                                : GetNumericOptionSetBitCount(input);
                             if (ii.Value < 0 || ii.Value >= maxBits)
                             {
                                 m_logger.LogError(
@@ -1108,7 +1136,9 @@ namespace Opc.Ua.Schema.Model
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
             output.ArrayDimensions = ImportArrayDimensions(input.ValueRank, input.ArrayDimensions);
-            output.MinimumSamplingInterval = ImportMinimumSamplingInterval(input.MinimumSamplingInterval);
+            output.MinimumSamplingInterval = ImportMinimumSamplingInterval(
+                input.MinimumSamplingInterval,
+                input.BrowseName);
             output.MinimumSamplingIntervalSpecified = true;
             output.Historizing = input.Historizing;
             output.HistorizingSpecified = input.Historizing;
@@ -3280,20 +3310,30 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
-        /// The design schema carries MinimumSamplingInterval as whole
-        /// milliseconds. Round a fractional interval up: truncating 0.5 to 0
-        /// would turn "at least 0.5 ms" into "continuous / exception based".
+        /// OPC 10000-3 5.6.2: MinimumSamplingInterval is a Duration in ms where
+        /// 0 means "continuous / exception based" and -1 "indeterminate"; no
+        /// other negative value (and no NaN) is defined. The design schema
+        /// carries the interval as an xs:int of whole milliseconds, so a
+        /// fractional interval cannot be kept exactly: it is rounded up, since
+        /// truncating 0.5 to 0 would turn "at least 0.5 ms" into "continuous".
+        /// An undefined value is imported as -1 (indeterminate) with a warning,
+        /// never as 0, which would claim continuous sampling.
         /// </summary>
-        private static int ImportMinimumSamplingInterval(double input)
+        private int ImportMinimumSamplingInterval(double input, string browseName)
         {
-            if (double.IsNaN(input))
+            if (input == 0 || input == -1)
             {
-                return 0;
+                return (int)input;
             }
-            if (input <= 0)
+            if (double.IsNaN(input) || input < 0)
             {
-                // -1 (indeterminate) and 0 (continuous) are carried unchanged.
-                return input <= int.MinValue ? int.MinValue : (int)input;
+                m_logger.LogWarning(
+                    "Variable '{BrowseName}' has an invalid MinimumSamplingInterval ({Value}); " +
+                    "only -1 (indeterminate), 0 (continuous) or a positive duration are defined. " +
+                    "It is imported as -1 (indeterminate).",
+                    browseName,
+                    input);
+                return -1;
             }
 
             double rounded = Math.Ceiling(input);

@@ -241,6 +241,7 @@ namespace Opc.Ua.Schema.Model.Tests
         private static readonly string[] s_counter = ["Counter"];
         private static readonly string[] s_shared = ["Shared"];
         private static readonly string[] s_optionB = ["B"];
+        private static readonly string[] s_optionLast = ["Last"];
         private static readonly decimal[] s_bigOptionMasks = [1m, 18446744073709551616m, 39614081257132168796771975168m];
         private static readonly decimal[] s_flagMasks = [1m, 9223372036854775808m];
         private static readonly string[] s_flagBitMasks = ["00000001", "8000000000000000"];
@@ -326,6 +327,14 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("100", 100)]
         [TestCase("-1", -1)]
         [TestCase("0", 0)]
+        [TestCase("12.5", 13)]
+        // N3b (OPC 10000-3 5.6.2): only -1 and 0 are defined special values;
+        // NaN and other negatives were imported as 0 ("continuous") and are
+        // now -1 ("indeterminate").
+        [TestCase("-0.5", -1)]
+        [TestCase("-5", -1)]
+        [TestCase("NaN", -1)]
+        [TestCase("-INF", -1)]
         public void ImportMinimumSamplingIntervalRoundsUp(string interval, int expected)
         {
             Import(
@@ -428,6 +437,49 @@ namespace Opc.Ua.Schema.Model.Tests
 
             Assert.That(dataType.Fields.Select(x => x.Name), Is.EqualTo(s_optionB));
             Assert.That(dataType.Fields[0].Identifier, Is.EqualTo(2m));
+        }
+
+        /// <summary>
+        /// N6b (OPC 10000-3 5.8.2, 8.52): a numeric OptionSet can only use the
+        /// bits of its base integer type. Bit 8 of a Byte OptionSet and bit 40
+        /// of a UInt32 OptionSet were accepted (up to 63 for every numeric
+        /// OptionSet) although they cannot be encoded.
+        /// </summary>
+        [TestCase(3u, "Byte", 7, 8)]
+        [TestCase(2u, "SByte", 7, 8)]
+        [TestCase(5u, "UInt16", 15, 16)]
+        [TestCase(7u, "UInt32", 31, 40)]
+        [TestCase(9u, "UInt64", 63, 64)]
+        public void ImportNumericOptionSetBitIsLimitedToTheBaseTypeWidth(
+            uint baseTypeId,
+            string baseTypeName,
+            int lastValidBit,
+            int invalidBit)
+        {
+            Import(
+                $"""
+                <UADataType NodeId="i={baseTypeId}" BrowseName="{baseTypeName}">
+                    <DisplayName>{baseTypeName}</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
+                    </References>
+                </UADataType>
+                <UADataType NodeId="ns=1;i=3003" BrowseName="1:NarrowFlags">
+                    <DisplayName>NarrowFlags</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i={baseTypeId}</Reference>
+                    </References>
+                    <Definition Name="1:NarrowFlags" IsOptionSet="true">
+                        <Field Name="Last" Value="{lastValidBit}" />
+                        <Field Name="TooWide" Value="{invalidBit}" />
+                    </Definition>
+                </UADataType>
+                """,
+                out NodeSetReaderSettings settings);
+
+            var dataType = (DataTypeDesign)settings.NodesById[new NodeId(3003u, 1)];
+
+            Assert.That(dataType.Fields.Select(x => x.Name), Is.EqualTo(s_optionLast));
         }
 
         /// <summary>
