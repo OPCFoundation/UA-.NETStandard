@@ -520,14 +520,17 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         if (targetHandle != null && targetNodeManager != null)
                         {
-                            // role permissions and access restrictions (Part 3 8.56).
-                            ServiceResult serviceResult = await ValidatePermissionsAsync(
+                            // role permissions and access restrictions (Part 3 8.56). The
+                            // metadata is always read, so a target whose metadata cannot be
+                            // resolved is dropped even for requests without a session.
+                            (ServiceResult serviceResult, _) = await ValidatePermissionsAndGetMetadataAsync(
                                     context,
                                     targetNodeManager,
                                     targetHandle,
                                     PermissionType.Browse,
                                     null,
                                     true,
+                                    metadataRequired: true,
                                     cancellationToken)
                                 .ConfigureAwait(false);
                             if (ServiceResult.IsBad(serviceResult))
