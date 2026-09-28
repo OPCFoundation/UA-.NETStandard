@@ -43,7 +43,10 @@ namespace Opc.Ua.PubSub.Security.Policies
     /// Part 14 §7.2.4.4.3.1 PubSub security policies</see>. Key sizes,
     /// nonce length and signature length are fixed by the spec:
     /// 32-byte HMAC-SHA-256 signing key, 32-byte AES-256 encrypting
-    /// key, 12-byte message nonce and a 32-byte HMAC tag.
+    /// key, 4-byte KeyNonce, 8-byte SecurityHeader nonce (Table 157)
+    /// and a 32-byte HMAC tag. <see cref="Encrypt"/> and
+    /// <see cref="Decrypt"/> take the 12-byte counter block prefix
+    /// <c>KeyNonce || MessageNonce</c>.
     /// </remarks>
     public sealed class PubSubAes256CtrPolicy : IPubSubSecurityPolicy
     {
@@ -93,7 +96,7 @@ namespace Opc.Ua.PubSub.Security.Policies
         public int EncryptingKeyLength => 32;
 
         /// <inheritdoc/>
-        public int NonceLength => 12;
+        public int NonceLength => AesCtrNonceLayout.NonceLength;
 
         /// <inheritdoc/>
         public int SignatureLength => 32;

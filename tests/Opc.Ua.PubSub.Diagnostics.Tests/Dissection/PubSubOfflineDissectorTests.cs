@@ -258,7 +258,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Dissection
                 policy.PolicyUri,
                 policy.SigningKeyLength,
                 policy.EncryptingKeyLength,
-                policy.NonceLength);
+                AesCtrNonceLayout.KeyNonceLength);
             using PubSubSecurityKeyRing ring = new(material.SecurityGroupId);
             using PubSubSecurityKey securityKey = new(
                 material.TokenId,

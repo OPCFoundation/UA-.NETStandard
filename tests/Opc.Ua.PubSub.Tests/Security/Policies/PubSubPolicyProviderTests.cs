@@ -30,6 +30,7 @@
 using System;
 using System.Security.Cryptography;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
 
 namespace Opc.Ua.PubSub.Tests.Security.Policies
@@ -58,7 +59,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
 
             byte[] signingKey = new byte[withProvider.SigningKeyLength];
             byte[] encryptingKey = new byte[withProvider.EncryptingKeyLength];
-            byte[] nonce = new byte[withProvider.NonceLength];
+            byte[] nonce = new byte[AesCtrNonceLayout.CounterNonceLength];
             byte[] plaintext = new byte[93];
             Fill(signingKey);
             Fill(encryptingKey);
@@ -129,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
             var platform = new PubSubAes256CtrPolicy();
 
             byte[] encryptingKey = new byte[policy.EncryptingKeyLength];
-            byte[] nonce = new byte[policy.NonceLength];
+            byte[] nonce = new byte[AesCtrNonceLayout.CounterNonceLength];
             byte[] plaintext = new byte[32];
             Fill(encryptingKey);
             Fill(nonce);

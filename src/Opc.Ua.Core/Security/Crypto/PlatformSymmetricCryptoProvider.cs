@@ -382,8 +382,10 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// The counter block is the twelve byte nonce followed by a big endian
-        /// thirty two bit block counter starting at one, which is the layout
-        /// Part 14 §7.2.4.4.3.2 (Table 157) requires, following RFC 3686.
+        /// thirty two bit block counter starting at one, following RFC 3686.
+        /// For PubSub the caller passes KeyNonce[4] || MessageNonce[8] as the
+        /// nonce, which gives the layout Part 14 §7.2.4.4.3.2 (Table 157)
+        /// requires.
         /// </remarks>
         private static void TransformCtr(
             ReadOnlySpan<byte> key,

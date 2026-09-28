@@ -47,10 +47,10 @@ namespace Opc.Ua.PubSub.Security.Internal
     /// Part 14 §7.2.4.4.3.1 PubSub security policies</see> and the nonce
     /// layout from
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3.2">
-    /// Part 14 §7.2.4.4.3.2 (Table 156)</see>. The 16-byte counter block
-    /// is composed of the 12-byte <c>MessageNonce</c> followed by a
-    /// big-endian 32-bit block counter starting at zero, as specified by
-    /// NIST SP 800-38A §6.5.
+    /// Part 14 §7.2.4.4.3.2 (Table 157)</see>. The 16-byte counter block
+    /// is <c>KeyNonce[4] || MessageNonce[8]</c> followed by a big-endian
+    /// 32-bit block counter starting at one; the caller passes the first
+    /// 12 bytes. This is the RFC 3686 layout (Nonce || IV || Counter).
     /// </remarks>
     internal static class AesCtrTransform
     {
@@ -60,18 +60,19 @@ namespace Opc.Ua.PubSub.Security.Internal
         public const int BlockSize = 16;
 
         /// <summary>
-        /// Length of the spec-mandated AES-CTR nonce in bytes.
+        /// Length of the counter block prefix <c>KeyNonce || MessageNonce</c>
+        /// in bytes.
         /// </summary>
         public const int NonceLength = 12;
 
         /// <summary>
         /// Encrypts or decrypts <paramref name="input"/> using AES-CTR
         /// where the initial counter is composed of the spec layout
-        /// <c>nonce(12) || blockCounter(4 BE)</c> with the block counter
+        /// <c>KeyNonce(4) || MessageNonce(8) || blockCounter(4 BE)</c> with the block counter
         /// starting at one (OPC 10000-14 7.2.4.4.3.2, Table 157, following RFC 3686).
         /// </summary>
         /// <param name="key">AES key (16, 24 or 32 bytes).</param>
-        /// <param name="nonce">12-byte message nonce.</param>
+        /// <param name="nonce">12-byte <c>KeyNonce || MessageNonce</c>.</param>
         /// <param name="input">Plaintext or ciphertext.</param>
         /// <param name="output">
         /// Destination buffer; must be at least <c>input.Length</c>
