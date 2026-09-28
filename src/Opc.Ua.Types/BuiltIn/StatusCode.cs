@@ -932,6 +932,7 @@ namespace Opc.Ua
                 StatusCodes.BadAttributeIdInvalid,
                 StatusCodes.BadIndexRangeInvalid,
                 StatusCodes.BadIndexRangeNoData,
+                StatusCodes.BadIndexRangeDataMismatch,
                 StatusCodes.BadDataEncodingInvalid,
                 StatusCodes.BadDataEncodingUnsupported,
                 StatusCodes.BadNotReadable,

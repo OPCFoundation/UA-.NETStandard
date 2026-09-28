@@ -1185,13 +1185,13 @@ namespace Opc.Ua.Types.Tests.Utils
         }
 
         [Test]
-        public void UpdateRangeStringReturnsNoDataForWrongSourceLength()
+        public void UpdateRangeStringReturnsDataMismatchForWrongSourceLength()
         {
             Variant dst = "Hello";
             Variant src = "xyz"; // length 3 != Count 2
             var range = new NumericRange(1, 2);
             StatusCode result = range.UpdateRange(ref dst, src);
-            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
         }
 
         [Test]
@@ -1231,13 +1231,13 @@ namespace Opc.Ua.Types.Tests.Utils
         }
 
         [Test]
-        public void UpdateRangeArrayReturnsNoDataForWrongSourceLength()
+        public void UpdateRangeArrayReturnsDataMismatchForWrongSourceLength()
         {
             var dst = Variant.From([10, 20, 30, 40, 50]);
             var src = Variant.From([99, 98]); // length 2 != Count 3
             var range = new NumericRange(1, 3);
             StatusCode result = range.UpdateRange(ref dst, src);
-            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
         }
 
         [Test]
@@ -1314,13 +1314,13 @@ namespace Opc.Ua.Types.Tests.Utils
         }
 
         [Test]
-        public void UpdateRangeByteStringReturnsInvalidForWrongSourceLength()
+        public void UpdateRangeByteStringReturnsDataMismatchForWrongSourceLength()
         {
             Variant dst = ByteString.From(new byte[] { 0x01, 0x02, 0x03 });
             Variant src = ByteString.From(new byte[] { 0xAA, 0xBB, 0xCC }); // length 3 != Count 2
             var range = new NumericRange(0, 1);
             StatusCode result = range.UpdateRange(ref dst, src);
-            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
         }
 
         [Test]
@@ -1841,15 +1841,22 @@ namespace Opc.Ua.Types.Tests.Utils
         /// <summary>
         /// A write must be rejected (not throw) when the range begins far
         /// beyond the matrix or the slice does not match the range size
-        /// (Part 4 7.27).
+        /// (Part 4 7.27). A slice whose size differs from the range is
+        /// Bad_IndexRangeDataMismatch (Part 4 5.11.4.4); a matching slice
+        /// that does not fit the matrix is Bad_IndexRangeNoData.
         /// </summary>
-        [TestCase("2147483646:2147483647,0:1")]
-        [TestCase("0:1,2147483646:2147483647")]
-        [TestCase("0:1,0")]
-        [TestCase("0,0:1")]
-        [TestCase("1:2,1:2")]
-        public void UpdateRangeMatrixOfRejectsSliceNotMatchingRange(string range)
+        [TestCase("2147483646:2147483647,0:1", false)]
+        [TestCase("0:1,2147483646:2147483647", false)]
+        [TestCase("0:1,0", true)]
+        [TestCase("0,0:1", true)]
+        [TestCase("1:2,1:2", false)]
+        public void UpdateRangeMatrixOfRejectsSliceNotMatchingRange(
+            string range,
+            bool sizeMismatch)
         {
+            StatusCode expected = sizeMismatch
+                ? StatusCodes.BadIndexRangeDataMismatch
+                : StatusCodes.BadIndexRangeNoData;
             var numericRange = NumericRange.Parse(range);
             MatrixOf<int> slice = new int[,]
             {
@@ -1874,39 +1881,81 @@ namespace Opc.Ua.Types.Tests.Utils
 
             Assert.That(
                 numericRange.UpdateRange(ref matrix, slice),
-                Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+                Is.EqualTo(expected));
             Assert.That(
                 numericRange.UpdateRange(
                     ref strings,
                     new string[,] { { "a", "b" }, { "c", "d" } }.ToMatrixOf()),
-                Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+                Is.EqualTo(expected));
             Assert.That(
                 numericRange.UpdateRange(
                     ref byteStrings,
                     new ByteString[,] { { [9], [9] }, { [9], [9] } }.ToMatrixOf()),
-                Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+                Is.EqualTo(expected));
         }
 
         /// <summary>
-        /// An upper bound beyond the matrix is clipped like for arrays, so a
-        /// slice matching the clipped size is written.
+        /// Unlike a read, a write is not clipped: the slice must have the
+        /// size the range specifies (Part 4 7.27), so a slice matching only
+        /// the clipped size is a data mismatch and a slice matching the range
+        /// cannot be written beyond the matrix.
         /// </summary>
         [Test]
-        public void UpdateRangeMatrixOfClipsUpperBound()
+        public void UpdateRangeMatrixOfDoesNotClipUpperBound()
         {
             var numericRange = NumericRange.Parse("1:5,0:1");
-            MatrixOf<int> matrix = new int[,]
+            MatrixOf<int> original = new int[,]
             {
                 { 1, 2 },
                 { 4, 5 }
             }.ToMatrixOf();
+            MatrixOf<int> matrix = original;
 
             StatusCode statusCode = numericRange.UpdateRange(
                 ref matrix,
                 new int[,] { { 40, 50 } }.ToMatrixOf());
 
-            Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(matrix, Is.EqualTo(new int[,] { { 1, 2 }, { 40, 50 } }.ToMatrixOf()));
+            Assert.That(statusCode, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
+            Assert.That(matrix, Is.EqualTo(original));
+
+            statusCode = numericRange.UpdateRange(
+                ref matrix,
+                new int[5, 2].ToMatrixOf());
+
+            Assert.That(statusCode, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            Assert.That(matrix, Is.EqualTo(original));
+        }
+
+        /// <summary>
+        /// A one-dimensional write with a range beyond the end of the array
+        /// is not clipped either (Part 4 7.27).
+        /// </summary>
+        [Test]
+        public void UpdateRangeArrayDoesNotClipUpperBound()
+        {
+            var numericRange = NumericRange.Parse("1:5");
+            ArrayOf<int> array = [1, 2, 3];
+            ArrayOf<int> shortSlice = [20, 30];
+            ArrayOf<int> fullSlice = [20, 30, 40, 50, 60];
+
+            Assert.That(
+                numericRange.UpdateRange(ref array, shortSlice),
+                Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
+
+            array = [1, 2, 3];
+            Assert.That(
+                numericRange.UpdateRange(ref array, fullSlice),
+                Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+
+            string text = "abc";
+            Assert.That(
+                numericRange.UpdateRange(ref text, "xy"),
+                Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
+
+            ByteString bytes = ByteString.From(new byte[] { 1, 2, 3 });
+            Assert.That(
+                numericRange.UpdateRange(ref bytes, ByteString.From(new byte[] { 9, 9 })),
+                Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
         }
 
         /// <summary>
@@ -1978,7 +2027,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode statusCode = numericRange.UpdateRange(ref matrix, slice);
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeNoData));
+            Assert.That(statusCode, Is.EqualTo((StatusCode)StatusCodes.BadIndexRangeDataMismatch));
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
