@@ -203,7 +203,7 @@ $Profiles = @(
     @{ id = 'windows-net472'; os = 'windows'; customTestTarget = 'net472'; framework = 'net472'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'windows-netstandard2.0'; os = 'windows'; customTestTarget = 'netstandard2.0'; framework = 'net48'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'windows-netstandard2.1'; os = 'windows'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'linux-netstandard2.1'; os = 'linux'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
+    @{ id = 'linux-netstandard2.1'; os = 'linux'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('pr', 'full') }
     @{ id = 'linux-long-running'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full')
         tier = 'long-running'; filter = ''; hangTimeout = '30m'; coverage = $false
     }
