@@ -66,7 +66,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }, Throws.TypeOf<ServiceResultException>()
                         .With.Property(nameof(ServiceResultException.StatusCode))
                         .EqualTo(StatusCodes.BadTooManyOperations)).ConfigureAwait(false);
-                    WotRegistrySnapshot durable = await store.LoadAsync().ConfigureAwait(false);
+                    using var observer = new FileWotRegistryStore(root);
+                    WotRegistrySnapshot durable = await observer.LoadAsync().ConfigureAwait(false);
                     WotResource retained = durable.FindResource(before.GroupId, before.ResourceId)!;
                     Assert.That(retained.MetaEpoch, Is.EqualTo(before.MetaEpoch));
                     Assert.That(retained.Versions, Has.Length.EqualTo(2));
