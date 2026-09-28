@@ -205,9 +205,11 @@ namespace Opc.Ua
                         Variant.From(new Variant[] { selectedResponse }),
                         false);
 
-                    // SelectedResponse is a UInt32 property (Part 9 5.10.5). A negative request
-                    // has no UInt32 form and is left unset rather than audited as a valid option;
-                    // InputArguments still carries the requested value.
+                    // SelectedResponse is a mandatory UInt32 property that "shall contain the
+                    // response that was selected" (Part 9 5.10.5). A rejected negative request
+                    // selected no response and has no UInt32 form, and any sentinel would read
+                    // as a valid option index, so it is deliberately left unset; InputArguments
+                    // still carries the requested value and Status reports the failure.
                     if (selectedResponse >= 0)
                     {
                         e.SetChildValue(
