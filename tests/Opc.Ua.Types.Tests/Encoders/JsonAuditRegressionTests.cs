@@ -520,6 +520,36 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void JsonEncoderWithUnsetNestingLimitUsesTheDecoderDefaultDepth()
+        {
+            // A limit of zero made the encoder fail on its own root object; the
+            // decoder treats zero as the System.Text.Json default depth (64).
+            ServiceMessageContext context = CreateContext();
+            context.MaxEncodingNestingLevels = 0;
+
+            string json;
+            using (var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose))
+            {
+                encoder.WriteInt32("Value", 42);
+                json = encoder.CloseAndReturnText();
+            }
+            using (var decoder = new JsonDecoder(json, context))
+            {
+                Assert.That(decoder.ReadInt32("Value"), Is.EqualTo(42));
+            }
+
+            var nested = new Variant(1);
+            for (int ii = 0; ii < 100; ii++)
+            {
+                nested = new Variant(new Variant[] { nested });
+            }
+            using var deepEncoder = new JsonEncoder(context, JsonEncoderOptions.Verbose);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => deepEncoder.WriteVariant("Value", nested));
+            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
         public void EmbeddedBinaryBodyWithTrailingBytesIsRejected()
         {
             // The binary UaBody was decoded without checking that it was fully

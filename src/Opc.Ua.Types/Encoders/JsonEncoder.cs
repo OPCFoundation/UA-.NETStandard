@@ -2552,12 +2552,16 @@ namespace Opc.Ua
         {
             // check the nesting level for avoiding a stack overflow. The
             // container about to be opened must stay within the MaxDepth the
-            // JsonDecoder parses with (MaxEncodingNestingLevels).
-            if (m_writer.CurrentDepth >= Context.MaxEncodingNestingLevels)
+            // JsonDecoder parses with: MaxEncodingNestingLevels, where zero
+            // means the System.Text.Json default depth.
+            int maxDepth = Context.MaxEncodingNestingLevels > 0
+                ? Context.MaxEncodingNestingLevels
+                : kDefaultJsonMaxDepth;
+            if (m_writer.CurrentDepth >= maxDepth)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
-                    $"Maximum nesting level of {Context.MaxEncodingNestingLevels} exceeded.");
+                    $"Maximum nesting level of {maxDepth} exceeded.");
             }
         }
 
@@ -2571,6 +2575,12 @@ namespace Opc.Ua
         }
 
         private const int kFlushThreshold = 16 * 1024;
+
+        /// <summary>
+        /// The depth System.Text.Json applies when the reader's MaxDepth is
+        /// zero, which is what the JsonDecoder passes for an unset limit.
+        /// </summary>
+        private const int kDefaultJsonMaxDepth = 64;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<JsonEncoder>();
 
         private void DisposeWriterAndBuffer()
