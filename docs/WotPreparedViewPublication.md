@@ -649,6 +649,13 @@ batch as their complete replacement. A failed member remains in its intended
 unit; its prepared peers do not publish. Independent units advance the committed
 refresh generation separately and retain earlier successes after later
 validation failures. No-op and dry-run units do not advance it.
+Result rows for Resources changed by a committed unit use that publication's
+load state, root, node count and Resource generation. This includes a retired
+Resource that was skipped for activation; its row does not retain the old active
+image. The same rule includes the explicit lifecycle-mutation footprint when
+only metadata changes. A deleted Resource has no surviving metadata entry; its row
+reports `Unloaded`, no root or nodes, and the actual committed generation.
+Rows outside the unit's projection and mutation footprint are not rebound.
 
 Views join their source unit and still require
 `IWotPreparedViewProjectionHost`; the immediate View API is not an atomic

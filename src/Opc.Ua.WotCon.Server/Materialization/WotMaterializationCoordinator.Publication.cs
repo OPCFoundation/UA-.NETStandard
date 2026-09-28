@@ -383,7 +383,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     m_publicationRecoveryRequired = true;
                     AddCommittedWarning(staged, "Committed lifecycle durability warning: " + warning.Message);
                 }
-                return NormalizeUncommitted(staged, metadata.IntendedSnapshot, false, false);
+                WotRefreshResult committed = NormalizeUncommitted(staged, metadata.IntendedSnapshot, false, false);
+                BindCommittedProjectionResults(committed, capture, metadata.IntendedSnapshot, mutation);
+                return committed;
             }
 
             AddRetiredResourceMetadata(capture, preview?.Closures ?? m_closures, snapshot, start, mutation?.Desired);
@@ -566,6 +568,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     AddCommittedWarning(staged,
                         "Committed reconciliation warning: " + DescribeCommittedFailure(cleanupFailure));
                 }
+                BindCommittedProjectionResults(staged, capture, metadata.IntendedSnapshot, mutation);
                 var committed = new WotRefreshResult(staged.Summary, staged.Results, generation);
                 foreach (WotMaterializationEventArgs change in capture.Events)
                 {
@@ -675,6 +678,32 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     await metadata.DisposeAsync().ConfigureAwait(false);
                 }
+            }
+        }
+
+        private static void BindCommittedProjectionResults(
+            WotRefreshResult result, PublicationCapture capture, WotRegistrySnapshot snapshot,
+            WotRegistryMutationImage? mutation)
+        {
+            foreach (WoTResourceLoadResultDataType row in result.Results)
+            {
+                if (row.GroupId is not { } groupId || row.ResourceId is not { } resourceId)
+                {
+                    continue;
+                }
+                bool mutated = mutation is not null &&
+                    mutation.Previous.FindResource(groupId, resourceId) is { } previous &&
+                    mutation.ChangedResourceXids.Contains(previous.Xid);
+                if (!mutated && !capture.Projections.Any(projection =>
+                    projection.GroupId == groupId && projection.ResourceId == resourceId))
+                {
+                    continue;
+                }
+                WotResource? resource = snapshot.FindResource(groupId, resourceId);
+                row.LoadState = resource?.LoadState ?? WoTLoadStateEnum.Unloaded;
+                row.Generation = resource?.RefreshGeneration ?? snapshot.RefreshGeneration;
+                row.RootNodeId = resource is null ? NodeId.Null : resource.RootNodeId;
+                row.MaterializedNodeCount = (uint)(resource?.MaterializedNodeCount ?? 0);
             }
         }
 

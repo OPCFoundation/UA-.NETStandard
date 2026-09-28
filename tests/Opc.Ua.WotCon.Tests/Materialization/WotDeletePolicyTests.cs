@@ -510,7 +510,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task TheCoordinatorKeepsADependentProjectedAfterRetire()
         {
+            m_coordinator.ServerNamespaceUris = m_runtime!.Namespaces;
+            m_converter.SetRootNodeId("tm-a", new ExpandedNodeId(5000, "urn:wot:thingmodels/tm-a"));
+            m_converter.SetRootNodeId("td-a", new ExpandedNodeId(5000, "urn:wot:thingdescriptions/td-a"));
             await RegisterModelAndInstanceAsync();
+            Assert.That(ModelResource()!.RootNodeId.IsNull, Is.False);
+            Assert.That(InstanceResource()!.RootNodeId.IsNull, Is.False);
             int shadowReloads = m_host.ShadowCount;
 
             WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(new WotDeleteRequest
@@ -520,6 +525,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Policy = WoTDeletePolicyEnum.Retire,
                 RequestId = "r-3"
             });
+            WoTResourceLoadResultDataType retired = outcome.Results.Single(result => result.Xid == ModelXid);
+            WoTResourceLoadResultDataType retained = outcome.Results.Single(result => result.Xid == InstanceXid);
 
             Assert.Multiple(() =>
             {
@@ -533,9 +540,86 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(InstanceResource()!.Enabled, Is.True);
                 Assert.That(
                     InstanceResource()!.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
-                Assert.That(
-                    outcome.Results.Any(result => result.Xid == ModelXid),
-                    Is.False);
+                Assert.That(outcome.Results, Has.Length.EqualTo(2));
+                Assert.That(retired.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingModel));
+                Assert.That(retired.VersionId, Is.EqualTo(ModelResource()!.DefaultVersionId));
+                Assert.That(retired.Outcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+                Assert.That(retired.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(retired.Generation, Is.EqualTo(ModelResource()!.RefreshGeneration));
+                Assert.That(retired.RootNodeId.IsNull, Is.True);
+                Assert.That(retired.MaterializedNodeCount, Is.Zero);
+                Assert.That(retained.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(retained.Generation, Is.EqualTo(InstanceResource()!.RefreshGeneration));
+                Assert.That(retained.RootNodeId, Is.EqualTo(InstanceResource()!.RootNodeId));
+                Assert.That(retained.MaterializedNodeCount, Is.EqualTo((uint)InstanceResource()!.MaterializedNodeCount));
+                Assert.That(outcome.Generation, Is.EqualTo(m_coordinator.Generation));
+            });
+        }
+
+        [Test]
+        public async Task MetadataOnlyRetirementReportsCommittedResourceStateWithoutRuntimeGeneration()
+        {
+            await RegisterModelAsync();
+            WotResource before = ModelResource()!;
+            var registrations = m_runtime!.Lifecycle.Registrations;
+
+            WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(new WotDeleteRequest
+            {
+                GroupId = before.GroupId,
+                ResourceId = before.ResourceId,
+                Policy = WoTDeletePolicyEnum.Retire
+            }).ConfigureAwait(false);
+
+            WotResource retired = ModelResource()!;
+            WoTResourceLoadResultDataType row = outcome.Results.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Delete.Retired, Is.True);
+                Assert.That(outcome.Generation, Is.Zero);
+                Assert.That(outcome.Summary.Retired, Is.Zero);
+                Assert.That(retired.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(row.Xid, Is.EqualTo(before.Xid));
+                Assert.That(row.VersionId, Is.EqualTo(before.DefaultVersionId));
+                Assert.That(row.LoadState, Is.EqualTo(retired.LoadState));
+                Assert.That(row.Generation, Is.EqualTo(retired.RefreshGeneration));
+                Assert.That(row.RootNodeId.IsNull, Is.True);
+                Assert.That(row.MaterializedNodeCount, Is.Zero);
+                Assert.That(m_host.Operations, Is.Empty);
+                Assert.That(m_runtime.Lifecycle.Registrations, Is.EqualTo(registrations));
+            });
+        }
+
+        [Test]
+        public async Task DeletedActiveResourceReportsUnloadedResultAtCommittedGeneration()
+        {
+            m_coordinator.ServerNamespaceUris = m_runtime!.Namespaces;
+            m_converter.SetRootNodeId("td-a", new ExpandedNodeId(5000, "urn:wot:thingdescriptions/td-a"));
+            await RegisterAsync(WotRegistryGroups.ThingDescriptions, "td-a",
+                WoTDocumentKindEnum.ThingDescription, TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotResource before = InstanceResource()!;
+            Assert.That(before.RootNodeId.IsNull, Is.False);
+
+            WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(new WotDeleteRequest
+            {
+                GroupId = before.GroupId,
+                ResourceId = before.ResourceId,
+                Policy = WoTDeletePolicyEnum.Cascade
+            }).ConfigureAwait(false);
+
+            WoTResourceLoadResultDataType row = outcome.Results.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Delete.Deleted, Is.True);
+                Assert.That(InstanceResource(), Is.Null);
+                Assert.That(outcome.Generation, Is.EqualTo(before.RefreshGeneration + 1));
+                Assert.That(row.Xid, Is.EqualTo(before.Xid));
+                Assert.That(row.VersionId, Is.EqualTo(before.ActiveVersionId));
+                Assert.That(row.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
+                Assert.That(row.Generation, Is.EqualTo(outcome.Generation));
+                Assert.That(row.RootNodeId.IsNull, Is.True);
+                Assert.That(row.MaterializedNodeCount, Is.Zero);
+                Assert.That(m_host.RemoveCount, Is.EqualTo(1));
             });
         }
 
