@@ -699,15 +699,21 @@ namespace Opc.Ua
                         result = default!;
                         return false;
                     }
-                    var encodeables = new IEncodeable[extensionObjects.Count];
+                    // Allocate an array of T's element type (e.g. Argument[]),
+                    // an IEncodeable[] cannot be cast to a derived array type.
+                    Type encodeableType = t.GetElementType()!;
+                    var encodeables = Array.CreateInstance(
+                        encodeableType,
+                        extensionObjects.Count);
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (!extensionObjects[ii].TryGetValue(out IEncodeable? e))
+                        if (!extensionObjects[ii].TryGetValue(out IEncodeable? e) ||
+                            !encodeableType.IsInstanceOfType(e))
                         {
                             result = default!;
                             return false;
                         }
-                        encodeables[ii] = e!;
+                        encodeables.SetValue(e, ii);
                     }
                     result = AsRefT(encodeables);
                     break;

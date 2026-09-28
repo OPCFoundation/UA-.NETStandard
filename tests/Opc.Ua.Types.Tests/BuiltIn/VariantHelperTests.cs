@@ -1083,6 +1083,37 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void TryCastToConcreteEncodeableArrayReturnsTypedArray()
+        {
+            var arg1 = new Argument("P1", new NodeId(1), 0, "D1");
+            var arg2 = new Argument("P2", new NodeId(2), 0, "D2");
+            ArrayOf<ExtensionObject> arr = new[] {
+                new ExtensionObject(arg1, true),
+                new ExtensionObject(arg2, true)
+            }.ToArrayOf();
+            var v = Variant.From(arr);
+            bool result = v.TryCastTo(out Argument[] value);
+            Assert.That(result, Is.True);
+            Assert.That(value, Is.EqualTo(new[] { arg1, arg2 }));
+            Assert.That(
+                new DataValue(v).GetValue<Argument[]>(null),
+                Is.EqualTo(new[] { arg1, arg2 }));
+        }
+
+        [Test]
+        public void TryCastToConcreteEncodeableArrayWithOtherBodyReturnsFalse()
+        {
+            ArrayOf<ExtensionObject> arr = new[] {
+                new ExtensionObject(new EUInformation(), true)
+            }.ToArrayOf();
+            var v = Variant.From(arr);
+            bool result = v.TryCastTo(out Argument[] value);
+            Assert.That(result, Is.False);
+            Assert.That(value, Is.Null);
+            Assert.That(new DataValue(v).GetValue<Argument[]>(null), Is.Null);
+        }
+
+        [Test]
         public void TryCastToEnumArrayReturnsEnumArray()
         {
             ArrayOf<int> arr = [0, 1, 2];
