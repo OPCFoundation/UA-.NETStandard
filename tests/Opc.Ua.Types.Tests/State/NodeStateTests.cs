@@ -1836,6 +1836,49 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void ReadUnconfiguredUserWriteMaskReportsWriteMask()
+        {
+            // a UserWriteMask of 0 without handler is not configured and writes only
+            // check the WriteMask, so the read reports the WriteMask (Part 3 8.60:
+            // a clear bit means not writeable, which would contradict the writes).
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            var dataValue = new DataValue();
+            ServiceResult result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(
+                dataValue.WrappedValue.GetUInt32(),
+                Is.EqualTo((uint)(AttributeWriteMask.DisplayName | AttributeWriteMask.Description)));
+
+            ServiceResult write = node.WriteAttribute(
+                m_context,
+                Attributes.DisplayName,
+                default,
+                new DataValue(new Variant(LocalizedText.From("NewDisplay"))));
+            Assert.That(ServiceResult.IsGood(write), Is.True);
+
+            // an OnReadWriteMask handler narrows the reported mask too.
+            node.OnReadWriteMask = (ISystemContext _, NodeState _, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.Description;
+                return ServiceResult.Good;
+            };
+            result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dataValue.WrappedValue.GetUInt32(), Is.EqualTo((uint)AttributeWriteMask.Description));
+
+            // a node that is not writable at all reports 0.
+            node.OnReadWriteMask = null;
+            node.WriteMask = AttributeWriteMask.None;
+            result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dataValue.WrappedValue.GetUInt32(), Is.Zero);
+        }
+
+        [Test]
         public void ReadRolePermissionsAttributeWhenSet()
         {
             BaseObjectState node = CreateObjectNode();

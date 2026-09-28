@@ -4683,6 +4683,27 @@ namespace Opc.Ua
                             return result;
                         }
                     }
+                    else if (userWriteMask == AttributeWriteMask.None)
+                    {
+                        // a UserWriteMask that is neither set nor computed per user is
+                        // not configured, and writes then only check the WriteMask (see
+                        // CheckUserWriteMask). Report the WriteMask so the attribute
+                        // describes what the current user can actually write (Part 3
+                        // 8.60: a clear bit means not writeable). A node cannot be made
+                        // read-only for all users with a UserWriteMask of 0; clear the
+                        // WriteMask or use OnReadUserWriteMask for that.
+                        userWriteMask = m_writeMask;
+                        NodeAttributeEventHandler<AttributeWriteMask>? onReadEffectiveWriteMask =
+                            OnReadWriteMask;
+                        if (onReadEffectiveWriteMask != null)
+                        {
+                            result = onReadEffectiveWriteMask(context, this, ref userWriteMask);
+                            if (!ServiceResult.IsGood(result))
+                            {
+                                return result;
+                            }
+                        }
+                    }
                     value = (uint)userWriteMask;
                     return result;
                 case Attributes.RolePermissions:
@@ -4929,7 +4950,8 @@ namespace Opc.Ua
                 OnReadUserWriteMask;
 
             // a UserWriteMask that is neither set nor computed per user is treated as
-            // not configured (nodes built in code and NodeSets frequently leave it 0).
+            // not configured (nodes built in code and NodeSets frequently leave it 0);
+            // a read of the attribute then reports the WriteMask, consistent with this.
             bool userWriteMaskConfigured = onReadUserWriteMask != null ||
                 userWriteMask != AttributeWriteMask.None;
 
