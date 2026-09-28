@@ -221,18 +221,31 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result!.ResourceId, Is.EqualTo("myresource"));
         }
 
-        [Test]
-        public async Task ResolvePrefersTmOverTd()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AmbiguousDocumentIdentityRequiresAnExactResourceReference(bool reverseOrder)
         {
-            WotRegistrySnapshot snapshot = await SnapshotAsync(
+            (WoTDocumentKindEnum Kind, string Id, byte[] Content)[] documents =
+            [
                 (WoTDocumentKindEnum.ThingModel, "tmx", TestMaterialization.Tm("urn:shared-id")),
                 (WoTDocumentKindEnum.ThingDescription, "tdx",
-                    TestMaterialization.Td("urn:shared-id")));
+                    TestMaterialization.Td("urn:shared-id"))
+            ];
+            if (reverseOrder)
+            {
+                Array.Reverse(documents);
+            }
+            WotRegistrySnapshot snapshot = await SnapshotAsync(documents);
 
             WotResource? result = WotDependencyGraph.Resolve(snapshot, "urn:shared-id");
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result!.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingModel),
-                "TM should be preferred over TD when both match the same href.");
+            Assert.That(result, Is.Null, "A shared IRI must not choose a document by kind or insertion order.");
+            Assert.That(snapshot.AllResources().Count(), Is.EqualTo(2));
+            foreach (WotResource resource in snapshot.AllResources())
+            {
+                Assert.That(WotDependencyGraph.Resolve(snapshot, resource.Xid), Is.SameAs(resource));
+                Assert.That(WotDependencyGraph.Resolve(snapshot, $"urn:wot:{resource.GroupId}/{resource.ResourceId}"),
+                    Is.SameAs(resource));
+            }
         }
 
         [Test]
