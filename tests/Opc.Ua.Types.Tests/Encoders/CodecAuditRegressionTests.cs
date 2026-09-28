@@ -438,13 +438,18 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         [TestCase("\n  i=85\n", "i=85")]
         [TestCase("ns=2;i=5 ", "ns=2;i=5")]
-        [TestCase("\n  ns=1;s=Tag \n", "ns=1;s=Tag \n")]
+        [TestCase("\n  ns=1;s=Tag \n", "ns=1;s=Tag ")]
         [TestCase(" s= a ", "s= a ")]
-        [TestCase("\n  nsu=urn:x;s=b \n", "nsu=urn:x;s=b \n")]
+        [TestCase("\n  nsu=urn:x;s=b \n", "nsu=urn:x;s=b ")]
+        [TestCase("\n  ns=1;s=Tag  \n    ", "ns=1;s=Tag  ")]
+        [TestCase("ns=1;s=Tag\t\r\n", "ns=1;s=Tag")]
+        [TestCase("ns=1;s=Tag\u0085", "ns=1;s=Tag")]
         public void XmlNodeIdIdentifierIgnoresLayoutWhitespace(string identifier, string expected)
         {
             // ReadString keeps xs:string whitespace, but the NodeId parsers
             // accept none, so a pretty-printed Identifier failed to decode.
+            // String ids keep trailing spaces but not control characters
+            // (Part 3 8.2.4).
             ServiceMessageContext context = CreateContext();
             string xml =
                 "<Node xmlns=\"" + kNs + "\"><Identifier>" + identifier + "</Identifier></Node>";

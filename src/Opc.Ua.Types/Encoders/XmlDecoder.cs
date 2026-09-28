@@ -3025,7 +3025,9 @@ namespace Opc.Ua
         /// Removes the layout whitespace around the Identifier text of an
         /// XML NodeId/ExpandedNodeId. ReadString keeps whitespace (xs:string),
         /// but the parsers accept none. Leading whitespace is never part of
-        /// the id, trailing whitespace is only kept for string ids ("s=").
+        /// the id. Trailing spaces are kept for string ids ("s="), but String
+        /// identifiers shall not contain Unicode control characters (Part 3
+        /// 8.2.4), so trailing layout (newline, tab, other C0/C1) is removed.
         /// </summary>
         internal static string? TrimNodeIdText(string? text)
         {
@@ -3053,7 +3055,20 @@ namespace Opc.Ua
 
             if (HasPrefixAt(trimmed, start, "s="))
             {
-                return trimmed;
+                // cut the trailing whitespace run at its first control character,
+                // e.g. "s=Tag \n  " -> "s=Tag ".
+                int end = trimmed.Length;
+                int cut = end;
+                while (end > start + 2 &&
+                    (char.IsWhiteSpace(trimmed[end - 1]) || char.IsControl(trimmed[end - 1])))
+                {
+                    end--;
+                    if (char.IsControl(trimmed[end]))
+                    {
+                        cut = end;
+                    }
+                }
+                return cut == trimmed.Length ? trimmed : trimmed[..cut];
             }
 
             return trimmed.TrimEnd();
