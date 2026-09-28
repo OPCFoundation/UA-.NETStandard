@@ -1043,11 +1043,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 handles.TryGetValue(xid, out WotViewProjectionHandle? handle);
                 WotResourceProjection? previous = capture.Projections.FirstOrDefault(projection =>
                     projection.GroupId == resource.GroupId && projection.ResourceId == resource.ResourceId);
+                WoTLoadStateEnum inactiveState = previous?.LoadState ?? resource.LoadState;
+                if (inactiveState is not (WoTLoadStateEnum.Retired or WoTLoadStateEnum.Failed))
+                {
+                    inactiveState = WoTLoadStateEnum.Unloaded;
+                }
                 capture.Projections.RemoveAll(projection =>
                     projection.GroupId == resource.GroupId && projection.ResourceId == resource.ResourceId);
                 capture.Projections.Add(new WotResourceProjection(
                     resource.GroupId, resource.ResourceId,
-                    handle is null ? WoTLoadStateEnum.Unloaded : WoTLoadStateEnum.Active,
+                    handle is null ? inactiveState : WoTLoadStateEnum.Active,
                     handle is null ? null : previous is null ? resource.ActiveVersionId : previous.ActiveVersionId,
                     checked(snapshot.RefreshGeneration + 1),
                     handle?.MaterializedNodeCount ?? 0,
