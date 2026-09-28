@@ -127,6 +127,13 @@ namespace Opc.Ua.Types.Tests.Encoders
                     e => e.WriteInlineMatrixValue("M", value),
                     d => d.ReadVariantValue("M", type));
                 MatrixOf<double> matrix = decoded.GetDoubleMatrix();
+                if (codec == Codec.Xml)
+                {
+                    // XML Matrix dimensions must be > 0 (OPC 10000-6
+                    // 5.3.1.17): an empty matrix field is written as null.
+                    Assert.That(matrix.IsNull, Is.True);
+                    continue;
+                }
                 Assert.That(matrix.IsNull, Is.False);
                 Assert.That(matrix.Dimensions, Is.EqualTo(s_zeroByZero));
             }

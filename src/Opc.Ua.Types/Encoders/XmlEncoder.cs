@@ -1664,12 +1664,17 @@ namespace Opc.Ua
         {
             CheckAndIncrementNestingLevel();
 
-            if (BeginField(fieldName, values.IsNull, true, true))
+            // The Dimensions of an XML Matrix must all be greater than zero
+            // (OPC 10000-6 5.3.1.17), so an empty matrix is written as null,
+            // which is equivalent to an empty array (5.1.11).
+            bool isNull = values.IsNull || values.Count == 0;
+            if (BeginField(fieldName, isNull, true, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                if (!values.IsNull)
+                if (!isNull)
                 {
-                    // The inline matrix has at least two dimensions (5.2.5).
+                    // The field element is of the Matrix type (5.3.4) with at
+                    // least two dimensions (5.3.1.17).
                     WriteInt32Array("Dimensions", MatrixOf.GetInlineMatrixDimensions(
                         values.Dimensions,
                         values.Count));
@@ -1847,10 +1852,22 @@ namespace Opc.Ua
                     isInlineMatrix = value.IsInlineMatrix(out isNullMatrix);
                 }
 
-                // check for null.
-                if (value.IsNull || (isInlineMatrix && isNullMatrix))
+                // check for null. The Dimensions of an XML Matrix must all be
+                // greater than zero (OPC 10000-6 5.3.1.17), so an empty inline
+                // matrix is written as null, which is equivalent to an empty
+                // array (5.1.11).
+                if (value.IsNull ||
+                    (isInlineMatrix && (isNullMatrix || value.IsEmptyMatrix)))
                 {
                     m_writer.WriteAttributeString("xsi", "nil", Namespaces.XmlSchemaInstance, "true");
+                    return;
+                }
+
+                // An empty matrix Variant has no valid Dimensions and is
+                // written as an empty array (OPC 10000-6 5.2.2.16, 5.3.1.17).
+                if (!writeRawValue && value.IsEmptyMatrix)
+                {
+                    WriteVariantValue(null, value.ToEmptyArray(), false);
                     return;
                 }
                 try
@@ -2053,31 +2070,26 @@ namespace Opc.Ua
                     {
                         CheckAndIncrementNestingLevel();
 
-                        if (BeginField("Matrix", value.IsNull, true, true))
+                        // A matrix Variant is a Matrix element (5.3.1.17). A
+                        // matrix structure field is of the Matrix type itself:
+                        // the field element directly contains Dimensions and
+                        // Elements, without a Matrix wrapper (OPC 10000-6 5.3.4).
+                        bool wrapInMatrix = !writeRawValue;
+                        if (!wrapInMatrix || BeginField("Matrix", value.IsNull, true, true))
                         {
                             const string elements = "Elements";
 
-                            // A multi-dimensional Variant must carry Dimensions
-                            // where every entry is greater than zero and the
-                            // product equals the flattened element count (Part 6
-                            // 5.2.2.16). Refuse to emit inconsistent dimensions
-                            // (e.g. a zero dimension produced by an empty matrix)
-                            // instead of writing wire data a conforming peer must
-                            // reject with BadDecodingError.
-                            // The inline matrix of a structure field (raw value)
-                            // may be empty but has at least two dimensions
-                            // (OPC 10000-6 5.2.5): an empty MatrixOf (single
-                            // zero dimension) is written as 0 x 0.
+                            // A Matrix must carry Dimensions where every entry
+                            // is greater than zero and the product equals the
+                            // flattened element count (Part 6 5.2.2.16,
+                            // 5.3.1.17). Refuse to emit inconsistent dimensions
+                            // instead of writing data a conforming peer must
+                            // reject with BadDecodingError. An empty matrix was
+                            // written as null or an empty array above.
                             void WriteDimensions<T>(MatrixOf<T> matrix)
                             {
-                                int[] dimensions = writeRawValue
-                                    ? MatrixOf.GetInlineMatrixDimensions(
-                                        matrix.Dimensions,
-                                        matrix.Count)
-                                    : matrix.Dimensions;
-                                if (writeRawValue
-                                    ? !MatrixOf.IsValidInlineMatrix(dimensions)
-                                    : !MatrixOf.IsValidMatrix(dimensions))
+                                int[] dimensions = matrix.Dimensions;
+                                if (!MatrixOf.IsValidMatrix(dimensions))
                                 {
                                     throw ServiceResultException.Create(
                                         StatusCodes.BadEncodingError,
@@ -2286,7 +2298,10 @@ namespace Opc.Ua
 
                             PopNamespace();
 
-                            EndField("Matrix");
+                            if (wrapInMatrix)
+                            {
+                                EndField("Matrix");
+                            }
                         }
 
                         m_nestingLevel--;

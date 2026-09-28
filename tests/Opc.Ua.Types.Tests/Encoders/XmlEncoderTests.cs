@@ -5535,7 +5535,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -5548,7 +5548,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -5561,7 +5561,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -5574,7 +5574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -5591,7 +5591,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }

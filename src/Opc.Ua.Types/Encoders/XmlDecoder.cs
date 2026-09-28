@@ -2332,7 +2332,14 @@ namespace Opc.Ua
                         case "DataValue":
                             return ReadDataValue(typeName);
                         case "Matrix":
+                            // Earlier versions wrapped the inline matrix of a
+                            // structure field in a Matrix element.
                             return ReadMatrix(typeName, readRawValue, rawBuiltInType);
+                        case "Dimensions" when readRawValue:
+                            // A matrix structure field is of the Matrix type
+                            // itself: the field element directly contains
+                            // Dimensions and Elements (OPC 10000-6 5.3.4).
+                            return ReadMatrix(null, readRawValue, rawBuiltInType);
                         default:
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,

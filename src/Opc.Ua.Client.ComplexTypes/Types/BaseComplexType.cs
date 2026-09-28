@@ -347,8 +347,20 @@ namespace Opc.Ua.Client.ComplexTypes
                             dataTypeId);
                     }
                     break;
-                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                // The abstract numeric types are encoded as a Variant (a null
+                // value as the null Variant 0x00, OPC 10000-6 5.2.2.16).
+                case BuiltInType.Variant or
+                    BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger when property.TypeInfo.IsScalar:
                     encoder.WriteVariant(name, variant);
+                    break;
+                case BuiltInType.DiagnosticInfo when property.TypeInfo.IsScalar:
+                    // A Variant cannot hold a DiagnosticInfo, so the field is
+                    // null. All fields are written also when null (OPC
+                    // 10000-6 5.2.1): the null DiagnosticInfo is the single
+                    // encoding mask byte 0x00 in binary (5.2.2.12).
+                    encoder.WriteDiagnosticInfo(name, null);
                     break;
                 default:
                     // A raw binary value is written without type
@@ -356,13 +368,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     // field's type and shape (default scalar, null array or
                     // null inline matrix), never nothing at all.
                     if (variant.IsNull &&
-                        encoder.EncodingType == EncodingType.Binary &&
-                        !(property.TypeInfo.IsScalar &&
-                            property.TypeInfo.BuiltInType is
-                                BuiltInType.Number or
-                                BuiltInType.Integer or
-                                BuiltInType.UInteger or
-                                BuiltInType.DiagnosticInfo))
+                        encoder.EncodingType == EncodingType.Binary)
                     {
                         variant = Variant.CreateDefault(property.TypeInfo);
                     }
@@ -415,8 +421,17 @@ namespace Opc.Ua.Client.ComplexTypes
                         variant = Variant.FromStructure(encodeables);
                     }
                     break;
-                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                case BuiltInType.Variant or
+                    BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger when property.TypeInfo.IsScalar:
                     variant = decoder.ReadVariant(name);
+                    break;
+                case BuiltInType.DiagnosticInfo when property.TypeInfo.IsScalar:
+                    // Consume the DiagnosticInfo (OPC 10000-6 5.2.2.12); a
+                    // Variant cannot hold it, so the field value stays null.
+                    _ = decoder.ReadDiagnosticInfo(name);
+                    variant = Variant.Null;
                     break;
                 default:
                     variant = decoder.ReadVariantValue(name, property.TypeInfo);

@@ -108,7 +108,24 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             Variant decoded = RoundTrip(codec, value, TypeInfo.Create(builtInType, rank));
 
-            AssertSameMatrix(builtInType, value, decoded);
+            AssertSameMatrix(builtInType, ExpectedAfterRoundTrip(codec, builtInType, shape, value), decoded);
+        }
+
+        /// <summary>
+        /// The Dimensions of an XML Matrix must be greater than zero (OPC
+        /// 10000-6 5.3.1.17): XML writes an empty matrix field as null, which
+        /// is equivalent to an empty array (5.1.11).
+        /// </summary>
+        private static Variant ExpectedAfterRoundTrip(
+            Codec codec,
+            BuiltInType builtInType,
+            Shape shape,
+            Variant value)
+        {
+            return codec is Codec.XmlDecoder or Codec.XmlParser &&
+                shape is Shape.Empty or Shape.EmptyRows
+                ? Create(builtInType, Shape.Null)
+                : value;
         }
 
         /// <summary>
@@ -136,7 +153,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             foreach (Shape shape in new[] { Shape.Null, Shape.TypedNull, Shape.Empty, Shape.EmptyRows })
             {
                 Variant value = Create(builtInType, shape);
-                AssertSameMatrix(builtInType, value, RoundTrip(codec, value, TypeInfo.Create(builtInType, 3)));
+                AssertSameMatrix(
+                    builtInType,
+                    ExpectedAfterRoundTrip(codec, builtInType, shape, value),
+                    RoundTrip(codec, value, TypeInfo.Create(builtInType, 3)));
             }
         }
 
@@ -476,19 +496,22 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         /// <summary>
-        /// The Variant encoding still rejects a matrix with a zero dimension
-        /// (OPC 10000-6 5.2.2.16), only the inline matrix may be empty.
+        /// The Variant encoding has no ArrayDimensions for a matrix with a
+        /// zero dimension (OPC 10000-6 5.2.2.16): "If one or more dimensions
+        /// has a length &lt;= 0 then the ArrayLength is 0" and the dimensions
+        /// are omitted, so it is written as an empty array.
         /// </summary>
         [Test]
-        public void VariantEncodingStillRejectsEmptyMatrix()
+        public void VariantEncodingWritesEmptyMatrixAsEmptyArray()
         {
             ServiceMessageContext context = CreateContext();
             using var encoder = new BinaryEncoder(context);
             Variant value = Variant.From(Array.Empty<int>().ToArrayOf().ToMatrix(0, 3));
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => encoder.WriteVariant(null, value));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+            encoder.WriteVariant(null, value);
+            Assert.That(
+                encoder.CloseAndReturnBuffer(),
+                Is.EqualTo(new byte[] { (byte)BuiltInType.Int32 | 0x80, 0, 0, 0, 0 }));
         }
 
         /// <summary>
@@ -645,24 +668,10 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(typed.Dimensions, Is.EqualTo(s_zeroByZero));
             }
 
-            string xml;
-            using (var encoder = new XmlEncoder(context))
-            {
-                encoder.PushNamespace(Namespaces.OpcUaXsd);
-                encoder.WriteEncodeableMatrix("E", MatrixOf<Pair>.Empty);
-                encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
-            }
-            // Rewrite the dimensions to what earlier versions wrote.
-            int start = xml.IndexOf("<Dimensions>", StringComparison.Ordinal);
-            int end = xml.IndexOf("</Dimensions>", StringComparison.Ordinal);
-            Assert.That(start, Is.GreaterThanOrEqualTo(0));
-            Assert.That(end, Is.GreaterThan(start));
+            // What earlier versions wrote (an empty matrix is now nil).
             string legacy =
-                xml[..start] +
-                "<Dimensions><Int32>0</Int32></Dimensions>" +
-                xml[(end + "</Dimensions>".Length)..];
-            Assert.That(legacy, Is.Not.EqualTo(xml));
+                "<E xmlns=\"" + Namespaces.OpcUaXsd + "\">" +
+                "<Dimensions><Int32>0</Int32></Dimensions></E>";
 
             using (var parser = new XmlParser(legacy, context))
             {

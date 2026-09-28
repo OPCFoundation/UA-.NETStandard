@@ -431,8 +431,10 @@ public enum DefaultValueHandling
 
 The generated code uses two new `IEncoder`/`IDecoder` APIs:
 
-- **`IEncoder.CanOmitFields`**: Returns `true` for XML and JSON encoders,
-  `false` for Binary. Used by the encode guard.
+- **`IEncoder.CanOmitFields`**: Returns `true` for XML and for the Compact
+  JSON encoding, `false` for Binary and for the Verbose (and RawData) JSON
+  encoding, which include all fields (OPC 10000-6 5.4.1). Used by the encode
+  guard.
 - **`IDecoder.HasField(string)`**: Returns `true` if the field exists in the
   encoded data. Always `true` for Binary. Checks element/property existence
   for XML/JSON.

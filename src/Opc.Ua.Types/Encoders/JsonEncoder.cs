@@ -145,7 +145,11 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
-        public bool CanOmitFields => true;
+        /// <remarks>
+        /// Only the CompactEncoding omits fields with a default value; the
+        /// VerboseEncoding includes all fields (OPC 10000-6 5.4.1, 5.4.2.1).
+        /// </remarks>
+        public bool CanOmitFields => m_options.IgnoreDefaultValues;
 
         /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
@@ -2047,6 +2051,15 @@ namespace Opc.Ua
             bool writeRawValue,
             bool suppressUaType)
         {
+            // An empty matrix Variant has no valid Dimensions (all must be
+            // > 0) and is written as an empty array (OPC 10000-6 5.2.2.16,
+            // 5.4.2.17).
+            if (!writeRawValue && value.IsEmptyMatrix)
+            {
+                WriteVariantContents(value.ToEmptyArray(), false, suppressUaType);
+                return;
+            }
+
             // write scalar.
             if (value.TypeInfo.IsScalar)
             {

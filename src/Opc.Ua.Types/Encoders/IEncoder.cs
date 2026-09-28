@@ -42,9 +42,12 @@ namespace Opc.Ua
         EncodingType EncodingType { get; }
 
         /// <summary>
-        /// Returns true if the encoder supports omitting fields with default values.
-        /// Binary encoding returns false (all fields must be written).
-        /// XML and JSON return true.
+        /// Returns true if the encoder may omit structure fields with default
+        /// values. Binary encoding returns false (all fields must be written,
+        /// OPC 10000-6 5.2.1). XML returns true (a missing element decodes as
+        /// the default value, 5.3.5). JSON returns true only when it omits
+        /// default values (the CompactEncoding); the VerboseEncoding includes
+        /// all fields (5.4.1, 5.4.2.1).
         /// </summary>
         bool CanOmitFields { get; }
 

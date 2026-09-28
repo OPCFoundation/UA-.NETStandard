@@ -1633,6 +1633,16 @@ namespace Opc.Ua
                 return;
             }
 
+            // An empty matrix Variant has no valid ArrayDimensions (all must
+            // be > 0): "If one or more dimensions has a length <= 0 then the
+            // ArrayLength is 0" and the dimensions are omitted, i.e. it is an
+            // empty array (OPC 10000-6 5.2.2.16).
+            if (!writeRawValue && value.IsEmptyMatrix)
+            {
+                WriteVariantValue(value.ToEmptyArray(), false);
+                return;
+            }
+
             // A multi-dimensional structure field is written as an inline
             // matrix even when the Variant lost the matrix type info (a null
             // or an empty MatrixOf). See OPC 10000-6 5.2.5.

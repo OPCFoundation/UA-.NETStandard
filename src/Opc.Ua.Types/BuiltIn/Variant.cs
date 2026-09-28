@@ -8290,6 +8290,58 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Whether the value is a non null matrix with at least two
+        /// dimensions and no elements (a dimension is 0). Such a matrix
+        /// cannot carry ArrayDimensions in the Variant encoding, which must
+        /// all be greater than zero (OPC 10000-6 5.2.2.16, 5.3.1.17).
+        /// </summary>
+        internal bool IsEmptyMatrix =>
+            m_value is IMatrixOf { IsNull: false, Count: 0 } matrix &&
+            matrix.Dimensions.Length >= 2;
+
+        /// <summary>
+        /// Returns an empty (not null) one-dimensional array of the built-in
+        /// type of this value. A Variant holding an empty matrix is encoded
+        /// as an empty array without ArrayDimensions: "If one or more
+        /// dimensions has a length &lt;= 0 then the ArrayLength is 0" and
+        /// ArrayDimensions are only present if all dimensions are greater
+        /// than zero (OPC 10000-6 5.2.2.16). Enumerations become Int32, the
+        /// type they are encoded with in a Variant.
+        /// </summary>
+        internal Variant ToEmptyArray()
+        {
+            return TypeInfo.BuiltInType switch
+            {
+                BuiltInType.Boolean => From(ArrayOf.Empty<bool>()),
+                BuiltInType.SByte => From(ArrayOf.Empty<sbyte>()),
+                BuiltInType.Byte => From(ArrayOf.Empty<byte>()),
+                BuiltInType.Int16 => From(ArrayOf.Empty<short>()),
+                BuiltInType.UInt16 => From(ArrayOf.Empty<ushort>()),
+                BuiltInType.Int32 or
+                BuiltInType.Enumeration => From(ArrayOf.Empty<int>()),
+                BuiltInType.UInt32 => From(ArrayOf.Empty<uint>()),
+                BuiltInType.Int64 => From(ArrayOf.Empty<long>()),
+                BuiltInType.UInt64 => From(ArrayOf.Empty<ulong>()),
+                BuiltInType.Float => From(ArrayOf.Empty<float>()),
+                BuiltInType.Double => From(ArrayOf.Empty<double>()),
+                BuiltInType.String => From(ArrayOf.Empty<string>()),
+                BuiltInType.DateTime => From(ArrayOf.Empty<DateTimeUtc>()),
+                BuiltInType.Guid => From(ArrayOf.Empty<Uuid>()),
+                BuiltInType.ByteString => From(ArrayOf.Empty<ByteString>()),
+                BuiltInType.XmlElement => From(ArrayOf.Empty<XmlElement>()),
+                BuiltInType.NodeId => From(ArrayOf.Empty<NodeId>()),
+                BuiltInType.ExpandedNodeId => From(ArrayOf.Empty<ExpandedNodeId>()),
+                BuiltInType.StatusCode => From(ArrayOf.Empty<StatusCode>()),
+                BuiltInType.QualifiedName => From(ArrayOf.Empty<QualifiedName>()),
+                BuiltInType.LocalizedText => From(ArrayOf.Empty<LocalizedText>()),
+                BuiltInType.ExtensionObject => From(ArrayOf.Empty<ExtensionObject>()),
+                BuiltInType.DataValue => From(ArrayOf.Empty<DataValue>()),
+                BuiltInType.Variant => From(ArrayOf.Empty<Variant>()),
+                _ => this
+            };
+        }
+
+        /// <summary>
         /// Convert to a variant from an xml stream. Used during initialization
         /// of values from string values.
         /// </summary>
