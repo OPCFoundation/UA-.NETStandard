@@ -293,6 +293,47 @@ namespace Opc.Ua.Server.Tests.Alarms
         }
 
         [Test]
+        public void SecondSuppressorChangeDoesNotRewriteSuppressedState()
+        {
+            using var engine = new AlarmSuppressionEngine();
+            AlarmGroupState g1 = CreateGroup(610);
+            AlarmGroupState g2 = CreateGroup(611);
+            AlarmGroupState firstGroup = CreateGroup(612);
+            AlarmConditionState first = CreateAlarm(613);
+            var member = new CountingAlarm(m_telemetry, null);
+            member.Create(m_context, new NodeId(614U), QualifiedName.From("a614"), default, true);
+            member.SetEnableState(m_context, true);
+            var sup = new TwoStateVariableState(member);
+            sup.Create(m_context, default, QualifiedName.From(BrowseNames.SuppressedState), default, false);
+            member.SuppressedState = sup;
+            bool g1Active = true;
+            bool g2Active = false;
+
+            engine.RegisterSuppressionGroup(g1, () => g1Active, [member]);
+            engine.RegisterSuppressionGroup(g2, () => g2Active, [member]);
+            engine.RegisterFirstInGroupAlarm(first, firstGroup, [member]);
+            engine.Evaluate(m_context);
+            Assert.That(member.SuppressedState.Id.Value, Is.True);
+            Assert.That(member.SuppressedWriteCount, Is.EqualTo(1));
+
+            // The OR of the suppressors stays true for all of these, so
+            // SuppressedState (and its TransitionTime) must not be rewritten.
+            g2Active = true;
+            engine.Evaluate(m_context);
+            g1Active = false;
+            engine.Evaluate(m_context);
+            engine.OnFirstInGroupActiveChanged(m_context, first, firstGroup, firstActive: true);
+            engine.OnFirstInGroupActiveChanged(m_context, first, firstGroup, firstActive: false);
+            Assert.That(member.SuppressedState.Id.Value, Is.True);
+            Assert.That(member.SuppressedWriteCount, Is.EqualTo(1));
+
+            g2Active = false;
+            engine.Evaluate(m_context);
+            Assert.That(member.SuppressedState.Id.Value, Is.False);
+            Assert.That(member.SuppressedWriteCount, Is.EqualTo(2));
+        }
+
+        [Test]
         public void DisposeIsIdempotent()
         {
             var engine = new AlarmSuppressionEngine();

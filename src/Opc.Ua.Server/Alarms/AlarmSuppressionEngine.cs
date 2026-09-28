@@ -268,7 +268,16 @@ namespace Opc.Ua.Server.Alarms
             {
                 suppressors.Remove(suppressor);
             }
-            alarm.SetSuppressedState(context, suppressors.Count > 0);
+            bool suppressed = suppressors.Count > 0;
+
+            // Only a real transition rewrites the state: another suppressor
+            // going active or inactive while the OR is unchanged must not
+            // restamp SuppressedState.TransitionTime or report a data change.
+            if (alarm.SuppressedState?.Id is { } suppressedId && suppressedId.Value == suppressed)
+            {
+                return;
+            }
+            alarm.SetSuppressedState(context, suppressed);
         }
 
         private void ThrowIfDisposed()
