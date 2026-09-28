@@ -1240,6 +1240,12 @@ namespace Opc.Ua.Server.Historian
         internal const int kMaxProcessedBufferedOutputs = 100_000;
 
         /// <summary>
+        /// Number of raw values the at-time fallback first reads on each side of a
+        /// requested time; the read widens only while Bad values hide the bound.
+        /// </summary>
+        private const int kInitialBoundingReadSize = 16;
+
+        /// <summary>
         /// Dispatches a single at-time history read with a streaming
         /// framework fallback that interpolates from raw values.
         /// </summary>
@@ -1353,29 +1359,28 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
-            List<DataValue>? samples = await CollectAllRawAsync(
-                opContext,
-                raw,
-                node.NodeId,
-                reqTimes,
-                details.UseSimpleBounds,
-                capabilities.Stepped,
-                cancellationToken)
-                .ConfigureAwait(false);
-            if (samples == null)
-            {
-                result.StatusCode = StatusCodes.BadTooManyOperations;
-                result.ContinuationPoint = ByteString.Empty;
-                return StatusCodes.BadTooManyOperations;
-            }
-
-            var orderedSamples = samples.ToArrayOf();
             var produced = new List<DataValue>(reqTimes.Count);
-            foreach (DateTimeUtc requestedTime in reqTimes)
+            for (int i = 0; i < reqTimes.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                DateTimeUtc requestedTime = reqTimes[i];
+                List<DataValue>? samples = await CollectAtTimeSamplesAsync(
+                    opContext,
+                    raw,
+                    node.NodeId,
+                    requestedTime,
+                    details.UseSimpleBounds,
+                    capabilities.Stepped,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+                if (samples == null)
+                {
+                    result.StatusCode = StatusCodes.BadTooManyOperations;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return StatusCodes.BadTooManyOperations;
+                }
                 produced.Add(AggregateCalculator.CalculateAtTime(
-                    orderedSamples,
+                    samples.ToArrayOf(),
                     requestedTime,
                     details.UseSimpleBounds,
                     capabilities.Stepped));
@@ -3156,149 +3161,207 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
-        /// Reads the raw values spanning <paramref name="times"/> for the
-        /// at-time fallback. Returns <c>null</c> when more than
-        /// <see cref="kMaxProcessedBufferedOutputs"/> values would be buffered.
+        /// Reads the raw values the at-time fallback needs to calculate the value at
+        /// <paramref name="requestedTime"/>: the values at that time or, failing that,
+        /// the bounding values on either side (Part 11 6.4.4 / Part 13 3.1.8). Only the
+        /// neighbourhood of each requested time is read, so the cost does not grow with
+        /// the history between widely separated requested times. Returns <c>null</c>
+        /// when more than <see cref="kMaxProcessedBufferedOutputs"/> values had to be
+        /// scanned to find a bound.
         /// </summary>
-        private static async ValueTask<List<DataValue>?> CollectAllRawAsync(
+        private static async ValueTask<List<DataValue>?> CollectAtTimeSamplesAsync(
             HistorianOperationContext context,
             IHistorianDataProvider raw,
             NodeId nodeId,
-            ArrayOf<DateTimeUtc> times,
+            DateTimeUtc requestedTime,
             bool useSimpleBounds,
             bool stepped,
             CancellationToken cancellationToken)
         {
-            if (times.Count == 0)
+            var samples = new List<DataValue>();
+            await AddExactRawValuesAsync(
+                samples,
+                context,
+                raw,
+                nodeId,
+                requestedTime,
+                cancellationToken).ConfigureAwait(false);
+            if (samples.Count > 0)
             {
-                return [];
+                return samples;
             }
 
-            DateTimeUtc min = times[0];
-            DateTimeUtc max = times[0];
-            for (int i = 1; i < times.Count; i++)
+            // Simple bounds use the nearest raw value on each side whatever its status;
+            // a stepped signal only needs to know whether any later value exists; a
+            // sloped signal needs the first non-Bad value after the time.
+            int requiredAfter = useSimpleBounds || stepped ? 0 : 1;
+            int foundAfter = await AddBoundingValuesAsync(
+                samples,
+                context,
+                raw,
+                nodeId,
+                requestedTime,
+                before: false,
+                requiredAfter,
+                cancellationToken).ConfigureAwait(false);
+            if (foundAfter < 0)
             {
-                if (times[i] < min)
-                {
-                    min = times[i];
-                }
-                if (times[i] > max)
-                {
-                    max = times[i];
-                }
+                return null;
             }
 
-            var request = new HistorianRawReadRequest
+            // Without a non-Bad value after the time a sloped signal extrapolates from
+            // the two non-Bad values before it.
+            int requiredBefore = useSimpleBounds ? 0 : !stepped && foundAfter == 0 ? 2 : 1;
+            int foundBefore = await AddBoundingValuesAsync(
+                samples,
+                context,
+                raw,
+                nodeId,
+                requestedTime,
+                before: true,
+                requiredBefore,
+                cancellationToken).ConfigureAwait(false);
+            if (foundBefore < 0)
             {
-                NodeId = nodeId,
-                StartTime = min,
-                EndTime = max,
-                MaxValues = 0,
-                IsForward = true,
-                ReturnBounds = true
-            };
+                return null;
+            }
 
-            var collected = new List<DataValue>();
-            HistorianResumeToken token = default;
+            samples.Sort((a, b) => a.SourceTimestamp.CompareTo(b.SourceTimestamp));
+            return samples;
+        }
+
+        /// <summary>
+        /// Adds the raw values on one side of <paramref name="boundary"/>, nearest first,
+        /// until <paramref name="requiredNonBad"/> non-Bad values with distinct timestamps
+        /// were added (or, when it is zero, until one value of any status was added).
+        /// Bad values passed on the way are added too, since they make the calculated
+        /// value Uncertain. Returns the number of non-Bad values added, or -1 when more
+        /// than <see cref="kMaxProcessedBufferedOutputs"/> values were scanned first.
+        /// </summary>
+        private static async ValueTask<int> AddBoundingValuesAsync(
+            List<DataValue> collected,
+            HistorianOperationContext context,
+            IHistorianDataProvider raw,
+            NodeId nodeId,
+            DateTimeUtc boundary,
+            bool before,
+            int requiredNonBad,
+            CancellationToken cancellationToken)
+        {
+            var nonBadTimestamps = new HashSet<DateTimeUtc>();
+            int added = 0;
+            bool IsSatisfied()
+            {
+                return requiredNonBad == 0
+                    ? added > 0
+                    : nonBadTimestamps.Count >= requiredNonBad;
+            }
+            bool Add(DataValue value)
+            {
+                collected.Add(value);
+                added++;
+                if (StatusCode.IsNotBad(value.StatusCode))
+                {
+                    nonBadTimestamps.Add(value.SourceTimestamp);
+                }
+                return IsSatisfied();
+            }
+
+            // Open-ended reads, so MaxValues bounds the total the provider returns
+            // (Part 11 6.4.3.2). Start with a few values and only widen the read,
+            // up to the scan budget, while Bad values hide the bound.
+            int start = collected.Count;
+            int limit = kInitialBoundingReadSize;
             while (true)
             {
-                HistorianPage<HistoricalDataValue> page = await raw.ReadRawAsync(
-                    context, request, token, cancellationToken).ConfigureAwait(false);
-                foreach (HistoricalDataValue v in page.Values)
+                var request = new HistorianRawReadRequest
                 {
-                    if (v.Value.StatusCode != StatusCodes.BadBoundNotFound)
+                    NodeId = nodeId,
+                    StartTime = before ? DateTimeUtc.MinValue : boundary,
+                    EndTime = before ? boundary : DateTimeUtc.MaxValue,
+                    MaxValues = (uint)limit,
+                    IsForward = !before,
+                    ReturnBounds = false
+                };
+                int scanned = 0;
+                HistorianResumeToken token = default;
+                while (true)
+                {
+                    HistorianPage<HistoricalDataValue> page = await raw.ReadRawAsync(
+                        context,
+                        request,
+                        token,
+                        cancellationToken).ConfigureAwait(false);
+                    // Walk the page nearest-first whatever order the provider returned it in.
+                    var outside = new List<(DataValue Value, int Index)>();
+                    foreach (HistoricalDataValue historicalValue in page.Values)
                     {
-                        collected.Add(v.Value);
+                        DataValue value = historicalValue.Value;
+                        if ((before
+                                ? value.SourceTimestamp < boundary
+                                : value.SourceTimestamp > boundary) &&
+                            value.StatusCode != StatusCodes.BadBoundNotFound)
+                        {
+                            outside.Add((value, outside.Count));
+                        }
                     }
+                    outside.Sort((a, b) =>
+                    {
+                        int order = a.Value.SourceTimestamp.CompareTo(b.Value.SourceTimestamp);
+                        return order != 0 ? before ? -order : order : a.Index.CompareTo(b.Index);
+                    });
+                    foreach ((DataValue value, _) in outside)
+                    {
+                        if (Add(value))
+                        {
+                            return nonBadTimestamps.Count;
+                        }
+                    }
+                    scanned += page.Values.Count;
+                    if (page.IsFinal || scanned > kMaxProcessedBufferedOutputs)
+                    {
+                        break;
+                    }
+                    token = page.NextToken;
                 }
-                // Same bound as the processed fallback: the span between the
-                // requested times, not the request, drives the buffer size.
-                if (collected.Count > kMaxProcessedBufferedOutputs)
+                if (scanned < limit)
                 {
-                    return null;
+                    // The provider has no further values on this side.
+                    break;
                 }
-                if (page.IsFinal)
+                if (limit > kMaxProcessedBufferedOutputs)
+                {
+                    return -1;
+                }
+                collected.RemoveRange(start, collected.Count - start);
+                nonBadTimestamps.Clear();
+                added = 0;
+                limit = (int)Math.Min((long)limit * 64, kMaxProcessedBufferedOutputs + 1L);
+            }
+
+            // The range read excludes the extreme timestamp itself.
+            DateTimeUtc extreme = before ? DateTimeUtc.MinValue : DateTimeUtc.MaxValue;
+            if (extreme == boundary)
+            {
+                return nonBadTimestamps.Count;
+            }
+            var extremeValues = new List<DataValue>();
+            await AddExactRawValuesAsync(
+                extremeValues,
+                context,
+                raw,
+                nodeId,
+                extreme,
+                cancellationToken).ConfigureAwait(false);
+            foreach (DataValue value in extremeValues)
+            {
+                if (Add(value))
                 {
                     break;
                 }
-                token = page.NextToken;
             }
-            if (max == DateTimeUtc.MaxValue &&
-                min != max &&
-                !collected.Exists(value =>
-                    value.SourceTimestamp == DateTimeUtc.MaxValue))
-            {
-                await AddExactRawValuesAsync(
-                    collected,
-                    context,
-                    raw,
-                    nodeId,
-                    DateTimeUtc.MaxValue,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            collected.Sort((a, b) => a.SourceTimestamp.CompareTo(b.SourceTimestamp));
-            if (!useSimpleBounds)
-            {
-                bool hasNonBadBefore = false;
-                bool hasNonBadAfter = false;
-                for (int i = 0; i < collected.Count; i++)
-                {
-                    DataValue value = collected[i];
-                    if (StatusCode.IsBad(value.StatusCode))
-                    {
-                        continue;
-                    }
-                    hasNonBadBefore |= value.SourceTimestamp < min;
-                    hasNonBadAfter |= value.SourceTimestamp > max;
-                }
-                if (!hasNonBadBefore)
-                {
-                    _ = await AddOuterNonBadValuesAsync(
-                        collected,
-                        context,
-                        raw,
-                        nodeId,
-                        min,
-                        before: true,
-                        requiredCount: 1,
-                        cancellationToken).ConfigureAwait(false);
-                }
-                if (!hasNonBadAfter)
-                {
-                    hasNonBadAfter = await AddOuterNonBadValuesAsync(
-                        collected,
-                        context,
-                        raw,
-                        nodeId,
-                        max,
-                        before: false,
-                        requiredCount: 1,
-                        cancellationToken).ConfigureAwait(false) > 0;
-                }
-                if (!stepped && !hasNonBadAfter)
-                {
-                    int precedingCount = CountDistinctNonBadValuesBefore(
-                        collected,
-                        max);
-                    if (precedingCount < 2)
-                    {
-                        _ = await AddOuterNonBadValuesAsync(
-                            collected,
-                            context,
-                            raw,
-                            nodeId,
-                            max,
-                            before: true,
-                            requiredCount: 2 - precedingCount,
-                            cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                collected.Sort((a, b) =>
-                    a.SourceTimestamp.CompareTo(b.SourceTimestamp));
-            }
-            return collected;
+            return nonBadTimestamps.Count;
         }
-
         private static async ValueTask AddExactRawValuesAsync(
             List<DataValue> collected,
             HistorianOperationContext context,
