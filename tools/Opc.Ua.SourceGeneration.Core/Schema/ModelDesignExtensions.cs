@@ -1759,6 +1759,25 @@ namespace Opc.Ua.Schema.Model
                                 expandedNodeId.ServerIndex);
                         }
                     }
+                    // A server index is one of the NodeSet's ServerUris table
+                    // (OPC 10000-6 F.2, F.14), not of the server the code runs
+                    // in, and the ExpandedNodeId text has no server URI form:
+                    // map the URI through the context's ServerUris at run time
+                    // (the literal index stays the fallback without a table).
+                    string serverUri = expandedNodeId.ServerIndex == 0 ||
+                        decodedValueNamespaceUris is not DecodedValueNamespaceTable decodedTable
+                        ? null
+                        : decodedTable.ServerUris?.GetString(expandedNodeId.ServerIndex);
+                    string serverTableVariable = GetServerTableVariable(namespaceTableVariable);
+                    if (serverUri != null && serverTableVariable != null)
+                    {
+                        return MakeReturnType(CoreUtils.Format(
+                            "global::Opc.Ua.ExpandedNodeId.Parse({0}).WithServerIndex({1}?.GetIndexOrAppend({2}) ?? {3}u)",
+                            expandedNodeId.WithServerIndex(0).ToString().AsStringLiteral(),
+                            serverTableVariable,
+                            serverUri.AsStringLiteral(),
+                            expandedNodeId.ServerIndex));
+                    }
                     return MakeReturnType(CoreUtils.Format(
                         "global::Opc.Ua.ExpandedNodeId.Parse({0})",
                         expandedNodeId.ToString().AsStringLiteral()));
@@ -1872,6 +1891,23 @@ namespace Opc.Ua.Schema.Model
                 }
                 return value;
             }
+        }
+
+        /// <summary>
+        /// The run-time server URI table that sits next to a namespace table
+        /// expression: "context.NamespaceUris" pairs with "context.ServerUris".
+        /// Null when the expression is not a member access on a context.
+        /// </summary>
+        private static string GetServerTableVariable(string namespaceTableVariable)
+        {
+            const string suffix = ".NamespaceUris";
+            if (namespaceTableVariable == null ||
+                !namespaceTableVariable.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                return null;
+            }
+            return namespaceTableVariable[..(namespaceTableVariable.Length - suffix.Length)] +
+                ".ServerUris";
         }
 
         /// <summary>

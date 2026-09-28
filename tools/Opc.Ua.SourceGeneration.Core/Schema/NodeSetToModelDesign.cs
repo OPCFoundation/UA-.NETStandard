@@ -2867,7 +2867,7 @@ namespace Opc.Ua.Schema.Model
             // NodeSet2 values such as method Argument lists (InputArguments/OutputArguments)
             // cannot be decoded and the generated typed method state would lose its arguments
             // and result fields.
-            var namespaceUris = new NamespaceTable();
+            var namespaceUris = new DecodedValueNamespaceTable(m_serverUris);
 
             if (sourceNodeSetUri == null ||
                 !m_settings.NamespaceTables.TryGetValue(sourceNodeSetUri, out string[] nodeSetNamespaceUris))
@@ -3489,5 +3489,31 @@ namespace Opc.Ua.Schema.Model
         private readonly HashSet<string> m_collisionSuffixed = new(StringComparer.Ordinal);
         private Dictionary<NodeId, List<UAVariable>> m_variablesByParent;
         private Dictionary<NodeId, UANode> m_dataTypesByEncoding;
+    }
+
+    /// <summary>
+    /// The namespace table a NodeSet value was decoded with, together with
+    /// the server URI table its ExpandedNodeId server indexes refer to. Both
+    /// indexes are local to the NodeSet (OPC 10000-6 F.2, F.14); the code
+    /// generator resolves them to URIs and maps those at run time. Deriving
+    /// from <see cref="NamespaceTable"/> lets the server table travel wherever
+    /// the design copies a node's decoded-value namespace table.
+    /// </summary>
+    internal sealed class DecodedValueNamespaceTable : NamespaceTable
+    {
+        /// <summary>
+        /// Creates the table.
+        /// </summary>
+        /// <param name="serverUris">The server URIs the decoded server
+        /// indexes refer to (index 0 is the local server).</param>
+        public DecodedValueNamespaceTable(StringTable serverUris)
+        {
+            ServerUris = serverUris;
+        }
+
+        /// <summary>
+        /// The server URIs the decoded server indexes refer to.
+        /// </summary>
+        public StringTable ServerUris { get; }
     }
 }

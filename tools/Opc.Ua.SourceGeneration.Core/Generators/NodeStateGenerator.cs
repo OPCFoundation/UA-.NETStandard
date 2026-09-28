@@ -2547,20 +2547,12 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(Tokens.ValueComparison,
                     "!global::Opc.Ua.CoreUtils.IsEqual(m_value, newValue)");
             }
-            context.Template.AddReplacement(
-                Tokens.DefaultValue,
-                variableType.DataTypeNode.GetValueAsCode(
-                    variableType.ValueRank,
-                    variableType.DefaultValue,
-                    variableType.DecodedValue,
-                    true,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    m_messageContext,
-                    () => AddXmlInitializerForComplexValue(
-                        variableType,
-                        variableType.DataTypeNode,
-                        variableType.DefaultValue)));
+            // The VariableType default value is emitted by the type's factory
+            // (AddVariableTypeStateFactoryReplacements), which maps namespace
+            // indexes through the NodeSet's table (OPC 10000-6 F.14). The state
+            // class template has no default value: computing one here without
+            // that table produced a NodeSet-local literal nobody rendered and
+            // registered an unused XML value resource.
             context.Template.AddReplacement(Tokens.ValueRank, valueRank);
             context.Template.AddReplacement(
                 Tokens.ArrayDimensions,

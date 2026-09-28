@@ -288,6 +288,96 @@ namespace Opc.Ua.Schema.Model.Tests
                 "global::Opc.Ua.ExpandedNodeId.Parse(\"nsu=" + OtherUri + ";i=5000\"));"));
         }
 
+        /// <summary>
+        /// N2a (OPC 10000-6 F.14): a VariableType default value names the
+        /// NodeSet's own namespace table like a Variable value does. No
+        /// generated code may carry the NodeSet-local index "ns=1" as a literal,
+        /// which the server would read against its own table.
+        /// </summary>
+        [Test]
+        public void VariableTypeDefaultValuesKeepTheirNamespaces()
+        {
+            Dictionary<string, string> files = GenerateTwoModels();
+            string[] lines = [.. files
+                .Where(f => f.Key.Contains("S12.", StringComparison.Ordinal))
+                .SelectMany(f => f.Value.Split('\n'))
+                .Select(l => l.Trim())];
+
+            Assert.That(lines, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "global::Opc.Ua.NodeId.Parse(\"i=5000\").WithNamespaceIndex(" +
+                "context.NamespaceUris.GetIndexOrAppend(\"" + OtherUri + "\")));"));
+            Assert.That(lines, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "new global::Opc.Ua.QualifiedName(\"Bar\", " +
+                "context.NamespaceUris.GetIndexOrAppend(\"" + OtherUri + "\")));"));
+            Assert.That(
+                lines.Where(l => l.Contains("ns=1;i=5000", StringComparison.Ordinal) ||
+                    l.Contains("QualifiedName(\"Bar\", 1)", StringComparison.Ordinal)),
+                Is.Empty);
+        }
+
+        /// <summary>
+        /// N2b (OPC 10000-6 F.2, F.14): svr=1 in a NodeSet value names
+        /// ServerUris[0] of the NodeSet. The value used to be emitted with the
+        /// generator-local server index, which the server reads against its own
+        /// ServerArray. It is now mapped through the server URI at run time.
+        /// </summary>
+        [Test]
+        public void ExpandedNodeIdServerIndexIsMappedThroughTheServerUri()
+        {
+            Dictionary<string, string> files = GenerateTwoModels();
+            string[] lines = [.. files
+                .Where(f => f.Key.Contains("S12.", StringComparison.Ordinal))
+                .SelectMany(f => f.Value.Split('\n'))
+                .Select(l => l.Trim())
+                .Where(l => l.Contains("urn:remote:ns", StringComparison.Ordinal))];
+
+            Assert.That(lines, Is.EqualTo(new[]
+            {
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "global::Opc.Ua.ExpandedNodeId.Parse(\"nsu=urn:remote:ns;i=42\")" +
+                ".WithServerIndex(context.ServerUris?.GetIndexOrAppend(\"urn:remote:server\") ?? 1u));"
+            }));
+        }
+
+        /// <summary>
+        /// N2b: the emitted server-index mapping compiles and names the server
+        /// the NodeSet meant in the run-time ServerUris table.
+        /// </summary>
+        [Test]
+        public void ExpandedNodeIdServerIndexExpressionMapsAtRunTime()
+        {
+            var serverUris = new StringTable();
+            serverUris.Append("urn:local");
+            serverUris.Append("urn:remote:server");
+            var decodingTable = new DecodedValueNamespaceTable(serverUris);
+
+            string expression = new DataTypeDesign { BasicDataType = BasicDataType.ExpandedNodeId }
+                .GetValueAsCode(
+                    ValueRank.Scalar,
+                    null,
+                    new ExpandedNodeId(42u, "urn:remote:ns", 1),
+                    false,
+                    TargetUri,
+                    [],
+                    new Mock<IServiceMessageContext>().Object,
+                    null,
+                    decodingTable,
+                    "Ctx.NamespaceUris");
+
+            const string context =
+                "public static class Ctx { " +
+                "public static global::Opc.Ua.NamespaceTable NamespaceUris = new(); " +
+                "public static global::Opc.Ua.StringTable ServerUris = " +
+                "new(new[] { \"urn:local\", \"urn:other\", \"urn:remote:server\" }); }";
+            var value = (ExpandedNodeId)Evaluate(expression, extraCode: context);
+
+            Assert.That(value.ServerIndex, Is.EqualTo(2u));
+            Assert.That(value.NamespaceUri, Is.EqualTo("urn:remote:ns"));
+            Assert.That(value.InnerNodeId, Is.EqualTo(new NodeId(42u)));
+        }
+
         private static string Scalar(
             BasicDataType basicDataType,
             object value,
@@ -390,6 +480,9 @@ namespace Opc.Ua.Schema.Model.Tests
                     <Uri>{OtherUri}</Uri>
                     <Uri>{TargetUri}</Uri>
                 </NamespaceUris>
+                <ServerUris>
+                    <Uri>urn:remote:server</Uri>
+                </ServerUris>
                 <Models>
                     <Model ModelUri="{TargetUri}" PublicationDate="2026-08-12T00:00:00Z" Version="1.0.0">
                         <RequiredModel ModelUri="{OtherUri}" Version="1.0.0" PublicationDate="2026-08-12T00:00:00Z" />
@@ -411,6 +504,7 @@ namespace Opc.Ua.Schema.Model.Tests
                         <Reference ReferenceType="HasProperty">ns=2;i=1001</Reference>
                         <Reference ReferenceType="HasProperty">ns=2;i=1002</Reference>
                         <Reference ReferenceType="HasProperty">ns=2;i=1003</Reference>
+                        <Reference ReferenceType="HasProperty">ns=2;i=1004</Reference>
                     </References>
                 </UAObjectType>
                 <UAVariable NodeId="ns=2;i=1001" BrowseName="2:Target" ParentNodeId="ns=2;i=1000" DataType="NodeId">
@@ -431,6 +525,34 @@ namespace Opc.Ua.Schema.Model.Tests
                     </References>
                     <Value>
                         <uax:QualifiedName><uax:NamespaceIndex>2</uax:NamespaceIndex><uax:Name>Foo</uax:Name></uax:QualifiedName>
+                    </Value>
+                </UAVariable>
+                <UAVariableType NodeId="ns=2;i=2000" BrowseName="2:S12NodeIdVariableType" DataType="NodeId">
+                    <DisplayName>S12NodeIdVariableType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+                    </References>
+                    <Value>
+                        <uax:NodeId><uax:Identifier>ns=1;i=5000</uax:Identifier></uax:NodeId>
+                    </Value>
+                </UAVariableType>
+                <UAVariableType NodeId="ns=2;i=2001" BrowseName="2:S12NameVariableType" DataType="QualifiedName">
+                    <DisplayName>S12NameVariableType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+                    </References>
+                    <Value>
+                        <uax:QualifiedName><uax:NamespaceIndex>1</uax:NamespaceIndex><uax:Name>Bar</uax:Name></uax:QualifiedName>
+                    </Value>
+                </UAVariableType>
+                <UAVariable NodeId="ns=2;i=1004" BrowseName="2:Remote" ParentNodeId="ns=2;i=1000" DataType="ExpandedNodeId">
+                    <DisplayName>Remote</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+                        <Reference ReferenceType="HasModellingRule">i=78</Reference>
+                    </References>
+                    <Value>
+                        <uax:ExpandedNodeId><uax:Identifier>svr=1;nsu=urn:remote:ns;i=42</uax:Identifier></uax:ExpandedNodeId>
                     </Value>
                 </UAVariable>
                 <UAVariable NodeId="ns=2;i=1003" BrowseName="2:Expanded" ParentNodeId="ns=2;i=1000" DataType="ExpandedNodeId">
