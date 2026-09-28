@@ -31,8 +31,10 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using NUnit.Framework;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
@@ -739,6 +741,71 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             bool result = array.Exceeds(0);
 
             Assert.That(result, Is.False);
+        }
+
+        [TestCase(0, 0)]
+        [TestCase(0, 3)]
+        [TestCase(1, 2)]
+        [TestCase(2, 17)]
+        [TestCase(4, 1)]
+        [TestCase(4, 0)]
+        [TestCase(4, 4)]
+        public void ToArrayOfUsesEnumerationRatherThanAnEarlierCount(int initialCount, int finalCount)
+        {
+            var source = new ChangingQueue(initialCount, finalCount);
+
+            ArrayOf<int> result = ((IEnumerable<int>)source).ToArrayOf();
+
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.Count, Is.EqualTo(finalCount));
+            Assert.That(result.ToArray(), Is.EqualTo(Enumerable.Range(1, finalCount).ToArray()));
+            Assert.That(source.EnumerationCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Reproduces a concurrent queue changing between its count query and its snapshot enumeration.
+        /// </summary>
+        private sealed class ChangingQueue : IEnumerable<int>, ICollection
+        {
+            public ChangingQueue(int initialCount, int finalCount)
+            {
+                m_queue = new ConcurrentQueue<int>(Enumerable.Range(1, initialCount));
+                m_finalCount = finalCount;
+            }
+
+            public int Count => m_queue.Count;
+
+            public int EnumerationCount { get; private set; }
+
+            bool ICollection.IsSynchronized => false;
+
+            object ICollection.SyncRoot => this;
+
+            public IEnumerator<int> GetEnumerator()
+            {
+                EnumerationCount++;
+                while (m_queue.TryDequeue(out _))
+                {
+                }
+                for (int ii = 1; ii <= m_finalCount; ii++)
+                {
+                    m_queue.Enqueue(ii);
+                }
+                return m_queue.GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            void ICollection.CopyTo(Array array, int index)
+            {
+                ((ICollection)m_queue).CopyTo(array, index);
+            }
+
+            private readonly ConcurrentQueue<int> m_queue;
+            private readonly int m_finalCount;
         }
     }
 }
