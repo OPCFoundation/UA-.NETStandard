@@ -244,9 +244,30 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
 
             // 7. Remove the resource and refresh: the retired projection is cleaned up.
-            await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "sensor")
-                .ConfigureAwait(false);
+            WotRegistrySnapshot beforeDelete = m_registry.Current;
+            WotCommittedPublicationState published = m_coordinator.CommittedPublication;
+            bool deleted = await WaitForConditionAsync(async () =>
+            {
+                try
+                {
+                    WotRegistryMutationResult result = await m_registry.DeleteResourceAsync(
+                        WotRegistryGroups.ThingDescriptions, "sensor").ConfigureAwait(false);
+                    Assert.That(result.Changed, Is.True);
+                    return true;
+                }
+                catch (ServiceResultException error) when (error.StatusCode == StatusCodes.BadServerTooBusy)
+                {
+                    Assert.That(m_registry.Current, Is.SameAs(beforeDelete));
+                    Assert.That(m_coordinator.CommittedPublication, Is.SameAs(published));
+                    Assert.That(m_coordinator.Generation, Is.EqualTo(beforeDelete.RefreshGeneration));
+                    return false;
+                }
+            }).ConfigureAwait(false);
+            Assert.That(deleted, Is.True, "Retired-generation cleanup must release publication admission.");
+            Assert.That(m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "sensor"), Is.Null);
+            Assert.That(m_coordinator.Generation, Is.EqualTo(beforeDelete.RefreshGeneration + 1));
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(m_coordinator.Generation, Is.EqualTo(beforeDelete.RefreshGeneration + 1));
 
             DataValue removed = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
             Assert.That(
