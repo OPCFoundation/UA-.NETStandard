@@ -14,8 +14,7 @@
     non-zero exit is tolerated when - and only when - the results record at least
     one *passing* test and no failure of any kind, which means the host died
     during process exit after the last test and every teardown had already run.
-    This matches the Azure gate in .azurepipelines/test.yml. A host that dies
-    mid-run leaves a non-zero failed/aborted/passedButRunAborted counter and is
+    A host that dies mid-run leaves a non-zero failed/aborted/passedButRunAborted counter and is
     rejected, and a suite whose tests were all skipped is rejected as well.
 #>
 
@@ -37,7 +36,7 @@
     Sum of every TRX counter that represents a failed, non-passing, or
     unfinished test: failed, error, timeout, aborted, passedButRunAborted,
     inconclusive, notRunnable, disconnected, warning, completed, inProgress,
-    and pending. This is the same fail-closed set the Azure gate uses.
+    and pending - a fail-closed set.
 
  .PARAMETER ExitCode
     Exit code of the 'dotnet test' process.

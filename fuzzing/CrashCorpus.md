@@ -9,7 +9,7 @@ branch **`fuzz-corpus`** of this repository and the nightly workflow replays it.
 
 Until the move to GitHub Actions, the corpus was the Azure DevOps secure file
 `FuzzingArtifacts.zip` (**Pipelines → Library → Secure files**).
-[`.azurepipelines/test.yml`](../.azurepipelines/test.yml) downloaded it with `DownloadSecureFile@1`,
+The since-removed Azure test template (`.azurepipelines/test.yml`) downloaded it with `DownloadSecureFile@1`,
 but only for the `Opc.Ua.Encoders.Fuzz.Tests` matrix entry. It extracted the file over
 `fuzzing/Opc.Ua.Encoders.Fuzz.Tests/` and re-published it as the `drop` artifact whenever the job
 failed.

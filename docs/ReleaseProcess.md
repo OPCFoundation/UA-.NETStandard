@@ -165,11 +165,6 @@ Every procedure below starts here.
   `Test-CanonicalReleaseBranchForPackageVersion` enforces this in both the
   candidate and promotion workflows, so a valid-looking `2.1.0` package set
   cannot be released from `release/2.0`.
-- Azure Pipelines validates the same signed package-set policy as GitHub
-  Actions. Its internal preview-feed upload runs only when the manifest
-  channel is `preview`; a manually queued stable release-line build remains
-  artifact-only and must go through the same approved `release.yml`
-  promotion procedure.
 - Container image tags follow the same line model, enforced by the
   `Determine release line precedence` step in
   `.github/workflows/docker-image.yml`. Every build gets its exact version

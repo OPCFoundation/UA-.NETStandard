@@ -17,7 +17,7 @@ Here is a list of available documentation for different topics:
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform support, NuGet packages and versioning](DeveloperGuide.md#packages-platform-support-and-versioning).
-* About [continuous integration](DeveloperGuide.md#continuous-integration) — which pipeline runs what, how to start a validation build on a pull request with `/azp run`, and the coverage gates a change has to satisfy.
+* About [continuous integration](DeveloperGuide.md#continuous-integration) — which workflow runs what, how to reproduce a CI leg locally, and the coverage gates a change has to satisfy.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * [CertificateManager](CertificateManager.md) - Centralized certificate lifecycle management, server-side push certificate rotation, and the OPC UA Part 12 PushManagement transaction model (`ApplyChanges`/`CancelChanges`, staged TrustList/Certificate updates, `DeleteCertificate`, pending-key persistence).
 * [Crypto provider](CryptoProvider.md) - Replacing the stack's cryptography with another library, a remote service or hardware (TPM, HSM, PKCS#11, cloud key service), keeping private keys inside the device, selecting providers per purpose and security policy, and auditing the use of uncertified cryptography.

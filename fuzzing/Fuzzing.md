@@ -327,8 +327,7 @@ Create a public validation drop without internal credentials:
 The publisher uses isolated SDK outputs, materializes declared generated corpora in controlled
 artifacts, and replays the published callbacks. It never uploads or submits jobs. Without
 `-OwnershipProfile <approved-profile.json>`, it does **not** emit a service-submittable
-`OneFuzzConfig.json`. See `fuzzing/OneFuzz` and `.azurepipelines/onefuzz.yml` for the ownership
-profile and internal pipeline contract. Existing output/work directories are rejected, not deleted.
+`OneFuzzConfig.json`. See `fuzzing/OneFuzz` for the ownership profile contract. Existing output/work directories are rejected, not deleted.
 
 The service mode is `OneFuzz=true`: managed net10.0 class libraries from the same source,
 without the local runner or direct SharpFuzz dependency. Internal worker configuration uses
