@@ -140,6 +140,33 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void WriteDataTypeDefinitionRejectsUndecodedBody()
+        {
+            var definition = new ExtensionObject(new StructureDefinition());
+            var dt = new DataTypeState
+            {
+                DataTypeDefinition = definition,
+                WriteMask = AttributeWriteMask.DataTypeDefinition
+            };
+
+            // a binary body of a type the factory does not know stays opaque.
+            var opaque = new ExtensionObject(
+                new ExpandedNodeId(9999u, 1),
+                ByteString.From([1, 2, 3, 4]));
+            ServiceResult result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(opaque)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            // a TypeId without a body is not a DataTypeDefinition either.
+            var typeIdOnly = new ExtensionObject(new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary));
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(typeIdOnly)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+        }
+
+        [Test]
         public void PurposePropertyCanBeSetAndRead()
         {
             var dt = new DataTypeState

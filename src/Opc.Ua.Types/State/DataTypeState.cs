@@ -292,10 +292,22 @@ namespace Opc.Ua
 
                         dataTypeDefinition = default;
                     }
-                    else if (dataTypeDefinition.TryGetValue(out IEncodeable? body) &&
-                        body is not Opc.Ua.DataTypeDefinition)
+                    else if (!dataTypeDefinition.IsNull)
                     {
-                        return StatusCodes.BadTypeMismatch;
+                        // the body must decode to a DataTypeDefinition subtype; an opaque
+                        // (undecodable) or missing body is not a DataTypeDefinition either.
+                        if (!dataTypeDefinition.TryGetValue(
+                                out Opc.Ua.DataTypeDefinition? definition,
+                                context.AsMessageContext()))
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+
+                        if (!dataTypeDefinition.TryGetValue(out IEncodeable? _))
+                        {
+                            // keep the decoded form so reads return the definition.
+                            dataTypeDefinition = new ExtensionObject(definition);
+                        }
                     }
 
                     if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
