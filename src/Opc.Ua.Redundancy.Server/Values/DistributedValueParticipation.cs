@@ -98,6 +98,11 @@ namespace Opc.Ua.Redundancy.Server
         /// <c>isWriter</c> predicate (for example <c>() => election.IsLeader</c>)
         /// so read-through refreshes and write-through updates only persist on
         /// the leader.
+        /// Writes to the variable are serialized within this process, so an
+        /// index-range merge cannot lose a concurrent write. The cache contract
+        /// has no atomic update, so deployments where several replicas persist
+        /// writes to the same value concurrently are not protected against
+        /// lost index-range updates.
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static void EnableDistributedValueParticipation(
@@ -145,27 +150,42 @@ namespace Opc.Ua.Redundancy.Server
                     value.SourceTimestamp);
             };
 
+            // An index-range write is a read-modify-write of the distributed value.
+            // Serialize the variable's writes so two concurrent writes cannot both
+            // merge into the same current value and lose one of the slices.
+#pragma warning disable CA2000 // lives as long as the variable's write callback
+            var writeLock = new SemaphoreSlim(1, 1);
+#pragma warning restore CA2000
+
             variable.OnWriteValueAsync = async (context, node, indexRange, value, ct) =>
             {
-                Variant valueToCache = value;
-
-                // an index-range write carries only the slice: merge it into the
-                // current value instead of caching the slice as the whole value.
-                if (!indexRange.IsNull)
+                await writeLock.WaitAsync(ct).ConfigureAwait(false);
+                try
                 {
-                    DataValue current = await ReadThroughAsync(cache, nodeId, maxAge, liveRead, ct)
-                        .ConfigureAwait(false);
-                    valueToCache = current.WrappedValue;
-                    StatusCode updateResult = indexRange.UpdateRange(ref valueToCache, value);
-                    if (StatusCode.IsBad(updateResult))
-                    {
-                        return new AttributeWriteResult(updateResult);
-                    }
-                }
+                    Variant valueToCache = value;
 
-                var dataValue = new DataValue(valueToCache, StatusCodes.Good, DateTimeUtc.Now);
-                await cache.CacheAsync(nodeId, dataValue, ct).ConfigureAwait(false);
-                return new AttributeWriteResult(ServiceResult.Good);
+                    // an index-range write carries only the slice: merge it into the
+                    // current value instead of caching the slice as the whole value.
+                    if (!indexRange.IsNull)
+                    {
+                        DataValue current = await ReadThroughAsync(cache, nodeId, maxAge, liveRead, ct)
+                            .ConfigureAwait(false);
+                        valueToCache = current.WrappedValue;
+                        StatusCode updateResult = indexRange.UpdateRange(ref valueToCache, value);
+                        if (StatusCode.IsBad(updateResult))
+                        {
+                            return new AttributeWriteResult(updateResult);
+                        }
+                    }
+
+                    var dataValue = new DataValue(valueToCache, StatusCodes.Good, DateTimeUtc.Now);
+                    await cache.CacheAsync(nodeId, dataValue, ct).ConfigureAwait(false);
+                    return new AttributeWriteResult(ServiceResult.Good);
+                }
+                finally
+                {
+                    writeLock.Release();
+                }
             };
         }
     }
