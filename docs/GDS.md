@@ -594,7 +594,7 @@ The GDS-side proxy that exposes *other* applications' configurations under a `Ma
 | §7.8.2 | Read/write access control | ✅ | `TrustList.cs` | `TrustListTests` (`OpenReadWithoutReadAccessThrowsBadUserAccessDenied`, `OpenWriteWithoutWriteAccessThrowsBadUserAccessDenied`) |
 | §7.8.2 | `LastUpdateTime` set on init + after committed update | ✅ | `TrustList.cs` | `TrustListTransactionTests.cs` |
 | §7.8.2 | Writable / UserWritable; ActivityTimeout / DefaultValidationOptions | ✅ | Set to true for GDS groups; generated from model CSV | `TrustListTests.cs` |
-| §8.4.5 | `MaxTrustListSize` advertised honestly + resource-protection safety ceiling; oversize → `Bad_EncodingLimitsExceeded` | ✅ | `TrustList.cs` + `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` | `TrustListValidationTest` (`NormalSizeTrustListAsync`, `WriteTrustListExceedsSizeLimit`, `TrustListJustUnderLimitAsync`), `ConfigurationNodeManagerPushTests.MaxTrustListSizeAdvertisesHonestFiniteEffectiveLimit` |
+| §8.4.5 | `MaxTrustListSize` advertised honestly + resource-protection safety ceiling; oversize `Write`/`AddCertificate` → `Bad_RequestTooLarge`; `Read` clamped to the server-encoded stream | ✅ | `TrustList.cs` + `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` | `TrustListValidationTest` (`NormalSizeTrustListAsync`, `WriteTrustListExceedsSizeLimit`, `TrustListJustUnderLimitAsync`), `ConfigurationNodeManagerPushTests.MaxTrustListSizeAdvertisesHonestFiniteEffectiveLimit` |
 
 ### Certificate and TrustList alarms (§7.8.3)
 

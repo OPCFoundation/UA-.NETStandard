@@ -627,10 +627,12 @@ The effective, actually-enforced limit is derived from the advertised
 | finite, at or below the ceiling | the configured `MaxTrustListSize` |
 
 The effective limit is enforced consistently — before allocation — on
-`TrustList.Read`/`Write` (cumulatively across chunks, overflow-safe),
+`TrustList.Write` (cumulatively across chunks, overflow-safe),
 `CloseAndUpdate` (the staged payload is decoded under the effective bound), and
-the direct `AddCertificate` path (an oversized certificate is rejected with
-`Bad_EncodingLimitsExceeded`).
+the direct `AddCertificate` path. An oversized `Write` or `AddCertificate` is
+rejected with `Bad_RequestTooLarge`. `TrustList.Read` is not limited: it
+returns the TrustList the server encoded itself, and a requested `Length`
+beyond the remaining data is clamped to what is left.
 
 ```csharp
 builder.ConfigureServerConfiguration(o =>
