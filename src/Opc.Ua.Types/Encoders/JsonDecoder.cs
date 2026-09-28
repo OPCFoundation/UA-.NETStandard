@@ -1833,16 +1833,32 @@ namespace Opc.Ua
                     value = ExpandedNodeId.Null;
                     return true;
                 case JsonValueKind.String:
-                    return ExpandedNodeId.TryParse(
+                    string text = element.GetString()!;
+                    if (ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString()!,
+                        text,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
                         },
-                        out value);
+                        out value,
+                        out NodeIdParseError error))
+                    {
+                        return true;
+                    }
+
+                    if (error == NodeIdParseError.NoServerUriMapping)
+                    {
+                        // Part 6 5.4.2.11: a ServerUri that cannot be mapped to a
+                        // ServerIndex decodes as a String NodeId (NamespaceIndex 0,
+                        // ServerIndex 0) holding the JSON string. An unmapped
+                        // NamespaceUri is kept in the NamespaceUri field instead.
+                        value = new ExpandedNodeId(new NodeId(text, 0));
+                        return true;
+                    }
+                    return false;
                 case JsonValueKind.Number when element.TryGetUInt32(out uint id):
                     value = new ExpandedNodeId(id);
                     return true;

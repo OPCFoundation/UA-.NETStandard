@@ -157,6 +157,36 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(context.NamespaceUris.Count, Is.EqualTo(count));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadExpandedNodeIdWithUnknownServerUriDecodesAsStringNodeId(bool parseStrict)
+        {
+            // Part 6 5.4.2.11: an unmappable ServerUri decodes to a String NodeId
+            // (NamespaceIndex 0, ServerIndex 0) holding the JSON string instead
+            // of failing with NoServerUriMapping.
+            const string text = "svu=urn:not-registered;nsu=urn:also-unknown;s=Tag1";
+            ServiceMessageContext context = NewContext();
+            int count = context.ServerUris.Count;
+            using var decoder = new JsonDecoder(
+                "{\"Value\":\"" + text + "\",\"Values\":[\"" + text + "\"]}",
+                context,
+                new JsonDecoderOptions { ParseStrict = parseStrict });
+
+            var expected = new ExpandedNodeId(new NodeId(text, 0));
+            ExpandedNodeId value = decoder.ReadExpandedNodeId(JsonProperties.Value);
+            ArrayOf<ExpandedNodeId> values = decoder.ReadExpandedNodeIdArray("Values");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value, Is.EqualTo(expected));
+                Assert.That(value.ServerIndex, Is.Zero);
+                Assert.That(value.NamespaceUri, Is.Null.Or.Empty);
+                Assert.That(values.Count, Is.EqualTo(1));
+                Assert.That(values[0], Is.EqualTo(expected));
+                Assert.That(context.ServerUris.Count, Is.EqualTo(count));
+            });
+        }
+
         [Test]
         public void SetMappingTablesWithoutUpdateDoesNotAppendUnknownUri()
         {
