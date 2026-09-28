@@ -421,8 +421,9 @@ namespace Opc.Ua.Robotics.Client
 
         /// <summary>
         /// Returns the drives of a motor. MotorType declares them as the
-        /// <c>&lt;DriveIdentifier&gt;</c> placeholder behind the non-hierarchical
-        /// <c>IsDrivenBy</c> reference, so they are the forward IsDrivenBy targets.
+        /// <c>&lt;DriveIdentifier&gt;</c> placeholder behind the <c>IsDrivenBy</c>
+        /// reference (a HierarchicalReferences subtype, OPC 40010-1 8.5), so they
+        /// are the forward IsDrivenBy targets.
         /// </summary>
         private async Task<ArrayOf<NodeId>> ReadDriveIdsAsync(
             NodeId motor,
