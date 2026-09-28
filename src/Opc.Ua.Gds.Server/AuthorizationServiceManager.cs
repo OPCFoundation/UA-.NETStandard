@@ -204,9 +204,11 @@ namespace Opc.Ua.Gds.Server
             if (m_options.AllowedAudiences.Count != 0 &&
                 !m_options.AllowedAudiences.Contains(audience, StringComparer.Ordinal))
             {
+                // OPC 10000-12 §9.6.5 - §9.6.8: Bad_NotFound when the
+                // ResourceId is not known to the Server.
                 throw ServiceResultException.Create(
-                    StatusCodes.BadUserAccessDenied,
-                    "AuthorizationService audience is not allowed.");
+                    StatusCodes.BadNotFound,
+                    "AuthorizationService resource id is not known.");
             }
 
             if (m_options.AccessControl != null &&

@@ -332,6 +332,51 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(claims.Subject, Is.EqualTo("operator"));
         }
 
+        /// <summary>
+        /// OPC 10000-12 §9.6.5 - §9.6.8: a ResourceId the Server does not know
+        /// is reported with Bad_NotFound, not Bad_UserAccessDenied.
+        /// </summary>
+        [Test]
+        public void UnknownResourceIdReturnsBadNotFound()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            var manager = new AuthorizationServiceManager(provider, issuer, options);
+            const string unknownResourceId = "urn:unknown:resource";
+
+            Assert.That(
+                async () => await manager
+                    .StartRequestTokenAsync(
+                        unknownResourceId,
+                        "jwt",
+                        ByteString.From(Encoding.UTF8.GetBytes("read")),
+                        new UserIdentity("operator", []))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
+            Assert.That(
+                async () => await provider
+                    .StartRequestTokenAsync(
+                        unknownResourceId,
+                        "jwt",
+                        ByteString.From(Encoding.UTF8.GetBytes("read")))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
+        }
+
         [Test]
         public async Task FinishGrantsOnlyTheIntersectionOfAuthorizedAndRequestedRoles()
         {
