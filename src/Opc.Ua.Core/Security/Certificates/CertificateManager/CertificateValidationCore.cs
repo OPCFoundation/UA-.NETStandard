@@ -1100,6 +1100,10 @@ namespace Opc.Ua
 
                 // A certificate or CA the trust list marks as "never trust"
                 // (TreatAsInvalid) is rejected even though it was found there.
+                // The administrator distrusted it, so OPC 10000-4 6.1.3 (Trust
+                // List Check) reports Bad_CertificateUntrusted. Unlike a
+                // certificate that is merely unknown, the rejection is final:
+                // neither the accept callback nor AutoAccept may override it.
                 bool treatAsInvalid = trustedCertificate != null &&
                     (trustedCertificate.Options & CertificateValidationOptions.TreatAsInvalid) != 0;
                 foreach (CertificateIssuerReference issuer in issuers)
@@ -1111,8 +1115,8 @@ namespace Opc.Ua
                 {
                     sresult = new ServiceResult(
                         null,
-                        StatusCodes.BadCertificateInvalid,
-                        LocalizedText.From("The trust list marks the certificate or an issuer as invalid."),
+                        StatusCodes.BadCertificateUntrusted,
+                        LocalizedText.From("The trust list marks the certificate or an issuer as not trusted."),
                         null,
                         sresult);
                 }
@@ -1282,7 +1286,9 @@ namespace Opc.Ua
 
                 if (sresult != null)
                 {
-                    throw new ServiceResultException(sresult);
+                    throw treatAsInvalid
+                        ? new UnsuppressibleValidationException(sresult)
+                        : new ServiceResultException(sresult);
                 }
             }
             finally
@@ -1312,7 +1318,7 @@ namespace Opc.Ua
             Func<Certificate, ServiceResult, bool>? acceptError)
         {
             // check for errors that may be suppressed.
-            if (ContainsUnsuppressibleSC(se.Result))
+            if (se is UnsuppressibleValidationException || ContainsUnsuppressibleSC(se.Result))
             {
                 m_logger.CertificateValidationLog8(Redact.Create(certificate), se.Result);
 
@@ -1395,6 +1401,33 @@ namespace Opc.Ua
                 m_validatedCertificates.TryAdd(certificate.Thumbprint, certificate.RawData);
             }
             return CertificateValidationResult.Success;
+        }
+
+        /// <summary>
+        /// A validation failure that must not be suppressed although its status
+        /// codes are otherwise suppressible, e.g. the Bad_CertificateUntrusted of a
+        /// certificate the trust list marks as never to be trusted.
+        /// </summary>
+        private sealed class UnsuppressibleValidationException : ServiceResultException
+        {
+            public UnsuppressibleValidationException()
+            {
+            }
+
+            public UnsuppressibleValidationException(string message)
+                : base(message)
+            {
+            }
+
+            public UnsuppressibleValidationException(string message, Exception innerException)
+                : base(message, innerException)
+            {
+            }
+
+            public UnsuppressibleValidationException(ServiceResult status)
+                : base(status)
+            {
+            }
         }
 
         /// <summary>

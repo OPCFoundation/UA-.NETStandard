@@ -705,6 +705,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 chain, (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             Assert.That(result.IsSuppressible, Is.False);
         }
 
@@ -737,6 +738,34 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 chain, (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        /// <summary>
+        /// A certificate or CA the trust list marks TreatAsInvalid is reported as
+        /// Bad_CertificateUntrusted (OPC 10000-4 6.1.3 Trust List Check), but the
+        /// administrator's decision is final: AutoAcceptUntrustedCertificates must
+        /// not accept it the way it accepts an unknown certificate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncAutoAcceptDoesNotAcceptTreatAsInvalidAsync(bool issuer)
+        {
+            string trustedDir = await WriteStoreAsync([issuer ? m_rootCa : m_selfSignedApp])
+                .ConfigureAwait(false);
+            CertificateValidationCore core = NewCore();
+            CertificateTrustList trustList = TrustList(trustedDir);
+            trustList.ValidationOptions = CertificateValidationOptions.TreatAsInvalid;
+            core.Update(null, trustList, null);
+            core.AutoAcceptUntrustedCertificates = true;
+            using CertificateCollection chain = Chain(issuer ? m_leaf : m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             Assert.That(result.IsSuppressible, Is.False);
         }
 
