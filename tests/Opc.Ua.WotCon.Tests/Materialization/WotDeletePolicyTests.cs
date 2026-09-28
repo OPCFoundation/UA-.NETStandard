@@ -256,14 +256,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// A dependent whose reference is still answered by another stored
-        /// document was never in danger, so Cascade leaves its projection
-        /// alone. Unloading it would remove something the delete did not break.
+        /// An exact model Xid cannot be replaced by an unrelated Resource with the same local name.
         /// </summary>
         [Test]
-        public async Task CascadeLeavesADependentThatStillResolvesElsewhere()
+        public async Task CascadeUnloadsExactDependentsDespiteUnrelatedNameCollisions()
         {
-            await RegisterAlternativeResolutionAsync();
+            await RegisterNameCollisionAsync();
+            WotResource unrelated = m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "tm-a")!;
+            Assert.That(unrelated.ThingId, Is.EqualTo("urn:tm-a-mirror"));
+            Assert.That(WotDependencyGraph.Resolve(m_registry.Current, ModelXid)!.Xid, Is.EqualTo(ModelXid));
 
             WotDeleteResult result = await m_registry.DeleteResourceAsync(
                 WotRegistryGroups.ThingModels, "tm-a", WoTDeletePolicyEnum.Cascade);
@@ -271,10 +272,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.Multiple(() =>
             {
                 Assert.That(result.Dependents, Is.EqualTo(new[] { InstanceXid }).AsCollection);
-                Assert.That(result.Unloaded, Is.Empty);
-                Assert.That(InstanceResource()!.Enabled, Is.True);
+                Assert.That(result.Deleted, Is.True);
+                Assert.That(result.Unloaded, Is.EqualTo(new[] { InstanceXid }).AsCollection);
+                Assert.That(InstanceResource()!.Enabled, Is.False);
                 Assert.That(
-                    InstanceResource()!.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                    InstanceResource()!.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
+                Assert.That(WotDependencyGraph.Resolve(m_registry.Current, ModelXid), Is.Null);
+                WotResource retained = m_registry.Current.FindResource(unrelated.GroupId, unrelated.ResourceId)!;
+                Assert.That(retained.Enabled, Is.True);
+                Assert.That(retained.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(retained.MetaEpoch, Is.EqualTo(unrelated.MetaEpoch));
+                Assert.That(retained.DefaultVersion!.Digest, Is.EqualTo(unrelated.DefaultVersion!.Digest));
             });
         }
 
@@ -337,14 +345,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// Force marks even a dependent that could still resolve elsewhere:
-        /// unlike Cascade, it is not asking whether it broke anything, it is
-        /// reporting that it deleted while dependents existed.
+        /// Force marks the exact dependent; an unrelated name collision does not change its target.
         /// </summary>
         [Test]
-        public async Task ForceMarksEveryDependentIncludingOnesThatStillResolve()
+        public async Task ForceMarksExactDependentsDespiteUnrelatedNameCollisions()
         {
-            await RegisterAlternativeResolutionAsync();
+            await RegisterNameCollisionAsync();
 
             WotDeleteResult result = await m_registry.DeleteResourceAsync(
                 WotRegistryGroups.ThingModels, "tm-a", WoTDeletePolicyEnum.Force);
@@ -358,11 +364,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// Registers a model, a Thing Description that extends it by its exact
-        /// xid, and a second document the same reference also answers to - so
-        /// deleting the model leaves the dependent with a way to resolve.
+        /// Registers an exact model dependency alongside an unrelated same-named Thing Description.
         /// </summary>
-        private async Task RegisterAlternativeResolutionAsync()
+        private async Task RegisterNameCollisionAsync()
         {
             await RegisterModelAsync();
             await RegisterAsync(
