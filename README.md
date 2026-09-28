@@ -51,6 +51,11 @@ For the full feature breakdown see
 
 ## 🚀 Getting started
 
+To run a first OPC UA client and server, from NuGet packages or from the
+samples in this repository, follow **[Getting started](docs/GettingStarted.md)**.
+The **[documentation index](docs/README.md)** then leads from the core concepts
+to advanced and experimental features.
+
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 to build the repo. From the repository root:
 

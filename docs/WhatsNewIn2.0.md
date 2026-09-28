@@ -95,7 +95,8 @@ Source-generated models, runtime type representations, and revised serialization
 paths support applications published without a JIT compiler. Choose AOT-compatible
 providers and the default complex-type builder; the optional Reflection.Emit
 builder still requires runtime code generation.
-See [Native AOT](NativeAoT.md) and [Complex Types](ComplexTypes.md#type-builders).
+See [Native AOT: publish an application](NativeAoT.md#publish-an-application)
+and [Complex Types](ComplexTypes.md#type-builders).
 
 ### OPC UA companion-spec coverage
 

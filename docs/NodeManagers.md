@@ -3,7 +3,8 @@
 A node manager exposes part of a server's address space: variables, methods,
 events, and their behavior. Start with the [overview](#overview) and
 [first model](#start-with-a-model), then use the architecture and lifecycle
-sections when you need custom or dynamically loaded models.
+sections when you need custom or dynamically loaded models. If you have not run
+a server yet, start with [Getting started](GettingStarted.md).
 
 ## Table of contents
 
@@ -108,6 +109,8 @@ For a first server, use the
 [MinimalBoilerServer sample](../samples/MinimalApi/MinimalBoilerServer).
 It supplies a model and a generated node-manager factory, so you can start
 with variables and callbacks rather than implementing service dispatch.
+To write a model of your own and use it from a client, follow the
+[Your first information model](FirstModel.md) tutorial.
 
 1. Follow [source-generated node managers](#source-generated-node-managers)
    to include your model and generate its factory.
@@ -1819,6 +1822,12 @@ method carries none of its own, from its method declaration / method type.
 This means **instance methods imported from a NodeSet2** (whose
 `InputArguments`/`OutputArguments` live on the referenced declaration) get
 the same typed `OnCall` overloads as methods authored in a ModelDesign.
+
+A typed `{Name}MethodState` class is generated only for a method type, such
+as `AddMethodType` in the calculator sample's model. A ModelDesign method that
+declares its arguments directly, without a method type, is a plain
+`MethodState` node: its `InputArguments` and `OutputArguments` properties and
+its typed `OnCall` overloads are generated in the same way.
 
 ```csharp
 [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]

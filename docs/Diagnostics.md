@@ -552,9 +552,11 @@ every event type the standard server raises.
 ### Enabling auditing
 
 Auditing is controlled by the `ServerConfiguration.AuditingEnabled`
-flag (and the `OpcUaServerOptions.AuditingEnabled` shortcut when
-using the hosted-service builder). When `false`, audit helpers
-short-circuit immediately so there is no runtime cost.
+flag, which is off by default. A hosted server enables it through the
+configuration builder:
+`OpcUaServerOptions.ConfigureBuilder = builder => builder.SetAuditingEnabled(true)`.
+When `false`, audit helpers short-circuit immediately so there is no
+runtime cost.
 
 `StandardServer` exposes the active state through
 `IServerInternal.Auditing` (via `IAuditEventServer.Auditing`). Custom

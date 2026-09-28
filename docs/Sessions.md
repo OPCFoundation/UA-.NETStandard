@@ -6,6 +6,13 @@ UA session: the raw `Session` and its reconnect helper, the
 `ManagedSession` facade, the pluggable subscription engines, and how to
 choose between them.
 
+> **New to the client API?** Run the client in
+> [Getting started](GettingStarted.md) first. For new applications, read
+> [`ManagedSession`](#3-managedsession--the-connection-state-machine-facade)
+> and [Putting it all together](#7-putting-it-all-together). Sections 1 and 2
+> describe the raw `Session` and `SessionReconnectHandler` for applications
+> that manage the connection lifecycle themselves.
+
 ## Quick reference
 
 | Type | Creates | Reconnect | Subscription engine | Recommended for |

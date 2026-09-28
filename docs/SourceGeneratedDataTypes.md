@@ -92,15 +92,24 @@ source generator project and import its props file:
 
 ### NuGet Package (external consumers)
 
-Reference the `OPCFoundation.NetStandard.Opc.Ua.SourceGeneration` package:
+Add the `OPCFoundation.NetStandard.Opc.Ua.SourceGeneration` package:
+
+```bash
+dotnet add package OPCFoundation.NetStandard.Opc.Ua.SourceGeneration --prerelease
+```
+
+The package is a development dependency, so the command adds a reference that
+runs the generator at build time and does not flow to consumers of your
+project:
 
 ```xml
 <ItemGroup>
   <PackageReference
     Include="OPCFoundation.NetStandard.Opc.Ua.SourceGeneration"
-    Version="..."
-    OutputItemType="Analyzer"
-    ReferenceOutputAssembly="false" />
+    Version="...">
+    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    <PrivateAssets>all</PrivateAssets>
+  </PackageReference>
 </ItemGroup>
 ```
 

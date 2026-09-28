@@ -4,6 +4,9 @@ This guide describes the unified `Microsoft.Extensions.DependencyInjection`
 surface for OPC UA .NET Standard libraries. Start with
 `services.AddOpcUa()`, which returns an `IOpcUaBuilder`. Feature libraries
 extend the builder with their own fluent `.AddXxx(...)` methods.
+For a complete, runnable client and server, see
+[Getting started](GettingStarted.md); this guide is the reference for the
+builder extensions.
 
 The dependency injection surface is consistent across:
 
@@ -1931,7 +1934,7 @@ services.AddOpcUa()
 
 - [Sessions](Sessions.md) — `ManagedSession`, reconnect, subscription engines.
 - [Source Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — `IAsyncNodeManagerFactory` from a model design XML.
-- [Native AOT](NativeAoT.md) — AOT testing setup.
+- [Native AOT](NativeAoT.md) — publishing applications and the AOT test harness.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
 - [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
