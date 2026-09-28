@@ -1472,6 +1472,9 @@ namespace Opc.Ua.Gds.Server
                 return result;
             }
 
+            // Caller-owned X509Certificate2 copies of the issuer store for the
+            // chains' ExtraStore; X509Chain does not dispose them.
+            X509Certificate2Collection? extraCerts = null;
             try
             {
                 //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
@@ -1502,6 +1505,7 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 using X509Certificate2 x509Cert = x509.AsX509Certificate2();
+                extraCerts = issuerCerts.AsX509Certificate2Collection();
 
                 // A certificate issued by a CA of this GDS is checked offline
                 // against the CRLs the GDS publishes in its issuer store: the
@@ -1511,7 +1515,7 @@ namespace Opc.Ua.Gds.Server
                 using var chain = new X509Chain();
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
                 chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
-                chain.ChainPolicy.ExtraStore.AddRange(issuerCerts.AsX509Certificate2Collection());
+                chain.ChainPolicy.ExtraStore.AddRange(extraCerts);
                 chain.Build(x509Cert);
 
                 if (store != null &&
@@ -1541,7 +1545,7 @@ namespace Opc.Ua.Gds.Server
                 using var onlineChain = new X509Chain();
                 onlineChain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
                 onlineChain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
-                onlineChain.ChainPolicy.ExtraStore.AddRange(issuerCerts.AsX509Certificate2Collection());
+                onlineChain.ChainPolicy.ExtraStore.AddRange(extraCerts);
                 if (onlineChain.Build(x509Cert))
                 {
                     result.CertificateStatus = StatusCodes.Good;
@@ -1562,6 +1566,13 @@ namespace Opc.Ua.Gds.Server
             }
             finally
             {
+                if (extraCerts != null)
+                {
+                    foreach (X509Certificate2 extraCert in extraCerts)
+                    {
+                        extraCert.Dispose();
+                    }
+                }
                 x509.Dispose();
             }
 
