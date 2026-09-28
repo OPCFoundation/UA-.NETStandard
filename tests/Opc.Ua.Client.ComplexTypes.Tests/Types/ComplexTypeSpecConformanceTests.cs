@@ -138,6 +138,44 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Assert.That(structure.B, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// A structure field is written in XML like the typed field of its
+        /// type (OPC 10000-6 5.3.1, 5.3.4, 5.3.5), the way generated code
+        /// writes it, not wrapped as a Variant body (&lt;A&gt;&lt;Int32&gt;,
+        /// &lt;Arr&gt;&lt;ListOfInt32&gt;).
+        /// </summary>
+        [Test]
+        public void XmlFieldsAreWrittenLikeTypedFields()
+        {
+            ServiceMessageContext context = CreateContext();
+            var value = new XmlFieldStructure { A = 5, S = "x", Arr = [1, 2] };
+
+            string xml;
+            using (var encoder = new XmlEncoder(context))
+            {
+                encoder.PushNamespace(Namespaces.OpcUaXsd);
+                encoder.WriteEncodeable("V", value, value.TypeId);
+                encoder.PopNamespace();
+                xml = encoder.CloseAndReturnText();
+            }
+
+            Assert.That(xml, Does.Contain(">5</A>"), xml);
+            Assert.That(xml, Does.Contain(">x</S>"), xml);
+            Assert.That(xml, Does.Not.Contain("<Int32>5<"), xml);
+            Assert.That(xml, Does.Not.Contain("<String>x<"), xml);
+            Assert.That(xml, Does.Not.Contain("ListOf"), xml);
+
+            using var parser = new XmlParser(xml, context);
+            parser.PushNamespace(Namespaces.OpcUaXsd);
+            XmlFieldStructure decoded = parser.ReadEncodeable<XmlFieldStructure>("V");
+            parser.PopNamespace();
+            Assert.That(decoded.A, Is.EqualTo(5));
+            Assert.That(decoded.S, Is.EqualTo("x"));
+            Assert.That(decoded.Arr, Is.EqualTo(s_ints));
+        }
+
+        private static readonly int[] s_ints = [1, 2];
+
         private static byte[] Encode(ServiceMessageContext context, NumberStructure value)
         {
             using var encoder = new BinaryEncoder(context);
@@ -168,6 +206,26 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             [DataMember(Order = 3)]
             [StructureField(BuiltInType = (int)BuiltInType.Int32)]
             public int Tail { get; set; }
+        }
+
+        /// <summary>
+        /// A structure with scalar and array fields of built-in types.
+        /// </summary>
+        [StructureDefinition(BaseDataType = StructureBaseDataType.Structure)]
+        [StructureTypeId(ComplexTypeId = "i=78030", BinaryEncodingId = "i=78031", XmlEncodingId = "i=78032")]
+        public class XmlFieldStructure : BaseComplexType
+        {
+            [DataMember(Order = 1)]
+            [StructureField(BuiltInType = (int)BuiltInType.Int32)]
+            public int A { get; set; }
+
+            [DataMember(Order = 2)]
+            [StructureField(BuiltInType = (int)BuiltInType.String)]
+            public string S { get; set; }
+
+            [DataMember(Order = 3)]
+            [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = ValueRanks.OneDimension)]
+            public int[] Arr { get; set; }
         }
 
         /// <summary>

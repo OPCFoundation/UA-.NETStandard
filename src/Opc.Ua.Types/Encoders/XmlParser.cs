@@ -2203,6 +2203,46 @@ namespace Opc.Ua
             {
                 Variant value = Variant.Null;
 
+                if (fieldName != null && XmlDecoder.IsTypedFieldValue(typeInfo))
+                {
+                    // OPC 10000-6 5.3.1, 5.3.4, 5.3.5: the field is written
+                    // like the typed field of its type. The Variant body
+                    // earlier versions wrapped it in is still accepted.
+                    // A missing field is null, a nil array field a null array.
+                    bool isPresent = HasField(fieldName);
+                    if (!BeginField(fieldName, true, out bool isNil))
+                    {
+                        if (!isPresent)
+                        {
+                            return Variant.Null;
+                        }
+                        return isNil ? XmlDecoder.CreateNullFieldValue(typeInfo) : XmlDecoder.CreateEmptyFieldValue(typeInfo);
+                    }
+                    System.Xml.XmlElement? first = null;
+                    ElementContext context = m_contextStack.Peek();
+                    for (int i = context.Cursor; i < context.ChildElements.Count; i++)
+                    {
+                        if (!context.Consumed.Contains(i))
+                        {
+                            first = context.ChildElements[i];
+                            break;
+                        }
+                    }
+                    if (first == null ||
+                        !XmlDecoder.IsVariantBodyElement(first.LocalName, first.NamespaceURI, typeInfo))
+                    {
+                        value = XmlDecoder.ReadTypedFieldValue(this, typeInfo);
+                        EndField(fieldName);
+                        return value;
+                    }
+                    PushNamespace(Namespaces.OpcUaXsd);
+                    value = ReadVariantValue(true, typeInfo.BuiltInType);
+                    XmlDecoder.CheckFieldValueType(value, typeInfo);
+                    PopNamespace();
+                    EndField(fieldName);
+                    return value;
+                }
+
                 if (BeginField(fieldName, true))
                 {
                     PushNamespace(Namespaces.OpcUaXsd);

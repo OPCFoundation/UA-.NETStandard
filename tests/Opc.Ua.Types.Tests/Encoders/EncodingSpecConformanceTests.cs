@@ -57,6 +57,8 @@ namespace Opc.Ua.Types.Tests.Encoders
     {
         private static readonly int[] s_twoByThree = [2, 3];
         private static readonly int[] s_twoByTwo = [2, 2];
+        private static readonly string[] s_strings = ["a", "b"];
+        private static readonly string[] s_stringElements = ["String", "String"];
         private static readonly string[] s_matrixChildren = ["Dimensions", "Elements"];
         private static readonly double[] s_sixDoubles = [1, 2, 3, 4, 5, 6];
         private static readonly TypeInfo s_doubleMatrix =
@@ -379,6 +381,142 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
             using var xml = new XmlEncoder(context);
             Assert.That(xml.CanOmitFields, Is.True);
+        }
+
+        /// <summary>
+        /// A structure field is encoded like the typed field of its type
+        /// (OPC 10000-6 5.3.1, 5.3.5): a scalar is the content of the field
+        /// element and an array field contains the elements named by the
+        /// type (5.3.4). The definition driven codec wrapped the value in a
+        /// Variant body (&lt;A&gt;&lt;Int32&gt;, &lt;A&gt;&lt;ListOfInt32&gt;).
+        /// </summary>
+        [Test]
+        public void XmlStructureFieldsAreTypedFields([Values] bool useParser)
+        {
+            Structure structure = CreateStructure(
+                StructureType.Structure,
+                ("I", DataTypeIds.Int32, BuiltInType.Int32, false),
+                ("S", DataTypeIds.String, BuiltInType.String, false),
+                ("N", DataTypeIds.NodeId, BuiltInType.NodeId, false));
+            structure["I"] = Variant.From(5);
+            structure["S"] = Variant.From("x");
+            structure["N"] = Variant.From(new NodeId(85u));
+
+            string xml = EncodeXml(e => e.WriteEncodeable("V", structure, structure.TypeId));
+
+            Assert.That(xml, Does.Contain("<I>5</I>"), xml);
+            Assert.That(xml, Does.Contain("<S>x</S>"), xml);
+            Assert.That(xml, Does.Not.Contain("<Int32>5"), xml);
+            Assert.That(xml, Does.Not.Contain("<NodeId>"), xml);
+
+            var array = TypeInfo.Create(BuiltInType.String, ValueRanks.OneDimension);
+            string arrayXml = EncodeXml(e => e.WriteVariantValue("F", Variant.From(s_strings.ToArrayOf())));
+            System.Xml.XmlElement field = FindField(arrayXml, "F");
+            Assert.That(
+                field.ChildNodes.OfType<System.Xml.XmlElement>().Select(e => e.LocalName),
+                Is.EqualTo(s_stringElements),
+                arrayXml);
+            Variant decoded = DecodeXml(arrayXml, d => d.ReadVariantValue("F", array), useParser);
+            Assert.That(decoded.GetStringArray().ToArray(), Is.EqualTo(s_strings));
+        }
+
+        /// <summary>
+        /// Every element of an XML enumeration array is written (OPC 10000-6
+        /// 5.3.4); the value 0 was omitted like a default field, which
+        /// dropped it from the array.
+        /// </summary>
+        [Test]
+        public void XmlEnumerationArrayKeepsZeroElements([Values] bool useParser)
+        {
+            ArrayOf<ZeroEnum> typed = new[] { ZeroEnum.One, ZeroEnum.Zero, ZeroEnum.One }.ToArrayOf();
+            string xml = EncodeXml(e => e.WriteEnumeratedArray("F", typed));
+            Variant decoded = DecodeXml(
+                xml,
+                d => d.ReadVariantValue("F", TypeInfo.Create(BuiltInType.Enumeration, ValueRanks.OneDimension)),
+                useParser);
+            Assert.That(decoded.GetEnumerationArray().ToArray().Select(e => e.Value), Is.EqualTo(s_oneZeroOne), xml);
+
+            ArrayOf<EnumValue> values = new[] { new EnumValue(0, "Zero"), new EnumValue(1) }.ToArrayOf();
+            xml = EncodeXml(e => e.WriteVariantValue("F", Variant.From(values)));
+            decoded = DecodeXml(
+                xml,
+                d => d.ReadVariantValue("F", TypeInfo.Create(BuiltInType.Enumeration, ValueRanks.OneDimension)),
+                useParser);
+            Assert.That(decoded.GetEnumerationArray().ToArray().Select(e => e.Value), Is.EqualTo(s_zeroOne), xml);
+        }
+
+        /// <summary>
+        /// An enumeration with a 0 member.
+        /// </summary>
+        public enum ZeroEnum
+        {
+            /// <summary>Zero.</summary>
+            Zero = 0,
+
+            /// <summary>One.</summary>
+            One = 1
+        }
+
+        private static readonly int[] s_oneZeroOne = [1, 0, 1];
+        private static readonly int[] s_zeroOne = [0, 1];
+
+        /// <summary>
+        /// The Variant body earlier versions wrapped a structure field value
+        /// in is still read, and an empty array field is an empty array.
+        /// </summary>
+        [TestCase("<F><Int32>5</Int32></F>", BuiltInType.Int32, ValueRanks.Scalar, "5")]
+        [TestCase("<F>5</F>", BuiltInType.Int32, ValueRanks.Scalar, "5")]
+        [TestCase("<F><String>a</String></F>", BuiltInType.String, ValueRanks.Scalar, "a")]
+        [TestCase("<F><NodeId><Identifier>i=85</Identifier></NodeId></F>", BuiltInType.NodeId, ValueRanks.Scalar, "i=85")]
+        [TestCase("<F><Identifier>i=85</Identifier></F>", BuiltInType.NodeId, ValueRanks.Scalar, "i=85")]
+        [TestCase("<F><ListOfString><String>a</String><String>b</String></ListOfString></F>",
+            BuiltInType.String, ValueRanks.OneDimension, "a,b")]
+        [TestCase("<F><String>a</String><String>b</String></F>",
+            BuiltInType.String, ValueRanks.OneDimension, "a,b")]
+        [TestCase("<F><ListOfInt32><Int32>1</Int32></ListOfInt32></F>",
+            BuiltInType.Enumeration, ValueRanks.OneDimension, "1")]
+        [TestCase("<F><Int32>1</Int32></F>", BuiltInType.Enumeration, ValueRanks.Scalar, "1")]
+        [TestCase("<F>Green_1</F>", BuiltInType.Enumeration, ValueRanks.Scalar, "1")]
+        [TestCase("<F />", BuiltInType.Int32, ValueRanks.OneDimension, "")]
+        public void XmlStructureFieldReadsTypedAndLegacyShape(
+            string field,
+            BuiltInType builtInType,
+            int valueRank,
+            string expected)
+        {
+            foreach (bool useParser in new[] { false, true })
+            {
+                string xml =
+                    "<Root xmlns=\"" + Namespaces.OpcUaXsd + "\"><A>7</A>" + field + "<B>9</B></Root>";
+                Variant decoded = DecodeXml(
+                    xml,
+                    d => d.ReadVariantValue("F", TypeInfo.Create(builtInType, valueRank)),
+                    useParser);
+
+                Assert.That(decoded.IsNull, Is.False, xml);
+                string actual = valueRank == ValueRanks.Scalar
+                    ? Format(decoded)
+                    : decoded.TypeInfo.BuiltInType switch
+                    {
+                        BuiltInType.String => string.Join(",", decoded.GetStringArray().ToArray()),
+                        BuiltInType.Int32 => string.Join(",", decoded.GetInt32Array().ToArray()),
+                        _ => string.Join(",", decoded.GetEnumerationArray().ToArray().Select(e => e.Value))
+                    };
+                Assert.That(actual, Is.EqualTo(expected), xml);
+            }
+
+            static string Format(object value)
+            {
+                return value switch
+                {
+                    Variant v when v.TypeInfo.BuiltInType == BuiltInType.Enumeration =>
+                        v.GetEnumeration().Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    Variant v => Format(v.Raw),
+                    EnumValue e => e.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    NodeId n => n.ToString(),
+                    _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)
+                };
+            }
         }
 
         private static Structure CreateStructure(

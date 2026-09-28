@@ -333,9 +333,12 @@ namespace Opc.Ua.Encoders
                     // field's type and shape: the default scalar, a null
                     // array (length -1) or a null inline matrix (OPC 10000-6
                     // 5.2.5), never nothing at all.
-                    // (Json and Xml write a null Variant as a null field.)
+                    // XML writes a field like the typed writer of its type
+                    // (OPC 10000-6 5.3.5), which needs the type of a null
+                    // value too. (Json writes a null Variant as a null field.)
                     if (variant.IsNull &&
-                        encoder.EncodingType == EncodingType.Binary)
+                        (encoder.EncodingType == EncodingType.Binary ||
+                        (encoder.EncodingType == EncodingType.Xml && !property.TypeInfo.IsMatrix)))
                     {
                         variant = Variant.CreateDefault(property.TypeInfo);
                     }
