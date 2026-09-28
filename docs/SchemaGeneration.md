@@ -6,7 +6,21 @@ The `Opc.Ua.Core.Schema` library generates schemas for OPC UA data types at runt
 - **BSD** (OPC Binary, Part 6) for the binary encoding.
 - **JSON Schema** (Part 6 Annex C, draft 2020-12) for the JSON encoding, in both the **compact** (reversible, BrowseName-keyed) and **verbose** flavors.
 
-Schemas are built as strongly-typed object models in code — there are no embedded schema strings — so unused generation paths are trimmed away and the whole library is NativeAOT compatible. The XSD object model is the in-box `System.Xml.Schema.XmlSchema`, the BSD object model is the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and the JSON object model is `System.Text.Json.Nodes.JsonObject`.
+Schemas are built as strongly-typed object models in code — there are no embedded schema strings — so unused generation paths are trimmed away and the whole library is NativeAOT compatible. The XSD object model is the in-box `System.Xml.Schema.XmlSchema`. BSD uses
+the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and JSON uses
+`System.Text.Json.Nodes.JsonObject`.
+
+## Contents
+
+- [Concepts](#concepts)
+- [Registration](#registration)
+- [Registering data types](#registering-data-types)
+  - [Namespace identity](#namespace-identity)
+- [Generating a schema](#generating-a-schema)
+- [Working with the object model](#working-with-the-object-model)
+- [JSON encoding notes](#json-encoding-notes-part-6)
+- [PubSub schemas](#pubsub-schemas)
+- [Trimming and NativeAOT](#trimming-and-nativeaot)
 
 ## Concepts
 
@@ -58,11 +72,12 @@ var registry = serviceProvider.GetRequiredService<DataTypeDefinitionRegistry>();
 registry.TryAddDataType(dataTypeNode, session.NamespaceUris);
 ```
 
-- **Source-generated types** — the generated model registration extension adds public
-  structure and enumeration activators to an `IEncodeableFactory`. Those activators
-  implement `IDataTypeDefinitionSource`; the generated data value itself does not need
-  to implement that interface. Use `EncodeableFactoryDefinitionSource` to resolve their
-  definitions without reflection or manual registration:
+- **Source-generated types** — the generated model registration extension adds
+  public structure and enumeration activators to an `IEncodeableFactory`.
+  These activators implement `IDataTypeDefinitionSource`; the generated data
+  value does not need to implement that interface. Use
+  `EncodeableFactoryDefinitionSource` to resolve their definitions without
+  reflection or manual registration:
 
 ```csharp
 IEncodeableFactory factory = EncodeableFactory.Create();
@@ -91,7 +106,9 @@ IDataTypeDefinitionResolver resolver = new CompositeDataTypeDefinitionResolver(
     [new EncodeableFactoryDefinitionSource(factory, namespaceUris), registry]);
 ```
 
-  An OPC UA server wires this up automatically when `AddComplexTypeSystem()` is enabled (see [ComplexTypes.md](ComplexTypes.md)): the primed encodeable factory becomes the schema resolver.
+  When `AddComplexTypeSystem()` is enabled, an OPC UA server wires this up
+  automatically (see [ComplexTypes.md](ComplexTypes.md)). The primed
+  encodeable factory becomes the schema resolver.
 
 Once registered, fields that reference other registered types are resolved automatically and included in the generated document.
 

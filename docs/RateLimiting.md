@@ -13,6 +13,18 @@ deployment: even legitimate clients can be refused during a sufficiently large
 burst. Disabling rate limiting does not disable
 [resource isolation](ResourceIsolation.md) or the incomplete-message budget.
 
+## Contents
+
+- [Server side](#server-side)
+  - [What is limited](#what-is-limited)
+  - [Status codes](#status-codes)
+  - [Configuration](#configuration)
+  - [Incomplete messages](#incomplete-messages)
+- [HTTPS / Kestrel transport](#https--kestrel-transport)
+- [Client side](#client-side)
+- [Server backpressure signals](#server-backpressure-signals)
+- [See also](#see-also)
+
 ## Server side
 
 ### What is limited
@@ -225,7 +237,14 @@ Pass an `Action<RateLimiterOptions>` to fully configure the limiter with any `Sy
 
 ## Client side
 
-A client that gets a "server busy" signal must not hammer the server with retries — that is exactly what amplifies a connect storm. The default `ReconnectPolicy` (used by `ManagedSession`) is **server-signal-aware**: when the previous attempt failed with an overload signal (`BadServerTooBusy`, `BadTcpServerTooBusy`, `BadTooManySessions`, `BadTooManyOperations`, `BadTooManyPublishRequests`, or a transient timeout) it backs off more aggressively (4× the computed delay, capped at `MaxDelay`) and honors a server-provided retry-after hint as a lower bound.
+A client that receives a "server busy" signal must not hammer the server
+with retries; that would amplify a connect storm. The default
+`ReconnectPolicy` used by `ManagedSession` is **server-signal-aware**. When
+an attempt fails with an overload signal—`BadServerTooBusy`,
+`BadTcpServerTooBusy`, `BadTooManySessions`, `BadTooManyOperations`,
+`BadTooManyPublishRequests`, or a transient timeout—it backs off more
+aggressively. It multiplies the computed delay by four, caps it at
+`MaxDelay`, and honors any server-provided retry-after hint as a lower bound.
 
 This is exposed through `IReconnectPolicy.TryGetNextDelay`, which adapts the backoff to the previous attempt's status code and any server-provided retry-after hint. The connection state machine calls it automatically; a policy that returns `false` opts out of adaptive behavior and the state machine falls back to the basic attempt-based `GetNextDelay`, so a minimal custom policy only has to implement the plain delay. Because a failed initial connect funnels into the same reconnect loop, the adaptive backoff applies to both initial connects and reconnects.
 

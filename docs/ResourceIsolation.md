@@ -13,6 +13,37 @@ use `OpcUaServerOptions.ResourceIsolation` or the fluent configuration below.
 **Balanced is the default**, for both direct and hosted `StandardServer`
 instances. A host can instead supply an `IServerResourceIsolationProvider`.
 
+## Contents
+
+- [Terms](#terms)
+- [Profiles](#profiles)
+  - [SharedOnly](#sharedonly)
+  - [FairShare](#fairshare)
+  - [Balanced (default)](#balanced-default)
+  - [TrustedReservations](#trustedreservations)
+- [Configuration](#configuration)
+  - [JSON configuration](#json-configuration)
+  - [Providers and startup ownership](#providers-and-startup-ownership)
+- [Startup validation and sizing](#startup-validation-and-sizing)
+  - [Sessions, channels, and reserved capacity](#sessions-channels-and-reserved-capacity)
+  - [Reserve sizes and explicit opt-outs](#reserve-sizes-and-explicit-opt-outs)
+  - [View effective limits at startup](#view-effective-limits-at-startup)
+  - [Running in a container](#running-in-a-container)
+  - [Inspect the plan in application code](#inspect-the-plan-in-application-code)
+- [Accounting and lifetime](#accounting-and-lifetime)
+  - [Publish requests that wait for notifications](#publish-requests-that-wait-for-notifications)
+  - [Letting a custom handler release its worker while waiting](#letting-a-custom-handler-release-its-worker-while-waiting)
+  - [What happens when a limit is reached](#what-happens-when-a-limit-is-reached)
+  - [Configuring request and caller limits](#configuring-request-and-caller-limits)
+  - [Memory for clients that already have a Session](#memory-for-clients-that-already-have-a-session)
+- [Trust, anonymous clients and NAT](#trust-anonymous-clients-and-nat)
+  - [Before a caller is authenticated](#before-a-caller-is-authenticated)
+  - [After application or Session authentication](#after-application-or-session-authentication)
+  - [Repeated requests and cached information](#repeated-requests-and-cached-information)
+  - [Example: dedicated trusted ingress](#example-dedicated-trusted-ingress)
+- [Transport behavior and overload signals](#transport-behavior-and-overload-signals)
+- [Limitations](#limitations)
+
 ## Terms
 
 These terms describe resource accounting, not permission to access OPC UA data.

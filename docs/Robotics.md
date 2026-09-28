@@ -1,13 +1,14 @@
 # OPC UA Robotics
 
-The Robotics libraries implement the OPC UA Robotics companion specification
-([OPC 40010-1](https://reference.opcfoundation.org/Robotics/v102/docs/), version
-1.02). Robotics builds on Industrial Automation
-([OPC 10000-200](https://reference.opcfoundation.org/IA/v400/docs/)), which in turn
-builds on Device Integration
-([OPC 10000-100](https://reference.opcfoundation.org/DI/v104/docs/)); all three
-models are source-generated from their released NodeSets and loaded in
-dependency order.
+The Robotics libraries implement version 1.02 of the OPC UA Robotics
+companion specification
+([OPC 40010-1](https://reference.opcfoundation.org/Robotics/v102/docs/)).
+Robotics builds on Industrial Automation
+([OPC 10000-200](https://reference.opcfoundation.org/IA/v400/docs/)),
+which builds on Device Integration
+([OPC 10000-100](https://reference.opcfoundation.org/DI/v104/docs/)).
+The stack generates all three models from their released NodeSets and loads
+them in dependency order.
 
 > **Status: draft companion model.** The namespace
 > `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in it are
@@ -29,8 +30,61 @@ Robot Intent supplies the verbs, and only the verbs, so the two compose rather t
 * [`Opc.Ua.Robotics.Client`](../src/Opc.Ua.Robotics.Client) carries discovery, the awaitable operation
   handle, command authority, missions and the fluent intent builders.
 
-The NodeSet declares exactly one `RequiredModel` — the base OPC UA namespace — so a server can adopt
-Robot Intent without pulling in OPC 40010, OPC 10000-100 DI, or anything else.
+The NodeSet declares exactly one `RequiredModel`: the base OPC UA namespace.
+A server can therefore adopt Robot Intent without depending on OPC 40010,
+OPC 10000-100 Device Integration, or another companion model.
+
+## Contents
+
+- [Packages](#packages)
+- [Minimal hosted server](#minimal-hosted-server)
+- [Hosting API](#hosting-api)
+  - [Class-based code-behind](#class-based-code-behind)
+  - [Model providers](#model-providers)
+- [Build context](#build-context)
+- [Topology builders](#topology-builders)
+- [Custom node managers and non-DI hosting](#custom-node-managers-and-non-di-hosting)
+- [Vendor extensions](#vendor-extensions)
+- [Layering](#layering)
+- [Common contracts](#common-contracts)
+- [Client](#client)
+  - [Registration](#registration)
+  - [API](#api)
+  - [Walking a cell](#walking-a-cell)
+  - [Classifying a discovered node](#classifying-a-discovered-node)
+  - [Invoking robot operations](#invoking-robot-operations)
+  - [Standard operations](#standard-operations)
+  - [Programs](#programs)
+  - [Observing telemetry](#observing-telemetry)
+- [Operation conventions](#operation-conventions)
+- [Sample](#sample)
+- [URML primitive mapping](#urml-primitive-mapping)
+- [Robot Intent](#robot-intent)
+  - [Hosting a controller](#hosting-a-controller)
+  - [Declaring a robot](#declaring-a-robot)
+  - [Writing an executor](#writing-an-executor)
+  - [Client: submit and await](#client-submit-and-await)
+  - [Client: missions](#client-missions)
+  - [Client: cancellation, pause and retry](#client-cancellation-pause-and-retry)
+  - [Pose maths](#pose-maths)
+  - [Handling refusal](#handling-refusal)
+  - [Monitoring and direct control for agents](#monitoring-and-direct-control-for-agents)
+  - [MCP tools for Robot Intent](#mcp-tools-for-robot-intent)
+  - [Facets in code](#facets-in-code)
+  - [Limitations](#limitations)
+  - [Why a submission is not a method call](#why-a-submission-is-not-a-method-call)
+  - [The intent hierarchy](#the-intent-hierarchy)
+  - [Poses, frames and units](#poses-frames-and-units)
+  - [The lifecycle](#the-lifecycle)
+  - [Missions](#missions)
+  - [Command authority](#command-authority)
+  - [Safety and the boundary](#safety-and-the-boundary-that-is-never-crossed)
+  - [What this interface carries and what it brokers](#what-this-interface-carries-and-what-it-brokers)
+  - [NodeIds in intents are untrusted input](#nodeids-in-intents-are-untrusted-input)
+  - [Interoperating with OPC 40010](#interoperating-with-opc-40010)
+  - [Facets](#facets)
+  - [Profile and facet URI publication](#profile-and-facet-uri-publication)
+- [See also](#see-also)
 
 ## Packages
 

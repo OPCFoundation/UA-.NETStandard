@@ -307,7 +307,7 @@ namespace Opc.Ua.Client
         /// <see cref="ISubscriptionContext"/> needed by the modern
         /// <see cref="Subscription"/> base class.
         /// </summary>
-        private sealed class SubscriptionContextAdapter : ISubscriptionContext
+        internal sealed class SubscriptionContextAdapter : ISubscriptionContext
         {
             public SubscriptionContextAdapter(ISubscriptionEngineContext context)
             {
@@ -316,8 +316,22 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
+            /// <remarks>
+            /// The revised session timeout comes from the server. A value that
+            /// is not a positive number of at most <see cref="int.MaxValue"/>
+            /// milliseconds is reported as <see cref="TimeSpan.Zero"/>, so a
+            /// malformed server value cannot fail subscription creation.
+            /// </remarks>
             public TimeSpan SessionTimeout
-                => TimeSpan.FromMilliseconds(m_context.OperationTimeout);
+            {
+                get
+                {
+                    double sessionTimeout = m_context.SessionTimeout;
+                    return sessionTimeout is > 0 and <= int.MaxValue
+                        ? TimeSpan.FromMilliseconds(sessionTimeout)
+                        : TimeSpan.Zero;
+                }
+            }
 
             /// <inheritdoc/>
             public ISubscriptionServiceSetClientMethods SubscriptionServiceSet => m_services;

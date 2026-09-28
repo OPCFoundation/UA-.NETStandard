@@ -1,6 +1,41 @@
 # OPC UA MCP Server
 
-The OPC UA MCP Server exposes all OPC UA Part 4 service calls as [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tools. This enables AI assistants — Claude, GitHub Copilot, VS Code Copilot, Cursor, and any MCP-compatible client — to connect to OPC UA servers and interact with industrial automation systems through natural language.
+The OPC UA MCP Server exposes OPC UA Part 4 service calls as
+[Model Context Protocol (MCP)](https://modelcontextprotocol.io) tools. AI
+assistants such as Claude, GitHub Copilot, VS Code Copilot, and Cursor can
+use these tools to connect to OPC UA servers and interact with industrial
+automation systems through natural language.
+
+## Contents
+
+- [What It Does](#what-it-does)
+- [Tool Profiles](#tool-profiles)
+  - [Vision-guided Robotics](#vision-guided-robotics)
+- [Resources](#resources)
+  - [Multi-Session Support](#multi-session-support)
+- [Installation](#installation)
+  - [Option 1: Run without installing (.NET 10 SDK)](#option-1-run-without-installing-net-10-sdk)
+  - [Option 2: Install as a .NET global tool](#option-2-install-as-a-net-global-tool)
+  - [Option 3: Run from source](#option-3-run-from-source)
+  - [Option 4: Install from local build](#option-4-install-from-local-build)
+- [Configuration](#configuration)
+  - [Run on demand without a global installation](#run-on-demand-without-a-global-installation)
+  - [Claude Desktop](#claude-desktop)
+  - [VS Code / GitHub Copilot](#vs-code--github-copilot)
+  - [Cursor](#cursor)
+  - [HTTP Transport (for remote clients)](#http-transport-for-remote-clients)
+- [Usage](#usage)
+  - [Typical Workflow](#typical-workflow)
+  - [NodeId Formats](#nodeid-formats)
+  - [Common Well-Known NodeIds](#common-well-known-nodeids)
+  - [Error Handling](#error-handling)
+- [PubSub Tools](#pubsub-tools)
+- [Architecture](#architecture)
+  - [Packages](#packages)
+  - [Embedding the tools in your own MCP server](#embedding-the-tools-in-your-own-mcp-server)
+- [Security Notes](#security-notes)
+- [Agent-Usability Quality Gate](#agent-usability-quality-gate)
+- [Requirements](#requirements)
 
 ## What It Does
 
@@ -463,7 +498,7 @@ the corresponding method NodeId (e.g. `i=14443` for
 | `pubsub_runtime_read_received` | Read DataSets received by the subscriber |
 | `pubsub_runtime_status` / `pubsub_runtime_stop` | Status / stop the runtime |
 
-**Discovery** (Part 14 §7.2.4.6 &mdash; send a discovery request from the active
+**Discovery** (Part 14 §7.2.4.6 — send a discovery request from the active
 runtime and collect publisher responses):
 
 | Tool | Purpose |
@@ -472,7 +507,7 @@ runtime and collect publisher responses):
 | `pubsub_discover_writer_config` | Learn a publisher's WriterGroupId and DataSetWriterIds |
 | `pubsub_discover_publisher_endpoints` | Learn a publisher's transport endpoint URLs |
 
-**Actions** (Part 14 §7.2.5.6 &mdash; request/response over PubSub):
+**Actions** (Part 14 §7.2.5.6 — request/response over PubSub):
 
 | Tool | Purpose |
 | --- | --- |
@@ -618,7 +653,7 @@ registration extensions.
 ## Security Notes
 
 - The `autoAcceptCerts` parameter is for **testing only**. In production, configure proper certificate trust using the OPC UA certificate stores under `%LocalApplicationData%/OPC Foundation/pki/`.
-- The server manages a single OPC UA session at a time. Disconnect before connecting to a different server.
+- The server supports simultaneous named OPC UA sessions. Use the intended session identifier for each operation and disconnect that session when finished; connecting to another server does not require closing unrelated sessions.
 - Application certificates are automatically created on first use and stored in the local certificate store.
 - Logs are written to `%LocalApplicationData%/OPC Foundation/Logs/McpServer.log.txt`.
 

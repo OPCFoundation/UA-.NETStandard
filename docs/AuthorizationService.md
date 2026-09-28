@@ -1,10 +1,26 @@
 # AuthorizationService Developer Guide
 
-OPC 10000-12 §9 defines the **AuthorizationService** — a GDS service that issues access tokens for
-OPC UA applications. Part 12 v1.05 uses the two-phase `StartRequestToken` / `FinishRequestToken`
-flow; `RequestAccessToken` remains available only for legacy compatibility.
+Open Platform Communications Unified Architecture (OPC UA) Part 12 §9
+defines the **AuthorizationService**, which a Global
+Discovery Server (GDS) provides to issue access tokens for OPC UA
+applications. Part 12 v1.05 uses the two-phase `StartRequestToken` /
+`FinishRequestToken` flow. `RequestAccessToken` remains available for
+legacy compatibility.
 
-For client-side JWT use during `ActivateSession`, see [Identity Providers](IdentityProviders.md).
+For client-side JSON Web Token (JWT) use during `ActivateSession`, see
+[Identity Providers](IdentityProviders.md).
+
+## Contents
+
+- [Architecture](#architecture)
+- [Modern Part 12 v1.05 flow](#modern-part-12-v105-flow)
+  - [Refreshing an access token](#refreshing-an-access-token)
+- [Server hosting](#server-hosting)
+  - [Custom `ITokenIssuer` for cloud or HSM signing](#custom-itokenissuer-for-cloud-or-hsm-signing)
+- [Server-side abstraction](#server-side-abstraction)
+- [Client identity-provider bridge](#client-identity-provider-bridge)
+- [Legacy compatibility](#legacy-compatibility)
+- [Audit events](#audit-events)
 
 ## Architecture
 
@@ -25,14 +41,21 @@ For client-side JWT use during `ActivateSession`, see [Identity Providers](Ident
                                              └──────────────────────────┘
 ```
 
-`Opc.Ua.Gds.Server.IAccessTokenProvider` is the server-side request-routing abstraction behind the
-AuthorizationService method handlers. It validates resource ids, policies, pending request ids, and user
-token inputs before the service returns a token to the caller. Modern Part 12 v1.05 clients call
-`StartRequestToken` followed by `FinishRequestToken`; legacy clients can still call `RequestAccessToken`,
-which dispatches to `IAccessTokenProvider.RequestAccessTokenAsync` and is marked `[Obsolete]` in the API.
-`Opc.Ua.Identity.ITokenIssuer` is the signing back-end used by the provider once a request is accepted.
-The default issuer signs JWTs with local certificate material, while custom issuers can delegate signing
-to a cloud KMS, HSM, or corporate authorization service without changing the OPC UA method wiring.
+`Opc.Ua.Gds.Server.IAccessTokenProvider` routes requests for the
+AuthorizationService method handlers. Before returning a token, the provider
+validates resource IDs, policies, pending request IDs, and user-token inputs.
+
+Modern Part 12 v1.05 clients call `StartRequestToken` followed by
+`FinishRequestToken`. Legacy clients can still call `RequestAccessToken`;
+the provider dispatches that call to
+`IAccessTokenProvider.RequestAccessTokenAsync`. The API marks this method
+`[Obsolete]`.
+
+`Opc.Ua.Identity.ITokenIssuer` signs a token after the provider accepts a
+request. The default issuer uses local certificate material. Custom issuers
+can delegate signing to a cloud key-management service, a hardware security
+module, or a corporate authorization service without changing the OPC UA
+method wiring.
 
 ## Modern Part 12 v1.05 flow
 
@@ -56,7 +79,11 @@ var (jwt, expiresAt, refreshToken, refreshExpiresAt) =
         new SignatureData());
 ```
 
-`StartRequestToken` validates the requested audience and scopes, allocates a continuation request id, and stores the pending request in memory. `FinishRequestToken` exchanges that id for a compact JWT (`tokenType = "JWT"`) signed by the configured `Opc.Ua.Identity.ITokenIssuer`.
+`StartRequestToken` validates the requested audience and scopes. It allocates
+a continuation request ID and stores the pending request in memory.
+`FinishRequestToken` exchanges that ID for a compact JWT
+(`tokenType = "JWT"`) signed by the configured
+`Opc.Ua.Identity.ITokenIssuer`.
 
 ### Refreshing an access token
 
@@ -105,14 +132,25 @@ builder.WithAuthorizationService<MyTokenIssuer>(o =>
 });
 ```
 
-`MyTokenIssuer` implements `Opc.Ua.Identity.ITokenIssuer`. The default `CertificateJwtIssuer` signs hand-rolled RFC 7515 JWS tokens with ECDSA (`ES256`/`ES384`/`ES512`) or RSA (`RS256` default; RSA-PSS supported by custom issuers) without adding a JWT package dependency.
+`MyTokenIssuer` implements `Opc.Ua.Identity.ITokenIssuer`. The default
+`CertificateJwtIssuer` signs JSON Web Signature (JWS) tokens defined by RFC
+7515. It uses the Elliptic Curve Digital Signature Algorithm (ECDSA)
+(`ES256`, `ES384`, or `ES512`) or RSA (`RS256` by default). Custom issuers
+can also use RSA-PSS. The default issuer does not add a JWT package
+dependency.
 
 ### Custom `ITokenIssuer` for cloud or HSM signing
 
 Use `WithAuthorizationService<TIssuer>()` when the signing key is not
-resident in the process (for example Azure Key Vault, AWS KMS, an HSM, or
-a corporate token service). The issuer builds the JWS header/payload and
-delegates the signing operation to the external service.
+resident in the process. External signing options include:
+
+- Azure Key Vault
+- AWS KMS
+- An HSM
+- A corporate token service
+
+The issuer builds the JWS header and payload, then delegates the signing
+operation to the external service.
 
 ```csharp
 public sealed class CloudKmsTokenIssuer : ITokenIssuer
@@ -153,8 +191,8 @@ services.AddOpcUa()
 ```
 
 The `SigningCertificate` option still advertises the issuer identity and
-key material expected by local verifiers; the custom issuer decides how
-the actual signature is produced.
+key material that local verifiers expect. The custom issuer controls how it
+produces the signature.
 
 ## Server-side abstraction
 
@@ -176,7 +214,13 @@ The default `AuthorizationServiceManager` delegates to `InMemoryAccessTokenProvi
 
 ## Legacy compatibility
 
-`RequestAccessToken` and `AuthorizationServiceClient.RequestAccessTokenAsync` are marked obsolete because Part 12 v1.05 replaced the one-shot exchange with `StartRequestToken` / `FinishRequestToken`. The wire method is still dispatched to `IAccessTokenProvider.RequestAccessTokenAsync` so v1.04 clients continue to work when a provider is configured.
+`RequestAccessToken` and
+`AuthorizationServiceClient.RequestAccessTokenAsync` are obsolete because
+Part 12 v1.05 replaced the one-shot exchange with `StartRequestToken` and
+`FinishRequestToken`. When a provider is configured, the service still
+dispatches the wire method to
+`IAccessTokenProvider.RequestAccessTokenAsync` so v1.04 clients continue to
+work.
 
 ## Audit events
 

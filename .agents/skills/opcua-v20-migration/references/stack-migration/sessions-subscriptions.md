@@ -6,6 +6,27 @@
 > subscriptions, removed `ReverseConnectClientCollection`, and transport
 > abstraction changes.
 
+## Contents
+
+- [GDS Client API modernization](#gds-client-api-modernization)
+  - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
+  - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
+- [ManagedSession and Automatic Reconnection](#managedsession-and-automatic-reconnection)
+  - [Configuring Reconnection Policy](#configuring-reconnection-policy)
+  - [Server Redundancy](#server-redundancy)
+  - [Service Call Behavior During Reconnect](#service-call-behavior-during-reconnect)
+  - [Fluent Builder, V2 Subscriptions, and Dependency Injection](#fluent-builder-v2-subscriptions-and-dependency-injection)
+- [Server Session Activation and Subscription Transfer](#server-session-activation-and-subscription-transfer)
+- [Subscriptions and Transports](#subscriptions-and-transports)
+  - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
+  - [Request completion is owned by `OperationContext`](#request-completion-is-owned-by-operationcontext)
+  - [`Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`](#opcuaserverisession-isclosing-and-invalidatecontinuationpoints)
+  - [`Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal](#opcuaserverisubscription-the-publish-pipeline-is-server-internal)
+  - [PubSub](#pubsub)
+  - [Reverse connect](#reverse-connect)
+  - [`IMessageSocket` abstraction removed](#imessagesocket-abstraction-removed)
+  - [Transport binding registry — `TransportBindings` static API removed](#transport-binding-registry--transportbindings-static-api-removed)
+
 ## GDS Client API modernization
 
 The `Opc.Ua.Gds.Client` package has undergone a significant cleanup. Two breaking changes affect almost every consumer of the GDS / LDS / Server-Push client APIs.
@@ -202,14 +223,14 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 The V2 options-based subscription manager (`ISubscriptionManager`) is exposed on `ISession` through `bool TryGetSubscriptionManager(out ISubscriptionManager? manager)` — it returns `true` and the manager for V2-engine sessions (the default for `ManagedSession`) and `false` for classic-engine sessions. The classic `Subscriptions` property remains available alongside it. Use `UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)` on the builder if you need the legacy classic engine instead.
 
 > **Source-breaking (2.0 preview):** the earlier throwing `ManagedSession.SubscriptionManager` property has been **removed** in favor of `ISession.TryGetSubscriptionManager`. Replace `var manager = session.SubscriptionManager;` (which threw `InvalidOperationException` on classic-engine sessions) with:
->
+
 > ```csharp
 > if (session.TryGetSubscriptionManager(out ISubscriptionManager? manager))
 > {
 >     // use manager (V2 engine)
 > }
 > ```
->
+
 > The `session.AddSubscription(...)` fluent extensions are unchanged.
 
 ```csharp
@@ -393,8 +414,7 @@ already implements them.
 **Source-breaking for custom implementations and for callers.** This is the **server-side**
 `Opc.Ua.Server.ISubscription` — not the client-side `Opc.Ua.Client.Subscriptions.ISubscription`
 introduced by the V2 subscription shape above. Twelve members leave the interface
-(analyzer `UA0030`; see [MigrationGuide.md](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md#ua0030) for the
-caller-side migration):
+(analyzer `UA0030`):
 
 - `ItemReadyToPublish` and `ItemNotificationsAvailable` are **deleted**. Their implementation
   bodies had been commented out since 1.5.x, so every call was a no-op — delete the calls and
@@ -427,13 +447,22 @@ rest of the pipeline members.
 queue is the other half of the publish protocol. Code that constructed or drove one should use
 the `Publish` service path via `ISubscriptionManager.PublishAsync`.
 
+For the public operations that remain, obtain a subscription with
+`ISubscriptionManager.TryGetSubscription` before calling `ResendData`,
+`GetMonitoredItems`, or the monitored-item operations. Acknowledgements belong
+in the Publish request, not in direct calls into the subscription's internal
+publishing state machine.
+
 ### PubSub
 
-**Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).
+PubSub has source-breaking package and API changes. See the
+[PubSub migration guide](pubsub.md) for removed application/connection types,
+builder replacements, JSON encoding changes, and wire-compatibility limits.
+Dependency changes are maintained in the [package guide](packages.md#newtonsoftjson---what-really-changed).
 
 ### Reverse connect
 
-**Not source-breaking.** `ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The previously published `ReverseConnectClientCollection` wrapper has been removed; this is already covered by the broader [Configuration collection types removed](#configuration-collection-types-removed) guidance.
+`ReverseConnectManager`, `ReverseConnectProperty`, and `ReverseConnectServer` retain the same public shape in 2.0. The `ReverseConnectClientCollection` wrapper is removed, which is source-breaking for callers using that collection. See [Configuration collection types removed](types.md#configuration-collection-types-removed).
 
 ### `IMessageSocket` abstraction removed
 

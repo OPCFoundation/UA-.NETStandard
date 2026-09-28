@@ -14,6 +14,18 @@ The SDK ships full request validation, per-item dispatch, audit-event
 emission, and per-NodeManager opt-in. NodeManagers do not need to
 override the four `StandardServer` service methods themselves.
 
+## Contents
+
+- [Architecture](#architecture)
+- [Opting in: `INodeManagementAsyncNodeManager`](#opting-in-inodemanagementasyncnodemanager)
+- [Dispatch and routing rules](#dispatch-and-routing-rules)
+- [Request handling on `AsyncCustomNodeManager`](#request-handling-on-asynccustomnodemanager)
+- [Error codes returned](#error-codes-returned)
+- [Audit events](#audit-events)
+- [Client-side example](#client-side-example)
+- [Custom behavior](#custom-behavior)
+- [See also](#see-also)
+
 ## Architecture
 
 1. The client request lands on `StandardServer.AddNodesAsync` /
@@ -21,16 +33,17 @@ override the four `StandardServer` service methods themselves.
 2. Each service override validates the request and forwards the
    per-item collection to the matching
    `IMasterNodeManager.AddNodesAsync` etc. dispatcher.
-3. `MasterNodeManager` looks up the owning NodeManager for every item
-   (the requested NodeId namespace, or the BrowseName namespace when the
-   Server assigns the NodeId, for `AddNodes`; node for `DeleteNodes`; and
-   source for reference changes)
-   and validates the matching `PermissionType` before asking it to
-   perform the work via the optional `INodeManagementAsyncNodeManager`
-   interface. `AddNodes` requires `AddNode` in the target namespace's
-   default policy and `AddReference` on the parent. Every Node permission
-   is evaluated together with the Node's applicable
-   `AccessRestrictions`.
+3. For each item, `MasterNodeManager` selects the owning NodeManager:
+   - `AddNodes`: the requested NodeId namespace, or the BrowseName
+     namespace if the server assigns the NodeId.
+   - `DeleteNodes`: the node's owning NodeManager.
+   - Reference changes: the source node's owning NodeManager.
+
+   It validates the matching `PermissionType`, then asks the optional
+   `INodeManagementAsyncNodeManager` interface to perform the operation.
+   `AddNodes` requires `AddNode` in the target namespace's default policy
+   and `AddReference` on the parent. The server evaluates each Node
+   permission together with the Node's applicable `AccessRestrictions`.
 4. The aggregated per-item results are wrapped in the matching response
    envelope and the audit event (`AuditAddNodesEvent`,
    `AuditDeleteNodesEvent`, `AuditAddReferencesEvent`,
@@ -123,7 +136,7 @@ The default implementation honors the following request fields:
 | `BrowseName` | Must be non-null. `BadBrowseNameDuplicated` when a sibling under the same parent already uses the same browse name — both local children and previously-added cross-NodeManager children attached to the same parent by this NodeManager are checked. |
 | `ParentNodeId` | Used to attach the new child to the parent. Cross-NodeManager parents are supported — the forward `parent → child` edge is added via the master so the parent's NodeManager records it, and the inverse `child → parent` edge is added on the new node. |
 | `ReferenceTypeId` | Must be a `HierarchicalReferences` subtype. |
-| `NodeAttributes` | Optional `VariableAttributes` / `ObjectAttributes` are applied to the new node (`DisplayName`, `Description`, `DataType`, `ValueRank`, `AccessLevel`, `UserAccessLevel`, `Historizing`, `MinimumSamplingInterval`, `Value`, `EventNotifier`). |
+| `NodeAttributes` | Optional `VariableAttributes` or `ObjectAttributes` are applied to the new node. Supported fields include `DisplayName`, `Description`, `DataType`, `ValueRank`, `AccessLevel`, `UserAccessLevel`, `Historizing`, `MinimumSamplingInterval`, `Value`, and `EventNotifier`. |
 | `DeleteTargetReferences` | When true, `DeleteNodes` also removes references on other NodeManagers that target the deleted node. |
 | `DeleteBidirectional` | When true on `DeleteReferences`, the inverse edge is also deleted only for an explicitly local target. Remote targets remain source-side operations. |
 
@@ -176,11 +189,11 @@ service contract.
 
 ## Custom behavior
 
-To customize behavior for a particular NodeManager (e.g. enforce a
-custom NodeId scheme, persist the new node, or veto specific node
-classes), override the matching method on
-`INodeManagementAsyncNodeManager` after opting in. For example, to
-restrict additions to `BaseObjectState`:
+After opting in, override the matching
+`INodeManagementAsyncNodeManager` method to customize a NodeManager. For
+example, you can enforce a custom NodeId scheme, persist a new node, or veto
+specific node classes. The following example restricts additions to
+Object nodes:
 
 ```csharp
 public override async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(

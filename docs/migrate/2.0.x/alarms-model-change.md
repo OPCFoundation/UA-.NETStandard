@@ -2,6 +2,14 @@
 
 > **When to read this:** Read this for `AlarmConditionState` state-transition behaviour, the auto-emitted `GeneralModelChangeEvent` from `CustomNodeManager.CreateNode/DeleteNode`, and the address-space `ModelChangeAggregator` migration.
 
+## Contents
+
+- [Alarms and Conditions](#alarms-and-conditions)
+  - [`AlarmConditionState` state-transition behavior](#alarmconditionstate-state-transition-behavior)
+  - [Auto-emit `GeneralModelChangeEvent` from `CustomNodeManager`](#auto-emit-generalmodelchangeevent-from-customnodemanager)
+- [Address-space model change tracking](#address-space-model-change-tracking)
+  - [New `INodeCache.InvalidateNode` member](#new-inodecacheinvalidatenode-member)
+
 ## Alarms and Conditions
 
 Two changes require attention.
