@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Quickstarts.ReferenceServer;
@@ -72,10 +73,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new PreparedWotTestRuntime(root, fixture, server);
         }
 
-        public async Task<WotRegistryService> CreateRegistryAsync(WotRegistryPersistenceBounds? bounds = null)
+        public async Task<WotRegistryService> CreateRegistryAsync(
+            WotRegistryPersistenceBounds? bounds = null,
+            WotProjectionCompatibilityMode compatibilityMode = WotProjectionCompatibilityMode.None)
         {
             var store = new FileWotRegistryStore(Path.Combine(m_root, Guid.NewGuid().ToString("N")));
-            var registry = new WotRegistryService(store, bounds);
+            var registry = new WotRegistryService(store, bounds, compatibilityMode);
             m_registries.Add((registry, store));
             await registry.InitializeAsync().ConfigureAwait(false);
             return registry;
