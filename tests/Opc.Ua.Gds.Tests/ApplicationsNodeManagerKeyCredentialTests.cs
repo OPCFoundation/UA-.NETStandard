@@ -403,6 +403,47 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// OPC 10000-12 §8.5.5: a PublicKey requires a SecurityPolicyUri, and a
+        /// request for an encrypted secret is rejected with
+        /// Bad_SecurityPolicyRejected instead of returning the secret in plain text.
+        /// </summary>
+        [Test]
+        public void KeyCredentialPublicKeyRequestIsRejected()
+        {
+            ISystemContext context = CreateContext(
+                CreateRoleIdentity(GdsRole.KeyCredentialAdmin),
+                certificateMarker: 16);
+
+            Assert.That(
+                async () => await m_service.StartRequest!.OnCallAsync!(
+                    context,
+                    m_service.StartRequest,
+                    m_service.NodeId,
+                    OwnerApplicationUri,
+                    ByteString.From([1, 2, 3]),
+                    null!,
+                    default,
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidArgument));
+
+            Assert.That(
+                async () => await m_service.StartRequest!.OnCallAsync!(
+                    context,
+                    m_service.StartRequest,
+                    m_service.NodeId,
+                    OwnerApplicationUri,
+                    ByteString.From([1, 2, 3]),
+                    SecurityPolicies.Basic256Sha256,
+                    default,
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityPolicyRejected));
+        }
+
+        /// <summary>
         /// OPC 10000-12 §7.9.3 - §7.9.5: the certificate request methods shall
         /// be called from an encrypted SecureChannel.
         /// </summary>
@@ -449,8 +490,8 @@ namespace Opc.Ua.Gds.Tests
                     m_service.StartRequest,
                     m_service.NodeId,
                     applicationUri,
-                    ByteString.From([1, 2, 3]),
-                    SecurityPolicies.Basic256Sha256,
+                    default,
+                    null!,
                     default,
                     CancellationToken.None).ConfigureAwait(false);
 

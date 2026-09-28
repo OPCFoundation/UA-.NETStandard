@@ -2904,6 +2904,24 @@ namespace Opc.Ua.Gds.Server
                         StatusCodes.BadInvalidArgument,
                         "A PublicKey is required when a SecurityPolicyUri is provided.");
                 }
+                if (!publicKey.IsEmpty && string.IsNullOrEmpty(securityPolicyUri))
+                {
+                    // OPC 10000-12 §8.5.5: if the PublicKey is provided the
+                    // SecurityPolicyUri shall be provided.
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "A SecurityPolicyUri is required when a PublicKey is provided.");
+                }
+                if (!publicKey.IsEmpty)
+                {
+                    // OPC 10000-12 §8.5.5 / §8.5.6: a PublicKey asks for the secret
+                    // encrypted with it (RsaEncryptedSecret/EccEncryptedSecret).
+                    // Encrypting the secret is not implemented, so reject the
+                    // request instead of returning the secret in plain text.
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Encrypting the KeyCredential secret with a PublicKey is not supported.");
+                }
                 ByteString clientCertificateFingerprint =
                     AuthorizationHelper.GetClientCertificateFingerprint(context);
                 NodeId applicationId = ResolveKeyCredentialApplicationId(m_database, applicationUri);
