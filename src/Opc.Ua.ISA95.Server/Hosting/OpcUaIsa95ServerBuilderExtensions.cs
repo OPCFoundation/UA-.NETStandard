@@ -55,6 +55,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
             EnsureFirstRegistration(builder.Services);
+            Isa95AddressSpaceOwnership.Claim(builder.Services, nameof(AddIsa95Server));
 
             if (configure == null)
             {
