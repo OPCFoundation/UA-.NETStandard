@@ -62,6 +62,9 @@ namespace Opc.Ua.Sessions.Tests
             using DiscoveryClient healthyClient = await DiscoveryClient.CreateAsync(
                 ServerUrl, endpointConfiguration, Telemetry, ct: timeout.Token).ConfigureAwait(false);
 
+            // Darwin can leave a connection pending while a non-listening socket owns the port.
+            // Release the reservation immediately before testing the refused connection.
+            reserved.Dispose();
             await Assert.ThatAsync(async () =>
             {
                 using DiscoveryClient unexpectedClient = await DiscoveryClient.CreateAsync(
