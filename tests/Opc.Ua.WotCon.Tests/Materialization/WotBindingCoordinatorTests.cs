@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -208,30 +209,49 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task LifecycleActivatesAfterCommitDeactivatesBeforeRetire()
+        public async Task LifecycleBinderNotificationsObserveCommittedProjectionImages()
         {
             WotRegistryService registry = Registry();
             var timeline = new List<string>();
+            var observations = new List<(bool Active, WotCommittedPublicationState Image)>();
             var host = new RecordingProjectionHost(timeline);
             var binders = new RecordingBinderRegistry(timeline);
             using var coordinator = new WotMaterializationCoordinator(
                 registry, m_runtime!.Observe(host.RecordCommitted), binders,
                 documentConverter: new FakeWotDocumentConverter());
+            binders.Notification = active => observations.Add((active, coordinator.CommittedPublication));
+            int registrations = m_runtime.Lifecycle.Registrations.Count;
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/value")).ConfigureAwait(false);
 
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations + 1));
             await registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "td-a").ConfigureAwait(false);
-            await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult retired = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            int add = timeline.IndexOf("add");
+            int add = timeline.IndexOf("activation-commit");
             int activate = timeline.IndexOf("activate");
             int deactivate = timeline.IndexOf("deactivate");
-            int remove = timeline.IndexOf("remove");
+            int remove = timeline.IndexOf("retirement-commit");
 
             Assert.That(add, Is.GreaterThanOrEqualTo(0));
             Assert.That(activate, Is.GreaterThan(add), "Activate must follow the projection commit.");
-            Assert.That(deactivate, Is.GreaterThanOrEqualTo(0));
-            Assert.That(remove, Is.GreaterThan(deactivate), "Deactivate must precede retirement.");
+            Assert.That(remove, Is.GreaterThan(activate));
+            Assert.That(deactivate, Is.GreaterThan(remove),
+                "Binder bookkeeping must observe the committed retirement, not precede its decision.");
+            Assert.That(observations, Has.Count.EqualTo(2));
+            Assert.That(observations[0].Active, Is.True);
+            Assert.That(observations[0].Image.RefreshGeneration, Is.EqualTo(1U));
+            Assert.That(observations[0].Image.ActiveBindingPlans.Count, Is.EqualTo(1));
+            Assert.That(observations[0].Image.RegistrySnapshot
+                .FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!.LoadState,
+                Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(observations[1].Active, Is.False);
+            Assert.That(observations[1].Image.RefreshGeneration, Is.EqualTo(2U));
+            Assert.That(observations[1].Image.ActiveBindingPlans.IsEmpty, Is.True);
+            Assert.That(observations[1].Image.RegistrySnapshot
+                .FindResource(WotRegistryGroups.ThingDescriptions, "td-a"), Is.Null);
+            Assert.That(retired.Summary.Retired, Is.EqualTo(1U));
+            Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations));
         }
 
         [Test]
@@ -444,8 +464,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 foreach (WotProjectionChange change in changes)
                 {
-                    m_timeline.Add(change.Document is null ? "remove" :
-                        change.Current is null ? "add" :
+                    m_timeline.Add(change.Document is null ? "retirement-commit" :
+                        change.Current is null ? "activation-commit" :
                         change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate ? "immediate" : "shadow");
                 }
             }
@@ -462,6 +482,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public IReadOnlyList<WoTBindingCapabilityDataType> Capabilities { get; }
                 = [];
+
+            public Action<bool>? Notification { get; set; }
 
             public WotBindingPlan Prepare(WotBindingPlanRequest request)
             {
@@ -484,12 +506,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public ValueTask ActivateAsync(WotBindingPlan plan, CancellationToken cancellationToken = default)
             {
                 m_timeline.Add("activate");
+                Notification?.Invoke(true);
                 return default;
             }
 
             public ValueTask DeactivateAsync(WotBindingPlan plan, CancellationToken cancellationToken = default)
             {
                 m_timeline.Add("deactivate");
+                Notification?.Invoke(false);
                 return default;
             }
 

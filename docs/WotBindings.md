@@ -254,7 +254,13 @@ Notes:
 
 ### Runtime integration
 
-`WotMaterializationCoordinator` compiles each resource's forms into a `WotBindingPlan` during **Prepare**, activates the plan only **after** the projection is committed as the active generation, and deactivates it **before** the projection is retired or unloaded.
+`WotMaterializationCoordinator` compiles each resource's forms into a `WotBindingPlan`
+during **Prepare**. Binder-registry activation and deactivation notifications
+observe the committed projection image: activation follows the new generation's
+publication, and deactivation follows its committed replacement or retirement.
+These notifications are not the physical channel-disposal boundary. The runtime
+NodeSet generation owns its channels and releases them through the existing
+lifecycle drain.
 
 * **Strict mode** (`WotRegistryServerOptions.StrictBindings = true`) fails the closure when any required form is unsupported or invalid.
 * **Degraded mode** materializes nodes with `BadConfigurationError` and emits a `WoTBindingFailureEvent`. Validated-but-non-executable forms also degrade the closure so their nodes are visible but flagged.
