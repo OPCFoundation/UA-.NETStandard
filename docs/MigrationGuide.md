@@ -117,6 +117,13 @@ a compile error the analyzer explains; a shim would be a race that shows up in
 production. `ISession` and `ISubscription` are also implemented by downstream
 code, and re-adding an interface member would break every implementer.
 
+## Content filters no longer match missing values
+
+Content filter comparison elements now evaluate to NULL when an operand is
+null, including a missing event field. The final NULL filter result evaluates
+to FALSE. Where clauses that intentionally match events without a field must
+use the `IsNull` operator instead of relying on a comparison or its negation.
+
 ## Migrating code that used ILocalNode.DataLock
 
 `ILocalNode.DataLock` (implemented by `Node`) was removed. It returned the node

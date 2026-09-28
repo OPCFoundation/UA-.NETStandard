@@ -386,11 +386,11 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             yield return new TestCaseData(
                 Variant.From("invalid"), Variant.From((byte)3),
                 FilterOperator.BitwiseOr, Variant.Null,
-                FilterOperator.Equals, Variant.From(true));
+                FilterOperator.Equals, Variant.From(false));
             yield return new TestCaseData(
                 Variant.From("invalid"), Variant.From((byte)3),
                 FilterOperator.BitwiseAnd, Variant.Null,
-                FilterOperator.Equals, Variant.From(true));
+                FilterOperator.Equals, Variant.From(false));
             yield return new TestCaseData(
                 Variant.From((ushort)5),
                 Variant.From((uint)BuiltInType.String),
@@ -405,7 +405,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 Variant.From((ushort)5),
                 Variant.From((uint)BuiltInType.Null),
                 FilterOperator.Cast, Variant.Null,
-                FilterOperator.Equals, Variant.From(true));
+                FilterOperator.Equals, Variant.From(false));
             yield return new TestCaseData(
                 Variant.From((ushort)5),
                 Variant.From((uint)BuiltInType.Null),

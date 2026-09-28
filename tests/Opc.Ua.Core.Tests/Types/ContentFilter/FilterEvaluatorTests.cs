@@ -548,11 +548,100 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         }
 
         [Test]
-        public void EqualsWithNullOperands()
+        public void EqualsWithNullOperandsYieldsFalse()
         {
             Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.Null, Variant.Null);
             bool result = filter.Evaluate(m_filterContext, m_target);
-            Assert.That(result, Is.True);
+            Assert.That(result, Is.False);
+        }
+
+        [TestCase(FilterOperator.Equals)]
+        [TestCase(FilterOperator.GreaterThan)]
+        [TestCase(FilterOperator.GreaterThanOrEqual)]
+        [TestCase(FilterOperator.LessThan)]
+        [TestCase(FilterOperator.LessThanOrEqual)]
+        [TestCase(FilterOperator.Like)]
+        public void NotWithNullBinaryOperandYieldsFalse(FilterOperator filterOperator)
+        {
+            Ua.ContentFilter filter = BuildNotFilter(BuildBinaryElement(
+                filterOperator,
+                Variant.Null,
+                filterOperator == FilterOperator.Like ? Variant.From("pattern") : Variant.From(5)));
+
+            Assert.That(filter.Evaluate(m_filterContext, m_target), Is.False);
+        }
+
+        [Test]
+        public void NotWithNullBetweenOperandYieldsFalse()
+        {
+            var between = new ContentFilterElement { FilterOperator = FilterOperator.Between };
+            between.SetOperands(
+            [
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(1)),
+                new LiteralOperand(Variant.From(9))
+            ]);
+
+            Assert.That(BuildNotFilter(between).Evaluate(m_filterContext, m_target), Is.False);
+        }
+
+        [Test]
+        public void NotWithIncomparableBetweenOperandsYieldsTrue()
+        {
+            var between = new ContentFilterElement { FilterOperator = FilterOperator.Between };
+            between.SetOperands(
+            [
+                new LiteralOperand(Variant.From("value")),
+                new LiteralOperand(Variant.From(1)),
+                new LiteralOperand(Variant.From(9))
+            ]);
+
+            Assert.That(BuildNotFilter(between).Evaluate(m_filterContext, m_target), Is.True);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void NotWithNullInListOperandYieldsFalse(bool nullIsValue)
+        {
+            var inList = new ContentFilterElement { FilterOperator = FilterOperator.InList };
+            inList.SetOperands(nullIsValue
+                ? [new LiteralOperand(Variant.Null), new LiteralOperand(Variant.From(3))]
+                : [new LiteralOperand(Variant.From(3)), new LiteralOperand(Variant.From(4)), new LiteralOperand(Variant.Null)]);
+
+            Assert.That(BuildNotFilter(inList).Evaluate(m_filterContext, m_target), Is.False);
+        }
+
+        [Test]
+        public void InListWithMatchingValueAndNullOperandYieldsTrue()
+        {
+            var inList = new ContentFilterElement { FilterOperator = FilterOperator.InList };
+            inList.SetOperands(
+            [
+                new LiteralOperand(Variant.From(3)),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(3))
+            ]);
+
+            Assert.That(new Ua.ContentFilter { Elements = [inList] }.Evaluate(m_filterContext, m_target), Is.True);
+        }
+
+        [TestCaseSource(nameof(NullValues))]
+        public void IsNullWithNullableValueReturnsTrue(Variant value)
+        {
+            Assert.That(BuildUnaryFilter(FilterOperator.IsNull, value).Evaluate(m_filterContext, m_target), Is.True);
+        }
+
+        [Test]
+        public void MissingSimpleAttributeOperandDoesNotMatchComparison()
+        {
+            var equals = new ContentFilterElement { FilterOperator = FilterOperator.Equals };
+            equals.SetOperands(
+            [
+                new SimpleAttributeOperand { AttributeId = Attributes.Value },
+                new LiteralOperand(Variant.From(5))
+            ]);
+
+            Assert.That(BuildNotFilter(equals).Evaluate(m_filterContext, m_target), Is.False);
         }
 
         [Test]
@@ -882,6 +971,28 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 Elements = [element]
             };
+        }
+
+        private static Ua.ContentFilter BuildNotFilter(ContentFilterElement element)
+        {
+            var not = new ContentFilterElement { FilterOperator = FilterOperator.Not };
+            not.SetOperands([new ElementOperand(1)]);
+            return new Ua.ContentFilter
+            {
+                Elements = [not, element]
+            };
+        }
+
+        private static IEnumerable<TestCaseData> NullValues()
+        {
+            yield return new TestCaseData(Variant.Null);
+            yield return new TestCaseData(Variant.From((string)null));
+            yield return new TestCaseData(Variant.From(default(ByteString)));
+            yield return new TestCaseData(Variant.From(NodeId.Null));
+            yield return new TestCaseData(Variant.From(Uuid.Empty));
+            yield return new TestCaseData(Variant.From(DateTime.MinValue));
+            yield return new TestCaseData(Variant.From(ArrayOf<int>.Null));
+            yield return new TestCaseData(Variant.From(ArrayOf<int>.Empty));
         }
 
         private sealed class MockFilterTarget : IFilterTarget

@@ -425,6 +425,11 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
+            if (IsNull(lhs) || IsNull(rhs))
+            {
+                return default;
+            }
+
             if (lhs.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
             {
                 return lhsString.Equals(rhsString, ContentFilter.EqualsOperatorDefaultStringComparison);
@@ -443,6 +448,11 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
+            if (IsNull(lhs) || IsNull(rhs))
+            {
+                return default;
+            }
+
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
             return compareResult is not int.MinValue and > 0;
@@ -457,6 +467,11 @@ namespace Opc.Ua
 
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
+
+            if (IsNull(lhs) || IsNull(rhs))
+            {
+                return default;
+            }
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
@@ -473,6 +488,11 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
+            if (IsNull(lhs) || IsNull(rhs))
+            {
+                return default;
+            }
+
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
             return compareResult is not int.MinValue and < 0;
@@ -487,6 +507,11 @@ namespace Opc.Ua
 
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
+
+            if (IsNull(lhs) || IsNull(rhs))
+            {
+                return default;
+            }
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
@@ -504,12 +529,16 @@ namespace Opc.Ua
             Variant min = GetValue(operands[1]);
             Variant max = GetValue(operands[2]);
 
+            if (IsNull(value) || IsNull(min) || IsNull(max))
+            {
+                return default;
+            }
+
             // check if never in range no matter what happens with the upper bound.
             int minCompareResult = value.CompareTo(min);
             if (minCompareResult == int.MinValue)
             {
-                // return null if the types are not comparable.
-                return default;
+                return false;
             }
 
             if (minCompareResult < 0)
@@ -521,8 +550,7 @@ namespace Opc.Ua
             int maxCompareResult = value.CompareTo(max);
             if (maxCompareResult == int.MinValue)
             {
-                // return null if the types are not comparable.
-                return default;
+                return false;
             }
 
             return maxCompareResult <= 0;
@@ -537,10 +565,23 @@ namespace Opc.Ua
 
             Variant value = GetValue(operands[0]);
 
+            if (IsNull(value))
+            {
+                return default;
+            }
+
+            bool containsNull = false;
+
             // check for a match.
             for (int ii = 1; ii < operands.Length; ii++)
             {
                 Variant rhs = GetValue(operands[ii]);
+
+                if (IsNull(rhs))
+                {
+                    containsNull = true;
+                    continue;
+                }
 
                 if (value.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
                 {
@@ -562,7 +603,7 @@ namespace Opc.Ua
             }
 
             // no match.
-            return false;
+            return containsNull ? Variant.Null : false;
         }
 
         /// <summary>
@@ -584,6 +625,13 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 2);
 
             Variant firstOperand = GetValue(operands[0]);
+            Variant secondOperand = GetValue(operands[1]);
+
+            if (IsNull(firstOperand) || IsNull(secondOperand))
+            {
+                return default;
+            }
+
             string? lhs;
             if (firstOperand.TryGetValue(out LocalizedText firstOperandLocalizedText))
             {
@@ -594,7 +642,6 @@ namespace Opc.Ua
                 lhs = firstOperand.GetString();
             }
 
-            Variant secondOperand = GetValue(operands[1]);
             string? rhs;
             if (secondOperand.TryGetValue(out LocalizedText secondOperandLocalizedText))
             {
@@ -623,7 +670,7 @@ namespace Opc.Ua
 
             Variant rhs = GetValue(operands[0]);
 
-            return rhs.IsNull;
+            return IsNull(rhs);
         }
 
         /// <summary>
@@ -637,13 +684,14 @@ namespace Opc.Ua
             // get the value to cast.
             Variant value = GetValue(operands[0]);
 
-            if (value.IsNull)
+            if (IsNull(value))
             {
                 return default;
             }
 
             // get the datatype to cast to.
-            if (!GetValue(operands[1]).TryGetValue(out NodeId datatype))
+            Variant type = GetValue(operands[1]);
+            if (IsNull(type) || !type.TryGetValue(out NodeId datatype))
             {
                 return default;
             }
@@ -656,6 +704,33 @@ namespace Opc.Ua
             }
 
             return ConvertValue(value, targetType);
+        }
+
+        /// <summary>
+        /// Returns whether a Variant contains an OPC UA null value.
+        /// </summary>
+        private static bool IsNull(Variant value)
+        {
+            if (value.IsNull || value.IsEmptyArray)
+            {
+                return true;
+            }
+
+            return value.TypeInfo.BuiltInType switch
+            {
+                BuiltInType.String => value.GetString() is null,
+                BuiltInType.DateTime => value.GetDateTime().IsNull,
+                BuiltInType.Guid => value.GetGuid() == Uuid.Empty,
+                BuiltInType.ByteString => value.GetByteString().IsNull,
+                BuiltInType.XmlElement => value.GetXmlElement().IsNull,
+                BuiltInType.NodeId => value.GetNodeId().IsNull,
+                BuiltInType.ExpandedNodeId => value.GetExpandedNodeId().IsNull,
+                BuiltInType.QualifiedName => value.GetQualifiedName().IsNull,
+                BuiltInType.LocalizedText => value.GetLocalizedText().IsNull,
+                BuiltInType.ExtensionObject => value.GetExtensionObject().IsNull,
+                BuiltInType.DataValue => value.GetDataValue().IsNull,
+                _ => false
+            };
         }
 
         private Variant ConvertValue(Variant value, BuiltInType targetType)

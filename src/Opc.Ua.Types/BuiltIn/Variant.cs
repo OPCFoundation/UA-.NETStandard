@@ -1017,6 +1017,40 @@ namespace Opc.Ua
         public bool IsNull => m_typeInfo.IsUnknown;
 
         /// <summary>
+        /// Returns whether the Variant contains a null or empty array.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsEmptyArray => m_value switch
+        {
+            ArrayOf<bool> value => value.IsEmpty,
+            ArrayOf<sbyte> value => value.IsEmpty,
+            ArrayOf<byte> value => value.IsEmpty,
+            ArrayOf<short> value => value.IsEmpty,
+            ArrayOf<ushort> value => value.IsEmpty,
+            ArrayOf<int> value => value.IsEmpty,
+            ArrayOf<EnumValue> value => value.IsEmpty,
+            ArrayOf<uint> value => value.IsEmpty,
+            ArrayOf<long> value => value.IsEmpty,
+            ArrayOf<ulong> value => value.IsEmpty,
+            ArrayOf<float> value => value.IsEmpty,
+            ArrayOf<double> value => value.IsEmpty,
+            ArrayOf<string> value => value.IsEmpty,
+            ArrayOf<DateTimeUtc> value => value.IsEmpty,
+            ArrayOf<Uuid> value => value.IsEmpty,
+            ArrayOf<ByteString> value => value.IsEmpty,
+            ArrayOf<XmlElement> value => value.IsEmpty,
+            ArrayOf<NodeId> value => value.IsEmpty,
+            ArrayOf<ExpandedNodeId> value => value.IsEmpty,
+            ArrayOf<StatusCode> value => value.IsEmpty,
+            ArrayOf<QualifiedName> value => value.IsEmpty,
+            ArrayOf<LocalizedText> value => value.IsEmpty,
+            ArrayOf<ExtensionObject> value => value.IsEmpty,
+            ArrayOf<DataValue> value => value.IsEmpty,
+            ArrayOf<Variant> value => value.IsEmpty,
+            _ => false
+        };
+
+        /// <summary>
         /// The value stored -as <see cref="object"/>- within the
         /// Variant object. All arrays and matrices are returned
         /// as <see cref="Array"/>.
