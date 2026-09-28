@@ -43,6 +43,7 @@ OPCFoundation.NetStandard.Opc.Ua.Machinery.Energy
 OPCFoundation.NetStandard.Opc.Ua.Machinery.Jobs
 OPCFoundation.NetStandard.Opc.Ua.Machinery.ProcessValues
 OPCFoundation.NetStandard.Opc.Ua.Machinery.Result
+OPCFoundation.NetStandard.Opc.Ua.Machinery.Server
 OPCFoundation.NetStandard.Opc.Ua.Mcp
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Core
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics
