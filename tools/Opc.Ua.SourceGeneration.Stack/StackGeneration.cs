@@ -106,6 +106,12 @@ namespace Opc.Ua.SourceGeneration
                     m_context.AddSource(file, content);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // A cancelled run is not a generator failure: let the driver
+                // see the cancellation instead of caching an error diagnostic.
+                throw;
+            }
             catch (Exception ex)
             {
                 m_context.ReportDiagnostic(
