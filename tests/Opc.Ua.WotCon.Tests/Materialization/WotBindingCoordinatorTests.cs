@@ -317,6 +317,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(binders.DeactivatedPlans, Has.Count.EqualTo(1));
             Assert.That(binders.DeactivatedPlans[0], Is.SameAs(planV1));
             Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(2));
+            WotBindingPlan activated = binders.ActivatedPlans[1];
+            Assert.That(activated, Is.Not.SameAs(planV1));
+            WotBindingPlan committed = coordinator.CommittedPublication.ActiveBindingPlans.ToList().Single();
+            Assert.That(committed.ResourceXid, Is.EqualTo(activated.ResourceXid));
+            Assert.That(committed.CompiledForms.Single(), Is.SameAs(activated.CompiledForms.Single()));
+            Assert.That(committed.CompiledForms.Single(), Is.Not.SameAs(planV1.CompiledForms.Single()));
         }
 
         private PreparedWotTestRuntime? m_runtime;
