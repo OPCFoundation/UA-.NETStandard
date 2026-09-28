@@ -57,6 +57,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         IIsa95JobOrderCatalog,
         IIsa95JobResponseCatalog,
         IIsa95JobOrderCatalogChangeSource,
+        IIsa95JobResponseChangeSource,
         IDisposable
     {
         /// <summary>
@@ -521,10 +522,59 @@ namespace Opc.Ua.ISA95.Server.Providers
         }
 
         /// <inheritdoc/>
+        public async IAsyncEnumerable<Isa95JobResponseChange> SubscribeResponseChangesAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var subscription = new Subscription<Isa95JobResponseChange>();
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+                m_responseSubscribers.Add(subscription);
+            }
+
+            try
+            {
+                while (true)
+                {
+                    bool cancelled = false;
+                    try
+                    {
+                        await subscription.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        cancelled = true;
+                    }
+
+                    if (cancelled)
+                    {
+                        yield break;
+                    }
+
+                    if (!subscription.TryDequeue(out Isa95JobResponseChange change))
+                    {
+                        yield break;
+                    }
+
+                    yield return change;
+                }
+            }
+            finally
+            {
+                lock (m_lock)
+                {
+                    m_responseSubscribers.Remove(subscription);
+                }
+                subscription.Dispose();
+            }
+        }
+
+        /// <inheritdoc/>
         public void Dispose()
         {
             List<Subscription<Isa95JobStatusNotificationV2>> subscribers;
             List<Subscription<Isa95JobOrderCatalogChange>> catalogSubscribers;
+            List<Subscription<Isa95JobResponseChange>> responseSubscribers;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -534,8 +584,10 @@ namespace Opc.Ua.ISA95.Server.Providers
                 m_disposed = true;
                 subscribers = [.. m_subscribers];
                 catalogSubscribers = [.. m_catalogSubscribers];
+                responseSubscribers = [.. m_responseSubscribers];
                 m_subscribers.Clear();
                 m_catalogSubscribers.Clear();
+                m_responseSubscribers.Clear();
                 m_orders.Clear();
                 m_responses.Clear();
             }
@@ -545,6 +597,10 @@ namespace Opc.Ua.ISA95.Server.Providers
                 subscriber.Complete();
             }
             foreach (Subscription<Isa95JobOrderCatalogChange> subscriber in catalogSubscribers)
+            {
+                subscriber.Complete();
+            }
+            foreach (Subscription<Isa95JobResponseChange> subscriber in responseSubscribers)
             {
                 subscriber.Complete();
             }
@@ -859,6 +915,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                 }
 
                 m_responses[response.Id] = response with { ReceivedAt = now };
+                SignalResponse(response.Id, response.JobOrderId, now);
                 return EngineResult.Success;
             }
         }
@@ -1072,6 +1129,22 @@ namespace Opc.Ua.ISA95.Server.Providers
             }
         }
 
+        private void SignalResponse(string jobResponseId, string jobOrderId, DateTimeUtc receivedAt)
+        {
+            var change = new Isa95JobResponseChange
+            {
+                JobResponseId = jobResponseId,
+                JobOrderId = jobOrderId,
+                SequenceNumber = ++m_responseSequence,
+                Timestamp = receivedAt
+            };
+
+            foreach (Subscription<Isa95JobResponseChange> subscriber in m_responseSubscribers)
+            {
+                subscriber.Enqueue(change);
+            }
+        }
+
         private DateTimeUtc Now()
         {
             return DateTimeUtc.From(m_timeProvider.GetUtcNow());
@@ -1131,8 +1204,10 @@ namespace Opc.Ua.ISA95.Server.Providers
         private readonly Dictionary<string, Isa95JobResponse> m_responses = new(StringComparer.Ordinal);
         private readonly List<Subscription<Isa95JobStatusNotificationV2>> m_subscribers = [];
         private readonly List<Subscription<Isa95JobOrderCatalogChange>> m_catalogSubscribers = [];
+        private readonly List<Subscription<Isa95JobResponseChange>> m_responseSubscribers = [];
         private ulong m_sequence;
         private ulong m_catalogSequence;
+        private ulong m_responseSequence;
         private bool m_disposed;
 
         /// <summary>
