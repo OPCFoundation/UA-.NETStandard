@@ -136,7 +136,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline + 1));
                 await AssertStartupSensorAsync(readable: false).ConfigureAwait(false);
                 using var conflictDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     if (reload)
                     {
@@ -152,7 +152,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                             m_registryRegistration, callerContext: null, conflictDeadline.Token).ConfigureAwait(false);
                     }
                 })!;
-                Assert.That(failure.Message, Does.Contain("completing readiness"));
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+                Assert.That(failure.Message, Does.Contain("publication admission"));
                 Assert.That(conflictDeadline.IsCancellationRequested, Is.False);
                 Assert.That(cleanup.RemoveCalls, Is.Zero);
             }
