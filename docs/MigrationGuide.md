@@ -906,6 +906,27 @@ and no longer keeps metadata only in memory, so a store that cannot persist
 metadata should reject the write by returning `false` rather than silently
 accepting it.
 
+## ContentFilter NULL semantics follow OPC 10000-4 1.05.07
+
+`FilterEvaluator` applies the NULL rules of
+[OPC 10000-4 §7.7.3](https://reference.opcfoundation.org/Core/Part4/v105/docs/7.7.3)
+to event where-clauses and every other `ContentFilter`:
+
+- An element with a null operand evaluates to NULL (except `IsNull`), and a
+  filter that ends as NULL is FALSE. `Equals(field, 0)` no longer matches an
+  event without that field, and `Not(Equals(field, 5))` no longer matches it
+  either.
+- `IsNull` is TRUE for the null value of a nullable built-in type (a null
+  String, ByteString, NodeId, the all-zero Guid, `DateTime.MinValue`, …) and for
+  a null or empty array, which
+  [OPC 10000-6 §5.1.11](https://reference.opcfoundation.org/Core/Part6/v105/docs/5.1.11)
+  treats as the same. A zero, `false` or a Good StatusCode is a value.
+- Operands that cannot be converted to a common type make `Between` FALSE
+  instead of NULL.
+
+Clients whose where-clauses relied on the old matching of missing fields should
+test them explicitly with `IsNull`, for example `Or(IsNull(field), Equals(field, 0))`.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

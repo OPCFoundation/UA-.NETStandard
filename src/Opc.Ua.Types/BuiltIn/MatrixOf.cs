@@ -52,6 +52,7 @@ namespace Opc.Ua
     public readonly struct MatrixOf<T> :
         IConvertableToArray,
         IConvertableToMatrix,
+        IElementContainer,
         IEquatable<MatrixOf<T>>,
         IEquatable<Array>,
         IEquatable<ArrayOf<T>>,

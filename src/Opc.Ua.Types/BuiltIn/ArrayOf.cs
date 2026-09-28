@@ -48,6 +48,7 @@ namespace Opc.Ua
     [CollectionBuilder(typeof(ArrayOf), nameof(ArrayOf.Create))]
     public readonly struct ArrayOf<T> :
         IConvertableToArray,
+        IElementContainer,
         IEquatable<ArrayOf<T>>,
         IEquatable<MatrixOf<T>>,
         IEquatable<IEnumerable<T>>,
@@ -815,6 +816,19 @@ namespace Opc.Ua
         /// </summary>
         /// <returns></returns>
         Array? ToArray();
+    }
+
+    /// <summary>
+    /// Tells whether an array or matrix value holds elements without
+    /// knowing its element type.
+    /// </summary>
+    internal interface IElementContainer
+    {
+        /// <summary>
+        /// Returns true if the value holds no elements, which is also the
+        /// case for a null value.
+        /// </summary>
+        bool IsEmpty { get; }
     }
 
     /// <summary>
