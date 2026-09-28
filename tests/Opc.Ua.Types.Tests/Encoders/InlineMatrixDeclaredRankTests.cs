@@ -505,19 +505,31 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded), "JSON E");
             }
 
-            string xml =
-                "<Root xmlns=\"" + Namespaces.OpcUaXsd + "\">" +
-                "<M><Dimensions><Int32>0</Int32><Int32>70000</Int32></Dimensions><Elements /></M>" +
-                "<E><Dimensions><Int32>0</Int32><Int32>70000</Int32></Dimensions></E>" +
-                "</Root>";
+            // One field per document: after a read throws, the XML reader is
+            // left inside that field, so a second field would not be found.
+            AssertXmlShapeRejected(
+                context,
+                "<M><Dimensions><Int32>0</Int32><Int32>70000</Int32></Dimensions><Elements /></M>",
+                d => d.ReadVariantValue("M", type),
+                "XML M");
+            AssertXmlShapeRejected(
+                context,
+                "<E><Dimensions><Int32>0</Int32><Int32>70000</Int32></Dimensions></E>",
+                d => d.ReadEncodeableMatrix<InlineMatrixFieldTests.Pair>("E"),
+                "XML E");
+        }
+
+        private static void AssertXmlShapeRejected(
+            ServiceMessageContext context,
+            string field,
+            Action<IDecoder> read,
+            string message)
+        {
+            string xml = "<Root xmlns=\"" + Namespaces.OpcUaXsd + "\">" + field + "</Root>";
             DelegateEncodeable.Reader = d =>
             {
-                ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                    () => d.ReadVariantValue("M", type));
-                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded), "XML M");
-                ex = Assert.Throws<ServiceResultException>(
-                    () => d.ReadEncodeableMatrix<InlineMatrixFieldTests.Pair>("E"));
-                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded), "XML E");
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(() => read(d));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded), message);
                 return Variant.From(true);
             };
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml)))
@@ -527,14 +539,14 @@ namespace Opc.Ua.Types.Tests.Encoders
                 xmlDecoder.PushNamespace(Namespaces.OpcUaXsd);
                 DelegateEncodeable.LastRead = default;
                 xmlDecoder.ReadEncodeable<DelegateEncodeable>("Root");
-                Assert.That(DelegateEncodeable.LastRead.GetBoolean(), Is.True, "XmlDecoder");
+                Assert.That(DelegateEncodeable.LastRead.GetBoolean(), Is.True, message + " XmlDecoder");
             }
 
             using var parser = new XmlParser(xml, context);
             parser.PushNamespace(Namespaces.OpcUaXsd);
             DelegateEncodeable.LastRead = default;
             parser.ReadEncodeable<DelegateEncodeable>("Root");
-            Assert.That(DelegateEncodeable.LastRead.GetBoolean(), Is.True, "XmlParser");
+            Assert.That(DelegateEncodeable.LastRead.GetBoolean(), Is.True, message + " XmlParser");
         }
 
         private static IEnumerable<Variant> MatrixValues()
