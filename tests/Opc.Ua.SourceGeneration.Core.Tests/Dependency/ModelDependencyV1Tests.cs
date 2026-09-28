@@ -108,6 +108,90 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void WriteThenRead_RoundTripsVariableTypeDataType()
+        {
+            // A consumer that types a variable with a VariableType supplied by
+            // a referenced assembly needs that type's data type restriction to
+            // decide whether the generated state class takes a template
+            // parameter. Before the restriction was carried here, the consumer
+            // resolved a null DataTypeNode and the node state generator threw
+            // a bare NullReferenceException (OPC 40001-1 Machinery over the
+            // OPC 10000-100 DI LifetimeVariableType).
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Demo/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "LifetimeVariableType",
+                SymbolicNamespace = "http://example.org/UA/Demo/",
+                ClassName = "LifetimeVariable",
+                Kind = DependencyNodeKind.VariableType,
+                BaseTypeName = "BaseDataVariableType",
+                BaseTypeNamespace = "http://opcfoundation.org/UA/",
+                NumericId = 468,
+                DataTypeName = "Number",
+                DataTypeNamespace = "http://opcfoundation.org/UA/",
+                ValueRank = (int)ValueRank.Scalar
+            });
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            DependencyNode variableType = decoded.Nodes[0];
+            Assert.That(variableType.Kind, Is.EqualTo(DependencyNodeKind.VariableType));
+            Assert.That(variableType.DataTypeName, Is.EqualTo("Number"));
+            Assert.That(
+                variableType.DataTypeNamespace,
+                Is.EqualTo("http://opcfoundation.org/UA/"));
+            Assert.That(variableType.ValueRank, Is.EqualTo((int)ValueRank.Scalar));
+        }
+
+        [Test]
+        public void WriteThenRead_OmittedVariableTypeDataTypeStaysNull()
+        {
+            // Payloads written before the VariableType data type entry existed
+            // never set the flag, so a current reader must leave the fields
+            // null rather than consuming bytes that are not there.
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Demo/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "PlainType",
+                SymbolicNamespace = "http://example.org/UA/Demo/",
+                ClassName = "Plain",
+                Kind = DependencyNodeKind.ObjectType,
+                NumericId = 1
+            });
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes[0].DataTypeName, Is.Null);
+            Assert.That(decoded.Nodes[0].DataTypeNamespace, Is.Null);
+            Assert.That(decoded.Nodes[0].ValueRank, Is.Null);
+        }
+
+        [Test]
+        public void WriteThenRead_RoundTripsVariableTypeWithoutValueRank()
+        {
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Demo/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "LooseVariableType",
+                SymbolicNamespace = "http://example.org/UA/Demo/",
+                ClassName = "LooseVariable",
+                Kind = DependencyNodeKind.VariableType,
+                NumericId = 2,
+                DataTypeName = "BaseDataType",
+                DataTypeNamespace = "http://opcfoundation.org/UA/",
+                ValueRank = null
+            });
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes[0].DataTypeName, Is.EqualTo("BaseDataType"));
+            Assert.That(decoded.Nodes[0].ValueRank, Is.Null);
+        }
+
+        [Test]
         public void WriteThenRead_PreservesUnicodeBrowseNames()
         {
             var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Unicode/" };

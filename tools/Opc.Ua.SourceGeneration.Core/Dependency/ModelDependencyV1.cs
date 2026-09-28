@@ -385,6 +385,26 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public bool IsEnumeration { get; set; }
 
         /// <summary>
+        /// DataType restriction of a VariableType (null for every other kind).
+        /// A consumer needs it to decide whether a variable typed by this
+        /// VariableType requires a template parameter on its generated state
+        /// class; without it the consumer cannot tell State&lt;T&gt; from the
+        /// non-generic state and dereferences a null DataTypeNode.
+        /// </summary>
+        public string? DataTypeName { get; set; }
+
+        /// <summary>
+        /// Namespace URI of <see cref="DataTypeName"/>.
+        /// </summary>
+        public string? DataTypeNamespace { get; set; }
+
+        /// <summary>
+        /// ValueRank of a VariableType, or null when the VariableType does not
+        /// specify one (ValueRankSpecified = false upstream).
+        /// </summary>
+        public int? ValueRank { get; set; }
+
+        /// <summary>
         /// DataType fields (empty for non-DataType kinds).
         /// </summary>
         public IReadOnlyList<DependencyDataField> Fields { get; set; } = [];
@@ -419,6 +439,13 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kFluentAccessorsKnown = 0x40;
         private const byte kMethodIdentityTrailer = 0x80;
         private const byte kMethodIdentityTrailerVersion = 1;
+        // Node-entry flags. 0x01 / 0x02 are IsAbstract / IsEnumeration; 0x04
+        // marks the optional VariableType DataType trailer, which older
+        // payloads simply never set, so a new reader stays compatible with
+        // them.
+        private const byte kNodeIsAbstract = 0x01;
+        private const byte kNodeIsEnumeration = 0x02;
+        private const byte kNodeVariableTypeDataType = 0x04;
         private const byte kExtendedIdentifierTrailer = 0x20;
         private const byte kExtendedIdentifierTrailerVersion = 1;
         private const byte kStructureFieldTrailer = 0x10;
@@ -540,13 +567,25 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 byte flags = 0;
                 if (node.IsAbstract)
                 {
-                    flags |= 0x01;
+                    flags |= kNodeIsAbstract;
                 }
                 if (node.IsEnumeration)
                 {
-                    flags |= 0x02;
+                    flags |= kNodeIsEnumeration;
+                }
+                bool hasVariableTypeDataType = node.DataTypeName != null;
+                if (hasVariableTypeDataType)
+                {
+                    flags |= kNodeVariableTypeDataType;
                 }
                 writer.Write(flags);
+                if (hasVariableTypeDataType)
+                {
+                    WriteString(writer, node.DataTypeName ?? string.Empty);
+                    WriteString(writer, node.DataTypeNamespace ?? string.Empty);
+                    writer.Write(node.ValueRank.HasValue);
+                    writer.Write(node.ValueRank ?? 0);
+                }
                 writer.Write(node.Fields.Count);
                 foreach (DependencyDataField field in node.Fields)
                 {
@@ -701,8 +740,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     StringId = ReadNullableString(reader)
                 };
                 byte flags = reader.ReadByte();
-                node.IsAbstract = (flags & 0x01) != 0;
-                node.IsEnumeration = (flags & 0x02) != 0;
+                node.IsAbstract = (flags & kNodeIsAbstract) != 0;
+                node.IsEnumeration = (flags & kNodeIsEnumeration) != 0;
+                if ((flags & kNodeVariableTypeDataType) != 0)
+                {
+                    node.DataTypeName = ReadString(reader);
+                    node.DataTypeNamespace = ReadString(reader);
+                    bool valueRankSpecified = reader.ReadBoolean();
+                    int valueRank = reader.ReadInt32();
+                    node.ValueRank = valueRankSpecified ? valueRank : null;
+                }
                 int fieldCount = reader.ReadInt32();
                 if (fieldCount is < 0 or > 100_000)
                 {
