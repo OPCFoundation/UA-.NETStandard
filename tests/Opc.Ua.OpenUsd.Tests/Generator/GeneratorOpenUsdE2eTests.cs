@@ -300,6 +300,46 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
             }
         }
 
+        [Test]
+        public async Task PublishedRootLayerMatchesTheServedBytesAndDigestAsync()
+        {
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink(), enableCommands: false);
+            await using (connector.ConfigureAwait(false))
+            {
+                List<OpenUsdConnector.RepresentationInfo> representations = await connector
+                    .DiscoverAllRepresentationsAsync(CancellationToken.None).ConfigureAwait(false);
+                string directory = Path.Combine(Path.GetTempPath(), "generator-root-" + Guid.NewGuid().ToString("N"));
+                try
+                {
+                    List<OpenUsdConnector.FetchedAsset> assets = await connector
+                        .FetchServedAssetsAsync(directory, CancellationToken.None).ConfigureAwait(false);
+                    OpenUsdConnector.FetchedAsset root = assets.Find(asset => asset.Identifier == "Powerhouse.usda") ??
+                        throw new AssertionException("The advertised root asset is not served.");
+                    Assert.That(root.DigestVerified, Is.True);
+                    using var stream = new FileStream(
+                        root.LocalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+                    using var buffer = new MemoryStream();
+                    await stream.CopyToAsync(buffer).ConfigureAwait(false);
+                    byte[] bytes = buffer.ToArray();
+                    Assert.That(bytes, Is.Not.Empty);
+                    foreach (OpenUsdConnector.RepresentationInfo representation in representations)
+                    {
+                        Assert.That(representation.RootLayerIdentifier, Is.EqualTo(root.Identifier));
+                        Assert.That(representation.DigestAlgorithm, Is.EqualTo(OpenUsdDigestAlgorithm.Sha256));
+                        Assert.That(representation.RootLayerDigest, Has.Length.EqualTo(32));
+                        Assert.That(OpenUsdConnector.VerifyStageDigest(representation, bytes), Is.True);
+                    }
+                }
+                finally
+                {
+                    if (Directory.Exists(directory))
+                    {
+                        Directory.Delete(directory, recursive: true);
+                    }
+                }
+            }
+        }
+
         private ApplicationConfiguration CreateClientConfiguration()
         {
             string pkiRoot = Path.Combine(
