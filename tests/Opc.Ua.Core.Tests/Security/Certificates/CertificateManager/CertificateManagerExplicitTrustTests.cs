@@ -127,29 +127,51 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <summary>
         /// Verifies explicit trusted roots and intermediate issuers validate a leaf without filesystem trust stores.
+        /// With no CRL anywhere the revocation status is unknown; that is accepted by default or when the entries
+        /// disable the check (SuppressRevocationStatusUnknown), and rejected under RejectUnknownRevocationStatus
+        /// (OPC 10000-4 6.1.3, Find Revocation List).
         /// </summary>
-        [TestCase("Peers", false)]
-        [TestCase("Peers", true)]
-        [TestCase("Users", false)]
-        [TestCase("Users", true)]
-        [TestCase("Https", false)]
-        [TestCase("Https", true)]
-        public async Task ExplicitIssuerChainIsHonoredWithoutStorePathAsync(string scope, bool strict)
+        [TestCase("Peers", false, false)]
+        [TestCase("Peers", true, false)]
+        [TestCase("Peers", true, true)]
+        [TestCase("Users", false, false)]
+        [TestCase("Users", true, false)]
+        [TestCase("Users", true, true)]
+        [TestCase("Https", false, false)]
+        [TestCase("Https", true, false)]
+        [TestCase("Https", true, true)]
+        public async Task ExplicitIssuerChainIsHonoredWithoutStorePathAsync(
+            string scope,
+            bool strict,
+            bool suppressUnknown)
         {
+            CertificateValidationOptions entryOptions = suppressUnknown
+                ? CertificateValidationOptions.SuppressRevocationStatusUnknown
+                : CertificateValidationOptions.Default;
             SecurityConfiguration configuration = CreateConfiguration();
             configuration.RejectUnknownRevocationStatus = strict;
             GetTrustedList(configuration, scope).TrustedCertificates =
-                [new CertificateIdentifier { RawData = m_root.RawData }];
+                [new CertificateIdentifier { RawData = m_root.RawData, ValidationOptions = entryOptions }];
             GetIssuerList(configuration, scope).TrustedCertificates =
-                [new CertificateIdentifier { RawData = m_intermediate.RawData }];
+                [new CertificateIdentifier { RawData = m_intermediate.RawData, ValidationOptions = entryOptions }];
             await using var manager = new CertificateManager(m_telemetry);
             manager.MapFromSecurityConfiguration(configuration);
 
             CertificateValidationResult result = await manager.ValidateAsync(m_leaf, GetScope(scope))
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(result.IsValid, Is.True);
+            if (strict && !suppressUnknown)
+            {
+                Assert.That(result.IsValid, Is.False);
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown)
+                        .Or.EqualTo(StatusCodes.BadCertificateIssuerRevocationUnknown));
+            }
+            else
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.IsValid, Is.True);
+            }
         }
 
         /// <summary>

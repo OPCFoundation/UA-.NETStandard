@@ -672,7 +672,6 @@ namespace Opc.Ua
                                     untrustedCollection,
                                     null,
                                     true,
-                                    peerSupplied: true,
                                     ct: ct)
                                 .ConfigureAwait(false);
                         }
@@ -683,7 +682,6 @@ namespace Opc.Ua
                                 untrustedCollection,
                                 null,
                                 true,
-                                peerSupplied: true,
                                 ct: ct)
                                 .ConfigureAwait(false);
                         }
@@ -1691,18 +1689,12 @@ namespace Opc.Ua
         /// <param name="explicitList">The certificates named on the list itself.</param>
         /// <param name="certificateStore">The store behind the list, if any.</param>
         /// <param name="checkRecovationStatus">Whether to check the revocation status.</param>
-        /// <param name="peerSupplied">
-        /// The <paramref name="explicitList"/> is the chain supplied by the peer;
-        /// an unknown revocation status is then reported, while an issuer named
-        /// on a trust list is accepted without a CRL.
-        /// </param>
         /// <param name="ct">The cancellation token.</param>
         private async Task<(CertificateIssuerReference?, ServiceResultException?)> GetIssuerNoExceptionAsync(
             Certificate certificate,
             ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier? certificateStore,
             bool checkRecovationStatus,
-            bool peerSupplied = false,
             CancellationToken ct = default)
         {
             ServiceResultException? serviceResult = null;
@@ -1816,16 +1808,12 @@ namespace Opc.Ua
                             {
                                 // An issuer with no store behind its list still
                                 // needs its CRL checked (OPC 10000-4 6.1.3) against
-                                // the CRLs of the trusted and issuer stores. An
-                                // issuer named on a trust list is trusted without
-                                // a CRL, but a CRL found there still applies.
+                                // the CRLs of the trusted and issuer stores. A
+                                // missing CRL follows RejectUnknownRevocationStatus
+                                // unless the entry itself disables the check
+                                // (SuppressRevocationStatusUnknown).
                                 serviceResult = await CheckIssuerRevocationInTrustStoresAsync(
-                                    issuer,
-                                    certificate,
-                                    peerSupplied
-                                        ? options
-                                        : options | CertificateValidationOptions.SuppressRevocationStatusUnknown,
-                                    ct).ConfigureAwait(false);
+                                    issuer, certificate, options, ct).ConfigureAwait(false);
                             }
                             return (
                                 new CertificateIssuerReference(
@@ -1952,7 +1940,6 @@ namespace Opc.Ua
             ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier? certificateStore,
             bool checkRecovationStatus,
-            bool peerSupplied = false,
             CancellationToken ct = default)
         {
             // check for root.
@@ -1967,7 +1954,6 @@ namespace Opc.Ua
                     explicitList,
                     certificateStore,
                     checkRecovationStatus,
-                    peerSupplied,
                     ct)
                 .ConfigureAwait(false);
             if (srex != null)
