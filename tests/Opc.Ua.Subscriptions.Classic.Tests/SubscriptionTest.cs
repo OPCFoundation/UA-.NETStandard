@@ -473,7 +473,9 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                         new TestableMonitoredItem(subscription.DefaultItem)
                         {
                             StartNodeId = nextNode,
-                            SamplingInterval = 0
+                            // Sample at the revised publishing interval to keep
+                            // the server load of 2500 items bounded on CI hosts
+                            SamplingInterval = 100
                         });
                 }
                 var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
