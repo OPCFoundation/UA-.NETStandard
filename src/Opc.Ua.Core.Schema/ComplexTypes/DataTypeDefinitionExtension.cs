@@ -87,6 +87,14 @@ namespace Opc.Ua
                         "The structure definition contains a field without a type name.");
                 }
 
+                // an unnamed field cannot become a property or a bit selector; the schema
+                // validator reports it but the dictionary is still used when validation fails.
+                if (string.IsNullOrEmpty(field.Name))
+                {
+                    throw new DataTypeNotSupportedException(
+                        "The structure definition contains a field without a name.");
+                }
+
                 // check for yet unsupported properties
                 if (field.IsLengthInBytes || field.Terminator != null)
                 {

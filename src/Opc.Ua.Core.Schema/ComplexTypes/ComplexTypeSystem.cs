@@ -1529,6 +1529,14 @@ namespace Opc.Ua
             var typeList = new List<IType?>();
             for (int ii = 0; ii < declaredFields.Count; ii++)
             {
+                if (string.IsNullOrEmpty(declaredFields[ii].Name))
+                {
+                    // the type builders need a name for every field; skip only this type.
+                    throw new DataTypeNotSupportedException(
+                        complexTypeId,
+                        "The structure definition contains a field without a name.");
+                }
+
                 var field = (StructureField)declaredFields[ii].Clone();
                 resolvedFields[ii] = field;
                 IType? fieldType = await GetFieldTypeAsync(field, allowSubTypes, ct).ConfigureAwait(false);

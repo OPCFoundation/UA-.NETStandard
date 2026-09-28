@@ -192,6 +192,35 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        /// <summary>
+        /// A4-6: an unnamed field of an unvalidated dictionary makes only its structure
+        /// unsupported; it must not convert and then fail later in the type builder.
+        /// </summary>
+        [Test]
+        public void ToStructureDefinitionRejectsUnnamedFields()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => UnsupportedStructure(
+                        new Schema.Binary.FieldType { TypeName = new XmlQualifiedName("Int32", Namespaces.OpcUa) }),
+                    Throws.TypeOf<DataTypeNotSupportedException>());
+                Assert.That(
+                    () => UnsupportedStructure(
+                        Field(string.Empty, "Int32", Namespaces.OpcUa)),
+                    Throws.TypeOf<DataTypeNotSupportedException>());
+                Assert.That(
+                    () => UnsupportedStructure(
+                        new Schema.Binary.FieldType
+                        {
+                            TypeName = new XmlQualifiedName("Bit", Namespaces.OpcBinarySchema),
+                            Length = 32
+                        },
+                        Field("Value", "Int32", Namespaces.OpcUa)),
+                    Throws.TypeOf<DataTypeNotSupportedException>());
+            });
+        }
+
         [Test]
         public void ToEnumDefinitionMapsBinarySchemaValuesAndFallbackNames()
         {
