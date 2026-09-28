@@ -179,11 +179,12 @@ namespace Opc.Ua.Server.Fluent
             double lowLow = double.NaN);
 
         /// <summary>
-        /// Sets the alarm's <c>SourceNode</c> reference and
-        /// <c>SourceName</c> to the supplied target and, when the target
-        /// is a Variable, the alarm's <c>InputNode</c> (Part 9 5.8.2).
-        /// The alarm keeps its HasCondition and notifier wiring on the
-        /// node it was created on.
+        /// Names the node the alarm monitors. A Variable target becomes
+        /// the alarm's <c>InputNode</c> (Part 9 5.8.2) while
+        /// <c>SourceNode</c> and <c>SourceName</c> keep naming the Object
+        /// the alarm was created on, which carries the HasCondition
+        /// reference and the notifier wiring. Any other target replaces
+        /// <c>SourceNode</c> and <c>SourceName</c>.
         /// </summary>
         /// <param name="source">The source node monitored by the alarm.</param>
         /// <returns>This builder for further alarm configuration.</returns>
@@ -421,16 +422,9 @@ namespace Opc.Ua.Server.Fluent
                 alarm.ConditionName.Value = alarm.BrowseName.Name ?? string.Empty;
             }
 
-            // Part 9 5.8.2: InputNode names the Variable whose value is the
-            // primary input. An Object source leaves it NULL until
-            // MonitorVariable supplies the Variable.
-            if (source is BaseVariableState &&
-                alarm is AlarmConditionState alarmCondition &&
-                alarmCondition.InputNode != null &&
-                alarmCondition.InputNode.Value.IsNull)
-            {
-                alarmCondition.InputNode.Value = source.NodeId;
-            }
+            // The source is always an Object here (AttachAlarm rejects any
+            // other parent), so InputNode stays NULL until MonitorVariable
+            // supplies the Variable (Part 9 5.8.2).
         }
     }
 
@@ -512,15 +506,24 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(source));
             }
+
+            // Part 9 5.8.2: a monitored Variable is the alarm's InputNode.
+            // SourceNode/SourceName stay on the Object the alarm was created
+            // on, which is where the HasCondition reference, HasEventSource
+            // and the notifier registration live (Part 9 5.5.2 ConditionSource).
+            if (source is BaseVariableState)
+            {
+                if (Alarm is AlarmConditionState alarmCondition &&
+                    alarmCondition.InputNode != null)
+                {
+                    alarmCondition.InputNode.Value = source.NodeId;
+                }
+                return this;
+            }
+
             Alarm.SourceNode!.Value = source.NodeId;
             QualifiedName srcName = source.BrowseName;
             Alarm.SourceName!.Value = srcName.IsNull ? string.Empty : (srcName.Name ?? string.Empty);
-            if (source is BaseVariableState &&
-                Alarm is AlarmConditionState alarmCondition &&
-                alarmCondition.InputNode != null)
-            {
-                alarmCondition.InputNode.Value = source.NodeId;
-            }
             return this;
         }
 

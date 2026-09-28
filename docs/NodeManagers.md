@@ -2240,11 +2240,13 @@ builder.CreateInstance(
 `.CreateOffNormalAlarm` attach a fresh alarm condition under the
 current node and return an `IAlarmBuilder<TState>` for further
 configuration. The helpers register the condition, add the
-`HasCondition` reference, initialise `SourceNode`, `SourceName`,
-`ConditionName`, and `InputNode`, and promote the source object and its
+`HasCondition` reference, initialise `SourceNode`, `SourceName`, and
+`ConditionName` from the source object, and promote the source object and its
 ancestors with `EventNotifiers.SubscribeToEvents`. The source is also
 registered as a root notifier so clients subscribing to the `Server`
-object receive condition events:
+object receive condition events. `.MonitorVariable(variable)` sets the
+alarm's `InputNode` to the variable; `SourceNode` keeps naming the object
+that carries the `HasCondition` reference:
 
 ```csharp
 builder.Node("Pumps/Pump #1/Events")

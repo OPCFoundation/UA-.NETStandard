@@ -185,10 +185,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void MonitorVariableSetsSourceNodeAndName()
+        public void MonitorVariableSetsInputNodeAndKeepsSourceOnConditionSource()
         {
             (NodeManagerBuilder b, _, BaseDataVariableState src) = CreateBuilder();
-            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+            var rootId = new NodeId("Root", kNs);
+            INodeBuilder nb = b.Node(rootId);
 
             IAlarmBuilder<NonExclusiveLimitAlarmState> ab = nb.CreateLimitAlarm(
                 new QualifiedName("OverTemp", kNs));
@@ -198,8 +199,10 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             ab.MonitorVariable(src);
 
-            Assert.That(ab.Alarm.SourceNode!.Value, Is.EqualTo(src.NodeId));
-            Assert.That(ab.Alarm.SourceName!.Value, Is.EqualTo("Temp"));
+            // SourceNode must stay on the Object that carries the
+            // HasCondition reference (Part 9 5.5.2 ConditionSource).
+            Assert.That(ab.Alarm.SourceNode!.Value, Is.EqualTo(rootId));
+            Assert.That(ab.Alarm.SourceName!.Value, Is.EqualTo("Root"));
             Assert.That(ab.Alarm.InputNode.Value, Is.EqualTo(src.NodeId));
         }
 
