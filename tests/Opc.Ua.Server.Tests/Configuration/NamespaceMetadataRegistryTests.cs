@@ -257,6 +257,66 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [Test]
+        public async Task CachedMissIsAnsweredWithoutEnumeratingNamespacesAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            host.AddMetadataNode("urn:other");
+            host.NamespacesNode!.ClearChangeMasks(host.SystemContext, true);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            registry.Attach(host.SystemContext);
+            ushort index = (ushort)host.SystemContext.Server.NamespaceUris.GetIndex(DeterministicServerMock.TestNamespaceUri);
+
+            Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.Null);
+            int enumerations = host.NamespacesEnumerations;
+
+            // The permission hot path asks for the same namespace again and again.
+            for (int i = 0; i < 10; i++)
+            {
+                Assert.That(await registry.GetAsync(index).ConfigureAwait(false), Is.Null);
+                Assert.That(await registry.GetAsync(DeterministicServerMock.TestNamespaceUri).ConfigureAwait(false), Is.Null);
+            }
+
+            Assert.That(host.NamespacesEnumerations, Is.EqualTo(enumerations));
+        }
+
+        [Test]
+        public async Task MissLinkedLaterWithUnchangedReferenceCountIsFoundAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            NamespaceMetadataState other = host.AddForeignMetadataNode("urn:other");
+            host.NamespacesNode!.ClearChangeMasks(host.SystemContext, true);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            registry.Attach(host.SystemContext);
+
+            Assert.That(await registry.GetAsync("urn:late").ConfigureAwait(false), Is.Null);
+
+            // One reference removed and another added: the counts are unchanged.
+            host.NamespacesNode.RemoveReference(ReferenceTypeIds.HasComponent, false, other.NodeId);
+            NamespaceMetadataState late = host.AddForeignMetadataNode("urn:late");
+
+            Assert.That(await registry.GetAsync("urn:late").ConfigureAwait(false), Is.SameAs(late));
+        }
+
+        [Test]
+        public async Task InvalidateDropsCachedMissAsync()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            // Server/Namespaces already has an unannounced reference change,
+            // so a further one leaves its change masks as they are.
+            host.AddForeignMetadataNode("urn:other");
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+
+            Assert.That(await registry.GetAsync("urn:late").ConfigureAwait(false), Is.Null);
+
+            // Linked the way ConfigurationNodeManager.AddReferencesAsync does
+            // it, which reports the change through Invalidate.
+            NamespaceMetadataState late = host.AddForeignMetadataNode("urn:late");
+            registry.Invalidate();
+
+            Assert.That(await registry.GetAsync("urn:late").ConfigureAwait(false), Is.SameAs(late));
+        }
+
         private static NamespaceMetadataRegistry CreateRegistry(FakeHost host)
         {
             return new NamespaceMetadataRegistry(host, s_telemetry.CreateLogger<NamespaceMetadataRegistry>());
@@ -307,7 +367,7 @@ namespace Opc.Ua.Server.Tests
 
                 if (withNamespacesNode)
                 {
-                    NamespacesNode = new NamespacesState(null)
+                    NamespacesNode = new CountingNamespacesState
                     {
                         NodeId = ObjectIds.Server_Namespaces,
                         BrowseName = new QualifiedName(BrowseNames.Namespaces, 0)
@@ -320,6 +380,12 @@ namespace Opc.Ua.Server.Tests
             public ushort NamespaceIndex => 1;
 
             public NamespacesState? NamespacesNode { get; }
+
+            /// <summary>
+            /// How often the children or references of <c>Server/Namespaces</c>
+            /// were enumerated.
+            /// </summary>
+            public int NamespacesEnumerations => ((CountingNamespacesState?)NamespacesNode)?.Enumerations ?? 0;
 
             public List<NodeState> RegisteredNodes { get; } = [];
 
@@ -380,6 +446,32 @@ namespace Opc.Ua.Server.Tests
                 // test reports only the change that test made.
                 metadata.ClearChangeMasks(SystemContext, true);
                 return metadata;
+            }
+        }
+
+        /// <summary>
+        /// A <c>Server/Namespaces</c> node that counts enumerations of its
+        /// children and references.
+        /// </summary>
+        private sealed class CountingNamespacesState : NamespacesState
+        {
+            public CountingNamespacesState()
+                : base(null)
+            {
+            }
+
+            public int Enumerations { get; private set; }
+
+            public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
+            {
+                Enumerations++;
+                base.GetChildren(context, children);
+            }
+
+            public override void GetReferences(ISystemContext context, IList<IReference> references)
+            {
+                Enumerations++;
+                base.GetReferences(context, references);
             }
         }
 
