@@ -132,5 +132,75 @@ namespace Opc.Ua.Server.Tests
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
+
+        /// <summary>
+        /// Part 4 5.7.2.3 (Table 16): a client nonce longer than 128 bytes is
+        /// rejected with Bad_NonceInvalid on every channel, including None,
+        /// instead of being dropped silently.
+        /// </summary>
+        [Test]
+        public async Task OversizedClientNonceOnNoneChannelIsRejectedAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry))
+            {
+                SecurityNone = true
+            };
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var channel = new SecureChannelContext(
+                    "none-nonce-oversized", GetNoneEndpoint(server), RequestEncoding.Binary, null, null);
+                ByteString clientNonce = Nonce.CreateRandomNonceData(129).ToByteString();
+
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await server.CreateSessionAsync(
+                        channel, new RequestHeader(), null, null, null, "none-nonce-oversized",
+                        clientNonce, default, 60000, 0, RequestLifetime.None).ConfigureAwait(false));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
+                Assert.That(server.CurrentInstance.SessionManager.GetSessions(), Is.Empty);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A None channel does not require a client nonce: an empty one is
+        /// still accepted.
+        /// </summary>
+        [Test]
+        public async Task EmptyClientNonceOnNoneChannelIsAcceptedAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry))
+            {
+                SecurityNone = true
+            };
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var channel = new SecureChannelContext(
+                    "none-nonce-empty", GetNoneEndpoint(server), RequestEncoding.Binary, null, null);
+
+                CreateSessionResponse response = await server.CreateSessionAsync(
+                    channel, new RequestHeader(), null, null, null, "none-nonce-empty",
+                    default, default, 60000, 0, RequestLifetime.None).ConfigureAwait(false);
+
+                Assert.That(response.SessionId.IsNull, Is.False);
+                Assert.That(server.CurrentInstance.SessionManager.GetSessions(), Has.Count.EqualTo(1));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static EndpointDescription GetNoneEndpoint(StandardServer server)
+        {
+            EndpointDescription endpoint = server.GetEndpoints().Find(
+                candidate => candidate.SecurityPolicyUri == SecurityPolicies.None);
+            Assert.That(endpoint, Is.Not.Null);
+            return endpoint;
+        }
     }
 }

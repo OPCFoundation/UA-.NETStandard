@@ -730,10 +730,11 @@ namespace Opc.Ua.Server
                     // A nonce sent on a None channel is kept: the None channel
                     // variant of an enhanced user token signature
                     // (ServerNonce | Hash(ServerCertificate) | ClientNonce)
-                    // covers the nonce the client sent. Nothing else on a None
-                    // channel requires it, so an oversized one is dropped
-                    // rather than rejected.
-                    clientNonce = default;
+                    // covers the nonce the client sent. Part 4 5.7.2.3 (Table 16)
+                    // requires Bad_NonceInvalid for a nonce longer than 128 bytes
+                    // on every channel. An empty or short nonce stays accepted on
+                    // a None channel, where nothing else requires one.
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
                 // load the certificate for the security profile. The session
