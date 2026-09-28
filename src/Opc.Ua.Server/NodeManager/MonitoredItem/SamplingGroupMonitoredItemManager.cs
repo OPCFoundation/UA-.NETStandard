@@ -417,8 +417,10 @@ namespace Opc.Ua.Server
 
                 monitoredNode.Remove(monitoredItem);
 
-                // an all-events item can stay linked to other root notifiers.
-                if (!IsEventMonitoredItemLinked(monitoredItem.Id))
+                // an all-events item can stay linked to other root notifiers; any
+                // other event item is only linked to its own node.
+                if (!monitoredItem.MonitoringAllEvents ||
+                    !IsEventMonitoredItemLinked(monitoredItem.Id))
                 {
                     MonitoredItems.TryRemove(monitoredItem.Id, out _);
                 }
