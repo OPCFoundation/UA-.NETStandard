@@ -279,6 +279,46 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ConfigurationFileUpdatedAuditEventSourceIsConfigurationOwnerAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                var events = new List<ConfigurationUpdatedAuditEventState>();
+                file.OnReportEvent += (_, _, e) =>
+                {
+                    if (e is ConfigurationUpdatedAuditEventState audit)
+                    {
+                        events.Add(audit);
+                    }
+                };
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(22, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x01]), CancellationToken.None).ConfigureAwait(false);
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+
+                // §7.8.5.8: SourceNode/SourceName identify the configuration
+                // owner (the parent of the ConfigurationFile Object).
+                Assert.That(events, Has.Count.EqualTo(1));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(events[0].SourceNode!.Value, Is.EqualTo(harness.Node.NodeId));
+                    Assert.That(events[0].SourceName!.Value, Is.EqualTo(harness.Node.BrowseName.Name));
+                    Assert.That(events[0].OldVersion!.Value, Is.EqualTo(1u));
+                    Assert.That(events[0].NewVersion!.Value, Is.EqualTo(2u));
+                });
+            }
+        }
+
+        [Test]
         public async Task ConfigurationFileCloseAndUpdateWithoutTargetsReturnsBadInvalidArgumentAsync()
         {
             var provider = new FakeConfigurationFileProvider(s_initialConfig);

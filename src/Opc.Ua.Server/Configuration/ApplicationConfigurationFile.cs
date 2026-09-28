@@ -843,8 +843,14 @@ namespace Opc.Ua.Server
                     StatusCode.IsGood(statusCode),
                     DateTime.UtcNow);
 
-                e.SetChildValue(context, BrowseNames.SourceNode, objectId, false);
-                e.SetChildValue(context, BrowseNames.SourceName, "Method/CloseAndUpdate", false);
+                // §7.8.5.8: SourceNode is the Node that owns the configuration
+                // (usually the parent of the ConfigurationFile Object) and
+                // SourceName is the BrowseName of that owner.
+                NodeState? owner = m_node.Parent;
+                NodeId sourceNode = owner?.NodeId ?? objectId;
+                QualifiedName sourceName = owner?.BrowseName ?? m_node.BrowseName;
+                e.SetChildValue(context, BrowseNames.SourceNode, sourceNode, false);
+                e.SetChildValue(context, BrowseNames.SourceName, sourceName.Name ?? string.Empty, false);
                 e.SetChildValue(context, BrowseNames.LocalTime, TimeZoneDataType.Local, false);
                 e.SetChildValue(context, BrowseNames.MethodId, methodId, false);
                 e.SetChildValue(context, BrowseNames.InputArguments, inputArguments, false);
