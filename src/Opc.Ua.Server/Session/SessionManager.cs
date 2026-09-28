@@ -749,8 +749,10 @@ namespace Opc.Ua.Server
                     }
 
                     // Remember what the identity was mapped to, so live role re-evaluation
-                    // rebuilds from the same starting point as this activation.
-                    activationState.Impersonated = new ImpersonatedIdentity(identity, effectiveIdentity);
+                    // rebuilds from the same starting point as this activation. It is only
+                    // recorded once the activation is about to commit, so a failed attempt
+                    // leaves the mapping of the still-active identity in place.
+                    var impersonated = new ImpersonatedIdentity(identity, effectiveIdentity);
 
                     // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
                     effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
@@ -766,6 +768,11 @@ namespace Opc.Ua.Server
                     {
                         activationState.IsCommitting = true;
                     }
+
+                    // Set before Activate: a re-evaluation racing with it then works on the
+                    // previous generation, which Activate supersedes.
+                    ImpersonatedIdentity? previousImpersonated = activationState.Impersonated;
+                    activationState.Impersonated = impersonated;
                     try
                     {
                         contextChanged = session.Activate(
@@ -778,6 +785,7 @@ namespace Opc.Ua.Server
                     }
                     catch
                     {
+                        activationState.Impersonated = previousImpersonated;
                         lock (m_bindingsLock)
                         {
                             activationState.IsCommitting = false;
