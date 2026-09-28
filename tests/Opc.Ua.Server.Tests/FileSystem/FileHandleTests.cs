@@ -113,14 +113,19 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(fileHandle, Is.Zero);
         }
 
+        /// <summary>
+        /// Spec gap Read|Write: Read and Write are independent valid mode bits (Part 20 4.2.2),
+        /// so an unsupported combined open is Bad_NotSupported, not an invalid mode.
+        /// </summary>
         [Test]
-        public void OpenWithReadAndWriteReturnsBadInvalidArgument()
+        public void OpenWithReadAndWriteReturnsBadNotSupported()
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(s_sessionId, ModeRead | ModeWrite, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead | ModeWrite, out uint fileHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fileHandle, Is.Zero);
         }
 
         [Test]

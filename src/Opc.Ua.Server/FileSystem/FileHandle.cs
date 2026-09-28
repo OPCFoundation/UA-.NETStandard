@@ -290,8 +290,10 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (wantsRead && wantsWrite)
             {
+                // Read and Write are independent mode bits, so the mode is valid (Part 20
+                // 4.2.2); IFileSystemProvider only hands out read-only or write-only streams.
                 error = ServiceResult.Create(
-                    StatusCodes.BadInvalidArgument,
+                    StatusCodes.BadNotSupported,
                     "Simultaneous read + write open not supported.");
                 return false;
             }
