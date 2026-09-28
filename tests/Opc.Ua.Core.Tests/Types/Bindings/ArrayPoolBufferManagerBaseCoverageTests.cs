@@ -48,6 +48,37 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
     [Parallelizable]
     public sealed class ArrayPoolBufferManagerBaseCoverageTests
     {
+        [TestCase(0)]
+        [TestCase(1)]
+        public void ExpectedSizeCoversTheNextBucketWhenThePreferredBucketIsExhausted(int metadataByteCount)
+        {
+            var manager = new TestBufferManager(
+                nameof(ExpectedSizeCoversTheNextBucketWhenThePreferredBucketIsExhausted),
+                2 * 1024 * 1024,
+                NUnitTelemetryContext.Create(),
+                metadataByteCount);
+            var held = new List<byte[]>();
+            try
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    byte[] buffer = manager.TakeBuffer(64 - metadataByteCount, "held");
+                    held.Add(buffer);
+                    Assert.That(
+                        buffer,
+                        Has.Length.LessThanOrEqualTo(manager.GetExpectedBufferSize(64 - metadataByteCount)));
+                }
+                Assert.That(held[^1], Has.Length.GreaterThan(64));
+            }
+            finally
+            {
+                foreach (byte[] buffer in held)
+                {
+                    manager.ReturnBuffer(buffer, "held");
+                }
+            }
+        }
+
         /// <summary>
         /// Verifies that a failed take hook cannot leak its rented array.
         /// </summary>
@@ -232,9 +263,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 NUnitTelemetryContext.Create(),
                 metadataByteCount: 0);
 
-            Assert.That(manager.GetExpectedBufferSize(0), Is.EqualTo(16));
-            Assert.That(manager.GetExpectedBufferSize(16), Is.EqualTo(16));
-            Assert.That(manager.GetExpectedBufferSize(17), Is.EqualTo(32));
+#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
+            const int minimumExpectedSize = 16;
+#else
+            const int minimumExpectedSize = 32;
+#endif
+            Assert.That(manager.GetExpectedBufferSize(0), Is.EqualTo(minimumExpectedSize));
+            Assert.That(manager.GetExpectedBufferSize(16), Is.EqualTo(minimumExpectedSize));
+            Assert.That(manager.GetExpectedBufferSize(17), Is.EqualTo(2 * minimumExpectedSize));
         }
 
         /// <summary>

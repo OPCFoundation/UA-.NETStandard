@@ -139,11 +139,15 @@ when read, without invoking application callbacks. The expiry timer raises
 failures are logged without interrupting other subscribers or lease operations.
 Lease validity starts at the write attempt, not at receipt of
 its reply; an expired or superseded operation cannot restore leadership. A
-fresh, confirmed acquisition is required after expiry. The UTC lease record is
-also bounded by local elapsed time, so moving the local clock backwards cannot
-extend authority. Replicas still require unique identities, suitably synchronized
-clocks and a linearizable compare-and-swap store; this local safety mechanism
-does not replace backend fencing or provide consensus.
+fresh, confirmed acquisition is required after expiry. Overlapping successful
+calls can confirm the same owned lease without waiting for one another.
+A failed store observation started before a newer successful confirmation cannot
+revoke or reschedule that confirmed lease; a fresh ownership-loss observation
+still revokes authority. Expiry and disposal invalidate all outstanding attempts.
+The UTC lease record is also bounded by local elapsed time, so moving the local
+clock backwards cannot extend authority. Replicas still require unique identities,
+suitably synchronized clocks and a linearizable compare-and-swap store; this local
+safety mechanism does not replace backend fencing or provide consensus.
 
 Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `RedundancySupport`, `ServiceLevel`, `EstimatedReturnTime`, `RedundantServerArray`, `ServerUriArray`, and `CurrentServerId` as applicable. `ServerRedundancyInfo.ServiceLevelSubrange` is calculated with `ServiceLevels.GetSubrange`.
 
@@ -393,6 +397,11 @@ The redundancy samples exercise both guarantees: the client writes and reads a d
 ## Client redundancy (as per Part 4 §6.6.3)
 
 OPC UA client redundancy is implemented with `TransferSubscriptions` plus server diagnostics. `ClientFailoverCoordinator` helps a backup client find the active client's session by `ActiveSessionId` or `ActiveSessionName`, discover subscription ids from diagnostics, verify the backup uses the same user display name when configured, and call `TransferSubscriptionsAsync` with `SendInitialValues` defaulting to `true`.
+
+Name-based discovery excludes the backup's own session and rejects multiple
+matching active sessions rather than selecting an arbitrary client. Supply
+`ActiveSessionId` when names are not unique; that explicit identity bypasses
+name-based discovery.
 
 ```csharp
 var coordinator = new ClientFailoverCoordinator();

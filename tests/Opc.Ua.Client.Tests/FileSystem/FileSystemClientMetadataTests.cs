@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.FileSystem;
@@ -44,6 +45,83 @@ namespace Opc.Ua.Client.Tests.FileSystem
     [Parallelizable]
     public class FileSystemClientMetadataTests
     {
+        [TestCase(false, false, 3u)]
+        [TestCase(false, true, 3u)]
+        [TestCase(true, false, 3u)]
+        [TestCase(true, true, 3u)]
+        [TestCase(false, false, null)]
+        [TestCase(true, true, 0u)]
+        public async Task PathWritesRefreshMetadataAndHonorChunkLimitAsync(
+            bool createFile,
+            bool writeText,
+            uint? maxByteStringLength)
+        {
+            var harness = FileSystemSessionHarness.Create();
+            var properties = new FileProperties
+            {
+                Writable = true,
+                UserWritable = true,
+                MaxByteStringLength = maxByteStringLength
+            };
+            properties.Realize();
+            var fileId = new NodeId(8000u);
+            if (!createFile)
+            {
+                harness.RegisterFile(harness.Root, new QualifiedName("data.txt"), fileId, properties);
+            }
+            var written = new List<byte>();
+            var chunks = new List<int>();
+            int creates = 0;
+            int closes = 0;
+            harness.CallHandler = request =>
+            {
+                switch (GetMethodId(request))
+                {
+                    case Methods.FileDirectoryType_CreateFile:
+                        creates++;
+                        Assert.That(request.InputArguments[0], Is.EqualTo(Variant.From("data.txt")));
+                        harness.RegisterFile(harness.Root, new QualifiedName("data.txt"), fileId, properties);
+                        return new CallMethodResult { OutputArguments = [Variant.From(fileId), Variant.From(0u)] };
+                    case Methods.FileType_Open:
+                        Assert.That(request.ObjectId, Is.EqualTo(fileId));
+                        return new CallMethodResult { OutputArguments = [Variant.From(7u)] };
+                    case Methods.FileType_Write:
+                        Assert.That(request.InputArguments[0], Is.EqualTo(Variant.From(7u)));
+                        Assert.That(request.InputArguments[1].TryGetValue(out ByteString bytes), Is.True);
+                        if (maxByteStringLength is > 0 && bytes.Length > maxByteStringLength)
+                        {
+                            return new CallMethodResult { StatusCode = StatusCodes.BadInvalidArgument };
+                        }
+                        chunks.Add(bytes.Length);
+                        written.AddRange(bytes.ToArray()!);
+                        return new CallMethodResult();
+                    case Methods.FileType_Close:
+                        closes++;
+                        return new CallMethodResult();
+                    default:
+                        throw new InvalidOperationException("Unexpected file method.");
+                }
+            };
+            var client = new FileSystemClient(
+                harness.Session, harness.Root, new FileSystemClientOptions { ChunkSize = 8 });
+            byte[] payload = [97, 98, 99, 100, 101, 102, 103];
+
+            if (writeText)
+            {
+                await client.WriteAllTextAsync("/data.txt", "abcdefg", Encoding.UTF8).ConfigureAwait(false);
+            }
+            else
+            {
+                await client.WriteAllBytesAsync("/data.txt", payload).ConfigureAwait(false);
+            }
+
+            int[] expectedChunks = maxByteStringLength is > 0 ? [3, 3, 1] : [7];
+            Assert.That(written, Is.EqualTo(payload));
+            Assert.That(chunks, Is.EqualTo(expectedChunks));
+            Assert.That(creates, Is.EqualTo(createFile ? 1 : 0));
+            Assert.That(closes, Is.EqualTo(1));
+        }
+
         [Test]
         public async Task RefreshAsyncPopulatesMandatoryPropertiesAsync()
         {

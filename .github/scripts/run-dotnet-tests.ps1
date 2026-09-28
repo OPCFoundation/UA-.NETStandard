@@ -77,10 +77,10 @@
 
  .PARAMETER QuietOutput
     Write each project's build and test output to a log file under the results
-    directory instead of the console. Required by the private-fuzz-corpus job:
-    a failing fuzz test prints a base64 reproducer, and a public repository's
-    job log is world-readable, so that output has to stay inside the results
-    tree the job keeps private.
+    directory instead of the console. Use it for inputs that must not reach a
+    world-readable job log: a failing fuzz test prints a base64 reproducer, so
+    a replay of unpublished crash inputs has to keep its output in the results
+    tree.
 #>
 
 Param(

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,7 +46,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SessionManager : ISessionManager
+    public class SessionManager : ISessionManager, ISessionBindingProvider
     {
         /// <summary>
         /// Initializes the manager with its configuration.
@@ -130,14 +131,7 @@ namespace Opc.Ua.Server
                 IRoleManager? subscribed = Interlocked.Exchange(ref m_subscribedRoleManager, null);
                 subscribed?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
 
-                // create snapshot of all sessions
-                KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
-                m_sessions.Clear();
-
-                foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
-                {
-                    sessionKeyValue.Value?.Dispose();
-                }
+                CloseAllSessions();
 
                 m_shutdownEvent.Set();
                 m_shutdownEvent.Dispose();
@@ -157,6 +151,11 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             try
             {
+                lock (m_bindingsLock)
+                {
+                    m_stopping = false;
+                }
+
                 // start thread to monitor sessions.
                 m_shutdownEvent.Reset();
 
@@ -232,9 +231,14 @@ namespace Opc.Ua.Server
         /// </summary>
         private void CloseAllSessions()
         {
-            // dispose of session objects using a snapshot.
-            KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
-            m_sessions.Clear();
+            KeyValuePair<NodeId, ISession>[] sessions;
+            lock (m_bindingsLock)
+            {
+                m_stopping = true;
+                sessions = [.. m_sessions];
+                m_sessions.Clear();
+                m_channelSessionCounts.Clear();
+            }
 
             foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
             {
@@ -367,11 +371,25 @@ namespace Opc.Ua.Server
                 // behind the session-manager lock. m_sessions is a concurrent
                 // dictionary; the lock is only needed for the check-then-add
                 // atomicity above.
-                if (!m_sessions.TryAdd(authenticationToken, session))
+                bool stopping;
+                lock (m_bindingsLock)
                 {
-                    throw new ServiceResultException(StatusCodes.BadTooManySessions);
+                    stopping = m_stopping;
+                    if (!stopping)
+                    {
+                        if (!m_sessions.TryAdd(authenticationToken, session))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadTooManySessions);
+                        }
+                        reserved = true;
+                    }
                 }
-                reserved = true;
+                if (stopping)
+                {
+                    serverNonceObject.Dispose();
+                    session.Dispose();
+                    throw new ServiceResultException(StatusCodes.BadServerHalted);
+                }
             }
             finally
             {
@@ -386,14 +404,28 @@ namespace Opc.Ua.Server
             {
                 await session.InitializeAsync(context, cancellationToken)
                     .ConfigureAwait(false);
+                if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
+                    !ReferenceEquals(current, session))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
             }
             catch
             {
-                // roll back the reserved slot; m_sessions is concurrent so this
-                // needs no lock.
                 if (reserved)
                 {
-                    m_sessions.TryRemove(authenticationToken, out _);
+                    lock (m_bindingsLock)
+                    {
+                        if (m_sessions.TryGetValue(authenticationToken, out ISession? current) &&
+                            ReferenceEquals(current, session))
+                        {
+                            m_sessions.TryRemove(authenticationToken, out _);
+                            if (m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state))
+                            {
+                                RemoveSessionBinding(state);
+                            }
+                        }
+                    }
                 }
                 serverNonceObject.Dispose();
                 session.Dispose();
@@ -481,10 +513,17 @@ namespace Opc.Ua.Server
                         // Restore completed outside the global lock. Re-check
                         // under the lock in case another concurrent activation
                         // already admitted the same mirrored session.
-                        if (!m_sessions.TryAdd(authenticationToken, restoredSession) &&
-                            !m_sessions.TryGetValue(authenticationToken, out session))
+                        lock (m_bindingsLock)
                         {
-                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                            if (m_stopping)
+                            {
+                                throw new ServiceResultException(StatusCodes.BadServerHalted);
+                            }
+                            if (!m_sessions.TryAdd(authenticationToken, restoredSession) &&
+                                !m_sessions.TryGetValue(authenticationToken, out session))
+                            {
+                                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                            }
                         }
 
                         session ??= restoredSession;
@@ -719,13 +758,28 @@ namespace Opc.Ua.Server
                     // restriction is enforced separately by AddMandatoryRoles.
                     activationStatus = ComputeActivationStatus(effectiveIdentity);
 
-                    contextChanged = session.Activate(
-                        context,
-                        newIdentity!,
-                        identity,
-                        effectiveIdentity,
-                        localeIds,
-                        serverNonceObject);
+                    lock (m_bindingsLock)
+                    {
+                        activationState.IsCommitting = true;
+                    }
+                    try
+                    {
+                        contextChanged = session.Activate(
+                            context,
+                            newIdentity!,
+                            identity,
+                            effectiveIdentity,
+                            localeIds,
+                            serverNonceObject);
+                    }
+                    catch
+                    {
+                        lock (m_bindingsLock)
+                        {
+                            activationState.IsCommitting = false;
+                        }
+                        throw;
+                    }
                     serverNonceObject = null; // ownership transferred to session
                     tempIdentity = null; // ownership transferred to session
                     activationState.ClientUserId = clientUserId;
@@ -737,6 +791,7 @@ namespace Opc.Ua.Server
                     // listener that persists activation state can discard a write
                     // that a newer concurrent activation has already superseded.
                     activationSequence = ++activationState.ActivationSequence;
+                    CommitSessionBinding(authenticationToken, session, activationState);
                 }
                 finally
                 {
@@ -808,15 +863,22 @@ namespace Opc.Ua.Server
                     await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
-                        if (!m_sessions.TryGetValue(
-                                authenticationToken,
-                                out ISession? currentSession) ||
-                            !ReferenceEquals(currentSession, session) ||
-                            !m_sessions.TryRemove(authenticationToken, out _))
+                        lock (m_bindingsLock)
                         {
-                            return;
+                            if (!m_sessions.TryGetValue(
+                                    authenticationToken,
+                                    out ISession? currentSession) ||
+                                !ReferenceEquals(currentSession, session) ||
+                                !m_sessions.TryRemove(authenticationToken, out _))
+                            {
+                                return;
+                            }
+                            removed = true;
+                            if (m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state))
+                            {
+                                RemoveSessionBinding(state);
+                            }
                         }
-                        removed = true;
                     }
                     finally
                     {
@@ -847,6 +909,133 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        public bool HasSession(string secureChannelId)
+        {
+            if (secureChannelId == null)
+            {
+                throw new ArgumentNullException(nameof(secureChannelId));
+            }
+            lock (m_bindingsLock)
+            {
+                return m_channelSessionCounts.ContainsKey(secureChannelId);
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetSessionContext(
+            NodeId authenticationToken,
+            SecureChannelContext channelContext,
+            [NotNullWhen(true)] out SessionBindingContext? context)
+        {
+            if (channelContext == null)
+            {
+                throw new ArgumentNullException(nameof(channelContext));
+            }
+            context = null;
+            ISession session;
+            SessionActivationState state;
+            SessionBindingContext binding;
+            ByteString originalClientChannelCertificate;
+            lock (m_bindingsLock)
+            {
+                if (authenticationToken.IsNull ||
+                    !m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
+                    !m_sessionActivationStates.TryGetValue(currentSession, out SessionActivationState? currentState) ||
+                    currentState.IsCommitting ||
+                    currentState.BindingContext is not SessionBindingContext currentBinding)
+                {
+                    return false;
+                }
+                session = currentSession;
+                state = currentState;
+                binding = currentBinding;
+                originalClientChannelCertificate = state.OriginalClientChannelCertificate;
+            }
+
+            // Session diagnostics callbacks can query membership while holding a Session lock.
+            // Probe Session state without the index lock, then check that the snapshot is still current.
+            if (!session.Activated ||
+                session.IsClosing ||
+                session.HasExpired ||
+                !string.Equals(binding.SecureChannelId, channelContext.SecureChannelId, StringComparison.Ordinal) ||
+                !session.IsSecureChannelValid(channelContext.SecureChannelId) ||
+                channelContext.EndpointDescription is not EndpointDescription endpoint ||
+                binding.SecurityMode != endpoint.SecurityMode ||
+                !string.Equals(binding.SecurityPolicyUri, endpoint.SecurityPolicyUri, StringComparison.Ordinal) ||
+                (binding.SecurityPolicyUri != SecurityPolicies.None &&
+                    originalClientChannelCertificate != channelContext.ClientChannelCertificate.ToByteString()))
+            {
+                return false;
+            }
+
+            lock (m_bindingsLock)
+            {
+                if (state.IsCommitting ||
+                    !ReferenceEquals(state.BindingContext, binding) ||
+                    !m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
+                    !ReferenceEquals(currentSession, session))
+                {
+                    return false;
+                }
+                context = binding;
+                return true;
+            }
+        }
+
+        private void CommitSessionBinding(
+            NodeId authenticationToken,
+            ISession session,
+            SessionActivationState state)
+        {
+            lock (m_bindingsLock)
+            {
+                state.IsCommitting = false;
+                // Shutdown can remove the session while authentication is awaiting a provider.
+                if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
+                    !ReferenceEquals(current, session))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
+
+                var binding = new SessionBindingContext(
+                    session.Id,
+                    session.SecureChannelId,
+                    state.ActivationSequence,
+                    state.ClientUserTokenType,
+                    state.ClientUserId,
+                    state.SecurityPolicyUri,
+                    state.SecurityMode);
+                if (state.BindingContext?.SecureChannelId != binding.SecureChannelId)
+                {
+                    RemoveSessionBinding(state);
+                    m_channelSessionCounts.TryGetValue(binding.SecureChannelId, out int count);
+                    m_channelSessionCounts[binding.SecureChannelId] = count + 1;
+                }
+                state.BindingContext = binding;
+            }
+        }
+
+        private void RemoveSessionBinding(SessionActivationState state)
+        {
+            if (state.BindingContext is not SessionBindingContext binding)
+            {
+                return;
+            }
+            if (m_channelSessionCounts.TryGetValue(binding.SecureChannelId, out int count))
+            {
+                if (count == 1)
+                {
+                    m_channelSessionCounts.Remove(binding.SecureChannelId);
+                }
+                else
+                {
+                    m_channelSessionCounts[binding.SecureChannelId] = count - 1;
+                }
+            }
+            state.BindingContext = null;
         }
 
         /// <summary>
@@ -1600,6 +1789,9 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
+        private readonly Lock m_bindingsLock = new();
+        private readonly Dictionary<string, int> m_channelSessionCounts = new(StringComparer.Ordinal);
+        private bool m_stopping;
 
         private readonly ConditionalWeakTable<ISession, SessionActivationState>
             m_sessionActivationStates =
@@ -1687,6 +1879,10 @@ namespace Opc.Ua.Server
             public bool RequiresNewChannelChecks { get; set; }
 
             public long ActivationSequence { get; set; }
+
+            public SessionBindingContext? BindingContext { get; set; }
+
+            public bool IsCommitting { get; set; }
 
             /// <summary>
             /// Claims the timeout of the session; returns <c>true</c> for the first caller only.

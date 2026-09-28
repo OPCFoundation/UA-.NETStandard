@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -278,10 +279,10 @@ namespace Opc.Ua.Bindings
 
                 SendQueuedOperations();
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
                 m_logger.UaSCClientLog3(
-                    e,
+                    exception,
                     url,
                     transport?.RemoteEndpoint,
                     ChannelId);
@@ -289,9 +290,20 @@ namespace Opc.Ua.Bindings
                 operation.Fault(StatusCodes.BadNotConnected);
 
                 Shutdown(ServiceResult.Create(
-                    e,
+                    exception,
                     StatusCodes.BadTcpInternalError,
                     "Fatal error during connect."));
+                if (exception is SocketException or IOException)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        throw new OperationCanceledException("Connection attempt was cancelled.", exception, ct);
+                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotConnected,
+                        "Could not connect to the remote endpoint.",
+                        exception);
+                }
                 throw;
             }
             finally
@@ -1860,8 +1872,9 @@ namespace Opc.Ua.Bindings
                 // check for an abort.
                 if (TcpMessageType.IsAbort(messageType))
                 {
-                    // get the chunks to process.
-                    chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
+                    // The abort is not message payload and remains owned until its error body has been decoded.
+                    chunksToProcess = TakeSavedChunks();
+                    chunksToProcess.Add(messageBody);
 
                     ServiceResult error;
 

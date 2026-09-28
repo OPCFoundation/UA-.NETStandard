@@ -186,7 +186,7 @@ namespace Opc.Ua.Core.TestFramework
 
         [DatapointSource]
         public static readonly BuiltInType[] BuiltInTypes =
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         [
             .. Enum.GetValues<BuiltInType>()
 #else
@@ -204,7 +204,7 @@ namespace Opc.Ua.Core.TestFramework
 
         [DatapointSource]
         public static readonly EncodingType[] EncoderTypes =
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
             Enum.GetValues<EncodingType>();
 #else
             (EncodingType[])Enum.GetValues(typeof(EncodingType));

@@ -69,6 +69,72 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockNotificationDataHandler = new Mock<ISubscriptionNotificationHandler>();
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task IntentionalDeletionDropsPublishDemandWithoutUnregisteringSubscriptionAsync(bool disable)
+        {
+            var clock = new FakeTimeProvider();
+            var publishEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var deleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var context = new FakeSubscriptionManagerContext
+            {
+                OnPublishAsync = async (_, _, ct) =>
+                {
+                    publishEntered.TrySetResult(true);
+                    await deleted.Task.WaitAsync(ct).ConfigureAwait(false);
+                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
+                }
+            };
+            m_mockSubscriptionServices.Setup(value => value.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            TestSubscription subscription = null!;
+            context.CreateSubscriptionFactory = (handler, _, queue) =>
+                subscription = new TestSubscription(
+                    m_session, handler, queue, m_options, m_telemetry, 10, timeProvider: clock);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None, clock)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            ISubscription logicalSubscription = manager.Add(m_mockNotificationDataHandler.Object, m_options);
+            manager.Resume();
+            await publishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(manager.PublishWorkerCount, Is.EqualTo(1));
+            Assert.That(manager.CreatedCount, Is.EqualTo(1));
+            subscription.SubscriptionStateChanged.Reset();
+            if (disable)
+            {
+                m_options.Configure(_ => TestSubscription.SubscriptionOptions with { Disabled = true });
+                await subscription.SubscriptionStateChanged.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            else
+            {
+                await subscription.DeleteAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            deleted.TrySetResult(true);
+            await WaitForAsync(() => manager.PublishWorkerCount == 0, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            Assert.That(subscription.Created, Is.False);
+            Assert.That(subscription.Id, Is.Zero);
+            Assert.That(manager.Count, Is.EqualTo(1));
+            Assert.That(manager.Items, Is.EquivalentTo([logicalSubscription]));
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.PublishWorkerCount, Is.Zero,
+                "Intentional deletion must remove retained demand, unlike a recovery identifier reset.");
+            int badRequests = manager.BadPublishRequestCount;
+            int attempts = context.PublishCalls.Count;
+            clock.Advance(TimeSpan.FromMinutes(1));
+            Assert.That(manager.BadPublishRequestCount, Is.EqualTo(badRequests));
+            Assert.That(manager.BadPublishRequestCount, Is.LessThanOrEqualTo(1));
+            Assert.That(context.PublishCalls, Has.Count.EqualTo(attempts));
+            m_mockSubscriptionServices.Verify(value => value.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(ids => ids.Count == 1 && ids[0] == 10),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         [Test]
         public async Task AddMonitoredItemShouldAddItemToMonitoredItemsAsync()
         {
@@ -144,6 +210,144 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.Id, Is.EqualTo(22));
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task AutomaticCreationWaitsForSessionRecoveryAsync(
+            bool disposeWhilePaused,
+            CancellationToken testCt)
+        {
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<bool>(),
+                    It.IsAny<byte>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 22,
+                    RevisedLifetimeCount = 30,
+                    RevisedMaxKeepAliveCount = 10,
+                    RevisedPublishingInterval = 1000
+                });
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+
+            await using var manager = new SubscriptionManager(
+                new FakeSubscriptionManagerContext(), m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            manager.SetSessionRecoveryPaused(true);
+            await using var sut = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, manager, m_options, m_telemetry);
+
+            Assert.That(sut.Created, Is.False);
+            m_mockSubscriptionServices.Verify(s => s.CreateSubscriptionAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(),
+                It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<bool>(),
+                It.IsAny<byte>(), It.IsAny<CancellationToken>()), Times.Never);
+
+            if (disposeWhilePaused)
+            {
+                await sut.DisposeAsync().AsTask().WaitAsync(testCt).ConfigureAwait(false);
+                Assert.That(sut.Created, Is.False);
+                m_mockSubscriptionServices.Verify(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<bool>(),
+                    It.IsAny<byte>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+            else
+            {
+                manager.SetSessionRecoveryPaused(false);
+                await sut.SubscriptionStateChanged.WaitAsync(testCt).ConfigureAwait(false);
+                Assert.That(sut.Id, Is.EqualTo(22));
+                m_mockSubscriptionServices.Verify(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<bool>(),
+                    It.IsAny<byte>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task SessionRecoveryCancelsAutomaticCreationAndPreservesExplicitRestorationAsync(
+            CancellationToken testCt)
+        {
+            var started = new TaskCompletionSource<CancellationToken>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var blockedResponse = new TaskCompletionSource<CreateSubscriptionResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var modified = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int creates = 0;
+            int afterCreates = 0;
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<bool>(),
+                    It.IsAny<byte>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, double _, uint _, uint _, uint _, bool _, byte _,
+                    CancellationToken token) =>
+                {
+                    if (Interlocked.Increment(ref creates) == 1)
+                    {
+                        started.TrySetResult(token);
+                        return new ValueTask<CreateSubscriptionResponse>(blockedResponse.Task.WaitAsync(token));
+                    }
+                    return new ValueTask<CreateSubscriptionResponse>(new CreateSubscriptionResponse
+                    {
+                        SubscriptionId = 22,
+                        RevisedLifetimeCount = 30,
+                        RevisedMaxKeepAliveCount = 10,
+                        RevisedPublishingInterval = 1000
+                    });
+                });
+            m_mockSubscriptionServices
+                .Setup(s => s.ModifySubscriptionAsync(
+                    It.IsAny<RequestHeader>(), 22, It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<byte>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    modified.TrySetResult(true);
+                    return new ValueTask<ModifySubscriptionResponse>(new ModifySubscriptionResponse
+                    {
+                        RevisedLifetimeCount = 30,
+                        RevisedMaxKeepAliveCount = 10,
+                        RevisedPublishingInterval = 1000
+                    });
+                });
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+
+            await using var manager = new SubscriptionManager(
+                new FakeSubscriptionManagerContext(), m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using var sut = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, manager, m_options, m_telemetry)
+            {
+                OnAfterCreateAsync = _ =>
+                {
+                    Interlocked.Increment(ref afterCreates);
+                    return default;
+                }
+            };
+            CancellationToken automaticCreation = await started.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            manager.SetSessionRecoveryPaused(true);
+            Assert.That(automaticCreation.IsCancellationRequested, Is.True);
+            await sut.RecreateAsync(testCt).ConfigureAwait(false);
+            Assert.That(sut.Id, Is.EqualTo(22));
+            Assert.That(Volatile.Read(ref creates), Is.EqualTo(2));
+            Assert.That(Volatile.Read(ref afterCreates), Is.EqualTo(1));
+
+            m_options.Configure(options => options with { Priority = 1 });
+            manager.SetSessionRecoveryPaused(false);
+            await modified.Task.WaitAsync(testCt).ConfigureAwait(false);
+            Assert.That(sut.Id, Is.EqualTo(22));
+            Assert.That(Volatile.Read(ref creates), Is.EqualTo(2));
+            Assert.That(Volatile.Read(ref afterCreates), Is.EqualTo(1));
         }
 
         [Test]

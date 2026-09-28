@@ -173,10 +173,21 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < nodesToAdd.Count; ii++)
                 {
                     AddNodesItem item = nodesToAdd[ii];
-                    (ServiceResult result, NodeId addedNodeId) = await DispatchAddNodeAsync(
-                        context,
-                        item,
-                        cancellationToken).ConfigureAwait(false);
+                    ServiceResult result;
+                    NodeId addedNodeId = NodeId.Null;
+                    try
+                    {
+                        (result, addedNodeId) = await DispatchAddNodeAsync(
+                            context, item, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        result = CreateNodeManagementError(exception);
+                    }
 
                     results[ii] = new AddNodesResult
                     {
@@ -227,10 +238,20 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < nodesToDelete.Count; ii++)
                 {
                     DeleteNodesItem item = nodesToDelete[ii];
-                    ServiceResult result = await DispatchDeleteNodeAsync(
-                        context,
-                        item,
-                        cancellationToken).ConfigureAwait(false);
+                    ServiceResult result;
+                    try
+                    {
+                        result = await DispatchDeleteNodeAsync(
+                            context, item, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        result = CreateNodeManagementError(exception);
+                    }
 
                     results[ii] = result.StatusCode;
 
@@ -274,10 +295,20 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < referencesToAdd.Count; ii++)
             {
                 AddReferencesItem item = referencesToAdd[ii];
-                ServiceResult result = await DispatchAddReferenceAsync(
-                    context,
-                    item,
-                    cancellationToken).ConfigureAwait(false);
+                ServiceResult result;
+                try
+                {
+                    result = await DispatchAddReferenceAsync(
+                        context, item, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    result = CreateNodeManagementError(exception);
+                }
 
                 results[ii] = result.StatusCode;
 
@@ -316,10 +347,20 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < referencesToDelete.Count; ii++)
             {
                 DeleteReferencesItem item = referencesToDelete[ii];
-                ServiceResult result = await DispatchDeleteReferenceAsync(
-                    context,
-                    item,
-                    cancellationToken).ConfigureAwait(false);
+                ServiceResult result;
+                try
+                {
+                    result = await DispatchDeleteReferenceAsync(
+                        context, item, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    result = CreateNodeManagementError(exception);
+                }
 
                 results[ii] = result.StatusCode;
 
@@ -337,6 +378,15 @@ namespace Opc.Ua.Server
             }
 
             return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
+        }
+
+        private ServiceResult CreateNodeManagementError(Exception exception)
+        {
+            m_logger.NodeManagementOperationFailed(exception);
+            return exception is ServiceResultException serviceException
+                ? new ServiceResult(serviceException)
+                : ServiceResult.Create(exception, StatusCodes.BadUnexpectedError,
+                    "The node manager failed a node-management operation.");
         }
 
         private async ValueTask<(ServiceResult result, NodeId addedNodeId)> DispatchAddNodeAsync(

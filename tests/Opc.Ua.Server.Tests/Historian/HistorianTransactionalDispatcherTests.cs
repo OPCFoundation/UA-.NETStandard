@@ -39,20 +39,20 @@ using Opc.Ua.Server.Historian.InMemory;
 namespace Opc.Ua.Server.Tests.Historian
 {
     /// <summary>
-    /// Verifies atomic historian dispatch, best-effort fallback, and batch rollback on insertion conflicts.
+    /// Verifies per-item service updates independently of a provider's explicit transaction capability.
     /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
-    public class HistorianTransactionalDispatcherTests
+    public sealed class HistorianTransactionalDispatcherTests
     {
         /// <summary>
-        /// Verifies that a transactional provider receives the atomic operation matching the requested update.
+        /// Verifies that transaction support does not opt service requests into atomic operations.
         /// </summary>
         [TestCase(PerformUpdateType.Insert)]
         [TestCase(PerformUpdateType.Replace)]
         [TestCase(PerformUpdateType.Update)]
-        public async Task TransactionalProviderUsesMatchingAtomicOperationAsync(
+        public async Task TransactionalProviderUsesPerItemOperationAsync(
             PerformUpdateType performUpdate)
         {
             var provider = new Mock<IHistorianProvider>();
@@ -149,8 +149,8 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(ServiceResult.IsGood(error), Is.True);
-                Assert.That(bestEffortCalls, Is.Zero);
-                Assert.That(selectedOperation, Is.EqualTo(performUpdate.ToString()));
+                Assert.That(bestEffortCalls, Is.EqualTo(1));
+                Assert.That(selectedOperation, Is.Empty, "No atomic operation was requested by the client.");
                 Assert.That(result.OperationResults, Is.EqualTo([StatusCodes.Good]));
             }
         }
@@ -242,10 +242,16 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that an insertion collision rolls back the entire dispatched history batch.
+        /// Verifies successful values persist on both sides of an independently failing batch item.
         /// </summary>
-        [Test]
-        public async Task InsertCollisionRollsBackEntireDispatchedBatchAsync()
+        [TestCase(PerformUpdateType.Insert, false)]
+        [TestCase(PerformUpdateType.Replace, false)]
+        [TestCase(PerformUpdateType.Insert, true)]
+        [TestCase(PerformUpdateType.Replace, true)]
+        [TestCase(PerformUpdateType.Update, true)]
+        public async Task HistoryUpdatePreservesSuccessfulItemsInMixedBatchAsync(
+            PerformUpdateType updateType,
+            bool nullMiddle)
         {
             using var provider = new InMemoryHistorianProvider(
                 new InMemoryHistorianOptions(),
@@ -268,20 +274,30 @@ namespace Opc.Ua.Server.Tests.Historian
                     variable,
                     HistoryUpdateType.Insert);
 
+                ArrayOf<DataValue> seed = updateType switch
+                {
+                    PerformUpdateType.Insert => [MakeValue(s_baseTime.AddSeconds(2), 99.0)],
+                    PerformUpdateType.Replace =>
+                    [
+                        MakeValue(s_baseTime.AddSeconds(1), 91.0),
+                        MakeValue(s_baseTime.AddSeconds(3), 93.0)
+                    ],
+                    _ => [MakeValue(s_baseTime.AddSeconds(1), 91.0)]
+                };
                 await provider.InsertAsync(
                     providerContext,
                     nodeId,
-                    [MakeValue(s_baseTime.AddSeconds(2), 99.0)],
+                    seed,
                     CancellationToken.None).ConfigureAwait(false);
 
                 var details = new UpdateDataDetails
                 {
                     NodeId = nodeId,
-                    PerformInsertReplace = PerformUpdateType.Insert,
+                    PerformInsertReplace = updateType,
                     UpdateValues =
                     [
                         MakeValue(s_baseTime.AddSeconds(1), 1.0),
-                        MakeValue(s_baseTime.AddSeconds(2), 2.0),
+                        nullMiddle ? DataValue.Null : MakeValue(s_baseTime.AddSeconds(2), 2.0),
                         MakeValue(s_baseTime.AddSeconds(3), 3.0)
                     ]
                 };
@@ -295,15 +311,19 @@ namespace Opc.Ua.Server.Tests.Historian
                     result,
                     CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTransactionFailed));
-                Assert.That(result.OperationResults, Has.Count.EqualTo(3));
-                Assert.That(
-                    result.OperationResults[0],
-                    Is.EqualTo(StatusCodes.BadTransactionFailed));
-                Assert.That(result.OperationResults[1], Is.EqualTo(StatusCodes.BadEntryExists));
-                Assert.That(
-                    result.OperationResults[2],
-                    Is.EqualTo(StatusCodes.BadTransactionFailed));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.Good));
+                StatusCode firstStatus = updateType == PerformUpdateType.Insert
+                    ? StatusCodes.GoodEntryInserted
+                    : StatusCodes.GoodEntryReplaced;
+                StatusCode lastStatus = updateType == PerformUpdateType.Replace
+                    ? StatusCodes.GoodEntryReplaced
+                    : StatusCodes.GoodEntryInserted;
+                StatusCode failedStatus = nullMiddle
+                    ? StatusCodes.BadInvalidArgument
+                    : updateType == PerformUpdateType.Insert
+                        ? StatusCodes.BadEntryExists
+                        : StatusCodes.BadNoEntryExists;
+                Assert.That(result.OperationResults, Is.EqualTo([firstStatus, failedStatus, lastStatus]));
 
                 HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
                     providerContext,
@@ -317,10 +337,17 @@ namespace Opc.Ua.Server.Tests.Historian
                     default,
                     CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(page.Values, Has.Count.EqualTo(1));
-                Assert.That(
-                    page.Values[0].Value.SourceTimestamp,
-                    Is.EqualTo(s_baseTime.AddSeconds(2)));
+                double[] expectedValues = updateType == PerformUpdateType.Insert ? [1, 99, 3] : [1, 3];
+                int[] expectedSeconds = updateType == PerformUpdateType.Insert ? [1, 2, 3] : [1, 3];
+                Assert.That(page.IsFinal, Is.True);
+                Assert.That(page.Values, Has.Count.EqualTo(expectedValues.Length));
+                for (int i = 0; i < expectedValues.Length; i++)
+                {
+                    Assert.That(page.Values[i].Value.WrappedValue.TryGetValue(out double value), Is.True);
+                    Assert.That(value, Is.EqualTo(expectedValues[i]));
+                    Assert.That(page.Values[i].Value.SourceTimestamp,
+                        Is.EqualTo((DateTimeUtc)s_baseTime.AddSeconds(expectedSeconds[i])));
+                }
             }
         }
 

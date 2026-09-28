@@ -127,6 +127,11 @@ The default implementation honors the following request fields:
 | `DeleteTargetReferences` | When true, `DeleteNodes` also removes references on other NodeManagers that target the deleted node. |
 | `DeleteBidirectional` | When true on `DeleteReferences`, the inverse edge is also deleted only for an explicitly local target. Remote targets remain source-side operations. |
 
+If AddNodes fails after registration recovered previously detached monitored
+items, rollback detaches those items again before removing the node. They retain
+their deleted-node status and remain recoverable when a later AddNodes succeeds
+with the same NodeId.
+
 ## Error codes returned
 
 | Service | Status | Reason |

@@ -124,10 +124,8 @@ namespace Opc.Ua
                 // not clone (they live in typed fields, not m_children), so they
                 // have to be cloned here - otherwise the clone and the original
                 // share them.
-                state.OutputArguments =
-                    (PropertyState<ArrayOf<Argument>>?)OutputArguments?.Clone();
-                state.InputArguments =
-                    (PropertyState<ArrayOf<Argument>>?)InputArguments?.Clone();
+                state.OutputArguments = CloneChild(OutputArguments, state);
+                state.InputArguments = CloneChild(InputArguments, state);
                 state.MethodDeclarationId = MethodDeclarationId;
                 state.Executable = Executable;
                 state.UserExecutable = UserExecutable;

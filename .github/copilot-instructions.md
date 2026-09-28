@@ -104,6 +104,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Follow standard C# naming conventions. Do not use underscores in method names.
 - Assembly prefix: `Opc.Ua` (Except applications, or if otherwise requested)
 - Package prefix: `OPCFoundation.NetStandard`
+- Add XML `<summary>` documentation for internal types and members as well as public APIs, including classes, records, interfaces, constructors, methods, properties, events, and fields.
 - Always use a line break after `<summary>` and before `</summary>` for all members (except for documentation of fields). This applies to **every** XML-doc summary, including in sample/application code — never write a single-line `/// <summary> ... </summary>`; always put the text on its own line between the opening and closing tags.
 - Use source-generated `[LoggerMessage]` logging; never call `ILogger.LogInformation/LogError/...` directly. Follow the per-file `<Class>Log` and per-assembly `<AssemblyToken>EventIds` conventions in [`docs/DeveloperGuide.md`](../docs/DeveloperGuide.md#add-a-log-message-source-generated).
 

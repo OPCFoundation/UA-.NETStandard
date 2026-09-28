@@ -553,8 +553,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             List<ExpandedNodeId> targets = GetTargetIds(browser);
 
             Assert.That(targets, Is.EqualTo(
-                new[] { new ExpandedNodeId(
-                    FileSystemNodeId.BuildFile("a.txt", m_manager.NamespaceIndex)) }));
+                [ new ExpandedNodeId(
+                    FileSystemNodeId.BuildFile("a.txt", m_manager.NamespaceIndex)) ]));
         }
 
         [Test]
@@ -589,16 +589,21 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void CreateBrowserReturnsNoChildrenWhenProviderEnumerationThrows()
+        public void CreateBrowserPropagatesProviderEnumerationFailure()
         {
-            UseProvider(new ThrowingEnumerateProvider());
+            var provider = new ThrowingEnumerateProvider();
+            UseProvider(provider);
             DirectoryObjectState state = CreateRootDirectory();
 
             using INodeBrowser browser = state.CreateBrowser(
                 m_context, null, ReferenceTypeIds.HasComponent, true,
                 BrowseDirection.Forward, QualifiedName.Null, null, false);
 
+            IOException error = Assert.Throws<IOException>(() => GetTargetIds(browser))!;
+
+            Assert.That(error, Is.SameAs(provider.EnumerationFailure));
             Assert.That(GetTargetIds(browser), Is.Empty);
+            Assert.That(provider.EnumerationCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -621,16 +626,22 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public async Task NextAsyncReturnsNoChildrenWhenProviderEnumerationThrowsAsync()
+        public async Task NextAsyncPropagatesProviderEnumerationFailureAsync()
         {
-            UseProvider(new ThrowingEnumerateProvider());
+            var provider = new ThrowingEnumerateProvider();
+            UseProvider(provider);
             DirectoryObjectState state = CreateRootDirectory();
 
             using INodeBrowser browser = state.CreateBrowser(
                 m_context, null, ReferenceTypeIds.HasComponent, true,
                 BrowseDirection.Forward, QualifiedName.Null, null, false);
 
+            IOException error = Assert.ThrowsAsync<IOException>(
+                async () => await GetTargetIdsAsync(browser).ConfigureAwait(false))!;
+
+            Assert.That(error, Is.SameAs(provider.EnumerationFailure));
             Assert.That(await GetTargetIdsAsync(browser).ConfigureAwait(false), Is.Empty);
+            Assert.That(provider.EnumerationCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -683,6 +694,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             public bool IsWritable => false;
 
+            public IOException EnumerationFailure { get; } = new("enumeration failed");
+
+            public int EnumerationCount { get; private set; }
+
             public ValueTask<FileSystemEntry?> GetEntryAsync(string path, CancellationToken ct)
             {
                 return new ValueTask<FileSystemEntry?>((FileSystemEntry?)null);
@@ -692,9 +707,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 string path,
                 [EnumeratorCancellation] CancellationToken ct)
             {
+                EnumerationCount++;
                 await Task.CompletedTask.ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
-                throw new IOException("enumeration failed");
+                throw EnumerationFailure;
 #pragma warning disable CS0162 // unreachable: the iterator must still be an iterator
                 yield break;
 #pragma warning restore CS0162

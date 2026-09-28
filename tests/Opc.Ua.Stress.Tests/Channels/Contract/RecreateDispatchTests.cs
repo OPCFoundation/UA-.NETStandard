@@ -96,6 +96,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
 
             public Task RecreateInvoked => m_recreateInvoked.Task;
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask RecreateAsync(CancellationToken ct = default)
             {
                 ct.ThrowIfCancellationRequested();

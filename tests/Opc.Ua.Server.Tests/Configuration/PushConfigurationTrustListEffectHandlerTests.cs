@@ -31,9 +31,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -154,6 +156,202 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task PeerTrustEffectUsesChainCapabilityWithoutRecordingRejectionsAsync()
+        {
+            Certificate leaf = CreateCertificate("CN=Chain Leaf");
+            Certificate issuer = CreateCertificate("CN=Chain Issuer");
+            using var chain = new CertificateCollection { leaf, issuer };
+            var listener = new Mock<ITransportListener>(MockBehavior.Strict);
+            Mock<ITransportListenerPeerCertificateChainRotation> rotation =
+                listener.As<ITransportListenerPeerCertificateChainRotation>();
+            rotation.SetupGet(value => value.PeerCertificateTrustListScope).Returns(TrustListIdentifier.Peers);
+            rotation.Setup(value => value.CloseChannelsForUntrustedPeerChainsAsync(
+                It.IsAny<Func<CertificateCollection, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(async (Func<CertificateCollection, CancellationToken, ValueTask<bool>> predicate,
+                    CancellationToken ct) =>
+                {
+                    bool trusted = await predicate(chain, ct).ConfigureAwait(false);
+                    return trusted ? [] : ArrayOf.Wrapped("untrusted-channel");
+                });
+            var validator = new Mock<ICertificateValidatorEx>(MockBehavior.Strict);
+            validator.Setup(value => value.ValidateAsync(
+                It.Is<CertificateCollection>(value => ReferenceEquals(value, chain)), TrustListIdentifier.Peers,
+                It.Is<Security.Certificates.CertificateValidationOptions>(
+                    options => !options.RecordRejectedCertificates), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CertificateValidationResult.Success);
+
+            await m_handler.ApplyAsync(CreateContext(
+                [SecureChannelEffect(TrustListIdentifier.Peers)], [listener.Object], null, validator.Object))
+                .ConfigureAwait(false);
+
+            rotation.Verify(value => value.CloseChannelsForUntrustedPeerChainsAsync(
+                It.IsAny<Func<CertificateCollection, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            rotation.Verify(value => value.CloseChannelsForUntrustedPeersAsync(
+                It.IsAny<Func<Certificate, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            validator.Verify(value => value.ValidateAsync(
+                It.Is<CertificateCollection>(value => ReferenceEquals(value, chain)), TrustListIdentifier.Peers,
+                It.Is<Security.Certificates.CertificateValidationOptions>(
+                    options => !options.RecordRejectedCertificates), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [TestCase(0, 0, false)]
+        [TestCase(0, 0, true)]
+        [TestCase(1, 0, false)]
+        [TestCase(0, 2, false)]
+        [TestCase(2, 3, false)]
+        public async Task PeerTrustEffectLogsOnlyAggregateClosedChannelCountAsync(
+            int chainCount,
+            int fallbackCount,
+            bool nullChainResult)
+        {
+            using var provider = new RecordingLoggerProvider();
+            ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder
+                .SetMinimumLevel(LogLevel.Information)
+                .AddProvider(provider));
+            var handler = new PushConfigurationTrustListEffectHandler(telemetry);
+            ArrayOf<string> chainClosed = nullChainResult
+                ? ArrayOf<string>.Null
+                : Enumerable.Range(0, chainCount).Select(index => $"chain-channel-{index}").ToArrayOf();
+            IReadOnlyList<string> fallbackClosed =
+                [.. Enumerable.Range(0, fallbackCount).Select(index => $"fallback-channel-{index}")];
+            var chainListener = new Mock<ITransportListener>(MockBehavior.Strict);
+            Mock<ITransportListenerPeerCertificateChainRotation> chainRotation =
+                chainListener.As<ITransportListenerPeerCertificateChainRotation>();
+            chainRotation.SetupGet(value => value.PeerCertificateTrustListScope).Returns(TrustListIdentifier.Peers);
+            chainRotation.Setup(value => value.CloseChannelsForUntrustedPeerChainsAsync(
+                It.IsAny<Func<CertificateCollection, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<string>>(chainClosed));
+            var fallbackListener = new Mock<ITransportListener>(MockBehavior.Strict);
+            Mock<ITransportListenerPeerCertificateRotation> fallbackRotation =
+                fallbackListener.As<ITransportListenerPeerCertificateRotation>();
+            fallbackRotation.SetupGet(value => value.PeerCertificateTrustListScope).Returns(TrustListIdentifier.Peers);
+            fallbackRotation.Setup(value => value.CloseChannelsForUntrustedPeersAsync(
+                It.IsAny<Func<Certificate, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IReadOnlyList<string>>(fallbackClosed));
+            var validator = new Mock<ICertificateValidatorEx>(MockBehavior.Strict);
+
+            await handler.ApplyAsync(CreateContext(
+                [SecureChannelEffect(TrustListIdentifier.Peers)],
+                [chainListener.Object, fallbackListener.Object],
+                null,
+                validator.Object)).ConfigureAwait(false);
+
+            RecordedLogRecord record = provider.Records.Single();
+            const string messageTemplate =
+                "TrustList change forced {Count} SecureChannel(s) with untrusted peer certificates to renegotiate.";
+            int expectedCount = chainCount + fallbackCount;
+            Assert.Multiple(() =>
+            {
+                Assert.That(record.CategoryName, Is.EqualTo(typeof(PushConfigurationTrustListEffectHandler).FullName));
+                Assert.That(record.LogLevel, Is.EqualTo(LogLevel.Information));
+                Assert.That(record.EventId.Name, Is.EqualTo("TrustListChangeForcedChannelsToRenegotiate"));
+                Assert.That(record.Properties, Has.Count.EqualTo(2));
+                Assert.That(record.Properties["Count"], Is.TypeOf<int>().And.EqualTo(expectedCount));
+                Assert.That(record.Properties["{OriginalFormat}"], Is.EqualTo(messageTemplate));
+                Assert.That(record.Message, Is.EqualTo(
+                    $"TrustList change forced {expectedCount} SecureChannel(s) " +
+                    "with untrusted peer certificates to renegotiate."));
+                Assert.That(record.Exception, Is.Null);
+            });
+            chainRotation.Verify(value => value.CloseChannelsForUntrustedPeerChainsAsync(
+                It.IsAny<Func<CertificateCollection, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            chainRotation.Verify(value => value.CloseChannelsForUntrustedPeersAsync(
+                It.IsAny<Func<Certificate, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            fallbackRotation.Verify(value => value.CloseChannelsForUntrustedPeersAsync(
+                It.IsAny<Func<Certificate, CancellationToken, ValueTask<bool>>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PeerTrustChangeRevalidatesSentIntermediateWithoutRejectedStoreWritesAsync(bool removeRoot)
+        {
+            string storeRoot = Path.Combine(Path.GetTempPath(), "peer-chain-effect-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                await using var manager = new CertificateManager(s_telemetry);
+                manager.RegisterTrustList(
+                    TrustListIdentifier.Peers, Path.Combine(storeRoot, "trusted"), Path.Combine(storeRoot, "issuers"));
+                manager.RegisterTrustList(TrustListIdentifier.Rejected, Path.Combine(storeRoot, "rejected"));
+                using Certificate root = CertificateBuilder.Create("CN=Trust Effect Root")
+                    .SetCAConstraint(-1).CreateForRSA();
+                using Certificate intermediate = CertificateBuilder.Create("CN=Trust Effect Intermediate")
+                    .SetCAConstraint(0).SetIssuer(root).CreateForRSA();
+                using Certificate leaf = CertificateBuilder.Create("CN=Trust Effect Peer")
+                    .SetIssuer(intermediate).CreateForRSA();
+                using Certificate unrelated = CertificateBuilder.Create("CN=Unrelated Trust Addition").CreateForRSA();
+                using var sentChain = new CertificateCollection { leaf, intermediate };
+                await using (ITrustListTransaction initial = await manager.BeginUpdateAsync(TrustListIdentifier.Peers)
+                    .ConfigureAwait(false))
+                {
+                    await initial.AddTrustedCertificateAsync(root).ConfigureAwait(false);
+                    await initial.CommitAsync().ConfigureAwait(false);
+                }
+                CertificateValidationResult initialValidation = await manager.ValidateAsync(sentChain)
+                    .ConfigureAwait(false);
+                Assert.That(initialValidation.IsValid, Is.True);
+                await using (ITrustListTransaction change = await manager.BeginUpdateAsync(TrustListIdentifier.Peers)
+                    .ConfigureAwait(false))
+                {
+                    if (removeRoot)
+                    {
+                        await change.RemoveTrustedCertificateAsync(root.Thumbprint).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await change.AddTrustedCertificateAsync(unrelated).ConfigureAwait(false);
+                    }
+                    await change.CommitAsync().ConfigureAwait(false);
+                }
+
+                var listener = new Mock<ITransportListener>(MockBehavior.Strict);
+                Mock<ITransportListenerPeerCertificateChainRotation> rotation =
+                    listener.As<ITransportListenerPeerCertificateChainRotation>();
+                rotation.SetupGet(value => value.PeerCertificateTrustListScope).Returns(TrustListIdentifier.Peers);
+                int callbacks = 0;
+                bool stillTrusted = false;
+                rotation.Setup(value => value.CloseChannelsForUntrustedPeerChainsAsync(
+                    It.IsAny<Func<CertificateCollection, CancellationToken, ValueTask<bool>>>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(async (Func<CertificateCollection, CancellationToken, ValueTask<bool>> predicate,
+                        CancellationToken ct) =>
+                    {
+                        callbacks++;
+                        stillTrusted = await predicate(sentChain, ct).ConfigureAwait(false);
+                        return stillTrusted ? [] : ArrayOf.Wrapped("peer-channel");
+                    });
+
+                await m_handler.ApplyAsync(CreateContext(
+                    [SecureChannelEffect(TrustListIdentifier.Peers)], [listener.Object], null, manager))
+                    .ConfigureAwait(false);
+
+                Assert.That(callbacks, Is.EqualTo(1));
+                Assert.That(stillTrusted, Is.EqualTo(!removeRoot));
+                await manager.FlushRejectedAsync().ConfigureAwait(false);
+                using ICertificateStore rejected = manager.OpenTrustedStore(TrustListIdentifier.Rejected)!;
+                using CertificateCollection saved = await rejected.EnumerateAsync().ConfigureAwait(false);
+                Assert.That(saved, Is.Empty);
+                using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers)!;
+                using CertificateCollection storedIssuers = await issuers.EnumerateAsync().ConfigureAwait(false);
+                Assert.That(storedIssuers, Is.Empty, "the intermediate must come only from the sender chain");
+            }
+            finally
+            {
+                if (Directory.Exists(storeRoot))
+                {
+                    Directory.Delete(storeRoot, recursive: true);
+                }
+            }
+        }
+
+        [Test]
         public async Task HttpsScopeEffectDrivesChannelRenegotiationOnHttpsScopedListenerAsync()
         {
             Certificate untrustedPeer = CreateCertificate("CN=Untrusted HTTPS Peer");
@@ -223,8 +421,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(opcTcpListener.ClosedChannelIds, Is.Empty);
             validator.Verify(
                 v => v.ValidateAsync(
-                    It.IsAny<Certificate>(),
+                    It.IsAny<CertificateCollection>(),
                     It.IsAny<TrustListIdentifier>(),
+                    It.IsAny<Security.Certificates.CertificateValidationOptions>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never,
                 "the opc.tcp peer certificate must never be validated against the HTTPS store");
@@ -382,8 +581,9 @@ namespace Opc.Ua.Server.Tests
             // The non-certificate identities must not even be re-validated.
             validator.Verify(
                 v => v.ValidateAsync(
-                    It.IsAny<Certificate>(),
+                    It.IsAny<CertificateCollection>(),
                     It.IsAny<TrustListIdentifier>(),
+                    It.IsAny<Security.Certificates.CertificateValidationOptions>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
         }
@@ -495,13 +695,16 @@ namespace Opc.Ua.Server.Tests
             var validator = new Mock<ICertificateValidatorEx>();
             validator
                 .Setup(v => v.ValidateAsync(
-                    It.IsAny<Certificate>(),
+                    It.IsAny<CertificateCollection>(),
                     It.IsAny<TrustListIdentifier>(),
+                    It.IsAny<Security.Certificates.CertificateValidationOptions>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((Certificate certificate, TrustListIdentifier? trustList, CancellationToken ct) =>
+                .Returns((CertificateCollection chain, TrustListIdentifier? trustList,
+                    Security.Certificates.CertificateValidationOptions options, CancellationToken ct) =>
                 {
+                    Assert.That(options.RecordRejectedCertificates, Is.False);
                     bool scopeApplies = scope == null || scope.Equals(trustList);
-                    bool untrustedInScope = scopeApplies && untrustedThumbprints.Contains(certificate.Thumbprint);
+                    bool untrustedInScope = scopeApplies && untrustedThumbprints.Contains(chain[0].Thumbprint);
                     CertificateValidationResult result = untrustedInScope
                         ? new CertificateValidationResult(
                             false, StatusCodes.BadCertificateUntrusted, [], false)

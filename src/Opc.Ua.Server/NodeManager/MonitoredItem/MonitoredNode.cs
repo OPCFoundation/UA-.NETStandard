@@ -163,11 +163,16 @@ namespace Opc.Ua.Server
         /// Adds the specified data change monitored item.
         /// </summary>
         /// <param name="datachangeItem">The monitored item.</param>
+        /// <exception cref="ObjectDisposedException">The monitored node has been disposed.</exception>
         public void Add(IDataChangeMonitoredItem2 datachangeItem)
         {
             lock (m_rebindLock)
             {
-                bool wasEmpty = DataChangeMonitoredItems.IsEmpty;
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(MonitoredNode2));
+                }
+                bool wasEmpty = !HasMonitoredItems;
                 DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
 
                 Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
@@ -190,6 +195,7 @@ namespace Opc.Ua.Server
             {
                 if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
                 {
+                    Interlocked.Increment(ref m_permissionGeneration);
                     // Remove the cached context for the monitored item
                     m_contextCache.TryRemove(datachangeItem.Id, out _);
                     m_permissionCache.TryRemove(datachangeItem.Id, out _);
@@ -200,7 +206,10 @@ namespace Opc.Ua.Server
                     Node.OnStateChangedAsync = null;
 
                     // Unsubscribe from namespace default permission changes when the last item is removed.
-                    m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+                    if (EventMonitoredItems.IsEmpty)
+                    {
+                        m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+                    }
                 }
             }
         }
@@ -209,13 +218,23 @@ namespace Opc.Ua.Server
         /// Adds the specified event monitored item.
         /// </summary>
         /// <param name="eventItem">The monitored item.</param>
+        /// <exception cref="ObjectDisposedException">The monitored node has been disposed.</exception>
         public void Add(IEventMonitoredItem eventItem)
         {
             lock (m_rebindLock)
             {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(MonitoredNode2));
+                }
+                bool wasEmpty = !HasMonitoredItems;
                 EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
 
                 Node.OnReportEventAsync = OnReportEventAsync;
+                if (wasEmpty && m_server.ConfigurationNodeManager != null)
+                {
+                    m_server.ConfigurationNodeManager.DefaultPermissionsChanged += OnDefaultPermissionsChanged;
+                }
             }
         }
 
@@ -228,11 +247,16 @@ namespace Opc.Ua.Server
             lock (m_rebindLock)
             {
                 EventMonitoredItems.TryRemove(eventItem.Id, out _);
+                Interlocked.Increment(ref m_permissionGeneration);
                 DropEventPermissionCacheEntries(eventItem.Id);
 
                 if (EventMonitoredItems.IsEmpty)
                 {
                     Node.OnReportEventAsync = null;
+                    if (DataChangeMonitoredItems.IsEmpty)
+                    {
+                        m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+                    }
                 }
             }
         }
@@ -274,6 +298,7 @@ namespace Opc.Ua.Server
 
                 NodeManager = nodeManager;
                 Node = node;
+                InvalidatePermissionCaches();
 
                 if (!DataChangeMonitoredItems.IsEmpty)
                 {
@@ -642,28 +667,35 @@ namespace Opc.Ua.Server
             NodeId sourceNodeId,
             CancellationToken cancellationToken)
         {
-            if (eventTypeId.IsNull || sourceNodeId.IsNull)
-            {
-                // Not a cacheable identity — defer to the existing path.
-                return await NodeManager.ValidateEventRolePermissionsAsync(
-                    monitoredItem,
-                    filterTarget,
-                    cancellationToken).ConfigureAwait(false);
-            }
-
+            bool cacheable = !eventTypeId.IsNull && !sourceNodeId.IsNull;
             var key = new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId);
-            if (m_eventPermissionCache.TryGetValue(key, out ServiceResult? cached) && cached != null)
+            while (true)
             {
-                return cached;
+                cancellationToken.ThrowIfCancellationRequested();
+                long generation = Volatile.Read(ref m_permissionGeneration);
+                ServiceResult result;
+                if (cacheable &&
+                    m_eventPermissionCache.TryGetValue(
+                        key, out (long Generation, ServiceResult Result) cached) &&
+                    cached.Generation == generation)
+                {
+                    result = cached.Result;
+                }
+                else
+                {
+                    result = await NodeManager.ValidateEventRolePermissionsAsync(
+                        monitoredItem, filterTarget, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (cacheable)
+                    {
+                        m_eventPermissionCache[key] = (generation, result);
+                    }
+                }
+                if (generation == Volatile.Read(ref m_permissionGeneration))
+                {
+                    return result;
+                }
             }
-
-            ServiceResult result = await NodeManager.ValidateEventRolePermissionsAsync(
-                monitoredItem,
-                filterTarget,
-                cancellationToken).ConfigureAwait(false);
-
-            m_eventPermissionCache[key] = result;
-            return result;
         }
 
         /// <summary>
@@ -679,44 +711,19 @@ namespace Opc.Ua.Server
             // If RolePermissions or UserRolePermissions have changed, invalidate the permission cache.
             if ((snapshot.Changes & NodeStateChangeMasks.RolePermissions) != 0)
             {
-                m_permissionCache.Clear();
-                m_eventPermissionCache.Clear();
+                InvalidatePermissionCaches();
             }
 
             foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
             {
                 IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
-                OperationContext operationContext;
-                ISystemContext contextToUse;
-
-                if (snapshot.Context is ServerSystemContext serverContext)
-                {
-                    ServerSystemContext serverSystemContextToUse = GetOrCreateContext(serverContext, monitoredItem);
-                    operationContext = serverSystemContextToUse.OperationContext!;
-                    contextToUse = serverSystemContextToUse;
-                }
-                else
-                {
-                    // Handed to the callback and cached with the context, so it may outlive this
-                    // call and is not disposed here. It tracks no request, so nothing is released.
-#pragma warning disable CA2000
-                    operationContext = new OperationContext(monitoredItem);
-#pragma warning restore CA2000
-                    contextToUse = snapshot.Context;
-                }
 
                 if (monitoredItem.AttributeId == Attributes.Value &&
                     (snapshot.Changes & NodeStateChangeMasks.Value) != 0)
                 {
-                    if (!m_permissionCache.TryGetValue(monitoredItem.Id, out ServiceResult? validationResult))
-                    {
-                        validationResult = await NodeManager.ValidateRolePermissionsAsync(
-                            operationContext,
-                            snapshot.NodeId,
-                            PermissionType.Read,
-                            cancellationToken).ConfigureAwait(false);
-                        m_permissionCache[monitoredItem.Id] = validationResult;
-                    }
+                    (ServiceResult validationResult, ISystemContext contextToUse) =
+                        await GetDataChangePermissionAsync(snapshot, monitoredItem, cancellationToken)
+                            .ConfigureAwait(false);
 
                     if (ServiceResult.IsBad(validationResult))
                     {
@@ -739,6 +746,47 @@ namespace Opc.Ua.Server
                     {
                         monitoredItem.QueueValue(snapshotValue, ServiceResult.Good);
                     }
+                }
+            }
+        }
+
+        private async ValueTask<(ServiceResult Result, ISystemContext Context)> GetDataChangePermissionAsync(
+            DataChangeSnapshot snapshot,
+            IDataChangeMonitoredItem2 monitoredItem,
+            CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                long generation = Volatile.Read(ref m_permissionGeneration);
+                ServerSystemContext? cachedContext = snapshot.Context is ServerSystemContext serverContext
+                    ? GetOrCreateContext(serverContext, monitoredItem, generation)
+                    : null;
+                using OperationContext? ownedContext =
+                    cachedContext == null ? new OperationContext(monitoredItem) : null;
+                OperationContext operationContext = cachedContext?.OperationContext ?? ownedContext!;
+                ServiceResult result;
+                if (m_permissionCache.TryGetValue(
+                    monitoredItem.Id,
+                    out (long Generation, ISession? Session,
+                        ServerSystemContext? Context, ServiceResult Result) cached) &&
+                    cached.Generation == generation &&
+                    ReferenceEquals(cached.Session, operationContext.Session) &&
+                    ReferenceEquals(cached.Context, cachedContext))
+                {
+                    result = cached.Result;
+                }
+                else
+                {
+                    result = await NodeManager.ValidateRolePermissionsAsync(
+                        operationContext, snapshot.NodeId, PermissionType.Read, ct).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                    m_permissionCache[monitoredItem.Id] = (
+                        generation, operationContext.Session, cachedContext, result);
+                }
+                if (generation == Volatile.Read(ref m_permissionGeneration))
+                {
+                    return (result, cachedContext ?? snapshot.Context);
                 }
             }
         }
@@ -810,10 +858,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="generation">The permission generation associated with this context.</param>
         /// <returns>The cached or newly created context.</returns>
         private ServerSystemContext GetOrCreateContext(
             ServerSystemContext context,
-            IDataChangeMonitoredItem2 monitoredItem)
+            IDataChangeMonitoredItem2 monitoredItem,
+            long generation)
         {
             uint monitoredItemId = monitoredItem.Id;
             long currentTimestamp = m_timeProvider.GetTimestamp();
@@ -822,20 +872,21 @@ namespace Opc.Ua.Server
             // Check if the context already exists in the cache
             if (m_contextCache.TryGetValue(
                     monitoredItemId,
-                    out (ServerSystemContext Context, long CreatedAtTimestamp) cachedEntry))
+                    out (long Generation, ServerSystemContext Context, long CreatedAtTimestamp) cachedEntry))
             {
                 // Refresh context if the owning session changed (e.g. after subscription transfer)
                 // or if the cache entry has expired.
                 // Note: identity-based invalidation is handled proactively by
                 // InvalidatePermissionCacheForSession when ActivateSession changes the identity.
-                if (cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
+                if (cachedEntry.Generation != generation ||
+                    cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
                     m_timeProvider.GetElapsedTime(cachedEntry.CreatedAtTimestamp) > m_cacheLifetime)
                 {
                     operationContext = new OperationContext(monitoredItem);
 
                     ServerSystemContext updatedContext = context.Copy(
                         operationContext);
-                    m_contextCache[monitoredItemId] = (updatedContext, currentTimestamp);
+                    m_contextCache[monitoredItemId] = (generation, updatedContext, currentTimestamp);
 
                     // Invalidate the permission cache since the session context has changed.
                     m_permissionCache.TryRemove(monitoredItemId, out _);
@@ -849,7 +900,8 @@ namespace Opc.Ua.Server
             // Create a new context and add it to the cache
             operationContext = new OperationContext(monitoredItem);
             ServerSystemContext newContext = context.Copy(operationContext);
-            m_contextCache.TryAdd(monitoredItemId, (newContext, currentTimestamp));
+            m_contextCache.TryAdd(monitoredItemId, (generation, newContext, currentTimestamp));
+            m_permissionCache.TryRemove(monitoredItemId, out _);
 
             return newContext;
         }
@@ -862,12 +914,18 @@ namespace Opc.Ua.Server
         /// <param name="sessionId">The NodeId of the session whose identity has changed.</param>
         public void InvalidatePermissionCacheForSession(NodeId sessionId)
         {
+            bool invalidated = false;
             foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
             {
                 IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
 
                 if (monitoredItem?.Session?.Id.Equals(sessionId) == true)
                 {
+                    if (!invalidated)
+                    {
+                        Interlocked.Increment(ref m_permissionGeneration);
+                        invalidated = true;
+                    }
                     uint id = monitoredItem.Id;
                     m_permissionCache.TryRemove(id, out _);
                     m_contextCache.TryRemove(id, out _);
@@ -879,6 +937,11 @@ namespace Opc.Ua.Server
                 IEventMonitoredItem monitoredItem = kvp.Value;
                 if (monitoredItem?.Session?.Id.Equals(sessionId) == true)
                 {
+                    if (!invalidated)
+                    {
+                        Interlocked.Increment(ref m_permissionGeneration);
+                        invalidated = true;
+                    }
                     DropEventPermissionCacheEntries(monitoredItem.Id);
                 }
             }
@@ -891,6 +954,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private void OnDefaultPermissionsChanged(object? sender, EventArgs e)
         {
+            InvalidatePermissionCaches();
+        }
+
+        private void InvalidatePermissionCaches()
+        {
+            Interlocked.Increment(ref m_permissionGeneration);
             m_permissionCache.Clear();
             m_eventPermissionCache.Clear();
         }
@@ -901,7 +970,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private void DropEventPermissionCacheEntries(uint monitoredItemId)
         {
-            foreach (KeyValuePair<EventPermissionCacheKey, ServiceResult> entry in m_eventPermissionCache)
+            foreach (KeyValuePair<EventPermissionCacheKey, (long Generation, ServiceResult Result)> entry
+                in m_eventPermissionCache)
             {
                 if (entry.Key.MonitoredItemId == monitoredItemId)
                 {
@@ -910,14 +980,17 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, long CreatedAtTimestamp)> m_contextCache =
-            new();
+        private readonly ConcurrentDictionary<
+            uint, (long Generation, ServerSystemContext Context, long CreatedAtTimestamp)> m_contextCache = new();
 
-        private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
-            new();
+        private readonly ConcurrentDictionary<
+            uint, (long Generation, ISession? Session, ServerSystemContext? Context, ServiceResult Result)>
+            m_permissionCache = new();
 
-        private readonly ConcurrentDictionary<EventPermissionCacheKey, ServiceResult> m_eventPermissionCache =
-            new();
+        private readonly ConcurrentDictionary<EventPermissionCacheKey, (long Generation, ServiceResult Result)>
+            m_eventPermissionCache = new();
+
+        private long m_permissionGeneration;
 
         private readonly TimeSpan m_cacheLifetime = TimeSpan.FromMinutes(5);
 
@@ -973,11 +1046,30 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (m_disposed)
+            lock (m_rebindLock)
             {
-                return;
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                if (disposing)
+                {
+                    m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+                    if (Node.OnStateChangedAsync == OnMonitoredNodeChangedAsync)
+                    {
+                        Node.OnStateChangedAsync = null;
+                    }
+                    if (Node.OnReportEventAsync == OnReportEventAsync)
+                    {
+                        Node.OnReportEventAsync = null;
+                    }
+                    InvalidatePermissionCaches();
+                    m_contextCache.Clear();
+                    DataChangeMonitoredItems.Clear();
+                    EventMonitoredItems.Clear();
+                }
             }
-            m_disposed = true;
 
             if (disposing)
             {

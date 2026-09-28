@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -40,6 +41,125 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Category("NodeManager")]
     public sealed class ServerEventFanoutRegressionTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EventModifyFailuresRemainPerItemAndDoNotSkipOtherOwnersAsync(bool throws)
+        {
+            using var harness = new FanoutHarness(false);
+
+            ArrayOf<ServiceResult> results = await harness.ModifyEventPairWithFailureAsync(throws)
+                .ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadServerNotConnected));
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+            harness.VerifySubscriptions(unsubscribe: false, count: 2);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DataModifyFailurePreservesCompletedItemsAndContinuesOtherOwnersAsync(bool completeFirst)
+        {
+            using var harness = new FanoutHarness(false);
+
+            ArrayOf<ServiceResult> results = await harness.ModifyDataBatchWithFailureAsync(completeFirst)
+                .ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode,
+                Is.EqualTo(completeFirst ? StatusCodes.Good : StatusCodes.BadUnexpectedError));
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(results[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, true, true)]
+        public async Task DeletedRootNotifiersReleaseAllEventLinksBeforeReRegistrationAsync(
+            bool serviceDelete,
+            bool childRoot,
+            bool retainOtherRoot)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                await using var manager = new TestableAsyncCustomNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                IEventMonitoredItem item = events.CreateMonitoredItem(
+                    context, manager, null!, 1, new MonitoredItemIdFactory(), TimestampsToReturn.Both, 1000,
+                    new MonitoredItemCreateRequest
+                    {
+                        ItemToMonitor = new ReadValueId
+                        {
+                            NodeId = ObjectIds.Server,
+                            AttributeId = Attributes.EventNotifier
+                        },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters { QueueSize = 10 }
+                    },
+                    new EventFilter(), false);
+                var parent = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("parent", manager.NamespaceIndex),
+                    BrowseName = new QualifiedName("parent", manager.NamespaceIndex)
+                };
+                var root = new BaseObjectState(childRoot ? parent : null)
+                {
+                    NodeId = new NodeId("root", manager.NamespaceIndex),
+                    BrowseName = new QualifiedName("root", manager.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                if (childRoot)
+                {
+                    parent.AddChild(root);
+                }
+                await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, childRoot ? parent : root)
+                    .ConfigureAwait(false);
+                await manager.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
+                if (retainOtherRoot)
+                {
+                    await AddRootAsync(manager, "other", true).ConfigureAwait(false);
+                }
+                MonitoredNode2 previous = manager.MonitoredNodes[root.NodeId];
+                NodeId deletedId = childRoot ? parent.NodeId : root.NodeId;
+                if (serviceDelete)
+                {
+                    ServiceResult deleted = await manager.DeleteNodeAsync(
+                        context, new DeleteNodesItem { NodeId = deletedId }).ConfigureAwait(false);
+                    Assert.That(ServiceResult.IsGood(deleted), Is.True);
+                }
+                else
+                {
+                    Assert.That(await manager.DeleteNodeAsync(manager.SystemContext, deletedId)
+                        .ConfigureAwait(false), Is.True);
+                }
+
+                Assert.That(manager.MonitoredNodes.ContainsKey(root.NodeId), Is.False);
+                Assert.That(manager.MonitoredItems.ContainsKey(item.Id), Is.EqualTo(retainOtherRoot));
+                Assert.That(root.OnReportEventAsync, Is.Null);
+                Assert.That(events.GetMonitoredItems(), Has.Count.EqualTo(1));
+
+                BaseObjectState replacement = await AddRootAsync(manager, "root", true).ConfigureAwait(false);
+                Assert.That(manager.MonitoredNodes[replacement.NodeId], Is.Not.SameAs(previous));
+                Assert.That(manager.MonitoredNodes[replacement.NodeId].Node, Is.SameAs(replacement));
+                Assert.That(
+                    manager.MonitoredNodes[replacement.NodeId].EventMonitoredItems.ContainsKey(item.Id), Is.True);
+                Assert.That(replacement.AreEventsMonitored, Is.True);
+
+                await manager.SubscribeToAllEventsAsync(context, 1, item, true).ConfigureAwait(false);
+                events.DeleteMonitoredItem(item.Id);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task UnsupportedManagerDoesNotPreventServerEventCreationOrDeletionAsync(bool unsupportedFirst)
@@ -423,13 +543,111 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return errors[0];
             }
 
-            public void VerifySubscriptions(bool unsubscribe)
+            public async Task<ArrayOf<ServiceResult>> ModifyEventPairWithFailureAsync(bool throws)
+            {
+                await CreateAsync().ConfigureAwait(false);
+                IMonitoredItem first = Item;
+                await CreateAsync().ConfigureAwait(false);
+                IMonitoredItem second = Item;
+                Moq.Language.Flow.ISetup<IAsyncNodeManager, ValueTask<ServiceResult>> failing = m_terminal
+                    .Setup(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), 1,
+                    It.Is<IEventMonitoredItem>(item => item.Id == first.Id), false,
+                    It.IsAny<CancellationToken>()));
+                if (throws)
+                {
+                    failing.ThrowsAsync(new ServiceResultException(StatusCodes.BadServerNotConnected));
+                }
+                else
+                {
+                    failing.Returns(new ValueTask<ServiceResult>(StatusCodes.BadServerNotConnected));
+                }
+                foreach (Mock<IAsyncNodeManager> owner in new[] { m_supported, m_unsupported, m_terminal })
+                {
+                    owner.Invocations.Clear();
+                }
+                var filter = new EventFilter
+                {
+                    SelectClauses =
+                    [
+                        new SimpleAttributeOperand
+                        {
+                            TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                            AttributeId = Attributes.Value,
+                            BrowsePath = [new QualifiedName(BrowseNames.EventId)]
+                        }
+                    ]
+                };
+                var errors = new ServiceResult[2];
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.ModifyMonitoredItems, RequestLifetime.None);
+                await m_master.ModifyMonitoredItemsAsync(
+                    context, TimestampsToReturn.Both, [first, second],
+                    [CreateModify(first.Id, filter), CreateModify(second.Id, filter)],
+                    errors, new MonitoringFilterResult[2]).ConfigureAwait(false);
+                return errors;
+            }
+
+            public async Task<ArrayOf<ServiceResult>> ModifyDataBatchWithFailureAsync(bool completeFirst)
+            {
+                var first = new Mock<IMonitoredItem>();
+                var second = new Mock<IMonitoredItem>();
+                var third = new Mock<IMonitoredItem>();
+                first.SetupGet(value => value.NodeManager).Returns(m_supported.Object);
+                second.SetupGet(value => value.NodeManager).Returns(m_supported.Object);
+                third.SetupGet(value => value.NodeManager).Returns(m_terminal.Object);
+                foreach (Mock<IMonitoredItem> item in new[] { first, second, third })
+                {
+                    item.SetupGet(value => value.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+                }
+                m_supported.Setup(value => value.ModifyMonitoredItemsAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<TimestampsToReturn>(),
+                        It.IsAny<IList<IMonitoredItem>>(), It.IsAny<ArrayOf<MonitoredItemModifyRequest>>(),
+                        It.IsAny<IList<ServiceResult>>(), It.IsAny<IList<MonitoringFilterResult>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext _, TimestampsToReturn _, IList<IMonitoredItem> _,
+                        ArrayOf<MonitoredItemModifyRequest> requests, IList<ServiceResult> errors,
+                        IList<MonitoringFilterResult> _, CancellationToken _) =>
+                    {
+                        Assert.That(requests[2].Processed, Is.True);
+                        if (completeFirst)
+                        {
+                            requests[0].Processed = true;
+                            errors[0] = ServiceResult.Good;
+                        }
+                        throw new InvalidOperationException("Simulated owner failure.");
+                    });
+                m_terminal.Setup(value => value.ModifyMonitoredItemsAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<TimestampsToReturn>(),
+                        It.IsAny<IList<IMonitoredItem>>(), It.IsAny<ArrayOf<MonitoredItemModifyRequest>>(),
+                        It.IsAny<IList<ServiceResult>>(), It.IsAny<IList<MonitoringFilterResult>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext _, TimestampsToReturn _, IList<IMonitoredItem> _,
+                        ArrayOf<MonitoredItemModifyRequest> requests, IList<ServiceResult> errors,
+                        IList<MonitoringFilterResult> _, CancellationToken _) =>
+                    {
+                        Assert.That(requests[2].Processed, Is.False);
+                        requests[2].Processed = true;
+                        errors[2] = ServiceResult.Good;
+                        return default;
+                    });
+                var results = new ServiceResult[3];
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.ModifyMonitoredItems, RequestLifetime.None);
+                await m_master.ModifyMonitoredItemsAsync(
+                    context, TimestampsToReturn.Both, [first.Object, second.Object, third.Object],
+                    [CreateModify(1), CreateModify(2), CreateModify(3)], results, new MonitoringFilterResult[3])
+                    .ConfigureAwait(false);
+                return results;
+            }
+
+            public void VerifySubscriptions(bool unsubscribe, int count = 1)
             {
                 foreach (Mock<IAsyncNodeManager> owner in new[] { m_supported, m_unsupported, m_terminal })
                 {
                     owner.Verify(value => value.SubscribeToAllEventsAsync(
                         It.IsAny<OperationContext>(), 1, It.IsAny<IEventMonitoredItem>(), unsubscribe,
-                        CancellationToken.None), Times.Once);
+                        CancellationToken.None), Times.Exactly(count));
                 }
             }
 
@@ -453,6 +671,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         It.IsAny<CancellationToken>()))
                     .Returns(new ValueTask<ServiceResult>(new ServiceResult(unsubscribe)));
                 return owner;
+            }
+
+            private static MonitoredItemModifyRequest CreateModify(uint id, EventFilter filter = null)
+            {
+                return new MonitoredItemModifyRequest
+                {
+                    MonitoredItemId = id,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        QueueSize = 10,
+                        SamplingInterval = 500,
+                        Filter = filter == null ? ExtensionObject.Null : new ExtensionObject(filter)
+                    }
+                };
             }
 
             private readonly MasterNodeManager m_master;

@@ -190,7 +190,7 @@ namespace Opc.Ua.SourceGeneration
                             global::System.Collections.Generic.IList<global::Opc.Ua.IReference>> externalReferences,
                         global::System.Threading.CancellationToken cancellationToken = default)
                     {
-                        await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                        await LoadPredefinedNodesAsync(SystemContext, externalReferences, cancellationToken).ConfigureAwait(false);
 
                         ushort __nsIndex = Server.NamespaceUris.GetIndexOrAppend({{Tokens.NamespaceUri}});
 

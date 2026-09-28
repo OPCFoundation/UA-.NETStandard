@@ -657,6 +657,82 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies exact-instant modified reads retain every modification but no adjacent timestamp.
+        /// </summary>
+        [TestCase(true, 1u, true)]
+        [TestCase(false, 1u, true)]
+        [TestCase(true, 0u, true)]
+        [TestCase(false, 0u, true)]
+        [TestCase(true, 1u, false)]
+        [TestCase(false, 1u, false)]
+        public async Task ModifiedReadAtExactInstantReturnsEveryModificationAsync(
+            bool forward,
+            uint pageSize,
+            bool matchingInstant)
+        {
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
+            var nodeId = new NodeId("modified.exact.instant", NamespaceIndex);
+            provider.Register(nodeId);
+            HistorianOperationContext context = CreateContext();
+            using OperationContext operation = context.OperationContext;
+            DateTime instant = BaseTime.AddSeconds(10);
+            context.DefaultModificationInfo.ModificationTime = BaseTime;
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [
+                    MakeValue(instant.AddTicks(-1), -1),
+                    MakeValue(instant, 10),
+                    MakeValue(instant.AddTicks(1), 999)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            context.DefaultModificationInfo.ModificationTime = BaseTime.AddSeconds(1);
+            await provider.ReplaceAsync(
+                context, nodeId, [MakeValue(instant, 20)], CancellationToken.None).ConfigureAwait(false);
+            context.DefaultModificationInfo.ModificationTime = BaseTime.AddSeconds(2);
+            await provider.ReplaceAsync(
+                context, nodeId, [MakeValue(instant, 30)], CancellationToken.None).ConfigureAwait(false);
+            DateTime requested = matchingInstant ? instant : instant.AddTicks(2);
+            var request = new HistorianModifiedReadRequest
+            {
+                NodeId = nodeId,
+                StartTime = requested,
+                EndTime = requested,
+                IsForward = forward,
+                MaxValues = pageSize
+            };
+            var actual = new List<ModifiedDataValue>();
+            HistorianResumeToken token = default;
+            do
+            {
+                HistorianPage<ModifiedDataValue> page = await provider.ReadModifiedAsync(
+                    context, request, token, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(page.Values.Count, Is.LessThanOrEqualTo(pageSize == 0 ? 3 : pageSize));
+                Assert.That(page.IsFinal || page.Values.Count > 0, Is.True);
+                actual.AddRange(page.Values);
+                Assert.That(actual, Has.Count.LessThanOrEqualTo(3), "A continuation must not repeat records.");
+                token = page.NextToken;
+            }
+            while (!token.IsEmpty);
+
+            Assert.That(actual, Has.Count.EqualTo(matchingInstant ? 3 : 0));
+            double[] expectedValues = forward ? [20, 10, 10] : [10, 10, 20];
+            for (int i = 0; i < actual.Count; i++)
+            {
+                int modification = forward ? 2 - i : i;
+                Assert.That(actual[i].Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)instant));
+                Assert.That(actual[i].Value.WrappedValue.TryGetValue(out double value), Is.True);
+                Assert.That(value, Is.EqualTo(expectedValues[i]));
+                Assert.That(actual[i].Info.ModificationTime,
+                    Is.EqualTo((DateTimeUtc)BaseTime.AddSeconds(modification)));
+                Assert.That(actual[i].Info.UpdateType,
+                    Is.EqualTo(modification == 0 ? HistoryUpdateType.Insert : HistoryUpdateType.Replace));
+            }
+        }
+
+        /// <summary>
         /// Verifies that an exactly filled final modified-history page has no continuation.
         /// </summary>
         [Test]

@@ -38,6 +38,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -61,6 +62,88 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     {
         private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
         private static readonly int[] s_firstTwoReconnectAttempts = [0, 1];
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task QueuedRotationRetainsProducerCertificateMaterialAsync(bool sendChain)
+        {
+            using Certificate original = s_factory.CreateCertificate("CN=queued-original").CreateForRSA();
+            using Certificate first = s_factory.CreateCertificate("CN=queued-first").CreateForRSA();
+            var changes = new TestCertificateChangeSource();
+            var certificateManager = new Mock<ICertificateManager>();
+            certificateManager.SetupGet(value => value.CertificateChanges).Returns(changes);
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create())
+            {
+                CertificateManager = certificateManager.Object
+            };
+            configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier
+            {
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                Thumbprint = original.Thumbprint
+            };
+            configuration.SecurityConfiguration.SendCertificateChain = sendChain;
+            var installed = new ConcurrentQueue<(Certificate Certificate, CertificateCollection? Chain)>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var started = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var release = new ManualResetEventSlim();
+            var host = new RotationHost(
+                configuration,
+                task =>
+                {
+                    if (task != null)
+                    {
+                        started.TrySetResult(task);
+                    }
+                },
+                (certificate, chain) =>
+                {
+                    if (installed.IsEmpty)
+                    {
+                        entered.TrySetResult(true);
+                        if (!release.Wait(TimeSpan.FromSeconds(5)))
+                        {
+                            throw new TimeoutException("The first certificate installation was not released.");
+                        }
+                    }
+                    installed.Enqueue((certificate, chain));
+                });
+            using var rotation = new ClientChannelManagerCertRotation(host);
+            rotation.WireCertificateRotation();
+            Task drain = Task.CompletedTask;
+            try
+            {
+                changes.Raise(new CertificateChangeEvent(
+                    CertificateChangeKind.ApplicationCertificateUpdated, TrustListIdentifier.Peers,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType, original, first, null));
+                drain = await started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                string thumbprint;
+                using (Certificate next = s_factory.CreateCertificate("CN=queued-next").CreateForRSA())
+                using (CertificateCollection chain = [next])
+                {
+                    thumbprint = next.Thumbprint;
+                    changes.Raise(new CertificateChangeEvent(
+                        CertificateChangeKind.ApplicationCertificateUpdated, TrustListIdentifier.Peers,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType, original, next, chain));
+                }
+                release.Set();
+                await drain.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(installed, Has.Count.EqualTo(2));
+                Assert.That(installed.Last().Certificate.Thumbprint, Is.EqualTo(thumbprint));
+                Assert.That(installed.Last().Certificate.HasPrivateKey, Is.True);
+                Assert.That(installed.Last().Chain != null, Is.EqualTo(sendChain));
+            }
+            finally
+            {
+                release.Set();
+                await drain.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                while (installed.TryDequeue(out (Certificate Certificate, CertificateCollection? Chain) material))
+                {
+                    material.Certificate.Dispose();
+                    material.Chain?.Dispose();
+                }
+            }
+        }
 
         [Test]
         public async Task CertificateRotationTriggersReconnectAllAsync()
@@ -571,6 +654,33 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(openSettings, Is.Empty);
         }
 
+        private sealed class RotationHost(
+            ApplicationConfiguration configuration,
+            Action<Task?> stateChanged,
+            Action<Certificate, CertificateCollection?> install) : IChannelCertRotationHost
+        {
+            public ApplicationConfiguration Configuration => configuration;
+
+            public ILogger? Logger => null;
+
+            public bool IsDisposed => false;
+
+            public ChannelEntry[] SnapshotEntries()
+            {
+                return [];
+            }
+
+            public void ReplaceClientCertificate(Certificate? certificate, CertificateCollection? chain)
+            {
+                install(certificate ?? throw new ArgumentNullException(nameof(certificate)), chain);
+            }
+
+            public void SetCertificateRotationTask(Task? task)
+            {
+                stateChanged(task);
+            }
+        }
+
         private static ClientChannelManager CreateSut(
             Certificate applicationCertificate,
             TestCertificateChangeSource changes,
@@ -797,6 +907,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             public int NotificationCount => Volatile.Read(ref m_notificationCount);
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,
@@ -826,6 +942,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public int RecreateCount => Volatile.Read(ref m_recreateCount);
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
@@ -876,6 +998,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             public int RecreateCount => Volatile.Read(ref m_recreateCount);
 
             public int[] ReconnectAttempts => [.. m_reconnectAttempts];
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
@@ -932,6 +1060,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             public TaskCompletionSource<bool> RecreateCanceled { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,
@@ -974,6 +1108,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             public string Id { get; }
 
             public ConfiguredEndpoint Endpoint { get; }
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,

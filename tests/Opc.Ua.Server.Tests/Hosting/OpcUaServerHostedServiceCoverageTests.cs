@@ -316,6 +316,99 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the budget registered through the fluent builder is the
+        /// one the hosted server bounds incomplete messages with.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HostedServiceAppliesTheRegisteredChunkReassemblyBudgetAsync(bool explicitShare)
+        {
+            RegistryCaptureServer.Reset();
+            const long maxBytes = 48L * 1024 * 1024;
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    IOpcUaServerBuilder builder = services.AddOpcUa()
+                        .AddServer<RegistryCaptureServer>(o => ConfigureHostedOptions(o, "ChunkReassemblyBudget"));
+                    if (explicitShare)
+                    {
+                        builder.WithChunkReassemblyBudget(maxBytes, maxBytes / 4);
+                    }
+                    else
+                    {
+                        builder.WithChunkReassemblyBudget(maxBytes);
+                    }
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+
+            ChunkReassemblyBudget? budget = RegistryCaptureServer.StartedInstance?.ChunkReassemblyBudget;
+            Assert.That(budget, Is.Not.Null);
+            Assert.That(budget!.MaxBytes, Is.EqualTo(maxBytes));
+            Assert.That(budget.MaxBytesWithoutSession, Is.EqualTo(maxBytes / (explicitShare ? 4 : 2)));
+        }
+
+        [Test]
+        public async Task HostedServiceAppliesTheRegisteredSessionBindingProviderAsync()
+        {
+            RegistryCaptureServer.Reset();
+            ISessionBindingProvider configured = Mock.Of<ISessionBindingProvider>();
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton(configured);
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddOpcUa().AddServer<RegistryCaptureServer>(
+                        options => ConfigureHostedOptions(options, "SessionBindings"));
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedInstance != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+            Assert.That(RegistryCaptureServer.StartedInstance!.SessionBindingProvider, Is.SameAs(configured));
+        }
+
+        /// <summary>
+        /// Verifies that the fluent builder rejects a budget that is not positive.
+        /// </summary>
+        [Test]
+        public void WithChunkReassemblyBudgetRejectsABudgetThatIsNotPositive()
+        {
+            IOpcUaServerBuilder builder = new ServiceCollection().AddOpcUa().AddServer(_ => { });
+
+            Assert.That(
+                () => builder.WithChunkReassemblyBudget(0),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => ((IOpcUaServerBuilder)null!).WithChunkReassemblyBudget(1),
+                Throws.ArgumentNullException);
+        }
+
+        [TestCase(0, 0)]
+        [TestCase(1024, -1)]
+        [TestCase(1024, 1025)]
+        public void ExplicitChunkBudgetShareIsValidatedDuringRegistration(long maxBytes, long sessionlessBytes)
+        {
+            IOpcUaServerBuilder builder = new ServiceCollection().AddOpcUa().AddServer(_ => { });
+
+            Assert.That(
+                () => builder.WithChunkReassemblyBudget(maxBytes, sessionlessBytes),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
         private static void ConfigureHostedOptions(OpcUaServerOptions options, string applicationName)
         {
             string testRoot = System.IO.Path.Combine(

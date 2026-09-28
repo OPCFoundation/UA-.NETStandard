@@ -291,5 +291,11 @@ namespace Opc.Ua.Server.Hosting
         /// injection, which takes precedence.
         /// </remarks>
         public Action<ServerRateLimitOptions>? ConfigureRateLimits { get; set; }
+
+        /// <summary>
+        /// Runtime resource isolation. Applied even when loading an XML configuration.
+        /// An explicitly registered isolation provider takes precedence over these options.
+        /// </summary>
+        public ServerResourceIsolationOptions ResourceIsolation { get; set; } = new();
     }
 }

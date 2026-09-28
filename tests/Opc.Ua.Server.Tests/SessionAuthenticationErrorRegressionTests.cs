@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -41,6 +42,21 @@ namespace Opc.Ua.Server.Tests
     [Category("Identity")]
     public sealed class SessionAuthenticationErrorRegressionTests
     {
+        /// <summary>
+        /// Verifies padding, plaintext length and policy errors are indistinguishable at ActivateSession.
+        /// </summary>
+        [TestCase("padding")]
+        [TestCase("length")]
+        [TestCase("algorithm")]
+        public Task SessionDecryptFailuresReturnIdentityTokenInvalidAsync(string failure)
+        {
+            return AssertActivationRejectionAsync(
+                new ServerIdentityRegistry(),
+                StatusCodes.BadIdentityTokenInvalid,
+                "Could not decrypt identity token.",
+                failure);
+        }
+
         [TestCaseSource(nameof(s_rejectionCodes))]
         public Task AuthenticatorRejectionPreservesStatusAndMessageAsync(StatusCode statusCode)
         {
@@ -60,7 +76,8 @@ namespace Opc.Ua.Server.Tests
         private static async Task AssertActivationRejectionAsync(
             ServerIdentityRegistry registry,
             StatusCode expectedStatus,
-            string expectedMessage)
+            string expectedMessage,
+            string decryptionFailure = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var server = new Mock<IServerInternal>();
@@ -94,7 +111,9 @@ namespace Opc.Ua.Server.Tests
                     {
                         PolicyId = "username",
                         TokenType = UserTokenType.UserName,
-                        SecurityPolicyUri = SecurityPolicies.None
+                        SecurityPolicyUri = decryptionFailure == null
+                            ? SecurityPolicies.None
+                            : SecurityPolicies.Basic128Rsa15
                     }
                 ]
             };
@@ -114,6 +133,17 @@ namespace Opc.Ua.Server.Tests
                     UserName = "test-user",
                     Password = ByteString.From([1])
                 };
+                if (decryptionFailure != null)
+                {
+                    using RSA rsa = certificate.GetRSAPublicKey();
+                    token.Password = decryptionFailure == "padding"
+                        ? ByteString.From(new byte[rsa.KeySize / 8])
+                        : ByteString.From(rsa.Encrypt(
+                            [0xFF, 0xFF, 0xFF, 0x7F], RSAEncryptionPadding.Pkcs1));
+                    token.EncryptionAlgorithm = decryptionFailure == "algorithm"
+                        ? SecurityAlgorithms.RsaOaep
+                        : SecurityAlgorithms.Rsa15;
+                }
                 ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await manager.ActivateSessionAsync(
                         context, created.AuthenticationToken, new SignatureData(), new ExtensionObject(token),

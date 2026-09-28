@@ -32,9 +32,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
@@ -314,6 +312,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(
                     enumerator.Current.Fields[0],
                     Is.EqualTo(Variant.From(secondExpected)));
+                Assert.That(subscription.DroppedNotificationCount, Is.EqualTo(1));
             }
             finally
             {
@@ -400,27 +399,79 @@ namespace Opc.Ua.Subscriptions.Tests
             await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
-        [Test]
-        public void QueueSizeZeroPreservesUnboundedStreamingChannelBehavior()
+        [TestCase(true, 4)]
+        [TestCase(false, 1)]
+        public async Task DefaultDataChangeBufferBoundsSlowReadersAsync(bool discardOldest, int expected)
         {
-            MethodInfo factory = typeof(StreamingSubscription).GetMethod(
-                "CreateChannel",
-                BindingFlags.Static | BindingFlags.NonPublic)!;
-            MethodInfo intFactory = factory.MakeGenericMethod(typeof(int));
+            var manager = new StubSubscriptionManager();
+            await using var subscription = new StreamingSubscription(manager);
+            MonitoredItemOptions? options = discardOldest
+                ? null
+                : new MonitoredItemOptions { DiscardOldest = false };
+            await using IAsyncEnumerator<DataValueChange> enumerator = subscription
+                .SubscribeDataChangesAsync(s_nodeA, options).GetAsyncEnumerator();
+            Task<bool> firstMove = enumerator.MoveNextAsync().AsTask();
+            StubMonitoredItem item = manager.Subscription!.Collection.Added[0];
+            await FireDataChangeAsync(manager, new DataValueChange(
+                item, new DataValue(Variant.From(0)), null)).ConfigureAwait(false);
+            Assert.That(await WithinTimeoutAsync(firstMove).ConfigureAwait(false), Is.True);
+            Assert.That(enumerator.Current.Value.WrappedValue, Is.EqualTo(Variant.From(0)));
+            Assert.That(subscription.DroppedNotificationCount, Is.Zero);
 
-            var channel = (Channel<int>)intFactory.Invoke(
-                null,
-                [0u, 1, false])!;
-
-            Assert.Multiple(() =>
+            for (int value = 1; value <= 4; value++)
             {
-                Assert.That(channel.Writer.TryWrite(1), Is.True);
-                Assert.That(channel.Writer.TryWrite(2), Is.True);
-                Assert.That(channel.Reader.TryRead(out int first), Is.True);
-                Assert.That(first, Is.EqualTo(1));
-                Assert.That(channel.Reader.TryRead(out int second), Is.True);
-                Assert.That(second, Is.EqualTo(2));
-            });
+                await FireDataChangeAsync(manager, new DataValueChange(
+                    item, new DataValue(Variant.From(value)), null)).ConfigureAwait(false);
+            }
+            await subscription.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(await enumerator.MoveNextAsync().ConfigureAwait(false), Is.True);
+            Assert.That(enumerator.Current.Value.WrappedValue, Is.EqualTo(Variant.From(expected)));
+            Assert.That(await enumerator.MoveNextAsync().ConfigureAwait(false), Is.False);
+            Assert.That(subscription.DroppedNotificationCount, Is.EqualTo(3));
+        }
+
+        [TestCase(0u, true, new[] { 5, 6 })]
+        [TestCase(2u, true, new[] { 3, 4, 5, 6 })]
+        [TestCase(2u, false, new[] { 1, 2, 3, 4 })]
+        public async Task MultiNodeDataChangeBufferHonorsBoundAndDiscardPolicyAsync(
+            uint queueSize,
+            bool discardOldest,
+            int[] expected)
+        {
+            var manager = new StubSubscriptionManager();
+            await using var subscription = new StreamingSubscription(manager);
+            await using IAsyncEnumerator<DataValueChange> enumerator = subscription
+                .SubscribeDataChangesAsync(
+                    [s_nodeA, s_nodeB],
+                    new MonitoredItemOptions { QueueSize = queueSize, DiscardOldest = discardOldest })
+                .GetAsyncEnumerator();
+            Task<bool> firstMove = enumerator.MoveNextAsync().AsTask();
+            StubMonitoredItemCollection collection = manager.Subscription!.Collection;
+            Assert.That(collection.Count, Is.EqualTo(2));
+            await FireDataChangeAsync(manager, new DataValueChange(
+                collection.Added[0], new DataValue(Variant.From(0)), null)).ConfigureAwait(false);
+            Assert.That(await WithinTimeoutAsync(firstMove).ConfigureAwait(false), Is.True);
+
+            for (int value = 1; value <= 6; value++)
+            {
+                await FireDataChangeAsync(manager, new DataValueChange(
+                    collection.Added[value == 1 ? 1 : 0], new DataValue(Variant.From(value)), null))
+                    .ConfigureAwait(false);
+            }
+            await subscription.DisposeAsync().ConfigureAwait(false);
+
+            var values = new List<int>();
+            while (await enumerator.MoveNextAsync().ConfigureAwait(false))
+            {
+                Assert.That(enumerator.Current.Value.WrappedValue.TryGetValue(out int value), Is.True);
+                Assert.That(enumerator.Current.MonitoredItem,
+                    Is.SameAs(collection.Added[value == 1 ? 1 : 0]));
+                values.Add(value);
+            }
+            Assert.That(values, Is.EqualTo(expected));
+            Assert.That(subscription.DroppedNotificationCount, Is.EqualTo(6 - expected.Length));
+            Assert.That(manager.Subscription.DisposeCount, Is.EqualTo(1));
         }
 
         [Test]

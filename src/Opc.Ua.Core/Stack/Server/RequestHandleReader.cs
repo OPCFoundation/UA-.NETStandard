@@ -111,6 +111,19 @@ namespace Opc.Ua
         /// <returns>The RequestHandle, or 0 if it cannot be read.</returns>
         public static uint FromJson(ReadOnlySpan<byte> message)
         {
+            return FromJson(message, "RequestHeader");
+        }
+
+        /// <summary>
+        /// Reads the RequestHandle from the leading UaBody.ResponseHeader of a JSON response.
+        /// </summary>
+        public static uint FromJsonResponse(ReadOnlySpan<byte> message)
+        {
+            return FromJson(message, "ResponseHeader");
+        }
+
+        private static uint FromJson(ReadOnlySpan<byte> message, string headerName)
+        {
             try
             {
                 var reader = new Utf8JsonReader(message, new JsonReaderOptions
@@ -155,7 +168,7 @@ namespace Opc.Ua
                             {
                                 nextScope = kBody;
                             }
-                            else if (scopes[depth] == kBody && reader.ValueTextEquals("RequestHeader"))
+                            else if (scopes[depth] == kBody && reader.ValueTextEquals(headerName))
                             {
                                 nextScope = kRequestHeader;
                             }
@@ -175,9 +188,9 @@ namespace Opc.Ua
                     }
                 }
             }
-            catch (Exception)
+            catch (JsonException)
             {
-                // malformed JSON before the handle
+                return 0;
             }
 
             return 0;
@@ -189,8 +202,7 @@ namespace Opc.Ua
         /// </summary>
         private static bool SkipNodeId(Stream stream)
         {
-            int encoding = stream.ReadByte();
-            switch (encoding)
+            switch (stream.ReadByte())
             {
                 case 0x00: // two byte: identifier
                     return Skip(stream, 1);

@@ -91,7 +91,7 @@ namespace Opc.Ua.ISA95.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+            await LoadPredefinedNodesAsync(SystemContext, externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
             await CreateV2StatusEventTypeAsync(cancellationToken).ConfigureAwait(false);
