@@ -1465,7 +1465,8 @@ namespace Opc.Ua
                 }
                 variants.Add(variant);
             }
-            return Variant.Collapse(variants.ToArrayOf());
+            // Keep the array shape (a one element or empty array stays an array).
+            return Variant.Collapse(variants.ToArrayOf(), BuiltInType.Variant);
         }
 
         private static Variant FromEnums(IEnumerable<Enum> values)
@@ -1475,7 +1476,8 @@ namespace Opc.Ua
             {
                 variants.Add(Variant.From(EnumValue.From(value, value.GetType())));
             }
-            return Variant.Collapse(variants.ToArrayOf());
+            // Keep the array shape (a one element or empty array stays an array).
+            return Variant.Collapse(variants.ToArrayOf(), BuiltInType.Enumeration);
         }
 
         private static Variant FromArrayOfEncodeable<T>(ArrayOf<T> values)

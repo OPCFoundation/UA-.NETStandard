@@ -6121,13 +6121,22 @@ namespace Opc.Ua
                 ArrayOf<Variant> converted = Expand().ToArrayOf(v => v.ConvertTo(targetType));
                 if (converted.Count == 0)
                 {
+                    // Nothing was converted, so check the conversion is legal
+                    // and pick the element type a non-empty array would get.
+                    BuiltInType sourceType = TypeInfo.BuiltInType == BuiltInType.Enumeration
+                        ? BuiltInType.Int32
+                        : TypeInfo.BuiltInType;
+                    if (targetType == BuiltInType.Variant)
+                    {
+                        return CreateArray(converted, sourceType);
+                    }
+                    if (!IsConversionSupported(sourceType, targetType))
+                    {
+                        throw new InvalidCastException();
+                    }
                     return CreateArray(converted, GetConvertedElementType(targetType));
                 }
-                if (converted.Count == 1 && converted.Span[0].TypeInfo.IsScalar)
-                {
-                    return CreateArray(converted, converted.Span[0].TypeInfo.BuiltInType);
-                }
-                return Collapse(converted);
+                return Collapse(converted, BuiltInType.Variant);
             }
             throw new InvalidCastException();
         }
@@ -6150,6 +6159,90 @@ namespace Opc.Ua
                 BuiltInType.DataValue or
                 BuiltInType.DiagnosticInfo => throw new InvalidCastException(),
                 _ => targetType
+            };
+        }
+
+        /// <summary>
+        /// Whether a scalar of <paramref name="sourceType"/> can be converted
+        /// to <paramref name="targetType"/> by the ConvertToXxx methods (the
+        /// value itself may still fail to convert).
+        /// </summary>
+        private static bool IsConversionSupported(BuiltInType sourceType, BuiltInType targetType)
+        {
+            targetType = targetType switch
+            {
+                BuiltInType.Number => BuiltInType.Double,
+                BuiltInType.Integer => BuiltInType.Int64,
+                BuiltInType.UInteger => BuiltInType.UInt64,
+                BuiltInType.Enumeration => BuiltInType.Int32,
+                _ => targetType
+            };
+            if (sourceType == targetType || targetType == BuiltInType.Variant)
+            {
+                return true;
+            }
+            if (sourceType is
+                BuiltInType.Variant or
+                BuiltInType.Number or
+                BuiltInType.Integer or
+                BuiltInType.UInteger)
+            {
+                // The type of each element decides.
+                return true;
+            }
+            bool numeric = sourceType is
+                BuiltInType.Boolean or
+                BuiltInType.SByte or
+                BuiltInType.Byte or
+                BuiltInType.Int16 or
+                BuiltInType.UInt16 or
+                BuiltInType.Int32 or
+                BuiltInType.UInt32 or
+                BuiltInType.Int64 or
+                BuiltInType.UInt64 or
+                BuiltInType.Float or
+                BuiltInType.Double;
+            return targetType switch
+            {
+                BuiltInType.Boolean or
+                BuiltInType.SByte or
+                BuiltInType.Byte or
+                BuiltInType.Int16 or
+                BuiltInType.Float or
+                BuiltInType.Double => numeric || sourceType == BuiltInType.String,
+                BuiltInType.UInt16 or
+                BuiltInType.Int32 or
+                BuiltInType.UInt32 or
+                BuiltInType.Int64 or
+                BuiltInType.UInt64 => numeric || sourceType is
+                    BuiltInType.String or
+                    BuiltInType.StatusCode,
+                BuiltInType.String => numeric || sourceType is
+                    BuiltInType.DateTime or
+                    BuiltInType.Guid or
+                    BuiltInType.NodeId or
+                    BuiltInType.ExpandedNodeId or
+                    BuiltInType.LocalizedText or
+                    BuiltInType.QualifiedName or
+                    BuiltInType.XmlElement or
+                    BuiltInType.StatusCode or
+                    BuiltInType.ExtensionObject,
+                BuiltInType.DateTime or
+                BuiltInType.XmlElement or
+                BuiltInType.QualifiedName or
+                BuiltInType.LocalizedText => sourceType == BuiltInType.String,
+                BuiltInType.Guid => sourceType is BuiltInType.String or BuiltInType.ByteString,
+                BuiltInType.ByteString => sourceType is BuiltInType.String or BuiltInType.Guid,
+                BuiltInType.NodeId => sourceType is BuiltInType.String or BuiltInType.ExpandedNodeId,
+                BuiltInType.ExpandedNodeId => sourceType is BuiltInType.String or BuiltInType.NodeId,
+                BuiltInType.StatusCode => sourceType is
+                    BuiltInType.UInt16 or
+                    BuiltInType.Int32 or
+                    BuiltInType.UInt32 or
+                    BuiltInType.Int64 or
+                    BuiltInType.UInt64 or
+                    BuiltInType.String,
+                _ => false
             };
         }
 
@@ -8640,6 +8733,28 @@ namespace Opc.Ua
             }
             // TODO: Collapse matrix
             return new Variant(items);
+        }
+
+        /// <summary>
+        /// Collapses a list of variants into an array variant like
+        /// <see cref="Collapse(ArrayOf{Variant})"/>, but keeps the array shape:
+        /// a single element stays a one element array and an empty list
+        /// becomes an empty array of <paramref name="emptyElementType"/>.
+        /// </summary>
+        internal static Variant Collapse(ArrayOf<Variant> items, BuiltInType emptyElementType)
+        {
+            if (items.Count == 0)
+            {
+                return CreateArray(items, emptyElementType);
+            }
+            if (items.Count == 1)
+            {
+                TypeInfo typeInfo = items.Span[0].TypeInfo;
+                return typeInfo.IsScalar
+                    ? CreateArray(items, typeInfo.BuiltInType)
+                    : new Variant(items);
+            }
+            return Collapse(items);
         }
 
         /// <summary>

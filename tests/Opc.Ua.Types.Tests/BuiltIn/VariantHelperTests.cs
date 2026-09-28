@@ -1550,6 +1550,29 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void CastFromOneElementOrEmptyObjectArrayKeepsArrayShape()
+        {
+            // H-3: a one element list became a scalar and an empty one Null.
+            object[] one = [5];
+            Enum[] oneEnum = [TestEnum.One];
+            Variant fromOne = VariantHelper.CastFrom(one);
+            Variant fromEmpty = VariantHelper.CastFrom(Array.Empty<object>());
+            Variant fromOneEnum = VariantHelper.CastFrom(oneEnum);
+            Variant fromEmptyEnum = VariantHelper.CastFrom(Array.Empty<Enum>());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(fromOne.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Int32));
+                Assert.That(fromOne.GetInt32Array().ToArray(), Is.EqualTo(one));
+                Assert.That(fromEmpty.IsNull, Is.False);
+                Assert.That(fromEmpty.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Variant));
+                Assert.That(fromOneEnum.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Enumeration));
+                Assert.That(fromEmptyEnum.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Enumeration));
+                Assert.That(fromEmptyEnum.IsNull, Is.False);
+            });
+        }
+
+        [Test]
         public void TryCastFromIEnumerableEnumReturnsVariant()
         {
             IEnumerable<Enum> enums = [TestEnum.One, TestEnum.Two];

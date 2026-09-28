@@ -49,6 +49,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         private static readonly int[] s_oneTwoThree = [1, 2, 3];
         private static readonly int[] s_twoByTwo = [2, 2];
         private static readonly int[] s_five = [5];
+        private static readonly bool[] s_true = [true];
         private static readonly int[] s_fiveSix = [5, 6];
         private static readonly double[] s_fiveDouble = [5.0];
         private static readonly string[] s_fiveSixStrings = ["5", "6"];
@@ -798,6 +799,34 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(
                     () => Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.DiagnosticInfo),
                     Throws.TypeOf<InvalidCastException>());
+            });
+        }
+
+        [Test]
+        public void ConvertToEmptyArrayChecksLegalityLikeNonEmptyArray()
+        {
+            // A1-8: an empty array must not convert where a non-empty one
+            // cannot, nor get a different element type.
+            Variant toVariant = Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.Variant);
+            Variant oneToVariant = Variant.From(s_five.ToArrayOf()).ConvertTo(BuiltInType.Variant);
+            Variant enumToInt = Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.Enumeration);
+            Variant stringToGuid = Variant.From(ArrayOf<string>.Empty).ConvertTo(BuiltInType.Guid);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => Variant.From(s_true.ToArrayOf()).ConvertTo(BuiltInType.Guid),
+                    Throws.TypeOf<InvalidCastException>());
+                Assert.That(
+                    () => Variant.From(ArrayOf<bool>.Empty).ConvertTo(BuiltInType.Guid),
+                    Throws.TypeOf<InvalidCastException>());
+                Assert.That(
+                    () => Variant.From(ArrayOf<Uuid>.Empty).ConvertTo(BuiltInType.DateTime),
+                    Throws.TypeOf<InvalidCastException>());
+                Assert.That(toVariant.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Int32));
+                Assert.That(oneToVariant.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Int32));
+                Assert.That(enumToInt.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Int32));
+                Assert.That(stringToGuid.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Guid));
             });
         }
 
