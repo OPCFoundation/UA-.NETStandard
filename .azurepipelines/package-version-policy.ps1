@@ -270,11 +270,12 @@ function Test-PromotablePreviewPackageVersion {
         other shape is rejected: "-preview.N.gabc123" and "+gabc123" are
         non-public builds (master, PR and feature branches), and anything
         else ("-rc.1", "-preview", a four-component version) is not a
-        numbered preview this repository ever produces.
+        numbered preview this repository ever produces. The label is matched
+        case-sensitively (-cmatch): "-PREVIEW.6" is not the shape NBGV emits.
     #>
     param([Parameter(Mandatory)][string]$Version)
 
-    return $Version -match '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-preview\.(0|[1-9]\d*)$'
+    return $Version -cmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-preview\.(0|[1-9]\d*)$'
 }
 
 function Test-CanonicalReleaseBranchRef {

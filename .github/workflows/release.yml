@@ -220,6 +220,14 @@ jobs:
                   "'M.m.p-preview.N' candidate without a commit id may be promoted with " +
                   "channel 'preview'.")
           }
+          # schemaVersion 1 manifests predate the recorded channel. They stay
+          # promotable as stable, but a preview must prove its channel.
+          if ($channel -ceq 'preview' -and $manifest.schemaVersion -ne 2) {
+              throw (
+                  "The promotion manifest is schemaVersion $($manifest.schemaVersion), which " +
+                  "records no channel. Only a schemaVersion 2 candidate may be promoted " +
+                  "with channel 'preview'.")
+          }
           if ($manifest.schemaVersion -eq 2 -and $manifest.channel -cne $channel) {
               throw (
                   "The promotion manifest records channel '$($manifest.channel)', but this " +

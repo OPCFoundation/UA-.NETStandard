@@ -286,6 +286,8 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("2.0.0", false, Description = "Stable is not a preview")]
         [TestCase("2.0.0-preview.1.gabc123def0", false, Description = "Non-public build carries a commit id")]
         [TestCase("2.0.0-preview.6+gabc123def0", false, Description = "Build metadata")]
+        [TestCase("2.0.0-PREVIEW.6", false, Description = "Upper-case label")]
+        [TestCase("2.0.0-Preview.6", false, Description = "Mixed-case label")]
         [TestCase("2.0.0-preview", false, Description = "Unnumbered preview")]
         [TestCase("2.0.0-preview.06", false, Description = "Leading zero in the preview number")]
         [TestCase("2.0.0-rc.1", false, Description = "Other prerelease label")]
@@ -306,6 +308,7 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("refs/heads/release/2.0", "2.0.1-preview.3", true)]
         [TestCase("refs/heads/release/2.0", "2.0.0", true, Description = "Stable still accepted")]
         [TestCase("refs/heads/release/2.0", "2.1.0-preview.1", false, Description = "Other minor line")]
+        [TestCase("refs/heads/release/2.0", "2.0.0-PREVIEW.6", false, Description = "Upper-case label")]
         [TestCase("refs/heads/release/2.0", "2.0.0-preview.6.gabc123def0", false, Description = "Non-public build")]
         [TestCase("refs/heads/release/2.0", "2.0.0-preview.6+gabc123def0", false, Description = "Build metadata")]
         [TestCase("refs/heads/release/2.0.0", "2.0.0-preview.6", false, Description = "Retired three-component branch")]
@@ -362,6 +365,10 @@ namespace Opc.Ua.Tools.Tests
                     workflow,
                     Does.Contain("$manifest.channel -cne $channel"),
                     "The candidate's recorded channel must match the dispatched channel.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("$channel -ceq 'preview' -and $manifest.schemaVersion -ne 2"),
+                    "A preview must come from a manifest that records its channel.");
             });
         }
 
