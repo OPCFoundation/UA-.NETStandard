@@ -1338,6 +1338,14 @@ namespace Opc.Ua
                     var buffer = new StringBuilder();
                     UnescapeUri(text, 4, index, buffer);
                     namespaceUri = buffer.ToString();
+
+                    // "nsu=;" has no namespace uri (Part 6 5.1.12).
+                    if (namespaceUri.Length == 0)
+                    {
+                        error = NodeIdParseError.InvalidNamespaceFormat;
+                        return false;
+                    }
+
                     text = text[(index + 1)..];
                 }
             }
