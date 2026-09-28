@@ -208,6 +208,11 @@ namespace Opc.Ua.Di.Tests
                 throw new NotSupportedException();
             }
 
+            public T? GetService<T>() where T : class
+            {
+                throw new NotSupportedException();
+            }
+
             public ValueTask<Server.Builders.IDeviceBuilder<DeviceState>> CreateDeviceAsync(
                 QualifiedName browseName,
                 NodeState? parent = null)
