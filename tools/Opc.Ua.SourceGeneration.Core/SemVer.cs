@@ -36,12 +36,15 @@ namespace Opc.Ua.SourceGeneration
     /// Lenient (major, minor, patch) version used for dependency resolution.
     /// Parses OPC-UA-style strings such as <c>"1.05.07"</c>, <c>"1.5.7"</c>,
     /// <c>"v105"</c>, <c>"1.5"</c> or <c>"1.5.7-rc1"</c>. Pre-release suffixes
-    /// are detected and cause the value to sort below the corresponding release.
+    /// sort below the corresponding release and are ordered among each other
+    /// by the SemVer 2.0 section 11 identifier rules.
     /// </summary>
     /// <remarks>
-    /// This is not a full SemVer 2.0 implementation. It is intentionally
-    /// permissive so that it can consume version strings from heterogeneous
-    /// OPC UA models without failing the build.
+    /// Parsing is intentionally more permissive than SemVer 2.0 (a "v" prefix,
+    /// leading zeros, a missing or a fourth component, the condensed "105"
+    /// form) so that it can consume version strings from heterogeneous OPC UA
+    /// models without failing the build. Precedence follows SemVer 2.0 section
+    /// 11 for everything SemVer defines; build metadata is ignored (section 10).
     /// </remarks>
     internal readonly struct SemVer : IEquatable<SemVer>, IComparable<SemVer>
     {
@@ -56,7 +59,7 @@ namespace Opc.Ua.SourceGeneration
             int minor,
             int patch,
             bool hasValue,
-            bool isPrerelease,
+            string prerelease,
             int revision = 0)
         {
             Major = major;
@@ -64,7 +67,7 @@ namespace Opc.Ua.SourceGeneration
             Patch = patch;
             Revision = revision;
             HasValue = hasValue;
-            IsPrerelease = isPrerelease;
+            Prerelease = prerelease;
         }
 
         /// <summary>Major component (X in X.Y.Z).</summary>
@@ -86,7 +89,13 @@ namespace Opc.Ua.SourceGeneration
         public bool HasValue { get; }
 
         /// <summary>True when the original string carried a pre-release tag (e.g. <c>-rc1</c>).</summary>
-        public bool IsPrerelease { get; }
+        public bool IsPrerelease => Prerelease != null;
+
+        /// <summary>
+        /// The pre-release identifiers after the '-' (e.g. <c>"alpha.1"</c>);
+        /// null for a release.
+        /// </summary>
+        public string Prerelease { get; }
 
         /// <summary>
         /// Tries to parse a version string. Returns <see cref="Unspecified"/> and
@@ -116,12 +125,13 @@ namespace Opc.Ua.SourceGeneration
                 s = s[..buildAt];
             }
 
-            // Detach any pre-release tag after '-'.
-            bool isPrerelease = false;
+            // Detach any pre-release tag after the first '-'; the identifiers
+            // themselves may contain '-' (SemVer 2.0 section 9).
+            string prerelease = null;
             int tagAt = s.IndexOf('-', StringComparison.Ordinal);
             if (tagAt >= 0)
             {
-                isPrerelease = true;
+                prerelease = s[(tagAt + 1)..];
                 s = s[..tagAt];
             }
 
@@ -137,7 +147,7 @@ namespace Opc.Ua.SourceGeneration
             // the length makes decomposition unambiguous.
             if (parts.Length == 1 && IsAllDigits(parts[0]))
             {
-                return TryParseCondensedForm(parts[0], isPrerelease, out value);
+                return TryParseCondensedForm(parts[0], prerelease, out value);
             }
 
             int major = 0;
@@ -167,7 +177,7 @@ namespace Opc.Ua.SourceGeneration
                 minor,
                 patch,
                 hasValue: true,
-                isPrerelease: isPrerelease,
+                prerelease: prerelease,
                 revision: revision);
             return true;
         }
@@ -226,6 +236,49 @@ namespace Opc.Ua.SourceGeneration
                 return cmp;
             }
             return CompareVersionStrings(left, right);
+        }
+
+        /// <summary>
+        /// Orders two editions of the same model the way OPC 10000-6 F.2
+        /// (Table F.1) prescribes. The ModelVersion (a SemVer 2.0 string) is
+        /// compared first: when both declare one it decides, when only one
+        /// declares one that one is newer. A tie, or two models without a
+        /// ModelVersion, is settled by the PublicationDate. The ModelTableEntry
+        /// Version is "not intended for programmatic comparisons", so it only
+        /// breaks what is left as a last heuristic. Every step compares a key of
+        /// its own, so the order is total and the newest of several candidates
+        /// does not depend on the order they are visited in.
+        /// </summary>
+        /// <param name="leftModelVersion">ModelVersion of the left model, or null.</param>
+        /// <param name="leftPublicationDate">PublicationDate of the left model
+        /// (<see cref="DateTime.MinValue"/> when absent).</param>
+        /// <param name="leftVersion">Version label of the left model, or null.</param>
+        /// <param name="rightModelVersion">ModelVersion of the right model, or null.</param>
+        /// <param name="rightPublicationDate">PublicationDate of the right model.</param>
+        /// <param name="rightVersion">Version label of the right model, or null.</param>
+        public static int CompareModels(
+            string leftModelVersion,
+            DateTime leftPublicationDate,
+            string leftVersion,
+            string rightModelVersion,
+            DateTime rightPublicationDate,
+            string rightVersion)
+        {
+            // A missing ModelVersion ranks below any declared one (kind 0 in
+            // the total order), which is the "only one has a ModelVersion" rule.
+            int cmp = CompareVersionStringsTotal(leftModelVersion, rightModelVersion);
+            if (cmp != 0)
+            {
+                return cmp;
+            }
+            cmp = DateTime.Compare(
+                leftPublicationDate.ToUniversalTime(),
+                rightPublicationDate.ToUniversalTime());
+            if (cmp != 0)
+            {
+                return cmp;
+            }
+            return CompareVersionStringsTotal(leftVersion, rightVersion);
         }
 
         /// <summary>
@@ -308,23 +361,84 @@ namespace Opc.Ua.SourceGeneration
             {
                 return c;
             }
-            // Pre-release sorts below its release counterpart.
-            if (IsPrerelease == other.IsPrerelease)
+            // Pre-release sorts below its release counterpart (SemVer 2.0 section 11.3).
+            if (!IsPrerelease || !other.IsPrerelease)
             {
-                return 0;
+                if (IsPrerelease == other.IsPrerelease)
+                {
+                    return 0;
+                }
+                return IsPrerelease ? -1 : 1;
             }
-            return IsPrerelease ? -1 : 1;
+            return ComparePrerelease(Prerelease, other.Prerelease);
+        }
+
+        /// <summary>
+        /// SemVer 2.0 section 11.4: pre-release versions are compared identifier
+        /// by identifier (dot separated). Numeric identifiers compare
+        /// numerically, alphanumeric identifiers in ASCII order, a numeric
+        /// identifier ranks below an alphanumeric one, and when all shared
+        /// identifiers are equal the version with fewer identifiers ranks lower.
+        /// </summary>
+        internal static int ComparePrerelease(string left, string right)
+        {
+            string[] leftIds = left.Split('.');
+            string[] rightIds = right.Split('.');
+            int count = Math.Min(leftIds.Length, rightIds.Length);
+            for (int i = 0; i < count; i++)
+            {
+                int c = ComparePrereleaseIdentifier(leftIds[i], rightIds[i]);
+                if (c != 0)
+                {
+                    return c;
+                }
+            }
+            return leftIds.Length.CompareTo(rightIds.Length);
+        }
+
+        private static int ComparePrereleaseIdentifier(string left, string right)
+        {
+            bool leftNumeric = IsAsciiDigits(left);
+            bool rightNumeric = IsAsciiDigits(right);
+            if (leftNumeric && rightNumeric)
+            {
+                // Numerically and without overflow: drop leading zeros (SemVer
+                // forbids them, the lenient parser tolerates them); then the
+                // longer digit string is the larger number.
+                string l = left.TrimStart('0');
+                string r = right.TrimStart('0');
+                int c = l.Length.CompareTo(r.Length);
+                return c != 0 ? c : Math.Sign(string.CompareOrdinal(l, r));
+            }
+            if (leftNumeric != rightNumeric)
+            {
+                return leftNumeric ? -1 : 1;
+            }
+            return Math.Sign(string.CompareOrdinal(left, right));
+        }
+
+        private static bool IsAsciiDigits(string s)
+        {
+            if (s.Length == 0)
+            {
+                return false;
+            }
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (s[i] is < '0' or > '9')
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <inheritdoc/>
         public bool Equals(SemVer other)
         {
-            return HasValue == other.HasValue &&
-                Major == other.Major &&
-                Minor == other.Minor &&
-                Patch == other.Patch &&
-                Revision == other.Revision &&
-                IsPrerelease == other.IsPrerelease;
+            // Equal precedence: the pre-release identifiers "01" and "1" are
+            // the same number, so compare them rather than match the text.
+            return HasValue == other.HasValue && CompareTo(other) == 0;
         }
 
         /// <inheritdoc/>
@@ -367,7 +481,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 core += "." + Revision.ToString(CultureInfo.InvariantCulture);
             }
-            return IsPrerelease ? core + "-pre" : core;
+            return IsPrerelease ? core + "-" + Prerelease : core;
         }
 
         public static bool operator ==(SemVer left, SemVer right)
@@ -431,7 +545,7 @@ namespace Opc.Ua.SourceGeneration
             return true;
         }
 
-        private static bool TryParseCondensedForm(string digits, bool isPrerelease, out SemVer value)
+        private static bool TryParseCondensedForm(string digits, string prerelease, out SemVer value)
         {
             // "105" -> 1.05.0 -> (1, 5, 0). "10506" -> (1, 5, 6).
             // Only 3-digit and 5-digit forms are decomposed; anything else is
@@ -441,7 +555,7 @@ namespace Opc.Ua.SourceGeneration
                 int major = digits[0] - '0';
                 if (TryParseSlice(digits, 1, 2, out int minor))
                 {
-                    value = new SemVer(major, minor, 0, hasValue: true, isPrerelease: isPrerelease);
+                    value = new SemVer(major, minor, 0, hasValue: true, prerelease: prerelease);
                     return true;
                 }
             }
@@ -451,14 +565,14 @@ namespace Opc.Ua.SourceGeneration
                 if (TryParseSlice(digits, 1, 2, out int minor) &&
                     TryParseSlice(digits, 3, 2, out int patch))
                 {
-                    value = new SemVer(major, minor, patch, hasValue: true, isPrerelease: isPrerelease);
+                    value = new SemVer(major, minor, patch, hasValue: true, prerelease: prerelease);
                     return true;
                 }
             }
 
             if (int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out int maj))
             {
-                value = new SemVer(maj, 0, 0, hasValue: true, isPrerelease: isPrerelease);
+                value = new SemVer(maj, 0, 0, hasValue: true, prerelease: prerelease);
                 return true;
             }
             value = Unspecified;

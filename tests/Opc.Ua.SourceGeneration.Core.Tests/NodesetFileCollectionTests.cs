@@ -149,11 +149,9 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Regression: the NodeSet's own &lt;Model Version="..."&gt; was never read -
-        /// Info.Version came from the item metadata or fell straight through to
-        /// the publication date. Two ordinary AdditionalFiles declaring 1.05.9
-        /// and 1.05.10 were therefore selected by publication date instead of by
-        /// version.
+        /// Regression: the NodeSet's own &lt;Model ModelVersion="..."&gt; was never
+        /// read. OPC 10000-6 F.2 Table F.1 orders editions by the SemVer
+        /// ModelVersion, so 1.5.10 is newer than 1.5.9 whatever the dates say.
         /// </summary>
         [Test]
         public void DeclaredModelVersionIsUsedWhenTheItemMetadataHasNone()
@@ -161,14 +159,14 @@ namespace Opc.Ua.SourceGeneration
             const string older = "memory://a-older.NodeSet2.xml";
             const string newer = "memory://b-newer.NodeSet2.xml";
 
-            // The 1.05.9 file is published later, so a date comparison would
-            // pick it; the declared versions say otherwise.
+            // The 1.5.9 file is published later, so a date comparison would
+            // pick it; the declared ModelVersions say otherwise.
             m_fileSystem.Add(
                 older,
-                Encoding.UTF8.GetBytes(NodeSet("1.05.9", "2026-09-01T00:00:00Z")));
+                Encoding.UTF8.GetBytes(NodeSet("1.05.9", "2026-09-01T00:00:00Z", "1.5.9")));
             m_fileSystem.Add(
                 newer,
-                Encoding.UTF8.GetBytes(NodeSet("1.05.10", "2026-01-01T00:00:00Z")));
+                Encoding.UTF8.GetBytes(NodeSet("1.05.10", "2026-01-01T00:00:00Z", "1.5.10")));
 
             // No options.Version - the version has to come from <Models>.
             NodesetFileCollection collection = Create((older, null), (newer, null));
@@ -176,7 +174,66 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(
                 collection.Files[ModelUri],
                 Is.EqualTo(newer),
-                "1.05.10 is newer than 1.05.9 regardless of publication date");
+                "1.5.10 is newer than 1.5.9 regardless of publication date");
+        }
+
+        /// <summary>
+        /// Regression (N4): the Version attribute was compared although OPC
+        /// 10000-6 F.2 says it is "not intended for programmatic comparisons",
+        /// and ModelVersion was ignored. Here the Version text says "Draft"
+        /// on the newer model, which is newer by ModelVersion.
+        /// </summary>
+        [Test]
+        public void ModelVersionWinsOverTheVersionAttribute()
+        {
+            const string a = "memory://a.NodeSet2.xml";
+            const string b = "memory://b.NodeSet2.xml";
+
+            m_fileSystem.Add(
+                a, Encoding.UTF8.GetBytes(NodeSet("1.05.04", "2024-01-01T00:00:00Z", "1.5.4")));
+            m_fileSystem.Add(
+                b, Encoding.UTF8.GetBytes(NodeSet("Draft", "2025-01-01T00:00:00Z", "1.5.5")));
+
+            Assert.That(Create((a, null), (b, null)).Files[ModelUri], Is.EqualTo(b));
+        }
+
+        /// <summary>
+        /// Regression (N4): without a ModelVersion the PublicationDate decides
+        /// (OPC 10000-6 F.2); the Version attribute used to outrank it.
+        /// </summary>
+        [Test]
+        public void PublicationDateDecidesWhenNoModelVersionIsDeclared()
+        {
+            const string a = "memory://a.NodeSet2.xml";
+            const string b = "memory://b.NodeSet2.xml";
+
+            m_fileSystem.Add(a, Encoding.UTF8.GetBytes(NodeSet("2.0.0", "2024-01-01T00:00:00Z")));
+            m_fileSystem.Add(b, Encoding.UTF8.GetBytes(NodeSet("1.0.0", "2025-01-01T00:00:00Z")));
+
+            Assert.That(Create((a, null), (b, null)).Files[ModelUri], Is.EqualTo(b));
+        }
+
+        /// <summary>
+        /// Regression (N4): a model that declares a ModelVersion is newer than
+        /// one that does not, and the PublicationDate is then ignored.
+        /// </summary>
+        [Test]
+        public void OnlyModelWithModelVersionWins()
+        {
+            const string a = "memory://a.NodeSet2.xml";
+            const string b = "memory://b.NodeSet2.xml";
+
+            m_fileSystem.Add(a, Encoding.UTF8.GetBytes(NodeSet("9.0.0", "2026-01-01T00:00:00Z")));
+            m_fileSystem.Add(
+                b, Encoding.UTF8.GetBytes(NodeSet("1.0.0", "2020-01-01T00:00:00Z", "1.0.0")));
+
+            Assert.That(Create((a, null), (b, null)).Files[ModelUri], Is.EqualTo(b));
+            m_fileSystem.Dispose();
+            m_fileSystem = new VirtualFileSystem();
+            m_fileSystem.Add(a, Encoding.UTF8.GetBytes(NodeSet("9.0.0", "2026-01-01T00:00:00Z")));
+            m_fileSystem.Add(
+                b, Encoding.UTF8.GetBytes(NodeSet("1.0.0", "2020-01-01T00:00:00Z", "1.0.0")));
+            Assert.That(Create((b, null), (a, null)).Files[ModelUri], Is.EqualTo(b));
         }
 
         /// <summary>
@@ -270,7 +327,8 @@ namespace Opc.Ua.SourceGeneration
             ];
             foreach ((string path, string version, string published) in candidates)
             {
-                m_fileSystem.Add(path, Encoding.UTF8.GetBytes(NodeSet(version, published)));
+                m_fileSystem.Add(
+                    path, Encoding.UTF8.GetBytes(NodeSet(version, published, version)));
             }
 
             NodesetFileCollection collection = Create(
@@ -433,11 +491,16 @@ namespace Opc.Ua.SourceGeneration
 
         private static string NodeSet(
             string version,
-            string publicationDate = "2026-08-12T00:00:00Z")
+            string publicationDate = "2026-08-12T00:00:00Z",
+            string modelVersion = null)
         {
             string versionAttribute = version == null
                 ? string.Empty
                 : $" Version=\"{version}\"";
+            if (modelVersion != null)
+            {
+                versionAttribute += $" ModelVersion=\"{modelVersion}\"";
+            }
 
             return $"""
                 <?xml version="1.0" encoding="utf-8"?>

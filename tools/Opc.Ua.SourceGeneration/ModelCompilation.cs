@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -471,12 +472,20 @@ namespace Opc.Ua.SourceGeneration
         /// payload-bearing self producer first, then the version, then the
         /// publication date. The newest entry is picked by pairwise
         /// replacement, so this must be a total order or the winner depends on
-        /// the order the assemblies are referenced in. The version is compared
-        /// numerically (ordinally "1.05.9" sorts above "1.05.10") with the same
-        /// total order NodesetFileCollection uses, so the two halves of the
-        /// pipeline cannot pick different winners: a declared version ranks
-        /// above a bare publication date, which is not comparable with it.
+        /// the order the assemblies are referenced in. The versions go through
+        /// <see cref="SemVer.CompareModels"/>, the OPC 10000-6 F.2 comparator
+        /// NodesetFileCollection uses, so the two halves of the pipeline cannot
+        /// pick different winners.
         /// </summary>
+        /// <remarks>
+        /// <see cref="ModelDependencyAttribute"/> and its ModelDependencyV1
+        /// payload carry a single version string and no separate ModelVersion.
+        /// That string is the version the producing generator publishes as the
+        /// model's version (the ModelDesign pipeline derives the
+        /// NamespaceMetadata ModelVersion from it), so it takes the ModelVersion
+        /// slot of the comparison; there is no separate Version label to fall
+        /// back to. The raw publication date text breaks what is left.
+        /// </remarks>
         internal static int CompareReferencedModels(
             ModelDependencyReference candidate,
             ModelDependencyReference existing)
@@ -484,8 +493,13 @@ namespace Opc.Ua.SourceGeneration
             int cmp = IsModelProducer(candidate).CompareTo(IsModelProducer(existing));
             if (cmp == 0)
             {
-                cmp = SemVer.CompareVersionStringsTotal(
-                    candidate.Version, existing.Version);
+                cmp = SemVer.CompareModels(
+                    candidate.Version,
+                    ParsePublicationDate(candidate.PublicationDate),
+                    null,
+                    existing.Version,
+                    ParsePublicationDate(existing.PublicationDate),
+                    null);
             }
             if (cmp == 0)
             {
@@ -493,6 +507,18 @@ namespace Opc.Ua.SourceGeneration
                     candidate.PublicationDate, existing.PublicationDate);
             }
             return cmp;
+        }
+
+        private static DateTime ParsePublicationDate(string publicationDate)
+        {
+            return !string.IsNullOrEmpty(publicationDate) &&
+                DateTime.TryParse(
+                    publicationDate,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                    out DateTime date)
+                ? date
+                : DateTime.MinValue;
         }
 
         private static bool IsModelProducer(ModelDependencyReference reference)

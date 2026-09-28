@@ -64,6 +64,13 @@ namespace Opc.Ua.SourceGeneration
         /// Previous versions
         /// </summary>
         internal List<NodesetFile> PreviousVersions { get; set; }
+
+        /// <summary>
+        /// The ModelVersion used to order editions of the model: the item
+        /// metadata Version when set, otherwise the ModelTableEntry
+        /// ModelVersion (OPC 10000-6 F.2). Null when neither declares one.
+        /// </summary>
+        internal string ModelVersion { get; init; }
     }
 
     /// <summary>
@@ -247,16 +254,17 @@ namespace Opc.Ua.SourceGeneration
                     {
                         FileName = file,
                         NodeSet = nodeset,
+                        // OPC 10000-6 F.2 Table F.1: editions are ordered by the
+                        // SemVer ModelVersion; the Version attribute is "not
+                        // intended for programmatic comparisons".
+                        ModelVersion = FirstNonEmpty(options.Version, model.ModelVersion),
                         Info = new NodesetFileOptions // Set reasonable defaults if not provided
                         {
                             ModelUri = model.ModelUri,
-                            // The NodeSet's own <Model Version="..."> before the
-                            // publication date: a file that declares a version
-                            // was being compared by date, so "1.05.9" and
-                            // "1.05.10" were ordered by when they were published
-                            // rather than by which version is newer.
+                            // A label only; ordering uses ModelVersion above.
                             Version = FirstNonEmpty(
                                 options.Version,
+                                model.ModelVersion,
                                 model.Version,
                                 model.PublicationDate.ToString(
                                     "yyyy-MM-dd", CultureInfo.InvariantCulture)),
@@ -460,23 +468,30 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Compares two NodeSets of the same model URI. Versions first (numeric
-        /// per component, because ordinally "1.05.9" sorts above "1.05.10"),
-        /// then the publication date. A NodeSet that declares a version ranks
-        /// above one that only carries its publication date: the comparison
-        /// must be a total order, because the newest of several inputs is picked
-        /// by pairwise replacement, and breaking a version-against-date tie on
-        /// the publication date made the winner depend on the input order.
+        /// Compares two NodeSets of the same model URI with
+        /// <see cref="SemVer.CompareModels"/>: the ModelVersion (item metadata
+        /// Version overrides the declared one) with SemVer precedence, then the
+        /// publication date, then the declared Version as a last heuristic. The
+        /// comparison must be a total order, because the newest of several
+        /// inputs is picked by pairwise replacement.
         /// </summary>
         private static int CompareVersions(NodesetFile left, NodesetFile right)
         {
-            int cmp = SemVer.CompareVersionStringsTotal(left.Info.Version, right.Info.Version);
-            if (cmp != 0)
-            {
-                return cmp;
-            }
-            return DateTime.Compare(
-                GetPublicationDate(left), GetPublicationDate(right));
+            // OPC 10000-6 F.2 Table F.1: ModelVersion, then PublicationDate;
+            // the Version attribute only as a last heuristic.
+            return SemVer.CompareModels(
+                left.ModelVersion,
+                GetPublicationDate(left),
+                GetModel(left)?.Version,
+                right.ModelVersion,
+                GetPublicationDate(right),
+                GetModel(right)?.Version);
+        }
+
+        private static ModelTableEntry GetModel(NodesetFile nodeset)
+        {
+            ModelTableEntry[] models = nodeset.NodeSet?.Models;
+            return models != null && models.Length > 0 ? models[0] : null;
         }
 
         /// <summary>
