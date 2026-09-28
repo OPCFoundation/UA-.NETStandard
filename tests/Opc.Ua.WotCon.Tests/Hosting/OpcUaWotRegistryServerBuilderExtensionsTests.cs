@@ -38,6 +38,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
+using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
@@ -93,10 +94,11 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         [TestCase(true)]
         public async Task ExplicitProjectionCompatibilityReachesRegistryAndViewMaterialization(bool configuration)
         {
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
             var services = new ServiceCollection();
             var host = new FakeWotProjectionHost();
-            var viewHost = new InMemoryWotViewProjectionHost();
-            services.AddSingleton<IWotProjectionHost>(host);
+            using var viewHost = new LifecycleWotViewProjectionHost(runtime.Lifecycle);
+            services.AddSingleton<IWotProjectionHost>(runtime.Observe(host.RecordCommitted));
             services.AddSingleton<IWotDocumentConverter>(new FakeWotDocumentConverter());
             services.AddSingleton<IWotViewProjectionHost>(viewHost);
             IOpcUaBuilder builder = services.AddOpcUa();
@@ -106,17 +108,27 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                     new Dictionary<string, string?>
                     {
                         [$"{OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection}:" +
-                            "ProjectionCompatibilityMode"] = "DraftProjection11"
+                            "ProjectionCompatibilityMode"] = "DraftProjection11",
+                        [$"{OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection}:StorageFolder"] =
+                            runtime.StorageFolder,
+                        [$"{OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection}:AutoRefresh"] = "false"
                     }).Build();
                 builder.AddWotRegistryServer(settings);
             }
             else
             {
                 builder.AddWotRegistryServer(options =>
-                    options.ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11);
+                {
+                    options.ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11;
+                    options.StorageFolder = runtime.StorageFolder;
+                    options.AutoRefresh = false;
+                });
             }
             using ServiceProvider provider = services.BuildServiceProvider();
             IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
+            await registry.InitializeAsync().ConfigureAwait(false);
+            await runtime.Lifecycle.AddAsync(provider.GetRequiredService<WotRegistryNodeManagerFactory>(), null)
+                .ConfigureAwait(false);
             await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = "plans",
@@ -144,14 +156,23 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             }).ConfigureAwait(false);
             Assert.That(registered.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             WotMaterializationCoordinator coordinator = provider.GetRequiredService<WotMaterializationCoordinator>();
+            coordinator.ServerNamespaceUris = runtime.Namespaces;
 
-            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
+            }).ConfigureAwait(false);
 
-            Assert.That(viewHost.Applied, Has.Count.EqualTo(1));
-            Assert.That(viewHost.Applied.Single().Plan.DocumentKind, Is.EqualTo(WotDocumentKind.ThingDescription));
+            Assert.That(coordinator.CommittedPublication.Views.Count, Is.EqualTo(1));
+            WotViewProjectionHandle view = coordinator.CommittedPublication.Views[0];
+            Assert.That(view.ResourceXid, Is.EqualTo(registered.Resource!.Xid));
+            Assert.That(registry.Current.FindResourceByXid(view.ResourceXid)!.Kind,
+                Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
             Assert.That(host.AddCount, Is.EqualTo(1));
             Assert.That(result.Results.Single(value => value.ResourceId == "view").LoadState,
                 Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(result.Results.Single(value => value.ResourceId == "view").RootNodeId,
+                Is.EqualTo(view.ViewNodeId));
         }
 
         [Test]

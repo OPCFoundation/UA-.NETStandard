@@ -56,6 +56,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public NamespaceTable Namespaces => m_server.CurrentInstance.NamespaceUris;
         public INodeManagerLifecycle Lifecycle => m_server.NodeManagerLifecycle;
         public int Port => m_fixture.Port;
+        public string StorageFolder => Path.Combine(m_root, "configured-registry");
 
         public static async Task<PreparedWotTestRuntime> StartAsync()
         {

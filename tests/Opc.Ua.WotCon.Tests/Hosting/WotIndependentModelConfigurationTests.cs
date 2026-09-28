@@ -72,17 +72,22 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         [TestCase("section")]
         public async Task ConfiguredIndependentModeReachesTheRegistryMergeAsync(string route)
         {
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
             var services = new ServiceCollection();
             var host = new FakeWotProjectionHost();
             ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             services.AddSingleton<IServiceMessageContext>(context);
-            services.AddSingleton<IWotProjectionHost>(host);
-            services.AddSingleton<IWotViewProjectionHost>(new InMemoryWotViewProjectionHost());
+            services.AddSingleton<IWotProjectionHost>(runtime.Observe(host.RecordCommitted));
+            using var views = new LifecycleWotViewProjectionHost(runtime.Lifecycle);
+            services.AddSingleton<IWotViewProjectionHost>(views);
             IOpcUaBuilder builder = services.AddOpcUa();
             if (route == "fluent")
             {
                 builder.AddWotRegistryServer(options =>
-                    options.DocumentSetMode = WotDocumentSetMode.IndependentReadableModels);
+                {
+                    options.DocumentSetMode = WotDocumentSetMode.IndependentReadableModels;
+                    options.StorageFolder = runtime.StorageFolder;
+                });
             }
             else
             {
@@ -90,7 +95,9 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                     new Dictionary<string, string?>
                     {
                         [OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection + ":DocumentSetMode"] =
-                            "IndependentReadableModels"
+                            "IndependentReadableModels",
+                        [OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection + ":StorageFolder"] =
+                            runtime.StorageFolder
                     }).Build();
                 if (route == "configuration")
                 {
@@ -107,11 +114,13 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Assert.That(converterOptions.DocumentSetMode, Is.EqualTo(WotDocumentSetMode.IndependentReadableModels));
             Assert.That(converterOptions.ValueEncodingContext, Is.SameAs(context));
             IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
+            await registry.InitializeAsync().ConfigureAwait(false);
             await AddModelAsync(registry, "first", 1).ConfigureAwait(false);
             await AddModelAsync(registry, "second", 2).ConfigureAwait(false);
 
-            WotRefreshResult result = await provider.GetRequiredService<WotMaterializationCoordinator>()
-                .RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotMaterializationCoordinator coordinator = provider.GetRequiredService<WotMaterializationCoordinator>();
+            coordinator.ServerNamespaceUris = runtime.Namespaces;
+            WotRefreshResult result = await coordinator.RefreshAsync(MergeRequest()).ConfigureAwait(false);
 
             Assert.That(result.Results.Select(item => item.Outcome), Is.All.EqualTo(WoTOutcomeEnum.Success),
                 string.Join("; ", result.Results.Select(item => item.Message)));
@@ -138,11 +147,16 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         [Test]
         public async Task ChangingTheModeInvalidatesTheRegistryInputIdentityAsync()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             await AddModelAsync(registry, "first", 1).ConfigureAwait(false);
             var host = new FakeWotProjectionHost();
             var options = new WotNodeSetConverterOptions();
-            using var coordinator = new WotMaterializationCoordinator(registry, host, converterOptions: options);
+            using var coordinator = new WotMaterializationCoordinator(
+                registry, runtime.Observe(host.RecordCommitted), converterOptions: options)
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
             WotRefreshResult initial = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             Assert.That(initial.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             WotRefreshResult unchanged = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
@@ -172,18 +186,25 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         [Test]
         public async Task IndependentReviewRegistryFailureDoesNotPublishAModeFingerprintAsync()
         {
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
             var services = new ServiceCollection();
             var host = new FakeWotProjectionHost();
-            services.AddSingleton<IWotProjectionHost>(host);
-            services.AddSingleton<IWotViewProjectionHost>(new InMemoryWotViewProjectionHost());
+            services.AddSingleton<IWotProjectionHost>(runtime.Observe(host.RecordCommitted));
+            using var views = new LifecycleWotViewProjectionHost(runtime.Lifecycle);
+            services.AddSingleton<IWotViewProjectionHost>(views);
             services.AddOpcUa().AddWotRegistryServer(options =>
-                options.DocumentSetMode = WotDocumentSetMode.IndependentReadableModels);
+            {
+                options.DocumentSetMode = WotDocumentSetMode.IndependentReadableModels;
+                options.StorageFolder = runtime.StorageFolder;
+            });
             using ServiceProvider provider = services.BuildServiceProvider();
             IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
+            await registry.InitializeAsync().ConfigureAwait(false);
             await AddModelAsync(registry, "first", 1).ConfigureAwait(false);
             await AddModelAsync(registry, "second", 2).ConfigureAwait(false);
             WotMaterializationCoordinator coordinator = provider.GetRequiredService<WotMaterializationCoordinator>();
-            WotRefreshResult initial = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            coordinator.ServerNamespaceUris = runtime.Namespaces;
+            WotRefreshResult initial = await coordinator.RefreshAsync(MergeRequest()).ConfigureAwait(false);
             Assert.That(initial.Results, Has.Length.EqualTo(2));
             Assert.That(initial.Results.Select(result => result.Outcome), Is.All.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(host.AddCount, Is.EqualTo(1));
@@ -207,14 +228,14 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             BaseObjectTypeState second = roots.Single(node => node.BrowseName.Name == "second");
             Assert.That(second.SuperTypeId, Is.EqualTo(first.NodeId));
 
-            WotRefreshResult stable = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult stable = await coordinator.RefreshAsync(MergeRequest()).ConfigureAwait(false);
             Assert.That(stable.Results, Has.Length.EqualTo(2));
             Assert.That(stable.Results.Select(result => result.Outcome), Is.All.EqualTo(WoTOutcomeEnum.Unchanged));
             WotNodeSetConverterOptions options = provider.GetRequiredService<WotNodeSetConverterOptions>();
             options.DocumentSetMode = WotDocumentSetMode.PartitionReconstruction;
             for (int attempt = 0; attempt < 2; attempt++)
             {
-                WotRefreshResult failed = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+                WotRefreshResult failed = await coordinator.RefreshAsync(MergeRequest()).ConfigureAwait(false);
                 Assert.That(failed.Results, Has.Length.EqualTo(2));
                 Assert.That(failed.Results.Select(result => result.Outcome), Is.All.EqualTo(WoTOutcomeEnum.Failed));
                 Assert.That(failed.Results.Any(result =>
@@ -240,6 +261,14 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 using var coordinator = new WotMaterializationCoordinator(
                     registry, new FakeWotProjectionHost(), converterOptions: options);
             }, Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        private static WotRefreshRequest MergeRequest()
+        {
+            return new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
+            };
         }
 
         private static async Task AddModelAsync(IWotRegistryService registry, string name, uint identifier)
