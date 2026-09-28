@@ -129,6 +129,7 @@
     <Project Path="src/Opc.Ua.Machinery.ProcessValues/Opc.Ua.Machinery.ProcessValues.csproj" />
     <Project Path="src/Opc.Ua.Machinery.Energy/Opc.Ua.Machinery.Energy.csproj" />
     <Project Path="src/Opc.Ua.Machinery.Server/Opc.Ua.Machinery.Server.csproj" />
+    <Project Path="src/Opc.Ua.Machinery.Client/Opc.Ua.Machinery.Client.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd/Opc.Ua.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Server/Opc.Ua.OpenUsd.Server.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Client/Opc.Ua.OpenUsd.Client.csproj" />

@@ -39,6 +39,7 @@ OPCFoundation.NetStandard.Opc.Ua.ISA95.Client
 OPCFoundation.NetStandard.Opc.Ua.ISA95.Server
 OPCFoundation.NetStandard.Opc.Ua.Lds.Server
 OPCFoundation.NetStandard.Opc.Ua.Machinery
+OPCFoundation.NetStandard.Opc.Ua.Machinery.Client
 OPCFoundation.NetStandard.Opc.Ua.Machinery.Energy
 OPCFoundation.NetStandard.Opc.Ua.Machinery.Jobs
 OPCFoundation.NetStandard.Opc.Ua.Machinery.ProcessValues
