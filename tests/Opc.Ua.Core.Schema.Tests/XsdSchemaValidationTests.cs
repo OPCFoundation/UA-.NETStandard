@@ -248,6 +248,48 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        /// <summary>
+        /// A4-2: a Structure-backed OptionSet is a complex type {Value, ValidBits} while an
+        /// integer-backed OptionSet stays an unsigned integer simple type.
+        /// </summary>
+        [Test]
+        public void StructureBackedOptionSetIsComplexType()
+        {
+            var definition = new EnumDefinition
+            {
+                IsOptionSet = true,
+                Fields = [new EnumField { Name = "Bit0", Value = 0 }]
+            };
+            var structureFlags = new UaTypeDescription(
+                new ExpandedNodeId(new NodeId(4141, SchemaTestData.TestNamespaceIndex)),
+                new QualifiedName("StructureFlags", SchemaTestData.TestNamespaceIndex),
+                definition,
+                SchemaTestData.TestNamespace,
+                isStructureOptionSet: true);
+            UaTypeDescription integerFlags = Describe(
+                4142,
+                "IntegerFlags",
+                SchemaTestData.TestNamespace,
+                SchemaTestData.TestNamespaceIndex,
+                definition);
+            UaTypeDescription holder = SchemaTestData.Structure(
+                4140,
+                "ValidatedFlagsHolder",
+                SchemaTestData.Field("StructureFlags", new NodeId(4141, SchemaTestData.TestNamespaceIndex)),
+                SchemaTestData.Field("IntegerFlags", new NodeId(4142, SchemaTestData.TestNamespaceIndex)));
+            DefaultSchemaProvider provider = CreateProvider(structureFlags, integerFlags, holder);
+            var schema = (XmlSchemaDocument)provider.GetXmlSchema(holder);
+            var document = XDocument.Parse(schema.ToSchemaString());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Compile(schema), Is.Empty);
+                Assert.That(HasComplexType(document, "StructureFlags"), Is.True);
+                Assert.That(Attribute(document, "ValidBits", "name"), Is.EqualTo("ValidBits"));
+                Assert.That(HasSimpleType(document, "IntegerFlags"), Is.True);
+            });
+        }
+
         private static UaTypeDescription Describe(
             uint id,
             string name,

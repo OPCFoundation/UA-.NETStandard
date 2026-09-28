@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Xml;
 using Json.Schema;
 using NUnit.Framework;
 
@@ -239,6 +240,54 @@ namespace Opc.Ua.Schema.Tests
                     sampleType,
                     verbose ? UaSchemaFormat.JsonVerbose : UaSchemaFormat.JsonCompact);
             JsonNode instance = Encode(verbose, e => e.WriteLocalizedText("Label", new LocalizedText("en-US", (string)null!)));
+
+            EvaluationResults results = Evaluate(schema, instance);
+
+            Assert.That(results.IsValid, Is.True, instance.ToJsonString() + "\n" + Errors(results));
+        }
+
+        /// <summary>
+        /// A4-2: a Structure-backed OptionSet from the encodeable factory is described as
+        /// the {Value, ValidBits} structure JsonEncoder writes, not as an unsigned integer.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void GeneratedSchemaValidatesStructureBackedOptionSet(bool verbose)
+        {
+            var typeId = new ExpandedNodeId(new NodeId(3950, SchemaTestData.TestNamespaceIndex));
+            var optionSetType = new Encoders.OptionSet(
+                new XmlQualifiedName("TestStructureFlags", SchemaTestData.TestNamespace),
+                typeId,
+                ExpandedNodeId.Null,
+                ExpandedNodeId.Null,
+                new EnumDefinition
+                {
+                    IsOptionSet = true,
+                    Fields =
+                    [
+                        new EnumField { Name = "Bit0", Value = 0 },
+                        new EnumField { Name = "Bit2", Value = 2 }
+                    ]
+                });
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder.AddEncodeableType(typeId, optionSetType).Commit();
+            var source = new EncodeableFactoryDefinitionSource(factory, new NamespaceTable());
+            Assert.That(source.TryResolve(typeId, out UaTypeDescription? flags), Is.True);
+            Assert.That(flags!.IsStructureOptionSet, Is.True);
+
+            UaTypeDescription holder = SchemaTestData.Structure(
+                3951,
+                "OptionSetHolder",
+                SchemaTestData.Field("Flags", new NodeId(3950, SchemaTestData.TestNamespaceIndex)));
+            IUaSchema schema = SchemaTestData.CreateProvider(flags, holder)
+                .CreateSchema(
+                    holder,
+                    verbose ? UaSchemaFormat.JsonVerbose : UaSchemaFormat.JsonCompact);
+
+            var value = (Encoders.OptionSet)optionSetType.CreateInstance();
+            value.Value = ByteString.From([5]);
+            value.ValidBits = ByteString.From([5]);
+            JsonNode instance = Encode(verbose, e => e.WriteEncodeable("Flags", value, typeId));
 
             EvaluationResults results = Evaluate(schema, instance);
 

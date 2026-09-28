@@ -118,6 +118,10 @@ namespace Opc.Ua.Schema.Xsd
                     case StructureDefinition structure:
                         AddStructure(type, structure);
                         break;
+                    case EnumDefinition when type.IsStructureOptionSet:
+                        // a subtype of the OptionSet structure is encoded as {Value, ValidBits}.
+                        AddStructure(type, UaTypeDescription.CreateOptionSetStructure());
+                        break;
                     case EnumDefinition enumeration:
                         AddEnum(type, enumeration);
                         break;

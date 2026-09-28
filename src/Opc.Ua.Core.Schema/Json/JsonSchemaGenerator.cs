@@ -145,6 +145,9 @@ namespace Opc.Ua.Schema.Json
                 JsonObject schema = type.Definition switch
                 {
                     StructureDefinition structure => BuildStructure(type, structure),
+                    // a subtype of the OptionSet structure is encoded as {Value, ValidBits}.
+                    EnumDefinition when type.IsStructureOptionSet
+                        => BuildStructure(type, UaTypeDescription.CreateOptionSetStructure()),
                     EnumDefinition enumeration => BuildEnum(enumeration, m_verbose),
                     _ => new JsonObject { ["type"] = "object" }
                 };
@@ -260,7 +263,7 @@ namespace Opc.Ua.Schema.Json
                 ArrayOf<EnumField> fields = enumeration.Fields;
                 if (enumeration.IsOptionSet)
                 {
-                    // Part 3 8.52: the fields of an OptionSet are bit numbers and the value
+                    // Part 3 8.52: the fields of an (integer-backed) OptionSet are bit numbers and the value
                     // is the underlying unsigned integer (a string when 64 bit wide) with
                     // any combination of these bits, in both flavors.
                     return new JsonObject
@@ -332,7 +335,8 @@ namespace Opc.Ua.Schema.Json
                 {
                     string key = EnsureType(referenced);
                     JsonObject schema = JsonSchemaConstants.Ref(key);
-                    return allowNull && referenced.Definition is StructureDefinition
+                    return allowNull &&
+                        (referenced.Definition is StructureDefinition || referenced.IsStructureOptionSet)
                         ? Nullable(schema)
                         : schema;
                 }

@@ -436,11 +436,14 @@ namespace Opc.Ua
                     ? cachedBrowseName
                     : new QualifiedName(nodeId.ToString(), nodeId.NamespaceIndex);
 
+                // only Structure-backed OptionSet subtypes are loaded with an IsOptionSet
+                // EnumDefinition; UInteger-backed OptionSets are left opaque.
                 registry.Add(new UaTypeDescription(
                     new ExpandedNodeId(nodeId),
                     browseName,
                     entry.Value,
-                    namespaceUri));
+                    namespaceUri,
+                    isStructureOptionSet: entry.Value is EnumDefinition { IsOptionSet: true }));
             }
 
             return registry;
