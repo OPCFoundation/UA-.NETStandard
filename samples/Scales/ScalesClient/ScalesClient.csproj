@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>ScalesClient</AssemblyName>
+    <PackageId>ScalesClient</PackageId>
+    <RootNamespace>ScalesSample.Client</RootNamespace>
+    <Description>Console client that discovers every OPC 40200 scale and scale system of a server with Opc.Ua.Scales.Client, prints snapshots with identification, weighing ranges, current and registered weight, products and PackML state, drives zero, tare, register and product selection, and streams live weights and scale events and alarms.</Description>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Scales.Client\Opc.Ua.Scales.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+</Project>
