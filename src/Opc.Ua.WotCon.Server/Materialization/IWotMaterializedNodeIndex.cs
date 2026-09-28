@@ -158,7 +158,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// otherwise by the converter's deterministic generated NodeId scheme anchored
     /// at the source's materialized root Node. A source that is not present in the
     /// supplied materialized-root map is treated as out-of-address-space and
-    /// yields <see cref="NodeId.Null"/>.
+    /// yields <see cref="NodeId.Null"/>. Captured source membership, when supplied,
+    /// bounds generated locators as well as authored locators to actually owned Nodes.
     /// </summary>
     public sealed class WotMaterializedNodeIndex : IWotMaterializedNodeIndex
     {
@@ -230,8 +231,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 string rootLocal = sourceRoot.IdentifierAsString;
                 if (rootLocal.Length != 0)
                 {
-                    return new NodeId(
+                    var derived = new NodeId(
                         rootLocal + "/" + affordance.AffordanceName, sourceRoot.NamespaceIndex);
+                    if (m_containsSourceNode is null || m_containsSourceNode(source.Xid, derived))
+                    {
+                        return derived;
+                    }
                 }
             }
             return NodeId.Null;

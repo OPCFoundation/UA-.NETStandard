@@ -95,6 +95,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(located, Is.EqualTo(new NodeId("Sources/A/alpha", 3)));
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task CapturedMembershipValidatesDerivedNames(bool present, bool refusedAuthoredId)
+        {
+            var member = new NodeId("Sources/A/alpha", 3);
+            WotMaterializedNodeIndex index = await IndexAsync(
+                s_root, [present ? member : new NodeId("Sources/A/beta", 3)]).ConfigureAwait(false);
+            ExpandedNodeId authored = refusedAuthoredId
+                ? new ExpandedNodeId(new NodeId("Sources/B/alpha", 3))
+                : ExpandedNodeId.Null;
+
+            NodeId located = index.Locate(Reference(authored));
+
+            Assert.That(located, Is.EqualTo(present ? member : NodeId.Null),
+                "A derived candidate needs the same captured source ownership evidence as an authored candidate.");
+        }
+
         [Test]
         public async Task AnAuthoredIdBeneathTheSourceRootIsHonoured()
         {

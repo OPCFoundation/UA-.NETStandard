@@ -300,6 +300,29 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task GeneratedFallbackOutsideTheCapturedSourceIsOmitted()
+        {
+            await RegisterMappedTd(
+                "src-fallback", "urn:src-fallback", "FallbackSource", "value", explicitAffordanceId: false)
+                .ConfigureAwait(false);
+            await RegisterTd("view-fallback",
+                Projection("urn:view:fallback", "urn:scenario:fallback", "urn:src-fallback")).ConfigureAwait(false);
+
+            WotRefreshResult result = await RefreshAsync().ConfigureAwait(false);
+
+            WotCanonicalViewPublication view = ViewFor("view-fallback");
+            WoTResourceLoadResultDataType row = result.Results.Single(value => value.ResourceId == "view-fallback");
+            Assert.That(view.Active, Is.True);
+            Assert.That(view.Membership.Count, Is.Zero);
+            Assert.That(view.Omissions.Count, Is.EqualTo(1));
+            Assert.That(row.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+            Assert.That(row.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(row.RootNodeId, Is.EqualTo(m_coordinator.CommittedPublication.Views[0].ViewNodeId));
+            Assert.That(m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions, "src-fallback")!.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+        }
+
+        [Test]
         public async Task CyclicProjectionGraphIsRejectedAtDependencyResolution()
         {
             await RegisterTd("cyc-a",
@@ -425,9 +448,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return result;
         }
 
-        private async Task RegisterMappedTd(string resourceId, string id, string rootIdentifier, string propertyName)
+        private async Task RegisterMappedTd(
+            string resourceId, string id, string rootIdentifier, string propertyName, bool explicitAffordanceId = true)
         {
             string modelUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/{resourceId}";
+            string affordanceId = explicitAffordanceId
+                ? $"\"uav:id\":\"nsu={modelUri};s={rootIdentifier}/{propertyName}\","
+                : string.Empty;
             m_converter.UseMappedSource(resourceId);
             await RegisterTd(resourceId, Encoding.UTF8.GetBytes($$"""
                 {
@@ -437,7 +464,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                   "uav:id":"nsu={{modelUri}};s={{rootIdentifier}}",
                   "properties":{
                     "{{propertyName}}":{
-                      "uav:id":"nsu={{modelUri}};s={{rootIdentifier}}/{{propertyName}}",
+                      {{affordanceId}}
                       "type":"number","forms":[{"href":"https://example.test/reading"}]
                     }
                   }
