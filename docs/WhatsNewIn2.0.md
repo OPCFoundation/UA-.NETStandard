@@ -114,6 +114,9 @@ domain-specific companions and draft extensions.
 | Node and reference management | OPC 10000-4 | [Node Management](NodeManagement.md) |
 | File transfer and file systems | OPC 10000-5 Annex C and OPC 10000-20 | [File System Client](FileSystemClient.md) |
 | Roles and user management | OPC 10000-18 | [Role-Based User Management](RoleBasedUserManagement.md) |
+| Global discovery and certificate management (GDS) | OPC 10000-12 | [Global Discovery Server](GDS.md) |
+| Local discovery (LDS and LDS-ME) | OPC 10000-12 | [LDS / LDS-ME](GDS.md#lds--lds-me-45) and the [Console LDS Server](../samples/Lds/ConsoleLdsServer) sample |
+| Device onboarding: registrar ticket administration | OPC 10000-21 | [OnboardingClient](GDS.md#opc-10000-21-onboardingclient) and the [onboarding sample](../samples/Gds/README.md) |
 
 **Companion and extension models**
 
@@ -158,6 +161,9 @@ See [Certificate Manager](CertificateManager.md), [Identity Providers](IdentityP
 GDS support extends application registration, pull/push certificate management,
 custom certificate groups, token issuance, and credential services. A Local
 Discovery Server is also available as a hosted component or standalone sample.
+For OPC 10000-21 device onboarding, clients register and unregister tickets with
+a device registrar through `OnboardingClient`, and the registrar keeps them in a
+pluggable `ITicketStore`.
 See [GDS](GDS.md) for capability boundaries and conformance evidence,
 [Authorization Service](AuthorizationService.md), and [Key Credential Service](KeyCredentialService.md).
 
