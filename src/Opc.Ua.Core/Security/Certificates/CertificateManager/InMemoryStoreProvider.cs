@@ -51,15 +51,21 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            CertificateIdentifierCollectionStore[] stores;
+            // the backing stores are disposed under the lock every store
+            // operation takes, so no operation of an open store can run
+            // concurrently; later operations see the disposed flag.
             lock (m_lock)
             {
-                stores = [.. m_stores.Values];
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                foreach (CertificateIdentifierCollectionStore store in m_stores.Values)
+                {
+                    store.Dispose();
+                }
                 m_stores.Clear();
-            }
-            foreach (CertificateIdentifierCollectionStore store in stores)
-            {
-                store.Dispose();
             }
         }
 
@@ -85,18 +91,33 @@ namespace Opc.Ua
         /// Returns the backing store shared by all stores opened on
         /// <paramref name="storePath"/>.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private CertificateIdentifierCollectionStore GetBackingStore(
             string storePath,
             ITelemetryContext telemetry)
         {
             lock (m_lock)
             {
+                ThrowIfDisposed();
                 if (!m_stores.TryGetValue(storePath, out CertificateIdentifierCollectionStore? store))
                 {
                     store = new CertificateIdentifierCollectionStore(telemetry);
                     m_stores.Add(storePath, store);
                 }
                 return store;
+            }
+        }
+
+        /// <summary>
+        /// Throws once the provider, and with it every backing store, is
+        /// disposed. Must be called under <see cref="m_lock"/>.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        private void ThrowIfDisposed()
+        {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(InMemoryStoreProvider));
             }
         }
 
@@ -216,12 +237,16 @@ namespace Opc.Ua
             /// </summary>
             /// <typeparam name="T">The result type of the operation.</typeparam>
             /// <exception cref="InvalidOperationException"></exception>
+            /// <exception cref="ObjectDisposedException"></exception>
             private T Invoke<T>(Func<CertificateIdentifierCollectionStore, T> operation)
             {
                 CertificateIdentifierCollectionStore backing = m_backing ??
                     throw new InvalidOperationException("The in-memory store is not open.");
                 lock (provider.m_lock)
                 {
+                    // the backing store of a store opened before the provider
+                    // was disposed is disposed as well.
+                    provider.ThrowIfDisposed();
                     return operation(backing);
                 }
             }
@@ -237,5 +262,6 @@ namespace Opc.Ua
         private readonly Dictionary<string, CertificateIdentifierCollectionStore> m_stores =
             new(StringComparer.OrdinalIgnoreCase);
         private readonly Lock m_lock = new();
+        private bool m_disposed;
     }
 }
