@@ -2068,7 +2068,16 @@ namespace Opc.Ua.Server
             // catches duplicates among nodes created via the SDK in this
             // NodeManager. The BrowseName is reserved beneath the parent first so
             // that concurrent adds of the same name cannot both pass the check.
-            (NodeId, QualifiedName) browseNameKey = (parentNodeId, item.BrowseName);
+            // The reservation has the scope of the check: BrowseNames only have to
+            // be unique among nodes sharing the same relationship with the parent
+            // (Part 4 5.8.2.4), which the cross-NodeManager check tests per
+            // ReferenceType; the child list of a local parent keeps BrowseNames
+            // unique regardless of the ReferenceType.
+            NodeId browseNameReferenceTypeId = PredefinedNodes.ContainsKey(parentNodeId)
+                ? NodeId.Null
+                : item.ReferenceTypeId;
+            (NodeId, QualifiedName, NodeId) browseNameKey =
+                (parentNodeId, item.BrowseName, browseNameReferenceTypeId);
             if (!m_addNodesBrowseNameReservations.TryAdd(browseNameKey, 0))
             {
                 return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
@@ -10426,10 +10435,11 @@ namespace Opc.Ua.Server
         private readonly NodeIdDictionary<byte> m_addNodesReservations = [];
 
         /// <summary>
-        /// Retains the (parent, BrowseName) pairs of in-flight AddNodes operations so that
-        /// concurrent adds cannot create two children with the same BrowseName.
+        /// Retains the (parent, BrowseName, ReferenceType) keys of in-flight AddNodes operations
+        /// so that concurrent adds cannot create two children with the same BrowseName and
+        /// relationship; the ReferenceType is null for local parents (see AddNodeCoreAsync).
         /// </summary>
-        private readonly ConcurrentDictionary<(NodeId, QualifiedName), byte> m_addNodesBrowseNameReservations = new();
+        private readonly ConcurrentDictionary<(NodeId, QualifiedName, NodeId), byte> m_addNodesBrowseNameReservations = new();
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;
