@@ -1993,6 +1993,20 @@ namespace Opc.Ua
                 // RFC 5280 6.1.4) is a chain building error that may not be
                 // suppressed (OPC 10000-4 6.1.3, OPC 10000-6 6.2.2).
                 case X509ChainStatusFlags.InvalidBasicConstraints:
+                    // OpenSSL reports a CA whose KeyUsage lacks keyCertSign as an
+                    // invalid CA; that is the suppressible issuer use error
+                    // (OPC 10000-4 6.1.3 Table 100), not a basic constraints violation.
+                    if ((isIssuer &&
+                            !CertificateValidationHelpers.HasRequiredIssuerKeyUsage(target.Certificate)) ||
+                        (issuer != null &&
+                            !CertificateValidationHelpers.HasRequiredIssuerKeyUsage(issuer.Certificate)))
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadCertificateIssuerUseNotAllowed,
+                            "Issuer certificate is not valid for the requested usage. {0}: {1}",
+                            status.Status,
+                            status.StatusInformation);
+                    }
                     return ServiceResult.Create(
                         StatusCodes.BadCertificateInvalid,
                         "Certificate violates the basic constraints of its issuer. {0}: {1}",

@@ -598,6 +598,12 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
+            // null and empty arrays of the same DataType are equal (§7.7.3).
+            if (AreEmptyArraysOfSameType(lhs, rhs))
+            {
+                return true;
+            }
+
             // an element with a null operand evaluates to NULL (§7.7.3).
             if (IsNullValue(lhs) || IsNullValue(rhs))
             {
@@ -612,7 +618,7 @@ namespace Opc.Ua
                     ContentFilter.EqualsOperatorDefaultStringComparison);
             }
 
-            return lhs.ValueEquals(rhs) || AreEmptyArraysOfSameType(lhs, rhs);
+            return lhs.ValueEquals(rhs);
         }
 
         /// <summary>
@@ -625,7 +631,9 @@ namespace Opc.Ua
         /// </summary>
         private static bool AreEmptyArraysOfSameType(Variant lhs, Variant rhs)
         {
-            return !lhs.TypeInfo.IsScalar &&
+            return !lhs.TypeInfo.IsUnknown &&
+                !rhs.TypeInfo.IsUnknown &&
+                !lhs.TypeInfo.IsScalar &&
                 !rhs.TypeInfo.IsScalar &&
                 lhs.TypeInfo.BuiltInType == rhs.TypeInfo.BuiltInType &&
                 IsNullOrEmptyArray(lhs) &&
@@ -771,7 +779,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 0);
 
             Variant value = GetValue(operands[0]);
-            if (IsNullValue(value))
+            if (IsNullValue(value) && !value.IsEmptyArray)
             {
                 return default;
             }
@@ -782,6 +790,11 @@ namespace Opc.Ua
             for (int ii = 1; ii < operands.Length; ii++)
             {
                 Variant rhs = GetValue(operands[ii]);
+                if (AreEmptyArraysOfSameType(value, rhs))
+                {
+                    return true;
+                }
+
                 if (IsNullValue(rhs))
                 {
                     nullOperand = true;
@@ -802,13 +815,13 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (value.ValueEquals(rhs) || AreEmptyArraysOfSameType(value, rhs))
+                if (value.ValueEquals(rhs))
                 {
                     return true;
                 }
             }
 
-            if (nullOperand)
+            if (nullOperand || IsNullValue(value))
             {
                 return default;
             }

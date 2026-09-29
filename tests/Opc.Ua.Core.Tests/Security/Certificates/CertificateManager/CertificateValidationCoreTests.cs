@@ -550,9 +550,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // The directory store only accepts a CRL whose issuer it holds, so
             // drop the intermediate's CRL into the crl folder directly.
             Directory.CreateDirectory(Path.Combine(trustedDir, "crl"));
-            await File.WriteAllBytesAsync(
+            File.WriteAllBytes(
                 Path.Combine(trustedDir, "crl", "intermediate.crl"),
-                intermediateCrl.RawData).ConfigureAwait(false);
+                intermediateCrl.RawData);
             CertificateValidationCore core = NewCore(trustedDir);
             using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
 
@@ -582,9 +582,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // The directory store only accepts a CRL whose issuer it holds, so
             // drop the root's CRL into the crl folder directly.
             Directory.CreateDirectory(Path.Combine(issuerDir, "crl"));
-            await File.WriteAllBytesAsync(
+            File.WriteAllBytes(
                 Path.Combine(issuerDir, "crl", "root.crl"),
-                crl.RawData).ConfigureAwait(false);
+                crl.RawData);
             CertificateValidationCore core = NewCore();
             core.Update(
                 TrustList(issuerDir),

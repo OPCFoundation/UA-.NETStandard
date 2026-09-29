@@ -350,7 +350,8 @@ namespace Opc.Ua.Redundancy
                         ? GetRemainingLeaseTime(confirmedTimestamp, expiryTicks)
                         : TimeSpan.Zero;
                     confirmed = acquired && remaining > TimeSpan.Zero;
-                    if (m_isLeader != confirmed)
+                    bool wasLeader = m_isLeader;
+                    if (wasLeader != confirmed)
                     {
                         m_pendingNotifications.Enqueue(confirmed);
                     }
@@ -364,7 +365,12 @@ namespace Opc.Ua.Redundancy
                     }
                     else
                     {
-                        ++m_attempt;
+                        // A follower has no authority to revoke, so a failed reply must not
+                        // discard a concurrent attempt that may still take over the lease.
+                        if (wasLeader)
+                        {
+                            ++m_attempt;
+                        }
                         m_expiryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                     }
                 }
