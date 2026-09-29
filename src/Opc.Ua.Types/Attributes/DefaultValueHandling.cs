@@ -38,9 +38,11 @@ namespace Opc.Ua
     public enum DefaultValueHandling
     {
         /// <summary>
-        /// Omit default values on write; preserve constructor
-        /// defaults on read when field is absent. This is the
-        /// default and works well for configuration.
+        /// Omit type default values on write (only when the declared
+        /// default is the type default too); on read a field absent
+        /// from XML keeps the constructor default, a field absent from
+        /// JSON is the type default (OPC 10000-6 5.4.1). This is the
+        /// default and works well for XML configuration files.
         /// </summary>
         Exclude = 0,
 

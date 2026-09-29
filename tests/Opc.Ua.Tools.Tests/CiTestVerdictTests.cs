@@ -123,7 +123,7 @@ namespace Opc.Ua.Tools.Tests
         /// VSTest has more non-passing counters than failed/error/timeout. A
         /// partial run can contain passing tests and still be inconclusive,
         /// disconnected, not runnable, or unfinished. The executor must sum the
-        /// same complete set as the Azure gate before asking for a verdict.
+        /// complete set before asking for a verdict.
         /// </summary>
         [Test]
         public async Task ExecutorCountsEveryNonPassingTrxCounterAsync()

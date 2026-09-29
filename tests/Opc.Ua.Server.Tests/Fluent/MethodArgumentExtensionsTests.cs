@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
@@ -249,6 +250,28 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(method.OutputArguments.Value.Count, Is.EqualTo(2));
             Assert.That(method.OutputArguments.Value[0].Name, Is.EqualTo("Code"));
             Assert.That(method.OutputArguments.Value[1].Name, Is.EqualTo("Message"));
+        }
+
+        [Test]
+        public void AddArgumentsRegistersNewlyCreatedPropertiesWithNodeManager()
+        {
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            var registeringBuilder = new NodeManagerBuilder(
+                context,
+                nodeManager: nodeManager.Object,
+                defaultNamespaceIndex: ns,
+                rootResolver: _ => null,
+                nodeIdResolver: id => id == method.NodeId ? method : null,
+                typeIdResolver: _ => []);
+            INodeBuilder methodBuilder = registeringBuilder.Node(method.NodeId);
+
+            methodBuilder.AddInputArguments(new Argument("A", DataTypeIds.Int32, ValueRanks.Scalar, "a"));
+            methodBuilder.AddOutputArguments(new Argument("B", DataTypeIds.Int32, ValueRanks.Scalar, "b"));
+            // replacing existing argument lists must not register them again
+            methodBuilder.AddInputArguments(new Argument("C", DataTypeIds.Int32, ValueRanks.Scalar, "c"));
+
+            nodeManager.Verify(m => m.AddNode(method.InputArguments), Times.Once);
+            nodeManager.Verify(m => m.AddNode(method.OutputArguments), Times.Once);
         }
 
         private static void AssertArgumentsAreEqual(Argument actual, Argument expected)

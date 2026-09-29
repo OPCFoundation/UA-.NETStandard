@@ -439,6 +439,49 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         /// <summary>
+        /// <see cref="RuntimeNodeSetSource.ScanModelUris"/> ignores elements named
+        /// <c>Model</c> that are not <c>UANodeSet/Models/Model</c> declarations, such
+        /// as a structure field inside a variable value.
+        /// </summary>
+        [Test]
+        public void ScanModelUrisIgnoresModelElementsOutsideModels()
+        {
+            const string xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                "  <Models>\r\n" +
+                "    <Model ModelUri=\"" + kTestNamespaceUri + "\" />\r\n" +
+                "  </Models>\r\n" +
+                "  <UAVariable NodeId=\"ns=1;i=1\" BrowseName=\"1:Info\">\r\n" +
+                "    <Value>\r\n" +
+                "      <ExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n" +
+                "        <Body><DeviceInfo><Model>X100</Model></DeviceInfo></Body>\r\n" +
+                "      </ExtensionObject>\r\n" +
+                "    </Value>\r\n" +
+                "  </UAVariable>\r\n" +
+                "  <UAObject NodeId=\"ns=1;i=2\" BrowseName=\"1:Other\">\r\n" +
+                "    <Model ModelUri=\"urn:bogus\" />\r\n" +
+                "  </UAObject>\r\n" +
+                "</UANodeSet>";
+            string file = Path.Combine(
+                Path.GetDirectoryName(m_testNodeSetFile),
+                Guid.NewGuid().ToString("N") + ".ScanForeignModel.NodeSet2.xml");
+            File.WriteAllText(file, xml, Encoding.UTF8);
+
+            try
+            {
+                ArrayOf<string> uris = RuntimeNodeSetSource.ScanModelUris(file);
+
+                Assert.That(uris.Count, Is.EqualTo(1));
+                Assert.That(uris[0], Is.EqualTo(kTestNamespaceUri));
+            }
+            finally
+            {
+                File.Delete(file);
+            }
+        }
+
+        /// <summary>
         /// <see cref="RuntimeNodeSetSource.ExtractModelUris"/> returns the
         /// <c>Models[].ModelUri</c> values when the <c>Models</c> array is present.
         /// </summary>

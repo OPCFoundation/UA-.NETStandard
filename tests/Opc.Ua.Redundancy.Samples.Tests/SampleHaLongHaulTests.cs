@@ -42,8 +42,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
     /// <para>
     /// These are marked <see cref="ExplicitAttribute"/> so they never run as part of the
     /// normal pull-request test pass; they are executed by the dedicated
-    /// <c>sample-ha-longhaul</c> GitHub Actions workflow and the equivalent Azure DevOps
-    /// pipeline, or locally with <c>--filter Category=SampleHaLongHaul</c>.
+    /// <c>sample-ha-longhaul</c> GitHub Actions workflow, or locally with
+    /// <c>--filter Category=SampleHaLongHaul</c>.
     /// </para>
     /// <para>
     /// The multi-replica leader-election failover topologies (strong Raft and eventual

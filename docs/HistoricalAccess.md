@@ -188,9 +188,14 @@ await historian.HistorizeAsync(
 
 historian.Historize(
     pressure,
+    historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
     systemContext: SystemContext,
     capabilities: HistorianNodeCapabilities.ReadWrite);
 ```
+
+`historyAccessLevel` defaults to `AccessLevels.HistoryRead`: a historized
+variable is read-only for HistoryUpdate unless `HistoryWrite` is requested
+explicitly.
 
 `HistorianBuilder` ships three explicit registration scopes — pick the one that matches the scope of your storage backend:
 
@@ -243,6 +248,12 @@ Per-call overrides on `Historize(...)`:
 builder.Variable<int>("AuditLog")
        .OnRead(GetAuditValue)
        .Historize(provider: mySqliteProvider);
+
+// History is read-only by default (historyAccessLevel = HistoryRead).
+// HistoryUpdate needs an explicit opt-in; restrict it with RolePermissions.
+builder.Variable<double>("CorrectableSetpoint")
+       .Historize(
+           historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
 // Per-call capabilities — the same HistorianNodeCapabilities POCO the
 // HistorianBuilder uses; propagated to the provider's GetCapabilitiesAsync.
@@ -757,7 +768,10 @@ stepped or sloped interpolation and the result carries the Interpolated bits.
 `UseSimpleBounds=true` uses the nearest raw values as bounds; it does not return
 the nearest sample. `UseSimpleBounds=false` uses the nearest non-Bad values and
 marks the result Uncertain when Bad samples were skipped. Providers without
-this interface use the same calculation through the raw-read fallback.
+this interface use the same calculation through the raw-read fallback. When the
+fallback scans 100,000 raw values without finding a bound for a requested time,
+that time returns `Bad_BoundNotSupported` (Part 11 §4.6) and the other requested
+times are still answered.
 
 ### Annotations
 

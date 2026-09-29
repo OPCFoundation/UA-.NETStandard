@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Encoders
 {
@@ -95,6 +96,37 @@ namespace Opc.Ua.Encoders
             return new StructureWithOptionalFields(this);
         }
 
+        /// <summary>
+        /// Checks the bits of a decoded EncodingMask that are not assigned to
+        /// an optional field. Binary decoders shall report an error if they
+        /// are not 0 (OPC 10000-6 5.2.7); XML decoders shall ignore them
+        /// (5.3.6), and so does the JSON decoder, which clears them.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadDecodingError"/> for unassigned bits in
+        /// the binary encoding.</exception>
+        internal static uint ValidateEncodingMask(
+            IDecoder decoder,
+            uint encodingMask,
+            uint assignedBits)
+        {
+            uint unassignedBits = encodingMask & ~assignedBits;
+            if (unassignedBits == 0)
+            {
+                return encodingMask;
+            }
+            if (decoder.EncodingType == EncodingType.Binary)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "EncodingMask 0x{0:X8} has bits set that are not assigned " +
+                    "to an optional field (0x{1:X8}).",
+                    encodingMask,
+                    assignedBits);
+            }
+            return encodingMask & assignedBits;
+        }
+
         /// <inheritdoc/>
         public override IEncodeable CreateInstance()
         {
@@ -147,6 +179,16 @@ namespace Opc.Ua.Encoders
 
                 EncodingMask = decoder.ReadEncodingMask(masks);
             }
+
+            uint assignedBits = 0;
+            foreach (Field property in PropertyList)
+            {
+                if (property.IsOptional)
+                {
+                    assignedBits |= property.OptionalFieldMask;
+                }
+            }
+            EncodingMask = ValidateEncodingMask(decoder, EncodingMask, assignedBits);
 
             foreach (Field property in PropertyList)
             {

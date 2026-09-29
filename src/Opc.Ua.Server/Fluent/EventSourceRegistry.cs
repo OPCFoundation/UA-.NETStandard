@@ -243,17 +243,27 @@ namespace Opc.Ua.Server.Fluent
                     // discards the only record that we set the flag, so clearing it
                     // afterwards would be impossible and the node would keep a
                     // SubscribeToEvents bit this failed registration put there.
+                    SourceEntry? failed;
                     lock (m_sourcesLock)
                     {
                         if (m_sources.TryGetValue(
                                 notifier.NodeId,
-                                out SourceEntry? failed) &&
+                                out failed) &&
                             failed.PromotedEventNotifier)
                         {
                             notifier.EventNotifier = (byte)(notifier.EventNotifier &
                                 unchecked((byte)~EventNotifiers.SubscribeToEvents));
                         }
                         m_sources.Remove(notifier.NodeId);
+                    }
+
+                    // The reconcile loop can already have started an AlwaysOn
+                    // worker for the entry. Once it is out of m_sources nothing
+                    // else would ever stop it, so tear it down here.
+                    if (failed != null)
+                    {
+                        DeactivateSource(failed, force: true);
+                        await failed.StoppingTask.ConfigureAwait(false);
                     }
 
                     // AddRootNotifierAsync can also have inserted the notifier before
@@ -621,6 +631,13 @@ namespace Opc.Ua.Server.Fluent
             lock (m_sourcesLock)
             {
                 if (Volatile.Read(ref m_disposed) != 0 || entry.WorkerCts != null || !entry.StoppingTask.IsCompleted)
+                {
+                    return;
+                }
+                // a reconcile pass working from an older snapshot must not
+                // start an entry that was removed meanwhile.
+                if (!m_sources.TryGetValue(entry.Notifier.NodeId, out SourceEntry? current) ||
+                    !ReferenceEquals(current, entry))
                 {
                     return;
                 }

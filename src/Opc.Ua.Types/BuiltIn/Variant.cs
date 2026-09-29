@@ -1040,6 +1040,89 @@ namespace Opc.Ua
         internal object? Raw => AsBoxedObject(BoxingBehavior.None);
 
         /// <summary>
+        /// Whether the value is written as an inline matrix (OPC 10000-6
+        /// 5.2.5) when it is the raw value of a multi-dimensional structure
+        /// field. This is the case for a matrix type info and for a null
+        /// <see cref="MatrixOf{T}"/> whose shape the type info lost (a null
+        /// matrix has no dimensions, value rank OneOrMoreDimensions). A
+        /// <see cref="MatrixOf{T}"/> with a single dimension (including
+        /// <see cref="MatrixOf{T}.Empty"/>) is an array, the way
+        /// <see cref="TryGetArray{T}(out ArrayOf{T}, BuiltInType)"/> treats
+        /// it, and the encoders write it as an array. The value of a field
+        /// that is declared as a matrix is normalized with
+        /// <see cref="ToInlineMatrix(in Variant)"/> before it is written.
+        /// </summary>
+        /// <param name="isNull">Whether the matrix is null.</param>
+        internal bool IsInlineMatrix(out bool isNull)
+        {
+            if (m_value is IMatrixOf matrix)
+            {
+                isNull = matrix.IsNull;
+                return isNull || matrix.Dimensions.Length != 1;
+            }
+            isNull = m_value is null || (m_value is INullable nullable && nullable.IsNull);
+            return TypeInfo.IsMatrix;
+        }
+
+        /// <summary>
+        /// Normalizes the value of a structure field declared as a matrix
+        /// (ValueRank &gt;= 2) so that the raw encoders write it as the inline
+        /// matrix of OPC 10000-6 5.2.5 Table 28, which has at least two
+        /// dimensions: an empty value with fewer dimensions (e.g.
+        /// <see cref="MatrixOf{T}.Empty"/> or an empty array) becomes the
+        /// empty 0 x 0 matrix and a null array a null matrix.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingError"/> for a non empty value
+        /// with fewer than two dimensions, which cannot be written as an
+        /// inline matrix.</exception>
+        internal static Variant ToInlineMatrix(in Variant value)
+        {
+            TypeInfo typeInfo = value.TypeInfo;
+            if (value.IsNull || typeInfo.IsScalar || typeInfo.IsMatrix)
+            {
+                return value;
+            }
+            int dimensionCount;
+            int count;
+            if (value.m_value is IMatrixOf matrix)
+            {
+                if (matrix.IsNull || matrix.Dimensions.Length >= 2)
+                {
+                    return value;
+                }
+                dimensionCount = matrix.Dimensions.Length;
+                count = matrix.Count;
+            }
+            else if (value.m_value is null ||
+                (value.m_value is INullable nullable && nullable.IsNull))
+            {
+                return CreateDefault(TypeInfo.Create(
+                    typeInfo.BuiltInType,
+                    ValueRanks.TwoDimensions));
+            }
+            else if (value.m_value is IConvertableToArray array)
+            {
+                dimensionCount = 1;
+                count = array.ToArray()?.Length ?? 0;
+            }
+            else
+            {
+                return value;
+            }
+            if (count == 0)
+            {
+                return CreateEmptyMatrix(typeInfo.BuiltInType, [0, 0]);
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingError,
+                "A matrix with {0} dimension(s) and {1} element(s) cannot be encoded " +
+                "as an inline matrix which requires at least 2 dimensions.",
+                dimensionCount,
+                count);
+        }
+
+        /// <summary>
         /// Distinguishes split scalar storage from boxed payloads, including typed null payloads.
         /// </summary>
         private bool IsPackedQualifiedName =>
@@ -1131,6 +1214,24 @@ namespace Opc.Ua
         /// </summary>
         public Variant Copy()
         {
+            if (m_value is IMatrixOf)
+            {
+                // Clone a matrix as a matrix whatever rank the type info
+                // derived from its dimensions (a null matrix has rank 0, an
+                // empty one rank 1): cloning it as an array would lose the
+                // null/empty matrix identity the inline matrix encoding of a
+                // structure field depends on (OPC 10000-6 5.2.5).
+                return m_value switch
+                {
+                    MatrixOf<ExtensionObject> matrix =>
+                        new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
+                    MatrixOf<DataValue> matrix =>
+                        new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
+                    MatrixOf<Variant> matrix =>
+                        new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
+                    _ => this
+                };
+            }
             if (m_value is not null)
             {
                 if (TypeInfo.IsScalar)
@@ -8139,6 +8240,105 @@ namespace Opc.Ua
                 return default;
             }
             return new Variant(default, typeInfo, null);
+        }
+
+        /// <summary>
+        /// Creates an empty (not null) matrix of the built-in type with the
+        /// given dimensions, at least one of which is zero. Used to decode an
+        /// empty inline matrix whose encoding carries no element to take the
+        /// type from. Returns a null variant for types that have no matrix.
+        /// </summary>
+        internal static Variant CreateEmptyMatrix(BuiltInType builtInType, int[] dimensions)
+        {
+            return builtInType switch
+            {
+                BuiltInType.Boolean => From(Empty<bool>()),
+                BuiltInType.SByte => From(Empty<sbyte>()),
+                BuiltInType.Byte => From(Empty<byte>()),
+                BuiltInType.Int16 => From(Empty<short>()),
+                BuiltInType.UInt16 => From(Empty<ushort>()),
+                BuiltInType.Int32 => From(Empty<int>()),
+                BuiltInType.Enumeration => From(Empty<EnumValue>()),
+                BuiltInType.UInt32 => From(Empty<uint>()),
+                BuiltInType.Int64 => From(Empty<long>()),
+                BuiltInType.UInt64 => From(Empty<ulong>()),
+                BuiltInType.Float => From(Empty<float>()),
+                BuiltInType.Double => From(Empty<double>()),
+                BuiltInType.String => From(Empty<string>()),
+                BuiltInType.DateTime => From(Empty<DateTimeUtc>()),
+                BuiltInType.Guid => From(Empty<Uuid>()),
+                BuiltInType.ByteString => From(Empty<ByteString>()),
+                BuiltInType.XmlElement => From(Empty<XmlElement>()),
+                BuiltInType.NodeId => From(Empty<NodeId>()),
+                BuiltInType.ExpandedNodeId => From(Empty<ExpandedNodeId>()),
+                BuiltInType.StatusCode => From(Empty<StatusCode>()),
+                BuiltInType.QualifiedName => From(Empty<QualifiedName>()),
+                BuiltInType.LocalizedText => From(Empty<LocalizedText>()),
+                BuiltInType.ExtensionObject => From(Empty<ExtensionObject>()),
+                BuiltInType.DataValue => From(Empty<DataValue>()),
+                BuiltInType.Variant or
+                BuiltInType.Number or
+                BuiltInType.Integer or
+                BuiltInType.UInteger => From(Empty<Variant>()),
+                _ => default
+            };
+
+            MatrixOf<T> Empty<T>()
+            {
+                return new MatrixOf<T>(Array.Empty<T>(), dimensions);
+            }
+        }
+
+        /// <summary>
+        /// Whether the value is a non null matrix with at least two
+        /// dimensions and no elements (a dimension is 0). Such a matrix
+        /// cannot carry ArrayDimensions in the Variant encoding, which must
+        /// all be greater than zero (OPC 10000-6 5.2.2.16, 5.3.1.17).
+        /// </summary>
+        internal bool IsEmptyMatrix =>
+            m_value is IMatrixOf { IsNull: false, Count: 0 } matrix &&
+            matrix.Dimensions.Length >= 2;
+
+        /// <summary>
+        /// Returns an empty (not null) one-dimensional array of the built-in
+        /// type of this value. A Variant holding an empty matrix is encoded
+        /// as an empty array without ArrayDimensions: "If one or more
+        /// dimensions has a length &lt;= 0 then the ArrayLength is 0" and
+        /// ArrayDimensions are only present if all dimensions are greater
+        /// than zero (OPC 10000-6 5.2.2.16). Enumerations become Int32, the
+        /// type they are encoded with in a Variant.
+        /// </summary>
+        internal Variant ToEmptyArray()
+        {
+            return TypeInfo.BuiltInType switch
+            {
+                BuiltInType.Boolean => From(ArrayOf.Empty<bool>()),
+                BuiltInType.SByte => From(ArrayOf.Empty<sbyte>()),
+                BuiltInType.Byte => From(ArrayOf.Empty<byte>()),
+                BuiltInType.Int16 => From(ArrayOf.Empty<short>()),
+                BuiltInType.UInt16 => From(ArrayOf.Empty<ushort>()),
+                BuiltInType.Int32 or
+                BuiltInType.Enumeration => From(ArrayOf.Empty<int>()),
+                BuiltInType.UInt32 => From(ArrayOf.Empty<uint>()),
+                BuiltInType.Int64 => From(ArrayOf.Empty<long>()),
+                BuiltInType.UInt64 => From(ArrayOf.Empty<ulong>()),
+                BuiltInType.Float => From(ArrayOf.Empty<float>()),
+                BuiltInType.Double => From(ArrayOf.Empty<double>()),
+                BuiltInType.String => From(ArrayOf.Empty<string>()),
+                BuiltInType.DateTime => From(ArrayOf.Empty<DateTimeUtc>()),
+                BuiltInType.Guid => From(ArrayOf.Empty<Uuid>()),
+                BuiltInType.ByteString => From(ArrayOf.Empty<ByteString>()),
+                BuiltInType.XmlElement => From(ArrayOf.Empty<XmlElement>()),
+                BuiltInType.NodeId => From(ArrayOf.Empty<NodeId>()),
+                BuiltInType.ExpandedNodeId => From(ArrayOf.Empty<ExpandedNodeId>()),
+                BuiltInType.StatusCode => From(ArrayOf.Empty<StatusCode>()),
+                BuiltInType.QualifiedName => From(ArrayOf.Empty<QualifiedName>()),
+                BuiltInType.LocalizedText => From(ArrayOf.Empty<LocalizedText>()),
+                BuiltInType.ExtensionObject => From(ArrayOf.Empty<ExtensionObject>()),
+                BuiltInType.DataValue => From(ArrayOf.Empty<DataValue>()),
+                BuiltInType.Variant => From(ArrayOf.Empty<Variant>()),
+                _ => this
+            };
         }
 
         /// <summary>

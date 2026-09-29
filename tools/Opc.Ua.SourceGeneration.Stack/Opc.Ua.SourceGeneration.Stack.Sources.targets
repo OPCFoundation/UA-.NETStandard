@@ -17,6 +17,7 @@
     <Compile Include="$(StackSourceGeneratorDirectory)..\Opc.Ua.SourceGeneration\SourceGeneratorHelpers.cs" />
     <Compile Include="$(StackSourceGeneratorDirectory)..\Opc.Ua.SourceGeneration\CompilationOptions.cs" />
     <Compile Include="$(StackSourceGeneratorDirectory)..\Opc.Ua.SourceGeneration\Extensions.cs" />
+    <Compile Include="$(StackSourceGeneratorDirectory)..\Opc.Ua.SourceGeneration\EquatableArray.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectDirectory)\' != '$(StackSourceGeneratorDirectory)'">
     <Compile Include="$(StackSourceGeneratorDirectory)**\*.cs"

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -73,6 +74,49 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             return m_namespaceMetadata.CreateAsync(namespaceUri, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Another node manager links its <see cref="NamespaceMetadataState"/>
+        /// to <c>Server/Namespaces</c> this way, which raises no
+        /// <c>StateChanged</c> event, so the metadata lookup cache is dropped.
+        /// </remarks>
+        public override async ValueTask AddReferencesAsync(
+            IDictionary<NodeId, IList<IReference>> references,
+            CancellationToken cancellationToken = default)
+        {
+            await base.AddReferencesAsync(references, cancellationToken).ConfigureAwait(false);
+
+            if (references != null && references.ContainsKey(ObjectIds.Server_Namespaces))
+            {
+                m_namespaceMetadata.Invalidate();
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask<ServiceResult> DeleteReferenceAsync(
+            object sourceHandle,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            bool deleteBidirectional,
+            CancellationToken cancellationToken = default)
+        {
+            ServiceResult result = await base.DeleteReferenceAsync(
+                sourceHandle,
+                referenceTypeId,
+                isInverse,
+                targetId,
+                deleteBidirectional,
+                cancellationToken).ConfigureAwait(false);
+
+            if (ServiceResult.IsGood(result))
+            {
+                m_namespaceMetadata.Invalidate();
+            }
+
+            return result;
         }
 
         /// <inheritdoc/>

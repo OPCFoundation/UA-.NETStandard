@@ -3102,8 +3102,20 @@ namespace Opc.Ua
                                 encodeableTypeId,
                                 out ArrayOf<T> structures))
                         {
-                            values = structures.ToMatrix(dimensions);
-                            return true;
+                            // The inline matrix has at least two dimensions
+                            // and may be empty (5.4.5, 5.2.5 Table 28); a
+                            // dimension <= 0 means no values, like in binary.
+                            // Earlier versions wrote an empty matrix with the
+                            // single dimension 0.
+                            int[] dims = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                                dimensions.ToArray() ?? [],
+                                structures.Count);
+                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count, Context.MaxArrayLength))
+                            {
+                                values = structures.ToMatrix(
+                                    MatrixOf.NormalizeInlineMatrixDimensions(dims));
+                                return true;
+                            }
                         }
                         values = default;
                         return false;
@@ -3142,8 +3154,20 @@ namespace Opc.Ua
                                 GetPropertyElement(JsonProperties.Array),
                                 out ArrayOf<T> structures))
                         {
-                            values = structures.ToMatrix(dimensions);
-                            return true;
+                            // The inline matrix has at least two dimensions
+                            // and may be empty (5.4.5, 5.2.5 Table 28); a
+                            // dimension <= 0 means no values, like in binary.
+                            // Earlier versions wrote an empty matrix with the
+                            // single dimension 0.
+                            int[] dims = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                                dimensions.ToArray() ?? [],
+                                structures.Count);
+                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count, Context.MaxArrayLength))
+                            {
+                                values = structures.ToMatrix(
+                                    MatrixOf.NormalizeInlineMatrixDimensions(dims));
+                                return true;
+                            }
                         }
                         values = default;
                         return false;
@@ -3733,13 +3757,35 @@ namespace Opc.Ua
                     // (which would otherwise satisfy the product check) is rejected.
                     // This sits inside the try so the pushed stack entry is popped
                     // again by the finally below.
+                    // The inline matrix of a structure field (raw value) may be
+                    // empty, a dimension of 0 means no values (5.2.5, 5.4.5).
                     if (!TryGetInt32ArrayFromElement(
                         dimensionElement,
                         out ArrayOf<int> dims) ||
-                        !MatrixOf.IsValidMatrix(dims.Span))
+                        (readRawValue
+                            ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
+                            : !MatrixOf.IsValidMatrix(dims.Span)))
                     {
                         value = default;
                         return false;
+                    }
+                    if (readRawValue)
+                    {
+                        // a dimension < 0 means no values, like in binary
+                        dims = MatrixOf.NormalizeInlineMatrixDimensions(dims.ToArray()!)
+                            .ToArrayOf();
+
+                        // A populated matrix read for a structure field must
+                        // have the rank the field declares.
+                        MatrixOf.TryGetInlineMatrixElementCount(dims.Span, out int count, out _);
+                        if (!MatrixOf.HasInlineMatrixRank(dims.Span, count, typeInfo))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Inline matrix dimensions [{0}] do not have the rank of the field ({1}).",
+                                string.Join(",", dims.ToArray()!),
+                                typeInfo);
+                        }
                     }
 
                     switch (typeInfo.BuiltInType)

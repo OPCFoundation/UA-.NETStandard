@@ -535,6 +535,48 @@ namespace Opc.Ua.Server.Tests.Roles
             AssertGeneratedRoleProperty(role.CustomConfiguration!);
         }
 
+        /// <summary>
+        /// Part 18 §4.4.1: a dynamically added role must restrict its Properties and
+        /// Methods to SecurityAdmin over an encrypted channel like the well-known roles.
+        /// </summary>
+        [Test]
+        public async Task AddRoleHandlerMaterializedRoleChildrenAreRestrictedToSecurityAdminAsync()
+        {
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx, "CustomReporter", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assume.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+
+            var role = (RoleState)m_nodeManager.PredefinedNodes[result.RoleNodeId];
+            Assert.That(role.RolePermissions.IsNull, Is.False);
+            foreach (RolePermissionType permission in role.RolePermissions)
+            {
+                if (permission.RoleId != ObjectIds.WellKnownRole_SecurityAdmin)
+                {
+                    Assert.That(permission.Permissions, Is.EqualTo((uint)PermissionType.Browse),
+                        "Non-admin roles may only browse the Role Object.");
+                }
+            }
+
+            var children = new List<BaseInstanceState>();
+            role.GetChildren(m_nodeManager.SystemContext, children);
+            Assert.That(role.Identities, Is.Not.Null);
+            Assert.That(children, Does.Contain(role.Identities));
+            Assert.That(children, Does.Contain(role.AddIdentity));
+            while (children.Count > 0)
+            {
+                BaseInstanceState child = children[children.Count - 1];
+                children.RemoveAt(children.Count - 1);
+                Assert.That(
+                    child.AccessRestrictions.GetValueOrDefault(),
+                    Is.EqualTo(AccessRestrictionType.SigningRequired | AccessRestrictionType.EncryptionRequired),
+                    child.BrowseName.ToString());
+                Assert.That(child.RolePermissions.Count, Is.EqualTo(1), child.BrowseName.ToString());
+                Assert.That(child.RolePermissions[0].RoleId, Is.EqualTo(ObjectIds.WellKnownRole_SecurityAdmin));
+                child.GetChildren(m_nodeManager.SystemContext, children);
+            }
+        }
+
         [Test]
         public async Task AddRoleHandlerRetainsMandatoryIdentitiesWithUniqueNodeIds()
         {

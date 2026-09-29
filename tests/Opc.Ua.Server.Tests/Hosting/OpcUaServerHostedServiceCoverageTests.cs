@@ -76,6 +76,26 @@ namespace Opc.Ua.Server.Tests.Hosting
     public sealed class OpcUaServerHostedServiceCoverageTests
     {
         /// <summary>
+        /// Verifies that the default certificate store root is a per-user
+        /// application-data directory and not the shared temporary directory.
+        /// </summary>
+        [Test]
+        public void DefaultPkiRootIsNotInTempDirectory()
+        {
+            string pkiRoot = DefaultPkiRoot.Get("DefaultPkiApp");
+            string appData = Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
+
+            Assert.That(
+                pkiRoot,
+                Is.EqualTo(System.IO.Path.Combine(appData, "OPC Foundation", "DefaultPkiApp", "pki")));
+            Assert.That(
+                pkiRoot,
+                Does.Not.StartWith(System.IO.Path.GetTempPath()));
+        }
+
+        /// <summary>
         /// Verifies that hosted-service construction rejects null options.
         /// </summary>
         [Test]
@@ -314,6 +334,109 @@ namespace Opc.Ua.Server.Tests.Hosting
                     () => server.IdentityRegistry.UnregisterAugmenter(augmenter.Object),
                     TimeSpan.FromSeconds(60)).ConfigureAwait(false),
                 Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that an identity configuration that disables anonymous access but yields no
+        /// authenticator (UserName enabled without a user database) does not re-enable anonymous
+        /// logins: anonymous tokens are rejected instead of falling back to acceptance.
+        /// </summary>
+        [Test]
+        public async Task HostedServiceRejectsAnonymousWhenDisabledAndNoAuthenticatorIsCreatedAsync()
+        {
+            RegistryCaptureServer.Reset();
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddOpcUa()
+                        .AddServer<RegistryCaptureServer>(o =>
+                        {
+                            ConfigureHostedOptions(o, "AnonymousDisabled");
+                            o.Identity.Defaults.EnableAnonymous = false;
+                            o.Identity.Defaults.EnableUserNamePassword = true;
+                            o.Identity.Defaults.EnableX509 = false;
+                            o.Identity.Defaults.EnableJwt = false;
+                        });
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+            IServerInternal server = RegistryCaptureServer.StartedServer ??
+                throw new InvalidOperationException("The server did not start.");
+
+            var context = new AuthenticationContext(
+                new AnonymousIdentityTokenHandler(),
+                new UserTokenPolicy { TokenType = UserTokenType.Anonymous },
+                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+
+            // the authenticators are registered after the server started; poll until they are.
+            AuthenticationResult result = AuthenticationResult.NotHandled;
+            DateTime deadline = DateTime.UtcNow.AddSeconds(60);
+            while (result.Outcome == AuthenticationOutcome.NotHandled && DateTime.UtcNow < deadline)
+            {
+                result = await server.IdentityRegistry.AuthenticateAsync(context).ConfigureAwait(false);
+                if (result.Outcome == AuthenticationOutcome.NotHandled)
+                {
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
+
+        /// <summary>
+        /// Verifies that disabling anonymous access without explicit UserTokenPolicies does not
+        /// advertise the implicit Anonymous policy: endpoints list the user identity tokens the
+        /// server accepts (Part 4 7.14, 7.41), here the UserName token of the default authenticator.
+        /// </summary>
+        [Test]
+        public async Task HostedServiceDoesNotAdvertiseAnonymousWhenDisabledByDefaultsAsync()
+        {
+            RegistryCaptureServer.Reset();
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddSingleton(Mock.Of<IUserDatabase>());
+                    services.AddSingleton(Mock.Of<IUserManagement>());
+                    services.AddOpcUa()
+                        .AddServer<RegistryCaptureServer>(o =>
+                        {
+                            ConfigureHostedOptions(o, "AnonymousNotAdvertised");
+                            o.Identity.Defaults.EnableAnonymous = false;
+                            o.Identity.Defaults.EnableUserNamePassword = true;
+                            o.Identity.Defaults.EnableX509 = false;
+                            o.Identity.Defaults.EnableJwt = false;
+                        });
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+
+            EndpointDescription[] endpoints = [.. RegistryCaptureServer.StartedInstance!.GetEndpoints()];
+            Assert.That(endpoints, Is.Not.Empty);
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                UserTokenPolicy[] policies = [.. endpoint.UserIdentityTokens];
+                UserTokenType[] tokenTypes = [.. policies.Select(p => p.TokenType)];
+                Assert.That(tokenTypes, Does.Not.Contain(UserTokenType.Anonymous));
+                Assert.That(tokenTypes, Does.Contain(UserTokenType.UserName));
+            }
         }
 
         /// <summary>

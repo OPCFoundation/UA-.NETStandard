@@ -361,15 +361,15 @@ namespace Opc.Ua.SourceGeneration
                 Assert.That(
                     generated,
                     Does.Contain(
-                        "state.AccessLevel = global::Opc.Ua.AccessLevels.CurrentReadOrWrite;"));
+                        "baseState.AccessLevel = global::Opc.Ua.AccessLevels.CurrentReadOrWrite;"));
                 Assert.That(
                     generated,
                     Does.Contain(
-                        "state.UserAccessLevel = global::Opc.Ua.AccessLevels.CurrentReadOrWrite;"));
+                        "baseState.UserAccessLevel = global::Opc.Ua.AccessLevels.CurrentReadOrWrite;"));
                 Assert.That(
                     generated,
-                    Does.Contain("state.MinimumSamplingInterval = 250;"));
-                Assert.That(generated, Does.Contain("state.Historizing = true;"));
+                    Does.Contain("baseState.MinimumSamplingInterval = 250;"));
+                Assert.That(generated, Does.Contain("baseState.Historizing = true;"));
                 Assert.That(generated, Does.Contain("Unlabeled"));
                 Assert.That(generated, Does.Contain("First"));
                 Assert.That(generated, Does.Contain("Second"));

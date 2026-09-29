@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Encoders
 {
@@ -102,6 +103,17 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
+            // Encoders shall report an error for a SwitchField greater than
+            // the number of union fields (OPC 10000-6 5.2.8, 5.3.7).
+            if (SwitchField > (uint)PropertyList.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Union SwitchField {0} is greater than the number of fields {1}.",
+                    SwitchField,
+                    PropertyList.Count);
+            }
+
             encoder.PushNamespace(XmlNamespace);
 
             // the encoder may return an override for the field name
@@ -153,6 +165,17 @@ namespace Opc.Ua.Encoders
                 }
 
                 unionSelector = decoder.ReadSwitchField(fields, out _);
+            }
+
+            // Decoders shall report an error for a SwitchField greater than
+            // the number of union fields (OPC 10000-6 5.2.8, 5.3.7, 5.4.8).
+            if (unionSelector > (uint)PropertyList.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Union SwitchField {0} is greater than the number of fields {1}.",
+                    unionSelector,
+                    PropertyList.Count);
             }
 
             SwitchField = unionSelector;

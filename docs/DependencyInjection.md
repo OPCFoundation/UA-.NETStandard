@@ -278,7 +278,7 @@ When both features are registered, the shared configuration has `ApplicationType
 | `ApplicationUri` | Generated from the host name and application name during validation. Set a stable URI for deployed applications. |
 | `ProductUri` | Uses the contributing feature value. Set a stable product URI for deployed applications. |
 | `SubjectName` | `CN={ApplicationName}, O=OPC Foundation, DC=localhost`; `DC=localhost` is replaced with the host name. |
-| `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the process temporary directory. Configure a persistent, access-controlled location in production. |
+| `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the per-user local application-data directory (`Environment.SpecialFolder.LocalApplicationData`). The shared temporary directory is not used, because other local users could pre-create it. Configuration fails if no application-data directory is available. When certificate stores of an earlier version (which defaulted to the temporary directory) exist but the new default does not, a warning names both paths: configure `PkiRoot` or move the stores to keep the existing application certificate. Configure a persistent, access-controlled location in production. |
 | Application certificates and stores | Directory-backed application, trusted peer/issuer, HTTPS, user, and rejected stores are created below `PkiRoot`; default RSA and supported ECC application-certificate identifiers are selected. |
 
 The security builder uses these secure defaults:
@@ -760,8 +760,9 @@ these controls explicitly for every deployment:
 - Enable `IncludeEccPolicies` only when the deployment certificates and clients
   support the advertised ECC policies.
 - Configure `UserTokenPolicies` together with matching authenticators. An empty
-  list advertises `Anonymous`; adding a token policy alone does not authenticate
-  it. See [Identity Providers](IdentityProviders.md) and
+  list advertises `Anonymous` (or, when the identity defaults disable anonymous
+  access, the token types of the registered authenticators); adding a token
+  policy alone does not authenticate it. See [Identity Providers](IdentityProviders.md) and
   [Role-Based User Management](RoleBasedUserManagement.md).
 - Keep certificate auto-accept disabled and provision trust lists. For
   advanced validation, use the shared
@@ -996,7 +997,11 @@ services.AddOpcUa().AddServer(o =>
 ```
 
 Bindable from `OpcUa:Server:UserTokenPolicies`. When the list is empty
-the hosted service falls back to a single `Anonymous` policy.
+the hosted service falls back to a single `Anonymous` policy. If the
+identity defaults disable anonymous access (`EnableAnonymous = false`),
+that implicit `Anonymous` policy is not advertised; the endpoints list
+one policy per token type of the registered authenticators instead
+(OPC 10000-4 §7.14: the user identity tokens the server accepts).
 
 ### Identity (server)
 

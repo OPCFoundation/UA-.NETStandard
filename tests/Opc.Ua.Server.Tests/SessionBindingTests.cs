@@ -454,6 +454,44 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task FailedReactivationKeepsImpersonationMappingForRoleReevaluationAsync()
+        {
+            OperationContext channel = CreateContext("one");
+            CreateSessionResult created = await CreateAsync(channel).ConfigureAwait(false);
+            m_manager.GrantImpersonatedOperatorRole = true;
+            await ActivateUserAsync().ConfigureAwait(false);
+            Assert.That(created.Session.EffectiveIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Operator),
+                Is.True);
+
+            // A re-activation that authenticates (creating a new identity object) but then
+            // fails while adding mandatory roles must not replace the mapping of the identity
+            // that stays active.
+            m_manager.ThrowFromMandatoryRoles = true;
+            Assert.CatchAsync(ActivateUserAsync);
+            m_manager.ThrowFromMandatoryRoles = false;
+
+            created.Session.MarkIdentityStale();
+            m_manager.PublicReevaluateIdentityIfStale(created.Session, channel.ChannelContext!);
+
+            Assert.That(created.Session.EffectiveIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Operator),
+                Is.True, "Re-evaluation must start from the impersonated identity of the active activation.");
+            await m_manager.CloseSessionAsync(created.SessionId).ConfigureAwait(false);
+
+            async Task ActivateUserAsync()
+            {
+                await m_manager.ActivateSessionAsync(
+                    channel, created.AuthenticationToken, null,
+                    new ExtensionObject(new UserNameIdentityToken
+                    {
+                        PolicyId = "username",
+                        UserName = "alice",
+                        Password = ByteString.From([1])
+                    }),
+                    null, []).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task ClosingSessionCannotBeClassifiedAsync()
         {
             OperationContext channel = CreateContext("one");
@@ -667,7 +705,30 @@ namespace Opc.Ua.Server.Tests
                     return (null, null, new ServiceResult(StatusCodes.BadUserAccessDenied));
                 }
                 var identity = new UserIdentity(newIdentity);
+                if (GrantImpersonatedOperatorRole)
+                {
+                    return (identity, new RoleBasedIdentity(identity, [Role.Operator], m_server.NamespaceUris), null);
+                }
                 return (identity, identity, null);
+            }
+
+            public bool GrantImpersonatedOperatorRole { get; set; }
+
+            public bool ThrowFromMandatoryRoles { get; set; }
+
+            public void PublicReevaluateIdentityIfStale(ISession session, SecureChannelContext channelContext)
+            {
+                ReevaluateIdentityIfStale(session, channelContext);
+            }
+
+            protected override IUserIdentity AddMandatoryRoles(
+                ISession session, OperationContext context, IUserIdentity effectiveIdentity)
+            {
+                if (ThrowFromMandatoryRoles)
+                {
+                    throw new InvalidOperationException("Injected role resolution failure.");
+                }
+                return base.AddMandatoryRoles(session, context, effectiveIdentity);
             }
 
             protected override async ValueTask OnSessionActivatedAsync(

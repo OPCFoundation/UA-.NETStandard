@@ -20,8 +20,7 @@ validation and **long-haul** soak tests for extended runs on dedicated CI jobs.
 ## Short-haul tests (pull-request validation)
 
 Short-haul tests are deterministic and complete in seconds. The standard
-[CI](../.github/workflows/buildandtest.yml) workflow and Azure DevOps test
-stages discover and run them because the project follows the
+[CI](../.github/workflows/buildandtest.yml) workflow discovers and runs them because the project follows the
 `tests/Opc.Ua.*.Tests` naming convention. They use the NUnit category
 `SampleHaShortHaul`:
 
@@ -60,12 +59,8 @@ $env:SAMPLE_HA_DURATION_MINUTES = "5"
 dotnet test tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj --filter "Category=SampleHaLongHaul"
 ```
 
-The long-haul tests run in CI through dedicated, manually triggerable jobs on both platforms:
-
-* **GitHub Actions** — the [Sample HA Long-Haul Test](../.github/workflows/sample-ha-longhaul.yml) workflow (`workflow_dispatch` with a
-  `duration` input, plus a weekly schedule).
-* **Azure DevOps** — the [sample-ha-longhaul](../.azurepipelines/sample-ha-longhaul.yml) pipeline (manual run with a `durationMinutes`
-  parameter, plus a weekly schedule).
+The long-haul tests run in CI through the [Sample HA Long-Haul Test](../.github/workflows/sample-ha-longhaul.yml)
+GitHub Actions workflow (`workflow_dispatch` with a `duration` input, plus a weekly schedule).
 
 ## Multi-replica leader-election failover
 

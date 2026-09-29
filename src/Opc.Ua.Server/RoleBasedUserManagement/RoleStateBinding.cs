@@ -1075,6 +1075,10 @@ namespace Opc.Ua.Server
             roleState.AddCustomConfiguration(nodeContext);
             LinkChild(roleState, roleState.CustomConfiguration, ReferenceTypeIds.HasProperty);
 
+            // Part 18 §4.4.1: the Properties and Methods of a Role are only
+            // accessible to administrators through an encrypted channel.
+            ApplyWellKnownRoleSecurity(nodeContext, roleState);
+
             // Attach to RoleSet so browse references are established before
             // the manager indexes the subtree. AddChild only updates the
             // typed children collection; the actual HasComponent reference
@@ -1096,6 +1100,75 @@ namespace Opc.Ua.Server
 
             m_logger.MaterializedDynamicRoleRoleNameRoleIdUnderRoleSet(roleName, roleNodeId);
         }
+
+        /// <summary>
+        /// Copies the RolePermissions and AccessRestrictions the standard
+        /// nodeset assigns to the well-known Role instances onto a
+        /// dynamically materialized role: everyone may browse the Role
+        /// Object, while its Properties and Methods (and their arguments)
+        /// are restricted to SecurityAdmin over a signed and encrypted
+        /// channel.
+        /// </summary>
+        private static void ApplyWellKnownRoleSecurity(ISystemContext context, RoleState roleState)
+        {
+            roleState.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_Anonymous,
+                    Permissions = (uint)PermissionType.Browse
+                },
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                    Permissions = kRoleObjectAdminPermissions
+                }
+            ];
+
+            var children = new List<BaseInstanceState>();
+            roleState.GetChildren(context, children);
+            ApplyWellKnownRoleChildSecurity(context, children);
+        }
+
+        private static void ApplyWellKnownRoleChildSecurity(
+            ISystemContext context,
+            List<BaseInstanceState> children)
+        {
+            foreach (BaseInstanceState child in children)
+            {
+                child.AccessRestrictions =
+                    AccessRestrictionType.SigningRequired | AccessRestrictionType.EncryptionRequired;
+                child.RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = child is MethodState
+                            ? kRoleMethodAdminPermissions
+                            : kRolePropertyAdminPermissions
+                    }
+                ];
+
+                var grandChildren = new List<BaseInstanceState>();
+                child.GetChildren(context, grandChildren);
+                ApplyWellKnownRoleChildSecurity(context, grandChildren);
+            }
+        }
+
+        /// <summary>
+        /// SecurityAdmin permissions on the well-known Role Objects in the standard nodeset.
+        /// </summary>
+        private const uint kRoleObjectAdminPermissions = 65423;
+
+        /// <summary>
+        /// SecurityAdmin permissions on the well-known Role Properties in the standard nodeset.
+        /// </summary>
+        private const uint kRolePropertyAdminPermissions = 59391;
+
+        /// <summary>
+        /// SecurityAdmin permissions on the well-known Role Methods in the standard nodeset.
+        /// </summary>
+        private const uint kRoleMethodAdminPermissions = 61455;
 
         /// <summary>
         /// Resolves the namespace index qualifying a role's BrowseName against

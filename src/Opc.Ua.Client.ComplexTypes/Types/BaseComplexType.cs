@@ -347,11 +347,46 @@ namespace Opc.Ua.Client.ComplexTypes
                             dataTypeId);
                     }
                     break;
-                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                // The abstract numeric types are encoded as a Variant (a null
+                // value as the null Variant 0x00, OPC 10000-6 5.2.2.16).
+                case BuiltInType.Variant or
+                    BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger when property.TypeInfo.IsScalar:
                     encoder.WriteVariant(name, variant);
                     break;
+                case BuiltInType.DiagnosticInfo when property.TypeInfo.IsScalar:
+                    // A Variant cannot hold a DiagnosticInfo, so the field is
+                    // null. All fields are written also when null (OPC
+                    // 10000-6 5.2.1): the null DiagnosticInfo is the single
+                    // encoding mask byte 0x00 in binary (5.2.2.12).
+                    encoder.WriteDiagnosticInfo(name, null);
+                    break;
                 default:
-                    encoder.WriteVariantValue(name, variant);
+                    // A raw binary value is written without type
+                    // information, so a null Variant must still carry the
+                    // field's type and shape (default scalar, null array or
+                    // null inline matrix), never nothing at all.
+                    // XML writes a field like the typed writer of its type
+                    // (OPC 10000-6 5.3.5), which needs the type of a null
+                    // value too, as in Structure. (Json writes a null
+                    // Variant as a null field; an XML matrix stays nil.)
+                    if (variant.IsNull &&
+                        (encoder.EncodingType == EncodingType.Binary ||
+                        (encoder.EncodingType == EncodingType.Xml && !property.TypeInfo.IsMatrix)))
+                    {
+                        variant = Variant.CreateDefault(property.TypeInfo);
+                    }
+                    if (property.TypeInfo.IsMatrix)
+                    {
+                        // An inline matrix (OPC 10000-6 5.2.5) has at least
+                        // two dimensions, also when it is empty.
+                        encoder.WriteInlineMatrixValue(name, variant);
+                    }
+                    else
+                    {
+                        encoder.WriteVariantValue(name, variant);
+                    }
                     break;
             }
         }
@@ -391,8 +426,17 @@ namespace Opc.Ua.Client.ComplexTypes
                         variant = Variant.FromStructure(encodeables);
                     }
                     break;
-                case BuiltInType.Variant when property.TypeInfo.IsScalar:
+                case BuiltInType.Variant or
+                    BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger when property.TypeInfo.IsScalar:
                     variant = decoder.ReadVariant(name);
+                    break;
+                case BuiltInType.DiagnosticInfo when property.TypeInfo.IsScalar:
+                    // Consume the DiagnosticInfo (OPC 10000-6 5.2.2.12); a
+                    // Variant cannot hold it, so the field value stays null.
+                    _ = decoder.ReadDiagnosticInfo(name);
+                    variant = Variant.Null;
                     break;
                 default:
                     variant = decoder.ReadVariantValue(name, property.TypeInfo);

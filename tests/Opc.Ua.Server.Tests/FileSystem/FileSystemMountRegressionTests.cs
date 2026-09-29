@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 ? StatusCodes.BadInvalidArgument
                 : providerPath is "/" or "\\" or "//" or "\\\\" or "/\\/"
                     ? StatusCodes.BadUserAccessDenied
-                    : StatusCodes.BadInvalidState;
+                    : StatusCodes.BadNotFound;
             Assert.Multiple(() =>
             {
                 Assert.That(result.StatusCode, Is.EqualTo(expectedStatus));
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
             DirectoryObjectState root = CreateRoot(manager);
-            NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", manager.NamespaceIndex);
+            NodeId source = FileSystemNodeId.BuildFile("keep.txt", manager.NamespaceIndex);
             NodeId target = FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex);
 
             MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
@@ -140,7 +140,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            DirectoryObjectState root = CreateRoot(manager);
+            // Delete and MoveOrCopy are called on the directory that organizes the source.
+            string parentPath = providerPath[..providerPath.LastIndexOf('/')];
+            var parent = new DirectoryObjectState(manager.SystemContext,
+                FileSystemNodeId.BuildDirectory(parentPath, manager.NamespaceIndex), parentPath, parentPath,
+                isRoot: false);
             NodeId source = isDirectory
                 ? FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex)
                 : FileSystemNodeId.BuildFile(providerPath, manager.NamespaceIndex);
@@ -148,15 +152,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             if (operation == "delete")
             {
-                ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                ServiceResult result = await MutateAsync(parent, manager.SystemContext, source, operation)
                     .ConfigureAwait(false);
                 Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             }
             else
             {
                 NodeId target = FileSystemNodeId.BuildDirectory("destination/nested", manager.NamespaceIndex);
-                MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
-                    manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
+                MoveOrCopyMethodStateResult result = await parent.MoveOrCopy!.OnCallAsync!(
+                    manager.SystemContext, parent.MoveOrCopy, parent.NodeId, source, target,
                     operation == "copy", "renamed.txt", CancellationToken.None).ConfigureAwait(false);
                 NodeId expectedId = isDirectory
                     ? FileSystemNodeId.BuildDirectory(TargetPath, manager.NamespaceIndex)
@@ -179,7 +183,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
             DirectoryObjectState root = CreateRoot(manager);
-            NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", manager.NamespaceIndex);
+            NodeId source = FileSystemNodeId.BuildFile("keep.txt", manager.NamespaceIndex);
             var target = new FileSystemNodeId(rootType, providerPath, manager.NamespaceIndex).ToNodeId();
 
             MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
@@ -189,7 +193,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.NewNodeId,
                 Is.EqualTo(FileSystemNodeId.BuildFile("renamed.txt", manager.NamespaceIndex)));
-            VerifySingleMutation(provider, createCopy ? "copy" : "move", "sub/keep.txt", "renamed.txt");
+            VerifySingleMutation(provider, createCopy ? "copy" : "move", "keep.txt", "renamed.txt");
         }
 
         /// <summary>
@@ -215,7 +219,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.Multiple(() =>
             {
                 Assert.That(result.StatusCode.Code, Is.EqualTo(operation == "delete"
-                    ? StatusCodes.BadInvalidState
+                    ? StatusCodes.BadNotFound
                     : StatusCodes.BadInvalidArgument));
                 VerifyNoMutation(provider);
             });

@@ -61,7 +61,7 @@ namespace Opc.Ua.SourceGeneration
         public string ModelUri { get; }
 
         /// <summary>
-        /// The C# namespace containing the generated accessors.
+        /// The C# namespace prefix of the model the accessors are generated for.
         /// </summary>
         public string Prefix { get; }
 

@@ -966,6 +966,17 @@ namespace Opc.Ua.Schema.Model
         public object DecodedValue { get; set; }
 
         /// <summary>
+        /// The namespace table the namespace indexes inside
+        /// <see cref="DecodedValue"/> (NodeId, ExpandedNodeId, QualifiedName)
+        /// refer to - the table of the NodeSet the value was read from. Null
+        /// when the value was authored in a ModelDesign, whose indexes refer to
+        /// the design's own namespaces (OPC UA first).
+        /// </summary>
+        [XmlIgnore]
+        [field: NonSerialized]
+        public NamespaceTable DecodedValueNamespaceUris { get; set; }
+
+        /// <summary>
         /// Data type node
         /// </summary>
         [XmlIgnore]
@@ -1067,6 +1078,15 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         [XmlIgnore]
         public object DecodedValue { get; set; }
+
+        /// <summary>
+        /// The namespace table the namespace indexes inside
+        /// <see cref="DecodedValue"/> refer to. See
+        /// <see cref="VariableDesign.DecodedValueNamespaceUris"/>.
+        /// </summary>
+        [XmlIgnore]
+        [field: NonSerialized]
+        public NamespaceTable DecodedValueNamespaceUris { get; set; }
 
         /// <summary>
         /// Data type node
@@ -1217,6 +1237,14 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         [XmlIgnore]
         public TypeDesign BaseTypeNode { get; set; }
+
+        /// <summary>
+        /// True if the type is excluded from generation (for example a
+        /// Draft type with the Draft exclusion), so no state class is
+        /// emitted for it. Set by the validator.
+        /// </summary>
+        [XmlIgnore]
+        public bool IsExcludedFromGeneration { get; set; }
 
         /// <summary>
         /// Deep copy the type design.
@@ -1482,6 +1510,18 @@ namespace Opc.Ua.Schema.Model
         [XmlIgnore]
         public bool IsInherited { get; set; }
 
+        /// <summary>
+        /// The bit position an OptionSet field names (the EnumField Value,
+        /// OPC 10000-3 8.52), when known as a position rather than through
+        /// the <see cref="Identifier"/> mask. A subtype of the OptionSet
+        /// structure (8.40) has no upper bit, while the decimal Identifier
+        /// only holds masks up to bit 95; for a higher bit the Identifier
+        /// is 0 and this carries the bit. Read the bit with
+        /// <see cref="ModelDesignExtensions.TryGetOptionSetBit(Parameter, out int)"/>.
+        /// </summary>
+        [XmlIgnore]
+        public int? OptionSetBit { get; set; }
+
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
@@ -1504,6 +1544,7 @@ namespace Opc.Ua.Schema.Model
                 Identifier == other.Identifier &&
                 IdentifierSpecified == other.IdentifierSpecified &&
                 BitMask == other.BitMask &&
+                OptionSetBit == other.OptionSetBit &&
                 XmlQualifiedNameEqualityComparer.Default.Equals(DataType, other.DataType) &&
                 ValueRank == other.ValueRank &&
                 ArrayDimensions == other.ArrayDimensions &&
@@ -1523,6 +1564,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(Identifier);
             hash.Add(IdentifierSpecified);
             hash.Add(BitMask);
+            hash.Add(OptionSetBit);
             hash.Add(DataType, XmlQualifiedNameEqualityComparer.Default);
             hash.Add(ValueRank);
             hash.Add(ArrayDimensions);

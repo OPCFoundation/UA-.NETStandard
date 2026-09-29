@@ -2288,11 +2288,14 @@ builder.CreateInstance(
 `.CreateOffNormalAlarm` attach a fresh alarm condition under the
 current node and return an `IAlarmBuilder<TState>` for further
 configuration. The helpers register the condition, add the
-`HasCondition` reference, initialise `SourceNode`, `SourceName`,
-`ConditionName`, and `InputNode`, and promote the source object and its
+`HasCondition` reference, initialise `SourceNode`, `SourceName`, and
+`ConditionName` from the source object, and promote the source object and its
 ancestors with `EventNotifiers.SubscribeToEvents`. The source is also
 registered as a root notifier so clients subscribing to the `Server`
-object receive condition events:
+object receive condition events. `.MonitorVariable(variable)` sets the
+alarm's `SourceNode`, `SourceName` and `InputNode` to the variable and makes
+it the condition source: the variable gets a `HasCondition` reference to the
+alarm and the object gets a `HasEventSource` reference to the variable:
 
 ```csharp
 builder.Node("Pumps/Pump #1/Events")
@@ -2515,9 +2518,8 @@ points at those NodeSet2 types:
     <AdditionalFiles Include="Model\EquipmentTypes.NodeSet2.xml">
       <ModelSourceGeneratorModelUri>http://example.org/EquipmentTypes</ModelSourceGeneratorModelUri>
     </AdditionalFiles>
-    <AdditionalFiles Include="Model\Instances.ModelDesign.xml">
-      <ModelSourceGeneratorModelUri>http://example.org/EquipmentInstances</ModelSourceGeneratorModelUri>
-    </AdditionalFiles>
+    <!-- A ModelDesign declares its own model URI (TargetNamespace). -->
+    <AdditionalFiles Include="Model\Instances.ModelDesign.xml" />
   </ItemGroup>
 </Project>
 ```

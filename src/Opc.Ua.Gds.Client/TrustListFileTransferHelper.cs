@@ -82,12 +82,34 @@ namespace Opc.Ua.Gds.Client
             {
                 using var ostrm = new MemoryStream();
                 long totalBytesRead = 0;
+                bool previousChunkWasShort = false;
 
                 while (true)
                 {
-                    ByteString chunk = await file.ReadAsync(fileHandle, chunkSize, ct)
-                        .ConfigureAwait(false);
+                    ByteString chunk;
+                    try
+                    {
+                        chunk = await file.ReadAsync(fileHandle, chunkSize, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (
+                        previousChunkWasShort &&
+                        sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                    {
+                        // Servers that bound every Read by MaxTrustListSize reject the
+                        // end-of-file Read after the last (short) chunk of a list close
+                        // to that size instead of returning an empty ByteString.
+                        break;
+                    }
+
                     byte[] bytes = chunk.ToArray() ?? [];
+
+                    // Part 20 4.2.4: the server may return less data than
+                    // requested; only an empty ByteString marks end of file.
+                    if (bytes.Length == 0)
+                    {
+                        break;
+                    }
 
                     totalBytesRead += bytes.Length;
                     if (totalBytesRead > maxTrustListSize)
@@ -99,11 +121,7 @@ namespace Opc.Ua.Gds.Client
                     }
 
                     ostrm.Write(bytes, 0, bytes.Length);
-
-                    if (bytes.Length != chunkSize)
-                    {
-                        break;
-                    }
+                    previousChunkWasShort = bytes.Length < chunkSize;
                 }
 
                 ostrm.Position = 0;

@@ -4,13 +4,15 @@ name: Release to nuget.org
 # nuget-publish.yml run on a canonical "release/<major>.<minor>" branch (e.g.
 # release/2.0). The release environment provides the approval boundary (its
 # deployment_branch_policy restricts execution to release/* branches) and the
-# NuGet trusted publishing identity. This workflow additionally requires the
-# candidate's base package version to be an exact stable release (no
-# prerelease label or build metadata, e.g. "2.0.0") - a preview candidate is
-# already published automatically by nuget-publish.yml and must never be
-# promoted here. See docs/ReleaseProcess.md ("Approved promotion") for the
-# full procedure, including how to pick a release_run_id and how to recover
-# from a partial or failed promotion.
+# NuGet trusted publishing identity. The "channel" input states what is being
+# promoted and must match the candidate: "stable" (the default) requires an
+# exact stable release (no prerelease label or build metadata, e.g. "2.0.0");
+# "preview" requires a public release-line preview (e.g. "2.0.0-preview.6").
+# nuget-publish.yml only ever pushes previews to GitHub Packages, so this is
+# the one path that puts a preview on nuget.org. See docs/ReleaseProcess.md
+# ("Approved promotion" and "Preview release") for the full procedures,
+# including how to pick a release_run_id and how to recover from a partial or
+# failed promotion.
 #
 # One-time nuget.org trusted publishing policy:
 #   Repository Owner: OPCFoundation
@@ -25,6 +27,14 @@ on:
         description: Successful nuget-publish.yml run ID from a release/<major>.<minor> branch
         required: true
         type: string
+      channel:
+        description: What the candidate is - an exact stable release, or a release-line preview (e.g. 2.0.0-preview.6)
+        required: false
+        type: choice
+        options:
+          - stable
+          - preview
+        default: stable
       dry_run:
         description: Validate the selected package set without publishing
         required: false
@@ -157,6 +167,7 @@ jobs:
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
           RELEASE_BRANCH: ${{ steps.source.outputs.branch }}
           RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
         run: |
           . ./.azurepipelines/package-version-policy.ps1
           $manifestPath = 'promotion/release-manifest.json'
@@ -182,24 +193,53 @@ jobs:
               $manifest.packageVersion
           }
 
-          # This workflow exists solely to promote a stable release (e.g.
-          # "2.0.0", "2.0.1", "2.1.0") to nuget.org. In-development preview
-          # candidates are already published automatically by
-          # nuget-publish.yml and must never be promoted here. See
-          # docs/ReleaseProcess.md ("Approved promotion").
-          if (-not (Test-StablePackageVersion -Version $expectedBaseVersion)) {
+          # The dispatcher states which kind of release this is, and the
+          # candidate must be exactly that: a stable promotion can never
+          # publish a preview by accident, nor the reverse. A preview must be
+          # a public release-line build ("M.m.p-preview.N", no commit id), so
+          # master or feature-branch previews can never reach nuget.org. See
+          # docs/ReleaseProcess.md ("Approved promotion", "Preview release").
+          $channel = $env:RELEASE_CHANNEL
+          if ($channel -cne 'stable' -and $channel -cne 'preview') {
+              throw "channel must be 'stable' or 'preview', not '$channel'."
+          }
+          if ($channel -ceq 'stable' -and
+              -not (Test-StablePackageVersion -Version $expectedBaseVersion)) {
               throw (
                   "Run $($env:RELEASE_RUN_ID) produced base version " +
                   "'$expectedBaseVersion', which is not an exact stable release. Only a " +
                   'stable candidate (no prerelease label or build metadata) may be ' +
-                  'promoted through this workflow.')
+                  "promoted with channel 'stable'; dispatch with channel 'preview' to " +
+                  'publish a release-line preview.')
+          }
+          if ($channel -ceq 'preview' -and
+              -not (Test-PromotablePreviewPackageVersion -Version $expectedBaseVersion)) {
+              throw (
+                  "Run $($env:RELEASE_RUN_ID) produced base version " +
+                  "'$expectedBaseVersion', which is not a release-line preview. Only an " +
+                  "'M.m.p-preview.N' candidate without a commit id may be promoted with " +
+                  "channel 'preview'.")
+          }
+          # schemaVersion 1 manifests predate the recorded channel. They stay
+          # promotable as stable, but a preview must prove its channel.
+          if ($channel -ceq 'preview' -and $manifest.schemaVersion -ne 2) {
+              throw (
+                  "The promotion manifest is schemaVersion $($manifest.schemaVersion), which " +
+                  "records no channel. Only a schemaVersion 2 candidate may be promoted " +
+                  "with channel 'preview'.")
+          }
+          if ($manifest.schemaVersion -eq 2 -and $manifest.channel -cne $channel) {
+              throw (
+                  "The promotion manifest records channel '$($manifest.channel)', but this " +
+                  "promotion was dispatched with channel '$channel'.")
           }
           if (-not (Test-CanonicalReleaseBranchForPackageVersion `
               -Ref $expectedRef `
-              -Version $expectedBaseVersion)) {
+              -Version $expectedBaseVersion `
+              -AllowPreview:($channel -ceq 'preview'))) {
               throw (
                   "Candidate version '$expectedBaseVersion' does not match release branch " +
-                  "'$expectedRef'. A stable M.m.p candidate must be promoted only from " +
+                  "'$expectedRef'. An M.m.p candidate must be promoted only from " +
                   'the matching release/M.m branch.')
           }
 
@@ -309,7 +349,7 @@ jobs:
               } |
               Sort-Object Name)
           if ($packages.Count -eq 0) {
-              throw 'The stable candidate contains no non-Debug packages to push to nuget.org.'
+              throw 'The candidate contains no non-Debug packages to push to nuget.org.'
           }
           Write-Host (
               "Publishing $($packages.Count) non-Debug package(s) to nuget.org. " +
@@ -342,7 +382,9 @@ jobs:
         # any feed automatically (see its "Skip feed publication" step); this
         # is the one place a stable release also gets mirrored to GitHub
         # Packages, gated behind the same approval and dry-run switch as the
-        # nuget.org push above.
+        # nuget.org push above. A preview candidate was already pushed here by
+        # its own nuget-publish.yml run, so this loop is a verified no-op for
+        # it: the preflight and post-push checks prove those are its bytes.
         if: ${{ !inputs.dry_run }}
         shell: pwsh
         env:
@@ -378,6 +420,7 @@ jobs:
         env:
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
           RELEASE_BRANCH: ${{ steps.source.outputs.branch }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
           RELEASE_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           $manifestPath = 'promotion/release-manifest.json'
@@ -400,6 +443,7 @@ jobs:
 
           - Source run: ``$($env:RELEASE_RUN_ID)``
           - Source branch: ``$($env:RELEASE_BRANCH)``
+          - Channel: ``$($env:RELEASE_CHANNEL)``
           - Version: ``$version``
           - Packages: ``$count``
           - Dry run: ``$($env:RELEASE_DRY_RUN)``

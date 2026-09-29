@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -190,6 +191,7 @@ namespace Opc.Ua.SourceGeneration
 
             foreach (DesignFileCollection model in designFiles.Group(identifierFiles))
             {
+                options.Cancellation.ThrowIfCancellationRequested();
                 IModelDesign modelDesign = fileSystem.OpenModelDesign(
                     model,
                     options.Exclusions,
@@ -242,23 +244,26 @@ namespace Opc.Ua.SourceGeneration
                     ? model.Targets[0]
                     : string.Empty;
 
+                bool emitFluentAccessors = true;
                 if (accessorsOnly &&
-                    (!ValidateFluentAccessorsOnlyTarget(
-                        target?.Value,
-                        target?.Prefix,
-                        modelPath,
-                        referencedModelProviders,
-                        referencedAccessorProviders,
-                        reportFluentAccessorsOnlyDiagnostic) ||
-                    !ValidateFluentAccessorsOnlyOptions(
+                    !CanEmitFluentAccessorsOnly(
                         target?.Value,
                         target?.Prefix,
                         modelPath,
                         options,
                         effectiveOptions,
-                        reportFluentAccessorsOnlyDiagnostic)))
+                        referencedModelProviders,
+                        referencedAccessorProviders,
+                        reportFluentAccessorsOnlyDiagnostic))
                 {
-                    continue;
+                    // The [NodeManager] binding asked for the manager, which
+                    // does not depend on (re-)emitting the accessors: emit it
+                    // without them instead of dropping the whole binding.
+                    if (!(targetProvidedByReference && boundToNodeManager))
+                    {
+                        continue;
+                    }
+                    emitFluentAccessors = false;
                 }
 
                 var context = new GeneratorContext
@@ -274,7 +279,8 @@ namespace Opc.Ua.SourceGeneration
                 context,
                 validateSchemas: false,
                 designOptions: effectiveOptions,
-                accessorsOnly: accessorsOnly);
+                accessorsOnly: accessorsOnly,
+                emitFluentAccessors: emitFluentAccessors);
                 // When the model itself is supplied by a referenced
                 // assembly, that assembly carries its event records too.
                 // Emitting them again here would duplicate every record
@@ -409,8 +415,14 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            // The parts are concatenated into one identifier, so a part must
+            // not keep the '@' ToSafeSymbolName escapes a keyword with - it
+            // would land mid-identifier ("Acme@base"). Upper-casing the first
+            // letter already takes every part out of the (lower case) keywords.
             string[] parts = prefix.Split(['.', '-', '_', '/', ':'], StringSplitOptions.RemoveEmptyEntries);
-            return string.Concat(parts.Select(part => part.ToSafeSymbolName().ToUpperCamelCase()));
+            string name = string.Concat(parts.Select(part =>
+                part.ToSafeSymbolName().TrimStart('@').ToUpperCamelCase()));
+            return string.IsNullOrEmpty(name) ? null : name.ToCSharpIdentifierPreserveCase();
         }
 
         /// <summary>
@@ -543,6 +555,48 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Whether the fluent accessors of a model supplied by a reference may be
+        /// emitted here. Diagnostics are only reported when fluent-accessors-only
+        /// mode was requested explicitly; a run that exists only because of a
+        /// <c>[NodeManager]</c> binding silently emits the manager without them.
+        /// </summary>
+        private static bool CanEmitFluentAccessorsOnly(
+            string modelUri,
+            string prefix,
+            string path,
+            GeneratorOptions options,
+            DesignFileOptions designOptions,
+            IReadOnlyList<ModelDependencyReference> referencedModelProviders,
+            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders,
+            Action<string, string, string, string> reportDiagnostic)
+        {
+            if (!options.FluentAccessorsOnly)
+            {
+                return ValidateFluentAccessorsOnlyTarget(
+                    modelUri,
+                    prefix,
+                    path,
+                    referencedModelProviders,
+                    referencedAccessorProviders,
+                    null);
+            }
+            return ValidateFluentAccessorsOnlyTarget(
+                    modelUri,
+                    prefix,
+                    path,
+                    referencedModelProviders,
+                    referencedAccessorProviders,
+                    reportDiagnostic) &&
+                ValidateFluentAccessorsOnlyOptions(
+                    modelUri,
+                    prefix,
+                    path,
+                    options,
+                    designOptions,
+                    reportDiagnostic);
         }
 
         private static bool ValidateFluentAccessorsOnlyOptions(
@@ -907,6 +961,7 @@ namespace Opc.Ua.SourceGeneration
 
             foreach (string modelUri in nodesets.ModelUris)
             {
+                options.Cancellation.ThrowIfCancellationRequested();
                 List<string> designFilesForModel =
                     nodesets.GetDesignFileListForModel(
                         modelUri,
@@ -982,23 +1037,24 @@ namespace Opc.Ua.SourceGeneration
                     totalDesigns,
                     out _);
 
+                bool emitFluentAccessors = true;
                 if (accessorsOnly &&
-                    (!ValidateFluentAccessorsOnlyTarget(
-                        modelUri,
-                        nodeset.Info.Prefix,
-                        nodeset.FileName,
-                        referencedModelProviders,
-                        referencedAccessorProviders,
-                        reportFluentAccessorsOnlyDiagnostic) ||
-                    !ValidateFluentAccessorsOnlyOptions(
+                    !CanEmitFluentAccessorsOnly(
                         modelUri,
                         nodeset.Info.Prefix,
                         nodeset.FileName,
                         options,
                         effectiveOptions,
-                        reportFluentAccessorsOnlyDiagnostic)))
+                        referencedModelProviders,
+                        referencedAccessorProviders,
+                        reportFluentAccessorsOnlyDiagnostic))
                 {
-                    continue;
+                    // See the design-file path: a bound manager is still emitted.
+                    if (!(targetProvidedByReference && boundToNodeManager))
+                    {
+                        continue;
+                    }
+                    emitFluentAccessors = false;
                 }
 
                 var context = new GeneratorContext
@@ -1014,7 +1070,8 @@ namespace Opc.Ua.SourceGeneration
                 context,
                 validateSchemas: false,
                 designOptions: effectiveOptions,
-                accessorsOnly: accessorsOnly);
+                accessorsOnly: accessorsOnly,
+                emitFluentAccessors: emitFluentAccessors);
                 // When the model itself is supplied by a referenced
                 // assembly, that assembly carries its event records too.
                 // Emitting them again here would duplicate every record
@@ -1081,6 +1138,7 @@ namespace Opc.Ua.SourceGeneration
             GeneratorOptions options = null)
         {
             options ??= new GeneratorOptions();
+            options.Cancellation.ThrowIfCancellationRequested();
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
@@ -1119,10 +1177,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 var clientApiGenerator = new ClientApiGenerator(generatorContext);
                 clientApiGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var serverApiGenerator = new ServerApiGenerator(generatorContext);
                 serverApiGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var endpointsGenerator = new EndpointsGenerator(generatorContext);
                 endpointsGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 // Emit ObjectType client proxies for every standard UA
                 // ObjectType so downstream model proxies (e.g. GDS) can
                 // derive from them. Proxies are emitted into the model's
@@ -1147,6 +1208,7 @@ namespace Opc.Ua.SourceGeneration
                     };
                     var stackProxyGenerator = new ObjectTypeProxyGenerator(stackProxyContext);
                     stackProxyGenerator.Emit();
+                    options.Cancellation.ThrowIfCancellationRequested();
                 }
 
                 // Event records depend on EventRecord and decoder runtime
@@ -1177,10 +1239,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 var attributesGenerator = new AttributesGenerator(generatorContext);
                 attributesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var statusCodesGenerator = new StatusCodesGenerator(generatorContext);
                 statusCodesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var serverCapabilitiesGenerator = new ServerCapabilitiesGenerator(generatorContext);
                 serverCapabilitiesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
 
                 Generate(generatorContext, !options.OptimizeForCompileSpeed);
             }
@@ -1212,8 +1277,15 @@ namespace Opc.Ua.SourceGeneration
             GeneratorContext context,
             bool validateSchemas = false,
             DesignFileOptions designOptions = null,
-            bool accessorsOnly = false)
+            bool accessorsOnly = false,
+            bool emitFluentAccessors = true)
         {
+            // Cancellation is observed between generators: each emitter is a
+            // bounded unit of work, and checking inside their node loops would
+            // put the check on the hot path for little gain.
+            CancellationToken ct = context.Options?.Cancellation ?? default;
+            ct.ThrowIfCancellationRequested();
+
             // The model types live in a referenced assembly: emit the
             // fluent surface over them, and the node manager when one was
             // bound, but none of the model itself.
@@ -1233,14 +1305,16 @@ namespace Opc.Ua.SourceGeneration
                         GenerateNodeSetImportSupport = true,
                         ImportSupportOnly = true
                     }.Emit();
+                    ct.ThrowIfCancellationRequested();
                     EmitNodeManager(context, designOptions);
+                    ct.ThrowIfCancellationRequested();
                 }
                 new FluentBuilderGenerator(context)
                 {
                     OverrideManagerNamespace = designOptions?.NodeManagerNamespace,
                     OverrideManagerClassName = designOptions?.NodeManagerClassName,
                     GenerateManagerWrappers = generateManager,
-                    EmitFluentAccessors = true
+                    EmitFluentAccessors = emitFluentAccessors
                 }.Emit();
                 return;
             }
@@ -1251,6 +1325,7 @@ namespace Opc.Ua.SourceGeneration
                 ValidateOutput = validateSchemas
             };
             IEnumerable<Resource> xmlSchemaResource = xmlSchemaGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var binarySchemaGenerator = new BinarySchemaGenerator(context)
             {
                 ValidateOutput = validateSchemas
@@ -1262,12 +1337,15 @@ namespace Opc.Ua.SourceGeneration
                 "XmlSchemas",
                 false,
                 [.. binarySchemaResource, .. xmlSchemaResource]);
+            ct.ThrowIfCancellationRequested();
 
             // Must run after schema generation to initilize the dictionaries.
             var constantsGenerator = new ConstantsGenerator(context);
             constantsGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var nodeIdGenerator = new NodeIdGenerator(context);
             nodeIdGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var nodeStateCodeGenerator = new NodeStateGenerator(context)
             {
                 // The provider references Opc.Ua.Server contracts, so it is
@@ -1275,12 +1353,15 @@ namespace Opc.Ua.SourceGeneration
                 GenerateNodeSetImportSupport = designOptions?.GenerateNodeManager == true
             };
             nodeStateCodeGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
 
             if (designOptions?.GenerateNodeManager == true)
             {
                 EmitNodeManager(context, designOptions);
+                ct.ThrowIfCancellationRequested();
             }
 
             // FluentBuilderGenerator emits per-ObjectType typed-accessor
@@ -1302,17 +1383,20 @@ namespace Opc.Ua.SourceGeneration
                     GenerateManagerWrappers = designOptions?.GenerateNodeManager == true,
                     EmitFluentAccessors = emitTypedAccessors
                 }.Emit();
+                ct.ThrowIfCancellationRequested();
             }
 
             if (context.Options?.OmitObjectTypeProxies != true)
             {
                 var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
                 objectTypeProxyGenerator.Emit();
+                ct.ThrowIfCancellationRequested();
             }
             if (context.Options?.OmitStateMachineIds != true)
             {
                 var stateMachineIdsGenerator = new StateMachineIdsGenerator(context);
                 stateMachineIdsGenerator.Emit();
+                ct.ThrowIfCancellationRequested();
             }
             if (context.Options?.EmitDependencyMetadata != false)
             {

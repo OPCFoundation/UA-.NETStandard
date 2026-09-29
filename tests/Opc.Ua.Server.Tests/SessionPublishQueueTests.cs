@@ -566,6 +566,36 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void Acknowledge_SubscriptionThrows_ReturnsPerAckResultAndKeepsOtherResults()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            // A subscription deleted/transferred concurrently throws from Acknowledge.
+            var deleted = new Mock<ISubscriptionPublishPipeline>();
+            deleted.Setup(s => s.Id).Returns(1);
+            deleted.Setup(s => s.Acknowledge(It.IsAny<OperationContext>(), It.IsAny<uint>()))
+                .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
+            var healthy = new Mock<ISubscriptionPublishPipeline>();
+            healthy.Setup(s => s.Id).Returns(2);
+            healthy.Setup(s => s.Acknowledge(It.IsAny<OperationContext>(), 10))
+                .Returns(StatusCodes.Good);
+            queue.Add(deleted.Object);
+            queue.Add(healthy.Object);
+
+            var acks = (ArrayOf<SubscriptionAcknowledgement>)[
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                new SubscriptionAcknowledgement { SubscriptionId = 2, SequenceNumber = 10 }
+            ];
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
+
+            queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out _);
+
+            Assert.That(results.Count, Is.EqualTo(2));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            Assert.That(results[1], Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
         public async Task PublishCompleted_MoreNotifications_AssignsNextRequestAsync()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);

@@ -48,8 +48,13 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that an abandoned restored subscription consumes its remaining lifetime and is deleted without
         /// reconnect.
         /// </summary>
-        [Test]
-        public async Task RestoredDurableSubscriptionExpiresWithoutAReconnectingClientAsync()
+        /// <remarks>
+        /// A subscription persisted from an anonymous session may carry no UserIdentityToken; its owner
+        /// must still be an anonymous identity so TransferSubscriptions can check the token type.
+        /// </remarks>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task RestoredDurableSubscriptionExpiresWithoutAReconnectingClientAsync(bool storeAnonymousToken)
         {
             var clock = new FakeTimeProvider();
             Mock<IServerInternal> server = DeterministicServerMock.Create(
@@ -75,7 +80,7 @@ namespace Opc.Ua.Server.Tests
                     LifetimeCounter = 2,
                     MaxMessageCount = 10,
                     SequenceNumber = 1,
-                    UserIdentityToken = new AnonymousIdentityToken(),
+                    UserIdentityToken = storeAnonymousToken ? new AnonymousIdentityToken() : null,
                     SentMessages = [],
                     MonitoredItems = []
                 };
@@ -116,6 +121,8 @@ namespace Opc.Ua.Server.Tests
 
                 await manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
                 ISubscription restored = manager.GetSubscriptions()[0];
+                Assert.That(restored.EffectiveIdentity, Is.Not.Null);
+                Assert.That(restored.EffectiveIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
                 Assert.That(manager.CaptureAbandonedPublishTimerSnapshot(), Has.Count.EqualTo(1));
                 clock.Advance(TimeSpan.FromMilliseconds(1_001));
                 manager.ProcessAbandonedPublishTimers(manager.CaptureAbandonedPublishTimerSnapshot());

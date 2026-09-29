@@ -32,6 +32,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
@@ -225,6 +227,129 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             Assert.That(authenticators, Has.Exactly(1).TypeOf<AnonymousAuthenticator>());
             Assert.That(authenticators, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void CustomAuthenticatorOnConfigurationServerDoesNotRejectAnonymous()
+        {
+            // No Identity section: the custom authenticator is the only configuration and
+            // must not disable anonymous access (the endpoint policy still governs it).
+            IConfiguration configuration = CreateConfiguration(new Dictionary<string, string>());
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer(configuration)
+                .AddIdentityAuthenticator<UserNameStubAuthenticator>();
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            List<IUserTokenAuthenticator> authenticators = OpcUaServerHostedService.CreateIdentityAuthenticators(
+                sp.GetServices<OpcUaServerIdentityAuthenticatorRegistration>(), sp, null);
+
+            Assert.That(authenticators, Has.Exactly(1).TypeOf<UserNameStubAuthenticator>());
+            Assert.That(authenticators, Has.None.TypeOf<OpcUaServerHostedService.AnonymousRejectingAuthenticator>());
+        }
+
+        [Test]
+        public void DisabledAnonymousDefaultsRejectAnonymous()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer(o =>
+            {
+                o.Identity.Defaults.EnableAnonymous = false;
+                o.Identity.Defaults.EnableUserNamePassword = true;
+                o.Identity.Defaults.EnableX509 = false;
+                o.Identity.Defaults.EnableJwt = false;
+            }).AddIdentityAuthenticator<UserNameStubAuthenticator>();
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            List<IUserTokenAuthenticator> authenticators = OpcUaServerHostedService.CreateIdentityAuthenticators(
+                sp.GetServices<OpcUaServerIdentityAuthenticatorRegistration>(), sp, null);
+
+            Assert.That(authenticators, Has.Exactly(1).TypeOf<OpcUaServerHostedService.AnonymousRejectingAuthenticator>());
+            Assert.That(authenticators, Has.None.TypeOf<AnonymousAuthenticator>());
+        }
+
+        /// <summary>
+        /// With anonymous access disabled and no explicit UserTokenPolicies the implicit
+        /// Anonymous policy is not advertised; the endpoint lists the token types the
+        /// authenticators accept instead (Part 4 7.14, 7.41).
+        /// </summary>
+        [Test]
+        public void DisabledAnonymousDefaultsReplaceDefaultAnonymousPolicy()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer(o =>
+            {
+                o.Identity.Defaults.EnableAnonymous = false;
+                o.Identity.Defaults.EnableUserNamePassword = true;
+                o.Identity.Defaults.EnableX509 = false;
+                o.Identity.Defaults.EnableJwt = false;
+            }).AddIdentityAuthenticator<UserNameStubAuthenticator>();
+            using ServiceProvider sp = services.BuildServiceProvider();
+            List<IUserTokenAuthenticator> authenticators = OpcUaServerHostedService.CreateIdentityAuthenticators(
+                sp.GetServices<OpcUaServerIdentityAuthenticatorRegistration>(), sp, null);
+            authenticators.Add(new IssuedTokenStubAuthenticator());
+
+            ArrayOf<UserTokenPolicy> policies = OpcUaServerHostedService.ReplaceDefaultAnonymousUserTokenPolicy(
+                new ArrayOf<UserTokenPolicy>(new[] { new UserTokenPolicy(UserTokenType.Anonymous) }),
+                authenticators);
+
+            UserTokenPolicy[] result = [.. policies];
+            Assert.That(result.Select(p => p.TokenType), Is.EqualTo(new[]
+            {
+                UserTokenType.UserName,
+                UserTokenType.IssuedToken
+            }));
+            Assert.That(result[1].IssuedTokenType, Is.EqualTo(IssuedTokenStubAuthenticator.ProfileUri));
+        }
+
+        [Test]
+        public void NoIdentityRegistrationKeepsAnonymousDefault()
+        {
+            using ServiceProvider sp = new ServiceCollection().BuildServiceProvider();
+
+            List<IUserTokenAuthenticator> authenticators = OpcUaServerHostedService.CreateIdentityAuthenticators(
+                [], sp, null);
+
+            Assert.That(authenticators, Has.Exactly(1).TypeOf<AnonymousAuthenticator>());
+            Assert.That(authenticators, Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// IssuedToken authenticator stub.
+        /// </summary>
+        private sealed class IssuedTokenStubAuthenticator : IUserTokenAuthenticator
+        {
+            public const string ProfileUri = "http://opcfoundation.org/UA/UserToken#JWT";
+
+            public UserTokenType TokenType => UserTokenType.IssuedToken;
+
+            public string IssuedTokenProfileUri => ProfileUri;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+            }
+        }
+
+        /// <summary>
+        /// UserName authenticator stub; created by the container through AddIdentityAuthenticator.
+        /// </summary>
+        public sealed class UserNameStubAuthenticator : IUserTokenAuthenticator
+        {
+            public UserTokenType TokenType => UserTokenType.UserName;
+
+            public string IssuedTokenProfileUri => null;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+            }
         }
 
         private static ServiceCollection CreateServices(IConfiguration configuration)
