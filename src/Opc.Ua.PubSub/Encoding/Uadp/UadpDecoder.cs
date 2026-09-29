@@ -86,7 +86,21 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            PubSubNetworkMessage? result = DecodeInternal(frame, context);
+            PubSubNetworkMessage? result;
+            try
+            {
+                result = DecodeInternal(frame, context);
+            }
+            catch (Exception ex) when (ex is ServiceResultException
+                or InvalidOperationException
+                or ArgumentException
+                or OverflowException
+                or FormatException)
+            {
+                // Malformed input is a soft rejection: the decoder
+                // contract is to return null, never to throw.
+                result = null;
+            }
             if (result is null)
             {
                 if (!frame.IsEmpty)
