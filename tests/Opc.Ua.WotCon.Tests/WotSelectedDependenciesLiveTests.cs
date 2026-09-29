@@ -45,6 +45,7 @@ using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Materialization;
 using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
 using INodeManagerLifecycle = Opc.Ua.Server.INodeManagerLifecycle;
@@ -271,27 +272,30 @@ namespace Opc.Ua.WotCon.Tests
             Registered nextModel = await fixture.RegisterAsync(
                 "https://example.test/models/Pump", "v2", model: true);
             await model.Allocation.Version.SetEnabledAsync(false, 0);
-            fixture.Host.Pause();
+            fixture.Host.BlockNextActivation();
             Task<(WoTRefreshSummaryDataType Summary, ArrayOf<WoTResourceLoadResultDataType> Results,
                 uint NewGeneration)> refresh = fixture.RefreshAsync([source.Selector], "leased");
+            Task? changeDefault = null;
             try
             {
-                await Task.WhenAny(fixture.Host.Entered, refresh).WaitAsync(TimeSpan.FromSeconds(30));
-                Assert.That(fixture.Host.Entered.IsCompleted, Is.True,
-                    "The selected closure must reach its real host.");
-                await nextModel.Allocation.Version.SetDefaultVersionAsync("v2", 0);
-                await fixture.Registry.InitializeAsync();
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await model.Group.CreateDocumentResourceAsync(
-                        "https://example.test/models/Pump", "v3"))!;
-                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
-                Assert.That(await model.Allocation.Version.DownloadAsync(), Is.EqualTo(model.Content));
+                await fixture.Host.WaitUntilBlockedAsync(refresh).ConfigureAwait(false);
+                // Native mutations queue behind the prepared publication.
+                // Waiting for one while holding its barrier would deadlock the test.
+                changeDefault = nextModel.Allocation.Version.SetDefaultVersionAsync("v2", 0).AsTask();
+                WotResource pending = fixture.Registry.Current.FindResource(
+                    model.Group.GroupId, model.Allocation.Version.ResourceId)!;
+                Assert.That(pending.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(pending.FindVersion("v1"), Is.Not.Null);
+                Assert.That(pending.FindVersion("v3"), Is.Null);
             }
             finally
             {
-                fixture.Host.Release();
+                fixture.Host.ReleaseActivation();
                 await refresh;
             }
+            await changeDefault!;
+            await fixture.Registry.InitializeAsync();
+            Assert.That(await model.Allocation.Version.DownloadAsync(), Is.EqualTo(model.Content));
             Assert.That((await refresh).Results[0].LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
             WoTDependencySnapshotDataType captured = await fixture.SnapshotAsync(source.Version);
             Assert.That(captured.Targets[0].ContentDigest, Is.EqualTo(WotContentDigest.Compute(model.Content)));
@@ -418,7 +422,7 @@ namespace Opc.Ua.WotCon.Tests
             public WotRegistryService Registry { get; private set; } = null!;
             public WotRegistryServerOptions Options { get; private set; } = null!;
             public ObservedBlobs Blobs { get; } = new();
-            public ObservedHost Host { get; private set; } = null!;
+            public PausableWotProjectionHost Host { get; private set; } = null!;
             public WotMaterializationCoordinator Coordinator =>
                 m_services!.GetRequiredService<WotMaterializationCoordinator>();
 
@@ -522,7 +526,7 @@ namespace Opc.Ua.WotCon.Tests
 
             public async ValueTask DisposeAsync()
             {
-                Host?.Release();
+                Host?.ReleaseActivation();
                 try
                 {
                     if (m_managed is not null)
@@ -612,13 +616,13 @@ namespace Opc.Ua.WotCon.Tests
                     };
                 }).AddWotRegistryClient();
                 services.AddSingleton<IWotProjectionHost>(provider =>
-                    new ObservedHost(new LifecycleWotProjectionHost(
+                    new PausableWotProjectionHost(new LifecycleWotProjectionHost(
                         provider.GetRequiredService<INodeManagerLifecycle>(),
                         provider.GetRequiredService<IWotProjectionBindingRuntimeFactory>())));
                 m_services = services.BuildServiceProvider();
                 Options = m_services.GetRequiredService<WotRegistryServerOptions>();
                 Registry = (WotRegistryService)m_services.GetRequiredService<IWotRegistryService>();
-                Host = (ObservedHost)m_services.GetRequiredService<IWotProjectionHost>();
+                Host = (PausableWotProjectionHost)m_services.GetRequiredService<IWotProjectionHost>();
                 await server.NodeManagerLifecycle.AddAsync(
                     m_services.GetRequiredService<WotRegistryNodeManagerFactory>(), null);
                 m_clientFixture = new ClientFixture(false, false, telemetry);
@@ -693,63 +697,6 @@ namespace Opc.Ua.WotCon.Tests
             }
 
             private readonly Registry.WotPreparedMetadataStoreTests.RecordingLeasedResourceStore m_inner = new();
-        }
-
-        private sealed class ObservedHost : IWotProjectionHost
-        {
-            public ObservedHost(IWotProjectionHost inner)
-            {
-                m_inner = inner;
-            }
-
-            public ConcurrentQueue<WotProjectionDocument> Documents { get; } = new();
-            public Task Entered => m_entered.Task;
-
-            public void Pause()
-            {
-                m_release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            }
-
-            public void Release()
-            {
-                m_release?.TrySetResult(true);
-            }
-
-            public async ValueTask<WotProjectionHandle> AddAsync(
-                WotProjectionDocument document, CancellationToken cancellationToken = default)
-            {
-                Documents.Enqueue(document);
-                if (m_release is { } release)
-                {
-                    m_entered.TrySetResult(true);
-                    await release.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
-                }
-                return await m_inner.AddAsync(document, cancellationToken);
-            }
-
-            public ValueTask<WotProjectionHandle> ShadowReloadAsync(
-                WotProjectionHandle current, WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
-            {
-                return m_inner.ShadowReloadAsync(current, document, cancellationToken);
-            }
-
-            public ValueTask<WotProjectionHandle> ImmediateReloadAsync(
-                WotProjectionHandle current, WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
-            {
-                return m_inner.ImmediateReloadAsync(current, document, cancellationToken);
-            }
-
-            public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
-            {
-                return m_inner.RemoveAsync(handle, cancellationToken);
-            }
-
-            private readonly TaskCompletionSource<bool> m_entered =
-                new(TaskCreationOptions.RunContinuationsAsynchronously);
-            private readonly IWotProjectionHost m_inner;
-            private TaskCompletionSource<bool>? m_release;
         }
 
         private const string XRegistryNamespace = "http://opcfoundation.org/UA/xRegistry/";

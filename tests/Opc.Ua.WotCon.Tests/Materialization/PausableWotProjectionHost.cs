@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -39,6 +40,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     {
         public bool SupportsPreparedPublication => inner.SupportsPreparedPublication;
         public ArrayOf<WoTAtomicityEnum> SupportedAtomicities => inner.SupportedAtomicities;
+        public ConcurrentQueue<WotProjectionDocument> Documents { get; } = new();
 
         public IWotProjectionPublicationCapture CapturePublication()
         {
@@ -50,6 +52,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             IWotPreparedViewPublication? views = null,
             CancellationToken cancellationToken = default)
         {
+            RecordNewDocuments(changes);
             await WaitIfBlockedAsync(cancellationToken).ConfigureAwait(false);
             return await inner.PrepareAsync(changes, views, cancellationToken).ConfigureAwait(false);
         }
@@ -57,6 +60,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async ValueTask<WotProjectionHandle> AddAsync(
             WotProjectionDocument document, CancellationToken cancellationToken = default)
         {
+            Documents.Enqueue(document);
             await WaitIfBlockedAsync(cancellationToken).ConfigureAwait(false);
             return await inner.AddAsync(document, cancellationToken).ConfigureAwait(false);
         }
@@ -127,6 +131,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        private void RecordNewDocuments(ArrayOf<WotProjectionChange> changes)
+        {
+            foreach (WotProjectionChange change in changes)
+            {
+                if (change.Current is null && change.Document is { } document)
+                {
+                    Documents.Enqueue(document);
+                }
+            }
+        }
+
         private async ValueTask WaitIfBlockedAsync(CancellationToken cancellationToken)
         {
             TaskCompletionSource<bool>? entered;
@@ -171,6 +186,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 IWotPreparedViewPublication? views = null,
                 CancellationToken cancellationToken = default)
             {
+                owner.RecordNewDocuments(changes);
                 await owner.WaitIfBlockedAsync(cancellationToken).ConfigureAwait(false);
                 return await inner.PrepareAsync(changes, views, cancellationToken).ConfigureAwait(false);
             }
