@@ -1127,6 +1127,20 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Is.EqualTo("text"));
         }
 
+        [TestCase("2024-05-06")]
+        [TestCase("12:30:00Z")]
+        public void ReadDateTimeRejectsValuesThatAreNotDateTime(string text)
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<DateTime xmlns=\"{Ns}\">{text}</DateTime>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadDateTime("DateTime"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
         [Test]
         public void ReadStringRejectsNestedElements()
         {

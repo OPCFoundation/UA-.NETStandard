@@ -1730,6 +1730,65 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Is.EqualTo("text"));
         }
 
+        [TestCase("2024-05-06")]
+        [TestCase("12:30:00Z")]
+        [TestCase("--05-06")]
+        [TestCase("2024")]
+        [TestCase("2024-05-06T12:30:00.Z")]
+        [TestCase("2024-05-06T12:30Z")]
+        [TestCase("2024-05-06T12:30:00+0100")]
+        [TestCase("02024-05-06T12:30:00Z")]
+        public void ReadDateTimeRejectsValuesThatAreNotDateTime(string text)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = "<DateTime xmlns=\"urn:test\">" + text + "</DateTime>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadDateTime("DateTime"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [TestCase(" 2024-05-06T12:30:00Z ", "2024-05-06T12:30:00.0000000Z")]
+        [TestCase("2024-05-06T12:30:00.125Z", "2024-05-06T12:30:00.1250000Z")]
+        [TestCase("2024-05-06T14:30:00+02:00", "2024-05-06T12:30:00.0000000Z")]
+        [TestCase("2024-05-06T10:30:00-02:00", "2024-05-06T12:30:00.0000000Z")]
+        [TestCase("2024-05-06T12:30:00", "2024-05-06T12:30:00.0000000Z")]
+        public void ReadDateTimeAcceptsDateTime(string text, string expected)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = "<DateTime xmlns=\"urn:test\">" + text + "</DateTime>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+
+            DateTimeUtc value = decoder.ReadDateTime("DateTime");
+
+            Assert.That(
+                ((DateTime)value).ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase("0001-01-01T00:00:00Z", false)]
+        [TestCase("0000-01-01T00:00:00Z", false)]
+        [TestCase("-0005-01-01T00:00:00Z", false)]
+        [TestCase("9999-12-31T23:59:59Z", true)]
+        [TestCase("10000-01-01T00:00:00Z", true)]
+        public void ReadDateTimeClampsToTheDevelopmentPlatformRange(string text, bool latest)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = "<DateTime xmlns=\"urn:test\">" + text + "</DateTime>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+
+            DateTimeUtc value = decoder.ReadDateTime("DateTime");
+
+            Assert.That(value, Is.EqualTo(latest ? DateTimeUtc.MaxValue : DateTimeUtc.MinValue));
+        }
+
         [Test]
         public void ReadFieldRejectsNilElementWithContent()
         {

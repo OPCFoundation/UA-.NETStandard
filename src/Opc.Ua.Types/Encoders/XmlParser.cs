@@ -628,16 +628,9 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    try
-                    {
-                        var value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
-                        EndField(fieldName);
-                        return value;
-                    }
-                    catch (FormatException fe)
-                    {
-                        throw CreateBadDecodingError(fieldName, fe, value: xml);
-                    }
+                    DateTimeUtc value = XmlDecoder.ParseDateTime(fieldName, xml!);
+                    EndField(fieldName);
+                    return value;
                 }
             }
 

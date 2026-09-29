@@ -638,20 +638,128 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    try
-                    {
-                        var value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
-                        EndField(fieldName);
-                        return value;
-                    }
-                    catch (FormatException fe)
-                    {
-                        throw CreateBadDecodingError(fieldName, fe, value: xml);
-                    }
+                    DateTimeUtc value = ParseDateTime(fieldName, xml!);
+                    EndField(fieldName);
+                    return value;
                 }
             }
 
             return DateTimeUtc.MinValue;
+        }
+
+        /// <summary>
+        /// Parses an xs:dateTime value (Part 6 5.3.1.6). Only the xs:dateTime
+        /// lexical form is accepted - XmlConvert also takes the other XSD date
+        /// and time types (date, time, gYear, gMonthDay...) and decodes them to
+        /// a surprising instant. Years beyond 9999 decode as the latest and
+        /// years before 0001 as the earliest date/time value.
+        /// </summary>
+        /// <remarks>
+        /// Part 6 requires encoders to write a time zone. A value without one
+        /// is still read, as UTC, because published model files (including the
+        /// standard type design) contain such values.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static DateTimeUtc ParseDateTime(
+            string? fieldName,
+            string xml,
+            [CallerMemberName] string? functionName = null)
+        {
+            // xs:dateTime collapses whitespace.
+            string text = xml.Trim();
+
+            // '-'? yyyy '-' mm '-' dd 'T' hh ':' mm ':' ss ('.' s+)? zone
+            int index = 0;
+            bool negative = text.Length > 0 && text[0] == '-';
+            if (negative)
+            {
+                index++;
+            }
+
+            int yearStart = index;
+            while (index < text.Length && IsDigit(text[index]))
+            {
+                index++;
+            }
+
+            int yearDigits = index - yearStart;
+            bool valid =
+                (yearDigits == 4 || (yearDigits > 4 && text[yearStart] != '0')) &&
+                MatchesPattern(text, index, "-dd-ddTdd:dd:dd");
+            index += 15;
+
+            if (valid && index < text.Length && text[index] == '.')
+            {
+                int fractionStart = ++index;
+                while (index < text.Length && IsDigit(text[index]))
+                {
+                    index++;
+                }
+                valid = index > fractionStart;
+            }
+
+            if (valid && index < text.Length && text[index] == 'Z')
+            {
+                index++;
+            }
+            else if (valid &&
+                index < text.Length &&
+                (text[index] is '+' or '-') &&
+                MatchesPattern(text, index + 1, "dd:dd"))
+            {
+                index += 6;
+            }
+
+            if (!valid || index != text.Length)
+            {
+                throw CreateBadDecodingError(
+                    fieldName,
+                    new FormatException("The value is not an xs:dateTime."),
+                    functionName,
+                    xml);
+            }
+
+            if (negative ||
+                (yearDigits == 4 && string.CompareOrdinal(text, yearStart, "0000", 0, 4) == 0))
+            {
+                return DateTimeUtc.MinValue;
+            }
+
+            if (yearDigits > 4)
+            {
+                return DateTimeUtc.MaxValue;
+            }
+
+            try
+            {
+                return XmlConvert.ToDateTime(text, XmlDateTimeSerializationMode.Utc);
+            }
+            catch (FormatException fe)
+            {
+                throw CreateBadDecodingError(fieldName, fe, functionName, xml);
+            }
+
+            static bool IsDigit(char c)
+            {
+                return c is >= '0' and <= '9';
+            }
+
+            static bool MatchesPattern(string value, int start, string pattern)
+            {
+                if (start + pattern.Length > value.Length)
+                {
+                    return false;
+                }
+                for (int ii = 0; ii < pattern.Length; ii++)
+                {
+                    char c = value[start + ii];
+                    if (pattern[ii] == 'd' ? !IsDigit(c) : c != pattern[ii])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
 
         /// <inheritdoc/>
