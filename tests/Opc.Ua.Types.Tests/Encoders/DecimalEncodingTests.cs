@@ -164,6 +164,82 @@ namespace Opc.Ua.Types.Tests.Encoders
                     .And.Message.Contains("unscaled value"));
         }
 
+        [TestCase(Opc.Ua.Decimal.MaxUnscaledOctets, 0, true)]
+        [TestCase(Opc.Ua.Decimal.MaxUnscaledOctets + 1, 0, false)]
+        [TestCase(1024 * 1024, 0, false)]
+        [TestCase(16, 16, true)]
+        [TestCase(17, 16, false)]
+        public void UnscaledOctetsAreBoundedBeforeTheyAreRead(
+            int octets,
+            int maxByteStringLength,
+            bool accepted)
+        {
+            // The unscaled octets used to be bounded only by the message size;
+            // every later rendering as digits is quadratic in their number.
+            m_context.MaxByteStringLength = maxByteStringLength;
+            byte[] buffer = EncodeRawDecimalBody(octets);
+
+            using var decoder = new BinaryDecoder(buffer, m_context);
+
+            if (accepted)
+            {
+                ExtensionObject output = decoder.ReadExtensionObject("Value");
+                Assert.That(output.TryGetValue(out Opc.Ua.Decimal _), Is.True);
+                return;
+            }
+            Assert.That(() => decoder.ReadExtensionObject("Value"),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [TestCase("1.5")]
+        [TestCase(" 15")]
+        [TestCase("1e5")]
+        [TestCase("0x15")]
+        [TestCase("--1")]
+        public void AMalformedJsonValueIsADecodingError(string value)
+        {
+            string json = "{\"Scale\":0,\"Value\":\"" + value + "\"}";
+            using var decoder = new JsonDecoder(json, m_context);
+
+            Assert.That(() => new Opc.Ua.Decimal().Decode(decoder),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
+        [TestCase(Opc.Ua.Decimal.MaxUnscaledDigits, true)]
+        [TestCase(Opc.Ua.Decimal.MaxUnscaledDigits + 1, false)]
+        public void JsonValueDigitsAreBoundedBeforeTheyAreParsed(int digits, bool accepted)
+        {
+            string json = "{\"Scale\":0,\"Value\":\"-" + new string('9', digits) + "\"}";
+            using var decoder = new JsonDecoder(json, m_context);
+            var value = new Opc.Ua.Decimal();
+
+            if (accepted)
+            {
+                value.Decode(decoder);
+                Assert.That(value.UnscaledValue.Sign, Is.EqualTo(-1));
+                return;
+            }
+            Assert.That(() => value.Decode(decoder),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property("StatusCode").EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        private byte[] EncodeRawDecimalBody(int octets)
+        {
+            using var encoder = new BinaryEncoder(m_context);
+            encoder.WriteNodeId(null, ExpandedNodeId.ToNodeId(new Opc.Ua.Decimal().TypeId, m_context.NamespaceUris));
+            encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
+            encoder.WriteInt32(null, octets + 2);
+            encoder.WriteInt16(null, 0);
+            for (int ii = 0; ii < octets; ii++)
+            {
+                encoder.WriteByte(null, 0x11);
+            }
+            return encoder.CloseAndReturnBuffer()!;
+        }
+
         [Test]
         public void AZeroValuedDecimalCarriesNoUnscaledOctetsBeyondTheSignByte()
         {
