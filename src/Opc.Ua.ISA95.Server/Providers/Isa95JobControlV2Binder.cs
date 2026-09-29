@@ -92,8 +92,25 @@ namespace Opc.Ua.ISA95.Server.Providers
         /// <summary>
         /// Gets the namespace index of the Job Control V2 model.
         /// </summary>
-        public ushort JobControlV2NamespaceIndex =>
-            (ushort)m_namespaceUris.GetIndex(V2.Namespaces.ISA95JobControlV2);
+        /// <exception cref="ServiceResultException">
+        /// The namespace table does not contain the Job Control V2 model
+        /// (<see cref="StatusCodes.BadConfigurationError"/>).
+        /// </exception>
+        public ushort JobControlV2NamespaceIndex
+        {
+            get
+            {
+                int index = m_namespaceUris.GetIndex(V2.Namespaces.ISA95JobControlV2);
+                if (index < 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "The Job Control V2 namespace '{0}' is not registered.",
+                        V2.Namespaces.ISA95JobControlV2);
+                }
+                return (ushort)index;
+            }
+        }
 
         /// <summary>
         /// Materialises the optional job verbs the Job Control V2 receiver
