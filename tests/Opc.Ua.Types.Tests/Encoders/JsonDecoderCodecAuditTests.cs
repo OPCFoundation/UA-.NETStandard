@@ -306,6 +306,44 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void NestedJsonArrayIsRejectedForAOneDimensionalArray()
+        {
+            // Part 6 5.4.5: nested JSON arrays were silently flattened.
+            ServiceMessageContext context = CreateContext();
+            using (JsonDecoder decoder = Field(context, "[[1,2],[3]]"))
+            {
+                AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadInt32Array("F"));
+            }
+            using (JsonDecoder decoder = Field(context, "{\"UaType\":6,\"Value\":[1,[2,3]]}"))
+            {
+                AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadVariant("F"));
+            }
+        }
+
+        [Test]
+        public void ArrayLengthIsCheckedBeforeTheElementsAreCollected()
+        {
+            ServiceMessageContext context = CreateContext();
+            context.MaxArrayLength = 2;
+            using JsonDecoder decoder = Field(context, "[1,2,3]");
+
+            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, () => decoder.ReadInt32Array("F"));
+        }
+
+        [Test]
+        public void FlatMatrixWithDimensionsIsStillDecoded()
+        {
+            ServiceMessageContext context = CreateContext();
+            using JsonDecoder decoder = Field(
+                context,
+                "{\"UaType\":6,\"Value\":[1,2,3,4,5,6],\"Dimensions\":[2,3]}");
+
+            Variant value = decoder.ReadVariant("F");
+
+            Assert.That(value.TypeInfo.ValueRank, Is.EqualTo(2));
+        }
+
+        [Test]
         public void SameMemberNameInSiblingObjectsIsAccepted()
         {
             ServiceMessageContext context = CreateContext();

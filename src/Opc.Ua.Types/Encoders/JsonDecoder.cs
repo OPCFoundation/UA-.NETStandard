@@ -4488,40 +4488,28 @@ namespace Opc.Ua
                     values = default;
                     return true; // Default is empty array
                 case JsonValueKind.Array:
-                    if (element.GetArrayLength() == 0)
+                    int length = element.GetArrayLength();
+                    if (length == 0)
                     {
                         values = [];
                         return true;
                     }
-                    var result = new List<JsonElement>(element.GetArrayLength());
+                    CheckArrayLength(length);
+                    var result = new JsonElement[length];
+                    int index = 0;
                     foreach (JsonElement item in element.EnumerateArray())
                     {
+                        // Part 6 5.4.5: a one-dimensional array is a JSON array of
+                        // its elements, a matrix is a flat JSON array with the
+                        // Dimensions beside it. Nested JSON arrays are neither
+                        // and used to be flattened silently.
                         if (item.ValueKind == JsonValueKind.Array)
                         {
-                            GetValuesFromArray(item, ref result);
+                            values = default;
+                            return false;
                         }
-                        else
-                        {
-                            result.Add(item);
-                        }
-
-                        static void GetValuesFromArray(JsonElement array,
-                            ref List<JsonElement> elements)
-                        {
-                            foreach (JsonElement element in array.EnumerateArray())
-                            {
-                                if (element.ValueKind == JsonValueKind.Array)
-                                {
-                                    GetValuesFromArray(element, ref elements);
-                                }
-                                else
-                                {
-                                    elements.Add(element);
-                                }
-                            }
-                        }
+                        result[index++] = item;
                     }
-                    CheckArrayLength(result.Count);
                     values = result;
                     return true;
                 default:
