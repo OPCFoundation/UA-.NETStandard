@@ -612,13 +612,29 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                // update receive buffer size.
-                ReceiveBufferSize = Math.Min(ReceiveBufferSize, (int)receiveBufferSize);
-                ReceiveBufferSize = Math.Min(
-                    Math.Max(ReceiveBufferSize, TcpMessageLimits.MinBufferSize),
+                // OPC 10000-6 §7.1.2.3: the buffer sizes a client requests are at
+                // least 1024 bytes when it intends to use an ECC SecurityPolicy and
+                // 8192 bytes otherwise. Smaller values are rejected, not raised: a
+                // raised SendBufferSize would send chunks the client cannot take.
+                if (receiveBufferSize < TcpMessageLimits.ECCMinBufferSize ||
+                    sendBufferSize < TcpMessageLimits.ECCMinBufferSize)
+                {
+                    ForceChannelFaultCore(
+                        StatusCodes.BadTcpNotEnoughResources,
+                        "Client buffer sizes are below the minimum (receive {0}, send {1} bytes).",
+                        sendBufferSize,
+                        receiveBufferSize);
+                    return false;
+                }
+
+                // update receive buffer size. §7.1.2.4: not larger than the
+                // client's SendBufferSize, and at least 8192 bytes unless the
+                // client requested less.
+                ReceiveBufferSize = (int)Math.Min(
+                    Math.Min((uint)ReceiveBufferSize, receiveBufferSize),
                     TcpMessageLimits.MaxBufferSize);
                 ReceiveBufferSize = Math.Max(
-                    TcpMessageLimits.MinBufferSize,
+                    GetMinBufferSize(receiveBufferSize),
                     BufferManager.GetSuggestedBufferSize(ReceiveBufferSize));
 
                 if (Transport is IUaSCByteTransportLimits transportLimits)
@@ -626,13 +642,13 @@ namespace Opc.Ua.Bindings
                     transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
                 }
 
-                // update send buffer size.
-                SendBufferSize = Math.Min(SendBufferSize, (int)sendBufferSize);
-                SendBufferSize = Math.Min(
-                    Math.Max(SendBufferSize, TcpMessageLimits.MinBufferSize),
+                // update send buffer size. §7.1.2.4: never larger than the
+                // client's ReceiveBufferSize.
+                SendBufferSize = (int)Math.Min(
+                    Math.Min((uint)SendBufferSize, sendBufferSize),
                     TcpMessageLimits.MaxBufferSize);
                 SendBufferSize = Math.Max(
-                    TcpMessageLimits.MinBufferSize,
+                    GetMinBufferSize(sendBufferSize),
                     BufferManager.GetSuggestedBufferSize(SendBufferSize));
 
                 // update the max message size.
@@ -703,6 +719,18 @@ namespace Opc.Ua.Bindings
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns the smallest buffer size the Acknowledge may return for a
+        /// size the client requested (OPC 10000-6 §7.1.2.4): 8192 bytes when the
+        /// client requested at least that much, 1024 bytes otherwise.
+        /// </summary>
+        private static int GetMinBufferSize(uint requestedBufferSize)
+        {
+            return requestedBufferSize >= TcpMessageLimits.MinBufferSize
+                ? TcpMessageLimits.MinBufferSize
+                : TcpMessageLimits.ECCMinBufferSize;
         }
 
         /// <summary>
