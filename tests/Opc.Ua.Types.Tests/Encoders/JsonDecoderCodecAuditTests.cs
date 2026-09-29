@@ -199,6 +199,29 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void StrictFailureDoesNotEchoTheRawJson()
+        {
+            // The message used to embed GetRawText() of the current object, so
+            // a failed request was copied into the fault and the logs.
+            ServiceMessageContext context = CreateContext();
+            string padding = new('P', 4096);
+            using var decoder = new JsonDecoder(
+                "{\"MaxAge\":\"x\",\"Pad\":\"" + padding + "\"}",
+                context);
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadDouble("MaxAge"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                Assert.That(sre.Message, Does.Contain("MaxAge"));
+                Assert.That(sre.Message, Does.Not.Contain("PPPP"));
+                Assert.That(sre.Message, Has.Length.LessThan(512));
+            });
+        }
+
+        [Test]
         public void SameMemberNameInSiblingObjectsIsAccepted()
         {
             ServiceMessageContext context = CreateContext();

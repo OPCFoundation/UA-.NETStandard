@@ -291,7 +291,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, null);
         }
 
         /// <inheritdoc/>
@@ -303,7 +303,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -315,7 +315,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -327,7 +327,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -339,7 +339,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -351,7 +351,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -363,7 +363,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -375,7 +375,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -387,7 +387,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -399,7 +399,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -411,7 +411,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -423,7 +423,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -435,7 +435,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -447,7 +447,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -459,7 +459,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -471,7 +471,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -484,7 +484,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -496,7 +496,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -508,7 +508,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -520,7 +520,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -532,7 +532,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -544,7 +544,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -556,7 +556,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -568,7 +568,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -580,7 +580,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -592,7 +592,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -604,7 +604,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -616,7 +616,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -628,7 +628,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -640,7 +640,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -652,7 +652,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -664,7 +664,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -676,7 +676,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -688,7 +688,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -700,7 +700,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -712,7 +712,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -724,7 +724,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -736,7 +736,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -748,7 +748,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -760,7 +760,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -772,7 +772,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -784,7 +784,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -796,7 +796,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -808,7 +808,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -820,7 +820,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -834,7 +834,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -847,7 +847,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -860,7 +860,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -873,7 +873,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -887,7 +887,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -900,7 +900,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -914,7 +914,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -927,7 +927,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -939,7 +939,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -951,7 +951,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -963,7 +963,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -975,7 +975,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -987,7 +987,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -999,7 +999,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1011,7 +1011,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1023,7 +1023,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1037,7 +1037,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1049,7 +1049,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1061,7 +1061,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1074,7 +1074,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, null);
         }
 
         /// <inheritdoc/>
@@ -1088,7 +1088,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -4381,14 +4381,27 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
 #pragma warning disable IDE0060 // Remove unused parameter
-        private T DefaultOrThrow<T>(T returnedValue)
+        private T DefaultOrThrow<T>(T returnedValue, string? fieldName)
 #pragma warning restore IDE0060 // Remove unused parameter
         {
             if (m_options.ParseStrict)
             {
+                // Only name the field and the JSON kind found. Echoing the raw
+                // JSON copied the whole (peer supplied) object into the message,
+                // the ServiceFault and the logs.
+                JsonElement current = m_stack.Count > 0 ? m_stack.Peek() : default;
+                JsonValueKind kind = current.ValueKind;
+                if (fieldName != null && kind == JsonValueKind.Object)
+                {
+                    kind = current.TryGetProperty(fieldName, out JsonElement field)
+                        ? field.ValueKind
+                        : JsonValueKind.Undefined;
+                }
                 throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Parsing encountered invalid information. {0}",
-                    m_stack.Peek().GetRawText());
+                    "Parsing encountered invalid information. {0}{1} cannot be decoded from JSON {2}.",
+                    fieldName != null ? $"Field '{fieldName}' of type " : string.Empty,
+                    typeof(T).Name,
+                    kind);
             }
             return default!;
         }
