@@ -148,6 +148,62 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "The unmatched binding must still be reported");
         }
 
+        /// <summary>
+        /// Regression: when the reference (or another referenced assembly) already
+        /// provides the fluent accessors, the whole binding used to be dropped -
+        /// no manager, only a fluent-accessors-only diagnostic that does not
+        /// mention the binding. Only the accessors must be left out; the manager
+        /// and its typed wrappers do not depend on them.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public void ABoundManagerIsEmittedWhenAReferenceAlreadyProvidesTheAccessors(
+            bool producerEmittedAccessors,
+            bool separateAccessorProvider)
+        {
+            Dictionary<string, string> files = Generate(
+                WithBinding(),
+                out List<string> diagnostics,
+                producerEmittedAccessors,
+                separateAccessorProvider
+                    ? [new ModelFluentAccessorProviderReference("Referenced.Server", ModelUri, Prefix)]
+                    : null,
+                out List<string> accessorDiagnostics);
+
+            Assert.That(files.Keys, Has.Some.EndsWith(".NodeManager.g.cs"));
+            string builders = files.Single(
+                kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal)).Value;
+            Assert.Multiple(() =>
+            {
+                Assert.That(builders, Does.Contain("IBoundNodeManagerBuilder"));
+                Assert.That(builders, Does.Not.Contain("StateComponents"),
+                    "the accessors the reference provides must not be emitted a second time");
+                Assert.That(builders, Does.Not.Contain("ModelFluentAccessorProviderAttribute"),
+                    "an assembly without accessors must not advertise them");
+                Assert.That(diagnostics, Is.Empty);
+                Assert.That(accessorDiagnostics, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// Regression: the fluent accessor provider attribute recorded the manager
+        /// namespace of the binding instead of the model prefix, so a downstream
+        /// accessors-only build did not recognise the provider and emitted a second,
+        /// ambiguous set of accessors (CS0121).
+        /// </summary>
+        [Test]
+        public void TheAccessorProviderAttributeRecordsTheModelPrefix()
+        {
+            Dictionary<string, string> files = Generate(WithBinding(), out _);
+
+            string builders = files.Single(
+                kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal)).Value;
+            Assert.That(builders, Does.Contain(
+                "ModelFluentAccessorProviderAttribute(\"" + ModelUri + "\", \"" + Prefix + "\")"));
+            Assert.That(builders, Does.Contain("namespace Consumer.Managers"),
+                "the accessors themselves stay in the manager namespace");
+        }
+
         private static IReadOnlyList<NodeManagerAttributeBinding> WithBinding()
         {
             return
@@ -166,19 +222,30 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             IReadOnlyList<NodeManagerAttributeBinding> bindings,
             out List<string> diagnostics)
         {
+            return Generate(bindings, out diagnostics, false, null, out _);
+        }
+
+        private static Dictionary<string, string> Generate(
+            IReadOnlyList<NodeManagerAttributeBinding> bindings,
+            out List<string> diagnostics,
+            bool producerEmittedAccessors,
+            IReadOnlyList<ModelFluentAccessorProviderReference> accessorProviders,
+            out List<string> accessorDiagnostics)
+        {
             const string designFile = "TestModel.xml";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();
             string resources = Path.Combine(Directory.GetCurrentDirectory(), "Resources");
 
             var captured = new List<string>();
+            var capturedAccessors = new List<string>();
 
             // A referenced assembly that supplies the model types but no
             // fluent accessors — the shape of a model-only package.
             var dependency = new ModelDependencyV1
             {
                 ModelUri = ModelUri,
-                FluentAccessorsEmitted = false
+                FluentAccessorsEmitted = producerEmittedAccessors
             };
             var referenced = new ModelDependencyReference(
                 "Referenced.Model",
@@ -207,9 +274,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     [ModelUri] = referenced
                 },
                 nodeManagerBindings: bindings,
-                reportBindingDiagnostic: (_, message) => captured.Add(message));
+                reportBindingDiagnostic: (_, message) => captured.Add(message),
+                sharedUsedBindings: null,
+                bindingModelCount: 0,
+                reportFluentAccessorsOnlyDiagnostic: (_, _, _, reason) => capturedAccessors.Add(reason),
+                referencedModelProviders: null,
+                referencedAccessorProviders: accessorProviders);
 
             diagnostics = captured;
+            accessorDiagnostics = capturedAccessors;
             return fileSystem.CreatedFiles
                 .Where(c => Path.GetExtension(c) == ".cs")
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));

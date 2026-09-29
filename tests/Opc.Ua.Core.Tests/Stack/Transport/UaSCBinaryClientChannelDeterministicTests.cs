@@ -30,10 +30,12 @@
 #nullable enable
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -330,6 +332,108 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
         }
 
+        [TestCase(SocketError.HostNotFound)]
+        [TestCase(SocketError.ConnectionRefused)]
+        [TestCase(SocketError.TimedOut)]
+        [TestCase(SocketError.SocketError)]
+        public async Task ConnectAsyncWrapsTransportFailuresAsync(SocketError socketError)
+        {
+            Exception cause = socketError == SocketError.SocketError
+                ? new IOException("Transport connection failed.")
+                : new SocketException((int)socketError);
+            var transport = new RecordingByteTransport { ConnectException = cause };
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                new FakeTimeProvider());
+
+            await Assert.ThatAsync(
+                async () => await channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                    60000, CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo((uint)StatusCodes.BadNotConnected)
+                    .And.Property(nameof(Exception.InnerException)).SameAs(cause)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(transport.IsClosed, Is.True);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConnectAsyncPreservesNonTransportFailuresAsync(bool serviceFailure)
+        {
+            Exception cause = serviceFailure
+                ? new ServiceResultException(StatusCodes.BadSecurityChecksFailed)
+                : new InvalidOperationException("Invalid transport state.");
+            var transport = new RecordingByteTransport { ConnectException = cause };
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                new FakeTimeProvider());
+
+            await Assert.ThatAsync(
+                async () => await channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                    60000, CancellationToken.None).ConfigureAwait(false),
+                Throws.Exception.With.SameAs(cause)).ConfigureAwait(false);
+
+            Assert.That(transport.IsClosed, Is.True);
+        }
+
+        [Test]
+        public async Task ConnectAsyncPreservesCallerCancellationAsync()
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            var transport = new RecordingByteTransport();
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                new FakeTimeProvider());
+
+            await Assert.ThatAsync(
+                async () => await channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                    60000, cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .With.Property(nameof(OperationCanceledException.CancellationToken))
+                    .EqualTo(cancellation.Token)).ConfigureAwait(false);
+
+            Assert.That(transport.IsClosed, Is.True);
+        }
+
+        [TestCase(SocketError.Interrupted)]
+        [TestCase(SocketError.OperationAborted)]
+        [TestCase(SocketError.InvalidArgument)]
+        public async Task ConnectAsyncPreservesCancellationDuringTransportConnectAsync(SocketError socketError)
+        {
+            using var cancellation = new CancellationTokenSource();
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var transport = new RecordingByteTransport { ConnectTask = completion.Task };
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                new FakeTimeProvider());
+
+            Task connecting = channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                60000, cancellation.Token).AsTask();
+            Assert.That(connecting.IsCompleted, Is.False);
+            cancellation.Cancel();
+            completion.SetException(new SocketException((int)socketError));
+
+            await Assert.ThatAsync(async () => await connecting.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .With.Property(nameof(OperationCanceledException.CancellationToken))
+                    .EqualTo(cancellation.Token)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(transport.IsClosed, Is.True);
+            });
+        }
+
         [TestCase(200000u, 8192u, TestName = "SendBufferSizeTooLarge")]
         [TestCase(8192u, 200000u, TestName = "ReceiveBufferSizeTooLarge")]
         [TestCase(8192u, 1024u, TestName = "ReceiveBufferSizeTooSmall")]
@@ -546,6 +650,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await CompletesWithinAsync(channel.WriteCompletion, 30).ConfigureAwait(false),
                 Is.True,
                 "closed transport write completion was not reported");
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task AbortAtTheResponseLimitFaultsOnlyThePendingRequestAsync(bool chunkLimit)
+        {
+            var pool = new PoisoningArrayPool();
+            var buffers = new BufferManager("abort-client", 65536, m_telemetry, pool);
+            var transport = new RecordingByteTransport();
+            using var channel = new TestClientChannel(
+                buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry, new FakeTimeProvider());
+            channel.OpenForAbortTest(transport, chunkLimit);
+            Task<IServiceResponse> request = channel.SendRequestAsync(new ReadRequest(), 30000, CancellationToken.None)
+                .AsTask();
+            await transport.FirstSendTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            uint requestId = BitConverter.ToUInt32(transport.LastSent, 20);
+            await channel.FeedPooledReplyAsync(requestId, 1, TcpMessageType.Intermediate, new byte[8])
+                .ConfigureAwait(false);
+            byte[] errorBody = BuildErrorBody((uint)StatusCodes.BadEncodingLimitsExceeded, "Aborted by peer");
+            await channel.FeedPooledReplyAsync(requestId, 2, TcpMessageType.Abort, errorBody).ConfigureAwait(false);
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await request.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo((uint)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+
+            channel.ResetResponseLimitsForTest();
+            Task<IServiceResponse> next = channel.SendRequestAsync(new ReadRequest(), 30000, CancellationToken.None)
+                .AsTask();
+            byte[] response = BinaryEncoder.EncodeMessage(new ReadResponse(), m_context);
+            await channel.FeedPooledReplyAsync(requestId + 1, 3, TcpMessageType.Final, response).ConfigureAwait(false);
+            Assert.That(await next.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.TypeOf<ReadResponse>());
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (pool.OutstandingCount != 0)
+            {
+                await Task.Delay(10, cleanupTimeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturns, Is.Zero);
         }
 
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
@@ -840,6 +984,45 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Task WriteCompletion => m_writeCompletion.Task;
 
+            public void OpenForAbortTest(IUaSCByteTransport transport, bool chunkLimit)
+            {
+                Transport = transport;
+                State = TcpChannelState.Open;
+                ChannelId = 1;
+                ((IDiagnosticsChannelMutation)this).LoadTokensForOfflineDecode(
+                    new ChannelToken
+                    {
+                        ChannelId = 1,
+                        TokenId = 1,
+                        SecurityPolicy = SecurityPolicyInfo.None,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedAtTimestamp = TimeProvider.GetTimestamp(),
+                        Lifetime = 60000
+                    }, null);
+                MaxResponseChunkCount = chunkLimit ? 1 : 0;
+                MaxResponseMessageSize = chunkLimit ? 65536 : 8;
+            }
+
+            public void ResetResponseLimitsForTest()
+            {
+                MaxResponseMessageSize = 65536;
+                MaxResponseChunkCount = 16;
+            }
+
+            public ValueTask FeedPooledReplyAsync(uint requestId, uint sequence, uint flag, byte[] body)
+            {
+                int length = 24 + body.Length;
+                byte[] buffer = BufferManager.TakeBuffer(length, nameof(FeedPooledReplyAsync));
+                BitConverter.GetBytes(TcpMessageType.Message | flag).CopyTo(buffer, 0);
+                BitConverter.GetBytes(length).CopyTo(buffer, 4);
+                BitConverter.GetBytes(ChannelId).CopyTo(buffer, 8);
+                BitConverter.GetBytes(CurrentToken!.TokenId).CopyTo(buffer, 12);
+                BitConverter.GetBytes(sequence).CopyTo(buffer, 16);
+                BitConverter.GetBytes(requestId).CopyTo(buffer, 20);
+                body.CopyTo(buffer, 24);
+                return OnChunkReceivedAsync(new ArraySegment<byte>(buffer, 0, length), CancellationToken.None);
+            }
+
             public void BeginClosedTransportWriteUnderGate(BufferCollection buffers)
             {
                 using (Gate.Enter())
@@ -930,6 +1113,47 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
+        private sealed class PoisoningArrayPool : ArrayPool<byte>
+        {
+            public int DuplicateReturns { get; private set; }
+
+            public int OutstandingCount
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_buffers.Count;
+                    }
+                }
+            }
+
+            public override byte[] Rent(int minimumLength)
+            {
+                byte[] buffer = new byte[minimumLength];
+                lock (m_lock)
+                {
+                    m_buffers.Add(buffer);
+                }
+                return buffer;
+            }
+
+            public override void Return(byte[] array, bool clearArray = false)
+            {
+                lock (m_lock)
+                {
+                    if (!m_buffers.Remove(array))
+                    {
+                        DuplicateReturns++;
+                    }
+                }
+                array.AsSpan().Fill(0xCC);
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly HashSet<byte[]> m_buffers = [];
+        }
+
         private sealed class RecordingByteTransportFactory : IUaSCByteTransportFactory
         {
             private readonly RecordingByteTransport m_transport;
@@ -977,6 +1201,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Task FirstSendTask => m_firstSend.Task;
 
+            public Exception? ConnectException { get; set; }
+
+            public Task? ConnectTask { get; set; }
+
+            public bool IsClosed => m_closed.Task.IsCompleted;
+
             public byte[] LastSent
             {
                 get
@@ -990,7 +1220,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public ValueTask ConnectAsync(Uri url, CancellationToken ct)
             {
-                return default;
+                ct.ThrowIfCancellationRequested();
+                if (ConnectTask != null)
+                {
+                    return new ValueTask(ConnectTask);
+                }
+                return ConnectException == null ? default : new ValueTask(Task.FromException(ConnectException));
             }
 
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)

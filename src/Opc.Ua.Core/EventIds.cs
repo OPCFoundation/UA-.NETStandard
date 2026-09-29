@@ -109,7 +109,20 @@ namespace Opc.Ua
         public const int X509CrlHelper = 580;
         public const int CryptoProvider = 590;
         public const int FilterEvaluator = 600;
-        public const int DataChannel = 610;
-        public const int DataChannelManager = 620;
+
+        /// <summary>
+        /// Event identifier offset for physical connection admission and startup deadline diagnostics.
+        /// </summary>
+        public const int UaScConnectionAdmission = 610;
+
+        /// <summary>
+        /// Event identifier offset for data-channel diagnostics.
+        /// </summary>
+        public const int DataChannel = 620;
+
+        /// <summary>
+        /// Event identifier offset for data-channel scheduling and connection diagnostics.
+        /// </summary>
+        public const int DataChannelManager = 630;
     }
 }

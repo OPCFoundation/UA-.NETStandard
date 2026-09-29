@@ -237,6 +237,58 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 
+        /// <summary>
+        /// Once the channel has negotiated a smaller chunk size, frames are
+        /// received into buffers of that size and a larger frame is refused.
+        /// </summary>
+        [Test]
+        public async Task SetReceiveBufferSizeSizesLaterReceivesAsync()
+        {
+            const int negotiatedSize = 64;
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using var transport = new WebSocketServerByteTransport(
+                pair.Server,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+            var limits = (IUaSCByteTransportLimits)transport;
+
+            Assert.That(
+                () => limits.SetReceiveBufferSize(TcpMessageLimits.MessageTypeAndSize),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            limits.SetReceiveBufferSize(negotiatedSize);
+
+            await pair.Client.SendAsync(
+                new ArraySegment<byte>(new byte[32]),
+                WebSocketMessageType.Binary,
+                endOfMessage: true,
+                CancellationToken.None).ConfigureAwait(false);
+            ArraySegment<byte> chunk = await transport
+                .ReceiveChunkAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            try
+            {
+                Assert.That(chunk, Has.Count.EqualTo(32));
+                Assert.That(chunk.Array!, Has.Length.LessThan(kBufferSize));
+            }
+            finally
+            {
+                m_bufferManager.ReturnBuffer(chunk.Array, nameof(SetReceiveBufferSizeSizesLaterReceivesAsync));
+            }
+
+            await pair.Client.SendAsync(
+                new ArraySegment<byte>(new byte[negotiatedSize + 1]),
+                WebSocketMessageType.Binary,
+                endOfMessage: true,
+                CancellationToken.None).ConfigureAwait(false);
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None)
+                    .ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
+        }
+
         [Test]
         public async Task SendChunkAsyncBufferCollectionConcatenatesIntoSingleFrame()
         {

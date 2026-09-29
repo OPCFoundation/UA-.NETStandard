@@ -191,6 +191,14 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <inheritdoc/>
+        protected override bool OwnsMonitoredItemQueueFactory(IMonitoredItemQueueFactory factory)
+        {
+            // a factory resolved from the container is owned by the container.
+            return !ReferenceEquals(factory, m_services.GetService<IMonitoredItemQueueFactory>()) &&
+                base.OwnsMonitoredItemQueueFactory(factory);
+        }
+
+        /// <inheritdoc/>
         protected override ISubscriptionStore? CreateSubscriptionStore(
             IServerInternal server,
             ApplicationConfiguration configuration)

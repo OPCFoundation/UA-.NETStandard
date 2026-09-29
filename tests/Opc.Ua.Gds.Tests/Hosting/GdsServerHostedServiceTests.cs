@@ -72,11 +72,12 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             var services = new ServiceCollection();
             var authenticator = new StubAuthenticator();
+            using var certificateGroup = new StubCertificateGroup();
             services.AddLogging();
             services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
             services.AddSingleton<IApplicationsDatabase>(new StubApplicationsDatabase());
             services.AddSingleton<ICertificateRequest>(new StubCertificateRequest());
-            services.AddSingleton<ICertificateGroup>(new StubCertificateGroup());
+            services.AddSingleton<ICertificateGroup>(certificateGroup);
             services.AddSingleton<IUserDatabase>(new StubUserDatabase());
 
             services.AddOpcUa()
@@ -109,6 +110,13 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
                 Assert.That(result.Identity, Is.SameAs(authenticator.Identity));
                 Assert.That(authenticator.CallCount, Is.EqualTo(1));
+
+                // OPC 10000-12 §7.8.3.3: without configured groups the hosted GDS
+                // still serves the mandatory DefaultApplicationGroup.
+                Assert.That(certificateGroup.Configuration.Id, Is.EqualTo("Default"));
+                Assert.That(
+                    certificateGroup.Configuration.BaseStorePath,
+                    Does.StartWith(pkiRoot));
             }
             finally
             {
@@ -696,7 +704,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public ConcurrentDictionary<NodeId, Certificate> Certificates { get; } = new();
 
-            public CertificateGroupConfiguration Configuration { get; } = new();
+            public CertificateGroupConfiguration Configuration { get; private set; } = new();
 
             public CertificateStoreIdentifier AuthoritiesStore { get; } = new();
 
@@ -711,6 +719,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 CertificateGroupConfiguration certificateGroupConfiguration,
                 string issuerCertificatesStorePath)
             {
+                Configuration = certificateGroupConfiguration;
                 return this;
             }
 

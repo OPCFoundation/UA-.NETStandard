@@ -739,6 +739,7 @@ namespace Opc.Ua.Client.StateMachines
                     parent.ObserveFiniteTransitionsAsync(streaming, options, linkedCts.Token),
                     parentAttachedTo: NodeId.Null,
                     channel.Writer,
+                    linkedCts.Cancel,
                     linkedCts.Token)
             };
             foreach (KeyValuePair<NodeId, FiniteStateMachineTypeClient> kv in subSmByState)
@@ -747,6 +748,7 @@ namespace Opc.Ua.Client.StateMachines
                     kv.Value.ObserveFiniteTransitionsAsync(streaming, options, linkedCts.Token),
                     parentAttachedTo: kv.Key,
                     channel.Writer,
+                    linkedCts.Cancel,
                     linkedCts.Token));
             }
 
@@ -781,7 +783,7 @@ namespace Opc.Ua.Client.StateMachines
 
             try
             {
-                while (await channel.Reader.WaitToReadAsync(linkedCts.Token).ConfigureAwait(false))
+                while (await channel.Reader.WaitToReadAsync(ct).ConfigureAwait(false))
                 {
                     while (channel.Reader.TryRead(out TaggedSnapshot? tagged))
                     {
@@ -837,6 +839,7 @@ namespace Opc.Ua.Client.StateMachines
             IAsyncEnumerable<FiniteStateSnapshot> source,
             NodeId parentAttachedTo,
             System.Threading.Channels.ChannelWriter<TaggedSnapshot> writer,
+            Action cancel,
             CancellationToken ct)
         {
             try
@@ -849,9 +852,14 @@ namespace Opc.Ua.Client.StateMachines
                         .ConfigureAwait(false);
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 // Expected on shutdown.
+            }
+            catch (Exception exception)
+            {
+                writer.TryComplete(exception);
+                cancel();
             }
         }
 

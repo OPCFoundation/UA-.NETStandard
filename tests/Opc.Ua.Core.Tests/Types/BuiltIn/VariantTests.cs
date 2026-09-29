@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
         [DatapointSource]
         public static readonly BuiltInType[] BuiltInTypes =
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         [
             .. Enum.GetValues<BuiltInType>()
 #else

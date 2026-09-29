@@ -41,6 +41,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
@@ -105,6 +106,52 @@ namespace Opc.Ua.Core.DataChannels.Tests
             await AssertCanBindQuicPortAsync(port).ConfigureAwait(false);
             await listener.DisposeAsync().ConfigureAwait(false);
             await AssertCanBindQuicPortAsync(port).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// QUIC control channels retain shared server policies and use a bounded fallback reassembly budget.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(20000)]
+        public async Task OpenPreservesSharedChannelPoliciesAsync(bool useSharedBudget)
+        {
+            Uri endpointUrl = EndpointUrl(0, "ChannelPolicies");
+            TransportListenerSettings settings = CreateListenerSettings(endpointUrl, m_serverRegistry!);
+            settings.SessionBindingProvider = Mock.Of<ISessionBindingProvider>();
+            settings.ResourceIsolationProvider = Mock.Of<IServerResourceIsolationProvider>();
+            settings.HandshakeTimeout = TimeSpan.FromSeconds(37);
+            var sharedBudget = new ChunkReassemblyBudget(8 * 1024 * 1024);
+            if (useSharedBudget)
+            {
+                settings.ChunkReassemblyBudget = sharedBudget;
+            }
+
+            await using var listener = new QuicTransportListener(m_telemetry!);
+            await listener.OpenAsync(endpointUrl, settings, m_callback!, TimeoutToken()).ConfigureAwait(false);
+
+            FieldInfo field = typeof(QuicTransportListener).GetField(
+                "m_quotas",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var quotas = (ChannelQuotas)field.GetValue(listener)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(quotas.SessionBindingProvider, Is.SameAs(settings.SessionBindingProvider));
+                Assert.That(quotas.ResourceIsolationProvider, Is.SameAs(settings.ResourceIsolationProvider));
+                Assert.That(quotas.HandshakeTimeout, Is.EqualTo(TimeSpan.FromSeconds(37)));
+                Assert.That(quotas.ChunkReassemblyBudget, Is.Not.Null);
+            });
+
+            if (useSharedBudget)
+            {
+                Assert.That(quotas.ChunkReassemblyBudget, Is.SameAs(sharedBudget));
+            }
+            else
+            {
+                long expected = ChunkReassemblyBudget.GetDefaultMaxBytes(settings.Configuration!.MaxMessageSize);
+                Assert.That(quotas.ChunkReassemblyBudget!.MaxBytes, Is.EqualTo(expected));
+                Assert.That(quotas.ChunkReassemblyBudget.MaxBytesWithoutSession, Is.EqualTo(expected / 2));
+            }
         }
 
         /// <summary>

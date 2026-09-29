@@ -413,6 +413,8 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
+            using IDisposable usage = TrackPendingRequest();
+
             if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
             {
                 return ProcessDataChannelMessage(messageType, messageChunk, true);
@@ -423,6 +425,10 @@ namespace Opc.Ua.Bindings
 
             using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
+                if (State == TcpChannelState.Closed)
+                {
+                    return false;
+                }
                 SetResponseRequired(true);
 
                 try
@@ -607,6 +613,11 @@ namespace Opc.Ua.Bindings
                     TcpMessageLimits.MinBufferSize,
                     BufferManager.GetSuggestedBufferSize(ReceiveBufferSize));
 
+                if (Transport is IUaSCByteTransportLimits transportLimits)
+                {
+                    transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
+                }
+
                 // update send buffer size.
                 SendBufferSize = Math.Min(SendBufferSize, (int)sendBufferSize);
                 SendBufferSize = Math.Min(
@@ -698,6 +709,25 @@ namespace Opc.Ua.Bindings
             // Communication is active on the channel
             UpdateLastActiveTime();
 
+            IDisposable? renewalLease = null;
+            bool renewalAdmitted = true;
+            if (State == TcpChannelState.Open && Quotas.ResourceIsolationProvider is { } isolation)
+            {
+                ResourceIsolationOwner owner = isolation.Classify(new SecureChannelContext(
+                    GlobalChannelId, EndpointDescription, RequestEncoding.Binary,
+                    ClientCertificate?.RawData, ServerCertificate?.RawData, ChannelThumbprint,
+                    (Transport?.RemoteEndpoint as System.Net.IPEndPoint)?.Address));
+                renewalAdmitted = isolation.TryAcquire(
+                    ResourceIsolationStage.Handshake, owner, 1, out renewalLease, out _);
+            }
+            using IDisposable? retainedRenewal = renewalLease;
+            if (!renewalAdmitted)
+            {
+                ForceChannelFaultCore(
+                    StatusCodes.BadTcpNotEnoughResources, "Secure channel renewal capacity is exhausted.");
+                return false;
+            }
+
             // validate the channel state.
             if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
             {
@@ -712,6 +742,7 @@ namespace Opc.Ua.Bindings
             Certificate? clientCertificate = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
+            ByteString clientChainBlob = default;
 
             ArraySegment<byte> messageBody = default;
 
@@ -732,6 +763,7 @@ namespace Opc.Ua.Bindings
                 messageBody = message.Body;
                 channelId = message.ChannelId;
                 clientCertificate = message.SenderCertificate;
+                clientChainBlob = message.SenderCertificateChain;
                 requestId = message.RequestId;
                 sequenceNumber = message.SequenceNumber;
 
@@ -764,6 +796,13 @@ namespace Opc.Ua.Bindings
 
                 // dispose the client certificate since it will not be stored
                 clientCertificate?.Dispose();
+
+                if (e is ServiceResultException resourceError &&
+                    resourceError.StatusCode == StatusCodes.BadTcpNotEnoughResources)
+                {
+                    ForceChannelFaultCore(resourceError.Result);
+                    return false;
+                }
 
                 if (TryGetReportableCertificateError(e, out ServiceResultException? reportable))
                 {
@@ -804,6 +843,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
                 clientCertificate = null;
+                RetainPeerCertificateChain(clientChainBlob);
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
@@ -815,6 +855,10 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
+                if (State == TcpChannelState.Closed)
+                {
+                    return false;
+                }
 
                 using var openRequestStream = new ArraySegmentStream(chunksToProcess);
                 request =
@@ -1361,10 +1405,11 @@ namespace Opc.Ua.Bindings
                 // report the audit event for close secure channel
                 ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
 
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
+                ForceChannelFaultCore(
                     e,
+                    StatusCodes.BadSecurityChecksFailed,
                     "Could not verify security on CloseSecureChannel request.");
+                return false;
             }
 
             BufferCollection? chunksToProcess = null;
@@ -1529,7 +1574,8 @@ namespace Opc.Ua.Bindings
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     m_logger.TcpServerLog15(ChannelId, requestId);
-                    chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
+                    chunksToProcess = TakeSavedChunks();
+                    chunksToProcess.Add(messageBody);
                     return true;
                 }
 
@@ -1597,6 +1643,10 @@ namespace Opc.Ua.Bindings
 
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
+                if (State == TcpChannelState.Closed)
+                {
+                    return true;
+                }
 
                 // decode the request.
                 using var serviceRequestStream = new ArraySegmentStream(chunksToProcess);
@@ -1756,12 +1806,14 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                if (response is ActivateSessionResponse activateSessionResponse &&
+                if (Quotas.SessionBindingProvider == null &&
+                    response is ActivateSessionResponse activateSessionResponse &&
                     StatusCode.IsGood(activateSessionResponse.ResponseHeader.ServiceResult))
                 {
                     AddSession();
                 }
-                else if (response is CloseSessionResponse closeSessionResponse &&
+                else if (Quotas.SessionBindingProvider == null &&
+                    response is CloseSessionResponse closeSessionResponse &&
                     StatusCode.IsGood(closeSessionResponse.ResponseHeader.ServiceResult))
                 {
                     RemoveSession();
@@ -1798,6 +1850,26 @@ namespace Opc.Ua.Bindings
         {
             base.DoMessageLimitsExceeded(gateHeld);
             ChannelClosed();
+        }
+
+        /// <inheritdoc/>
+        private protected override void ReportChunkReassemblyBudgetExceeded()
+        {
+            try
+            {
+                if (Transport != null)
+                {
+                    SendErrorMessage(ServiceResult.Create(
+                        StatusCodes.BadTcpNotEnoughResources,
+                        "The server cannot retain more chunks of incomplete messages."));
+                }
+            }
+            catch (Exception e)
+            {
+                // Reporting is best effort; the caller must still close the channel
+                // and must not return a chunk whose ownership has already transferred.
+                m_logger.TcpServerReassemblyErrorNotSent(e, ChannelId);
+            }
         }
 
         /// <summary>
@@ -1844,6 +1916,10 @@ namespace Opc.Ua.Bindings
                 // every request; read it before the body changes hands.
                 uint requestHandle = RequestHandleReader.FromBinary(messageBody);
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
+                if (State == TcpChannelState.Closed)
+                {
+                    return false;
+                }
                 SendServiceFault(
                     token,
                     requestId,
@@ -1990,6 +2066,13 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 18, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: reconnect handoff failed; closing the unadopted connection.")]
         public static partial void TcpServerReconnectFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 19, Level = LogLevel.Debug,
+            Message = "ChannelId {ChannelId}: Could not report exhausted reassembly capacity; closing the channel.")]
+        public static partial void TcpServerReassemblyErrorNotSent(
             this ILogger logger,
             Exception exception,
             uint channelId);

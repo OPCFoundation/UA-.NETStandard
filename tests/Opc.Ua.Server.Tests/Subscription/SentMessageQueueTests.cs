@@ -139,7 +139,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(published.SequenceNumber, Is.EqualTo(2u));
                 Assert.That(queue.SentCount, Is.EqualTo(2));
-                Assert.That(newlyUnacknowledgedCount, Is.Zero);
+                // the trimmed unsent message counts as discarded before acknowledgement.
+                Assert.That(newlyUnacknowledgedCount, Is.EqualTo(1u));
                 Assert.That(moreNotifications, Is.True);
                 Assert.That(availableSequenceNumbers, Has.Count.EqualTo(1));
             });

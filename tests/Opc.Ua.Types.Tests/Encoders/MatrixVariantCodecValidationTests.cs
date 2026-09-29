@@ -127,14 +127,17 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void BinaryEncodeDegenerateMatrixThrowsBadEncodingError()
+        public void BinaryEncodeDegenerateMatrixWritesEmptyArray()
         {
+            // An empty matrix has no valid ArrayDimensions and is an empty
+            // array without them (OPC 10000-6 5.2.2.16).
             ServiceMessageContext ctx = CreateContext();
             using var encoder = new BinaryEncoder(ctx);
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => encoder.WriteVariant(null, DegenerateMatrixVariant()));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+            encoder.WriteVariant(null, DegenerateMatrixVariant());
+            Assert.That(
+                encoder.CloseAndReturnBuffer(),
+                Is.EqualTo(new byte[] { 0x86, 0x00, 0x00, 0x00, 0x00 }));
         }
 
         [Test]
@@ -273,14 +276,21 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void JsonEncodeDegenerateMatrixThrowsBadEncodingError()
+        public void JsonEncodeDegenerateMatrixWritesEmptyArray()
         {
             ServiceMessageContext ctx = CreateContext();
-            using var encoder = new JsonEncoder(ctx);
+            string json;
+            using (var encoder = new JsonEncoder(ctx, JsonEncoderOptions.Verbose))
+            {
+                encoder.WriteVariant("v", DegenerateMatrixVariant());
+                json = encoder.CloseAndReturnText();
+            }
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => encoder.WriteVariant("v", DegenerateMatrixVariant()));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+            Assert.That(json, Does.Not.Contain("Dimensions"));
+            using var decoder = new JsonDecoder(json, ctx);
+            ArrayOf<int> array = decoder.ReadVariant("v").GetInt32Array();
+            Assert.That(array.IsNull, Is.False);
+            Assert.That(array.Count, Is.Zero);
         }
 
         [Test]
@@ -345,15 +355,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void XmlEncodeDegenerateMatrixThrowsBadEncodingError()
+        public void XmlEncodeDegenerateMatrixWritesEmptyArray()
         {
             ServiceMessageContext ctx = CreateContext();
-            using var encoder = new XmlEncoder(ctx);
-            encoder.PushNamespace(Namespaces.OpcUaXsd);
+            string xml = EncodeXmlVariant(ctx, DegenerateMatrixVariant());
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => encoder.WriteVariant("v", DegenerateMatrixVariant()));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+            Assert.That(xml, Does.Contain("ListOfInt32"));
+            Assert.That(xml, Does.Not.Contain("Dimensions"));
         }
 
         [Test]

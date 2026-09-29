@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -510,6 +511,33 @@ namespace Opc.Ua.Server.Tests
                 ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
                     certificate.Thumbprint, endpoints, registry.Object, s_telemetry),
                 Is.False);
+        }
+
+        [Test]
+        public async Task NoneEndpointProtectsItsRsaTokenCertificateInsteadOfThePrimaryEccCertificateAsync()
+        {
+            using var registry = new CertificateManager(s_telemetry);
+            using Certificate ecc = CertificateBuilder.Create("CN=Primary ECC")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate rsa = CertificateBuilder.Create("CN=Token RSA").CreateForRSA();
+            await registry.UpdateApplicationCertificateAsync(ObjectTypeIds.EccNistP256ApplicationCertificateType, ecc)
+                .ConfigureAwait(false);
+            await registry.UpdateApplicationCertificateAsync(ObjectTypeIds.RsaSha256ApplicationCertificateType, rsa)
+                .ConfigureAwait(false);
+            ArrayOf<EndpointDescription> endpoints = [new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens = [new UserTokenPolicy(UserTokenType.UserName)
+                {
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                }]
+            }];
+
+            Assert.That(ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                rsa.Thumbprint, endpoints, registry, s_telemetry), Is.True);
+            Assert.That(ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                ecc.Thumbprint, endpoints, registry, s_telemetry), Is.False);
         }
 
         private (CertificateStoreIdentifier TrustedStore, CertificateStoreIdentifier IssuerStore) CreateEmptyStores()

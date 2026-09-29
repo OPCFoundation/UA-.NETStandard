@@ -76,6 +76,26 @@ namespace Opc.Ua.Server.Tests.Hosting
     public sealed class OpcUaServerHostedServiceCoverageTests
     {
         /// <summary>
+        /// Verifies that the default certificate store root is a per-user
+        /// application-data directory and not the shared temporary directory.
+        /// </summary>
+        [Test]
+        public void DefaultPkiRootIsNotInTempDirectory()
+        {
+            string pkiRoot = DefaultPkiRoot.Get("DefaultPkiApp");
+            string appData = Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
+
+            Assert.That(
+                pkiRoot,
+                Is.EqualTo(System.IO.Path.Combine(appData, "OPC Foundation", "DefaultPkiApp", "pki")));
+            Assert.That(
+                pkiRoot,
+                Does.Not.StartWith(System.IO.Path.GetTempPath()));
+        }
+
+        /// <summary>
         /// Verifies that hosted-service construction rejects null options.
         /// </summary>
         [Test]
@@ -314,6 +334,202 @@ namespace Opc.Ua.Server.Tests.Hosting
                     () => server.IdentityRegistry.UnregisterAugmenter(augmenter.Object),
                     TimeSpan.FromSeconds(60)).ConfigureAwait(false),
                 Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that an identity configuration that disables anonymous access but yields no
+        /// authenticator (UserName enabled without a user database) does not re-enable anonymous
+        /// logins: anonymous tokens are rejected instead of falling back to acceptance.
+        /// </summary>
+        [Test]
+        public async Task HostedServiceRejectsAnonymousWhenDisabledAndNoAuthenticatorIsCreatedAsync()
+        {
+            RegistryCaptureServer.Reset();
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddOpcUa()
+                        .AddServer<RegistryCaptureServer>(o =>
+                        {
+                            ConfigureHostedOptions(o, "AnonymousDisabled");
+                            o.Identity.Defaults.EnableAnonymous = false;
+                            o.Identity.Defaults.EnableUserNamePassword = true;
+                            o.Identity.Defaults.EnableX509 = false;
+                            o.Identity.Defaults.EnableJwt = false;
+                        });
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+            IServerInternal server = RegistryCaptureServer.StartedServer ??
+                throw new InvalidOperationException("The server did not start.");
+
+            var context = new AuthenticationContext(
+                new AnonymousIdentityTokenHandler(),
+                new UserTokenPolicy { TokenType = UserTokenType.Anonymous },
+                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+
+            // the authenticators are registered after the server started; poll until they are.
+            AuthenticationResult result = AuthenticationResult.NotHandled;
+            DateTime deadline = DateTime.UtcNow.AddSeconds(60);
+            while (result.Outcome == AuthenticationOutcome.NotHandled && DateTime.UtcNow < deadline)
+            {
+                result = await server.IdentityRegistry.AuthenticateAsync(context).ConfigureAwait(false);
+                if (result.Outcome == AuthenticationOutcome.NotHandled)
+                {
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
+
+        /// <summary>
+        /// Verifies that disabling anonymous access without explicit UserTokenPolicies does not
+        /// advertise the implicit Anonymous policy: endpoints list the user identity tokens the
+        /// server accepts (Part 4 7.14, 7.41), here the UserName token of the default authenticator.
+        /// </summary>
+        [Test]
+        public async Task HostedServiceDoesNotAdvertiseAnonymousWhenDisabledByDefaultsAsync()
+        {
+            RegistryCaptureServer.Reset();
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddSingleton(Mock.Of<IUserDatabase>());
+                    services.AddSingleton(Mock.Of<IUserManagement>());
+                    services.AddOpcUa()
+                        .AddServer<RegistryCaptureServer>(o =>
+                        {
+                            ConfigureHostedOptions(o, "AnonymousNotAdvertised");
+                            o.Identity.Defaults.EnableAnonymous = false;
+                            o.Identity.Defaults.EnableUserNamePassword = true;
+                            o.Identity.Defaults.EnableX509 = false;
+                            o.Identity.Defaults.EnableJwt = false;
+                        });
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+
+            EndpointDescription[] endpoints = [.. RegistryCaptureServer.StartedInstance!.GetEndpoints()];
+            Assert.That(endpoints, Is.Not.Empty);
+            foreach (EndpointDescription endpoint in endpoints)
+            {
+                UserTokenPolicy[] policies = [.. endpoint.UserIdentityTokens];
+                UserTokenType[] tokenTypes = [.. policies.Select(p => p.TokenType)];
+                Assert.That(tokenTypes, Does.Not.Contain(UserTokenType.Anonymous));
+                Assert.That(tokenTypes, Does.Contain(UserTokenType.UserName));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the budget registered through the fluent builder is the
+        /// one the hosted server bounds incomplete messages with.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HostedServiceAppliesTheRegisteredChunkReassemblyBudgetAsync(bool explicitShare)
+        {
+            RegistryCaptureServer.Reset();
+            const long maxBytes = 48L * 1024 * 1024;
+
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    IOpcUaServerBuilder builder = services.AddOpcUa()
+                        .AddServer<RegistryCaptureServer>(o => ConfigureHostedOptions(o, "ChunkReassemblyBudget"));
+                    if (explicitShare)
+                    {
+                        builder.WithChunkReassemblyBudget(maxBytes, maxBytes / 4);
+                    }
+                    else
+                    {
+                        builder.WithChunkReassemblyBudget(maxBytes);
+                    }
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+
+            ChunkReassemblyBudget? budget = RegistryCaptureServer.StartedInstance?.ChunkReassemblyBudget;
+            Assert.That(budget, Is.Not.Null);
+            Assert.That(budget!.MaxBytes, Is.EqualTo(maxBytes));
+            Assert.That(budget.MaxBytesWithoutSession, Is.EqualTo(maxBytes / (explicitShare ? 4 : 2)));
+        }
+
+        [Test]
+        public async Task HostedServiceAppliesTheRegisteredSessionBindingProviderAsync()
+        {
+            RegistryCaptureServer.Reset();
+            ISessionBindingProvider configured = Mock.Of<ISessionBindingProvider>();
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton(configured);
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddOpcUa().AddServer<RegistryCaptureServer>(
+                        options => ConfigureHostedOptions(options, "SessionBindings"));
+                }).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RegistryCaptureServer.StartedInstance != null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+            Assert.That(RegistryCaptureServer.StartedInstance!.SessionBindingProvider, Is.SameAs(configured));
+        }
+
+        /// <summary>
+        /// Verifies that the fluent builder rejects a budget that is not positive.
+        /// </summary>
+        [Test]
+        public void WithChunkReassemblyBudgetRejectsABudgetThatIsNotPositive()
+        {
+            IOpcUaServerBuilder builder = new ServiceCollection().AddOpcUa().AddServer(_ => { });
+
+            Assert.That(
+                () => builder.WithChunkReassemblyBudget(0),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => ((IOpcUaServerBuilder)null!).WithChunkReassemblyBudget(1),
+                Throws.ArgumentNullException);
+        }
+
+        [TestCase(0, 0)]
+        [TestCase(1024, -1)]
+        [TestCase(1024, 1025)]
+        public void ExplicitChunkBudgetShareIsValidatedDuringRegistration(long maxBytes, long sessionlessBytes)
+        {
+            IOpcUaServerBuilder builder = new ServiceCollection().AddOpcUa().AddServer(_ => { });
+
+            Assert.That(
+                () => builder.WithChunkReassemblyBudget(maxBytes, sessionlessBytes),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
         private static void ConfigureHostedOptions(OpcUaServerOptions options, string applicationName)

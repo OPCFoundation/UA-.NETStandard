@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         [DatapointSource]
         public StructureType[] StructureTypes =
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         Enum.GetValues<StructureType>();
 #else
         (StructureType[])Enum.GetValues(typeof(StructureType));

@@ -318,6 +318,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 }
                 catch (ServiceResultException ex)
                     when (ex.StatusCode == StatusCodes.BadServerHalted ||
+                        ex.StatusCode == StatusCodes.BadNotConnected ||
                         ex.StatusCode == StatusCodes.BadServerNotConnected ||
                         ex.StatusCode == StatusCodes.BadConnectionRejected)
                 {

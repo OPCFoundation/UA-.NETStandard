@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         [DatapointSource]
         public static readonly TestType[] TypeSource = new TestTypeCollection(
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
             Enum.GetValues<BuiltInType>()
 #else
             Enum.GetValues(typeof(BuiltInType))

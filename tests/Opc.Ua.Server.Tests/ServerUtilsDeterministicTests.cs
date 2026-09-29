@@ -498,10 +498,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateDiagnosticInfoWithoutServiceLocalizedTextSkipsResourceManager()
+        public void CreateDiagnosticInfoWithoutOperationLocalizedTextSkipsResourceManager()
         {
             var serverMock = new Mock<IServerInternal>();
-            OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
+            OperationContext context = CreateContext(
+                DiagnosticsMasks.ServiceAll | DiagnosticsMasks.OperationSymbolicId);
             var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
 
             DiagnosticInfo? result = ServerUtils.CreateDiagnosticInfo(
@@ -512,12 +513,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateDiagnosticInfoWithServiceLocalizedTextAccessesResourceManager()
+        public void CreateDiagnosticInfoWithOperationLocalizedTextAccessesResourceManager()
         {
             using var resourceManager = new ResourceManager(new ApplicationConfiguration());
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.ResourceManager).Returns(resourceManager);
-            OperationContext context = CreateContext(DiagnosticsMasks.ServiceLocalizedText);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationLocalizedText);
             var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
 
             DiagnosticInfo? result = ServerUtils.CreateDiagnosticInfo(

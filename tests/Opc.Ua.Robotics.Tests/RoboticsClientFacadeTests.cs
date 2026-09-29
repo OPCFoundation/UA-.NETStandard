@@ -111,9 +111,15 @@ namespace Opc.Ua.Robotics.Client.Tests
                     Is.True);
                 Assert.That(position, Is.EqualTo(12.5d));
                 Assert.That(snapshot.Loads.ToList().Any(l => l.NodeId == h.FlangeLoadId), Is.True);
-                Assert.That(snapshot.PowerTrains[0].MotorIds.ToList(), Does.Contain(h.MotorId));
+                // Motors, gears and drives are placeholder instances found by type
+                // (motors/gears) and by the IsDrivenBy reference (drives).
+                Assert.That(snapshot.PowerTrains[0].MotorIds.ToList(), Is.EqualTo(new[] { h.MotorId }));
+                Assert.That(snapshot.PowerTrains[0].GearIds.ToList(), Is.EqualTo(new[] { h.GearId }));
+                Assert.That(snapshot.Motors, Has.Count.EqualTo(1));
                 Assert.That(snapshot.Motors[0].Identification.NodeId, Is.EqualTo(h.MotorId));
+                Assert.That(snapshot.Gears, Has.Count.EqualTo(1));
                 Assert.That(snapshot.Gears[0].Identification.NodeId, Is.EqualTo(h.GearId));
+                Assert.That(snapshot.Drives, Has.Count.EqualTo(1));
                 Assert.That(snapshot.Drives[0].Identification.NodeId, Is.EqualTo(h.DriveId));
                 Assert.That(snapshot.SafetyStates[0].EmergencyStopFunctions[0].Name, Is.EqualTo("EStop"));
                 Assert.That(snapshot.TaskControls[0].TaskModuleIds.ToList(), Does.Contain(h.TaskModuleId));
@@ -349,9 +355,13 @@ namespace Opc.Ua.Robotics.Client.Tests
                 Session.SetupGet(s => s.ServerCapabilities).Returns(new ServerCapabilities());
                 Session.SetupGet(s => s.ContinuationPointPolicy).Returns(ContinuationPointPolicy.Default);
                 Session.SetupGet(s => s.NodeCache).Returns(NodeCache.Object);
+                // Exact type match: every reference in the harness carries its
+                // concrete TypeDefinition, and a permissive answer would hide
+                // type filtering (a gear classified as a motor).
                 NodeCache.Setup(c => c.IsTypeOfAsync(
                     It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<bool>(true));
+                    .Returns<NodeId, NodeId, CancellationToken>(
+                        (subType, superType, _) => new ValueTask<bool>(subType == superType));
                 SetupTranslate();
                 SetupBrowse();
                 SetupRead();
@@ -492,13 +502,12 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddLoad(FlangeLoadId);
 
                 AddIdentification(PowerTrainId, "PowerTrain");
-                AddChild(PowerTrainId, RoboticsBrowseNames.MotorIdentifier_Placeholder, MotorId);
-                AddChild(PowerTrainId, "MotorIdentifier_Placeholder", MotorId);
-                AddChild(PowerTrainId, RoboticsBrowseNames.GearIdentifier_Placeholder, GearId);
-                AddChild(PowerTrainId, "GearIdentifier_Placeholder", GearId);
+                // Motors and gears instantiate the <MotorIdentifier>/<GearIdentifier>
+                // placeholders, so a real server exposes them under their own browse
+                // names; nothing is reachable under the placeholder names.
+                AddComponent(PowerTrainId, Ref(MotorId, "Motor1", ObjectTypes.MotorType));
+                AddComponent(PowerTrainId, Ref(GearId, "Gear1", ObjectTypes.GearType));
                 AddIdentification(MotorId, "Motor");
-                AddChild(MotorId, RoboticsBrowseNames.DriveIdentifier_Placeholder, DriveId);
-                AddChild(MotorId, "DriveIdentifier_Placeholder", DriveId);
                 AddIdentification(GearId, "Gear");
                 AddValueChild(GearId, RoboticsBrowseNames.Pitch, 1.0d);
                 AddIdentification(DriveId, "Drive");
@@ -590,7 +599,9 @@ namespace Opc.Ua.Robotics.Client.Tests
                     BrowseName = new QualifiedName(browseName, 2),
                     DisplayName = new LocalizedText(browseName),
                     NodeClass = NodeClass.Object,
-                    TypeDefinition = new ExpandedNodeId(new NodeId(typeId, 2)),
+                    TypeDefinition = new ExpandedNodeId(new NodeId(
+                        typeId,
+                        (ushort)NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics))),
                     ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
                     IsForward = true
                 };
@@ -599,6 +610,17 @@ namespace Opc.Ua.Robotics.Client.Tests
             public void AddBrowse(NodeId folder, IReadOnlyList<ReferenceDescription> references)
             {
                 m_browse[folder] = [.. references];
+            }
+
+            public void AddComponent(NodeId parent, ReferenceDescription reference)
+            {
+                if (!m_browse.TryGetValue(parent, out List<ReferenceDescription>? list))
+                {
+                    list = [];
+                    m_browse[parent] = list;
+                }
+                reference.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                list.Add(reference);
             }
 
             public void EnableBrowseContinuationFor(NodeId folder)

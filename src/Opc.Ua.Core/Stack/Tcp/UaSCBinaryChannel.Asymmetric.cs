@@ -1608,6 +1608,7 @@ namespace Opc.Ua.Bindings
             int headerSize;
             uint channelId;
             Certificate? senderCertificate;
+            ByteString senderChainBlob = default;
 
             using (var decoder = new BinaryDecoder(buffer, Quotas.MessageContext))
             {
@@ -1636,6 +1637,7 @@ namespace Opc.Ua.Bindings
                         // from all of them which status the client may see.
                         validationResult.ThrowIfInvalid();
                     }
+                    senderChainBlob = new ByteString(Utils.CreateCertificateChainBlob(senderCertificateChain));
                 }
 
                 SelectEndpointForAsymmetricMessage(securityPolicyUri);
@@ -1666,7 +1668,10 @@ namespace Opc.Ua.Bindings
                     out byte[] signature);
 
                 return new AsymmetricMessage(
-                    body, channelId, senderCertificate, requestId, sequenceNumber, signature);
+                    body, channelId, senderCertificate, requestId, sequenceNumber, signature)
+                {
+                    SenderCertificateChain = senderChainBlob
+                };
             }
             catch
             {

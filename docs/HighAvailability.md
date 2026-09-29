@@ -1,10 +1,47 @@
 # High Availability and OPC UA Redundancy
 
-This guide maps the OPC UA .NET Standard high-availability APIs to OPC 10000-4 §6.6 Redundancy. It documents the implemented server, client, subscription, session, [Kubernetes](Kubernetes.md), and active/active extension seams; the worked examples are `samples/Redundancy/RedundantServer` and `samples/Redundancy/RedundantClient`.
+This guide explains how the OPC UA .NET Standard high-availability APIs
+implement OPC 10000-4 §6.6 Redundancy. It covers server, client,
+subscription, and session redundancy, plus [Kubernetes](Kubernetes.md)
+and active/active extensions. Worked examples are in
+`samples/Redundancy/RedundantServer` and
+`samples/Redundancy/RedundantClient`.
 
-Redundancy and high availability are opt-in and require adding the extra `OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet packages (for example `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` or `.Client`) to your application. A server or client built only with the standard `OPCFoundation.NetStandard.Opc.Ua.Client` and `OPCFoundation.NetStandard.Opc.Ua.Server` libraries does not support OPC UA redundancy.
+Redundancy and high availability are opt-in. Add the relevant
+`OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet package to your
+application, such as `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server`
+or `.Client`. The standard `OPCFoundation.NetStandard.Opc.Ua.Client` and
+`OPCFoundation.NetStandard.Opc.Ua.Server` libraries alone do not provide
+OPC UA redundancy.
 
 For distributed PubSub active/standby publishers and subscribers, see the PubSub counterpart: [PubSub High Availability](PubSubHighAvailability.md).
+
+## Contents
+
+- [Redundancy overview (as per Part 4 §6.6.1)](#redundancy-overview-as-per-part-4-661)
+- [Server redundancy (as per Part 4 §6.6.2)](#server-redundancy-as-per-part-4-662)
+  - [Server.ServerRedundancy model](#serverserverredundancy-model)
+  - [Add* and Use* API convention](#add-and-use-api-convention)
+- [ServiceLevel and load balancing (as per Part 4 §6.6.2.4.2 and §6.6.2.4.3)](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
+- [Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
+- [Manual failover and Maintenance (as per Part 4 §6.6.5)](#manual-failover-and-maintenance-as-per-part-4-665)
+- [HotAndMirrored and Transparent state mirroring](#hotandmirrored-and-transparent-state-mirroring)
+  - [Active/passive address-space consistency](#activepassive-address-space-consistency)
+  - [Strong active/passive historian](#strong-activepassive-historian)
+- [Client redundancy (as per Part 4 §6.6.3)](#client-redundancy-as-per-part-4-663)
+- [Network redundancy (as per Part 4 §6.6.4)](#network-redundancy-as-per-part-4-664)
+- [Beyond §6.6: distributed extensions](#beyond-66-distributed-extensions)
+  - [Dynamic peer discovery (beyond §6.6, opt-in)](#dynamic-peer-discovery-beyond-66-opt-in)
+  - [Sharing values across replicas: distributed value cache (beyond §6.6, opt-in)](#sharing-values-across-replicas-distributed-value-cache-beyond-66-opt-in)
+  - [Shared certificate stores (distributed trust lists) (beyond §6.6, opt-in)](#shared-certificate-stores-distributed-trust-lists-beyond-66-opt-in)
+  - [Distributed PushManagement transactions (beyond §6.6, opt-in)](#distributed-pushmanagement-transactions-beyond-66-opt-in)
+  - [GetEndpoints load direction (beyond §6.6, opt-in)](#getendpoints-load-direction-beyond-66-opt-in)
+  - [Client-side high availability (replica sets)](#client-side-high-availability-replica-sets)
+- [Kubernetes deployment](#kubernetes-deployment)
+- [Samples](#samples)
+- [Security considerations](#security-considerations)
+  - [Record context and plaintext ownership](#record-context-and-plaintext-ownership)
+  - [Shared application identity](#shared-application-identity)
 
 ## Redundancy overview (as per Part 4 §6.6.1)
 
@@ -139,11 +176,15 @@ when read, without invoking application callbacks. The expiry timer raises
 failures are logged without interrupting other subscribers or lease operations.
 Lease validity starts at the write attempt, not at receipt of
 its reply; an expired or superseded operation cannot restore leadership. A
-fresh, confirmed acquisition is required after expiry. The UTC lease record is
-also bounded by local elapsed time, so moving the local clock backwards cannot
-extend authority. Replicas still require unique identities, suitably synchronized
-clocks and a linearizable compare-and-swap store; this local safety mechanism
-does not replace backend fencing or provide consensus.
+fresh, confirmed acquisition is required after expiry. Overlapping successful
+calls can confirm the same owned lease without waiting for one another.
+A failed store observation started before a newer successful confirmation cannot
+revoke or reschedule that confirmed lease; a fresh ownership-loss observation
+still revokes authority. Expiry and disposal invalidate all outstanding attempts.
+The UTC lease record is also bounded by local elapsed time, so moving the local
+clock backwards cannot extend authority. Replicas still require unique identities,
+suitably synchronized clocks and a linearizable compare-and-swap store; this local
+safety mechanism does not replace backend fencing or provide consensus.
 
 Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `RedundancySupport`, `ServiceLevel`, `EstimatedReturnTime`, `RedundantServerArray`, `ServerUriArray`, and `CurrentServerId` as applicable. `ServerRedundancyInfo.ServiceLevelSubrange` is calculated with `ServiceLevels.GetSubrange`.
 
@@ -394,6 +435,11 @@ The redundancy samples exercise both guarantees: the client writes and reads a d
 
 OPC UA client redundancy is implemented with `TransferSubscriptions` plus server diagnostics. `ClientFailoverCoordinator` helps a backup client find the active client's session by `ActiveSessionId` or `ActiveSessionName`, discover subscription ids from diagnostics, verify the backup uses the same user display name when configured, and call `TransferSubscriptionsAsync` with `SendInitialValues` defaulting to `true`.
 
+Name-based discovery excludes the backup's own session and rejects multiple
+matching active sessions rather than selecting an arbitrary client. Supply
+`ActiveSessionId` when names are not unique; that explicit identity bypasses
+name-based discovery.
+
 ```csharp
 var coordinator = new ClientFailoverCoordinator();
 ArrayOf<TransferResult> results = await coordinator.TransferActiveSubscriptionsAsync(
@@ -620,7 +666,7 @@ builder
     });
 ```
 
-Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-71027101) for the underlying transaction model.
+Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-7102-71011) for the underlying transaction model.
 
 ### GetEndpoints load direction (beyond §6.6, opt-in)
 

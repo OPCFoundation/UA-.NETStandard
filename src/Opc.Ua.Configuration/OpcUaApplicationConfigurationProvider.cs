@@ -88,11 +88,9 @@ namespace Opc.Ua.Configuration
 
             string applicationName = effectiveOptions.ApplicationName;
             string pkiRoot = string.IsNullOrWhiteSpace(effectiveOptions.PkiRoot)
-                ? Path.Combine(
-                    Path.GetTempPath(),
-                    "OPC Foundation",
+                ? DefaultPkiRoot.Get(
                     applicationName,
-                    "pki")
+                    telemetry.CreateLogger<OpcUaApplicationConfigurationProvider>())
                 : effectiveOptions.PkiRoot;
             string subjectName = string.IsNullOrWhiteSpace(effectiveOptions.SubjectName)
                 ? $"CN={applicationName}, O=OPC Foundation, DC=localhost"

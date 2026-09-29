@@ -87,6 +87,13 @@ namespace Opc.Ua.Security.Certificates
         public bool? AutoAcceptUntrustedCertificates { get; set; }
 
         /// <summary>
+        /// Gets or sets whether a failed validation is recorded in the rejected
+        /// store. Defaults to true. Trust revalidation of an existing connection
+        /// can disable recording without changing the validation result.
+        /// </summary>
+        public bool RecordRejectedCertificates { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets an optional per-error accept callback. If set,
         /// the callback is invoked for each suppressible certificate
         /// validation error encountered during validation, with the

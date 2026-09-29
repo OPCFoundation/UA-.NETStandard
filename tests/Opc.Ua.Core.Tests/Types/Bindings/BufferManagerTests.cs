@@ -269,14 +269,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         [Test]
         public async Task FactorySharesProcessBudgetAcrossManagers()
         {
-            const int maxOutstandingBytes = 32;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            int maxOutstandingBytes = new FastBufferManager("sizing", 32, telemetry).GetExpectedBufferSize(17);
             var factory = new DefaultBufferManagerFactory(
                 new BufferManagerFactoryOptions
                 {
                     ImplementationKind = BufferManagerImplementationKind.Fast,
                     MaxOutstandingBytesPerProcess = maxOutstandingBytes
                 });
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IBufferManager firstManager = factory.Create("first", maxOutstandingBytes, telemetry);
             IBufferManager secondManager = factory.Create("second", maxOutstandingBytes, telemetry);
 

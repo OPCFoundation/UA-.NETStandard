@@ -439,7 +439,7 @@ namespace Opc.Ua.Server.UserManagement
             {
                 foreach (ISession session in sessionManager.GetSessions())
                 {
-                    if (string.Equals(session.Identity?.DisplayName, userName, StringComparison.Ordinal))
+                    if (string.Equals(GetSessionUserName(session), userName, StringComparison.Ordinal))
                     {
                         try
                         {
@@ -461,6 +461,21 @@ namespace Opc.Ua.Server.UserManagement
                 result = new ServiceResult(StatusCodes.BadUnexpectedError);
             }
             return result;
+        }
+
+        /// <summary>
+        /// Returns the UserManagement user name a session authenticated as, or null when the
+        /// session did not log in with a USERNAME token. Other token types (issued tokens,
+        /// certificates) can carry the same display name but are not UserManagement users.
+        /// </summary>
+        private static string? GetSessionUserName(ISession session)
+        {
+            if (session.IdentityToken is UserNameIdentityTokenHandler userNameToken)
+            {
+                return userNameToken.UserName;
+            }
+            IUserIdentity? identity = session.Identity;
+            return identity?.TokenType == UserTokenType.UserName ? identity.DisplayName : null;
         }
 
         private readonly IUserManagement m_userManagement;

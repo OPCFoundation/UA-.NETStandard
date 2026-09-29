@@ -261,6 +261,81 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         }
 
         [Test]
+        public async Task RawDataWithoutWireMajorVersionDecodesWithRegisteredMetaDataAsync()
+        {
+            // The Publisher encodes RawData with its versioned metadata but
+            // omits the ConfigurationVersion from the DataSetMessage header.
+            // Without a version to compare, the Subscriber decodes with the
+            // registered DataSetMetaData (Part 14 §6.2.9.4).
+            var registry = new DataSetMetaDataRegistry();
+            var diag = new PubSubDiagnostics(PubSubDiagnosticsLevel.Low);
+            PubSubNetworkMessageContext context =
+                UadpTestUtilities.NewContext(registry, diag);
+            registry.Register(
+                new DataSetMetaDataKey(
+                    PublisherId.FromByte(1), 7, 100,
+                    (Uuid)Guid.Empty, 1),
+                new DataSetMetaDataType
+                {
+                    Name = "Versioned",
+                    ConfigurationVersion = new ConfigurationVersionDataType
+                    {
+                        MajorVersion = 1,
+                        MinorVersion = 0
+                    },
+                    Fields =
+                    [
+                        new FieldMetaData
+                        {
+                            Name = "f0",
+                            BuiltInType = (byte)BuiltInType.UInt32,
+                            ValueRank = ValueRanks.Scalar
+                        }
+                    ]
+                });
+            var message = new UadpNetworkMessage
+            {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
+                PublisherId = PublisherId.FromByte(1),
+                WriterGroupId = 7,
+                DataSetMessages =
+                [
+                    new UadpDataSetMessage
+                    {
+                        DataSetWriterId = 100,
+                        ContentMask = UadpDataSetMessageContentMask.SequenceNumber,
+                        SequenceNumber = 1,
+                        MetaDataVersion = new ConfigurationVersionDataType
+                        {
+                            MajorVersion = 1,
+                            MinorVersion = 0
+                        },
+                        FieldEncoding = PubSubFieldEncoding.RawData,
+                        Fields = [new DataSetField { Value = (Variant)123u }]
+                    }
+                ]
+            };
+            ReadOnlyMemory<byte> bytes =
+                await new UadpEncoder().EncodeAsync(message, context).ConfigureAwait(false);
+
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(bytes, context);
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    decoded!.DataSetMessages[0].Fields[0].Value,
+                    Is.EqualTo((Variant)123u));
+                Assert.That(
+                    diag.Read(PubSubDiagnosticsCounterKind.ResolverErrors),
+                    Is.Zero);
+            });
+        }
+
+        [Test]
         public async Task ReceivedNetworkMessages_CounterIncrements()
         {
             var diag = new PubSubDiagnostics(PubSubDiagnosticsLevel.Low);

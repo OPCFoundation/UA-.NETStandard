@@ -372,6 +372,57 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         /// <summary>
+        /// A <c>[NodeManager]</c> is applied to a class the generated
+        /// manager cannot be attached to (a nested or generic class).
+        /// </summary>
+        public static readonly DiagnosticDescriptor NodeManagerUnsupportedTarget = new(
+            id: "MODELGEN036",
+            title: "[NodeManager] class is not supported",
+            messageFormat: (LocalizableString)("[NodeManager] cannot be applied to class '{0}' " +
+                "because {1}. Declare the node manager as a top-level, non-generic partial class."),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// A <c>[DataType]</c> is applied to a type the generated encodeable
+        /// members cannot be attached to (a struct, a generic type, or a nested
+        /// type in a non-partial or inaccessible containing type).
+        /// </summary>
+        public static readonly DiagnosticDescriptor DataTypeUnsupportedTarget = new(
+            id: "MODELGEN037",
+            title: "[DataType] type is not supported",
+            messageFormat: (LocalizableString)"[DataType] type '{0}' is not supported: {1}",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// A <c>[DataType]</c> class derives from an encodeable type whose data
+        /// type definition cannot be found (no <c>[DataType]</c> attribute and
+        /// no activator exposing a definition, or a generic base). Encode
+        /// writes the base fields first, but the published StructureDefinition
+        /// can only list the class's own fields, so it does not describe the
+        /// encoding (OPC 10000-3 8.48).
+        /// </summary>
+        public static readonly DiagnosticDescriptor DataTypeBaseDefinitionUnresolved = new(
+            id: "MODELGEN038",
+            title: "[DataType] base type definition cannot be resolved",
+            messageFormat: (LocalizableString)("[DataType] type '{0}' derives from '{1}', whose data type " +
+                "definition cannot be resolved. The published StructureDefinition lists only the fields " +
+                "of '{0}' although the base fields are encoded first. Annotate the base type with " +
+                "[DataType] or derive from a type that has a generated activator."),
+            category: Name,
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>
         public static bool TryGetDiagnostic(

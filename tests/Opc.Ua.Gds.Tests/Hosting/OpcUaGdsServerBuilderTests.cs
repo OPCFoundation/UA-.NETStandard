@@ -254,6 +254,86 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
+        public void AddGdsServerWithConfigurationSectionBindsCertificateGroups()
+        {
+            var configData = new Dictionary<string, string>
+            {
+                ["OpcUa:Gds:Server:CertificateGroups:0:Id"] = "Default",
+                ["OpcUa:Gds:Server:CertificateGroups:0:CertificateTypes:0"] = "RsaSha256ApplicationCertificateType",
+                ["OpcUa:Gds:Server:CertificateGroups:0:CertificateTypes:1"] = "EccNistP256ApplicationCertificateType",
+                ["OpcUa:Gds:Server:CertificateGroups:0:SubjectName"] = "CN=Bound CA, O=OPC Foundation",
+                ["OpcUa:Gds:Server:CertificateGroups:0:CACertificateLifetime"] = "120"
+            };
+
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(configData)
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddGdsServer(configuration);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            GdsServerOptions options = sp.GetRequiredService<IOptions<GdsServerOptions>>().Value;
+            GlobalDiscoveryServerConfiguration gdsConfiguration =
+                GdsServerHostedService.BuildGdsConfiguration(options, "pki");
+
+            Assert.That(gdsConfiguration.CertificateGroups.Count, Is.EqualTo(1));
+            CertificateGroupConfiguration group = gdsConfiguration.CertificateGroups[0];
+            Assert.That(group.Id, Is.EqualTo("Default"));
+            Assert.That(group.CertificateTypes.Count, Is.EqualTo(2));
+            Assert.That(group.CertificateTypes[0], Is.EqualTo("RsaSha256ApplicationCertificateType"));
+            Assert.That(group.CertificateTypes[1], Is.EqualTo("EccNistP256ApplicationCertificateType"));
+            Assert.That(group.SubjectName, Is.EqualTo("CN=Bound CA, O=OPC Foundation"));
+            Assert.That(group.BaseStorePath, Is.EqualTo(System.IO.Path.Combine("pki", "CA", "Default")));
+            Assert.That(group.CACertificateLifetime, Is.EqualTo((ushort)120));
+        }
+
+        [Test]
+        public void DefaultCertificateGroupCaUsesResolvedApplicationName()
+        {
+            var options = new GdsServerOptions { ApplicationName = string.Empty };
+
+            GlobalDiscoveryServerConfiguration configuration =
+                GdsServerHostedService.BuildGdsConfiguration(options, "pki");
+
+            Assert.That(configuration.CertificateGroups.Count, Is.EqualTo(1));
+            Assert.That(
+                configuration.CertificateGroups[0].SubjectName,
+                Is.EqualTo("CN=GlobalDiscoveryServer CA, O=OPC Foundation"));
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.8.3.3: the DefaultApplicationGroup is mandatory, so
+        /// configured groups without it get the default group appended.
+        /// </summary>
+        [Test]
+        public void ConfiguredGroupsWithoutDefaultGetDefaultApplicationGroup()
+        {
+            var options = new GdsServerOptions { ApplicationName = "Gds" };
+            var httpsGroup = new GdsCertificateGroupOptions
+            {
+                Id = "DefaultHttpsGroup",
+                SubjectName = "CN=Https CA"
+            };
+            httpsGroup.CertificateTypes.Add("HttpsCertificateType");
+            options.CertificateGroups.Add(httpsGroup);
+
+            GlobalDiscoveryServerConfiguration configuration =
+                GdsServerHostedService.BuildGdsConfiguration(options, "pki");
+
+            Assert.That(configuration.CertificateGroups.Count, Is.EqualTo(2));
+            Assert.That(configuration.CertificateGroups[0].Id, Is.EqualTo("DefaultHttpsGroup"));
+            CertificateGroupConfiguration defaultGroup = configuration.CertificateGroups[1];
+            Assert.That(defaultGroup.Id, Is.EqualTo("Default"));
+            Assert.That(defaultGroup.SubjectName, Is.EqualTo("CN=Gds CA, O=OPC Foundation"));
+
+            options.CertificateGroups[0].Id = "defaultapplicationgroup";
+            configuration = GdsServerHostedService.BuildGdsConfiguration(options, "pki");
+            Assert.That(configuration.CertificateGroups.Count, Is.EqualTo(1),
+                "A configured DefaultApplicationGroup must not be duplicated.");
+        }
+
+        [Test]
         public void AddGdsServerCanCoexistWithAddServer()
         {
             var services = new ServiceCollection();

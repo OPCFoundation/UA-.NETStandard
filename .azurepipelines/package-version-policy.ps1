@@ -257,6 +257,27 @@ function Test-StablePackageVersion {
     return $Version -match '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
 }
 
+function Test-PromotablePreviewPackageVersion {
+    <#
+    .SYNOPSIS
+        Returns $true when a package version is a public release-line
+        preview, exactly "major.minor.patch-preview.N", for example
+        "2.0.0-preview.6". This is the only preview shape release.yml may
+        promote to nuget.org.
+    .DESCRIPTION
+        A canonical release/M.m branch is a public release for
+        Nerdbank.GitVersioning, so its previews carry no commit id. Every
+        other shape is rejected: "-preview.N.gabc123" and "+gabc123" are
+        non-public builds (master, PR and feature branches), and anything
+        else ("-rc.1", "-preview", a four-component version) is not a
+        numbered preview this repository ever produces. The label is matched
+        case-sensitively (-cmatch): "-PREVIEW.6" is not the shape NBGV emits.
+    #>
+    param([Parameter(Mandatory)][string]$Version)
+
+    return $Version -cmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-preview\.(0|[1-9]\d*)$'
+}
+
 function Test-CanonicalReleaseBranchRef {
     <#
     .SYNOPSIS
@@ -304,13 +325,22 @@ function Test-CanonicalReleaseBranchForPackageVersion {
         comparison below can stay textual: "release/02.0" is not an alternate
         spelling of the 2.0 line, it is simply not a release line. See
         Test-CanonicalReleaseBranchRef for why case and leading zeroes matter.
+
+        -AllowPreview additionally accepts a public release-line preview
+        (Test-PromotablePreviewPackageVersion, e.g. "2.0.0-preview.6") under
+        the same major/minor rule. Only release.yml's explicit preview
+        promotion passes it; the stable gates in nuget-publish.yml and
+        release.yml never do.
     #>
     param(
         [Parameter(Mandatory)][string]$Ref,
-        [Parameter(Mandatory)][string]$Version
+        [Parameter(Mandatory)][string]$Version,
+        [switch]$AllowPreview
     )
 
-    if (-not (Test-StablePackageVersion -Version $Version)) {
+    $isStable = Test-StablePackageVersion -Version $Version
+    $isPreview = $AllowPreview -and (Test-PromotablePreviewPackageVersion -Version $Version)
+    if (-not ($isStable -or $isPreview)) {
         return $false
     }
 
@@ -321,7 +351,7 @@ function Test-CanonicalReleaseBranchForPackageVersion {
     }
 
     $versionMatch = [regex]::Match(
-        $Version, '^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?:0|[1-9]\d*)$')
+        $Version, '^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-preview\.(?:0|[1-9]\d*))?$')
     return $versionMatch.Success -and
         $branchMatch.Groups['major'].Value -eq $versionMatch.Groups['major'].Value -and
         $branchMatch.Groups['minor'].Value -eq $versionMatch.Groups['minor'].Value

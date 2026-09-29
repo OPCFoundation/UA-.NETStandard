@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A reference declared on a grandchild whose target is the root of the
+  type hierarchy (TargetPath == ""). Both ends must name the root, not
+  the grandchild's immediate parent.
+-->
+<opc:ModelDesign
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns="http://test.org/UA/DeepRootReference/"
+  TargetNamespace="http://test.org/UA/DeepRootReference/"
+  TargetXmlNamespace="http://test.org/UA/DeepRootReference/Types.xsd"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2026-07-25T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace
+      Name="DeepRootReference"
+      Prefix="DeepRootReference"
+      XmlNamespace="http://test.org/UA/DeepRootReference/Types.xsd"
+      XmlPrefix="DeepRootReference">http://test.org/UA/DeepRootReference/</opc:Namespace>
+    <opc:Namespace
+      Name="OpcUa"
+      Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:ObjectType SymbolicName="MachineType" BaseType="ua:BaseObjectType" SupportsEvents="true">
+    <opc:Children>
+      <opc:Object SymbolicName="Components" TypeDefinition="ua:FolderType" ModellingRule="Mandatory">
+        <opc:Children>
+          <opc:Object SymbolicName="Motor" TypeDefinition="ua:BaseObjectType" ModellingRule="Mandatory">
+            <opc:References>
+              <opc:Reference IsInverse="true">
+                <opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
+                <opc:TargetId>MachineType</opc:TargetId>
+              </opc:Reference>
+            </opc:References>
+          </opc:Object>
+        </opc:Children>
+      </opc:Object>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="Machine1" TypeDefinition="MachineType" SupportsEvents="true">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+</opc:ModelDesign>

@@ -206,6 +206,44 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Checks if the current session (context) may modify a certificate
+        /// group trust list. The GDS trust lists are shared by every
+        /// application of the group, and OPC 10000-12 §7.2 (Table 20) grants
+        /// the <c>ApplicationSelfAdmin</c> and <c>ApplicationAdmin</c>
+        /// Privileges read access only, so writing requires the
+        /// <c>CertificateAuthorityAdmin</c> Role (Table 19: "update any
+        /// TrustList").
+        /// </summary>
+        /// <remarks>
+        /// §7.8.2.5 - §7.8.2.7 also list the <c>ApplicationSelfAdmin</c> and
+        /// <c>ApplicationAdmin</c> Privileges for PullManagement. Those
+        /// sentences name who may call the methods at all; for a trust list
+        /// that every application of the group shares, the narrower §7.2
+        /// Privilege definitions win, so both Privileges stay read-only here.
+        /// The <c>SecurityAdmin</c> Role is only listed for PushManagement
+        /// (§7.2 Table 19, §7.8.2.5 - §7.8.2.7), so it does not grant write
+        /// access to a CertificateManager trust list.
+        /// </remarks>
+        /// <param name="context">the current <see cref="ISystemContext"/></param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadUserAccessDenied"/> when the
+        /// caller lacks the required roles.
+        /// </exception>
+        internal static void HasTrustListWriteAccess(ISystemContext context)
+        {
+            var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin };
+            IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            if (HasRole(userIdentity, roles, context.NamespaceUris))
+            {
+                return;
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadUserAccessDenied,
+                $"At least one of the Roles {string.Join(", ", roles)} is required to modify the TrustList");
+        }
+
+        /// <summary>
         /// Checks if current session (context) is connected using an
         /// authenticated secure channel (<see cref="MessageSecurityMode.Sign"/>
         /// or <see cref="MessageSecurityMode.SignAndEncrypt"/>).

@@ -23,8 +23,7 @@
     non-zero exit is tolerated when - and only when - the TRX records at least
     one test and no failure, error, timeout, abort or passedButRunAborted: that
     combination means the host died during process exit, after the last test and
-    every teardown had already run. This matches the Azure gate in
-    .azurepipelines/test.yml. It was originally assumed to be a macOS-only
+    every teardown had already run. It was originally assumed to be a macOS-only
     quirk, but Windows hosts do it too (observed on run 35714133848, job
     'test-windows-net48 (5/30)', where Opc.Ua.Client.Tests reported 256 passed
     and 0 failed and the host still exited 1). A host that dies mid-run is not
@@ -77,10 +76,10 @@
 
  .PARAMETER QuietOutput
     Write each project's build and test output to a log file under the results
-    directory instead of the console. Required by the private-fuzz-corpus job:
-    a failing fuzz test prints a base64 reproducer, and a public repository's
-    job log is world-readable, so that output has to stay inside the results
-    tree the job keeps private.
+    directory instead of the console. Use it for inputs that must not reach a
+    world-readable job log: a failing fuzz test prints a base64 reproducer, so
+    a replay of unpublished crash inputs has to keep its output in the results
+    tree.
 #>
 
 Param(

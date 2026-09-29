@@ -328,6 +328,13 @@ namespace Opc.Ua.Server.UserManagement
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
 
+            // An empty old password can never match; the database would throw on it.
+            if (string.IsNullOrEmpty(oldPassword))
+            {
+                return new ServiceResult(StatusCodes.BadIdentityTokenInvalid,
+                    new LocalizedText("Old password does not match."));
+            }
+
             ServiceResult passwordValidation = ValidatePassword(newPassword);
             if (ServiceResult.IsBad(passwordValidation))
             {

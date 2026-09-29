@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 #nullable enable
@@ -196,6 +197,40 @@ namespace Opc.Ua.Server.Tests
             {
                 lease?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Verifies that a session establishment waits in the configured queue for a
+        /// permit instead of being rejected, and that a full queue still rejects.
+        /// </summary>
+        [Test]
+        public async Task SessionEstablishmentQueueLimitQueuesUntilPermitIsFreeAsync()
+        {
+            var options = new ServerRateLimitOptions
+            {
+                MaxConcurrentSessionEstablishment = 1,
+                SessionEstablishmentQueueLimit = 1
+            };
+            using var provider = new DefaultServerRateLimiterProvider(options);
+
+            (bool acquired, IDisposable? first, _) =
+                await provider.AcquireSessionEstablishmentAsync().ConfigureAwait(false);
+            Assert.That(acquired, Is.True);
+
+            Task<(bool Acquired, IDisposable? Lease, TimeSpan? RetryAfter)> queued =
+                provider.AcquireSessionEstablishmentAsync().AsTask();
+            Assert.That(queued.IsCompleted, Is.False);
+
+            (bool overflowAcquired, IDisposable? overflow, _) =
+                await provider.AcquireSessionEstablishmentAsync().ConfigureAwait(false);
+            Assert.That(overflowAcquired, Is.False);
+            Assert.That(overflow, Is.Null);
+
+            first!.Dispose();
+            (bool queuedAcquired, IDisposable? second, _) =
+                await queued.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(queuedAcquired, Is.True);
+            second!.Dispose();
         }
 
         /// <summary>

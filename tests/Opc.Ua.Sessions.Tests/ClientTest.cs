@@ -302,6 +302,52 @@ namespace Opc.Ua.Sessions.Tests
             }
         }
 
+        /// <summary>
+        /// FindServers and GetEndpoints return the ApplicationName in the requested
+        /// locale when the server advertises it (CTT Discovery Find Servers Filter
+        /// 003.js/006.js, Get Endpoints 002.js request de-DE).
+        /// </summary>
+        [Test]
+        [Order(101)]
+        [TestCase("de-DE")]
+        [TestCase("en-US")]
+        public async Task DiscoveryReturnsApplicationNameInRequestedLocaleAsync(string locale)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
+            ArrayOf<string> localeIds = [locale];
+            FindServersResponse servers = await client.FindServersAsync(
+                null,
+                client.Endpoint.EndpointUrl,
+                localeIds,
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+            GetEndpointsResponse endpoints = await client.GetEndpointsAsync(
+                null,
+                client.Endpoint.EndpointUrl,
+                localeIds,
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+            await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ApplicationDescription self = servers.Servers.ToArray()!.Single(s =>
+                s.ApplicationUri == ServerFixture.Config.ApplicationUri);
+            Assert.That(self.ApplicationName.Locale, Is.EqualTo(locale));
+            Assert.That(self.ApplicationName.Text, Is.Not.Empty);
+            Assert.That(endpoints.Endpoints.Count, Is.GreaterThan(0));
+            foreach (EndpointDescription endpoint in endpoints.Endpoints)
+            {
+                Assert.That(endpoint.Server.ApplicationName.Locale, Is.EqualTo(locale));
+            }
+        }
+
         [Test]
         [Order(100)]
         public async Task FindServersOnNetworkAsync()

@@ -1998,6 +1998,12 @@ namespace Opc.Ua
                         value = ToMatrixOrThrow(ReadEncodeableArray<T>(null, encodeableTypeId), dimensions);
                         EndField("Elements");
                     }
+                    else if (dimensions.Length > 0)
+                    {
+                        // An empty matrix has no Elements content; keep it
+                        // empty (not null) when the dimensions allow it.
+                        value = ToMatrixOrThrow(ArrayOf.Empty<T>(), dimensions);
+                    }
 
                     PopNamespace();
 
@@ -2029,6 +2035,12 @@ namespace Opc.Ua
                         value = ToMatrixOrThrow(ReadEncodeableArray<T>(null), dimensions);
                         EndField("Elements");
                     }
+                    else if (dimensions.Length > 0)
+                    {
+                        // An empty matrix has no Elements content; keep it
+                        // empty (not null) when the dimensions allow it.
+                        value = ToMatrixOrThrow(ArrayOf.Empty<T>(), dimensions);
+                    }
 
                     PopNamespace();
 
@@ -2050,8 +2062,24 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The element type of the matrix.</typeparam>
         /// <exception cref="ServiceResultException"></exception>
-        private static MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
+        private MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
         {
+            // The inline matrix of a structure field has at least two
+            // dimensions (OPC 10000-6 5.2.5 Table 28, 5.3.4); a dimension
+            // <= 0 means no values, like in the binary encoding. Earlier
+            // versions wrote an empty matrix with the single dimension 0.
+            dimensions = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                dimensions,
+                elements.Count);
+            MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
+            if (!MatrixOf.IsValidInlineMatrix(dimensions, elements.Count, Context.MaxArrayLength))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Encodeable matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                    string.Join(",", dimensions),
+                    elements.Count);
+            }
             try
             {
                 return elements.ToMatrix(dimensions);
@@ -2156,11 +2184,42 @@ namespace Opc.Ua
             {
                 Variant value = Variant.Null;
 
+                if (fieldName != null && IsTypedFieldValue(typeInfo))
+                {
+                    // OPC 10000-6 5.3.1, 5.3.4, 5.3.5: the field is written
+                    // like the typed field of its type. The Variant body
+                    // earlier versions wrapped it in is still accepted.
+                    // A missing field is null, a nil array field a null array.
+                    bool isPresent = HasField(fieldName);
+                    if (!BeginField(fieldName, true, out bool isNil))
+                    {
+                        if (!isPresent)
+                        {
+                            return Variant.Null;
+                        }
+                        return isNil ? CreateNullFieldValue(typeInfo) : CreateEmptyFieldValue(typeInfo);
+                    }
+                    m_reader.MoveToContent();
+                    if (m_reader.NodeType != XmlNodeType.Element ||
+                        !IsVariantBodyElement(m_reader.LocalName, m_reader.NamespaceURI, typeInfo))
+                    {
+                        value = ReadTypedFieldValue(this, typeInfo);
+                        EndField(fieldName);
+                        return value;
+                    }
+                    PushNamespace(Namespaces.OpcUaXsd);
+                    value = ReadVariantValue(true, typeInfo.BuiltInType);
+                    CheckFieldValueType(value, typeInfo);
+                    PopNamespace();
+                    EndField(fieldName);
+                    return value;
+                }
+
                 if (BeginField(fieldName, true))
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
-                    value = ReadVariantValue();
+                    value = ReadVariantValue(true, typeInfo.BuiltInType);
 
                     // Allow reading with unknown type info
                     if (!typeInfo.IsUnknown && !value.IsNull)
@@ -2170,7 +2229,8 @@ namespace Opc.Ua
                             typeInfo = typeInfo.WithBuiltInType(BuiltInType.Int32);
                         }
 
-                        if (value.TypeInfo != typeInfo)
+                        if (value.TypeInfo != typeInfo &&
+                            !IsInlineMatrixOf(value, typeInfo))
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -2192,8 +2252,222 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Whether a decoded inline matrix matches the matrix type info of a
+        /// structure field. The rank of the decoded value follows its
+        /// dimensions, which for an empty matrix can be a single zero (or the
+        /// 0 x 0 shape an empty matrix of any declared rank is written with)
+        /// and which a null matrix does not have. A populated matrix must
+        /// have the declared rank.
+        /// </summary>
+        internal static bool IsInlineMatrixOf(in Variant value, TypeInfo typeInfo)
+        {
+            if (!typeInfo.IsMatrix ||
+                value.TypeInfo.BuiltInType != typeInfo.BuiltInType ||
+                !value.IsInlineMatrix(out bool isNull))
+            {
+                return false;
+            }
+            return isNull ||
+                value.TypeInfo.ValueRank == typeInfo.ValueRank ||
+                value.Raw is IMatrixOf { Count: 0 };
+        }
+
+        /// <summary>
+        /// Whether a structure field of the type is encoded with the typed
+        /// field encoding of a built-in scalar or one dimensional array
+        /// (OPC 10000-6 5.3.1, 5.3.4, 5.3.5), which the XmlEncoder writes for
+        /// a named <see cref="IEncoder.WriteVariantValue(string?, in Variant)"/>.
+        /// </summary>
+        internal static bool IsTypedFieldValue(TypeInfo typeInfo)
+        {
+            if (typeInfo.IsUnknown)
+            {
+                return false;
+            }
+            if (typeInfo.ValueRank == ValueRanks.Scalar)
+            {
+                return typeInfo.BuiltInType is
+                    (>= BuiltInType.Boolean and <= BuiltInType.DataValue) or
+                    BuiltInType.Enumeration;
+            }
+            return typeInfo.ValueRank == ValueRanks.OneDimension &&
+                typeInfo.BuiltInType is
+                    (>= BuiltInType.Boolean and <= BuiltInType.Variant) or
+                    BuiltInType.Enumeration;
+        }
+
+        /// <summary>
+        /// Whether the element in a field is the Variant body earlier versions
+        /// wrapped a structure field value in (e.g. <c>&lt;A&gt;&lt;Int32&gt;</c>,
+        /// <c>&lt;A&gt;&lt;ListOfInt32&gt;</c>) rather than the content of the
+        /// typed field.
+        /// </summary>
+        internal static bool IsVariantBodyElement(string localName, string namespaceUri, TypeInfo typeInfo)
+        {
+            if (namespaceUri != Namespaces.OpcUaXsd)
+            {
+                return false;
+            }
+            // The elements of an array are named by their type, a Variant
+            // body of an array is a ListOf (or a Null) element.
+            if (typeInfo.ValueRank != ValueRanks.Scalar)
+            {
+                return localName == "Null" ||
+                    localName.StartsWith("ListOf", StringComparison.Ordinal);
+            }
+            // A typed scalar field contains text or the fields of its type,
+            // which are not named like a built-in type - except the String
+            // of a Guid, the StatusCode of a DataValue and the element of an
+            // XmlElement. A Variant body of any other type is read as such,
+            // so that a type mismatch is reported.
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.XmlElement:
+                    return localName == nameof(BuiltInType.XmlElement);
+                case BuiltInType.Guid when localName == nameof(BuiltInType.String):
+                case BuiltInType.DataValue when localName == nameof(BuiltInType.StatusCode):
+                    return false;
+            }
+            return localName is "Null" or "Matrix" ||
+                (Enum.TryParse(localName, out BuiltInType builtInType) &&
+                builtInType is >= BuiltInType.Boolean and <= BuiltInType.DiagnosticInfo &&
+                localName == builtInType.ToString());
+        }
+
+        /// <summary>
+        /// The value of a nil or missing typed field: a null array of the
+        /// field type (what the typed array readers return), null otherwise.
+        /// </summary>
+        internal static Variant CreateNullFieldValue(TypeInfo typeInfo)
+        {
+            return typeInfo.ValueRank == ValueRanks.OneDimension
+                ? Variant.CreateDefault(typeInfo)
+                : Variant.Null;
+        }
+
+        /// <summary>
+        /// The value of a present but empty typed field: an empty array or an
+        /// empty string (what the typed readers return), null otherwise.
+        /// </summary>
+        internal static Variant CreateEmptyFieldValue(TypeInfo typeInfo)
+        {
+            if (typeInfo.ValueRank == ValueRanks.OneDimension)
+            {
+                return Variant.CreateDefault(typeInfo).ToEmptyArray();
+            }
+            return typeInfo.BuiltInType == BuiltInType.String
+                ? Variant.From(string.Empty)
+                : Variant.Null;
+        }
+
+        /// <summary>
+        /// Checks that a value read from a Variant body has the field type.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static void CheckFieldValueType(in Variant value, TypeInfo typeInfo)
+        {
+            if (typeInfo.IsUnknown || value.IsNull)
+            {
+                return;
+            }
+            if (typeInfo.BuiltInType == BuiltInType.Enumeration)
+            {
+                typeInfo = typeInfo.WithBuiltInType(BuiltInType.Int32);
+            }
+            if (value.TypeInfo != typeInfo && !IsInlineMatrixOf(value, typeInfo))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Error reading value as variant. Type mismatch: Expected {0} != Actual {1}",
+                    typeInfo, value.TypeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Reads the content of a typed field (the field element is already
+        /// entered) with the typed reader of its type.
+        /// </summary>
+        internal static Variant ReadTypedFieldValue(IDecoder decoder, TypeInfo typeInfo)
+        {
+            if (typeInfo.ValueRank == ValueRanks.Scalar)
+            {
+                return typeInfo.BuiltInType switch
+                {
+                    BuiltInType.Boolean => decoder.ReadBoolean(null),
+                    BuiltInType.SByte => decoder.ReadSByte(null),
+                    BuiltInType.Byte => decoder.ReadByte(null),
+                    BuiltInType.Int16 => decoder.ReadInt16(null),
+                    BuiltInType.UInt16 => decoder.ReadUInt16(null),
+                    BuiltInType.Int32 => decoder.ReadInt32(null),
+                    BuiltInType.UInt32 => decoder.ReadUInt32(null),
+                    BuiltInType.Int64 => decoder.ReadInt64(null),
+                    BuiltInType.UInt64 => decoder.ReadUInt64(null),
+                    BuiltInType.Float => decoder.ReadFloat(null),
+                    BuiltInType.Double => decoder.ReadDouble(null),
+                    BuiltInType.String => Variant.From(decoder.ReadString(null) ?? string.Empty),
+                    BuiltInType.DateTime => decoder.ReadDateTime(null),
+                    BuiltInType.Guid => decoder.ReadGuid(null),
+                    BuiltInType.ByteString => decoder.ReadByteString(null),
+                    BuiltInType.XmlElement => decoder.ReadXmlElement(null),
+                    BuiltInType.NodeId => decoder.ReadNodeId(null),
+                    BuiltInType.ExpandedNodeId => decoder.ReadExpandedNodeId(null),
+                    BuiltInType.StatusCode => decoder.ReadStatusCode(null),
+                    BuiltInType.QualifiedName => decoder.ReadQualifiedName(null),
+                    BuiltInType.LocalizedText => decoder.ReadLocalizedText(null),
+                    BuiltInType.ExtensionObject => decoder.ReadExtensionObject(null),
+                    BuiltInType.DataValue => decoder.ReadDataValue(null),
+                    BuiltInType.Enumeration => decoder.ReadEnumerated(null),
+                    _ => Variant.Null
+                };
+            }
+            return typeInfo.BuiltInType switch
+            {
+                BuiltInType.Boolean => Variant.From(decoder.ReadBooleanArray(null)),
+                BuiltInType.SByte => Variant.From(decoder.ReadSByteArray(null)),
+                BuiltInType.Byte => Variant.From(decoder.ReadByteArray(null)),
+                BuiltInType.Int16 => Variant.From(decoder.ReadInt16Array(null)),
+                BuiltInType.UInt16 => Variant.From(decoder.ReadUInt16Array(null)),
+                BuiltInType.Int32 => Variant.From(decoder.ReadInt32Array(null)),
+                BuiltInType.UInt32 => Variant.From(decoder.ReadUInt32Array(null)),
+                BuiltInType.Int64 => Variant.From(decoder.ReadInt64Array(null)),
+                BuiltInType.UInt64 => Variant.From(decoder.ReadUInt64Array(null)),
+                BuiltInType.Float => Variant.From(decoder.ReadFloatArray(null)),
+                BuiltInType.Double => Variant.From(decoder.ReadDoubleArray(null)),
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
+                BuiltInType.String => Variant.From(decoder.ReadStringArray(null)),
+#pragma warning restore CS8620
+                BuiltInType.DateTime => Variant.From(decoder.ReadDateTimeArray(null)),
+                BuiltInType.Guid => Variant.From(decoder.ReadGuidArray(null)),
+                BuiltInType.ByteString => Variant.From(decoder.ReadByteStringArray(null)),
+                BuiltInType.XmlElement => Variant.From(decoder.ReadXmlElementArray(null)),
+                BuiltInType.NodeId => Variant.From(decoder.ReadNodeIdArray(null)),
+                BuiltInType.ExpandedNodeId => Variant.From(decoder.ReadExpandedNodeIdArray(null)),
+                BuiltInType.StatusCode => Variant.From(decoder.ReadStatusCodeArray(null)),
+                BuiltInType.QualifiedName => Variant.From(decoder.ReadQualifiedNameArray(null)),
+                BuiltInType.LocalizedText => Variant.From(decoder.ReadLocalizedTextArray(null)),
+                BuiltInType.ExtensionObject => Variant.From(decoder.ReadExtensionObjectArray(null)),
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
+                BuiltInType.DataValue => Variant.From(decoder.ReadDataValueArray(null)),
+#pragma warning restore CS8620
+                BuiltInType.Variant => Variant.From(decoder.ReadVariantArray(null)),
+                BuiltInType.Enumeration => Variant.From(decoder.ReadEnumeratedArray(null)),
+                _ => Variant.Null
+            };
+        }
+
         /// <inheritdoc/>
         public Variant ReadVariantValue()
+        {
+            return ReadVariantValue(false, BuiltInType.Null);
+        }
+
+        /// <summary>
+        /// Reads the content of a Variant. A raw value is the value of a
+        /// structure field whose inline matrix may be empty.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadVariantValue(bool readRawValue, BuiltInType rawBuiltInType)
         {
             // skip whitespace.
             while (m_reader.NodeType != XmlNodeType.Element)
@@ -2272,7 +2546,14 @@ namespace Opc.Ua
                         case "DataValue":
                             return ReadDataValue(typeName);
                         case "Matrix":
-                            return ReadMatrix(typeName);
+                            // Earlier versions wrapped the inline matrix of a
+                            // structure field in a Matrix element.
+                            return ReadMatrix(typeName, readRawValue, rawBuiltInType);
+                        case "Dimensions" when readRawValue:
+                            // A matrix structure field is of the Matrix type
+                            // itself: the field element directly contains
+                            // Dimensions and Elements (OPC 10000-6 5.3.4).
+                            return ReadMatrix(null, readRawValue, rawBuiltInType);
                         default:
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -2522,7 +2803,10 @@ namespace Opc.Ua
         /// Reads a Matrix from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private Variant ReadMatrix(string? fieldName)
+        private Variant ReadMatrix(
+            string? fieldName,
+            bool readRawValue,
+            BuiltInType rawBuiltInType)
         {
             CheckAndIncrementNestingLevel();
 
@@ -2540,8 +2824,16 @@ namespace Opc.Ua
                     // the product-versus-length consistency is enforced by
                     // MatrixOf<T> below. Reject an absent, too-short, zero or
                     // negative dimension here so an empty matrix (which would
-                    // otherwise satisfy the product check) is rejected.
-                    if (!MatrixOf.IsValidMatrix(dimensions))
+                    // otherwise satisfy the product check) is rejected. The
+                    // inline matrix of a structure field may be empty (5.2.5):
+                    // a dimension <= 0 means no values, like in binary.
+                    if (readRawValue)
+                    {
+                        MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
+                    }
+                    if (readRawValue
+                        ? !MatrixOf.IsValidInlineMatrix(dimensions, -1, Context.MaxArrayLength)
+                        : !MatrixOf.IsValidMatrix(dimensions))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
@@ -2552,6 +2844,21 @@ namespace Opc.Ua
                     {
                         value = ReadMatrix(dimensions);
                         EndField("Elements");
+                    }
+                    else if (readRawValue)
+                    {
+                        // An empty inline matrix has no element to take the type
+                        // from; it must have a zero dimension.
+                        if (!MatrixOf.IsValidInlineMatrix(dimensions, 0, Context.MaxArrayLength))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Variant matrix Dimensions [{0}] are inconsistent with 0 element(s).",
+                                string.Join(",", dimensions));
+                        }
+                        value = Variant.CreateEmptyMatrix(
+                            rawBuiltInType == BuiltInType.Enumeration ? BuiltInType.Int32 : rawBuiltInType,
+                            dimensions);
                     }
 
                     PopNamespace();
@@ -2574,7 +2881,9 @@ namespace Opc.Ua
 
             MatrixOf<T> ToMatrix<T>(ArrayOf<T> elements, int[] dimensions)
             {
-                if (!MatrixOf.IsValidMatrix(dimensions, elements.Count))
+                if (readRawValue
+                    ? !MatrixOf.IsValidInlineMatrix(dimensions, elements.Count, Context.MaxArrayLength)
+                    : !MatrixOf.IsValidMatrix(dimensions, elements.Count))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,

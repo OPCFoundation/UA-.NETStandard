@@ -609,6 +609,7 @@ namespace Opc.Ua.History.Tests
                         .UseProvider(m_provider)
                         .Historize(
                             variable,
+                            historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
                             systemContext: SystemContext,
                             capabilities: HistorianNodeCapabilities.ReadWrite,
                             autoCapture: false);

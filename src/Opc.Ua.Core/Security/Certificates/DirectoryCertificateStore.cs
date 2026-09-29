@@ -44,10 +44,8 @@ using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 #endif
 
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
 using System.Security.AccessControl;
 using System.Security.Principal;
-#endif
 
 namespace Opc.Ua
 {
@@ -1616,7 +1614,6 @@ namespace Opc.Ua
 
             try
             {
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     RestrictPrivateWindowsDirectory(directory);
@@ -1628,7 +1625,11 @@ namespace Opc.Ua
                         directory.FullName,
                         UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                 }
-#endif
+#elif NETSTANDARD2_1
+                else
+                {
+                    UnixFileModeShim.SetMode(directory.FullName, UnixFileModeShim.UserReadWriteExecute);
+                }
 #endif
             }
             catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(directory))
@@ -1641,7 +1642,6 @@ namespace Opc.Ua
         {
             try
             {
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     RestrictPrivateWindowsFile(file);
@@ -1651,7 +1651,11 @@ namespace Opc.Ua
                 {
                     File.SetUnixFileMode(file.FullName, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 }
-#endif
+#elif NETSTANDARD2_1
+                else
+                {
+                    UnixFileModeShim.SetMode(file.FullName, UnixFileModeShim.UserReadWrite);
+                }
 #endif
             }
             catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(file))
@@ -1673,18 +1677,18 @@ namespace Opc.Ua
                 return File.GetUnixFileMode(path.FullName) == required;
             }
 #endif
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 return path is DirectoryInfo directory
                     ? HasPrivateWindowsAccess(directory.GetAccessControl(), isDirectory: true)
                     : HasPrivateWindowsAccess(((FileInfo)path).GetAccessControl(), isDirectory: false);
             }
-#endif
+            // netstandard2.1 cannot read Unix modes portably (the stat layout is platform
+            // specific), so it fails closed. chmod only fails for a caller that neither owns
+            // the path nor is root, and such a caller could not use a 0700 path anyway.
             return false;
         }
 
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
 #pragma warning disable CA1416 // These helpers are reached only after a Windows platform check.
         private static void RestrictPrivateWindowsDirectory(DirectoryInfo directory)
         {
@@ -1763,7 +1767,6 @@ namespace Opc.Ua
             return (granted & ~denied & required) == required;
         }
 #pragma warning restore CA1416
-#endif
 
         /// <summary>
         /// Writes replacement PEM contents to a temporary file and atomically replaces the existing file.

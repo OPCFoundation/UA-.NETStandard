@@ -297,8 +297,10 @@ namespace Opc.Ua.Di.Server
         /// <c>IDiPostSetupRunner</c>-based hosting hooks. The flow is:
         /// <list type="number">
         ///   <item><description>
-        ///     The framework's <c>base.CreateAddressSpaceAsync</c> loads
-        ///     predefined nodes and wires the type tree.
+        ///     <c>LoadPredefinedNodesAsync</c> loads predefined nodes and
+        ///     wires the type tree. The manager runs its own pipeline rather
+        ///     than the one in <c>FluentNodeManagerBase.CreateAddressSpaceAsync</c>,
+        ///     because the post-setup runner has to run before sealing.
         ///   </description></item>
         ///   <item><description>
         ///     The manager's fluent builder is created and attached, then
@@ -329,8 +331,8 @@ namespace Opc.Ua.Di.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(
-                externalReferences, cancellationToken).ConfigureAwait(false);
+            await LoadPredefinedNodesAsync(
+                SystemContext, externalReferences, cancellationToken).ConfigureAwait(false);
 
             NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
 
@@ -357,8 +359,11 @@ namespace Opc.Ua.Di.Server
             // would lock them out of registering simulation loops of their
             // own. Configurators that build their own context seal it
             // themselves; this second seal is then a no-op for the shared
-            // registries and only closes this builder.
-            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
+            // registries and only closes this builder. Sealing through
+            // SealConfigurationAsync replays NotifyNodeAdded, so OnNodeAdded
+            // handlers wired in ConfigureAsync fire as they do for managers
+            // that use the FluentNodeManagerBase pipeline.
+            await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

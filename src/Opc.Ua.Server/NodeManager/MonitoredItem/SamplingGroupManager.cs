@@ -175,24 +175,15 @@ namespace Opc.Ua.Server
             MonitoringFilter filterToUse,
             Range range,
             double minimumSamplingInterval,
-            bool createDurable)
+            bool createDurable,
+            double? sourceSamplingInterval = null)
         {
             _ = itemToCreate.RequestedParameters.Filter.TryGetValue(
                 out MonitoringFilter? originalFilter);
 
             // use publishing interval as sampling interval.
-            double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-
-            if (samplingInterval < 0)
-            {
-                samplingInterval = publishingInterval;
-            }
-
-            // limit the sampling interval.
-            if (minimumSamplingInterval > 0 && samplingInterval < minimumSamplingInterval)
-            {
-                samplingInterval = minimumSamplingInterval;
-            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                itemToCreate.RequestedParameters.SamplingInterval, publishingInterval, minimumSamplingInterval, 0);
 
             // calculate queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
@@ -236,7 +227,7 @@ namespace Opc.Ua.Server
                 samplingInterval,
                 revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
-                samplingInterval,
+                originalFilter is EventFilter ? 0 : sourceSamplingInterval ?? minimumSamplingInterval,
                 createDurable);
 
             // start sampling.
@@ -280,26 +271,16 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoredItemModifyRequest itemToModify,
             MonitoringFilter filterToUse,
-            Range range)
+            Range range,
+            double? revisedSamplingInterval = null)
         {
             _ = itemToModify.RequestedParameters.Filter.TryGetValue(
                 out MonitoringFilter? originalFilter);
 
             // use existing interval as sampling interval.
-            double samplingInterval = itemToModify.RequestedParameters.SamplingInterval;
-
-            if (samplingInterval < 0)
-            {
-                samplingInterval = monitoredItem.SamplingInterval;
-            }
-
-            // limit the sampling interval.
-            double minimumSamplingInterval = monitoredItem.MinimumSamplingInterval;
-
-            if (minimumSamplingInterval > 0 && samplingInterval < minimumSamplingInterval)
-            {
-                samplingInterval = minimumSamplingInterval;
-            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                revisedSamplingInterval ?? itemToModify.RequestedParameters.SamplingInterval,
+                monitoredItem.SamplingInterval, monitoredItem.MinimumSamplingInterval, 0);
 
             // calculate queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(

@@ -160,7 +160,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "a;b;c"
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result, Does.Contain("a"));
@@ -176,7 +176,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "x,y,z"
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result, Does.Contain("x"));
@@ -192,7 +192,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "a+b"
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(2));
         }
@@ -202,7 +202,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         {
             var options = new AnalyzerOptions([]);
 
-            List<string> result = options.GetStrings("NonExistent");
+            IReadOnlyList<string> result = options.GetStrings("NonExistent");
 
             Assert.That(result, Is.Empty);
         }
@@ -215,7 +215,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = " a ; b ; c "
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result, Does.Contain("a"));
@@ -231,7 +231,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "a;;b"
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(2));
         }
@@ -668,7 +668,7 @@ namespace Test
                 [$"build_property.{SourceGenerator.Name}Items".ToLowerInvariant()] = "a;b,c+d"
             });
 
-            List<string> result = options.GetStrings("Items");
+            IReadOnlyList<string> result = options.GetStrings("Items");
 
             Assert.That(result, Has.Count.EqualTo(4));
             Assert.That(result, Does.Contain("a"));
@@ -822,6 +822,42 @@ namespace Test
             Assert.That(text.IsDesignOrNodeset2File(), Is.True);
         }
 
+        [TestCase("<opc:ModelDesign xmlns:opc=\"http://opcfoundation.org/UA/ModelDesign.xsd\" />", true)]
+        [TestCase("<?xml version=\"1.0\"?>\n<!-- c -->\n<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\" />", true)]
+        [TestCase("<linker><assembly fullname=\"A\" /></linker>", false)]
+        [TestCase("<ModelDesign xmlns=\"http://example.org/other\" />", false)]
+        [TestCase("<ModelDesign", true)]
+        public void IsDesignOrNodeset2FileSniffsTheRootElement(string content, bool expected)
+        {
+            // Only a ModelDesign or UANodeSet root is a model input; a file
+            // that cannot be parsed stays one so the model pipeline reports it.
+            var text = EmbeddedAdditionalText.Create("file.xml", content);
+
+            Assert.That(text.IsDesignOrNodeset2File(), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void GetStringsComparesByContent()
+        {
+            var options = new AnalyzerOptions(new Dictionary<string, string>
+            {
+                [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "a;b"
+            });
+
+            // The options records carry this list; a fresh list per evaluation
+            // must still compare equal or the incremental cache never hits.
+            IReadOnlyList<string> first = options.GetStrings("MyList");
+            IReadOnlyList<string> second = options.GetStrings("MyList");
+            Assert.That(ReferenceEquals(first, second), Is.False);
+            Assert.That(
+                EqualityComparer<IReadOnlyList<string>>.Default.Equals(first, second),
+                Is.True,
+                "a record's generated equality compares the member this way");
+            Assert.That(
+                EqualityComparer<IReadOnlyList<string>>.Default.GetHashCode(first),
+                Is.EqualTo(EqualityComparer<IReadOnlyList<string>>.Default.GetHashCode(second)));
+        }
+
         [Test]
         public void IsDesignOrNodeset2FileReturnsFalseForCsv()
         {
@@ -865,7 +901,7 @@ namespace Test
                 [$"build_metadata.AdditionalFiles.{SourceGenerator.Name}Items".ToLowerInvariant()] = "a;b"
             });
 
-            List<string> result = options.GetStrings("Items", buildProperty: false);
+            IReadOnlyList<string> result = options.GetStrings("Items", buildProperty: false);
 
             Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result, Does.Contain("a"));

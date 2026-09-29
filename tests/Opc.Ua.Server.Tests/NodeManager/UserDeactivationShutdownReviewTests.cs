@@ -93,6 +93,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var closeReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(value => value.DisplayName).Returns("bob");
+            // Only sessions that logged in as the UserManagement user are revoked (S6-6).
+            identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
             var session = new Mock<ISession>();
             var sessionId = new NodeId("revoked-session", 1);
             session.SetupGet(value => value.Id).Returns(sessionId);

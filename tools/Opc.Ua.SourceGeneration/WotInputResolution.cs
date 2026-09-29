@@ -67,6 +67,10 @@ namespace Opc.Ua.SourceGeneration
             var accepted = ImmutableArray.CreateBuilder<(AdditionalText, NodesetFileOptions)>();
             // Explicit inputs are never displaced by a WoT-synthesized path;
             // claim their own virtual path (== their real path) first.
+            // Ordinal, like the virtual file system the paths are stored in.
+            // The generated sources' hint names come from the model prefix,
+            // not from these paths, so paths differing only in case do not
+            // collide and must not drop a valid model.
             var claimedBy = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach ((AdditionalText text, NodesetFileOptions _) in xmlInputFiles)
             {

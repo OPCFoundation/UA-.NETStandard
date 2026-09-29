@@ -134,7 +134,14 @@ namespace Opc.Ua.Bindings
                 ServerUris = new StringTable()
             };
 
-            m_quotas = new ChannelQuotas(messageContext);
+            m_quotas = new ChannelQuotas(messageContext)
+            {
+                SessionBindingProvider = settings.SessionBindingProvider,
+                ResourceIsolationProvider = settings.ResourceIsolationProvider,
+                HandshakeTimeout = settings.HandshakeTimeout,
+                ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
+                    ChunkReassemblyBudget.CreateDefault(configuration)
+            };
 
             if (configuration != null)
             {
@@ -934,11 +941,15 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Keeps a channel in use while processing a request and dispatching its response.
+        /// </summary>
         private async void OnRequestReceived(
             TcpListenerChannel channel,
             uint requestId,
             IServiceRequest request)
         {
+            using IDisposable usage = channel.TrackPendingRequest();
             try
             {
                 if (m_callback == null)

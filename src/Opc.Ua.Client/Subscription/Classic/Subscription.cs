@@ -1735,13 +1735,27 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             CancellationToken ct = default)
         {
+            (bool transferred, _) = await TransferWithAcknowledgementsAsync(
+                session, id, availableSequenceNumbers, ct).ConfigureAwait(false);
+            return transferred;
+        }
+
+        /// <summary>
+        /// Transfers the subscription and returns only sequence numbers not claimed for republish.
+        /// </summary>
+        internal async Task<(bool Transferred, ArrayOf<uint> Acknowledgements)> TransferWithAcknowledgementsAsync(
+            ISession session,
+            uint id,
+            ArrayOf<uint> availableSequenceNumbers,
+            CancellationToken ct)
+        {
             using Activity? activity = m_telemetry.StartActivity();
             if (Created)
             {
                 // handle the case when the client has the subscription template and reconnects
                 if (id != Id)
                 {
-                    return false;
+                    return (false, default);
                 }
 
                 // remove the subscription from disconnected session
@@ -1750,7 +1764,7 @@ namespace Opc.Ua.Client
                     m_logger.SubscriptionIdSubscriptionIdFailedRemoveTransferredSubscription(
                         Id,
                         Session?.SessionId);
-                    return false;
+                    return (false, default);
                 }
 
                 // remove default subscription template which was copied in Session.Create()
@@ -1766,7 +1780,7 @@ namespace Opc.Ua.Client
                     m_logger.SubscriptionIdSubscriptionIdFailedAddTransferredSubscription(
                         Id,
                         session.SessionId);
-                    return false;
+                    return (false, default);
                 }
             }
             else
@@ -1779,7 +1793,7 @@ namespace Opc.Ua.Client
                     m_logger.SubscriptionIdSubscriptionIdServerFailedRespondGetMonitoredItems(
                         Id,
                         Session?.SessionId);
-                    return false;
+                    return (false, default);
                 }
 
                 int monitoredItemsCount = m_monitoredItems.Count;
@@ -1792,7 +1806,7 @@ namespace Opc.Ua.Client
                         serverHandles.Count,
                         monitoredItemsCount,
                         Session?.SessionId);
-                    return false;
+                    return (false, default);
                 }
 
                 // sets state to 'Created'
@@ -1803,7 +1817,7 @@ namespace Opc.Ua.Client
             }
 
             // add available sequence numbers to incoming
-            ProcessTransferredSequenceNumbers(availableSequenceNumbers);
+            ArrayOf<uint> acknowledgements = ProcessTransferredSequenceNumbers(availableSequenceNumbers);
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
             ChangesCompleted();
@@ -1816,7 +1830,7 @@ namespace Opc.Ua.Client
 
             TraceState("TRANSFERRED ASYNC");
 
-            return true;
+            return (true, acknowledgements);
         }
 
         /// <summary>
@@ -2250,13 +2264,14 @@ namespace Opc.Ua.Client
         /// </remarks>
         /// <param name="availableSequenceNumbers">The list of available sequence
         /// numbers on the server.</param>
-        private void ProcessTransferredSequenceNumbers(ArrayOf<uint> availableSequenceNumbers)
+        private ArrayOf<uint> ProcessTransferredSequenceNumbers(ArrayOf<uint> availableSequenceNumbers)
         {
             lock (m_cache)
             {
                 // reset incoming state machine and clear cache
                 m_lastSequenceNumberProcessed = 0;
                 m_resyncLastSequenceNumberProcessed = true;
+                ArrayOf<uint> acknowledgements = availableSequenceNumbers;
 
                 if (!availableSequenceNumbers.IsEmpty && RepublishAfterTransfer)
                 {
@@ -2318,10 +2333,12 @@ namespace Opc.Ua.Client
                         republishMessages,
                         m_lastSequenceNumberProcessed,
                         Session?.SessionId);
+                    acknowledgements = availableSequenceNumberList.ToArrayOf();
                 }
 
                 // save available sequence numbers
                 m_availableSequenceNumbers = availableSequenceNumbers;
+                return acknowledgements;
             }
         }
 

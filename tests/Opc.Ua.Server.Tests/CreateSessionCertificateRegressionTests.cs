@@ -30,7 +30,9 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.TestFramework;
@@ -62,12 +64,30 @@ namespace Opc.Ua.Server.Tests
                 .SetRSAKeySize(2048).CreateForRSA();
             m_issued = CreateCertificate("CN=Issued Session Client", issuer: m_root);
             m_pkiRoot = Path.Combine(Path.GetTempPath(), "session-cert-" + Guid.NewGuid().ToString("N"));
-            m_fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
+            var sessionManagers = new Mock<ISessionManagerFactory>(MockBehavior.Strict);
+            sessionManagers.Setup(factory => factory.Create(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<TimeProvider>(), It.IsAny<Func<string, Certificate>>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, TimeProvider timeProvider,
+                    Func<string, Certificate> certificateProvider) =>
+                {
+                    m_restoredSessionCertificateProvider = certificateProvider;
+                    return new SessionManager(server, configuration, timeProvider);
+                });
+            m_fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry)
+            {
+                SessionManagerFactory = sessionManagers.Object
+            })
             {
                 SecurityNone = true,
                 AutoAccept = false
             };
             await m_fixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            m_fixture.Config.SecurityConfiguration.ApplicationCertificates =
+                m_fixture.Config.SecurityConfiguration.ApplicationCertificates.ToArray()
+                    .OrderBy(identifier => CertificateIdentifier.IsRsaCertificateType(identifier.CertificateType))
+                    .ToArrayOf();
+            m_fixture.Config.ServerConfiguration.UserTokenPolicies += new UserTokenPolicy(UserTokenType.UserName);
             m_fixture.Config.SecurityConfiguration.RejectUnknownRevocationStatus = false;
             foreach (Certificate certificate in new[] { m_trusted, m_otherTrusted, m_expired, m_root })
             {
@@ -194,6 +214,60 @@ namespace Opc.Ua.Server.Tests
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NoneSessionUsesAdvertisedRsaKeyForEncryptedUsernameWithEccFirstAsync(bool longPassword)
+        {
+            using CertificateEntryCollection entries =
+                m_fixture.Server.CertificateManager.SnapshotApplicationCertificates();
+            Assert.That(CertificateIdentifier.IsRsaCertificateType(entries[0].CertificateType), Is.False);
+            SecureChannelContext channel = CreateContext(m_trusted, Profiles.UaTcpTransport, secure: false);
+            UserTokenPolicy policy = channel.EndpointDescription.UserIdentityTokens.ToArray()
+                .Single(value => value.TokenType == UserTokenType.UserName);
+            Assert.That(policy.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            byte[] password = Nonce.CreateRandomNonceData(longPassword ? 80 : 24);
+            var token = new UserNameIdentityTokenHandler("ephemeral-test-user", password);
+            token.UpdatePolicy(policy);
+
+            await CreateAndCloseAsync(channel, string.Empty, ByteString.Empty, async response =>
+            {
+                using CertificateCollection serverChain = Utils.ParseCertificateChainBlob(
+                    response.ServerCertificate.ToArray(), m_fixture.Server.CurrentInstance.Telemetry);
+                Assert.That(response.ServerCertificate, Is.EqualTo(channel.EndpointDescription.ServerCertificate));
+                await token.EncryptAsync(
+                    serverChain[0], response.ServerNonce.ToArray(), policy.SecurityPolicyUri,
+                    m_fixture.Server.MessageContext).ConfigureAwait(false);
+                ISession session = m_fixture.Server.CurrentInstance.SessionManager.GetSession(
+                    response.AuthenticationToken);
+                Assert.That(session, Is.Not.Null);
+                using var context = new OperationContext(
+                    new RequestHeader { AuthenticationToken = response.AuthenticationToken }, channel,
+                    RequestType.ActivateSession, RequestLifetime.None);
+
+                (IUserIdentityTokenHandler decoded, UserTokenPolicy decodedPolicy) =
+                    await session.ValidateBeforeActivateAsync(
+                        context, new SignatureData(), new ExtensionObject(token.Token),
+                        new SignatureData(), CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(decoded, Is.TypeOf<UserNameIdentityTokenHandler>());
+                Assert.That(((UserNameIdentityTokenHandler)decoded).DecryptedPassword, Is.EqualTo(password));
+                Assert.That(decodedPolicy.PolicyId, Is.EqualTo(policy.PolicyId));
+            }).ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RestoredSessionsSelectTheSameCertificateAsLiveEndpoints(bool secure)
+        {
+            SecureChannelContext channel = CreateContext(m_trusted, Profiles.UaTcpTransport, secure);
+            using Certificate restored = m_restoredSessionCertificateProvider(
+                channel.EndpointDescription.SecurityPolicyUri);
+            using Certificate advertised = Utils.ParseCertificateBlob(
+                channel.EndpointDescription.ServerCertificate, m_fixture.Server.CurrentInstance.Telemetry);
+
+            Assert.That(restored.Thumbprint, Is.EqualTo(advertised.Thumbprint));
+        }
+
         /// <summary>
         /// Creates a channel context using the selected transport profile, security policy, and client certificate.
         /// </summary>
@@ -216,7 +290,8 @@ namespace Opc.Ua.Server.Tests
         private async Task<CreateSessionResponse> CreateAndCloseAsync(
             SecureChannelContext channel,
             string applicationUri,
-            ByteString certificate)
+            ByteString certificate,
+            Func<CreateSessionResponse, Task> verify = null)
         {
             CreateSessionResponse response = await m_fixture.Server.CreateSessionAsync(
                 channel,
@@ -235,9 +310,19 @@ namespace Opc.Ua.Server.Tests
                 60000,
                 0,
                 RequestLifetime.None).ConfigureAwait(false);
-            await m_fixture.Server.CurrentInstance.CloseSessionAsync(null, response.SessionId, true)
-                .ConfigureAwait(false);
-            return response;
+            try
+            {
+                if (verify != null)
+                {
+                    await verify(response).ConfigureAwait(false);
+                }
+                return response;
+            }
+            finally
+            {
+                await m_fixture.Server.CurrentInstance.CloseSessionAsync(null, response.SessionId, true)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -275,6 +360,8 @@ namespace Opc.Ua.Server.Tests
         /// Hosts the server whose CreateSession service performs certificate validation.
         /// </summary>
         private ServerFixture<ReferenceServer> m_fixture;
+
+        private Func<string, Certificate> m_restoredSessionCertificateProvider;
 
         /// <summary>
         /// Stores the isolated PKI directory removed after server shutdown.

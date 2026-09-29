@@ -649,7 +649,7 @@ namespace Opc.Ua
                     "SecurityConfiguration must be specified.");
             }
 
-            SecurityConfiguration.Validate(m_telemetry);
+            SecurityConfiguration.Validate(m_telemetry, CertificateManager as ICertificateStoreResolver);
 
             string GenerateDefaultUri()
             {

@@ -399,6 +399,41 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         /// <summary>
+        /// A single source that declares two models where one requires the other is
+        /// well-formed and must not be reported as a circular dependency.
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncAcceptsIntraDocumentModelDependencyAsync()
+        {
+            const string xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                "  <Models>\r\n" +
+                "    <Model ModelUri=\"" + kUriA + "\" />\r\n" +
+                "    <Model ModelUri=\"" + kUriB + "\">\r\n" +
+                "      <RequiredModel ModelUri=\"" + kUriA + "\" />\r\n" +
+                "    </Model>\r\n" +
+                "  </Models>\r\n" +
+                "</UANodeSet>";
+            StreamRuntimeNodeSetSource source = RuntimeNodeSetSource.FromStream(
+                "combined",
+                _ => new ValueTask<Stream>(new MemoryStream(Encoding.UTF8.GetBytes(xml))),
+                [kUriA, kUriB]);
+            var factory = new RuntimeNodeSetNodeManagerFactory(
+                new RuntimeNodeSetOptions { Sources = [source] });
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                BuildMockServer().Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using (manager as IDisposable)
+            {
+                Assert.That(manager, Is.Not.Null);
+            }
+        }
+
+        /// <summary>
         /// With a fluent callback and two dependent sources, the default namespace
         /// is inferred as the unique leaf model (the one not required by another).
         /// </summary>

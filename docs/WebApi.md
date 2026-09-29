@@ -10,6 +10,20 @@ The binding ships as part of
 mounted on the same Kestrel host as the binary and
 `application/opcua+uajson` sub-profiles).
 
+## Contents
+
+- [Quick start](#quick-start)
+- [Routes (full coverage)](#routes-full-coverage)
+- [Encoding negotiation](#encoding-negotiation)
+- [Discovery](#discovery)
+- [Wire format](#wire-format)
+- [Authentication](#authentication)
+  - [JWT claim projection (built-in)](#jwt-claim-projection-built-in)
+- [Hosting modes](#hosting-modes)
+- [Long-poll `/publish`](#long-poll-publish)
+- [Client integration](#client-integration)
+- [Related plans and follow-ups](#related-plans-and-follow-ups)
+
 - **Server side**: ASP.NET Core Minimal-API endpoints (one `MapPost`
   per spec service) — **NativeAOT-compatible**; no MVC reflection, no
   `[UnconditionalSuppressMessage]` attributes.
@@ -121,11 +135,11 @@ endpoint description with all of these fields pre-populated.
 > `WebApiWssTransportChannel` on the client side,
 > `HttpsTransportListener.AcceptWebSocketOpenApiAsync` on the server
 > side. Fluent shortcut:
-> `ManagedSessionBuilder.UseWssOpenApiEndpoint(url, encoding)`. Bearer
-> tokens ride in the sub-protocol name
+> `ManagedSessionBuilder.UseWssOpenApiEndpoint(url, encoding)`. The bearer
+> token is encoded in the selected sub-protocol name
 > (`opcua+openapi+<accesstoken>`) because browser WebSocket APIs forbid
 > custom HTTP request headers.
->
+
 > **Security considerations for the bearer-prefix sub-protocol:**
 > the WebSocket spec requires the server to echo the selected
 > sub-protocol back to the client in the 101 handshake. The bearer
@@ -135,13 +149,17 @@ endpoint description with all of these fields pre-populated.
 >    request is not `IsHttps`).
 > 2. The server's Kestrel access log (`Sec-WebSocket-Protocol` header).
 > 3. Any HTTP proxy / WAF / load-balancer log on the path.
->
+
 > Operators **must** redact the `Sec-WebSocket-Protocol` header from
 > logs and **should** use short-lived tokens (≤ 60 s TTL) so a
 > captured token expires before it can be replayed. The server also
 > requires `AddWebApiBearerAuth(...)` to be registered: without a
 > bearer validator the listener fail-closed rejects every
 > bearer-prefix upgrade rather than echo the token back.
+
+The persistent WSS client multiplexes requests with connection-local wire
+handles while preserving caller-visible handles. See [Transports](Transports.md)
+for cancellation, late-response routing and connection-lifetime behavior.
 
 ## Wire format
 

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests.NodeManager;
@@ -468,6 +469,42 @@ namespace Opc.Ua.Server.Tests
                 owner.SetEventSubscriptionCallback(static _ => { });
                 await owner.Lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
             }
+        }
+
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public Task EventAttachmentReadinessDoesNotBlockUnrelatedMonitoredItemServiceAsync(ManagerPath path)
+        {
+            return AssertEventReadinessDoesNotBlockDataChangeCreationAsync(path, compensateDetach: false);
+        }
+
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public Task FailedEventDetachCompensationDoesNotBlockUnrelatedMonitoredItemServiceAsync(ManagerPath path)
+        {
+            return AssertEventReadinessDoesNotBlockDataChangeCreationAsync(path, compensateDetach: true);
+        }
+
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public Task FailedEventNodeDeletionCompensationDoesNotBlockUnrelatedMonitoredItemServiceAsync(ManagerPath path)
+        {
+            return AssertEventReadinessDoesNotBlockDataChangeCreationAsync(
+                path, compensateDetach: true, deleteNode: true);
+        }
+
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public Task FailedEventAttachmentDoesNotRollBackReattachedItemAsync(ManagerPath path)
+        {
+            return AssertStaleEventTransitionPreservesReplacementAsync(path, failAttachment: true);
+        }
+
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public Task CompletedEventDetachDoesNotParkReattachedItemAsync(ManagerPath path)
+        {
+            return AssertStaleEventTransitionPreservesReplacementAsync(path, failAttachment: false);
         }
 
         [TestCase(ManagerPath.AsyncMonitoredNode)]
@@ -1346,6 +1383,382 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        private static async Task AssertStaleEventTransitionPreservesReplacementAsync(
+            ManagerPath path,
+            bool failAttachment)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var source = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("ReattachedEventSource", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("ReattachedEventSource", owner.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                source.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(source).ConfigureAwait(false);
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), source.NodeId);
+                var lifecycle = (IDetachableMonitoredItem)item;
+                lifecycle.Detach(server.Object);
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var failure = new InvalidOperationException("Original attachment readiness failed.");
+                int subscribeCalls = 0;
+                int unsubscribeCalls = 0;
+                owner.AsyncManager.EventSubscriptionCallback = async (unsubscribe, ct) =>
+                {
+                    int call = unsubscribe
+                        ? Interlocked.Increment(ref unsubscribeCalls)
+                        : Interlocked.Increment(ref subscribeCalls);
+                    if (call == 1 && unsubscribe != failAttachment)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                        if (failAttachment)
+                        {
+                            throw failure;
+                        }
+                    }
+                };
+                var transitions = new List<Task<ServiceResult>>();
+                try
+                {
+                    if (!failAttachment)
+                    {
+                        Task<ServiceResult> initial = owner.Lifecycle.AttachMonitoredItemAsync(item).AsTask();
+                        transitions.Add(initial);
+                        ServiceResult result = await initial.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    }
+
+                    Task<ServiceResult> original = failAttachment
+                        ? owner.Lifecycle.AttachMonitoredItemAsync(item).AsTask()
+                        : owner.Lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                    transitions.Add(original);
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    object originalHandle = item.ManagerHandle;
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(original.IsCompleted, Is.False);
+                        Assert.That(originalHandle, Is.TypeOf<NodeHandle>());
+                        Assert.That(source.AreEventsMonitored, Is.EqualTo(failAttachment));
+                        Assert.That(Volatile.Read(ref subscribeCalls), Is.EqualTo(1));
+                        Assert.That(Volatile.Read(ref unsubscribeCalls), Is.EqualTo(failAttachment ? 0 : 1));
+                    }
+                    if (failAttachment)
+                    {
+                        Task<ServiceResult> detach = owner.Lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                        transitions.Add(detach);
+                        ServiceResult result = await detach.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                            Assert.That(lifecycle.IsDetached, Is.True);
+                            Assert.That(source.AreEventsMonitored, Is.False);
+                        }
+                    }
+
+                    Task<ServiceResult> replacement = owner.Lifecycle.AttachMonitoredItemAsync(item).AsTask();
+                    transitions.Add(replacement);
+                    ServiceResult attached = await replacement.WaitAsync(TimeSpan.FromSeconds(10))
+                        .ConfigureAwait(false);
+                    object replacementHandle = item.ManagerHandle;
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(replacementHandle, Is.TypeOf<NodeHandle>());
+                        Assert.That(replacementHandle, Is.Not.SameAs(originalHandle));
+                        Assert.That(item.NodeManager, Is.SameAs(owner.AsyncManager));
+                        Assert.That(lifecycle.IsDetached, Is.False);
+                        Assert.That(source.AreEventsMonitored, Is.True);
+                        Assert.That(original.IsCompleted, Is.False);
+                        Assert.That(release.Task.IsCompleted, Is.False);
+                        Assert.That(owner.AsyncManager.DetachedNotificationCount,
+                            Is.EqualTo(failAttachment ? 1 : 0));
+                    }
+
+                    release.TrySetResult(true);
+                    if (failAttachment)
+                    {
+                        InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
+                            async () => await original.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+                        Assert.That(error, Is.SameAs(failure));
+                    }
+                    else
+                    {
+                        ServiceResult detached = await original.WaitAsync(TimeSpan.FromSeconds(10))
+                            .ConfigureAwait(false);
+                        Assert.That(detached.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    }
+                    IReadOnlyList<IMonitoredItem> snapshot = await owner.Lifecycle.GetMonitoredItemsSnapshotAsync()
+                        .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(snapshot, Has.Count.EqualTo(1));
+                        Assert.That(snapshot[0], Is.SameAs(item));
+                        Assert.That(item.NodeManager, Is.SameAs(owner.AsyncManager));
+                        Assert.That(item.ManagerHandle, Is.SameAs(replacementHandle));
+                        Assert.That(lifecycle.IsDetached, Is.False);
+                        Assert.That(lifecycle.IsDeleted, Is.False);
+                        Assert.That(source.AreEventsMonitored, Is.True);
+                        Assert.That(Volatile.Read(ref subscribeCalls), Is.EqualTo(2));
+                        Assert.That(Volatile.Read(ref unsubscribeCalls), Is.EqualTo(1));
+                        Assert.That(owner.AsyncManager.DetachedNotificationCount,
+                            Is.EqualTo(failAttachment ? 1 : 0));
+                    }
+
+                    Task<ServiceResult> finalDetach = owner.Lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                    transitions.Add(finalDetach);
+                    ServiceResult finalResult = await finalDetach.WaitAsync(TimeSpan.FromSeconds(10))
+                        .ConfigureAwait(false);
+                    snapshot = await owner.Lifecycle.GetMonitoredItemsSnapshotAsync()
+                        .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(finalResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(snapshot, Is.Empty);
+                        Assert.That(lifecycle.IsDetached, Is.True);
+                        Assert.That(item.NodeManager, Is.SameAs(MonitoredItem.GetDetachedOwner(server.Object)));
+                        Assert.That(item.ManagerHandle, Is.SameAs(MonitoredItem.DetachedHandle));
+                        Assert.That(source.AreEventsMonitored, Is.False);
+                        Assert.That(Volatile.Read(ref subscribeCalls), Is.EqualTo(2));
+                        Assert.That(Volatile.Read(ref unsubscribeCalls), Is.EqualTo(2));
+                        Assert.That(owner.AsyncManager.DetachedNotificationCount,
+                            Is.EqualTo(failAttachment ? 2 : 1));
+                    }
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    foreach (Task<ServiceResult> transition in transitions)
+                    {
+                        try
+                        {
+                            await transition.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                        }
+                        catch (InvalidOperationException exception) when (
+                            failAttachment && ReferenceEquals(exception, failure))
+                        {
+                        }
+                    }
+                    owner.AsyncManager.EventSubscriptionCallback = static (_, _) => default;
+                    await owner.Lifecycle.DetachMonitoredItemAsync(item)
+                        .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private static async Task AssertEventReadinessDoesNotBlockDataChangeCreationAsync(
+            ManagerPath path,
+            bool compensateDetach,
+            bool deleteNode = false)
+        {
+            var clock = new FakeTimeProvider();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory, clock);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var source = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("HeldEventSource", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("HeldEventSource", owner.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                var value = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("IndependentValue", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("IndependentValue", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = 42
+                };
+                source.CreateAsPredefinedNode(owner.SystemContext);
+                value.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(source).ConfigureAwait(false);
+                await owner.AddNodeAsync(value).ConfigureAwait(false);
+                using MonitoredItem eventItem = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), source.NodeId);
+                var lifecycle = (IDetachableMonitoredItem)eventItem;
+                lifecycle.Detach(server.Object);
+                if (compensateDetach)
+                {
+                    ServiceResult attached = await owner.Lifecycle.AttachMonitoredItemAsync(eventItem)
+                        .ConfigureAwait(false);
+                    Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var failure = new InvalidOperationException("Injected unsubscribe failure.");
+                using var transitionCancellation = new CancellationTokenSource();
+                CancellationToken requestToken = default;
+                CancellationToken compensationToken = default;
+                owner.AsyncManager.EventSubscriptionCallback = async (unsubscribe, ct) =>
+                {
+                    if (unsubscribe)
+                    {
+                        requestToken = ct;
+                        throw failure;
+                    }
+                    compensationToken = ct;
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                };
+                Task<ServiceResult> lifecycleTransition = null;
+                Task transition;
+                if (deleteNode)
+                {
+                    transition = owner.AsyncManager.DeleteNodeAsync(
+                        owner.SystemContext, source.NodeId, transitionCancellation.Token).AsTask();
+                }
+                else
+                {
+                    lifecycleTransition = compensateDetach
+                        ? owner.Lifecycle.DetachMonitoredItemAsync(eventItem, transitionCancellation.Token).AsTask()
+                        : owner.Lifecycle.AttachMonitoredItemAsync(eventItem, transitionCancellation.Token).AsTask();
+                    transition = lifecycleTransition;
+                }
+                Task<MonitoredItem> creation = null;
+                MonitoredItem created = null;
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    if (compensateDetach)
+                    {
+                        transitionCancellation.Cancel();
+                        clock.Advance(TimeSpan.FromSeconds(5) - TimeSpan.FromTicks(1));
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(requestToken, Is.EqualTo(transitionCancellation.Token));
+                            Assert.That(requestToken.IsCancellationRequested, Is.True);
+                            Assert.That(compensationToken.CanBeCanceled, Is.True);
+                            Assert.That(compensationToken, Is.Not.EqualTo(requestToken));
+                            Assert.That(compensationToken.IsCancellationRequested, Is.False,
+                                "Compensation must survive request cancellation until its own deadline.");
+                        }
+                    }
+                    creation = CreateIndependentDataChangeItemAsync(owner.AsyncManager, value.NodeId);
+                    created = await creation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(release.Task.IsCompleted, Is.False);
+                        Assert.That(transition.IsCompleted, Is.False,
+                            "The unrelated service must finish before event readiness is released.");
+                        Assert.That(created.NodeId, Is.EqualTo(value.NodeId));
+                        Assert.That(created.AttributeId, Is.EqualTo(Attributes.Value));
+                        Assert.That(created.Id, Is.Not.EqualTo(eventItem.Id));
+                        Assert.That(owner.Owns(created.NodeManager), Is.True);
+                        Assert.That(((IDetachableMonitoredItem)created).IsDetached, Is.False);
+                    }
+                    release.TrySetResult(true);
+                    if (compensateDetach)
+                    {
+                        InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
+                            async () => await transition.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+                        Assert.That(error, Is.SameAs(failure));
+                        clock.Advance(TimeSpan.FromTicks(1));
+                        Assert.That(compensationToken.IsCancellationRequested, Is.False,
+                            "Completed compensation must retire its deadline timer.");
+                    }
+                    else
+                    {
+                        ServiceResult result = await lifecycleTransition.WaitAsync(TimeSpan.FromSeconds(10))
+                            .ConfigureAwait(false);
+                        Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    }
+                    IReadOnlyList<IMonitoredItem> snapshot = await owner.Lifecycle.GetMonitoredItemsSnapshotAsync()
+                        .ConfigureAwait(false);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(snapshot, Is.EquivalentTo(new IMonitoredItem[] { eventItem, created }));
+                        Assert.That(lifecycle.IsDetached, Is.False);
+                        Assert.That(owner.Owns(eventItem.NodeManager), Is.True);
+                        Assert.That(source.AreEventsMonitored, Is.True);
+                    }
+                    if (deleteNode)
+                    {
+                        Assert.That(owner.ContainsNode(source.NodeId), Is.True);
+                        Assert.That(lifecycle.IsDeleted, Is.False);
+                        owner.AsyncManager.EventSubscriptionCallback = static (_, _) => default;
+                        bool deleted = await owner.DeleteNodeAsync(source.NodeId).ConfigureAwait(false);
+                        snapshot = await owner.Lifecycle.GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(deleted, Is.True);
+                            Assert.That(snapshot, Is.EqualTo(new IMonitoredItem[] { created }));
+                            Assert.That(owner.ContainsNode(source.NodeId), Is.False);
+                            Assert.That(lifecycle.IsDeleted, Is.True);
+                            Assert.That(lifecycle.IsDetached, Is.True);
+                            Assert.That(source.AreEventsMonitored, Is.False);
+                        }
+                    }
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    try
+                    {
+                        await transition.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                    catch (InvalidOperationException exception) when (ReferenceEquals(exception, failure))
+                    {
+                    }
+                    owner.AsyncManager.EventSubscriptionCallback = static (_, _) => default;
+                    if (creation != null)
+                    {
+                        created ??= await creation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                    if (created != null)
+                    {
+                        await owner.Lifecycle.DetachMonitoredItemAsync(created).ConfigureAwait(false);
+                        created.Dispose();
+                    }
+                    await owner.Lifecycle.DetachMonitoredItemAsync(eventItem).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private static async Task<MonitoredItem> CreateIndependentDataChangeItemAsync(
+            TestableAsyncCustomNodeManager manager,
+            NodeId nodeId)
+        {
+            var request = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 17,
+                    SamplingInterval = 1000,
+                    QueueSize = 10,
+                    DiscardOldest = true
+                }
+            };
+            var identity = new Mock<IUserIdentity>();
+            var session = new Mock<ISession>();
+            session.SetupGet(item => item.Identity).Returns(identity.Object);
+            session.SetupGet(item => item.EffectiveIdentity).Returns(identity.Object);
+            session.SetupGet(item => item.PreferredLocales).Returns([]);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
+            var errors = new ServiceResult[1];
+            var filterErrors = new MonitoringFilterResult[1];
+            var items = new IMonitoredItem[1];
+            await manager.CreateMonitoredItemsAsync(
+                context, 1, 1000, TimestampsToReturn.Both, [request], errors, filterErrors, items,
+                false, new MonitoredItemIdFactory()).ConfigureAwait(false);
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(items[0], Is.TypeOf<MonitoredItem>());
+            return (MonitoredItem)items[0];
+        }
+
         private static ManagerOwner CreateManager(IServerInternal server, ManagerPath path)
         {
             ApplicationConfiguration configuration = CreateConfiguration();
@@ -1660,6 +2073,9 @@ namespace Opc.Ua.Server.Tests
             }
 
             public INodeManagerMonitoredItemLifecycle Lifecycle { get; }
+
+            public TestableAsyncCustomNodeManager AsyncManager => m_asyncManager ??
+                throw new InvalidOperationException("This scenario requires an async node manager.");
 
             public ushort NamespaceIndex { get; }
 

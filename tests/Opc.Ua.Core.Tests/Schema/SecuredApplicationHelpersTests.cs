@@ -94,15 +94,15 @@ namespace Opc.Ua.Core.Tests.Schema
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Basic256Sha256, logger),
+                    SecurityPolicies.Aes128_Sha256_RsaOaep, logger),
                 Is.LessThan(SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Aes128_Sha256_RsaOaep, logger)));
+                    SecurityPolicies.Basic256Sha256, logger)));
 
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
-                    SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    SecurityPolicies.Basic256Sha256,
                     logger
                 ),
                 Is.LessThan(SecuredApplication.CalculateSecurityLevel(

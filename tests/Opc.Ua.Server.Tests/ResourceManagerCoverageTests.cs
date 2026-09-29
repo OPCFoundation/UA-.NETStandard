@@ -173,6 +173,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.GetAvailableLocales(), Does.Contain("en-US"));
         }
 
+        /// <summary>
+        /// A null LocaleId is legal wire input (Part 3 8.4) and must not break translation.
+        /// </summary>
+        [Test]
+        public void TranslateWithNullFirstLocaleUsesRemainingLocales()
+        {
+            using ResourceManager manager = CreateResourceManager();
+            manager.Add("greeting", "de-DE", "Hallo");
+
+            LocalizedText text = manager.Translate([null!, "de-DE"], "greeting", "Hello");
+            ServiceResult result = manager.Translate(
+                [null!],
+                new ServiceResult(StatusCodes.BadTimeout));
+
+            Assert.That(text.Text, Is.EqualTo("Hallo"));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
         [Test]
         public void TranslateNullServiceResultReturnsNull()
         {

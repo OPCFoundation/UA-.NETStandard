@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -208,7 +209,10 @@ namespace Opc.Ua.Server.TestFramework
         /// Worker function to browse the full address space of a server.
         /// </summary>
         /// <param name="services">The service interface.</param>
+        /// <param name="requestHeader">The request header.</param>
         /// <param name="operationLimits">The operation limits.</param>
+        /// <param name="browseDescription">The browse template.</param>
+        /// <param name="outputResult">Attach the complete listing rather than retaining it in test output.</param>
         public static async Task<ArrayOf<ReferenceDescription>> BrowseFullAddressSpaceWorkerAsync(
             IServerTestServices services,
             RequestHeader requestHeader,
@@ -386,14 +390,22 @@ namespace Opc.Ua.Server.TestFramework
                 .WriteLine("Found {0} references on server.", referenceDescriptions.Count);
             if (outputResult)
             {
-                foreach (ReferenceDescription reference in referenceDescriptions)
+                string directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "TestResults", "BrowseResults");
+                Directory.CreateDirectory(directory);
+                string path = Path.Combine(directory, $"browse-{Guid.NewGuid():N}.txt");
+                using (var stream = new FileStream(
+                    path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true))
+                using (var writer = new StreamWriter(stream))
                 {
-                    TestContext.Out.WriteLine(
-                        "NodeId {0} {1} {2}",
-                        reference.NodeId,
-                        reference.NodeClass,
-                        reference.BrowseName);
+                    foreach (ReferenceDescription reference in referenceDescriptions)
+                    {
+                        await writer.WriteLineAsync(
+                            $"NodeId {reference.NodeId} {reference.NodeClass} {reference.BrowseName}")
+                            .ConfigureAwait(false);
+                    }
+                    await writer.FlushAsync().ConfigureAwait(false);
                 }
+                TestContext.AddTestAttachment(path, "Full address-space browse results");
             }
             return referenceDescriptions;
         }
