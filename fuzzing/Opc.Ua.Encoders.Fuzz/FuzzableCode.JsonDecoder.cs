@@ -358,11 +358,13 @@ namespace Opc.Ua.Fuzzing
                 context);
         }
 
-        private static bool HasUnpairedPicoseconds(in DataValue value)
+        /// <summary>
+        /// Picoseconds without their timestamp are ignored (Part 6 5.2.2.17), and the
+        /// JSON encoder drops them like the binary encoder does.
+        /// </summary>
+        private static ushort GetEncodedPicoseconds(DateTimeUtc timestamp, ushort picoseconds)
         {
-            return !value.IsNull &&
-                ((value.SourceTimestamp == DateTimeUtc.MinValue && value.SourcePicoseconds != 0) ||
-                    (value.ServerTimestamp == DateTimeUtc.MinValue && value.ServerPicoseconds != 0));
+            return timestamp == DateTimeUtc.MinValue ? (ushort)0 : picoseconds;
         }
 
         /// <summary>
@@ -420,8 +422,7 @@ namespace Opc.Ua.Fuzzing
 
             if (value is DataValue dataValue)
             {
-                return HasUnpairedPicoseconds(in dataValue) ||
-                    HasJsonUnencodableValue(dataValue.WrappedValue, seen, context);
+                return HasJsonUnencodableValue(dataValue.WrappedValue, seen, context);
             }
 
             if (value is Variant variant)
@@ -637,8 +638,10 @@ namespace Opc.Ua.Fuzzing
                 left.StatusCode.Equals(right.StatusCode, StatusCodeComparison.AllBits) &&
                 left.SourceTimestamp == right.SourceTimestamp &&
                 left.ServerTimestamp == right.ServerTimestamp &&
-                left.SourcePicoseconds == right.SourcePicoseconds &&
-                left.ServerPicoseconds == right.ServerPicoseconds &&
+                GetEncodedPicoseconds(left.SourceTimestamp, left.SourcePicoseconds) ==
+                    GetEncodedPicoseconds(right.SourceTimestamp, right.SourcePicoseconds) &&
+                GetEncodedPicoseconds(left.ServerTimestamp, left.ServerPicoseconds) ==
+                    GetEncodedPicoseconds(right.ServerTimestamp, right.ServerPicoseconds) &&
                 IsJsonEquivalent(left.WrappedValue, right.WrappedValue, seen, options, context);
         }
 

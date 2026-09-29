@@ -1091,6 +1091,9 @@ namespace Opc.Ua
             {
                 WriteStatusCode(JsonProperties.Status, value.StatusCode);
             }
+            // Picoseconds refine their timestamp (Part 6 5.4.2.18) and are ignored
+            // when the timestamp is missing (5.2.2.17), so they are dropped like
+            // the BinaryEncoder does instead of failing the whole message.
             if (value.SourceTimestamp != DateTimeUtc.MinValue)
             {
                 WriteDateTime(JsonProperties.SourceTimestamp, value.SourceTimestamp);
@@ -1099,12 +1102,6 @@ namespace Opc.Ua
                     WriteUInt16(JsonProperties.SourcePicoseconds, value.SourcePicoseconds);
                 }
             }
-            else if (value.SourcePicoseconds != 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingError,
-                    "Cannot encode DataValue SourcePicoseconds without SourceTimestamp.");
-            }
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
                 WriteDateTime(JsonProperties.ServerTimestamp, value.ServerTimestamp);
@@ -1112,12 +1109,6 @@ namespace Opc.Ua
                 {
                     WriteUInt16(JsonProperties.ServerPicoseconds, value.ServerPicoseconds);
                 }
-            }
-            else if (value.ServerPicoseconds != 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingError,
-                    "Cannot encode DataValue ServerPicoseconds without ServerTimestamp.");
             }
 
             EndObject();

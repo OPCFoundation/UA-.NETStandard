@@ -204,44 +204,27 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
-        [Test]
-        public void WriteDataValueWithSourcePicosecondsWithoutTimestampThrowsBadEncodingError()
+        [TestCase((ushort)1, (ushort)0)]
+        [TestCase((ushort)0, (ushort)1)]
+        [TestCase((ushort)7, (ushort)9)]
+        public void WriteDataValueWithPicosecondsWithoutTimestampDropsPicoseconds(
+            ushort sourcePicoseconds,
+            ushort serverPicoseconds)
         {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            using var buffer = new PooledBufferWriter();
-            using var writer = new JsonEncoder(buffer, messageContext);
+            // Picoseconds without their timestamp are ignored (Part 6 5.2.2.17), so JSON
+            // drops them like Binary instead of failing the message; a server timestamp
+            // filter produces such DataValues.
             var value = new DataValue(
                 Variant.From("value"),
                 StatusCodes.Good,
                 DateTimeUtc.MinValue,
                 DateTimeUtc.MinValue,
-                sourcePicoseconds: 1,
-                serverPicoseconds: 0);
+                sourcePicoseconds,
+                serverPicoseconds);
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => writer.WriteDataValue(JsonProperties.Value, value));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
-        }
-
-        [Test]
-        public void WriteDataValueWithServerPicosecondsWithoutTimestampThrowsBadEncodingError()
-        {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            using var buffer = new PooledBufferWriter();
-            using var writer = new JsonEncoder(buffer, messageContext);
-            var value = new DataValue(
-                Variant.From("value"),
-                StatusCodes.Good,
-                DateTimeUtc.MinValue,
-                DateTimeUtc.MinValue,
-                sourcePicoseconds: 0,
-                serverPicoseconds: 1);
-
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => writer.WriteDataValue(JsonProperties.Value, value));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+            Assert.That(
+                Encode(JsonEncoderOptions.Verbose, w => w.WriteDataValue(JsonProperties.Value, value)),
+                Is.EqualTo("""{"Value":{"UaType":12,"Value":"value"}}"""));
         }
 
         [Test]
