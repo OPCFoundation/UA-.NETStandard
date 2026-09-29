@@ -3240,6 +3240,17 @@ namespace Opc.Ua
                         whitespace = content;
                         return false;
                     }
+
+                    // a nilled element shall have no content (XML Schema Part 1,
+                    // Element Locally Valid); callers do not read it, which
+                    // left the reader inside it and dropped the next fields.
+                    if (isNil)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Element '{0}' is nil but has content.",
+                            fieldName!);
+                    }
                 }
 
                 // caller must read contents of element.

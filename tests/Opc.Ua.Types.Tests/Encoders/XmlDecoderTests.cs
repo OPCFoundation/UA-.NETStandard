@@ -1731,6 +1731,39 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadFieldRejectsNilElementWithContent()
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml =
+                "<Root xmlns=\"urn:test\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">" +
+                "<A xsi:nil=\"true\">5</A><B>7</B></Root>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+            decoder.ReadStartElement();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadInt32("A"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadFieldAcceptsNilElementWithWhitespaceOnly()
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml =
+                "<Root xmlns=\"urn:test\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">" +
+                "<A xsi:nil=\"true\">\n  </A><B>7</B></Root>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+            decoder.ReadStartElement();
+
+            Assert.That(decoder.ReadString("A"), Is.Null);
+            Assert.That(decoder.ReadInt32("B"), Is.EqualTo(7));
+        }
+
+        [Test]
         public void ReadExtensionObjectWhenFieldMissingReturnsNull()
         {
             // Arrange
