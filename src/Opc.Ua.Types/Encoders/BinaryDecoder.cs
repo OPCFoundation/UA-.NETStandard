@@ -739,37 +739,35 @@ namespace Opc.Ua
                 statusCode = ReadStatusCode(null);
             }
 
-            bool hasPicoseconds = (encodingByte &
-                (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
-            if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
+            // Picoseconds without their timestamp are read and ignored, and
+            // values >= 10000 are treated as 9999 (OPC 10000-6 5.2.2.17).
+            bool hasTimestamp = (encodingByte &
+                (byte)DataValueEncodingBits.SourceTimestamp) != 0;
+            if (hasTimestamp)
             {
                 sourceTimestamp = ReadDateTime(null);
-                if (hasPicoseconds)
-                {
-                    sourcePicoseconds = ReadUInt16(null);
-                }
             }
-            else if (hasPicoseconds)
+            if ((encodingByte & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "DataValue SourcePicoseconds is present without SourceTimestamp.");
+                ushort picoseconds = ReadUInt16(null);
+                if (hasTimestamp)
+                {
+                    sourcePicoseconds = Math.Min(picoseconds, kMaxPicoseconds);
+                }
             }
 
-            hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0;
-            if ((encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
+            hasTimestamp = (encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0;
+            if (hasTimestamp)
             {
                 serverTimestamp = ReadDateTime(null);
-                if (hasPicoseconds)
-                {
-                    serverPicoseconds = ReadUInt16(null);
-                }
             }
-            else if (hasPicoseconds)
+            if ((encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "DataValue ServerPicoseconds is present without ServerTimestamp.");
+                ushort picoseconds = ReadUInt16(null);
+                if (hasTimestamp)
+                {
+                    serverPicoseconds = Math.Min(picoseconds, kMaxPicoseconds);
+                }
             }
 
             return new DataValue(
@@ -2852,6 +2850,9 @@ namespace Opc.Ua
         // The reserved Variant built-in type ids, OPC 10000-6 5.2.2.16.
         private const int kFirstReservedVariantTypeId = 26;
         private const int kLastReservedVariantTypeId = 31;
+
+        // The largest valid DataValue picoseconds value, OPC 10000-6 5.2.2.17.
+        private const ushort kMaxPicoseconds = 9999;
         private readonly bool m_hasBuffer;
         private bool m_baseStreamExposed;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryDecoder>();

@@ -238,6 +238,28 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void DataValuePicosecondsOfAtLeast10000AreTreatedAs9999()
+        {
+            // SourceTimestamp | SourcePicoseconds | ServerTimestamp | ServerPicoseconds
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)0x3C);
+                w.Write(DateTime.UtcNow.ToFileTimeUtc());
+                w.Write((ushort)0xFFFF);
+                w.Write(DateTime.UtcNow.ToFileTimeUtc());
+                w.Write((ushort)10000);
+            });
+
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            DataValue value = decoder.ReadDataValue(null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.SourcePicoseconds, Is.EqualTo(9999));
+                Assert.That(value.ServerPicoseconds, Is.EqualTo(9999));
+            });
+        }
+
+        [Test]
         [TestCase(26)]
         [TestCase(27)]
         [TestCase(28)]
