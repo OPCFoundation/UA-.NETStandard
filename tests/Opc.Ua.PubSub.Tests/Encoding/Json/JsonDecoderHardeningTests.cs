@@ -294,6 +294,71 @@ namespace OpcUaPubSubJsonTests
             Assert.That(result.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant("Building A")));
         }
 
+        [Test]
+        [TestSpec("7.2.5.4.2")]
+        public async Task VerboseCollapsedAndEnvelopedVariantsRoundTripAsync()
+        {
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            meta.Fields =
+            [
+                .. meta.Fields.ToArray()!,
+                new FieldMetaData
+                {
+                    Name = "AnyField",
+                    BuiltInType = (byte)BuiltInType.Variant,
+                    ValueRank = ValueRanks.Scalar
+                }
+            ];
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(meta);
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                DataSetWriterId = 1,
+                MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1 },
+                Fields =
+                [
+                    .. JsonTestUtilities.CreateFields().ToArray()!,
+                    new DataSetField { Name = "AnyField", Value = new Variant(2.5) }
+                ]
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                DataSetMessages = [dsm]
+            };
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+            string text = JsonTestUtilities.ToText(bytes);
+
+            PubSubNetworkMessage? result = await new Opc.Ua.PubSub.Encoding.Json.JsonDecoder()
+                .TryDecodeAsync(bytes, ctx).ConfigureAwait(false);
+
+            Assert.That(text, Does.Contain("\"IntField\":42"), text);
+            Assert.That(text, Does.Contain("\"AnyField\":{\"UaType\":11,\"Value\":2.5}"), text);
+            Assert.That(result, Is.Not.Null);
+            ArrayOf<DataSetField> fields = result!.DataSetMessages[0].Fields;
+            Assert.That(fields[0].Value, Is.EqualTo(new Variant(true)));
+            Assert.That(fields[1].Value, Is.EqualTo(new Variant(42)));
+            Assert.That(fields[2].Value, Is.EqualTo(new Variant("hello")));
+            Assert.That(fields[3].Value, Is.EqualTo(new Variant(2.5)));
+            Assert.That(fields[3].Encoding, Is.EqualTo(PubSubFieldEncoding.Variant));
+        }
+
+        [Test]
+        [TestSpec("7.2.5.4.2")]
+        public void LegacyTypeBodyVariantIsNotDecodedAsVariant()
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(
+                "{\"field\":{\"Type\":6,\"Body\":42}}");
+
+            ArrayOf<DataSetField> fields = JsonFieldDecoder.DecodeFields(
+                document.RootElement,
+                metaData: null,
+                JsonEncodingMode.Verbose,
+                ServiceMessageContext.CreateEmpty(null!));
+
+            Assert.That(fields[0].Value, Is.Not.EqualTo(new Variant(42)));
+        }
+
         private static PubSubNetworkMessageContext NewContextWithMetaData(
             DataSetMetaDataType metaData)
         {

@@ -95,7 +95,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 DataSetField field = fields[i];
                 string name = ResolveFieldName(field, metaData, i);
-                WriteOneField(writer, name, field, mode, context, fieldContentMask);
+                bool collapsed = mode == JsonEncodingMode.Verbose &&
+                    IsCollapsed(field.Value, ResolveFieldMetaData(metaData, name, i));
+                WriteOneField(writer, name, field, mode, context, fieldContentMask, collapsed);
             }
             if (writePayloadWrapper)
             {
@@ -133,6 +135,66 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
+        /// Locates the FieldMetaData for a field by name, preferring the
+        /// entry at the same ordinal.
+        /// </summary>
+        /// <param name="metaData">Optional metadata.</param>
+        /// <param name="name">Field name.</param>
+        /// <param name="index">Field index within the DataSetMessage.</param>
+        /// <returns>The FieldMetaData or <see langword="null"/>.</returns>
+        private static FieldMetaData? ResolveFieldMetaData(
+            DataSetMetaDataType? metaData,
+            string name,
+            int index)
+        {
+            if (metaData is null)
+            {
+                return null;
+            }
+            ReadOnlySpan<FieldMetaData> fields = metaData.Fields.Span;
+            if (index < fields.Length &&
+                string.Equals(fields[index]?.Name, name, StringComparison.Ordinal))
+            {
+                return fields[index];
+            }
+            for (int i = 0; i < fields.Length; i++)
+            {
+                if (string.Equals(fields[i]?.Name, name, StringComparison.Ordinal))
+                {
+                    return fields[i];
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Whether a top-level VerboseEncoding Variant field is collapsed
+        /// to its bare value: the FieldMetaData supplies a concrete
+        /// DataType and the value has exactly that type and rank
+        /// (Part 14 §7.2.5.4.2).
+        /// </summary>
+        /// <param name="value">Field value.</param>
+        /// <param name="metaData">Matching FieldMetaData.</param>
+        /// <returns>Whether the Variant envelope is omitted.</returns>
+        private static bool IsCollapsed(Variant value, FieldMetaData? metaData)
+        {
+            if (metaData is null || value.IsNull)
+            {
+                return false;
+            }
+            var builtInType = (BuiltInType)metaData.BuiltInType;
+            if (!JsonVariantEncoder.IsCollapsedField(builtInType, metaData.ValueRank))
+            {
+                return false;
+            }
+            TypeInfo typeInfo = value.TypeInfo;
+            return typeInfo.BuiltInType == builtInType &&
+                (metaData.ValueRank == ValueRanks.Scalar
+                    ? typeInfo.IsScalar
+                    : typeInfo.ValueRank == ValueRanks.OneDimension);
+        }
+
+        /// <summary>
         /// Writes a single field. The <see cref="DataSetField.Encoding"/>
         /// selects the wire shape; the network-wide
         /// <paramref name="mode"/> controls Variant envelope use.
@@ -144,13 +206,16 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="context">Stack message context.</param>
         /// <param name="fieldContentMask">Per-field content mask honoured
         /// when the field is emitted as a <c>DataValue</c> envelope.</param>
+        /// <param name="collapsed">Whether a Variant field omits its
+        /// envelope.</param>
         private static void WriteOneField(
             Utf8JsonWriter writer,
             string propertyName,
             DataSetField field,
             JsonEncodingMode mode,
             IServiceMessageContext context,
-            DataSetFieldContentMask fieldContentMask)
+            DataSetFieldContentMask fieldContentMask,
+            bool collapsed)
         {
             switch (field.Encoding)
             {
@@ -177,7 +242,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         propertyName,
                         field.Value,
                         mode,
-                        context);
+                        context,
+                        collapsed);
                     break;
             }
         }

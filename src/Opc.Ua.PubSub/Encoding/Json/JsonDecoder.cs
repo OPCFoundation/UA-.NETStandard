@@ -1179,13 +1179,16 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
-        /// Detects the encoding mode of the supplied DataSetMessage by
-        /// inspecting the first non-trivial entry in its <c>Payload</c>.
+        /// Detects the encoding mode of the supplied DataSetMessage from
+        /// the entries in its <c>Payload</c>.
         /// </summary>
         /// <param name="root">Source DataSetMessage object.</param>
         /// <returns>
-        /// <see cref="JsonEncodingMode.Verbose"/> when the payload uses
-        /// the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> Variant envelope;
+        /// <see cref="JsonEncodingMode.Verbose"/> when any payload entry
+        /// is a Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c> Variant
+        /// (top-level Variants with a concrete FieldMetaData type are
+        /// collapsed to bare values, Part 14 §7.2.5.4.2) or the first
+        /// entry is a DataValue object;
         /// <see cref="JsonEncodingMode.RawData"/> when bodies are bare.
         /// </returns>
         private static JsonEncodingMode DetectMode(JsonElement root)
@@ -1199,25 +1202,20 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return JsonEncodingMode.Verbose;
             }
+            JsonEncodingMode? firstMode = null;
             foreach (JsonProperty member in payload.EnumerateObject())
             {
                 JsonElement value = member.Value;
-                if (value.ValueKind != JsonValueKind.Object)
-                {
-                    return JsonEncodingMode.RawData;
-                }
-                if (value.TryGetProperty("Type", out _) &&
-                    value.TryGetProperty("Body", out _))
+                if (JsonVariantDecoder.IsVariantEnvelope(value))
                 {
                     return JsonEncodingMode.Verbose;
                 }
-                if (value.TryGetProperty("Value", out _))
-                {
-                    return JsonEncodingMode.Verbose;
-                }
-                return JsonEncodingMode.RawData;
+                firstMode ??= value.ValueKind == JsonValueKind.Object &&
+                    value.TryGetProperty("Value", out _)
+                    ? JsonEncodingMode.Verbose
+                    : JsonEncodingMode.RawData;
             }
-            return JsonEncodingMode.Verbose;
+            return firstMode ?? JsonEncodingMode.Verbose;
         }
 
         /// <summary>
