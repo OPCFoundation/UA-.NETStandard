@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Di.Server;
@@ -102,6 +103,14 @@ namespace Opc.Ua.Machinery.Server
         /// </summary>
         /// <param name="facet">The facet to record.</param>
         void RecordFacet(MachineryFacet facet);
+
+        /// <summary>
+        /// Hands the resources a registered build created to the node
+        /// manager's coordinator, which releases them when the manager is
+        /// disposed.
+        /// </summary>
+        /// <param name="resources">The resources to hand over.</param>
+        void AdoptResources(IReadOnlyList<IAsyncDisposable> resources);
     }
 
     /// <summary>
@@ -330,6 +339,11 @@ namespace Opc.Ua.Machinery.Server
         void IMachineryBuildCoordinator.RecordFacet(MachineryFacet facet)
         {
             (Manager as IMachineryFacetSink)?.RecordFacet(facet);
+        }
+
+        void IMachineryBuildCoordinator.AdoptResources(IReadOnlyList<IAsyncDisposable> resources)
+        {
+            m_managerCoordinator.AdoptResources(resources);
         }
 
         bool IMachineryBuildCoordinator.IsSealed => IsSealed;

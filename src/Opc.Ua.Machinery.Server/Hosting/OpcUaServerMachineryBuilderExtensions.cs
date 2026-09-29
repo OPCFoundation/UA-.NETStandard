@@ -218,6 +218,11 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers a synchronous configurator for an exact custom manager type.
         /// </summary>
+        /// <remarks>
+        /// The custom manager releases the resources of the machines it hosts
+        /// with <see cref="DiNodeManagerMachineryExtensions.DisposeMachineryResourcesAsync"/>
+        /// from its <c>DisposeAsyncCore</c>.
+        /// </remarks>
         /// <typeparam name="TNodeManager">The exact custom DI node manager type.</typeparam>
         public static IOpcUaServerBuilder ConfigureMachineryFor<TNodeManager>(
             this IOpcUaServerBuilder builder,

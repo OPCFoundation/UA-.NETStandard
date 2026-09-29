@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Di.Server;
 
 namespace Opc.Ua.Machinery.Server
@@ -212,6 +213,82 @@ namespace Opc.Ua.Machinery.Server
         }
 
         /// <summary>
+        /// Gets how many resources of registered machines the coordinator
+        /// currently holds.
+        /// </summary>
+        public int ResourceCount
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_resources.Count;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Takes over the resources a registered machine build created — a
+        /// result transfer manager, a job-management change pump — so they live
+        /// as long as the machine, which lives as long as the manager.
+        /// </summary>
+        /// <param name="resources">The resources to take over.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="resources"/> is <see langword="null"/>.
+        /// </exception>
+        public void AdoptResources(IReadOnlyList<IAsyncDisposable> resources)
+        {
+            if (resources == null)
+            {
+                throw new ArgumentNullException(nameof(resources));
+            }
+            lock (m_lock)
+            {
+                for (int ii = 0; ii < resources.Count; ii++)
+                {
+                    m_resources.Add(resources[ii]);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases every adopted resource, newest first. The node manager
+        /// calls this when it is disposed; a failure of one resource does not
+        /// keep the others from being released.
+        /// </summary>
+        /// <exception cref="AggregateException">
+        /// One or more resources failed to release.
+        /// </exception>
+        public async ValueTask DisposeResourcesAsync()
+        {
+            IAsyncDisposable[] resources;
+            lock (m_lock)
+            {
+                resources = [.. m_resources];
+                m_resources.Clear();
+            }
+
+            List<Exception>? errors = null;
+            for (int ii = resources.Length - 1; ii >= 0; ii--)
+            {
+                try
+                {
+                    await resources[ii].DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    (errors ??= []).Add(ex);
+                }
+            }
+            if (errors != null)
+            {
+                throw new AggregateException(
+                    "Releasing the resources of the Machinery machines failed.",
+                    errors);
+            }
+        }
+
+        /// <summary>
         /// Reserves <paramref name="browseName"/> for a new child of
         /// <paramref name="parent"/>, refusing a name that an existing child or
         /// another in-flight build already uses.
@@ -324,6 +401,7 @@ namespace Opc.Ua.Machinery.Server
             m_nodeIdReservations = [];
         private readonly Dictionary<NodeId, HashSet<QualifiedName>>
             m_rootBrowseNameReservations = [];
+        private readonly List<IAsyncDisposable> m_resources = [];
         private readonly Lock m_lock = new();
 
         private sealed class NamespaceNodeIdReservations

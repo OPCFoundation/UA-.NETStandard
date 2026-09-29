@@ -718,6 +718,33 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public async Task DisposingTheManagerReleasesTheResourcesOfItsMachinesAsync()
+        {
+            var fixture = new MachineryServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            MachineryBuildCoordinator coordinator = MachineryBuildCoordinator.Get(fixture.Manager);
+            try
+            {
+                await fixture.CreateBuildContext()
+                    .AddMachine(new QualifiedName("Owned"))
+                    .WithResultManagement(results => results.WithInMemoryStore().WithFileTransfer())
+                    .BuildAsync()
+                    .ConfigureAwait(false);
+
+                // A registered machine hands its resources to the manager
+                // instead of keeping them until a rollback that never comes.
+                Assert.That(coordinator.ResourceCount, Is.EqualTo(1));
+
+                await fixture.Manager.DisposeAsync().ConfigureAwait(false);
+                Assert.That(coordinator.ResourceCount, Is.Zero);
+            }
+            finally
+            {
+                await fixture.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task ResultManagementPublishesTheOptionalMethods()
         {
             ResultManagementState? management = null;

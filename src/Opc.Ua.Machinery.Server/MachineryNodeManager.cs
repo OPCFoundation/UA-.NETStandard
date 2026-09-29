@@ -299,6 +299,23 @@ namespace Opc.Ua.Machinery.Server
             return new ValueTask<NodeStateCollection>(nodes);
         }
 
+        /// <summary>
+        /// Releases the resources the machines of this manager hold — result
+        /// transfer handles and job-management change pumps — before the
+        /// manager itself.
+        /// </summary>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            try
+            {
+                await m_buildCoordinator.DisposeResourcesAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+        }
+
         /// <inheritdoc/>
         protected override ValueTask ConfigureAsync(
             INodeManagerBuilder builder,

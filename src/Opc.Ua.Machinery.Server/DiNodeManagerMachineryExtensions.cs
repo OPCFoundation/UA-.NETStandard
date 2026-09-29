@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Di.Server;
 
 namespace Opc.Ua.Machinery.Server
@@ -43,7 +44,9 @@ namespace Opc.Ua.Machinery.Server
     /// <see cref="MachineryServer.AddMachineryTypeSystem"/> and drives them
     /// through the context this extension creates, or through
     /// <c>ConfigureMachineryFor&lt;TNodeManager&gt;()</c> in the hosting
-    /// pipeline.
+    /// pipeline. Either way the manager releases the machines' resources with
+    /// <see cref="DisposeMachineryResourcesAsync"/> from its
+    /// <c>DisposeAsyncCore</c>.
     /// </remarks>
     public static class DiNodeManagerMachineryExtensions
     {
@@ -64,6 +67,33 @@ namespace Opc.Ua.Machinery.Server
                 throw new ArgumentNullException(nameof(manager));
             }
             return new MachineryBuildContext(manager, options, cancellationToken);
+        }
+
+        /// <summary>
+        /// Releases the resources the machines built on
+        /// <paramref name="manager"/> hold — result transfer handles and
+        /// job-management change pumps.
+        /// </summary>
+        /// <remarks>
+        /// A registered machine lives as long as its node manager, and so do
+        /// these resources. <see cref="MachineryNodeManager"/> releases them
+        /// itself; a custom manager calls this from its
+        /// <c>DisposeAsyncCore</c>.
+        /// </remarks>
+        /// <param name="manager">The custom DI node manager.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="manager"/> is <see langword="null"/>.
+        /// </exception>
+        /// <exception cref="AggregateException">
+        /// One or more resources failed to release.
+        /// </exception>
+        public static ValueTask DisposeMachineryResourcesAsync(this DiNodeManager manager)
+        {
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            return MachineryBuildCoordinator.Get(manager).DisposeResourcesAsync();
         }
     }
 }

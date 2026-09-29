@@ -311,10 +311,8 @@ namespace Opc.Ua.Machinery.Server.Builders
                 m_changeStreamTask = ObserveExternalChangesAsync(
                     catalogChanges, statusSource, responseChanges, m_changeStreamCts.Token);
 
-                // Neither stream source is torn down anywhere but build rollback -
-                // Machinery has no per-machine delete path, and every other
-                // long-lived per-machine resource in this module (for example
-                // MachineryResultTransferManager) follows the same convention.
+                // Released on build rollback, or - once the machine is
+                // registered - when its node manager is disposed.
                 m_scope.RegisteredResources.Add(this);
             }
         }

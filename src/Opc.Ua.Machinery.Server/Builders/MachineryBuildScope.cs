@@ -76,8 +76,10 @@ namespace Opc.Ua.Machinery.Server.Builders
         internal List<Func<CancellationToken, ValueTask>> PostRegistrationActions { get; } = [];
 
         /// <summary>
-        /// Resources created during registration that must be released when the
-        /// build is rolled back.
+        /// Resources created during registration. They are released when the
+        /// build is rolled back, and handed to the node manager's coordinator
+        /// once the machine is registered, which releases them when the manager
+        /// is disposed.
         /// </summary>
         internal List<IAsyncDisposable> RegisteredResources { get; } = [];
 
@@ -190,6 +192,11 @@ namespace Opc.Ua.Machinery.Server.Builders
                 {
                     m_buildCoordinator.RecordFacet(m_facets[ii]);
                 }
+
+                // The machine is now part of the address space and lives as
+                // long as the node manager, and so do its resources.
+                m_buildCoordinator.AdoptResources(RegisteredResources);
+                RegisteredResources.Clear();
             }
             catch
             {
