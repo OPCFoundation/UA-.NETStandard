@@ -684,6 +684,42 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void SetMappingTablesMapsIndexFormIdentifiers()
+        {
+            // Like the BinaryEncoder, indexes written in the index form refer to the tables
+            // set with SetMappingTables (Part 6 5.4.2.10, 5.4.2.11).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.NamespaceUris.Append("urn:a");
+            messageContext.NamespaceUris.Append("urn:b");
+            if (messageContext.ServerUris.Count == 0)
+            {
+                messageContext.ServerUris.Append("urn:local");
+            }
+            messageContext.ServerUris.Append("urn:s1");
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:b");
+            namespaces.Append("urn:a");
+            var servers = new StringTable();
+            servers.Append(messageContext.ServerUris.GetString(0));
+            servers.Append("urn:x");
+            servers.Append("urn:s1");
+            JsonEncoderOptions options = JsonEncoderOptions.Verbose with { ForceNamespaceUri = false };
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext, options))
+            {
+                writer.SetMappingTables(namespaces, servers);
+                writer.WriteNodeId("N", new NodeId(5u, 1));
+                writer.WriteQualifiedName("Q", new QualifiedName("x", 1));
+                writer.WriteExpandedNodeId("E", new ExpandedNodeId(new NodeId(7u, 2), null, 1));
+            }
+
+            Assert.That(
+                System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                Is.EqualTo("""{"N":"ns=2;i=5","Q":"2:x","E":"svr=2;ns=1;i=7"}"""));
+        }
+
+        [Test]
         public void WriteEnumeratedWithoutLiteralWritesNumericString()
         {
             // Without a literal for the value only the numeric value is encoded as a JSON

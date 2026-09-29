@@ -1350,7 +1350,93 @@ namespace Opc.Ua
                 return;
             }
 
+            if (m_namespaceMappings != null || m_serverMappings != null)
+            {
+                m_writer.WriteStringValue(FormatMappedExpandedNodeId(value));
+                return;
+            }
+
             m_writer.WriteStringValue(value.Format(Context, m_options.ForceNamespaceUri));
+        }
+
+        /// <summary>
+        /// Formats an expanded node id like <see cref="ExpandedNodeId.Format(IServiceMessageContext, bool)"/>,
+        /// but writes the indexes of the index form in the tables set with
+        /// <see cref="SetMappingTables(NamespaceTable?, StringTable?)"/> (5.4.2.11).
+        /// </summary>
+        private string FormatMappedExpandedNodeId(in ExpandedNodeId value)
+        {
+            var buffer = new StringBuilder();
+            if (value.ServerIndex > 0)
+            {
+                string? serverUri = null;
+                if (!TryMapServerIndex(value.ServerIndex, out uint serverIndex) &&
+                    m_options.ForceNamespaceUri)
+                {
+                    serverUri = Context.ServerUris.GetString(value.ServerIndex);
+                }
+                if (!string.IsNullOrEmpty(serverUri))
+                {
+                    buffer.Append("svu=").Append(CoreUtils.EscapeUri(serverUri!)).Append(';');
+                }
+                else
+                {
+                    buffer.Append("svr=").Append(serverIndex).Append(';');
+                }
+            }
+
+            NodeId nodeId = value.InnerNodeId;
+            if (!string.IsNullOrEmpty(value.NamespaceUri))
+            {
+                buffer.Append("nsu=").Append(CoreUtils.EscapeUri(value.NamespaceUri!)).Append(';');
+            }
+            else if (TryMapNamespaceIndex(nodeId.NamespaceIndex, out ushort namespaceIndex))
+            {
+                return buffer.Append(nodeId.WithNamespaceIndex(namespaceIndex).Format(Context))
+                    .ToString();
+            }
+            return buffer.Append(nodeId.IsNull ? "i=0" : nodeId.Format(Context, m_options.ForceNamespaceUri))
+                .ToString();
+        }
+
+        /// <summary>
+        /// Maps a namespace index written in the index form (ns=, not the namespace uri)
+        /// to the namespace table set with <see cref="SetMappingTables(NamespaceTable?, StringTable?)"/>,
+        /// as the BinaryEncoder does (5.4.2.10).
+        /// </summary>
+        private bool TryMapNamespaceIndex(ushort namespaceIndex, out ushort mappedIndex)
+        {
+            mappedIndex = namespaceIndex;
+            if (m_namespaceMappings == null ||
+                namespaceIndex == 0 ||
+                namespaceIndex >= m_namespaceMappings.Length ||
+                (m_options.ForceNamespaceUri &&
+                    !string.IsNullOrEmpty(Context.NamespaceUris.GetString(namespaceIndex))))
+            {
+                return false;
+            }
+            mappedIndex = m_namespaceMappings[namespaceIndex];
+            return true;
+        }
+
+        /// <summary>
+        /// Maps a server index written in the index form (svr=, not the server uri) to
+        /// the server table set with <see cref="SetMappingTables(NamespaceTable?, StringTable?)"/>,
+        /// as the BinaryEncoder does (5.4.2.11).
+        /// </summary>
+        private bool TryMapServerIndex(uint serverIndex, out uint mappedIndex)
+        {
+            mappedIndex = serverIndex;
+            if (m_serverMappings == null ||
+                serverIndex == 0 ||
+                serverIndex >= m_serverMappings.Length ||
+                (m_options.ForceNamespaceUri &&
+                    !string.IsNullOrEmpty(Context.ServerUris.GetString(serverIndex))))
+            {
+                return false;
+            }
+            mappedIndex = m_serverMappings[serverIndex];
+            return true;
         }
 
         /// <summary>
@@ -1690,6 +1776,12 @@ namespace Opc.Ua
                 return;
             }
 
+            if (TryMapNamespaceIndex(value.NamespaceIndex, out ushort namespaceIndex))
+            {
+                m_writer.WriteStringValue(value.WithNamespaceIndex(namespaceIndex).Format(Context));
+                return;
+            }
+
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
             // Avoid the per node id string allocation for the common cases that
             // fit into a stack buffer (numeric/guid/string in the default
@@ -1739,12 +1831,19 @@ namespace Opc.Ua
 
         private string FormatQualifiedName(QualifiedName value)
         {
-            if (!string.IsNullOrEmpty(value.Name) || value.NamespaceIndex == 0)
+            bool useNamespaceUri = m_options.ForceNamespaceUri;
+            if (TryMapNamespaceIndex(value.NamespaceIndex, out ushort namespaceIndex))
             {
-                return value.Format(Context, m_options.ForceNamespaceUri);
+                value = new QualifiedName(value.Name, namespaceIndex);
+                useNamespaceUri = false;
             }
 
-            if (m_options.ForceNamespaceUri)
+            if (!string.IsNullOrEmpty(value.Name) || value.NamespaceIndex == 0)
+            {
+                return value.Format(Context, useNamespaceUri);
+            }
+
+            if (useNamespaceUri)
             {
                 string? namespaceUri = Context.NamespaceUris.GetString(value.NamespaceIndex);
                 if (!string.IsNullOrEmpty(namespaceUri))
@@ -2843,10 +2942,8 @@ namespace Opc.Ua
         private ILogger? m_logger;
         private readonly JsonEncoderOptions m_options;
         private readonly Utf8JsonWriter m_writer;
-#pragma warning disable IDE0052 // TODO Keep for future implementation or remove
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
-#pragma warning restore IDE0052
         private bool m_disposed;
         private long m_messageStart = -1;
         private const int kMaxPooledJsonWriters = 32;
