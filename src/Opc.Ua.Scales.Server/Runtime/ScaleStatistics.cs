@@ -198,6 +198,11 @@ namespace Opc.Ua.Scales.Server.Runtime
                         ResetCounter(counter);
                     }
                 }
+                if (Statistic is CheckweigherStatisticState checkweigher)
+                {
+                    // Derived from the counters, so it restarts with them.
+                    ScaleValues.Set(m_context, checkweigher.PercentageLowerToleranceLimit, Variant.From(0.0));
+                }
                 ScaleValues.Set(m_context, Statistic.StartTime, DateTimeUtc.Now);
                 if (resetCondition != null)
                 {

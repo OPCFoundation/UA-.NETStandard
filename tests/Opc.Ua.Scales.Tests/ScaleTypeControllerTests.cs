@@ -630,6 +630,32 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(scale.ProductionOutput, Is.Not.Null);
         }
 
+        [Test]
+        public async Task CheckweigherStatisticsResetTheTolerancePercentageAsync()
+        {
+            ScaleHandle scale = await CreateAsync(
+                ScaleKind.Checkweigher,
+                b => b.WithProductionPreset(p => p.AddProduct(
+                    "P1",
+                    new LocalizedText("Box"),
+                    (ctx, product) => ((CheckweigherProductState)product).AddStatistic(ctx)))).ConfigureAwait(false);
+            var product = (CheckweigherProductState)scale.ProductionPreset!.Find("P1")!;
+            var statistic = (CheckweigherStatisticState)product.Statistic!;
+            statistic.AddTotalPackages(Ctx);
+            statistic.AddPackagesAcceptedWithLowerToleranceLimit1(Ctx);
+            statistic.AddPercentageLowerToleranceLimit(Ctx);
+            var recorder = new ScaleStatistics(Ctx, statistic);
+
+            recorder.RecordAccepted(0.98, belowLowerToleranceLimit1: true);
+            Assert.That(statistic.PercentageLowerToleranceLimit!.WrappedValue.TryGetValue(out double before), Is.True);
+            Assert.That(before, Is.EqualTo(100.0));
+
+            // The percentage is derived from the counters and restarts with them.
+            recorder.Reset("shift change");
+            Assert.That(statistic.PercentageLowerToleranceLimit.WrappedValue.TryGetValue(out double after), Is.True);
+            Assert.That(after, Is.Zero);
+        }
+
         private static readonly string[] s_breadElements = ["Flour", "Water", "Rest"];
 
         [Test]
