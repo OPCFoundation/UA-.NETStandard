@@ -2066,33 +2066,45 @@ namespace Opc.Ua.Server
             // parents we scan THIS manager's PredefinedNodes for siblings
             // that hold an inverse reference to the same parent — this
             // catches duplicates among nodes created via the SDK in this
-            // NodeManager.
-            if (PredefinedNodes.TryGetValue(parentNodeId, out NodeState? parentNode))
+            // NodeManager. The BrowseName is reserved beneath the parent first so
+            // that concurrent adds of the same name cannot both pass the check.
+            // The reservation has the scope of the check: BrowseNames only have to
+            // be unique among nodes sharing the same relationship with the parent
+            // (Part 4 5.8.2.4), which the cross-NodeManager check tests per
+            // ReferenceType; the child list of a local parent keeps BrowseNames
+            // unique regardless of the ReferenceType.
+            NodeId browseNameReferenceTypeId = PredefinedNodes.ContainsKey(parentNodeId)
+                ? NodeId.Null
+                : item.ReferenceTypeId;
+            (NodeId, QualifiedName, NodeId) browseNameKey =
+                (parentNodeId, item.BrowseName, browseNameReferenceTypeId);
+            if (!m_addNodesBrowseNameReservations.TryAdd(browseNameKey, 0))
             {
-                if (parentNode.FindChildWithQualifiedName(systemContext, item.BrowseName) != null)
-                {
-                    return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
-                }
+                return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
             }
-            else
+            NodeState? parentNode;
+            ServiceResult reservation;
+            try
             {
-                foreach (NodeState existing in PredefinedNodes.Values)
-                {
-                    if (existing is BaseInstanceState sibling &&
-                        sibling.BrowseName == item.BrowseName &&
-                        existing.ReferenceExists(item.ReferenceTypeId, true, parentNodeId))
-                    {
-                        return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
-                    }
-                }
+                reservation = IsAddNodesBrowseNameDuplicated(
+                    systemContext,
+                    item,
+                    parentNodeId,
+                    out parentNode)
+                    ? new ServiceResult(StatusCodes.BadBrowseNameDuplicated)
+                    : ReserveAddNodesNodeId(
+                        ref newNodeId,
+                        item.RequestedNewNodeId.IsNull,
+                        cancellationToken);
             }
-
-            ServiceResult reservation = ReserveAddNodesNodeId(
-                ref newNodeId,
-                item.RequestedNewNodeId.IsNull,
-                cancellationToken);
+            catch
+            {
+                m_addNodesBrowseNameReservations.TryRemove(browseNameKey, out _);
+                throw;
+            }
             if (ServiceResult.IsBad(reservation))
             {
+                m_addNodesBrowseNameReservations.TryRemove(browseNameKey, out _);
                 return (reservation, NodeId.Null);
             }
             bool committed = false;
@@ -2195,8 +2207,40 @@ namespace Opc.Ua.Server
                 finally
                 {
                     m_addNodesReservations.TryRemove(newNodeId, out _);
+                    m_addNodesBrowseNameReservations.TryRemove(browseNameKey, out _);
                 }
             }
+        }
+
+        /// <summary>
+        /// Checks whether a child with the requested BrowseName already exists beneath the parent.
+        /// </summary>
+        /// <remarks>
+        /// For local parents the in-memory child list is used. For cross-NodeManager parents
+        /// this manager's PredefinedNodes are scanned for siblings that hold an inverse
+        /// reference to the same parent.
+        /// </remarks>
+        private bool IsAddNodesBrowseNameDuplicated(
+            ServerSystemContext systemContext,
+            AddNodesItem item,
+            NodeId parentNodeId,
+            out NodeState? parentNode)
+        {
+            if (PredefinedNodes.TryGetValue(parentNodeId, out parentNode))
+            {
+                return parentNode.FindChildWithQualifiedName(systemContext, item.BrowseName) != null;
+            }
+
+            foreach (NodeState existing in PredefinedNodes.Values)
+            {
+                if (existing is BaseInstanceState sibling &&
+                    sibling.BrowseName == item.BrowseName &&
+                    existing.ReferenceExists(item.ReferenceTypeId, true, parentNodeId))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -4971,12 +5015,14 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (propertyState != null)
+                    if (propertyState != null && nodeToWrite.AttributeId == Attributes.Value)
                     {
+                        // compare the stored value after the write: the written DataValue
+                        // (possibly an IndexRange slice) is not comparable with the old value.
                         CheckIfSemanticsHaveChanged(
                             systemContext,
                             propertyState,
-                            nodeToWrite.Value,
+                            propertyState.Value,
                             previousPropertyValue);
                     }
 
@@ -5014,9 +5060,10 @@ namespace Opc.Ua.Server
         {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
+            bool hasSemanticChangeFlag = HasSemanticChangeFlag(property);
 
-            if (propertyName
-                is not BrowseNames.EURange
+            if (!hasSemanticChangeFlag &&
+                propertyName is not BrowseNames.EURange
                     and not BrowseNames.InstrumentRange
                     and not BrowseNames.EngineeringUnits
                     and not BrowseNames.Title
@@ -5033,6 +5080,16 @@ namespace Opc.Ua.Server
 
             // ceck if property value changed
             if (Utils.IsEqual(newPropertyValue, previousPropertyValue))
+            {
+                return;
+            }
+
+            // the SemanticChangeEvent is raised once per change, whether or not the
+            // owning node is monitored (Part 3 5.6.2).
+            NodeState? changedNode = property.Parent;
+            if (changedNode != null &&
+                !hasSemanticChangeFlag &&
+                !IsSemanticChangeProperty(changedNode, propertyName))
             {
                 return;
             }
@@ -5054,88 +5111,111 @@ namespace Opc.Ua.Server
                 NodeState node = handle.Node;
                 BaseInstanceState? propertyState = node.FindChild(
                     systemContext,
-                    property!.BrowseName);
+                    property.BrowseName);
 
                 if (propertyState != null &&
-                    property != null &&
-                    propertyState.NodeId == property.NodeId)
+                    propertyState.NodeId == property.NodeId &&
+                    (hasSemanticChangeFlag || IsSemanticChangeProperty(node, propertyName)))
                 {
-                    if ((
-                            node is AnalogItemState &&
-                            (propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits)
-                        ) ||
-                        (
-                            node is TwoStateDiscreteState &&
-                            (propertyName == BrowseNames.FalseState ||
-                                propertyName == BrowseNames.TrueState)
-                        ) ||
-                        (node is MultiStateDiscreteState &&
-                            (propertyName == BrowseNames.EnumStrings)) ||
-                        (
-                            node is ArrayItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title)
-                        ) ||
-                        (
-                            (node is YArrayItemState || node is XYArrayItemState) &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition)
-                        ) ||
-                        (
-                            node is ImageItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition ||
-                                propertyName == BrowseNames.YAxisDefinition)
-                        ) ||
-                        (
-                            node is CubeItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition ||
-                                propertyName == BrowseNames.YAxisDefinition ||
-                                propertyName == BrowseNames.ZAxisDefinition)
-                        ) ||
-                        (
-                            node is NDimensionArrayItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.AxisDefinition)))
-                    {
-                        monitoredItem.SetSemanticsChanged();
+                    monitoredItem.SetSemanticsChanged();
 
-                        var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
+                    // re-read in the context of the session owning the monitored item,
+                    // not in the context of the writer.
+                    ServerSystemContext itemContext = SystemContext.Copy(
+                        new OperationContext(kvp.Value));
+                    var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
-                        node.ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            monitoredItem.IndexRange,
-                            default,
-                            ref value);
+                    ServiceResult readResult = node.ReadAttribute(
+                        itemContext,
+                        Attributes.Value,
+                        monitoredItem.IndexRange,
+                        monitoredItem.DataEncoding,
+                        ref value);
 
-                        monitoredItem.QueueValue(value, ServiceResult.Good, true);
+                    monitoredItem.QueueValue(value, readResult, true);
 
-                        RaiseSemanticChangeEvent(systemContext, node, property);
-                    }
+                    changedNode ??= node;
                 }
             }
+
+            if (changedNode != null)
+            {
+                RaiseSemanticChangeEvent(systemContext, changedNode, property);
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the property's AccessLevel(Ex) has the SemanticChange bit set;
+        /// a change of such a property raises a SemanticChangeEvent (Part 3 5.6.2).
+        /// </summary>
+        internal static bool HasSemanticChangeFlag(PropertyState property)
+        {
+            return (property.AccessLevelEx & AccessLevels.SemanticChange) != 0;
+        }
+
+        /// <summary>
+        /// Returns true if a change of the named property changes the semantics of the node.
+        /// </summary>
+        internal static bool IsSemanticChangeProperty(NodeState node, string? propertyName)
+        {
+            return (
+                    node is AnalogItemState &&
+                    (propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits)
+                ) ||
+                (
+                    node is TwoStateDiscreteState &&
+                    (propertyName == BrowseNames.FalseState ||
+                        propertyName == BrowseNames.TrueState)
+                ) ||
+                (node is MultiStateDiscreteState &&
+                    (propertyName == BrowseNames.EnumStrings)) ||
+                (
+                    node is ArrayItemState &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title)
+                ) ||
+                (
+                    (node is YArrayItemState || node is XYArrayItemState) &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title ||
+                        propertyName == BrowseNames.XAxisDefinition)
+                ) ||
+                (
+                    node is ImageItemState &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title ||
+                        propertyName == BrowseNames.XAxisDefinition ||
+                        propertyName == BrowseNames.YAxisDefinition)
+                ) ||
+                (
+                    node is CubeItemState &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title ||
+                        propertyName == BrowseNames.XAxisDefinition ||
+                        propertyName == BrowseNames.YAxisDefinition ||
+                        propertyName == BrowseNames.ZAxisDefinition)
+                ) ||
+                (
+                    node is NDimensionArrayItemState &&
+                    (
+                        propertyName == BrowseNames.InstrumentRange ||
+                        propertyName == BrowseNames.EURange ||
+                        propertyName == BrowseNames.EngineeringUnits ||
+                        propertyName == BrowseNames.Title ||
+                        propertyName == BrowseNames.AxisDefinition));
         }
 
         /// <summary>
@@ -5166,7 +5246,7 @@ namespace Opc.Ua.Server
                                 new SemanticChangeStructureDataType
                                 {
                                     Affected = node.NodeId,
-                                    AffectedType = property.TypeDefinitionId
+                                    AffectedType = (node as BaseInstanceState)?.TypeDefinitionId ?? NodeId.Null
                                 }
                             }.ToArrayOf();
 
@@ -8302,7 +8382,9 @@ namespace Opc.Ua.Server
             IHistorianProvider? provider =
                 aggregateFilter.HistorianProvider ??
                 ResolveHistorianProvider(handle.Node);
-            if (provider is not IHistorianDataProvider dataProvider)
+            if (provider is not IHistorianDataProvider dataProvider ||
+                !await CanReadInitialHistoryAsync(
+                    context, handle, cancellationToken).ConfigureAwait(false))
             {
                 return await ReadCurrentValueAsync(
                     context, handle, monitoredItem, cancellationToken).ConfigureAwait(false);
@@ -8364,10 +8446,16 @@ namespace Opc.Ua.Server
                 StartTime = aggregateFilter.StartTime,
                 EndTime = utcNow,
                 MaxValues = capabilities.MaxReturnDataValues,
+                // Never let the provider materialise more than the priming cap in one
+                // page: MaxReturnDataValues may be zero (no provider limit).
+                PageLimit = capabilities.MaxReturnDataValues > 0
+                    ? Math.Min(capabilities.MaxReturnDataValues, kMaxInitialHistoryPageLimit)
+                    : kMaxInitialHistoryPageLimit,
                 IsForward = true,
                 ReturnBounds = true
             };
             HistorianResumeToken token = default;
+            int valueCount = 0;
             try
             {
                 for (int pageCount = 0;
@@ -8382,6 +8470,18 @@ namespace Opc.Ua.Server
                             cancellationToken).ConfigureAwait(false);
                     foreach (HistoricalDataValue historicalValue in page.Values)
                     {
+                        // the priming window is client controlled (StartTime and
+                        // ProcessingInterval), so bound the history scanned inline.
+                        if (++valueCount > kMaxInitialHistoryValues)
+                        {
+                            return QueueInitialHistoryFailure(
+                                monitoredItem,
+                                utcNow,
+                                new ServiceResult(
+                                    StatusCodes.BadTimeout,
+                                    new LocalizedText(
+                                        "Initial historical value priming exceeded the value limit.")));
+                        }
                         if (historicalValue.IsBound &&
                             historicalValue.Value.SourceTimestamp > utcNow)
                         {
@@ -8510,6 +8610,41 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             return (error, value);
+        }
+
+        /// <summary>
+        /// Checks that the session may read the history used to prime an
+        /// aggregate, applying the same AccessLevel, UserAccessLevel and
+        /// ReadHistory permission checks as the HistoryRead service.
+        /// </summary>
+        private async ValueTask<bool> CanReadInitialHistoryAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            CancellationToken cancellationToken)
+        {
+            if (handle.Node is not BaseVariableState variable ||
+                (variable.AccessLevel & AccessLevels.HistoryRead) == 0)
+            {
+                return false;
+            }
+
+            byte userAccessLevel = variable.UserAccessLevel;
+            variable.OnReadUserAccessLevel?.Invoke(context, variable, ref userAccessLevel);
+            if ((userAccessLevel & AccessLevels.HistoryRead) == 0)
+            {
+                return false;
+            }
+
+            NodeMetadata metadata = await GetNodeMetadataAsync(
+                context.OperationContext!,
+                handle,
+                BrowseResultMask.All,
+                cancellationToken).ConfigureAwait(false);
+            return ServiceResult.IsGood(
+                MasterNodeManager.ValidateRolePermissions(
+                    context.OperationContext!,
+                    metadata,
+                    PermissionType.ReadHistory));
         }
 
         private async ValueTask<ServiceResult> ValidateInitialValueRequestAsync(
@@ -9130,12 +9265,18 @@ namespace Opc.Ua.Server
             // validate parameters.
             MonitoringParameters parameters = itemToModify.RequestedParameters;
 
-            double previousSamplingInterval = datachangeItem!.SamplingInterval;
+            // a negative sampling interval selects the publishing interval of the
+            // subscription (Part 4 7.21), not the previous sampling interval.
+            double defaultSamplingInterval = datachangeItem!.SamplingInterval;
+            if (monitoredItem.SubscriptionCallback is ISubscription subscription)
+            {
+                defaultSamplingInterval = subscription.PublishingInterval;
+            }
 
             // check if the variable needs to be sampled.
             double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                 itemToModify.RequestedParameters.SamplingInterval,
-                previousSamplingInterval,
+                defaultSamplingInterval,
                 handle.Node,
                 datachangeItem.AttributeId,
                 MinSupportedSamplingInterval);
@@ -10305,8 +10446,21 @@ namespace Opc.Ua.Server
         /// </summary>
         private readonly NodeIdDictionary<byte> m_addNodesReservations = [];
 
+        /// <summary>
+        /// Retains the (parent, BrowseName, ReferenceType) keys of in-flight AddNodes operations
+        /// so that concurrent adds cannot create two children with the same BrowseName and
+        /// relationship; the ReferenceType is null for local parents (see AddNodeCoreAsync).
+        /// </summary>
+        private readonly ConcurrentDictionary<(NodeId, QualifiedName, NodeId), byte> m_addNodesBrowseNameReservations = new();
+
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;
+        private const int kMaxInitialHistoryValues = 100_000;
+
+        /// <summary>
+        /// One value more than the priming cap, so a page that reaches it still trips the cap.
+        /// </summary>
+        private const uint kMaxInitialHistoryPageLimit = kMaxInitialHistoryValues + 1;
     }
 
     /// <summary>

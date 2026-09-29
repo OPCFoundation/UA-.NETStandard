@@ -370,6 +370,19 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void DisposeKeepsCallerOwnedMonitoredItemQueueFactory()
+        {
+            ServerInternalData data = CreateServerInternalData();
+            var mockFactory = new Mock<IMonitoredItemQueueFactory>();
+            data.SetMonitoredItemQueueFactory(mockFactory.Object, ownsFactory: false);
+
+            data.Dispose();
+
+            mockFactory.Verify(factory => factory.Dispose(), Times.Never);
+            Assert.That(data.MonitoredItemQueueFactory, Is.Null);
+        }
+
+        [Test]
         public void SetSubscriptionStoreStoresStore()
         {
             using ServerInternalData data = CreateServerInternalData();

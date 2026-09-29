@@ -475,13 +475,17 @@ namespace Opc.Ua.Server.FileSystem
 
         private static void CopyDirectoryRecursive(string source, string target)
         {
+            // Enumerate the source before creating the target so a target inside
+            // the source never becomes part of the copy.
+            string[] directories = Directory.GetDirectories(source, "*", SearchOption.AllDirectories);
+            string[] files = Directory.GetFiles(source, "*", SearchOption.AllDirectories);
             Directory.CreateDirectory(target);
-            foreach (string dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+            foreach (string dir in directories)
             {
                 string sub = dir[source.Length..].TrimStart(Path.DirectorySeparatorChar);
                 Directory.CreateDirectory(Path.Combine(target, sub));
             }
-            foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+            foreach (string file in files)
             {
                 string sub = file[source.Length..].TrimStart(Path.DirectorySeparatorChar);
                 File.Copy(file, Path.Combine(target, sub), overwrite: false);

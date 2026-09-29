@@ -3,7 +3,30 @@
 This repository contains a large collection of platform-independent samples
 that demonstrate the stack's client, server, PubSub, companion-model, and
 developer-tooling APIs. Each sample has its own `README.md` with build and run
-instructions.
+instructions. If you are new to the SDK, start with the
+[minimal samples](#minimal-samples).
+
+## Contents
+
+- [Minimal samples](#minimal-samples)
+- [Reference applications](#reference-applications)
+- [PubSub samples](#pubsub-samples)
+- [Companion-model samples](#companion-model-samples)
+- [OpenUSD site composition](#openusd-site-composition)
+
+## Minimal samples
+
+[Getting started](GettingStarted.md) runs the Minimal Boiler Server and the
+Minimal Client together.
+
+- [Minimal Boiler Server](../samples/MinimalApi/MinimalBoilerServer) — minimal
+  Boiler-model server with the fluent state-machine builder; Native-AOT
+  publishable.
+- [Minimal Client](../samples/MinimalApi/MinimalClient/README.md) — hosted
+  client that discovers a secure endpoint of the Minimal Boiler Server, creates
+  a subscription, browses, and reads; Native-AOT publishable.
+- [Minimal Calc Server](../samples/MinimalApi/MinimalCalcServer) — minimal
+  server built on the source-generated NodeManager pipeline and Calc model.
 
 ## Reference applications
 
@@ -23,13 +46,8 @@ instructions.
   one executable with `publisher`, `subscriber`, and `external`
   external-server-adapter modes across the supported transport profiles.
 
-## Minimal and companion-model samples
+## Companion-model samples
 
-- [Minimal Calc Server](../samples/MinimalApi/MinimalCalcServer) — minimal
-  server built on the source-generated NodeManager pipeline and Calc model.
-- [Minimal Boiler Server](../samples/MinimalApi/MinimalBoilerServer) — minimal
-  Boiler-model server with the fluent state-machine builder; Native-AOT
-  publishable.
 - [Pump Device Integration Server](../samples/DI/PumpDeviceIntegrationServer/README.md) —
   Device Integration Part 100 server using `Opc.Ua.Di.Server`'s fluent
   builder.

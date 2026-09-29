@@ -1,19 +1,19 @@
 # Model Change Tracking
 
-OPC UA Part 5 §6.4.32 defines `GeneralModelChangeEventType` so a
-server can notify clients that the address space has changed —
-nodes added or deleted, references added or deleted, datatypes
-changed. The `Opc.Ua.Client.ModelChange` namespace ships an
-opt-in client-side tracker that consumes those events, drops the
-affected entries from the client's `INodeCache`, and surfaces the
-changes through a strongly-typed event so application code can
-re-browse the impacted subtrees.
+OPC UA Part 5 §6.4.32 defines `GeneralModelChangeEventType`. Servers use it
+to notify clients about address-space changes, including added or deleted
+nodes and references, and changed data types.
 
-The server-side counterpart lives in `Opc.Ua.Server.Alarms`:
-`ModelChangeAggregator` batches per-call changes and the
-`CustomNodeManager` (and `AsyncCustomNodeManager`) emit
-`GeneralModelChangeEvent` automatically from `CreateNode` /
-`DeleteNode`. Opt out via a flag if you need manual control.
+The `Opc.Ua.Client.ModelChange` namespace provides an opt-in client-side
+tracker. It consumes these events, removes affected entries from the
+client's `INodeCache`, and surfaces the changes through a strongly typed
+event. Application code can then browse the affected subtrees again.
+
+The server-side counterpart lives in `Opc.Ua.Server.Alarms`.
+`ModelChangeAggregator` batches per-call changes. `CustomNodeManager` and
+`AsyncCustomNodeManager` automatically emit `GeneralModelChangeEvent` from
+`CreateNode` and `DeleteNode`. Set a flag to opt out when you need manual
+control.
 
 - [Quick reference](#quick-reference)
 - [Server side: emitting model changes](#server-side-emitting-model-changes)
@@ -70,8 +70,11 @@ public class MyNodeManager : AsyncCustomNodeManager
 ```
 
 > **Browse consistency.** `CreateNodeAsync`, `AddNodeAsync` and `DeleteNodeAsync` also keep the node manager's internal component cache in sync with the change.
-> A deleted node is evicted from the cache, and the parent's cached view is refreshed after a runtime add or remove, so a Browse, Read or Call issued afterwards reflects the committed child set instead of a stale, cached view.
-> Re-registering or replacing a node id (for example swapping a passive child for a typed proxy) refreshes the cached instance only when that node is already cached.
+> A deleted node is evicted from the cache. After a runtime add or remove, the
+manager refreshes the parent's cached view. A subsequent Browse, Read, or
+Call therefore sees the committed child set instead of stale data.
+> When the node is already cached, re-registering it refreshes the cached
+instance. Replacing a cached node with a typed proxy also refreshes it.
 
 If your node manager mutates the address space without going through
 `CreateNodeAsync` / `DeleteNodeAsync` (for example by editing an
@@ -264,10 +267,10 @@ reports the address-space change. Without a refresh, a Client resolves
 NodeIds from the new namespace against a stale `NamespaceUris` table
 and silently gets the wrong index.
 
-The tracker closes that gap. Given an `INamespaceTableRefresher` it
-re-reads the namespace table before it invalidates the cache and before
-it raises `ModelChanged`, so subscribers that re-browse from the handler
-already see the new uris:
+The tracker closes that gap when given an `INamespaceTableRefresher`. It
+refreshes the namespace table before invalidating the cache and raising
+`ModelChanged`. Subscribers can then re-browse from the event handler using
+the new URIs:
 
 ```csharp
 public interface INamespaceTableRefresher
@@ -351,7 +354,6 @@ OPC UA Part 5 §9.32.2 ties `ModelChangeEvent` emission to the
 > changed, a `ModelChangeEvent` shall be generated. A Server shall
 > support both the `ModelChangeEvent` and the `NodeVersion` Property
 > or neither, but never only one of the two mechanisms."
->
 > "Only those Nodes of the AddressSpace having a `NodeVersion` shall
 > trigger a `ModelChangeEvent`. Other Nodes shall not trigger a
 > `ModelChangeEvent`."

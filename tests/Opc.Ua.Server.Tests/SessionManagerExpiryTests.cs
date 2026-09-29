@@ -160,6 +160,106 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [Test]
+        public async Task SessionMonitorKeepsClosingSessionsAfterOneCloseFailsAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var fixture = new ServerFixture<FailingCloseServer>(t => new FailingCloseServer(t, clock));
+            FailingCloseServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                // The first timed-out close throws from the subscription manager.
+                (RequestHeader first, _) =
+                    await server.CreateAndActivateSessionAsync("FailingClose").ConfigureAwait(false);
+                await WaitForSessionRemovedAsync(server, clock, first.AuthenticationToken).ConfigureAwait(false);
+                Assert.That(server.FailedCloses, Is.EqualTo(1));
+
+                // The monitor must still be running and close the next expired session.
+                (RequestHeader second, _) =
+                    await server.CreateAndActivateSessionAsync("AfterFailingClose").ConfigureAwait(false);
+                await WaitForSessionRemovedAsync(server, clock, second.AuthenticationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static async Task WaitForSessionRemovedAsync(
+            StandardServer server,
+            FakeTimeProvider clock,
+            NodeId authenticationToken)
+        {
+            DateTime deadline = DateTime.UtcNow + s_callTimeout;
+            while (server.CurrentInstance.SessionManager.GetSession(authenticationToken) != null)
+            {
+                Assert.That(DateTime.UtcNow, Is.LessThan(deadline),
+                    "The session monitor did not close the expired session.");
+                // Keep advancing: the monitor may register its next delay after an advance.
+                clock.Advance(TimeSpan.FromHours(1));
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Server whose session monitor runs on a fake clock and whose subscription
+        /// manager fails the first session close.
+        /// </summary>
+        public sealed class FailingCloseServer : StandardServer
+        {
+            private readonly TimeProvider m_clock;
+            private int m_failedCloses;
+
+            public FailingCloseServer(ITelemetryContext telemetry, TimeProvider clock)
+                : base(telemetry)
+            {
+                m_clock = clock;
+            }
+
+            public int FailedCloses => Volatile.Read(ref m_failedCloses);
+
+            protected override ISessionManager CreateSessionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+            {
+                return new SessionManager(server, configuration, m_clock);
+            }
+
+            protected override ISubscriptionManager CreateSubscriptionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+            {
+                return new FailingCloseSubscriptionManager(this, server, configuration);
+            }
+
+            private sealed class FailingCloseSubscriptionManager : SubscriptionManager
+            {
+                private readonly FailingCloseServer m_owner;
+
+                public FailingCloseSubscriptionManager(
+                    FailingCloseServer owner,
+                    IServerInternal server,
+                    ApplicationConfiguration configuration)
+                    : base(server, configuration)
+                {
+                    m_owner = owner;
+                }
+
+                public override ValueTask SessionClosingAsync(
+                    OperationContext context,
+                    NodeId sessionId,
+                    bool deleteSubscriptions,
+                    CancellationToken cancellationToken)
+                {
+                    if (Interlocked.CompareExchange(ref m_owner.m_failedCloses, 1, 0) == 0)
+                    {
+                        throw new InvalidOperationException("Simulated session close failure.");
+                    }
+                    return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
+                }
+            }
+        }
+
         /// <summary>
         /// Server whose session manager uses a fake clock and no session monitor loop.
         /// </summary>

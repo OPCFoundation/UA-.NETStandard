@@ -52,7 +52,8 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
+        IRequestParkingPolicySource
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -605,17 +606,20 @@ namespace Opc.Ua.Server
             ArrayOf<EndpointDescription> serverEndpoints = default;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
+            // Admission control: reject with BadServerTooBusy before doing the
+            // CPU-bound certificate validation / signing when at capacity. The
+            // lease (a concurrency permit) is held for the duration of the call.
+            // It is acquired before the request is registered, so a handshake that
+            // waits for a permit is not a request that lifecycle drains wait for.
+            using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
+                secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
+                .ConfigureAwait(false);
+
             using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateSession,
                 requestLifetime).ConfigureAwait(false);
-
-            // Admission control: reject with BadServerTooBusy before doing the
-            // CPU-bound certificate validation / signing when at capacity. The
-            // lease (a concurrency permit) is held for the duration of the call.
-            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow(
-                secureChannelContext, requestHeader.AuthenticationToken);
 
             ISession? session = null;
             CertificateCollection? clientIssuerCertificates = null;
@@ -1021,17 +1025,20 @@ namespace Opc.Ua.Server
         {
             ByteString serverNonce;
 
+            // Admission control: reject with BadServerTooBusy before the CPU-bound
+            // signature / identity-token verification when at capacity. The lease
+            // (a concurrency permit) is held for the duration of the call. It is
+            // acquired before the request is registered, so a handshake that waits
+            // for a permit is not a request that lifecycle drains wait for.
+            using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
+                secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
+                .ConfigureAwait(false);
+
             using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ActivateSession,
                 requestLifetime).ConfigureAwait(false);
-
-            // Admission control: reject with BadServerTooBusy before the CPU-bound
-            // signature / identity-token verification when at capacity. The lease
-            // (a concurrency permit) is held for the duration of the call.
-            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow(
-                secureChannelContext, requestHeader.AuthenticationToken);
 
             try
             {
@@ -1829,16 +1836,11 @@ namespace Opc.Ua.Server
 
             try
             {
+                // The limit bounds the browsePaths array only (Part 5 6.3.11); the number of
+                // RelativePath elements is capped per operation by the dispatcher.
                 ValidateOperationLimits(
                     browsePaths,
                     OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-
-                foreach (BrowsePath bp in browsePaths)
-                {
-                    ValidateOperationLimits(
-                        bp.RelativePath.Elements.Count,
-                        OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-                }
 
                 (ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
@@ -2065,9 +2067,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(historyUpdateDetails);
-                ValidateOperationLimits(
-                    historyUpdateDetails.Count,
-                    GetHistoryUpdateOperationLimit(historyUpdateDetails));
+                ValidateHistoryUpdateOperationLimits(historyUpdateDetails);
 
                 (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.HistoryUpdateAsync(
@@ -2102,9 +2102,15 @@ namespace Opc.Ua.Server
             }
         }
 
-        private PropertyState<uint>? GetHistoryUpdateOperationLimit(
+        /// <summary>
+        /// Validates the historyUpdateDetails array against the limit of every kind of
+        /// update it contains, so a mixed batch is bounded by the smaller limit.
+        /// </summary>
+        private void ValidateHistoryUpdateOperationLimits(
             ArrayOf<ExtensionObject> historyUpdateDetails)
         {
+            bool hasEventDetails = false;
+            bool hasDataDetails = false;
             foreach (ExtensionObject details in historyUpdateDetails)
             {
                 if (details.IsNull || !details.TryGetValue(out HistoryUpdateDetails? historyUpdateDetail))
@@ -2116,21 +2122,30 @@ namespace Opc.Ua.Server
                 if (detailsType == typeof(UpdateEventDetails) ||
                     detailsType == typeof(DeleteEventDetails))
                 {
-                    return OperationLimits.MaxNodesPerHistoryUpdateEvents;
+                    hasEventDetails = true;
                 }
-
-                if (detailsType == typeof(UpdateDataDetails) ||
+                else if (detailsType == typeof(UpdateDataDetails) ||
                     detailsType == typeof(UpdateStructureDataDetails) ||
                     detailsType == typeof(DeleteRawModifiedDetails) ||
                     detailsType == typeof(DeleteAtTimeDetails))
                 {
-                    return OperationLimits.MaxNodesPerHistoryUpdateData;
+                    hasDataDetails = true;
                 }
-
-                break;
             }
 
-            return null;
+            if (hasEventDetails)
+            {
+                ValidateOperationLimits(
+                    historyUpdateDetails.Count,
+                    OperationLimits.MaxNodesPerHistoryUpdateEvents);
+            }
+
+            if (hasDataDetails)
+            {
+                ValidateOperationLimits(
+                    historyUpdateDetails.Count,
+                    OperationLimits.MaxNodesPerHistoryUpdateData);
+            }
         }
 
         /// <inheritdoc/>
@@ -3741,6 +3756,95 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The parking policy the endpoints use: the host policy, plus CreateSession and
+        /// ActivateSession while a queueing session-establishment limiter is active, so a
+        /// handshake waiting for a permit releases its request worker like a held Publish.
+        /// </summary>
+        IRequestParkingPolicy? IRequestParkingPolicySource.RequestParkingPolicy =>
+            m_rateLimiterProvider is IQueuedSessionEstablishmentLimiter &&
+            (!m_ownsRateLimiterProvider || RateLimitOptions.SessionEstablishmentQueueLimit > 0)
+                ? m_sessionEstablishmentParking ??= new SessionEstablishmentParkingPolicy(this)
+                : RequestParkingPolicy;
+
+        /// <summary>
+        /// Adds session establishment to the host-supplied parking policy.
+        /// </summary>
+        private sealed class SessionEstablishmentParkingPolicy(StandardServer server) : IRequestParkingPolicy
+        {
+            /// <inheritdoc/>
+            public bool CanPark(IServiceRequest request)
+            {
+                return request is CreateSessionRequest or ActivateSessionRequest ||
+                    server.RequestParkingPolicy?.CanPark(request) == true;
+            }
+        }
+
+        private SessionEstablishmentParkingPolicy? m_sessionEstablishmentParking;
+
+        /// <summary>
+        /// Acquires the session-establishment permits like
+        /// <see cref="BeginSessionEstablishmentOrThrow"/>, but lets a queueing rate limiter
+        /// (<see cref="IQueuedSessionEstablishmentLimiter"/>, see
+        /// ServerRateLimitOptions.SessionEstablishmentQueueLimit) wait for a permit.
+        /// </summary>
+        /// <returns>A lease that MUST be disposed when the operation completes, or <c>null</c>.</returns>
+        /// <exception cref="ServiceResultException">The server is too busy to admit the operation.</exception>
+        internal async ValueTask<IDisposable?> BeginSessionEstablishmentOrThrowAsync(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken,
+            RequestLifetime requestLifetime)
+        {
+            if (m_rateLimiterProvider is not IQueuedSessionEstablishmentLimiter queued)
+            {
+                return BeginSessionEstablishmentOrThrow(channelContext, authenticationToken);
+            }
+
+            IDisposable? isolationLease = null;
+            try
+            {
+                IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
+#pragma warning disable CA2000 // disposed in the catch below or owned by the returned lease
+                if (isolation != null && !isolation.TryAcquire(
+                    ResourceIsolationStage.SessionEstablishment,
+                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                    1,
+                    out isolationLease,
+                    out ResourceIsolationFailure failure))
+#pragma warning restore CA2000
+                {
+                    throw CreateServerTooBusyException(failure.RetryAfter);
+                }
+
+                ValueTask<(bool Acquired, IDisposable? Lease, TimeSpan? RetryAfter)> pending =
+                    queued.AcquireSessionEstablishmentAsync(requestLifetime.CancellationToken);
+                if (!pending.IsCompleted)
+                {
+                    // The operation waits in the limiter queue: release the request
+                    // worker (like a held Publish) so queued handshakes cannot starve
+                    // the requests of established sessions.
+                    requestLifetime.ParkSink?.NotifyParked();
+                }
+                (bool acquired, IDisposable? rateLimitLease, TimeSpan? retryAfter) =
+                    await pending.ConfigureAwait(false);
+                if (!acquired)
+                {
+                    throw CreateServerTooBusyException(retryAfter);
+                }
+
+                if (isolationLease == null)
+                {
+                    return rateLimitLease;
+                }
+                return new SessionEstablishmentLease(isolationLease, rateLimitLease);
+            }
+            catch
+            {
+                isolationLease?.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Releases both session-establishment permits once, even if rate-limit cleanup fails.
         /// </summary>
         /// <param name="isolation">Owned resource-isolation permit.</param>
@@ -4096,8 +4200,12 @@ namespace Opc.Ua.Server
                     m_serverInternal,
                     configuration);
 
-                //add the MonitoredItemQueueFactory to the datastore.
-                m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory!);
+                //add the MonitoredItemQueueFactory to the datastore; a factory the server
+                //does not own (e.g. supplied by the caller) survives restarts.
+                m_serverInternal.SetMonitoredItemQueueFactory(
+                    monitoredItemQueueFactory!,
+                    ownsFactory: monitoredItemQueueFactory != null &&
+                        OwnsMonitoredItemQueueFactory(monitoredItemQueueFactory));
 
                 //create the SubscriptionStore
                 ISubscriptionStore? subscriptionStore = CreateSubscriptionStore(
@@ -4345,6 +4453,13 @@ namespace Opc.Ua.Server
 
             // halt the registration timer.
             await StopRegistrationAsync().ConfigureAwait(false);
+
+            // StartAsync creates a new watcher and certificate subscription, so release these
+            // to keep a stopped server from reacting and a restart from duplicating handlers.
+            m_configurationWatcher?.Dispose();
+            m_configurationWatcher = null;
+            m_certManagerSubscription?.Dispose();
+            m_certManagerSubscription = null;
 
             if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
             {
@@ -5073,6 +5188,18 @@ namespace Opc.Ua.Server
         {
             return MonitoredItemQueueFactory
                 ?? new MonitoredItemQueueFactory(MessageContext.Telemetry);
+        }
+
+        /// <summary>
+        /// Whether the server owns (and disposes on stop) the factory returned by
+        /// <see cref="CreateMonitoredItemQueueFactory"/>. A factory supplied through
+        /// <see cref="MonitoredItemQueueFactory"/> is owned by the caller.
+        /// </summary>
+        /// <param name="factory">The factory returned by <see cref="CreateMonitoredItemQueueFactory"/>.</param>
+        /// <returns><c>true</c> when the server disposes the factory on shutdown.</returns>
+        protected virtual bool OwnsMonitoredItemQueueFactory(IMonitoredItemQueueFactory factory)
+        {
+            return !ReferenceEquals(factory, MonitoredItemQueueFactory);
         }
 
         /// <summary>

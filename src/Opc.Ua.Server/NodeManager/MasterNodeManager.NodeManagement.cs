@@ -389,6 +389,18 @@ namespace Opc.Ua.Server
                     "The node manager failed a node-management operation.");
         }
 
+        /// <summary>
+        /// Returns true when the ReferenceType is abstract. No Reference of an abstract
+        /// ReferenceType shall exist (Part 3 5.3.1), so AddNodes and AddReferences reject it.
+        /// </summary>
+        private async ValueTask<bool> IsAbstractReferenceTypeAsync(
+            NodeId referenceTypeId,
+            CancellationToken cancellationToken)
+        {
+            return await m_serviceDispatch.FindNodeInAddressSpaceAsync(referenceTypeId, cancellationToken)
+                .ConfigureAwait(false) is ReferenceTypeState { IsAbstract: true };
+        }
+
         private async ValueTask<(ServiceResult result, NodeId addedNodeId)> DispatchAddNodeAsync(
             OperationContext context,
             AddNodesItem item,
@@ -410,7 +422,14 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
+            {
+                return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
+            }
+
+            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+                .ConfigureAwait(false))
             {
                 return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
             }
@@ -617,7 +636,14 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
+            }
+
+            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+                .ConfigureAwait(false))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
@@ -797,7 +823,15 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
+            }
+
+            // Part 3 5.3.1: no Reference of an abstract ReferenceType exists to delete.
+            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+                .ConfigureAwait(false))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }

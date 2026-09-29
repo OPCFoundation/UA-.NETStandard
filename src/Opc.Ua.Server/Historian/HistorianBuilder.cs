@@ -115,6 +115,9 @@ namespace Opc.Ua.Server.Historian
         /// it with the in-memory provider when one is bound. Optionally
         /// sets the <c>HistoryRead</c> / <c>HistoryWrite</c> access level
         /// bits and the <see cref="BaseVariableState.Historizing"/> flag.
+        /// <paramref name="historyAccessLevel"/> defaults to
+        /// <c>HistoryRead</c> only; HistoryUpdate needs an explicit
+        /// <c>HistoryRead | HistoryWrite</c>.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -143,7 +146,7 @@ namespace Opc.Ua.Server.Historian
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="variable"/> is <c>null</c>.</exception>
         public HistorianBuilder Historize(
             BaseVariableState variable,
-            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            byte historyAccessLevel = AccessLevels.HistoryRead,
             bool setHistorizing = true,
             ISystemContext? systemContext = null,
             HistorianNodeCapabilities? capabilities = null,
@@ -190,7 +193,7 @@ namespace Opc.Ua.Server.Historian
         public async ValueTask<HistorianBuilder> HistorizeAsync(
             BaseVariableState variable,
             ISystemContext systemContext,
-            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            byte historyAccessLevel = AccessLevels.HistoryRead,
             bool setHistorizing = true,
             HistorianNodeCapabilities? capabilities = null,
             bool autoCapture = true,

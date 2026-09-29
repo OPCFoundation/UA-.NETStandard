@@ -1,18 +1,77 @@
 # Kubernetes High Availability Deployment
 
-This guide is the single Kubernetes deployment guide for OPC UA high availability. It covers the base `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` features and the opt-in `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes` extension: Kubernetes Lease leader election, EndpointSlice peer discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
+This is the Kubernetes deployment guide for OPC UA high availability. It
+covers the base `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server`
+features and the opt-in
+`OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes` extension. The
+extension provides Kubernetes Lease leader election, EndpointSlice peer
+discovery, and HTTP readiness/liveness driven by OPC UA `ServiceLevel`.
 
 See [HighAvailability.md](HighAvailability.md) for the OPC 10000-4 §6.6 redundancy model. The worked server sample is `samples/Redundancy/RedundantServer`.
 
-The API names distinguish standardized OPC UA model wiring from deployment extensions. `AddServerRedundancy(...)`, `AddServerServiceLevel(...)`, and `AddRequestServerStateChange(...)` publish or maintain OPC 10000-4 §6.6 nodes/methods; `UseDistributedAddressSpace(...)`, `UseDistributedSessions(...)`, `UseDistributedSubscriptionMirroring(...)`, `UseKubernetesLeaderElection(...)`, `UseKubernetesPeerDiscovery(...)`, and `UseKubernetesReadiness(...)` register beyond-spec extension services. `AddServerRedundancy(...)` does not drive `Server.ServiceLevel` by itself, so Kubernetes readiness must also register a ServiceLevel provider, commonly with `AddServerServiceLevel(...)` or the leader-aware provider used by the sample.
+The API prefixes distinguish standardized OPC UA model wiring from
+deployment extensions:
+
+- `AddServerRedundancy(...)`, `AddServerServiceLevel(...)`, and
+  `AddRequestServerStateChange(...)` publish or maintain OPC 10000-4 §6.6
+  nodes and methods.
+- `UseDistributedAddressSpace(...)`, `UseDistributedSessions(...)`,
+  `UseDistributedSubscriptionMirroring(...)`,
+  `UseKubernetesLeaderElection(...)`, `UseKubernetesPeerDiscovery(...)`, and
+  `UseKubernetesReadiness(...)` register beyond-spec extension services.
+
+`AddServerRedundancy(...)` does not drive `Server.ServiceLevel`. For
+Kubernetes readiness, also register a `ServiceLevel` provider, commonly
+through `AddServerServiceLevel(...)` or the leader-aware provider used by the
+sample.
+
+## Contents
+
+- [Redundancy shapes on Kubernetes](#redundancy-shapes-on-kubernetes)
+- [Running with Kubernetes API integration](#running-with-kubernetes-api-integration)
+  - [Application setup with full K8s integration](#application-setup-with-full-k8s-integration)
+- [Running without Kubernetes API integration](#running-without-kubernetes-api-integration)
+  - [Simple setup option](#simple-setup-option)
+- [RBAC](#rbac)
+- [Services](#services)
+- [StatefulSet or Deployment](#statefulset-or-deployment)
+- [Readiness and ServiceLevel](#readiness-and-servicelevel)
+- [Kubernetes Lease leader election](#kubernetes-lease-leader-election)
+- [EndpointSlice peer discovery](#endpointslice-peer-discovery)
+- [Secrets, certificates, and trust](#secrets-certificates-and-trust)
+- [Time synchronization](#time-synchronization)
+- [GDS and NTRS registration](#gds-and-ntrs-registration)
+- [Security checklist](#security-checklist)
 
 ## Redundancy shapes on Kubernetes
 
-Use **non-transparent redundancy** when each pod has its own OPC UA endpoint and clients use `Server.ServerRedundancy`, `FindServers`, and `ServiceLevel` to fail over. Use **transparent redundancy** when clients connect to one virtual address, typically a `Service` or external load balancer, and the pods share the endpoint URL, application URI, certificate, session state, and subscription state required to hide failover.
+Use **non-transparent redundancy** when each pod has its own OPC UA
+endpoint. Clients then use `Server.ServerRedundancy`, `FindServers`, and
+`ServiceLevel` to fail over.
 
-A multi-pod deployment needs a shared store reachable by all replicas for distributed address-space/session/subscription state. Configure a networked, authenticated, encrypted, capacity-bounded backend — the in-package Raft store, or a CRDT gossip fabric over the pod network: protect the store conduit with authenticated encryption, provision a shared record-protection key through a Kubernetes Secret or CSI-backed secret store, and size/expire session, nonce, and subscription keys so a faulty replica cannot exhaust the backend.
+Use **transparent redundancy** when clients connect to one virtual address,
+typically a `Service` or external load balancer. To hide failover, the pods
+must share the endpoint URL, application URI, certificate, session state,
+and subscription state.
 
-A server can run HA on Kubernetes two ways, and you choose one: **with** Kubernetes API integration (Kubernetes-native Lease election, EndpointSlice discovery, and readiness), or **without** it (the in-package Raft/CRDT layers self-manage membership and leadership). The two options are described next.
+A multi-pod deployment needs a shared store that all replicas can reach for
+distributed address-space, session, and subscription state. Configure a
+networked backend with authentication, encryption, and capacity limits, such
+as the in-package Raft store or a CRDT gossip fabric over the pod network.
+Protect the store connection with authenticated encryption. Provision the
+shared record-protection key through a Kubernetes Secret or a secret store
+backed by the Container Storage Interface (CSI). Set limits and expiration
+for session, nonce, and subscription keys so
+a faulty replica cannot exhaust the backend.
+
+Choose one of two deployment modes:
+
+- **With Kubernetes API integration:** use Kubernetes-native Lease election,
+  EndpointSlice discovery, and readiness.
+- **Without Kubernetes API integration:** the in-package Raft/CRDT layers
+  manage membership and leadership.
+
+The following sections describe both options.
 
 ## Running with Kubernetes API integration
 
@@ -64,11 +123,15 @@ services.AddOpcUa()
     });
 ```
 
-The example above is safe because `UseDistributedAddressSpace(... options.UseLeaderElection = true ...)`
-registers a leader-aware `IServiceLevelProvider`. If you compose `UseKubernetesLeaderElection()` and
-`UseKubernetesReadiness()` without `UseDistributedAddressSpace()`, register your own
-`IServiceLevelProvider` (for example via `AddServerServiceLevel(...)`) before `UseKubernetesReadiness()`
-so followers do not stay ready.
+The example is safe because
+`UseDistributedAddressSpace(... options.UseLeaderElection = true ...)`
+registers a leader-aware `IServiceLevelProvider`.
+
+If you combine `UseKubernetesLeaderElection()` and
+`UseKubernetesReadiness()` without `UseDistributedAddressSpace()`, register
+your own `IServiceLevelProvider`, for example through
+`AddServerServiceLevel(...)`, before `UseKubernetesReadiness()`. This keeps
+followers from remaining ready.
 
 `UseKubernetesLeaderElection` uses the in-cluster service account token, namespace, and CA mounted at `/var/run/secrets/kubernetes.io/serviceaccount`. Outside Kubernetes it falls back to `SharedStoreLeaseElection` by default (`UseSharedStoreFallback = true`) so local development can still exercise the distributed path. (`UseKubernetes()` registers the shared in-cluster Kubernetes API client that these extensions consume; the leader-election, peer-discovery, and readiness helpers add it automatically, but you can call it directly when adding your own Kubernetes-backed component.)
 

@@ -292,7 +292,10 @@ namespace Opc.Ua.Server
                 SubscriptionManager?.Dispose();
             }
             SubscriptionManager = null!;
-            MonitoredItemQueueFactory?.Dispose();
+            if (m_ownsMonitoredItemQueueFactory)
+            {
+                MonitoredItemQueueFactory?.Dispose();
+            }
             MonitoredItemQueueFactory = null!;
             (AliasNameStoreRegistry as IDisposable)?.Dispose();
             (HistorianRegistry as IDisposable)?.Dispose();
@@ -563,8 +566,23 @@ namespace Opc.Ua.Server
         public void SetMonitoredItemQueueFactory(
             IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
+            SetMonitoredItemQueueFactory(monitoredItemQueueFactory, ownsFactory: true);
+        }
+
+        /// <summary>
+        /// Stores the MonitoredItemQueueFactory in the datastore.
+        /// </summary>
+        /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
+        /// <param name="ownsFactory"><c>true</c> to dispose the factory with the datastore;
+        /// <c>false</c> when the caller owns it.</param>
+        [MemberNotNull(nameof(MonitoredItemQueueFactory))]
+        public void SetMonitoredItemQueueFactory(
+            IMonitoredItemQueueFactory monitoredItemQueueFactory,
+            bool ownsFactory)
+        {
             ThrowIfBindPhaseComplete();
             MonitoredItemQueueFactory = monitoredItemQueueFactory;
+            m_ownsMonitoredItemQueueFactory = ownsFactory;
         }
 
         /// <summary>
@@ -1739,5 +1757,6 @@ namespace Opc.Ua.Server
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;
         private int m_disposed;
+        private bool m_ownsMonitoredItemQueueFactory;
     }
 }

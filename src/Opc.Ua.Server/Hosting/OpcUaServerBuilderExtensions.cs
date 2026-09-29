@@ -1528,7 +1528,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 (sp, certificateValidator) => CreateDefaultIdentityAuthenticators(
                     sp,
                     certificateValidator,
-                    options)));
+                    options))
+            {
+                ConfiguresDefaultAuthenticators = true
+            });
         }
 
         private static IEnumerable<IUserTokenAuthenticator> CreateDefaultIdentityAuthenticators(
@@ -1676,7 +1679,10 @@ namespace Microsoft.Extensions.DependencyInjection
                             sp,
                             certificateValidator,
                             options.Identity.Defaults);
-                    }));
+                    })
+                {
+                    ConfiguresDefaultAuthenticators = true
+                });
             }
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();

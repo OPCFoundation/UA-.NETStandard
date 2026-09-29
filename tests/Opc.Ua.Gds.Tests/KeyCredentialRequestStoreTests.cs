@@ -86,6 +86,40 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(result.CredentialSecret.IsEmpty, Is.False);
         }
 
+        /// <summary>
+        /// OPC 10000-12 §8.5.5: roles the caller is not authorized to request
+        /// are ignored; without an authorization callback none are granted.
+        /// </summary>
+        [Test]
+        public async Task RequestedRolesAreOnlyGrantedWhenAuthorizedAsync()
+        {
+            NodeId securityAdmin = Ua.ObjectIds.WellKnownRole_SecurityAdmin;
+            NodeId observer = Ua.ObjectIds.WellKnownRole_Observer;
+            NodeId operatorRole = Ua.ObjectIds.WellKnownRole_Operator;
+
+            NodeId id = await m_store.StartRequestAsync(
+                "urn:test:app",
+                default,
+                null,
+                new[] { securityAdmin }.ToArrayOf()).ConfigureAwait(false);
+            FinishKeyCredentialRequestResult result = await m_store.FinishRequestAsync(
+                id,
+                cancelRequest: false).ConfigureAwait(false);
+            Assert.That(result.GrantedRoles.IsEmpty, Is.True);
+
+            // the callback may only narrow the requested roles
+            m_store.AuthorizeRoles = (applicationUri, requested) => [observer, operatorRole];
+            id = await m_store.StartRequestAsync(
+                "urn:test:app",
+                default,
+                null,
+                new[] { securityAdmin, observer }.ToArrayOf()).ConfigureAwait(false);
+            result = await m_store.FinishRequestAsync(
+                id,
+                cancelRequest: false).ConfigureAwait(false);
+            Assert.That(result.GrantedRoles.ToArray(), Is.EqualTo(new[] { observer }));
+        }
+
         [Test]
         public async Task BoundRequestFinishesWithInitiatingCertificateAsync()
         {

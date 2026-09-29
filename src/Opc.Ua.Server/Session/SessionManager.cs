@@ -751,6 +751,12 @@ namespace Opc.Ua.Server
                         ClearFailedAuthentication(clientKey);
                     }
 
+                    // Remember what the identity was mapped to, so live role re-evaluation
+                    // rebuilds from the same starting point as this activation. It is only
+                    // recorded once the activation is about to commit, so a failed attempt
+                    // leaves the mapping of the still-active identity in place.
+                    var impersonated = new ImpersonatedIdentity(identity, effectiveIdentity);
+
                     // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
                     effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
 
@@ -765,6 +771,11 @@ namespace Opc.Ua.Server
                     {
                         activationState.IsCommitting = true;
                     }
+
+                    // Set before Activate: a re-evaluation racing with it then works on the
+                    // previous generation, which Activate supersedes.
+                    ImpersonatedIdentity? previousImpersonated = activationState.Impersonated;
+                    activationState.Impersonated = impersonated;
                     try
                     {
                         contextChanged = session.Activate(
@@ -777,6 +788,7 @@ namespace Opc.Ua.Server
                     }
                     catch
                     {
+                        activationState.Impersonated = previousImpersonated;
                         lock (m_bindingsLock)
                         {
                             activationState.IsCommitting = false;
@@ -1296,23 +1308,28 @@ namespace Opc.Ua.Server
                 }
 
                 // check if the application has a callback which validates the identity tokens.
+                // The callback may be slow (password hashing, directory lookups), so it runs
+                // outside m_eventLock, which every session event of every request takes.
+                ImpersonateEventHandler? impersonateUser;
                 lock (m_eventLock)
                 {
-                    if (m_ImpersonateUser != null)
+                    impersonateUser = m_ImpersonateUser;
+                }
+
+                if (impersonateUser != null)
+                {
+                    var args = new ImpersonateEventArgs(
+                        newIdentity,
+                        userTokenPolicy,
+                        endpointDescription);
+                    impersonateUser(session, args);
+
+                    if (ServiceResult.IsBad(args.IdentityValidationError))
                     {
-                        var args = new ImpersonateEventArgs(
-                            newIdentity,
-                            userTokenPolicy,
-                            endpointDescription);
-                        m_ImpersonateUser(session, args);
-
-                        if (ServiceResult.IsBad(args.IdentityValidationError))
-                        {
-                            return (null, null, args.IdentityValidationError);
-                        }
-
-                        return (args.Identity, args.EffectiveIdentity, null);
+                        return (null, null, args.IdentityValidationError);
                     }
+
+                    return (args.Identity, args.EffectiveIdentity, null);
                 }
 
                 return (null, null, null);
@@ -1457,9 +1474,10 @@ namespace Opc.Ua.Server
         /// <see cref="IRoleManager"/> identity-mapping rule changes, sessions
         /// receive the new role grants on the next request without needing
         /// the client to re-activate. The re-evaluation re-runs
-        /// <see cref="AddMandatoryRoles"/> using the original impersonated
-        /// <see cref="ISession.Identity"/> as the starting point, so the
-        /// outcome is deterministic and idempotent.
+        /// <see cref="AddMandatoryRoles"/> from the effective identity the
+        /// last activation mapped <see cref="ISession.Identity"/> to (falling
+        /// back to <see cref="ISession.Identity"/> itself), so the outcome is
+        /// deterministic and idempotent.
         /// </para>
         /// <para>
         /// The identity and generation are captured before the role computation
@@ -1494,10 +1512,20 @@ namespace Opc.Ua.Server
                     RequestLifetime.None,
                     snapshot.Identity);
 
+                // Start from the effective identity the activation mapped this identity to
+                // (e.g. by an ImpersonateUser callback), not from the raw client identity.
+                IUserIdentity baseIdentity = snapshot.Identity;
+                if (m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state) &&
+                    state.Impersonated is ImpersonatedIdentity impersonated &&
+                    ReferenceEquals(impersonated.Identity, snapshot.Identity))
+                {
+                    baseIdentity = impersonated.EffectiveIdentity;
+                }
+
                 IUserIdentity refreshed = AddMandatoryRoles(
                     session,
                     refreshContext,
-                    snapshot.Identity);
+                    baseIdentity);
 
                 _ = session.TryRefreshEffectiveIdentity(
                     snapshot.Identity,
@@ -1748,15 +1776,25 @@ namespace Opc.Ua.Server
                     foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in m_sessions)
                     {
                         ISession session = sessionKeyValue.Value;
-                        if (session.HasExpired)
+                        try
                         {
-                            await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
+                            if (session.HasExpired)
+                            {
+                                await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
+                            }
+                            // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
+                            else if (m_timeProvider.GetTimestampMilliseconds() - session.LastContactTickCount > m_minSessionTimeout)
+                            {
+                                // signal the channel that the session is still active.
+                                RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);
+                            }
                         }
-                        // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
-                        else if (m_timeProvider.GetTimestampMilliseconds() - session.LastContactTickCount > m_minSessionTimeout)
+                        catch (Exception e) when (e is not OperationCanceledException ||
+                            !cancellationToken.IsCancellationRequested)
                         {
-                            // signal the channel that the session is still active.
-                            RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);
+                            // one failing session must not stop the monitor: every other
+                            // session still has to time out.
+                            m_logger.FailedToCloseTimedOutSession(e, session.Id);
                         }
                     }
 
@@ -1853,6 +1891,11 @@ namespace Opc.Ua.Server
         /// </remarks>
         private const int kSessionNonceLength = 32;
 
+        /// <summary>
+        /// Pairs an activated identity with the effective identity it was mapped to.
+        /// </summary>
+        private sealed record ImpersonatedIdentity(IUserIdentity Identity, IUserIdentity EffectiveIdentity);
+
         private sealed class SessionActivationState
         {
             public SessionActivationState(
@@ -1886,6 +1929,20 @@ namespace Opc.Ua.Server
             public SessionBindingContext? BindingContext { get; set; }
 
             public bool IsCommitting { get; set; }
+
+            /// <summary>
+            /// The effective identity the authenticator (or ImpersonateUser callback) returned
+            /// for the activated identity, before the mandatory roles were added. Live role
+            /// re-evaluation starts from it so roles granted only to the effective identity
+            /// survive a role configuration change.
+            /// </summary>
+            public ImpersonatedIdentity? Impersonated
+            {
+                get => Volatile.Read(ref m_impersonated);
+                set => Volatile.Write(ref m_impersonated, value);
+            }
+
+            private ImpersonatedIdentity? m_impersonated;
 
             /// <summary>
             /// Claims the timeout of the session; returns <c>true</c> for the first caller only.
@@ -2255,5 +2312,12 @@ namespace Opc.Ua.Server
             string? clientKey,
             int failedAttempts,
             long remainingSeconds);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 9, Level = LogLevel.Error,
+            Message = "Server - Session Monitor failed to process session {SessionId}.")]
+        public static partial void FailedToCloseTimedOutSession(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
     }
 }

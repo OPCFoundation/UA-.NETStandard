@@ -16,6 +16,30 @@ requires the other.
 | OPC UA carries | *which* prim/attribute a value maps to | the prims and attributes themselves |
 | Consumer | a connector that writes an external stage | a client that browses/subscribes, or exports `.usda` |
 
+## Contents
+
+- [Libraries](#libraries)
+- [The connector](#the-connector)
+  - [Progressive API](#progressive-api)
+  - [Values cross the boundary as `Variant`](#values-cross-the-boundary-as-variant)
+  - [History replay and commands](#history-replay-and-commands)
+  - [Integrity](#integrity)
+- [Dependency injection](#dependency-injection)
+- [Server-side authoring](#server-side-authoring)
+- [Samples](#samples)
+- [The connector tool](#the-connector-tool)
+  - [Rendering the twin live](#rendering-the-twin-live)
+    - [Viewport colour, materials and cameras](#viewport-colour-materials-and-cameras)
+- [Part 2 — scene materialization](#part-2--scene-materialization)
+  - [Materializing a stage](#materializing-a-stage)
+  - [Nothing is ever dropped](#nothing-is-ever-dropped)
+  - [Types carry USD roles](#types-carry-usd-roles)
+  - [Live attributes](#live-attributes)
+  - [Georeferencing](#georeferencing)
+  - [Conversion and the round-trip contract](#conversion-and-the-round-trip-contract)
+  - [Discovery and Part 1 interop](#discovery-and-part-1-interop)
+  - [Conformance units](#conformance-units)
+
 > Both companion models are **draft** (experimental) models. The type NodeIds and the
 > `Server/OpenUSD/Representations` registry described here are subject to change until the companion specifications
 > are ratified.
@@ -281,12 +305,10 @@ and the callback fires when that target changes.
 > RID-less build or publish on a supported host copies that host's OpenUSD native payload. Use an explicit RID when
 > publishing for another platform. Publish the connector and the viewport into the *same* directory, substituting your
 > own RID:
->
 > ```
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -r win-x64 --self-contained false -o out
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -r win-x64 --self-contained false -o out
 > ```
->
 > Publishing both into the same directory is what puts the optional assembly, its dependencies, and the native
 > plugin tree where the connector looks for them.
 

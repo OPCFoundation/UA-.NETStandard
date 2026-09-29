@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -508,74 +509,86 @@ namespace Opc.Ua.Server
                 // read values for all enabled items.
                 if (items != null && items.Count > 0)
                 {
-                    var itemsToRead = new List<ReadValueId>(items.Count);
-                    var values = new List<DataValue>(items.Count);
-                    var errors = new List<ServiceResult>(items.Count);
-
-                    // allocate space for results.
-                    for (int ii = 0; ii < items.Count; ii++)
+                    if (m_session == null)
                     {
-                        ReadValueId readValueId = items[ii].GetReadValueId();
-                        readValueId.Processed = false;
-                        itemsToRead.Add(readValueId);
-
-                        values.Add(default);
-                        errors.Add(null!);
+                        // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
+                        m_session = items[0].Session;
                     }
 
-                    OperationContext created;
-
-                    if (m_session != null)
+                    // TransferSubscriptions moves items to another session without regrouping them,
+                    // so every item is read and permission-checked as its current owner.
+                    foreach (IGrouping<object?, ISampledDataChangeMonitoredItem> owned in items
+                        .GroupBy(item => (object?)item.Session ?? item.EffectiveIdentity))
                     {
-                        created = new OperationContext(m_session, m_diagnosticsMask);
-                    }
-                    else
-                    {
-                        // if session of the Sampling group is not set yet, use the first monitored item to create the context.
-                        IMonitoredItem firstItem = items[0];
-                        created = new OperationContext(firstItem);
-                        m_session = firstItem.Session;
-                    }
-
-                    using OperationContext context = created;
-
-                    // read values.
-                    await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
-
-                    // update monitored items.
-                    for (int ii = 0; ii < items.Count; ii++)
-                    {
-                        ServiceResult permissionResult = await m_nodeManager
-                            .ValidateRolePermissionsAsync(
-                                context,
-                                itemsToRead[ii].NodeId,
-                                PermissionType.Read,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-                        if (ServiceResult.IsBad(permissionResult))
-                        {
-                            items[ii].QueueValue(
-                                DataValue.FromStatusCode(
-                                    permissionResult.StatusCode,
-                                    m_timeProvider.GetUtcNow().UtcDateTime),
-                                permissionResult);
-                            continue;
-                        }
-
-                        if (values[ii].IsNull)
-                        {
-                            values[ii] = DataValue.FromStatusCode(
-                                StatusCodes.BadInternalError,
-                                m_timeProvider.GetUtcNow().UtcDateTime);
-                        }
-
-                        items[ii].QueueValue(values[ii], errors[ii]);
+                        List<ISampledDataChangeMonitoredItem> ownedItems = [.. owned];
+                        ISession? session = ownedItems[0].Session;
+                        using OperationContext context = session != null
+                            ? new OperationContext(session, m_diagnosticsMask)
+                            : new OperationContext(ownedItems[0]);
+                        await SampleItemsAsync(context, ownedItems, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
             catch (Exception e)
             {
                 m_logger.ServerUnexpectedErrorSamplingValues(e);
+            }
+        }
+
+        /// <summary>
+        /// Reads and queues the values of items owned by the session of the context.
+        /// </summary>
+        private async ValueTask SampleItemsAsync(
+            OperationContext context,
+            List<ISampledDataChangeMonitoredItem> items,
+            CancellationToken cancellationToken)
+        {
+            var itemsToRead = new List<ReadValueId>(items.Count);
+            var values = new List<DataValue>(items.Count);
+            var errors = new List<ServiceResult>(items.Count);
+
+            // allocate space for results.
+            for (int ii = 0; ii < items.Count; ii++)
+            {
+                ReadValueId readValueId = items[ii].GetReadValueId();
+                readValueId.Processed = false;
+                itemsToRead.Add(readValueId);
+
+                values.Add(default);
+                errors.Add(null!);
+            }
+
+            // read values.
+            await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
+
+            // update monitored items.
+            for (int ii = 0; ii < items.Count; ii++)
+            {
+                ServiceResult permissionResult = await m_nodeManager
+                    .ValidateRolePermissionsAsync(
+                        context,
+                        itemsToRead[ii].NodeId,
+                        PermissionType.Read,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (ServiceResult.IsBad(permissionResult))
+                {
+                    items[ii].QueueValue(
+                        DataValue.FromStatusCode(
+                            permissionResult.StatusCode,
+                            m_timeProvider.GetUtcNow().UtcDateTime),
+                        permissionResult);
+                    continue;
+                }
+
+                if (values[ii].IsNull)
+                {
+                    values[ii] = DataValue.FromStatusCode(
+                        StatusCodes.BadInternalError,
+                        m_timeProvider.GetUtcNow().UtcDateTime);
+                }
+
+                items[ii].QueueValue(values[ii], errors[ii]);
             }
         }
 

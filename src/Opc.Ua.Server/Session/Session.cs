@@ -709,18 +709,20 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                string[] ids = [.. localeIds];
+                // A null LocaleId is legal on the wire (Part 3 8.4, "unknown") but
+                // carries no preference, and translation helpers do not expect it.
+                string[] ids = Array.FindAll<string>([.. localeIds], id => id != null);
+
+                // The diagnostics report the LocaleIds as specified by the client,
+                // null entries included (Part 5 12.11); only the preference list is filtered.
+                lock (m_diagnosticsLock)
+                {
+                    SessionDiagnostics.LocaleIds = [.. localeIds];
+                }
 
                 if (!Utils.IsEqual(ids, PreferredLocales))
                 {
                     PreferredLocales = ids;
-
-                    // update diagnostics.
-                    lock (m_diagnosticsLock)
-                    {
-                        SessionDiagnostics.LocaleIds = [.. localeIds];
-                    }
-
                     return true;
                 }
 

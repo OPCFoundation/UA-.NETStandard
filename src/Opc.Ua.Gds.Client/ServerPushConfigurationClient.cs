@@ -879,22 +879,29 @@ namespace Opc.Ua.Gds.Client
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
-            NodeId normalizedCertificateGroupId = certificateGroupId.WithNamespaceIndex(0);
-            if (normalizedCertificateGroupId ==
-                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup)
+            // A null group means the DefaultApplicationGroup (Part 12 7.10). The
+            // default-group overloads read DefaultApplicationGroup before the
+            // first connect has assigned it, so Null must map here as well.
+            // Only the well-known groups in namespace 0 have a fixed TrustList id;
+            // a vendor group in another namespace with the same numeric identifier
+            // is browsed like any other group.
+            bool isNamespaceZero = certificateGroupId.NamespaceIndex == 0;
+            if (certificateGroupId.IsNull ||
+                (isNamespaceZero && certificateGroupId ==
+                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup))
             {
                 return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
                     .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session!.NamespaceUris));
             }
 
-            if (normalizedCertificateGroupId ==
+            if (isNamespaceZero && certificateGroupId ==
                 Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup)
             {
                 return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
                     .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList, Session!.NamespaceUris));
             }
 
-            if (normalizedCertificateGroupId ==
+            if (isNamespaceZero && certificateGroupId ==
                 Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup)
             {
                 return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
