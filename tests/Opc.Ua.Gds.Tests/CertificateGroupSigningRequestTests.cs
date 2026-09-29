@@ -189,6 +189,57 @@ namespace Opc.Ua.Gds.Tests
                 Throws.Nothing);
         }
 
+        /// <summary>
+        /// Each ECC certificate type accepts only its own named curve; the
+        /// abstract EccApplicationCertificateType accepts any supported one.
+        /// <paramref name="requiredCurve"/> is the curve the type requires.
+        /// </summary>
+        [TestCase("EccNistP256ApplicationCertificateType", "nistP256", "nistP256")]
+        [TestCase("EccNistP256ApplicationCertificateType", "nistP384", "nistP256")]
+        [TestCase("EccNistP384ApplicationCertificateType", "nistP384", "nistP384")]
+        [TestCase("EccNistP384ApplicationCertificateType", "nistP256", "nistP384")]
+        [TestCase("EccBrainpoolP256r1ApplicationCertificateType", "nistP256", "brainpoolP256r1")]
+        [TestCase("EccBrainpoolP384r1ApplicationCertificateType", "nistP384", "brainpoolP384r1")]
+        [TestCase("EccApplicationCertificateType", "nistP384", "nistP384")]
+        public void EccCurveMustMatchCertificateType(
+            string certificateTypeName,
+            string curveName,
+            string requiredCurve)
+        {
+            NodeId certificateType = Ua.ObjectTypeIds.GetIdentifier(certificateTypeName);
+            ByteString request = CreateEccSigningRequest(
+                curveName == "nistP256" ? ECCurve.NamedCurves.nistP256 : ECCurve.NamedCurves.nistP384);
+
+            // the abstract type accepts every supported curve
+            if (curveName == requiredCurve)
+            {
+                Assert.That(
+                    () => CertificateGroup.VerifySigningRequestKey(certificateType, request),
+                    Throws.Nothing);
+                return;
+            }
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => CertificateGroup.VerifySigningRequestKey(certificateType, request));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(sre.Message, Does.Contain(curveName).And.Contain(requiredCurve));
+        }
+
+        [Test]
+        public void RsaCsrWithinCertificateTypeRangeIsAccepted()
+        {
+            Assert.That(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    CreateSigningRequest(ApplicationUri, 3072)),
+                Throws.Nothing);
+            Assert.That(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.RsaMinApplicationCertificateType,
+                    CreateSigningRequest(ApplicationUri, 1024)),
+                Throws.Nothing);
+        }
+
         [Test]
         public void UndecodableCsrIsRejected()
         {
