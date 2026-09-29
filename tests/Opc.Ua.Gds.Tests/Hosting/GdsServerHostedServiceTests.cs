@@ -751,6 +751,15 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 throw new NotSupportedException();
             }
 
+            public Task VerifySigningRequestAsync(
+                ApplicationRecordDataType application,
+                NodeId certificateType,
+                ByteString certificateRequest,
+                CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
+
             public Task<Certificate> SigningRequestAsync(
                 ApplicationRecordDataType application,
                 NodeId certificateType,
