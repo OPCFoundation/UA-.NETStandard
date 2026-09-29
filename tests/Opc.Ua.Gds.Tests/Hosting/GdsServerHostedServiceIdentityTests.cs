@@ -114,6 +114,47 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
+        public async Task UserNameLoginKeepsUserDatabaseRolesWithCoHostedRegularServerAsync()
+        {
+            var userDatabase = new LinqUserDatabase();
+            userDatabase.CreateUser(
+                kAdminUser,
+                "password1234"u8,
+                [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin]);
+
+            // AddServer registers its own default authenticator set, including the
+            // generic UserName and X.509 authenticators, which the GDS also consumes.
+            await using GdsTestHost host = await StartGdsAsync(
+                nameof(UserNameLoginKeepsUserDatabaseRolesWithCoHostedRegularServerAsync),
+                services =>
+                {
+                    services.AddSingleton<IUserDatabase>(userDatabase);
+                    services.AddSingleton<IUserManagement>(new UserManagement(userDatabase));
+                    services.AddOpcUa().AddServer(options => options.ApplicationName = "RegularServer");
+                },
+                _ => { }).ConfigureAwait(false);
+
+            AuthenticationResult result = await host.Server.IdentityRegistry
+                .AuthenticateAsync(CreateUserNameAuthenticationContext(
+                    host.Server.MessageContext,
+                    kAdminUser,
+                    "password1234"))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(
+                result.Identity.GrantedRoleIds.ToArray(),
+                Does.Contain(ExpandedNodeId.ToNodeId(
+                    ObjectIds.WellKnownRole_DiscoveryAdmin,
+                    host.Server.NamespaceUris)));
+            string[] authenticatorTypes = GetRegisteredAuthenticators(host.Server.IdentityRegistry)
+                .Select(a => a.GetType().Name)
+                .ToArray();
+            Assert.That(authenticatorTypes, Does.Not.Contain(nameof(UserNamePasswordAuthenticator)));
+            Assert.That(authenticatorTypes, Does.Not.Contain(nameof(X509Authenticator)));
+        }
+
+        [Test]
         public async Task UserNameLoginRejectsWrongPasswordAsync()
         {
             var userDatabase = new LinqUserDatabase();
@@ -238,6 +279,14 @@ namespace Opc.Ua.Gds.Tests.Hosting
                         EnableUserNamePassword = false
                     }),
                 Is.EqualTo(new[] { UserTokenType.Certificate }));
+            Assert.Throws<InvalidOperationException>(() => GdsServerHostedService.GetUserTokenTypes(
+                options,
+                new GdsDefaultIdentityAuthenticatorOptions
+                {
+                    EnableAnonymous = false,
+                    EnableUserNamePassword = false,
+                    EnableX509 = false
+                }));
 
             options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.UserName });
             options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.UserName });

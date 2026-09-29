@@ -39,31 +39,25 @@ namespace Opc.Ua.Gds.Server.Hosting
     /// Records a call of the GDS builder's <c>AddDefaultIdentityAuthenticators</c>.
     /// </summary>
     /// <remarks>
-    /// The GDS supplies its own UserName and X.509 authenticators, which grant the
-    /// roles the <see cref="Opc.Ua.Server.UserDatabase.IUserDatabase"/> assigns. The
-    /// hosted GDS therefore skips those token types from <see cref="Registration"/>
-    /// (the generic default set, which a co-hosted regular server still uses) and
-    /// configures its built-ins from <see cref="Options"/>.
+    /// The GDS supplies its own UserName and X.509 authenticators. The UserName one
+    /// grants the roles the <see cref="Opc.Ua.Server.UserDatabase.IUserDatabase"/>
+    /// assigns; the X.509 one validates the certificate against the configured user
+    /// trust list and grants AuthenticatedUser. The hosted GDS skips those token types
+    /// from every generic default authenticator registration and configures its
+    /// built-ins from <see cref="Options"/>.
     /// </remarks>
     internal sealed class GdsDefaultIdentityAuthenticatorsRegistration
     {
         public GdsDefaultIdentityAuthenticatorsRegistration(
-            GdsDefaultIdentityAuthenticatorOptions options,
-            OpcUaServerIdentityAuthenticatorRegistration? registration)
+            GdsDefaultIdentityAuthenticatorOptions options)
         {
             Options = options ?? throw new ArgumentNullException(nameof(options));
-            Registration = registration;
         }
 
         /// <summary>
         /// The options the builder was called with.
         /// </summary>
         public GdsDefaultIdentityAuthenticatorOptions Options { get; }
-
-        /// <summary>
-        /// The generic default authenticator registration the call deposited.
-        /// </summary>
-        public OpcUaServerIdentityAuthenticatorRegistration? Registration { get; }
     }
 
     /// <summary>

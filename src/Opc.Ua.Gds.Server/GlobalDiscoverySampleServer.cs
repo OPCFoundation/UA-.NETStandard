@@ -145,8 +145,11 @@ namespace Opc.Ua.Gds.Server
         /// <remarks>
         /// The hosted GDS sets this from the options of the GDS builder's
         /// <c>AddDefaultIdentityAuthenticators</c>, so the GDS keeps its own
-        /// UserName and X.509 authenticators, which grant the roles the
-        /// <see cref="IUserDatabase"/> assigns, instead of the generic ones.
+        /// UserName and X.509 authenticators instead of the generic ones. The
+        /// UserName authenticator grants the roles the <see cref="IUserDatabase"/>
+        /// assigns; the X.509 authenticator validates the certificate against
+        /// <see cref="DefaultAuthenticatorOptions.UserCertificateTrustList"/> and
+        /// grants AuthenticatedUser.
         /// </remarks>
         internal DefaultAuthenticatorOptions? BuiltInAuthenticatorOptions { get; set; }
 

@@ -349,23 +349,19 @@ namespace Opc.Ua.Gds.Server.Hosting
         {
             ICertificateValidatorEx? certificateValidator =
                 m_application?.ApplicationConfiguration?.CertificateManager;
-            var defaultRegistrations = new HashSet<OpcUaServerIdentityAuthenticatorRegistration>(
-                m_services.GetServices<GdsDefaultIdentityAuthenticatorsRegistration>()
-                    .Select(defaults => defaults.Registration)
-                    .OfType<OpcUaServerIdentityAuthenticatorRegistration>());
-
             var authenticators = new List<IUserTokenAuthenticator>();
             foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
             {
-                bool isGdsDefaultSet = defaultRegistrations.Contains(registration);
                 foreach (IUserTokenAuthenticator authenticator in registration.CreateAuthenticators(
                     m_services,
                     certificateValidator))
                 {
-                    // The GDS's own UserName and X.509 authenticators grant the roles
-                    // the user database assigns; the generic defaults would replace
-                    // them with identities that carry no GDS role.
-                    if (isGdsDefaultSet &&
+                    // The GDS's own UserName authenticator grants the roles the user
+                    // database assigns, and its X.509 authenticator validates against
+                    // the configured user trust list. The generic defaults, from the
+                    // GDS builder or from a regular server sharing the container,
+                    // would replace them with identities that carry no GDS role.
+                    if (registration.ConfiguresDefaultAuthenticators &&
                         authenticator.TokenType is UserTokenType.UserName or UserTokenType.Certificate)
                     {
                         continue;
@@ -444,8 +440,12 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// <summary>
         /// The user token types the GDS endpoints advertise: the configured
         /// <see cref="GdsServerOptions.UserTokenPolicies"/>, or Anonymous and
-        /// UserName, leaving out a type the default authenticator options disable.
+        /// UserName, leaving out a type the default authenticator options disable
+        /// (Certificate when both are disabled).
         /// </summary>
+        /// <exception cref="InvalidOperationException">No policy is configured and
+        /// the default authenticator options disable every token type the GDS
+        /// could advertise by default.</exception>
         /// <remarks>
         /// Anonymous serves registered applications, which pull their certificates
         /// with the ApplicationSelfAdmin Privilege (OPC 10000-12 §7.6); registering
@@ -482,6 +482,13 @@ namespace Opc.Ua.Gds.Server.Hosting
                 // without Anonymous and UserName the configuration builder would fall
                 // back to an Anonymous policy the GDS rejects.
                 tokenTypes.Add(UserTokenType.Certificate);
+            }
+            if (tokenTypes.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "The GDS default identity authenticators disable Anonymous, UserName and X.509 " +
+                    "access, so no user token policy can be advertised by default. Enable one of " +
+                    "them or set GdsServerOptions.UserTokenPolicies explicitly.");
             }
             return tokenTypes;
         }

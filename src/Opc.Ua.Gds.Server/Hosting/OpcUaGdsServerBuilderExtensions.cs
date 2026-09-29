@@ -287,10 +287,12 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <remarks>
         /// UserName and X.509 tokens are handled by the GDS's own
-        /// authenticators, which grant the roles the
-        /// <see cref="IUserDatabase"/> assigns (DiscoveryAdmin,
-        /// CertificateAuthorityAdmin, ...; OPC 10000-12 §6.2, §7.2), and not
-        /// by the generic ones. Authenticators added with
+        /// authenticators and not by the generic ones. The UserName
+        /// authenticator grants the roles the <see cref="IUserDatabase"/>
+        /// assigns (DiscoveryAdmin, CertificateAuthorityAdmin, ...;
+        /// OPC 10000-12 §6.2, §7.2); the X.509 authenticator validates the
+        /// certificate against the configured user trust list and grants
+        /// AuthenticatedUser. Authenticators added with
         /// <see cref="AddIdentityAuthenticator{TAuth}(IGdsServerBuilder)"/>
         /// still replace them.
         /// </remarks>
@@ -700,20 +702,11 @@ namespace Microsoft.Extensions.DependencyInjection
 
             // The generic default set stays registered for a regular server that
             // shares the service collection; the hosted GDS takes UserName and
-            // X.509 from its own role-aware authenticators instead (see
+            // X.509 from its own authenticators instead (see
             // GdsDefaultIdentityAuthenticatorsRegistration).
-            int firstNewDescriptor = services.Count;
             serverBuilder.AddDefaultIdentityAuthenticators(
                 serverOptions => CopyDefaultAuthenticatorOptions(serverOptions, options));
-            OpcUaServerIdentityAuthenticatorRegistration? registration = null;
-            for (int i = firstNewDescriptor; i < services.Count; i++)
-            {
-                if (services[i].ImplementationInstance is OpcUaServerIdentityAuthenticatorRegistration added)
-                {
-                    registration = added;
-                }
-            }
-            services.AddSingleton(new GdsDefaultIdentityAuthenticatorsRegistration(options, registration));
+            services.AddSingleton(new GdsDefaultIdentityAuthenticatorsRegistration(options));
 
             if (options.EnableGdsApplicationSelfAdminProvider)
             {

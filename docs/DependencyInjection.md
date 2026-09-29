@@ -1754,10 +1754,15 @@ identities to Roles on the GDS, unless a regular server (`AddServer`)
 shares the container, which then owns it.
 
 UserName and X.509 tokens are handled by the GDS's own authenticators,
-not the generic `UserNamePasswordAuthenticator` and `X509Authenticator`:
-they grant the Roles `IUserDatabase` assigns (DiscoveryAdmin,
-CertificateAuthorityAdmin, ...; OPC 10000-12 §6.2, §7.2), also when an
-`IUserManagement` is registered. The `EnableAnonymous`,
+not the generic `UserNamePasswordAuthenticator` and `X509Authenticator`,
+also when an `IUserManagement` is registered or a regular server shares
+the container. The UserName authenticator grants the Roles
+`IUserDatabase` assigns (DiscoveryAdmin, CertificateAuthorityAdmin, ...;
+OPC 10000-12 §6.2, §7.2). The X.509 authenticator validates the user
+certificate against the configured user trust list and grants
+AuthenticatedUser; it does not read Roles from `IUserDatabase`. Use
+`ConfigureRoles` identity mapping rules to give certificate users a GDS
+Role. The `EnableAnonymous`,
 `EnableUserNamePassword`, `EnableX509`, `UserDatabase` and
 `UserCertificateTrustList` options select and configure them. An
 authenticator added with `AddIdentityAuthenticator<T>()` replaces the
@@ -1789,7 +1794,7 @@ The hosted GDS runs startup tasks the way the regular hosted server does:
 pre-startup tasks while the server starts, and startup tasks in
 registration order once it is running, where a failing task stops the
 startup. A startup task is the supported signal that the GDS is
-listening.
+listening. `GdsReadiness` below stands for a readiness type of your own.
 
 ```csharp
 services
@@ -1799,7 +1804,8 @@ services
     .AddStartupTask<MyGdsReadinessTask>()
     .AddStartupTask((sp, context, cancellationToken) =>
     {
-        sp.GetRequiredService<ILogger<Program>>().LogInformation("GDS started");
+        // e.g. flip a readiness probe once the GDS is listening
+        sp.GetRequiredService<GdsReadiness>().MarkReady();
         return ValueTask.CompletedTask;
     });
 ```
