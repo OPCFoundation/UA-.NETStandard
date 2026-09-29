@@ -199,9 +199,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// <param name="message">Source UADP message.</param>
         /// <param name="context">Network message context.</param>
         /// <param name="payloadOffset">
-        /// Offset within the returned buffer where the DataSetMessages
-        /// portion starts (i.e. immediately after the PayloadHeader
-        /// sizes reservation).
+        /// Offset within the returned buffer where the DataSet payload
+        /// (Sizes array followed by the DataSetMessages) starts.
         /// </param>
         /// <exception cref="InvalidOperationException"></exception>
         internal static byte[] EncodeData(
@@ -293,12 +292,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             WriteExtendedHeader(ref writer, message, ext1, context);
 
+            // The SecurityHeader follows the PromotedFields; the Sizes
+            // array is the first field of the (encrypted) DataSet payload
+            // (Part 14 §7.2.4.4.2 Table 154, §7.2.4.5.3 Table 161).
+            payloadOffset = writer.Position;
+
             if (hasPayloadHeader && payloadCount > 1)
             {
                 payloadHeaderSizesPos = writer.Reserve(2 * payloadCount);
             }
-
-            payloadOffset = writer.Position;
 
             ushort[] sizes = new ushort[payloadCount];
             for (int i = 0; i < payloadCount; i++)

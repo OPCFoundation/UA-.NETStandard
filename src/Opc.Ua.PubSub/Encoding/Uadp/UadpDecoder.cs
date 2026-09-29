@@ -433,9 +433,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Parses just the UADP NetworkMessage prefix (Common Header,
         /// optional Extended Flags, optional PublisherId, optional
         /// DataSetClassId, optional GroupHeader, optional PayloadHeader
-        /// writer-ids, optional Timestamp / PicoSeconds / PromotedFields,
-        /// and optional PayloadHeader sizes) and reports the offset at
-        /// which the SecurityHeader / DataSetMessages region begins.
+        /// writer-ids, optional Timestamp / PicoSeconds / PromotedFields)
+        /// and reports the offset at which the SecurityHeader / payload
+        /// region begins. The DataSet payload Sizes array belongs to the
+        /// (encrypted) payload (Part 14 §7.2.4.5.3).
         /// </summary>
         /// <remarks>
         /// Used by <c>PubSubConnection</c> to split an inbound frame
@@ -570,7 +571,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 prefixLength = reader.Position;
                 return true;
             }
-            int payloadCount = 0;
             if ((uadpFlags & UadpFlagsEncodingMask.GroupHeaderEnabled) != 0)
             {
                 if (!reader.TryReadByte(out byte gfByte))
@@ -611,23 +611,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return true;
             }
 
-            ushort[]? payloadWriterIds = null;
             if ((uadpFlags & UadpFlagsEncodingMask.PayloadHeaderEnabled) != 0)
             {
-                if (!reader.TryReadByte(out byte count) || count == 0)
+                if (!reader.TryReadByte(out byte count) || count == 0 ||
+                    count * sizeof(ushort) > reader.Remaining)
                 {
                     return false;
                 }
-                payloadCount = count;
-                payloadWriterIds = new ushort[count];
-                for (int i = 0; i < count; i++)
-                {
-                    if (!reader.TryReadUInt16Le(out ushort wid))
-                    {
-                        return false;
-                    }
-                    payloadWriterIds[i] = wid;
-                }
+                reader.Advance(count * sizeof(ushort));
             }
 
             if ((ext1 & ExtendedFlags1EncodingMask.TimestampEnabled) != 0 &&
@@ -651,23 +642,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     return false;
                 }
                 reader.Advance(promotedSize);
-            }
-
-            if ((ext2 & ExtendedFlags2EncodingMask.ActionHeaderEnabled) != 0)
-            {
-                prefixLength = reader.Position;
-                return true;
-            }
-
-            if (payloadWriterIds is not null && payloadWriterIds.Length > 1)
-            {
-                for (int i = 0; i < payloadCount; i++)
-                {
-                    if (!reader.TryReadUInt16Le(out _))
-                    {
-                        return false;
-                    }
-                }
             }
 
             prefixLength = reader.Position;
