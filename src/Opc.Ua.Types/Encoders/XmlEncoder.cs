@@ -498,7 +498,17 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, false, false))
             {
-                m_writer.WriteValue((DateTime)value);
+                if (value.Value == 0)
+                {
+                    // "The earliest date/time value on a DevelopmentPlatform
+                    // shall be encoded in XML as '0001-01-01T00:00:00Z'"
+                    // (Part 6 5.3.1.6); it converts to 1601 in .NET.
+                    m_writer.WriteString("0001-01-01T00:00:00Z");
+                }
+                else
+                {
+                    m_writer.WriteValue((DateTime)value);
+                }
                 EndField(fieldName);
             }
         }

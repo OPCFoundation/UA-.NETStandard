@@ -1638,6 +1638,32 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteDateTimeWritesTheEarliestValueAsYearOne()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            string xml;
+            using (var encoder = new XmlEncoder(messageContext))
+            {
+                encoder.PushNamespace(Namespaces.OpcUaXsd);
+                encoder.WriteDateTime("Earliest", DateTimeUtc.MinValue);
+                encoder.WriteDateTime("Latest", DateTimeUtc.MaxValue);
+                xml = encoder.CloseAndReturnText();
+            }
+
+            Assert.That(xml, Does.Contain(">0001-01-01T00:00:00Z</Earliest>"));
+            Assert.That(xml, Does.Contain(">9999-12-31T23:59:59Z</Latest>"));
+
+            using var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader("<Root xmlns=\"" + Namespaces.OpcUaXsd + "\">" +
+                    "<Earliest>0001-01-01T00:00:00Z</Earliest></Root>")),
+                messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            decoder.ReadStartElement();
+            Assert.That(decoder.ReadDateTime("Earliest"), Is.EqualTo(DateTimeUtc.MinValue));
+        }
+
+        [Test]
         public void WriteDateTimeWithFieldNameWritesValue()
         {
             // Arrange
