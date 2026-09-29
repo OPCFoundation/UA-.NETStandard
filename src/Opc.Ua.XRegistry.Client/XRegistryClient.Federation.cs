@@ -345,17 +345,18 @@ namespace Opc.Ua.XRegistry.Client
                 {
                     continue;
                 }
-                if (!found.IsNull)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadBrowseNameDuplicated, "Federation metadata or ownership is ambiguous.");
-                }
                 if (reference.NodeClass != nodeClass || reference.NodeId.ServerIndex != 0)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeClassInvalid, "The federation member has an invalid role or application.");
                 }
-                found = ResolveFederationNode(session, reference.NodeId);
+                NodeId candidate = ResolveFederationNode(session, reference.NodeId);
+                if (!found.IsNull && found != candidate)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameDuplicated, "Federation metadata or ownership is ambiguous.");
+                }
+                found = candidate;
             }
             if (found.IsNull)
             {
