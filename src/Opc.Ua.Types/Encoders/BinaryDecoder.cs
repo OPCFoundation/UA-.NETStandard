@@ -2432,9 +2432,9 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
-                    length,
+                    bytes.Length,
                     functionName ?? string.Empty,
-                    bytes.Length);
+                    length);
             }
         }
 
@@ -2568,9 +2568,9 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
-                    length,
+                    bytes.Length,
                     functionName ?? string.Empty,
-                    bytes.Length);
+                    length);
             }
 
             return length;

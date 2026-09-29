@@ -488,6 +488,19 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ShortReadMessageNamesRequestedAndReadBytesInOrder()
+        {
+            using var decoder = new BinaryDecoder(
+                new MemoryStream(new byte[3], false),
+                CreateContext());
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.SafeReadBytes(new byte[8].AsSpan()));
+            Assert.That(ex.Message, Does.Contain("Reading 8 bytes"));
+            Assert.That(ex.Message, Does.Contain("after 3 bytes"));
+        }
+
+        [Test]
         public void DataValuePicosecondsOfAtLeast10000AreTreatedAs9999()
         {
             // SourceTimestamp | SourcePicoseconds | ServerTimestamp | ServerPicoseconds
