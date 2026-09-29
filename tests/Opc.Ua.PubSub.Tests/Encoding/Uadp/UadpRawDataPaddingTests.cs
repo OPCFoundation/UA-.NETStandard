@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
@@ -42,10 +43,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 {
     /// <summary>
     /// Validates Part 14 v1.05.06 §7.2.4.5.11 RawData field padding:
-    /// String / ByteString / XmlElement scalars are padded to
-    /// MaxStringLength, arrays are padded to product(ArrayDimensions),
-    /// the length prefix is suppressed, and decoders trim trailing NUL
-    /// fill. Regression coverage for GitHub issue #3566.
+    /// String / ByteString / XmlElement scalars keep their Int32 length
+    /// prefix and are padded to MaxStringLength, arrays keep their Part 6
+    /// length prefix and are padded to product(ArrayDimensions), and
+    /// decoders skip the zero padding. Regression coverage for GitHub
+    /// issue #3566.
     /// </summary>
     [TestFixture]
     [TestSpec("7.2.4.5.11")]
@@ -56,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         [TestCase(7)]
         [TestCase(10)]
         [TestSpec("7.2.4.5.11")]
-        public void String_WithMaxStringLength10_AlwaysEmits10Bytes(int payloadLength)
+        public void StringWithMaxStringLength10AlwaysEmitsLengthPrefixAnd10Bytes(int payloadLength)
         {
             string payload = new('x', payloadLength);
             byte[] buffer = new byte[64];
@@ -71,14 +73,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: default,
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(10),
-                "RawData padded String must emit exactly MaxStringLength bytes.");
+            Assert.That(writer.Position, Is.EqualTo(4 + 10),
+                "RawData padded String must emit the Int32 length and MaxStringLength bytes.");
             ReadOnlySpan<byte> written = writer.WrittenSpan();
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(written), Is.EqualTo(payloadLength));
             for (int i = 0; i < payloadLength; i++)
             {
-                Assert.That(written[i], Is.EqualTo((byte)'x'));
+                Assert.That(written[4 + i], Is.EqualTo((byte)'x'));
             }
-            for (int i = payloadLength; i < 10; i++)
+            for (int i = 4 + payloadLength; i < 4 + 10; i++)
             {
                 Assert.That(written[i], Is.Zero,
                     $"Padding byte at index {i} must be NUL.");
@@ -107,7 +110,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
         [Test]
         [TestSpec("7.2.4.5.11")]
-        public void String_RoundTrip_TrimsTrailingNulsOnDecode()
+        public void StringRoundTripSkipsPaddingOnDecode()
         {
             byte[] buffer = new byte[64];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
@@ -131,12 +134,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
             Assert.That(decoded.TryGetValue(out string? text), Is.True);
             Assert.That(text, Is.EqualTo("hello"));
-            Assert.That(reader.Position, Is.EqualTo(10));
+            Assert.That(reader.Position, Is.EqualTo(4 + 10));
         }
 
         [Test]
         [TestSpec("7.2.4.5.11")]
-        public void ByteString_WithMaxLength16_AlwaysEmits16Bytes()
+        public void ByteStringWithMaxLength16AlwaysEmitsLengthPrefixAnd16Bytes()
         {
             byte[] payload = [0xDE, 0xAD, 0xBE, 0xEF];
             byte[] buffer = new byte[64];
@@ -151,13 +154,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: default,
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(16));
+            Assert.That(writer.Position, Is.EqualTo(4 + 16));
             ReadOnlySpan<byte> written = writer.WrittenSpan();
-            Assert.That(written[0], Is.EqualTo((byte)0xDE));
-            Assert.That(written[1], Is.EqualTo((byte)0xAD));
-            Assert.That(written[2], Is.EqualTo((byte)0xBE));
-            Assert.That(written[3], Is.EqualTo((byte)0xEF));
-            for (int i = 4; i < 16; i++)
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(written), Is.EqualTo(4));
+            Assert.That(written[4], Is.EqualTo((byte)0xDE));
+            Assert.That(written[5], Is.EqualTo((byte)0xAD));
+            Assert.That(written[6], Is.EqualTo((byte)0xBE));
+            Assert.That(written[7], Is.EqualTo((byte)0xEF));
+            for (int i = 8; i < 4 + 16; i++)
             {
                 Assert.That(written[i], Is.Zero);
             }
@@ -165,7 +169,74 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
         [Test]
         [TestSpec("7.2.4.5.11")]
-        public void ByteString_RoundTrip_TrimsTrailingNuls()
+        public void ByteStringWithTrailingZeroBytesRoundTripsWithoutDataLoss()
+        {
+            byte[] payload = [0x01, 0x00];
+            byte[] buffer = new byte[64];
+            var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+
+            writer.WriteRawScalar(
+                (Variant)new ByteString(payload),
+                BuiltInType.ByteString,
+                ValueRanks.Scalar,
+                maxStringLength: 4,
+                arrayDimensions: default,
+                context);
+
+            var reader = new UadpBinaryReader(buffer, 0, writer.Position);
+            Variant decoded = reader.ReadRawScalar(
+                BuiltInType.ByteString,
+                ValueRanks.Scalar,
+                maxStringLength: 4,
+                arrayDimensions: default,
+                context);
+
+            Assert.That(decoded.TryGetValue(out ByteString result), Is.True);
+            Assert.That(result.Span.ToArray(), Is.EqualTo(payload));
+            Assert.That(reader.Remaining, Is.Zero);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11")]
+        public void PaddedStringLengthBeyondMaxStringLengthIsRejected()
+        {
+            // Int32 length 5 but MaxStringLength 4.
+            byte[] buffer = [0x05, 0x00, 0x00, 0x00, 0x61, 0x62, 0x63, 0x64];
+            var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+
+            Assert.That(
+                () => reader.ReadRawScalar(
+                    BuiltInType.String,
+                    ValueRanks.Scalar,
+                    maxStringLength: 4,
+                    arrayDimensions: default,
+                    context),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11")]
+        public void PaddedStringWithHugeMaxStringLengthIsRejected()
+        {
+            byte[] buffer = [0x00, 0x00, 0x00, 0x00];
+            var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+
+            Assert.That(
+                () => reader.ReadRawScalar(
+                    BuiltInType.String,
+                    ValueRanks.Scalar,
+                    maxStringLength: uint.MaxValue,
+                    arrayDimensions: default,
+                    context),
+                Throws.TypeOf<ServiceResultException>());
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11")]
+        public void ByteStringRoundTripSkipsPadding()
         {
             byte[] payload = [1, 2, 3, 4, 5];
             byte[] buffer = new byte[64];
@@ -192,12 +263,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(result.IsNull, Is.False);
             byte[] resultBytes = result.Span.ToArray();
             Assert.That(resultBytes, Is.EqualTo(payload),
-                "ByteString round-trip must trim trailing NUL fill.");
+                "ByteString round-trip must skip the zero padding.");
         }
 
         [Test]
         [TestSpec("7.2.4.5.11")]
-        public void XmlElement_WithMaxStringLength64_AlwaysEmits64Bytes()
+        public void XmlElementWithMaxStringLength64AlwaysEmitsLengthPrefixAnd64Bytes()
         {
             const string xml = "<a/>";
             byte[] buffer = new byte[128];
@@ -212,10 +283,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: default,
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(64));
+            Assert.That(writer.Position, Is.EqualTo(4 + 64));
             ReadOnlySpan<byte> written = writer.WrittenSpan();
             int xmlLen = SysText.Encoding.UTF8.GetByteCount(xml);
-            for (int i = xmlLen; i < 64; i++)
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(written), Is.EqualTo(xmlLen));
+            for (int i = 4 + xmlLen; i < 4 + 64; i++)
             {
                 Assert.That(written[i], Is.Zero);
             }
@@ -234,7 +306,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
         [Test]
         [TestSpec("7.2.4.5.11")]
-        public void Int32Array_WithArrayDimensions3_AlwaysEmits12Bytes()
+        public void Int32ArrayWithArrayDimensions3EmitsLengthAndThreeElementsAndKeepsActualLength()
         {
             int[] payload = [1, 2];
             uint[] arrayDimensions = [3u];
@@ -250,8 +322,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: new ArrayOf<uint>(arrayDimensions),
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(12),
-                "RawData padded Int32 array must emit 3 * sizeof(Int32) bytes.");
+            Assert.That(writer.Position, Is.EqualTo(4 + 12),
+                "RawData padded Int32 array must emit the Int32 length and 3 * sizeof(Int32) bytes.");
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(writer.WrittenSpan()), Is.EqualTo(2));
 
             var reader = new UadpBinaryReader(buffer, 0, writer.Position);
             Variant decoded = reader.ReadRawScalar(
@@ -261,11 +334,63 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: new ArrayOf<uint>(arrayDimensions),
                 context);
             Assert.That(decoded.TryGetValue(out ArrayOf<int> arr), Is.True);
-            Assert.That(arr.Count, Is.EqualTo(3));
+            Assert.That(arr.Count, Is.EqualTo(2), "The actual array length must survive the padding.");
             Assert.That(arr[0], Is.EqualTo(1));
             Assert.That(arr[1], Is.EqualTo(2));
-            Assert.That(arr[2], Is.Zero,
-                "Missing element must be padded with default value 0.");
+            Assert.That(reader.Remaining, Is.Zero);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11")]
+        public void MultiDimensionalPaddedArrayWritesDimensionsAndRoundTrips()
+        {
+            int[] payload = [1, 2, 3, 4, 5, 6];
+            uint[] arrayDimensions = [2u, 3u];
+            byte[] buffer = new byte[64];
+            var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+
+            writer.WriteRawScalar(
+                (Variant)new ArrayOf<int>(payload),
+                BuiltInType.Int32,
+                2,
+                maxStringLength: 0,
+                arrayDimensions: new ArrayOf<uint>(arrayDimensions),
+                context);
+
+            // Int32 dimensions array (length 2, dims 2 and 3), then 6 elements.
+            Assert.That(writer.Position, Is.EqualTo(4 + 8 + 24));
+            var reader = new UadpBinaryReader(buffer, 0, writer.Position);
+            Variant decoded = reader.ReadRawScalar(
+                BuiltInType.Int32,
+                2,
+                maxStringLength: 0,
+                arrayDimensions: new ArrayOf<uint>(arrayDimensions),
+                context);
+            Assert.That(decoded.TryGetValue(out ArrayOf<int> arr), Is.True);
+            Assert.That(arr.ToArray(), Is.EqualTo(payload));
+            Assert.That(reader.Remaining, Is.Zero);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11")]
+        public void PaddedArrayLengthBeyondArrayDimensionsIsRejected()
+        {
+            // Int32 length 4 but ArrayDimensions [3].
+            byte[] buffer = new byte[4 + 12];
+            buffer[0] = 4;
+            var reader = new UadpBinaryReader(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+            uint[] arrayDimensions = [3u];
+
+            Assert.That(
+                () => reader.ReadRawScalar(
+                    BuiltInType.Int32,
+                    ValueRanks.OneDimension,
+                    maxStringLength: 0,
+                    arrayDimensions: new ArrayOf<uint>(arrayDimensions),
+                    context),
+                Throws.TypeOf<ServiceResultException>());
         }
 
         [Test]
@@ -307,8 +432,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     maxStringLength: 1,
                     arrayDimensions,
                     context),
-                Throws.TypeOf<ArgumentException>()
-                    .With.Message.Contains("Padded RawData payload is truncated"));
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Message.Contains("truncated"));
         }
 
         [Test]
@@ -328,8 +453,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     maxStringLength: 1,
                     arrayDimensions,
                     context),
-                Throws.TypeOf<ArgumentException>()
-                    .With.Message.Contains("Padded RawData payload is truncated"));
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Message.Contains("truncated"));
         }
 
         [Test]

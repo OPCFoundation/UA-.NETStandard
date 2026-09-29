@@ -415,13 +415,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Part 14 §7.2.4.5.11</see> padding rule: when
         /// <paramref name="maxStringLength"/> &gt; 0 the
         /// <c>String</c> / <c>ByteString</c> / <c>XmlElement</c>
-        /// scalar is emitted as a fixed-size <paramref name="maxStringLength"/>
-        /// byte block (raw UTF-8 / raw bytes, NUL padded, no
-        /// length prefix). When <paramref name="arrayDimensions"/>
-        /// is non-empty the array is emitted as a fixed-size
-        /// matrix of <c>product(arrayDimensions)</c> elements
-        /// (no length prefix). All other inputs fall back to the
-        /// legacy length-prefixed layout.
+        /// scalar is encoded like a Structure field (Int32 length
+        /// prefix and value) and padded with zero bytes to
+        /// <c>4 + MaxStringLength</c> bytes. When
+        /// <paramref name="arrayDimensions"/> is non-empty the array
+        /// keeps its Part 6 length (or dimensions) prefix and is padded
+        /// with zero bytes to <c>product(arrayDimensions)</c> elements.
+        /// All other inputs use the unpadded Part 6 layout.
         /// </summary>
         /// <param name="value">Source variant (its built-in type drives the on-wire layout).</param>
         /// <param name="builtInType">Expected built-in type from metadata.</param>
@@ -467,7 +467,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             if (valueRank != ValueRanks.Scalar &&
                 TryComputePaddedArrayCount(arrayDimensions, out int expectedCount) &&
-                TryWritePaddedArray(value, builtInType, expectedCount, maxStringLength))
+                TryWritePaddedArray(
+                    value, builtInType, arrayDimensions, expectedCount, maxStringLength))
             {
                 return;
             }
@@ -540,6 +541,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
         }
 
+        /// <summary>
+        /// Writes a String like a Structure field (Int32 byte length and
+        /// UTF-8 bytes, Part 6 §5.2.2.4) followed by zero bytes up to
+        /// <paramref name="maxStringLength"/> (Part 14 §7.2.4.5.11), so the
+        /// field always occupies <c>4 + MaxStringLength</c> bytes.
+        /// </summary>
         private void WritePaddedUtf8(string value, uint maxStringLength)
         {
             int byteCount = value.Length == 0
@@ -552,21 +559,27 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     $"{maxStringLength} bytes are allowed.",
                     nameof(value));
             }
-            int total = checked((int)maxStringLength);
+            int total = GetPaddedStringSize(maxStringLength);
             EnsureCapacity(total);
+            BinaryPrimitives.WriteInt32LittleEndian(
+                new Span<byte>(Buffer, Origin + m_position, 4), byteCount);
             if (byteCount > 0)
             {
                 SysText.Encoding.UTF8.GetBytes(
-                    value, 0, value.Length, Buffer, Origin + m_position);
+                    value, 0, value.Length, Buffer, Origin + m_position + 4);
             }
-            int padCount = total - byteCount;
+            int padCount = total - 4 - byteCount;
             if (padCount > 0)
             {
-                Array.Clear(Buffer, Origin + m_position + byteCount, padCount);
+                Array.Clear(Buffer, Origin + m_position + 4 + byteCount, padCount);
             }
             m_position += total;
         }
 
+        /// <summary>
+        /// Writes a ByteString like a Structure field (Int32 length and
+        /// bytes) followed by zero bytes up to <paramref name="maxLength"/>.
+        /// </summary>
         private void WritePaddedBytes(ByteString value, uint maxLength)
         {
             ReadOnlySpan<byte> src = value.IsNull
@@ -579,81 +592,123 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     $"{maxLength} bytes are allowed.",
                     nameof(value));
             }
-            int total = checked((int)maxLength);
+            int total = GetPaddedStringSize(maxLength);
             EnsureCapacity(total);
+            BinaryPrimitives.WriteInt32LittleEndian(
+                new Span<byte>(Buffer, Origin + m_position, 4), src.Length);
             if (!src.IsEmpty)
             {
-                src.CopyTo(new Span<byte>(Buffer, Origin + m_position, src.Length));
+                src.CopyTo(new Span<byte>(Buffer, Origin + m_position + 4, src.Length));
             }
-            int padCount = total - src.Length;
+            int padCount = total - 4 - src.Length;
             if (padCount > 0)
             {
-                Array.Clear(Buffer, Origin + m_position + src.Length, padCount);
+                Array.Clear(Buffer, Origin + m_position + 4 + src.Length, padCount);
             }
             m_position += total;
         }
 
+        /// <summary>
+        /// Size of a padded String / ByteString field: the Int32 length
+        /// prefix plus <paramref name="maxLength"/> bytes.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        internal static int GetPaddedStringSize(uint maxLength)
+        {
+            if (maxLength > int.MaxValue - 4)
+            {
+                throw new ArgumentException(
+                    $"MaxStringLength {maxLength} is too large for a padded RawData field.",
+                    nameof(maxLength));
+            }
+            return 4 + (int)maxLength;
+        }
+
+        /// <summary>
+        /// Writes an array like a Structure field (Part 6 §5.2.5: Int32
+        /// length, or for ValueRank &gt; 1 the Int32 dimensions array,
+        /// followed by the elements) and pads the remaining elements up to
+        /// <c>product(ArrayDimensions)</c> with zero bytes
+        /// (Part 14 §7.2.4.5.11). Multi-dimensional values are encoded with
+        /// the configured ArrayDimensions, i.e. fully padded.
+        /// </summary>
         private bool TryWritePaddedArray(
             in Variant value,
             BuiltInType builtInType,
+            ArrayOf<uint> arrayDimensions,
             int expectedCount,
             uint maxStringLength)
         {
+            if (builtInType is BuiltInType.String or BuiltInType.ByteString &&
+                maxStringLength == 0)
+            {
+                return false;
+            }
+            int lengthPos;
             switch (builtInType)
             {
                 case BuiltInType.Boolean:
-                    WritePaddedBooleanArray(value, expectedCount);
-                    return true;
                 case BuiltInType.SByte:
-                    WritePaddedSByteArray(value, expectedCount);
-                    return true;
                 case BuiltInType.Byte:
-                    WritePaddedByteArray(value, expectedCount);
-                    return true;
                 case BuiltInType.Int16:
-                    WritePaddedInt16Array(value, expectedCount);
-                    return true;
                 case BuiltInType.UInt16:
-                    WritePaddedUInt16Array(value, expectedCount);
-                    return true;
                 case BuiltInType.Int32:
-                    WritePaddedInt32Array(value, expectedCount);
-                    return true;
                 case BuiltInType.UInt32:
-                    WritePaddedUInt32Array(value, expectedCount);
-                    return true;
                 case BuiltInType.Int64:
-                    WritePaddedInt64Array(value, expectedCount);
-                    return true;
                 case BuiltInType.UInt64:
-                    WritePaddedUInt64Array(value, expectedCount);
-                    return true;
                 case BuiltInType.Float:
-                    WritePaddedFloatArray(value, expectedCount);
-                    return true;
                 case BuiltInType.Double:
-                    WritePaddedDoubleArray(value, expectedCount);
-                    return true;
                 case BuiltInType.String:
-                    if (maxStringLength == 0)
-                    {
-                        return false;
-                    }
-                    WritePaddedStringArray(value, expectedCount, maxStringLength);
-                    return true;
                 case BuiltInType.ByteString:
-                    if (maxStringLength == 0)
-                    {
-                        return false;
-                    }
-                    WritePaddedByteStringArray(value, expectedCount, maxStringLength);
-                    return true;
+                    lengthPos = WritePaddedArrayHeader(arrayDimensions);
+                    break;
                 default:
                     return false;
             }
+            int actual = builtInType switch
+            {
+                BuiltInType.Boolean => WritePaddedBooleanArray(value, expectedCount),
+                BuiltInType.SByte => WritePaddedSByteArray(value, expectedCount),
+                BuiltInType.Byte => WritePaddedByteArray(value, expectedCount),
+                BuiltInType.Int16 => WritePaddedInt16Array(value, expectedCount),
+                BuiltInType.UInt16 => WritePaddedUInt16Array(value, expectedCount),
+                BuiltInType.Int32 => WritePaddedInt32Array(value, expectedCount),
+                BuiltInType.UInt32 => WritePaddedUInt32Array(value, expectedCount),
+                BuiltInType.Int64 => WritePaddedInt64Array(value, expectedCount),
+                BuiltInType.UInt64 => WritePaddedUInt64Array(value, expectedCount),
+                BuiltInType.Float => WritePaddedFloatArray(value, expectedCount),
+                BuiltInType.Double => WritePaddedDoubleArray(value, expectedCount),
+                BuiltInType.String => WritePaddedStringArray(value, expectedCount, maxStringLength),
+                _ => WritePaddedByteStringArray(value, expectedCount, maxStringLength)
+            };
+            if (lengthPos >= 0)
+            {
+                PatchUInt32Le(lengthPos, (uint)actual);
+            }
+            return true;
         }
 
-        private void WritePaddedBooleanArray(in Variant value, int expectedCount)
+        /// <summary>
+        /// Writes the Part 6 array length (one dimension) or dimensions
+        /// array (ValueRank &gt; 1). Returns the position of the length slot
+        /// to patch with the actual element count, or -1 when the
+        /// configured dimensions were written.
+        /// </summary>
+        private int WritePaddedArrayHeader(ArrayOf<uint> arrayDimensions)
+        {
+            if (arrayDimensions.Count == 1)
+            {
+                return Reserve(4);
+            }
+            WriteUInt32Le((uint)arrayDimensions.Count);
+            for (int i = 0; i < arrayDimensions.Count; i++)
+            {
+                WriteUInt32Le(arrayDimensions[i]);
+            }
+            return -1;
+        }
+
+        private int WritePaddedBooleanArray(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<bool> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -664,9 +719,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 bool v = i < actual && arr[i];
                 Buffer[Origin + m_position++] = (byte)(v ? 1 : 0);
             }
+            return actual;
         }
 
-        private void WritePaddedSByteArray(in Variant value, int expectedCount)
+        private int WritePaddedSByteArray(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<sbyte> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -677,9 +733,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 sbyte v = i < actual ? arr[i] : (sbyte)0;
                 Buffer[Origin + m_position++] = (byte)v;
             }
+            return actual;
         }
 
-        private void WritePaddedByteArray(in Variant value, int expectedCount)
+        private int WritePaddedByteArray(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<byte> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -689,9 +746,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 Buffer[Origin + m_position++] = i < actual ? arr[i] : (byte)0;
             }
+            return actual;
         }
 
-        private void WritePaddedInt16Array(in Variant value, int expectedCount)
+        private int WritePaddedInt16Array(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<short> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -704,9 +762,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     new Span<byte>(Buffer, Origin + m_position, 2), v);
                 m_position += 2;
             }
+            return actual;
         }
 
-        private void WritePaddedUInt16Array(in Variant value, int expectedCount)
+        private int WritePaddedUInt16Array(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<ushort> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -719,9 +778,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     new Span<byte>(Buffer, Origin + m_position, 2), v);
                 m_position += 2;
             }
+            return actual;
         }
 
-        private void WritePaddedInt32Array(in Variant value, int expectedCount)
+        private int WritePaddedInt32Array(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<int> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -734,9 +794,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     new Span<byte>(Buffer, Origin + m_position, 4), v);
                 m_position += 4;
             }
+            return actual;
         }
 
-        private void WritePaddedUInt32Array(in Variant value, int expectedCount)
+        private int WritePaddedUInt32Array(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<uint> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -749,9 +810,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     new Span<byte>(Buffer, Origin + m_position, 4), v);
                 m_position += 4;
             }
+            return actual;
         }
 
-        private void WritePaddedInt64Array(in Variant value, int expectedCount)
+        private int WritePaddedInt64Array(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<long> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -764,9 +826,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     new Span<byte>(Buffer, Origin + m_position, 8), v);
                 m_position += 8;
             }
+            return actual;
         }
 
-        private void WritePaddedUInt64Array(in Variant value, int expectedCount)
+        private int WritePaddedUInt64Array(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<ulong> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -779,9 +842,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     new Span<byte>(Buffer, Origin + m_position, 8), v);
                 m_position += 8;
             }
+            return actual;
         }
 
-        private void WritePaddedFloatArray(in Variant value, int expectedCount)
+        private int WritePaddedFloatArray(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<float> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -793,9 +857,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 WriteFloatLittleEndian(Buffer, Origin + m_position, v);
                 m_position += 4;
             }
+            return actual;
         }
 
-        private void WritePaddedDoubleArray(in Variant value, int expectedCount)
+        private int WritePaddedDoubleArray(in Variant value, int expectedCount)
         {
             value.TryGetValue(out ArrayOf<double> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -807,9 +872,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 WriteDoubleLittleEndian(Buffer, Origin + m_position, v);
                 m_position += 8;
             }
+            return actual;
         }
 
-        private void WritePaddedStringArray(
+        private int WritePaddedStringArray(
             in Variant value, int expectedCount, uint maxStringLength)
         {
             value.TryGetValue(out ArrayOf<string> arr);
@@ -817,12 +883,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             EnsureArrayWithinBounds(actual, expectedCount);
             for (int i = 0; i < expectedCount; i++)
             {
+                // A padding element is all zero bytes, i.e. an empty string.
                 string s = i < actual ? (arr[i] ?? string.Empty) : string.Empty;
                 WritePaddedUtf8(s, maxStringLength);
             }
+            return actual;
         }
 
-        private void WritePaddedByteStringArray(
+        private int WritePaddedByteStringArray(
             in Variant value, int expectedCount, uint maxStringLength)
         {
             value.TryGetValue(out ArrayOf<ByteString> arr);
@@ -833,6 +901,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ByteString bs = i < actual ? arr[i] : default;
                 WritePaddedBytes(bs, maxStringLength);
             }
+            return actual;
         }
 
         private static void EnsureArrayWithinBounds(int actual, int expectedCount)

@@ -284,27 +284,33 @@ namespace Opc.Ua.PubSub.Tests.Connections
         [TestSpec("7.2.4.4.4", Summary = "Large UADP frames are chunked before transport send")]
         public async Task SendNetworkMessageAsync_WithLargeUadpPayload_UsesChunkingAsync()
         {
-            byte[] payload = new byte[48];
-            for (int i = 0; i < payload.Length; i++)
-            {
-                payload[i] = 0x5A;
-            }
-            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, payload);
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>
                 {
-                    [Profiles.PubSubUdpUadpTransport] = encoder
+                    [Profiles.PubSubUdpUadpTransport] = new UadpEncoder()
                 },
                 new Dictionary<string, INetworkMessageDecoder>(),
-                maxNetworkMessageSize: 16);
+                maxNetworkMessageSize: 32);
             var transport = new SpyTransport();
             SetPrivateField(connection, "m_transport", transport);
 
             var message = new UadpNetworkMessage
             {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromUInt16(11),
-                WriterGroupId = 7
+                WriterGroupId = 7,
+                DataSetMessages =
+                [
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
+                    {
+                        DataSetWriterId = 5,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [new DataSetField { Value = new Variant(new byte[48]) }]
+                    }
+                ]
             };
 
             await InvokePrivateAsync(
@@ -314,6 +320,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(transport.SentPayloads, Has.Count.GreaterThan(1));
+            foreach (ReadOnlyMemory<byte> sent in transport.SentPayloads)
+            {
+                // Every frame is a Part 14 chunk NetworkMessage of the writer.
+                Assert.That(sent.Length, Is.LessThanOrEqualTo(32));
+                Assert.That(UadpDecoder.TryReadPrefix(sent, out UadpPrefixInfo prefix), Is.True);
+                Assert.That(prefix.ChunkMessage, Is.True);
+                Assert.That(prefix.ChunkDataSetWriterId, Is.EqualTo((ushort?)5));
+                Assert.That(prefix.WriterGroupId, Is.EqualTo((ushort)7));
+            }
         }
 
         [Test]
@@ -329,14 +344,33 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 diagnostics: diagnostics);
             var transport = new SpyTransport();
 
+            var message = new UadpNetworkMessage
+            {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId,
+                PublisherId = PublisherId.FromUInt16(1),
+                DataSetMessages =
+                [
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
+                    {
+                        DataSetWriterId = 2,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [new DataSetField { Value = new Variant(1) }]
+                    }
+                ]
+            };
+            var context = new PubSubNetworkMessageContext(
+                ServiceMessageContext.CreateEmpty(null!),
+                new DataSetMetaDataRegistry(),
+                diagnostics,
+                TimeProvider.System);
+
             ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await InvokePrivateAsync(
                     connection,
                     "SendChunkedAsync",
                     transport,
-                    new ReadOnlyMemory<byte>([1, 2, 3, 4]),
-                    PublisherId.FromUInt16(1),
-                    (ushort?)2,
+                    message,
+                    context,
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(exception, Is.Not.Null);
@@ -495,13 +529,14 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 new Dictionary<string, INetworkMessageDecoder>(),
                 diagnostics: diagnostics);
 
+            // Chunk NetworkMessage header followed by a truncated chunk payload.
+            byte[] frame = [0x91, 0x80, 0x01, 0x01, 0xAA, 0xBB, 0xCC];
+            Assert.That(UadpDecoder.TryReadPrefix(frame, out UadpPrefixInfo prefix), Is.True);
             ReadOnlyMemory<byte>? result = InvokePrivate<ReadOnlyMemory<byte>?>(
                 connection,
                 "TryReassembleChunk",
-                new ReadOnlyMemory<byte>([0xAA, 0xBB, 0xCC]),
-                1,
-                PublisherId.FromUInt16(1),
-                (ushort)2);
+                new ReadOnlyMemory<byte>(frame),
+                prefix);
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -517,41 +552,57 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>(),
                 new Dictionary<string, INetworkMessageDecoder>());
-            byte[] encoded = new byte[24];
-            for (int ii = 0; ii < encoded.Length; ii++)
+            byte[] fieldBytes = new byte[24];
+            for (int ii = 0; ii < fieldBytes.Length; ii++)
             {
-                encoded[ii] = (byte)(ii + 1);
+                fieldBytes[ii] = (byte)(ii + 1);
+            }
+            var message = new UadpNetworkMessage
+            {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
+                PublisherId = PublisherId.FromUInt16(7),
+                WriterGroupId = 8,
+                DataSetMessages =
+                [
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
+                    {
+                        DataSetWriterId = 9,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [new DataSetField { Value = new Variant(fieldBytes) }]
+                    }
+                ]
+            };
+            PubSubNetworkMessageContext context = new(
+                ServiceMessageContext.CreateEmpty(null!),
+                new DataSetMetaDataRegistry(),
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
+                TimeProvider.System);
+            IReadOnlyList<UadpChunkFrame> chunks = UadpEncoder.EncodeChunks(
+                message, context, maxNetworkMessageSize: 32, securityOverhead: 0,
+                securityEnabled: false, fallbackSequenceNumber: 5);
+            Assert.That(chunks, Has.Count.GreaterThan(1));
+
+            ReadOnlyMemory<byte>? result = null;
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                Assert.That(UadpDecoder.TryReadPrefix(chunks[i].Frame, out UadpPrefixInfo prefix), Is.True);
+                result = InvokePrivate<ReadOnlyMemory<byte>?>(
+                    connection,
+                    "TryReassembleChunk",
+                    chunks[i].Frame,
+                    prefix);
+                Assert.That(result.HasValue, Is.EqualTo(i == chunks.Count - 1));
             }
 
-            IReadOnlyList<byte[]> chunks = new UadpChunker().Split(encoded, 5, 18);
-            byte[] prefix = [0x11, 0x22];
-
-            ReadOnlyMemory<byte>? first = InvokePrivate<ReadOnlyMemory<byte>?>(
-                connection,
-                "TryReassembleChunk",
-                new ReadOnlyMemory<byte>(Combine(prefix, chunks[0])),
-                prefix.Length,
-                PublisherId.FromUInt16(7),
-                (ushort)8);
-            ReadOnlyMemory<byte>? second = InvokePrivate<ReadOnlyMemory<byte>?>(
-                connection,
-                "TryReassembleChunk",
-                new ReadOnlyMemory<byte>(Combine(prefix, chunks[1])),
-                prefix.Length,
-                PublisherId.FromUInt16(7),
-                (ushort)8);
-            ReadOnlyMemory<byte>? third = InvokePrivate<ReadOnlyMemory<byte>?>(
-                connection,
-                "TryReassembleChunk",
-                new ReadOnlyMemory<byte>(Combine(prefix, chunks[2])),
-                prefix.Length,
-                PublisherId.FromUInt16(7),
-                (ushort)8);
-
-            Assert.That(first, Is.Null);
-            Assert.That(second, Is.Null);
-            Assert.That(third.HasValue, Is.True);
-            Assert.That(third!.Value.ToArray(), Is.EqualTo(encoded));
+            // The rebuilt cleartext NetworkMessage decodes to the original.
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(result!.Value, context);
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(decoded.DataSetMessages[0].DataSetWriterId, Is.EqualTo((ushort)9));
+            Assert.That(decoded.DataSetMessages[0].Fields[0].Value.TryGetValue(out ByteString value), Is.True);
+            Assert.That(value.Span.ToArray(), Is.EqualTo(fieldBytes));
         }
 
         [Test]
@@ -806,14 +857,6 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 new FakeNonceProvider(),
                 new FakeTokenWindow(acceptInbound),
                 NUnitTelemetryContext.Create());
-        }
-
-        private static byte[] Combine(byte[] prefix, byte[] payload)
-        {
-            byte[] combined = new byte[prefix.Length + payload.Length];
-            Buffer.BlockCopy(prefix, 0, combined, 0, prefix.Length);
-            Buffer.BlockCopy(payload, 0, combined, prefix.Length, payload.Length);
-            return combined;
         }
 
         private static T InvokePrivate<T>(object instance, string methodName, params object?[] arguments)

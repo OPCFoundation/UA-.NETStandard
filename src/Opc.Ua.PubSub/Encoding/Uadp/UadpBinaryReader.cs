@@ -386,14 +386,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Part 14 §7.2.4.5.11</see> padding rule: when
         /// <paramref name="maxStringLength"/> &gt; 0 the
         /// <c>String</c> / <c>ByteString</c> / <c>XmlElement</c>
-        /// scalar is read as a fixed-size
-        /// <paramref name="maxStringLength"/> byte block (trailing
-        /// NUL bytes are trimmed). When
-        /// <paramref name="arrayDimensions"/> is non-empty the
-        /// array is read as a fixed-size matrix of
-        /// <c>product(arrayDimensions)</c> elements with no length
-        /// prefix. All other inputs fall back to the legacy
-        /// length-prefixed layout.
+        /// scalar is read like a Structure field (Int32 length prefix and
+        /// value) from a fixed-size <c>4 + MaxStringLength</c> byte block
+        /// whose remainder is zero padding. When
+        /// <paramref name="arrayDimensions"/> is non-empty the array's
+        /// Part 6 length (or dimensions) prefix gives the actual element
+        /// count and the block is padded to
+        /// <c>product(arrayDimensions)</c> elements. All other inputs use
+        /// the unpadded Part 6 layout.
         /// </summary>
         /// <param name="builtInType">Built-in type from metadata.</param>
         /// <param name="valueRank">Value rank from metadata.</param>
@@ -424,7 +424,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (valueRank != ValueRanks.Scalar &&
                 TryComputePaddedArrayCount(arrayDimensions, out int expectedCount) &&
                 TryReadPaddedArray(
-                    builtInType, expectedCount, maxStringLength, out Variant array))
+                    builtInType, arrayDimensions, expectedCount, maxStringLength,
+                    out Variant array))
             {
                 return array;
             }
@@ -496,116 +497,194 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private string ReadPaddedUtf8(uint maxStringLength)
         {
-            int total = checked((int)maxStringLength);
-            if (Remaining < total)
-            {
-                throw new ArgumentException(
-                    $"Padded RawData payload is truncated: need {total} bytes, " +
-                    $"have {Remaining}.");
-            }
-            int trimmed = TrimTrailingNuls(total);
-            string result = trimmed == 0
+            int length = ReadPaddedStringLength(maxStringLength, out int total);
+            string result = length == 0
                 ? string.Empty
                 : SysText.Encoding.UTF8.GetString(
-                    m_buffer, m_origin + m_position, trimmed);
+                    m_buffer, m_origin + m_position + 4, length);
             m_position += total;
             return result;
         }
 
         private ByteString ReadPaddedBytes(uint maxLength)
         {
-            int total = checked((int)maxLength);
-            if (Remaining < total)
-            {
-                throw new ArgumentException(
-                    $"Padded RawData payload is truncated: need {total} bytes, " +
-                    $"have {Remaining}.");
-            }
-            int trimmed = TrimTrailingNuls(total);
-            if (trimmed == 0)
+            int length = ReadPaddedStringLength(maxLength, out int total);
+            if (length == 0)
             {
                 m_position += total;
                 return ByteString.Empty;
             }
-            byte[] bytes = new byte[trimmed];
-            new ReadOnlySpan<byte>(m_buffer, m_origin + m_position, trimmed)
+            byte[] bytes = new byte[length];
+            new ReadOnlySpan<byte>(m_buffer, m_origin + m_position + 4, length)
                 .CopyTo(bytes);
             m_position += total;
             return new ByteString(bytes);
         }
 
-        private readonly int TrimTrailingNuls(int length)
+        /// <summary>
+        /// Validates a padded String / ByteString block
+        /// (<c>Int32 length + MaxStringLength bytes</c>) at the cursor and
+        /// returns the encoded value length without moving the cursor.
+        /// A null value (length -1) is returned as length 0.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private readonly int ReadPaddedStringLength(uint maxLength, out int total)
         {
-            int trimmed = length;
-            int start = m_origin + m_position;
-            while (trimmed > 0 && m_buffer[start + trimmed - 1] == 0)
+            if (maxLength > int.MaxValue - 4)
             {
-                trimmed--;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "MaxStringLength {0} is too large for a padded RawData field.",
+                    maxLength);
             }
-            return trimmed;
+            total = 4 + (int)maxLength;
+            EnsureRemaining(total);
+            int length = BinaryPrimitives.ReadInt32LittleEndian(
+                new ReadOnlySpan<byte>(m_buffer, m_origin + m_position, 4));
+            if (length == -1)
+            {
+                return 0;
+            }
+            if (length < 0 || (uint)length > maxLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Padded RawData length {0} is outside 0..MaxStringLength {1}.",
+                    length,
+                    maxLength);
+            }
+            return length;
         }
 
         private bool TryReadPaddedArray(
             BuiltInType builtInType,
+            ArrayOf<uint> arrayDimensions,
             int expectedCount,
             uint maxStringLength,
             out Variant value)
         {
+            int elementSize;
             switch (builtInType)
             {
                 case BuiltInType.Boolean:
-                    value = ReadPaddedBooleanArray(expectedCount);
-                    return true;
                 case BuiltInType.SByte:
-                    value = ReadPaddedSByteArray(expectedCount);
-                    return true;
                 case BuiltInType.Byte:
-                    value = ReadPaddedByteArray(expectedCount);
-                    return true;
+                    elementSize = 1;
+                    break;
                 case BuiltInType.Int16:
-                    value = ReadPaddedInt16Array(expectedCount);
-                    return true;
                 case BuiltInType.UInt16:
-                    value = ReadPaddedUInt16Array(expectedCount);
-                    return true;
+                    elementSize = 2;
+                    break;
                 case BuiltInType.Int32:
-                    value = ReadPaddedInt32Array(expectedCount);
-                    return true;
                 case BuiltInType.UInt32:
-                    value = ReadPaddedUInt32Array(expectedCount);
-                    return true;
-                case BuiltInType.Int64:
-                    value = ReadPaddedInt64Array(expectedCount);
-                    return true;
-                case BuiltInType.UInt64:
-                    value = ReadPaddedUInt64Array(expectedCount);
-                    return true;
                 case BuiltInType.Float:
-                    value = ReadPaddedFloatArray(expectedCount);
-                    return true;
+                    elementSize = 4;
+                    break;
+                case BuiltInType.Int64:
+                case BuiltInType.UInt64:
                 case BuiltInType.Double:
-                    value = ReadPaddedDoubleArray(expectedCount);
-                    return true;
+                    elementSize = 8;
+                    break;
                 case BuiltInType.String:
-                    if (maxStringLength == 0)
-                    {
-                        value = Variant.Null;
-                        return false;
-                    }
-                    value = ReadPaddedStringArray(expectedCount, maxStringLength);
-                    return true;
                 case BuiltInType.ByteString:
                     if (maxStringLength == 0)
                     {
                         value = Variant.Null;
                         return false;
                     }
-                    value = ReadPaddedByteStringArray(expectedCount, maxStringLength);
-                    return true;
+                    if (maxStringLength > int.MaxValue - 4)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "MaxStringLength {0} is too large for a padded RawData field.",
+                            maxStringLength);
+                    }
+                    elementSize = 4 + (int)maxStringLength;
+                    break;
                 default:
                     value = Variant.Null;
                     return false;
             }
+
+            int count = ReadPaddedArrayLength(arrayDimensions, expectedCount);
+            // The block always holds product(ArrayDimensions) elements;
+            // validate it before allocating the (smaller) actual array.
+            long paddedSize = (long)expectedCount * elementSize;
+            EnsureRemaining(paddedSize);
+            int start = m_position;
+            value = builtInType switch
+            {
+                BuiltInType.Boolean => ReadPaddedBooleanArray(count),
+                BuiltInType.SByte => ReadPaddedSByteArray(count),
+                BuiltInType.Byte => ReadPaddedByteArray(count),
+                BuiltInType.Int16 => ReadPaddedInt16Array(count),
+                BuiltInType.UInt16 => ReadPaddedUInt16Array(count),
+                BuiltInType.Int32 => ReadPaddedInt32Array(count),
+                BuiltInType.UInt32 => ReadPaddedUInt32Array(count),
+                BuiltInType.Int64 => ReadPaddedInt64Array(count),
+                BuiltInType.UInt64 => ReadPaddedUInt64Array(count),
+                BuiltInType.Float => ReadPaddedFloatArray(count),
+                BuiltInType.Double => ReadPaddedDoubleArray(count),
+                BuiltInType.String => ReadPaddedStringArray(count, maxStringLength),
+                _ => ReadPaddedByteStringArray(count, maxStringLength)
+            };
+            // Skip the zero padding up to product(ArrayDimensions) elements.
+            m_position = start + (int)paddedSize;
+            return true;
+        }
+
+        /// <summary>
+        /// Reads the Part 6 array header of a padded RawData array: the
+        /// Int32 length for one dimension or the Int32 dimensions array
+        /// for ValueRank &gt; 1. Returns the actual element count, which
+        /// shall not exceed the configured ArrayDimensions.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private int ReadPaddedArrayLength(ArrayOf<uint> arrayDimensions, int expectedCount)
+        {
+            if (!TryReadUInt32Le(out uint header))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Padded RawData array length is truncated.");
+            }
+            if (arrayDimensions.Count == 1)
+            {
+                if (header == uint.MaxValue)
+                {
+                    return 0;
+                }
+                if (header > (uint)expectedCount)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Padded RawData array length {0} exceeds ArrayDimensions {1}.",
+                        header,
+                        expectedCount);
+                }
+                return (int)header;
+            }
+            if (header != (uint)arrayDimensions.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Padded RawData array has {0} dimensions, expected {1}.",
+                    header,
+                    arrayDimensions.Count);
+            }
+            long count = 1;
+            for (int i = 0; i < arrayDimensions.Count; i++)
+            {
+                if (!TryReadUInt32Le(out uint dimension) || dimension > arrayDimensions[i])
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Padded RawData array dimension {0} is truncated or exceeds ArrayDimensions.",
+                        i);
+                }
+                count *= dimension;
+            }
+            return (int)count;
         }
 
         private Variant ReadPaddedBooleanArray(int expectedCount)
@@ -765,13 +844,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             return new Variant(new ArrayOf<ByteString>(arr));
         }
 
-        private readonly void EnsureRemaining(int byteCount)
+        private readonly void EnsureRemaining(long byteCount)
         {
             if (byteCount < 0 || Remaining < byteCount)
             {
-                throw new ArgumentException(
-                    $"Padded RawData payload is truncated: need {byteCount} bytes, " +
-                    $"have {Remaining}.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Padded RawData payload is truncated: need {0} bytes, have {1}.",
+                    byteCount,
+                    Remaining);
             }
         }
 
