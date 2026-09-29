@@ -1307,6 +1307,7 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     // The DataValue is an encoded variant with extra fields in essence.
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.2.18
                     // Read the UaType, Value and optional dimension here and then read
@@ -1494,6 +1495,7 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     if (depth > DiagnosticInfo.MaxInnerDepth)
                     {
                         throw ServiceResultException.Create(
@@ -1912,6 +1914,7 @@ namespace Opc.Ua
                     value = ExtensionObject.Null;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     m_stack.Push(element);
                     try
                     {
@@ -2819,6 +2822,7 @@ namespace Opc.Ua
                     value = default!;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     m_stack.Push(element);
                     try
                     {
@@ -3050,6 +3054,7 @@ namespace Opc.Ua
                 case JsonValueKind.Null or JsonValueKind.Undefined:
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     m_stack.Push(element);
                     try
                     {
@@ -3397,6 +3402,7 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     m_stack.Push(element);
                     try
                     {
@@ -3464,156 +3470,432 @@ namespace Opc.Ua
             out Variant value,
             JsonElement dimensionElement = default)
         {
+            // Each form is read by its own method. A Variant nested in a Variant
+            // array, a DataValue or an ExtensionObject recurses through here, and a
+            // single method holding the temporaries of all three switches made every
+            // nesting level cost several KB of stack.
             if (typeInfo.IsScalar)
             {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        value = Variant.Null;
-                        return true;
-                    case BuiltInType.Boolean when TryGetBooleanFromElement(
-                        element,
-                        out bool v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.SByte when TryGetSByteFromElement(
-                        element,
-                        out sbyte v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Byte when TryGetByteFromElement(
-                        element,
-                        out byte v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Int16 when TryGetInt16FromElement(
-                        element,
-                        out short v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.UInt16 when TryGetUInt16FromElement(
-                        element,
-                        out ushort v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Enumeration when TryGetEnumerationFromElement(
-                        element,
-                        out EnumValue v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Int32 when TryGetInt32FromElement(
-                        element,
-                        out int v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.UInt32 when TryGetUInt32FromElement(
-                        element,
-                        out uint v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Int64 when TryGetInt64FromElement(
-                        element,
-                        out long v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.UInt64 when TryGetUInt64FromElement(
-                        element,
-                        out ulong v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Float when TryGetFloatFromElement(
-                        element,
-                        out float v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Double when TryGetDoubleFromElement(
-                        element,
-                        out double v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.String when TryGetStringFromElement(
-                        element,
-                        out string? v):
-                        value = Variant.From(v!);
-                        return true;
-                    case BuiltInType.DateTime when TryGetDateTimeFromElement(
-                        element,
-                        out DateTimeUtc v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Guid when TryGetGuidFromElement(
-                        element,
-                        out Uuid v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.ByteString when TryGetByteStringFromElement(
-                        element,
-                        out ByteString v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.XmlElement when TryGetXmlElementFromElement(
-                        element,
-                        out XmlElement v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.NodeId when TryGetNodeIdFromElement(
-                        element,
-                        out NodeId v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdFromElement(
-                        element,
-                        out ExpandedNodeId v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.StatusCode when TryGetStatusCodeFromElement(
-                        element,
-                        out StatusCode v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.QualifiedName when TryGetQualifiedNameFromElement(
-                        element,
-                        out QualifiedName v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.LocalizedText when TryGetLocalizedTextFromElement(
-                        element,
-                        out LocalizedText v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.DataValue when TryGetDataValueFromElement(
-                        element,
-                        out DataValue v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.ExtensionObject when TryGetExtensionObjectFromElement(
-                        element,
-                        out ExtensionObject v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Variant:
-                    case BuiltInType.DiagnosticInfo:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unsupported built in type for Variant content ({0}).",
-                            typeInfo);
-                    default:
-                        if (typeInfo.BuiltInType <= BuiltInType.Enumeration)
-                        {
-                            value = default;
-                            return false;
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unexpected scalar built in type ({0}).",
-                            typeInfo);
-                }
+                return TryGetScalarVariantValueFromElement(element, typeInfo, out value);
             }
-            else if (typeInfo.IsArray)
+            if (typeInfo.IsArray)
             {
+                return TryGetArrayVariantValueFromElement(element, typeInfo, out value);
+            }
+            return TryGetMatrixVariantValueFromElement(
+                element,
+                typeInfo,
+                readRawValue,
+                out value,
+                dimensionElement);
+        }
+
+        /// <summary>
+        /// Try get a scalar variant value from element
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryGetScalarVariantValueFromElement(
+            JsonElement element,
+            TypeInfo typeInfo,
+            out Variant value)
+        {
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    value = Variant.Null;
+                    return true;
+                case BuiltInType.Boolean when TryGetBooleanFromElement(
+                    element,
+                    out bool v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.SByte when TryGetSByteFromElement(
+                    element,
+                    out sbyte v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Byte when TryGetByteFromElement(
+                    element,
+                    out byte v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int16 when TryGetInt16FromElement(
+                    element,
+                    out short v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt16 when TryGetUInt16FromElement(
+                    element,
+                    out ushort v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Enumeration when TryGetEnumerationFromElement(
+                    element,
+                    out EnumValue v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int32 when TryGetInt32FromElement(
+                    element,
+                    out int v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt32 when TryGetUInt32FromElement(
+                    element,
+                    out uint v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int64 when TryGetInt64FromElement(
+                    element,
+                    out long v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt64 when TryGetUInt64FromElement(
+                    element,
+                    out ulong v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Float when TryGetFloatFromElement(
+                    element,
+                    out float v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Double when TryGetDoubleFromElement(
+                    element,
+                    out double v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.String when TryGetStringFromElement(
+                    element,
+                    out string? v):
+                    value = Variant.From(v!);
+                    return true;
+                case BuiltInType.DateTime when TryGetDateTimeFromElement(
+                    element,
+                    out DateTimeUtc v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Guid when TryGetGuidFromElement(
+                    element,
+                    out Uuid v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ByteString when TryGetByteStringFromElement(
+                    element,
+                    out ByteString v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.XmlElement when TryGetXmlElementFromElement(
+                    element,
+                    out XmlElement v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.NodeId when TryGetNodeIdFromElement(
+                    element,
+                    out NodeId v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdFromElement(
+                    element,
+                    out ExpandedNodeId v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.StatusCode when TryGetStatusCodeFromElement(
+                    element,
+                    out StatusCode v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.QualifiedName when TryGetQualifiedNameFromElement(
+                    element,
+                    out QualifiedName v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.LocalizedText when TryGetLocalizedTextFromElement(
+                    element,
+                    out LocalizedText v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.DataValue when TryGetDataValueFromElement(
+                    element,
+                    out DataValue v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ExtensionObject when TryGetExtensionObjectFromElement(
+                    element,
+                    out ExtensionObject v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Variant:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant content ({0}).",
+                        typeInfo);
+                default:
+                    if (typeInfo.BuiltInType <= BuiltInType.Enumeration)
+                    {
+                        value = default;
+                        return false;
+                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected scalar built in type ({0}).",
+                        typeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Try get a one-dimensional variant array value from element
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryGetArrayVariantValueFromElement(
+            JsonElement element,
+            TypeInfo typeInfo,
+            out Variant value)
+        {
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    value = Variant.Null;
+                    return true;
+                case BuiltInType.Boolean when TryGetBooleanArrayFromElement(
+                    element,
+                    out ArrayOf<bool> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.SByte when TryGetSByteArrayFromElement(
+                    element,
+                    out ArrayOf<sbyte> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Byte when TryGetByteArrayFromElement(
+                    element,
+                    out ArrayOf<byte> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int16 when TryGetInt16ArrayFromElement(
+                    element,
+                    out ArrayOf<short> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt16 when TryGetUInt16ArrayFromElement(
+                    element,
+                    out ArrayOf<ushort> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
+                    element,
+                    out ArrayOf<EnumValue> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
+                    element,
+                    out ArrayOf<int> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt32 when TryGetUInt32ArrayFromElement(
+                    element,
+                    out ArrayOf<uint> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int64 when TryGetInt64ArrayFromElement(
+                    element,
+                    out ArrayOf<long> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt64 when TryGetUInt64ArrayFromElement(
+                    element,
+                    out ArrayOf<ulong> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Float when TryGetFloatArrayFromElement(
+                    element,
+                    out ArrayOf<float> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Double when TryGetDoubleArrayFromElement(
+                    element,
+                    out ArrayOf<double> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.String when TryGetStringArrayFromElement(
+                    element,
+                    out ArrayOf<string?> v):
+                    // Argument cannot be used due to nullability differences.
+                    // ArrayOf<string?> and ArrayOf<string> share runtime layout;
+                    // null elements are tolerated by Variant.
+#pragma warning disable CS8620
+                    value = Variant.From(v);
+#pragma warning restore CS8620
+                    return true;
+                case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
+                    element,
+                    out ArrayOf<DateTimeUtc> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Guid when TryGetGuidArrayFromElement(
+                    element,
+                    out ArrayOf<Uuid> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ByteString when TryGetByteStringArrayFromElement(
+                    element, out ArrayOf<ByteString> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.XmlElement when TryGetXmlElementArrayFromElement(
+                    element,
+                    out ArrayOf<XmlElement> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.NodeId when TryGetNodeIdArrayFromElement(
+                    element,
+                    out ArrayOf<NodeId> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdArrayFromElement(
+                    element,
+                    out ArrayOf<ExpandedNodeId> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.StatusCode when TryGetStatusCodeArrayFromElement(
+                    element,
+                    out ArrayOf<StatusCode> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.QualifiedName when TryGetQualifiedNameArrayFromElement(
+                    element,
+                    out ArrayOf<QualifiedName> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.LocalizedText when TryGetLocalizedTextArrayFromElement(
+                    element,
+                    out ArrayOf<LocalizedText> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
+                    element,
+                    out ArrayOf<DataValue> v):
+                    // Argument cannot be used due to nullability differences.
+                    // ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout;
+                    // null elements are tolerated by Variant.
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
+                    element,
+                    out ArrayOf<ExtensionObject> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Variant:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    if (TryGetVariantArrayFromElement(element, out ArrayOf<Variant> varray))
+                    {
+                        value = Variant.From(varray);
+                        return true;
+                    }
+                    goto default;
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant content ({0}).",
+                        typeInfo);
+                default:
+                    if (typeInfo.BuiltInType <= BuiltInType.Enumeration)
+                    {
+                        value = default;
+                        return false;
+                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected scalar built in type ({0}).",
+                        typeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Try get a variant matrix value from element
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryGetMatrixVariantValueFromElement(
+            JsonElement element,
+            TypeInfo typeInfo,
+            bool readRawValue,
+            out Variant value,
+            JsonElement dimensionElement)
+        {
+            if (element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined &&
+                dimensionElement.ValueKind == JsonValueKind.Undefined)
+            {
+                // An omitted or null matrix field is a null variant. The
+                // dimension check below would otherwise reject it outright.
+                value = default;
+                return true;
+            }
+
+            if (readRawValue)
+            {
+                // If reading raw value, then the eleemnt we are reading is encoded
+                // using array encoding with both Array and Dimensions properties
+                // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
+                m_stack.Push(element);
+                element = GetPropertyElement(JsonProperties.Array);
+                dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
+            }
+            else if (dimensionElement.ValueKind == JsonValueKind.Undefined)
+            {
+                // If we read a variant, then the dimenions is part of the parent
+                // object (e.g. DataValue or Variant. To read pop back to parent
+                // get dimension and push back parent to the stack. But only if
+                // the dimension element was not passed already (short cut)
+                JsonElement parent = m_stack.Pop();
+                dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
+                m_stack.Push(parent);
+            }
+
+            try
+            {
+                // Read dimension array. A multi-dimensional Variant must carry
+                // Dimensions with at least two entries, each greater than zero
+                // (Part 6 5.2.2.16); the product-versus-length consistency is
+                // enforced by MatrixOf<T> in the switch below. Reject an absent,
+                // too-short, zero or negative dimension here so an empty matrix
+                // (which would otherwise satisfy the product check) is rejected.
+                // This sits inside the try so the pushed stack entry is popped
+                // again by the finally below.
+                // The inline matrix of a structure field (raw value) may be
+                // empty, a dimension of 0 means no values (5.2.5, 5.4.5).
+                if (!TryGetInt32ArrayFromElement(
+                    dimensionElement,
+                    out ArrayOf<int> dims) ||
+                    (readRawValue
+                        ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
+                        : !MatrixOf.IsValidMatrix(dims.Span)))
+                {
+                    value = default;
+                    return false;
+                }
+                if (readRawValue)
+                {
+                    // a dimension < 0 means no values, like in binary
+                    dims = MatrixOf.NormalizeInlineMatrixDimensions(dims.ToArray()!)
+                        .ToArrayOf();
+
+                    // A populated matrix read for a structure field must
+                    // have the rank the field declares.
+                    MatrixOf.TryGetInlineMatrixElementCount(dims.Span, out int count, out _);
+                    if (!MatrixOf.HasInlineMatrixRank(dims.Span, count, typeInfo))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Inline matrix dimensions [{0}] do not have the rank of the field ({1}).",
+                            string.Join(",", dims.ToArray()!),
+                            typeInfo);
+                    }
+                }
+
                 switch (typeInfo.BuiltInType)
                 {
                     case BuiltInType.Null:
@@ -3622,129 +3904,129 @@ namespace Opc.Ua
                     case BuiltInType.Boolean when TryGetBooleanArrayFromElement(
                         element,
                         out ArrayOf<bool> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.SByte when TryGetSByteArrayFromElement(
                         element,
                         out ArrayOf<sbyte> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Byte when TryGetByteArrayFromElement(
                         element,
                         out ArrayOf<byte> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Int16 when TryGetInt16ArrayFromElement(
                         element,
                         out ArrayOf<short> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.UInt16 when TryGetUInt16ArrayFromElement(
                         element,
                         out ArrayOf<ushort> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
                         element,
                         out ArrayOf<EnumValue> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
                         element,
                         out ArrayOf<int> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.UInt32 when TryGetUInt32ArrayFromElement(
                         element,
                         out ArrayOf<uint> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Int64 when TryGetInt64ArrayFromElement(
                         element,
                         out ArrayOf<long> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.UInt64 when TryGetUInt64ArrayFromElement(
                         element,
                         out ArrayOf<ulong> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Float when TryGetFloatArrayFromElement(
                         element,
                         out ArrayOf<float> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Double when TryGetDoubleArrayFromElement(
                         element,
                         out ArrayOf<double> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.String when TryGetStringArrayFromElement(
                         element,
                         out ArrayOf<string?> v):
                         // Argument cannot be used due to nullability differences.
-                        // ArrayOf<string?> and ArrayOf<string> share runtime layout;
+                        // MatrixOf<string?> and MatrixOf<string> share runtime layout;
                         // null elements are tolerated by Variant.
 #pragma warning disable CS8620
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
 #pragma warning restore CS8620
                         return true;
                     case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
                         element,
                         out ArrayOf<DateTimeUtc> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Guid when TryGetGuidArrayFromElement(
                         element,
                         out ArrayOf<Uuid> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.ByteString when TryGetByteStringArrayFromElement(
                         element, out ArrayOf<ByteString> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.XmlElement when TryGetXmlElementArrayFromElement(
                         element,
                         out ArrayOf<XmlElement> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.NodeId when TryGetNodeIdArrayFromElement(
                         element,
                         out ArrayOf<NodeId> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdArrayFromElement(
                         element,
                         out ArrayOf<ExpandedNodeId> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.StatusCode when TryGetStatusCodeArrayFromElement(
                         element,
                         out ArrayOf<StatusCode> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.QualifiedName when TryGetQualifiedNameArrayFromElement(
                         element,
                         out ArrayOf<QualifiedName> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.LocalizedText when TryGetLocalizedTextArrayFromElement(
                         element,
                         out ArrayOf<LocalizedText> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                         element,
                         out ArrayOf<DataValue> v):
                         // Argument cannot be used due to nullability differences.
-                        // ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout;
+                        // MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout;
                         // null elements are tolerated by Variant.
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
                         element,
                         out ArrayOf<ExtensionObject> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
@@ -3752,7 +4034,7 @@ namespace Opc.Ua
                     case BuiltInType.UInteger:
                         if (TryGetVariantArrayFromElement(element, out ArrayOf<Variant> varray))
                         {
-                            value = Variant.From(varray);
+                            value = Variant.From(varray.ToMatrix(dims));
                             return true;
                         }
                         goto default;
@@ -3773,253 +4055,21 @@ namespace Opc.Ua
                             typeInfo);
                 }
             }
-            else
+            catch (ArgumentException ex)
             {
-                if (element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined &&
-                    dimensionElement.ValueKind == JsonValueKind.Undefined)
-                {
-                    // An omitted or null matrix field is a null variant. The
-                    // dimension check below would otherwise reject it outright.
-                    value = default;
-                    return true;
-                }
-
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    ex,
+                    "Invalid variant matrix dimensions ({0}): {1}",
+                    typeInfo,
+                    ex.Message);
+            }
+            finally
+            {
                 if (readRawValue)
                 {
-                    // If reading raw value, then the eleemnt we are reading is encoded
-                    // using array encoding with both Array and Dimensions properties
-                    // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
-                    m_stack.Push(element);
-                    element = GetPropertyElement(JsonProperties.Array);
-                    dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
-                }
-                else if (dimensionElement.ValueKind == JsonValueKind.Undefined)
-                {
-                    // If we read a variant, then the dimenions is part of the parent
-                    // object (e.g. DataValue or Variant. To read pop back to parent
-                    // get dimension and push back parent to the stack. But only if
-                    // the dimension element was not passed already (short cut)
-                    JsonElement parent = m_stack.Pop();
-                    dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
-                    m_stack.Push(parent);
-                }
-
-                try
-                {
-                    // Read dimension array. A multi-dimensional Variant must carry
-                    // Dimensions with at least two entries, each greater than zero
-                    // (Part 6 5.2.2.16); the product-versus-length consistency is
-                    // enforced by MatrixOf<T> in the switch below. Reject an absent,
-                    // too-short, zero or negative dimension here so an empty matrix
-                    // (which would otherwise satisfy the product check) is rejected.
-                    // This sits inside the try so the pushed stack entry is popped
-                    // again by the finally below.
-                    // The inline matrix of a structure field (raw value) may be
-                    // empty, a dimension of 0 means no values (5.2.5, 5.4.5).
-                    if (!TryGetInt32ArrayFromElement(
-                        dimensionElement,
-                        out ArrayOf<int> dims) ||
-                        (readRawValue
-                            ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
-                            : !MatrixOf.IsValidMatrix(dims.Span)))
-                    {
-                        value = default;
-                        return false;
-                    }
-                    if (readRawValue)
-                    {
-                        // a dimension < 0 means no values, like in binary
-                        dims = MatrixOf.NormalizeInlineMatrixDimensions(dims.ToArray()!)
-                            .ToArrayOf();
-
-                        // A populated matrix read for a structure field must
-                        // have the rank the field declares.
-                        MatrixOf.TryGetInlineMatrixElementCount(dims.Span, out int count, out _);
-                        if (!MatrixOf.HasInlineMatrixRank(dims.Span, count, typeInfo))
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "Inline matrix dimensions [{0}] do not have the rank of the field ({1}).",
-                                string.Join(",", dims.ToArray()!),
-                                typeInfo);
-                        }
-                    }
-
-                    switch (typeInfo.BuiltInType)
-                    {
-                        case BuiltInType.Null:
-                            value = Variant.Null;
-                            return true;
-                        case BuiltInType.Boolean when TryGetBooleanArrayFromElement(
-                            element,
-                            out ArrayOf<bool> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.SByte when TryGetSByteArrayFromElement(
-                            element,
-                            out ArrayOf<sbyte> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Byte when TryGetByteArrayFromElement(
-                            element,
-                            out ArrayOf<byte> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Int16 when TryGetInt16ArrayFromElement(
-                            element,
-                            out ArrayOf<short> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.UInt16 when TryGetUInt16ArrayFromElement(
-                            element,
-                            out ArrayOf<ushort> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
-                            element,
-                            out ArrayOf<EnumValue> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
-                            element,
-                            out ArrayOf<int> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.UInt32 when TryGetUInt32ArrayFromElement(
-                            element,
-                            out ArrayOf<uint> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Int64 when TryGetInt64ArrayFromElement(
-                            element,
-                            out ArrayOf<long> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.UInt64 when TryGetUInt64ArrayFromElement(
-                            element,
-                            out ArrayOf<ulong> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Float when TryGetFloatArrayFromElement(
-                            element,
-                            out ArrayOf<float> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Double when TryGetDoubleArrayFromElement(
-                            element,
-                            out ArrayOf<double> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.String when TryGetStringArrayFromElement(
-                            element,
-                            out ArrayOf<string?> v):
-                            // Argument cannot be used due to nullability differences.
-                            // MatrixOf<string?> and MatrixOf<string> share runtime layout;
-                            // null elements are tolerated by Variant.
-#pragma warning disable CS8620
-                            value = Variant.From(v.ToMatrix(dims));
-#pragma warning restore CS8620
-                            return true;
-                        case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
-                            element,
-                            out ArrayOf<DateTimeUtc> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Guid when TryGetGuidArrayFromElement(
-                            element,
-                            out ArrayOf<Uuid> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.ByteString when TryGetByteStringArrayFromElement(
-                            element, out ArrayOf<ByteString> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.XmlElement when TryGetXmlElementArrayFromElement(
-                            element,
-                            out ArrayOf<XmlElement> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.NodeId when TryGetNodeIdArrayFromElement(
-                            element,
-                            out ArrayOf<NodeId> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdArrayFromElement(
-                            element,
-                            out ArrayOf<ExpandedNodeId> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.StatusCode when TryGetStatusCodeArrayFromElement(
-                            element,
-                            out ArrayOf<StatusCode> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.QualifiedName when TryGetQualifiedNameArrayFromElement(
-                            element,
-                            out ArrayOf<QualifiedName> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.LocalizedText when TryGetLocalizedTextArrayFromElement(
-                            element,
-                            out ArrayOf<LocalizedText> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
-                            element,
-                            out ArrayOf<DataValue> v):
-                            // Argument cannot be used due to nullability differences.
-                            // MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout;
-                            // null elements are tolerated by Variant.
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
-                            element,
-                            out ArrayOf<ExtensionObject> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Variant:
-                        case BuiltInType.Number:
-                        case BuiltInType.Integer:
-                        case BuiltInType.UInteger:
-                            if (TryGetVariantArrayFromElement(element, out ArrayOf<Variant> varray))
-                            {
-                                value = Variant.From(varray.ToMatrix(dims));
-                                return true;
-                            }
-                            goto default;
-                        case BuiltInType.DiagnosticInfo:
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "Unsupported built in type for Variant content ({0}).",
-                                typeInfo);
-                        default:
-                            if (typeInfo.BuiltInType <= BuiltInType.Enumeration)
-                            {
-                                value = default;
-                                return false;
-                            }
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "Unexpected scalar built in type ({0}).",
-                                typeInfo);
-                    }
-                }
-                catch (ArgumentException ex)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        ex,
-                        "Invalid variant matrix dimensions ({0}): {1}",
-                        typeInfo,
-                        ex.Message);
-                }
-                finally
-                {
-                    if (readRawValue)
-                    {
-                        // Pop the array object
-                        m_stack.Pop();
-                    }
+                    // Pop the array object
+                    m_stack.Pop();
                 }
             }
         }

@@ -728,6 +728,7 @@ namespace Opc.Ua
                     context.Consumed.Add(childIdx);
                     context.Cursor = childIdx + 1;
 
+                    CheckXmlElementDepth(found);
                     var document = new XmlDocument();
                     var imported = (System.Xml.XmlElement)document.ImportNode(found, true);
                     document.AppendChild(imported);
@@ -2504,6 +2505,7 @@ namespace Opc.Ua
                 context.Consumed.Add(bodyChildIdx);
                 context.Cursor = bodyChildIdx + 1;
 
+                CheckXmlElementDepth(bodyChild);
                 var xmlElement = XmlElement.From(bodyChild.OuterXml);
                 if (!xmlElement.IsValid)
                 {
@@ -3061,7 +3063,48 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels,
                     functionName ?? string.Empty);
             }
+            EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Checks that the content of an element returned as an XmlElement does
+        /// not nest deeper than the nesting levels left. Importing and
+        /// serializing a DOM element both recurse once per element level in
+        /// System.Xml, so an unbounded depth overflows the stack. The walk
+        /// itself is iterative.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckXmlElementDepth(System.Xml.XmlElement element)
+        {
+            int depth = 0;
+            XmlNode? node = element.FirstChild;
+            while (node != null)
+            {
+                if (node.NodeType == XmlNodeType.Element &&
+                    m_nestingLevel + depth > Context.MaxEncodingNestingLevels)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Maximum nesting level of {0} was exceeded by an XmlElement",
+                        Context.MaxEncodingNestingLevels);
+                }
+
+                if (node.FirstChild != null)
+                {
+                    node = node.FirstChild;
+                    depth++;
+                    continue;
+                }
+
+                while (node != null && node != element && node.NextSibling == null)
+                {
+                    node = node.ParentNode;
+                    depth--;
+                }
+
+                node = node == null || node == element ? null : node.NextSibling;
+            }
         }
 
         /// <summary>

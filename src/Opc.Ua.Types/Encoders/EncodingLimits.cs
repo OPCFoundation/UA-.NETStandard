@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Opc.Ua.Types;
 
@@ -95,6 +97,34 @@ namespace Opc.Ua
                     "MaxStringLength {0} < {1}",
                     maxStringLength,
                     byteLength);
+            }
+        }
+
+        /// <summary>
+        /// Throws if the current thread is running out of stack.
+        /// </summary>
+        /// <remarks>
+        /// MaxEncodingNestingLevels bounds the recursion of the codecs, but the
+        /// stack a nesting level costs depends on the shape of the value, the
+        /// runtime and whether the code is jitted optimized, and the thread may
+        /// be one with a small stack. A stack overflow terminates the process
+        /// and cannot be caught, so every recursive entry point of a codec also
+        /// checks that enough stack is left and fails the message instead.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the
+        /// remaining stack is too small to continue safely.</exception>
+        public static void EnsureSufficientStack()
+        {
+            try
+            {
+                RuntimeHelpers.EnsureSufficientExecutionStack();
+            }
+            catch (InsufficientExecutionStackException)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Insufficient stack to encode or decode a nested value.");
             }
         }
     }
