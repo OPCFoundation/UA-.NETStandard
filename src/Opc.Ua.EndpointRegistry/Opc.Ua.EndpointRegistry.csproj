@@ -49,5 +49,6 @@
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
     <None Update="Model\Opc.Ua.EndpointRegistry.NodeSet2.xml" Pack="true" PackagePath="model\" />
     <None Update="Model\Opc.Ua.EndpointRegistry.NodeIds.csv" Pack="true" PackagePath="model\" />
+    <EmbeddedResource Include="RuleSchemas\*.json" />
   </ItemGroup>
 </Project>
