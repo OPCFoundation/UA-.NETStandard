@@ -978,15 +978,16 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <see cref="DateTimeUtc.MinValue"/>.</returns>
         private static DateTimeUtc ReadOptionalTimestamp(JsonElement root, string name)
         {
+            // JsonElement.TryGetDateTime accepts only the ISO 8601-1 extended
+            // profile required by Part 6 §5.4.2.6. Values are UTC on the wire,
+            // so a value without an offset is UTC rather than host local time.
             if (root.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.String &&
-                DateTime.TryParse(
-                    value.GetString(),
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind,
-                    out DateTime parsed))
+                value.TryGetDateTime(out DateTime parsed))
             {
-                return (DateTimeUtc)parsed.ToUniversalTime();
+                return (DateTimeUtc)(parsed.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
+                    : parsed.ToUniversalTime());
             }
             return DateTimeUtc.MinValue;
         }

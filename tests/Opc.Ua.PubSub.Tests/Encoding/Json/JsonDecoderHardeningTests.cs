@@ -431,6 +431,33 @@ namespace OpcUaPubSubJsonTests
             Assert.That(result!.PublisherId, Is.EqualTo(PublisherId.FromString(publisherId)));
         }
 
+        [TestCase("2021-09-27T18:45:19.555Z", "2021-09-27T18:45:19.5550000Z")]
+        [TestCase("2021-09-27T18:45:19.555", "2021-09-27T18:45:19.5550000Z")]
+        [TestCase("2021-09-27T20:45:19.555+02:00", "2021-09-27T18:45:19.5550000Z")]
+        [TestCase("9/27/2021", null)]
+        [TestSpec("7.2.5.4.1")]
+        public async Task DataSetMessageTimestampIsParsedAsIso8601UtcAsync(string wire, string? expected)
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            string json =
+                "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Timestamp\":\"" + wire +
+                "\",\"Payload\":{\"a\":{\"UaType\":6,\"Value\":7}}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            DateTimeUtc timestamp =
+                ((Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage)result!.DataSetMessages[0]).Timestamp;
+            if (expected is null)
+            {
+                Assert.That(timestamp, Is.EqualTo(DateTimeUtc.MinValue));
+                return;
+            }
+            Assert.That(
+                ((DateTime)timestamp).ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                Is.EqualTo(expected));
+        }
+
         private static PubSubNetworkMessageContext NewContextWithMetaData(
             DataSetMetaDataType metaData)
         {
