@@ -1730,7 +1730,6 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Is.EqualTo("text"));
         }
 
-        [TestCase("2024-05-06")]
         [TestCase("12:30:00Z")]
         [TestCase("--05-06")]
         [TestCase("2024")]
@@ -1756,6 +1755,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [TestCase("2024-05-06T14:30:00+02:00", "2024-05-06T12:30:00.0000000Z")]
         [TestCase("2024-05-06T10:30:00-02:00", "2024-05-06T12:30:00.0000000Z")]
         [TestCase("2024-05-06T12:30:00", "2024-05-06T12:30:00.0000000Z")]
+        [TestCase("2024-05-06", "2024-05-06T00:00:00.0000000Z")]
         public void ReadDateTimeAcceptsDateTime(string text, string expected)
         {
             ServiceMessageContext messageContext = CreateMockContext();

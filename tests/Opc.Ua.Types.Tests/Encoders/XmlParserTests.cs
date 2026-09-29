@@ -1127,7 +1127,6 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Is.EqualTo("text"));
         }
 
-        [TestCase("2024-05-06")]
         [TestCase("12:30:00Z")]
         public void ReadDateTimeRejectsValuesThatAreNotDateTime(string text)
         {

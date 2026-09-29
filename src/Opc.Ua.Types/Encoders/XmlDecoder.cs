@@ -655,16 +655,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Parses an xs:dateTime value (Part 6 5.3.1.6). Only the xs:dateTime
-        /// lexical form is accepted - XmlConvert also takes the other XSD date
-        /// and time types (date, time, gYear, gMonthDay...) and decodes them to
-        /// a surprising instant. Years beyond 9999 decode as the latest and
-        /// years before 0001 as the earliest date/time value.
+        /// Parses an xs:dateTime value (Part 6 5.3.1.6). XmlConvert also takes
+        /// the other XSD date and time types (time, gYear, gMonthDay...) and
+        /// decodes them to a surprising instant (a time takes today's date, a
+        /// gMonthDay the year 1904); those are rejected. Years beyond 9999
+        /// decode as the latest and years before 0001 as the earliest
+        /// date/time value.
         /// </summary>
         /// <remarks>
-        /// Part 6 requires encoders to write a time zone. A value without one
-        /// is still read, as UTC, because published model files (including the
-        /// standard type design) contain such values.
+        /// Part 6 requires encoders to write the time and a time zone. A value
+        /// without a zone is still read as UTC, and a date without a time
+        /// (xs:date) as midnight UTC, because published model files (the
+        /// standard type and DI designs) contain such values.
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
         internal static DateTimeUtc ParseDateTime(
@@ -675,7 +677,7 @@ namespace Opc.Ua
             // xs:dateTime collapses whitespace.
             string text = xml.Trim();
 
-            // '-'? yyyy '-' mm '-' dd 'T' hh ':' mm ':' ss ('.' s+)? zone
+            // '-'? yyyy '-' mm '-' dd ('T' hh ':' mm ':' ss ('.' s+)?)? zone?
             int index = 0;
             bool negative = text.Length > 0 && text[0] == '-';
             if (negative)
@@ -692,17 +694,25 @@ namespace Opc.Ua
             int yearDigits = index - yearStart;
             bool valid =
                 (yearDigits == 4 || (yearDigits > 4 && text[yearStart] != '0')) &&
-                MatchesPattern(text, index, "-dd-ddTdd:dd:dd");
-            index += 15;
+                MatchesPattern(text, index, "-dd-dd");
+            index += 6;
 
-            if (valid && index < text.Length && text[index] == '.')
+            // the time may be left out (xs:date): published model files use
+            // such values, which decode as midnight of that date.
+            if (valid && index < text.Length && text[index] == 'T')
             {
-                int fractionStart = ++index;
-                while (index < text.Length && IsDigit(text[index]))
+                valid = MatchesPattern(text, index, "Tdd:dd:dd");
+                index += 9;
+
+                if (valid && index < text.Length && text[index] == '.')
                 {
-                    index++;
+                    int fractionStart = ++index;
+                    while (index < text.Length && IsDigit(text[index]))
+                    {
+                        index++;
+                    }
+                    valid = index > fractionStart;
                 }
-                valid = index > fractionStart;
             }
 
             if (valid && index < text.Length && text[index] == 'Z')
