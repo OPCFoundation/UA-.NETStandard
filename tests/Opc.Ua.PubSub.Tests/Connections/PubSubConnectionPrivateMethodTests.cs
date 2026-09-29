@@ -814,7 +814,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 telemetry);
         }
 
-        private static UadpSecurityWrapper CreateSecurityWrapper(            bool acceptInbound = true,
+        private static UadpSecurityWrapper CreateSecurityWrapper(
+            bool acceptInbound = true,
             bool throwOnCurrentKey = false)
         {
             return new UadpSecurityWrapper(
