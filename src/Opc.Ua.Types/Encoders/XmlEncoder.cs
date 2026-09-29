@@ -2290,7 +2290,7 @@ namespace Opc.Ua
                                 WriteDouble("Double", value.GetDouble());
                                 return;
                             case BuiltInType.String:
-                                WriteString("String", value.GetString(), true);
+                                WriteString("String", value.GetString());
                                 return;
                             case BuiltInType.DateTime:
                                 WriteDateTime("DateTime", value.GetDateTime());
