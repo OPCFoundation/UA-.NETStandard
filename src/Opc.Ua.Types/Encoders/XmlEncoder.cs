@@ -893,7 +893,15 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteDataValue(string? fieldName, in DataValue value)
         {
-            if (BeginField(fieldName, value.IsNull, true))
+            WriteDataValue(fieldName, value, false);
+        }
+
+        /// <summary>
+        /// Writes a DataValue to the stream.
+        /// </summary>
+        private void WriteDataValue(string? fieldName, in DataValue value, bool isArrayElement)
+        {
+            if (BeginField(fieldName, value.IsNull, true, isArrayElement))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -2236,7 +2244,7 @@ namespace Opc.Ua
                                 WriteDouble("Double", value.GetDouble());
                                 return;
                             case BuiltInType.String:
-                                WriteString("String", value.GetString());
+                                WriteString("String", value.GetString(), true);
                                 return;
                             case BuiltInType.DateTime:
                                 WriteDateTime("DateTime", value.GetDateTime());
@@ -2245,31 +2253,31 @@ namespace Opc.Ua
                                 WriteGuid("Guid", value.GetGuid());
                                 return;
                             case BuiltInType.ByteString:
-                                WriteByteString("ByteString", value.GetByteString());
+                                WriteByteString("ByteString", value.GetByteString(), true);
                                 return;
                             case BuiltInType.XmlElement:
-                                WriteXmlElement("XmlElement", value.GetXmlElement());
+                                WriteXmlElement("XmlElement", value.GetXmlElement(), true);
                                 return;
                             case BuiltInType.NodeId:
-                                WriteNodeId("NodeId", value.GetNodeId());
+                                WriteNodeId("NodeId", value.GetNodeId(), true);
                                 return;
                             case BuiltInType.ExpandedNodeId:
-                                WriteExpandedNodeId("ExpandedNodeId", value.GetExpandedNodeId());
+                                WriteExpandedNodeId("ExpandedNodeId", value.GetExpandedNodeId(), true);
                                 return;
                             case BuiltInType.StatusCode:
                                 WriteStatusCode("StatusCode", value.GetStatusCode());
                                 return;
                             case BuiltInType.QualifiedName:
-                                WriteQualifiedName("QualifiedName", value.GetQualifiedName());
+                                WriteQualifiedName("QualifiedName", value.GetQualifiedName(), true);
                                 return;
                             case BuiltInType.LocalizedText:
-                                WriteLocalizedText("LocalizedText", value.GetLocalizedText());
+                                WriteLocalizedText("LocalizedText", value.GetLocalizedText(), true);
                                 return;
                             case BuiltInType.ExtensionObject:
-                                WriteExtensionObject("ExtensionObject", value.GetExtensionObject());
+                                WriteExtensionObject("ExtensionObject", value.GetExtensionObject(), true);
                                 return;
                             case BuiltInType.DataValue:
-                                WriteDataValue("DataValue", value.GetDataValue());
+                                WriteDataValue("DataValue", value.GetDataValue(), true);
                                 return;
                             case BuiltInType.Null:
                             case BuiltInType.Variant:

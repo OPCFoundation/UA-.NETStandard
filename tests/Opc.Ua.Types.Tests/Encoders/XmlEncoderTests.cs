@@ -1615,7 +1615,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // the body is in no namespace, not in the default namespace in scope.
             Assert.That(
-                xml.Replace("\r\n", "\n"),
+                xml.ReplaceLineEndings("\n"),
                 Does.Contain("<a xmlns=\"\"><b> </b>\n <c>x</c></a>"));
         }
 
@@ -1661,6 +1661,47 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject decoded = decoder.ReadExtensionObject("EO");
             Assert.That(decoded.TypeId, Is.EqualTo(value.TypeId));
             Assert.That(decoded.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
+        }
+
+        [Test]
+        public void WriteVariantKeepsTheTypeOfNullScalars()
+        {
+            // the element was left out, which XmlDecoder reads as a null Variant.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            Variant[] values =
+            [
+                Variant.From(NodeId.Null),
+                Variant.From(ExpandedNodeId.Null),
+                Variant.From(QualifiedName.Null),
+                Variant.From(LocalizedText.Null),
+                Variant.From(default(ByteString)),
+                Variant.From(default(XmlElement)),
+                Variant.From(ExtensionObject.Null)
+            ];
+
+            foreach (Variant value in values)
+            {
+                Assert.That(value.TypeInfo.IsUnknown, Is.False, value.TypeInfo.ToString());
+                string xml;
+                using (var encoder = new XmlEncoder(
+                    new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
+                    null,
+                    messageContext))
+                {
+                    encoder.WriteVariant("V", value);
+                    xml = encoder.CloseAndReturnText();
+                }
+
+                using var decoder = new XmlDecoder(XmlReader.Create(new StringReader(xml)), messageContext);
+                decoder.PushNamespace(Namespaces.OpcUaXsd);
+                decoder.ReadStartElement();
+                Variant decoded = decoder.ReadVariant("V");
+                Assert.That(
+                    decoded.TypeInfo.BuiltInType,
+                    Is.EqualTo(value.TypeInfo.BuiltInType),
+                    xml);
+            }
         }
 
         [Test]
