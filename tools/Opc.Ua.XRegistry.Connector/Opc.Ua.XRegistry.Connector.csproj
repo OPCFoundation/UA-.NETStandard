@@ -15,6 +15,9 @@
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Bridge\Opc.Ua.XRegistry.Bridge.csproj" />
