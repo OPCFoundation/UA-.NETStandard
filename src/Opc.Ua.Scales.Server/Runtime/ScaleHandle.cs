@@ -613,9 +613,24 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// as one step no method call or other runtime member interleaves with.
         /// </summary>
         /// <remarks>
-        /// Every runtime member of the scale, its controllers and its modules
-        /// takes the same lock, so they are safe to call from any thread. The
-        /// lock is re-entrant; <paramref name="update"/> may call them.
+        /// <para>
+        /// The scale's own members, its type controllers and its modules take
+        /// the scale lock, so they are safe to call from any thread and do not
+        /// interleave with <paramref name="update"/>. The lock is re-entrant;
+        /// <paramref name="update"/> may call them.
+        /// </para>
+        /// <para>
+        /// The recipe controller, the production preset, the statistics, the
+        /// notifications, the PackML controller and the totalizers of a
+        /// continuous scale synchronise on locks of their own. They are
+        /// thread-safe too, but <see cref="Update"/> does not keep their calls
+        /// out.
+        /// </para>
+        /// <para>
+        /// <paramref name="update"/> runs under the scale lock and holds up
+        /// every method call on the scale while it runs. Keep it short and
+        /// synchronous: no I/O, no waiting, and no calls into other locks.
+        /// </para>
         /// </remarks>
         /// <param name="update">The writes to perform.</param>
         public void Update(Action update)

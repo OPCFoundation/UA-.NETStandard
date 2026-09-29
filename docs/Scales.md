@@ -310,12 +310,19 @@ The application publishes the raw load. The handle does the rest.
 | `SetItemState`, `SetOperationMode`, `SetProcessState` | The Machinery states and the process state |
 | `Update(action)` | Runs application code that writes several values of the scale (for example typed nodes reached through `With<TState>`) as one step |
 
-**Threading.** Every runtime member of a scale, of its type controller and of
-its feeder and printer modules takes the scale's lock, so all of them are safe
-to call from any thread. A client method call and an equipment-side report
-such as `SetActivity` or `CompleteCalibration` therefore never interleave: a
-method that checks a flag sees either the whole report or none of it. The
-lock is re-entrant, so code inside `Update` may call the other members.
+**Threading.** The runtime members of a scale, of its type controller and of
+its feeder and printer modules take the scale's lock, so they are safe to call
+from any thread. A client method call and an equipment-side report such as
+`SetActivity` or `CompleteCalibration` therefore never interleave: a method
+that checks a flag sees either the whole report or none of it. The lock is
+re-entrant, so code inside `Update` may call these members.
+
+The recipe controller, the production preset, the statistics, the
+notifications, the PackML controller and a continuous scale's totalizers
+synchronise on locks of their own. They are thread-safe as well, but `Update`
+does not keep their calls out. The `Update` delegate runs under the scale's
+lock and holds up every method call on the scale meanwhile, so keep it short
+and synchronous: no I/O, no waiting and no calls into other locks.
 
 - **Operator commands** (`SetZero`, `SetReferencePieceWeight`,
   `InboundWeighing`, …) pass the `CommandInterceptor`, like the methods.
