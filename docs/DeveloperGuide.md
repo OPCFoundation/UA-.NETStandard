@@ -25,8 +25,8 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
   - [Running the full scope](#running-the-full-scope)
   - [Required checks and coverage](#required-checks-and-coverage)
   - [Reproducing a CI leg locally](#reproducing-a-ci-leg-locally)
-  - [Triggering a pipeline run on a pull request](#triggering-a-pipeline-run-on-a-pull-request)
-  - [Migration status](#migration-status)
+  - [Pull requests from outside contributors](#pull-requests-from-outside-contributors)
+  - [Azure Pipelines on other branches](#azure-pipelines-on-other-branches)
 - [Contributing and pull requests](#contributing-and-pull-requests)
 - [Related documentation](#related-documentation)
 
@@ -275,7 +275,7 @@ In-development previews are published **only** to the [GitHub Packages feed](htt
 select *Include prerelease* in Visual Studio. No additional package source or
 credentials are required for nuget.org; the GitHub Packages feed needs a classic PAT with `read:packages`.
 
-The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+The full set of packages [`nuget-publish.yml`](../.github/workflows/nuget-publish.yml) produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
 
 ### Supported target frameworks
 
@@ -329,11 +329,9 @@ the signed release workflow can promote an intentional mixed-version set.
 
 ## Continuous integration
 
-**GitHub Actions owns pull-request validation and the weekly full-scope validation.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress and stability suites.
+**GitHub Actions runs all CI for `master`.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml) builds, signs and publishes the packages. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress, stability and long-haul suites.
 
-Azure Pipelines ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) no longer runs on pull requests or on the weekly full-scope schedule: the Azure context was dropped from the master ruleset, the pipeline's PR trigger is `pr: none`, and the YAML `schedules:` block has been retired. Azure still runs on pushes to `master` and can be queued manually for recovery, where it **duplicates** coverage rather than supplying any of it; see [Migration status](#migration-status) for what remains to switch off.
-
-Pull requests targeting `master378` or a `release/*` line are unaffected — Azure Pipelines evaluates a pull request against the *target* branch's copy of `azure-pipelines.yml`, and those branches keep their own copy and their own required Azure context.
+The only Azure Pipelines definition left on `master` is the manually queued, opt-in [`.azurepipelines/onefuzz.yml`](../.azurepipelines/onefuzz.yml), kept because submission to the internal OneFuzz service requires the Azure DevOps-only `onefuzz-task`; it has no push, PR or schedule trigger. The other PowerShell helpers that remain under [`.azurepipelines/`](../.azurepipelines) are used by the GitHub Actions workflows; the directory keeps its historical name so those paths stay stable. Branches that still carry their own `azure-pipelines.yml` (`master378`, the 1.x `release/*` lines and the frozen `release/2.0.0`) keep their Azure validation; see [Azure Pipelines on other branches](#azure-pipelines-on-other-branches).
 
 ### What runs where
 
@@ -355,7 +353,7 @@ The executor fails a project when its build fails, when the TRX counters report 
 
 That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
 
-The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A non-zero exit is tolerated when, and only when, the results record at least one **passing** test and no failure, error, timeout, abort or `passedButRunAborted`. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible. This matches the Azure gate in [`.azurepipelines/test.yml`](../.azurepipelines/test.yml).
+The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A non-zero exit is tolerated when, and only when, the results record at least one **passing** test and no failure, error, timeout, abort or `passedButRunAborted`. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible.
 
 #### Why a project can be skipped
 
@@ -409,7 +407,7 @@ That decision is a **deny-list**, not an allow-list of build inputs, and it live
 
 The coverage check reports a clean failure when the thresholds are missed, so a miss is visible on the pull request, but it never blocks the merge. Do not add it to the ruleset — that would make a coverage dip unmergeable, which is not the intent.
 
-> Azure Pipelines no longer posts any check on a pull request targeting `master`; `build-and-test summary` is the only required check. On the branches where Azure still validates pull requests (`master378`, `release/*`), note that its `Tests passed` context is fail-*closed* rather than fail-red: the verdict lives in the stage `condition`, so when a test stage fails the stage is skipped and Azure posts **no check at all** — the required check stays unfulfilled and the merge stays blocked. You will see the failing test job in red and `Tests passed` still waiting, rather than two red checks. Verified on build 16613.
+> `build-and-test summary` is the only required check on `master`.
 
 #### How coverage is measured
 
@@ -427,7 +425,7 @@ The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/chec
 
 Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red check green.
 
-> The script still lives under `.azurepipelines/` because it is shared, not because it is Azure-specific. The directory keeps its name so the reusable PowerShell helpers there do not all have to move at once.
+> The script lives under `.azurepipelines/` for historical reasons only; it is not Azure-specific.
 
 Two things about the `ignore` globs regularly catch people out. `samples/**` is ignored, so a sample can carry
 tests for its own sake — a wrong kinematics solver would make a sample lie — without those lines counting
@@ -456,27 +454,15 @@ Remember that the coverage check as a whole is advisory and stays out of the bra
 
 The merged report is also uploaded to [codecov.io](https://codecov.io), which is where the pull-request comment, the file-by-file diff view and the coverage trend live. **Codecov does not gate.** Both of its status checks are `informational: true` in [`codecov.yml`](../codecov.yml), because two gates with two sets of thresholds would eventually disagree about the same pull request and the easier one to silence would win. The rules that actually decide are the ones above.
 
-Each CI system uploads the report it merged, under its own flag (`azure`, `actions`), since the two matrices deliberately cover different legs.
-
-The upload is optional on both systems and never fails a build:
-
-| | Turn it off with | Also skipped when |
-| --- | --- | --- |
-| GitHub Actions | the `ENABLE_CODECOV` workflow `env` (default `'true'`) | the `CODECOV_TOKEN` secret is unavailable, as on fork pull requests |
-| Azure Pipelines | the `enableCodecov` pipeline parameter (default `true`) | the `CODECOV_TOKEN` secret variable is unset |
+The upload carries the `actions` flag. It is optional and never fails a build: turn it off with the `ENABLE_CODECOV` workflow `env` (default `'true'`); it is also skipped when the `CODECOV_TOKEN` secret is unavailable, as on fork pull requests.
 
 Keep the `ignore` list in `codecov.yml` in step with the one in `coverage-thresholds.json`, or the two will report on different code.
 
 #### Where the numbers appear
 
-The script renders a markdown summary that both systems surface, so you never have to open a raw log to see why coverage moved:
+The script renders a markdown summary, so you never have to open a raw log to see why coverage moved. It is appended to the run's job summary and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written. The merged HTML report is published as a `coverage-report` artifact.
 
-- **GitHub Actions** — appended to the run's job summary, and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written.
-- **Azure Pipelines** — attached to the build summary via `##vso[task.uploadsummary]`, alongside the usual Code Coverage tab and the Codacy upload.
-
-Both also publish the merged HTML report as a `coverage-report` artifact.
-
-> The two systems report **different numbers**, and that is expected. GitHub Actions merges every profile that collects coverage, whereas Azure Pipelines merges only its own fast legs. The GitHub figure is the representative one — and now the only one a pull request sees, since Azure no longer runs on pull requests — and a full-scope run reads differently again because it covers different profiles.
+> A full-scope `nightly.yml` run reports different numbers from a pull-request run, and that is expected: it merges a different set of profiles.
 
 To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
 
@@ -506,34 +492,15 @@ Then run one entry's projects exactly as CI would:
 
 Add `-Coverage` to collect Cobertura fragments, and `-QuietOutput` to redirect child output to a log file instead of the console.
 
-### Triggering a pipeline run on a pull request
+### Pull requests from outside contributors
 
-Azure Pipelines no longer builds pull requests targeting `master` (`pr: none`). If you need an Azure run for comparison while the migration finishes, a repository owner or a collaborator with `Write` permission can still start one by commenting:
+GitHub Actions applies its "Approve and run workflows" gate to outside contributors and to the **GitHub Copilot coding agent**: a maintainer reviews the change and then approves the workflow run.
 
-```text
-/azp run
-```
+### Azure Pipelines on other branches
 
-`/azp run <pipeline-name>` targets a single pipeline. If a comment appears to do nothing, check that your GitHub organization membership is **public** — Azure Pipelines cannot see private organization members unless they are direct repository collaborators, and it silently ignores their commands.
+`master` no longer carries `azure-pipelines.yml`, `azure-pipelines-preview.yml` or the Azure CI templates, so a push to `master` (or to a branch cut from it) gives those Azure definitions nothing to run. The OneFuzz definition, which points at `.azurepipelines/onefuzz.yml`, is unaffected and stays manual. The Azure DevOps definitions themselves live in the Azure DevOps portal, not in this repository. Disabling their `master` triggers there (definition 14's push trigger and service-side schedule, definition 16's build-completion trigger, and the stale definition 13) is an administrator task and stops any residual "file not found" runs. Preserve the definitions, their artifacts, feeds, secure files, pools and service connections — `master378`, the 1.x `release/*` lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and still use them.
 
-On the branches where Azure still validates pull requests (`master378` and the `release/*` lines, each governed by its own copy of `azure-pipelines.yml`), the definition is configured with **Require a team member's comment before building a pull request**, scoped to *pull requests from non-team members*. That setting lives in the Azure DevOps portal (pipeline → **More actions** → **Triggers** → **Pull request validation**), not in YAML. GitHub Actions applies its own equivalent "Approve and run workflows" gate to outside contributors and to the **GitHub Copilot coding agent**.
-
-### Migration status
-
-The Actions workflows were added while Azure Pipelines kept every trigger and required context it had, so a gap in the new system could not leave a change untested. Since then the master ruleset has dropped the Azure context, leaving `build-and-test summary` as the only required check, and this repository's PR trigger has been set to `pr: none`.
-
-What is still outstanding — each needing repository- or organization-administrator access, and therefore **not** part of the source change:
-
-1. Run `nightly.yml` on a trusted SHA and compare its manifest against a full-scope Azure run.
-2. Confirm definition 14's service-side **Pull request validation** setting is off. `pr: none` covers the YAML trigger, but an enabled "Override the YAML PR trigger from here" would still queue builds.
-3. Confirm definition 14's service-side schedule is off and retire the push trigger once the GitHub replacement has proven stable. The YAML `cron` has already moved to `nightly.yml`.
-4. Retire `azure-pipelines-preview.yml` and definition 16's build-completion trigger. Development packages already publish to GitHub Packages from [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml), so that publisher is a duplicate. Ensure the stale definition 13 cannot restart it.
-
-> **Before cutting a canonical `release/2.<minor>` branch:** the `Release` ruleset requires `OPCFoundation.UA-.NETStandard` for *every* `refs/heads/release/*`. A new 2.x branch inherits `pr: none` from `master`, so that Azure context would never report and would block every pull request into the new line. Exclude the new ref from that ruleset — or add a 2.x ruleset requiring `build-and-test summary` — as part of creating the branch. The existing 1.x lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and must keep the Azure requirement.
-
-Preserve the Azure definitions, their artifacts, feeds, secure files, pools and service connections — retiring a trigger is not the same as deleting history. The `master378` and 1.x pipelines are out of scope entirely.
-
-The weekly full-scope schedule now lives in `nightly.yml`; keep Azure's service-side schedule disabled so both systems do not run the same nightly workload.
+> **Before cutting a canonical `release/2.<minor>` branch:** the `Release` ruleset requires `OPCFoundation.UA-.NETStandard` for *every* `refs/heads/release/*`. A new 2.x branch is cut from `master` and has no Azure pipeline, so that Azure context would never report and would block every pull request into the new line. Exclude the new ref from that ruleset — or add a 2.x ruleset requiring `build-and-test summary` — as part of creating the branch. The existing 1.x lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and must keep the Azure requirement.
 
 
 ## Contributing and pull requests

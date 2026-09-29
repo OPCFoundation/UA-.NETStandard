@@ -255,8 +255,8 @@ dotnet publish tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj -c Release && \
 ## CI Integration
 
 The GitHub Actions workflow `.github/workflows/buildandtest.yml` runs AOT
-jobs on Ubuntu and both Intel and ARM64 macOS. Azure's `Test Native AoT`
-matrix covers Windows. Each platform performs these steps:
+jobs on Ubuntu and both Intel and ARM64 macOS; the weekly
+`.github/workflows/nightly.yml` run adds Windows. Each platform performs these steps:
 
 1. **Checkout** the repository.
 2. **Setup** .NET 10.0 SDK.
