@@ -252,7 +252,11 @@ namespace Opc.Ua.Pumps.Client
         /// skipped regardless of <paramref name="options"/>.
         /// </remarks>
         /// <param name="pump">The pump to read.</param>
-        /// <param name="options">Reserved; currently unused.</param>
+        /// <param name="options">
+        /// Only <see cref="PumpReadOptions.IncludeTimestamps"/> is honored;
+        /// engineering units and ranges are never read for these boolean
+        /// signals.
+        /// </param>
         /// <param name="cancellationToken">Cancels the operation.</param>
         /// <returns>
         /// The supervision state, or <see langword="null"/> when the pump
