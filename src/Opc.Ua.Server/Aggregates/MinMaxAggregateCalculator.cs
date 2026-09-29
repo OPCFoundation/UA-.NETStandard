@@ -235,8 +235,9 @@ namespace Opc.Ua.Server
             }
             else if (valueType == 3)
             {
-                processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
-                processedType = TypeInfo.Scalars.Double;
+                double range = Math.Abs(maximumGoodValue - minimumGoodValue);
+                processedValue = range;
+                processedType = GetRangeType(minimumOriginalType, range);
             }
 
             // Non-Good inputs that affect quality also make ActualTime results Calculated.
@@ -409,8 +410,9 @@ namespace Opc.Ua.Server
             }
             else if (valueType == 3)
             {
-                processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
-                processedType = TypeInfo.Scalars.Double;
+                double range = Math.Abs(maximumGoodValue - minimumGoodValue);
+                processedValue = range;
+                processedType = GetRangeType(minimumOriginalType, range);
             }
 
             // set the status code.
@@ -481,6 +483,29 @@ namespace Opc.Ua.Server
             return value
                 .WithSourceTimestamp(sliceStamp)
                 .WithServerTimestamp(sliceStamp);
+        }
+
+        /// <summary>
+        /// Returns the data type of a Range/Range2 result: the source type
+        /// (Part 13 Tables 62 and 67), or Double when the source is not a
+        /// numeric type or the range does not fit into it.
+        /// </summary>
+        private static TypeInfo GetRangeType(TypeInfo sourceType, double range)
+        {
+            if (sourceType.IsUnknown ||
+                sourceType.BuiltInType is < BuiltInType.SByte or > BuiltInType.Double)
+            {
+                return TypeInfo.Scalars.Double;
+            }
+            try
+            {
+                _ = new Variant(range).ConvertTo(sourceType.BuiltInType);
+                return sourceType;
+            }
+            catch (Exception)
+            {
+                return TypeInfo.Scalars.Double;
+            }
         }
     }
 }

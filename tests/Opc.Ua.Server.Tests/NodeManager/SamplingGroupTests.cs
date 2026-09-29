@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -350,6 +352,72 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using SamplingGroup group = CreateGroup(identity.Object);
 
             Assert.DoesNotThrow(group.Shutdown);
+        }
+
+        /// <summary>
+        /// Verifies that an item transferred to another session is read and permission-checked
+        /// as the new owner, not as the session that created the sampling group.
+        /// </summary>
+        [Test]
+        public async Task SampleUsesSessionOfTransferredItemAsync()
+        {
+            var creatorIdentity = new Mock<IUserIdentity>();
+            var ownerIdentity = new Mock<IUserIdentity>();
+            Mock<ISession> creator = CreateSessionMock(new NodeId(1, 1), creatorIdentity.Object);
+            Mock<ISession> owner = CreateSessionMock(new NodeId(2, 1), ownerIdentity.Object);
+            OperationContext creatorContext = SessionContext(creator.Object);
+
+            var readIdentity = new TaskCompletionSource<IUserIdentity>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var permissionIdentity = new TaskCompletionSource<IUserIdentity>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager
+                .Setup(m => m.ReadAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<double>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<IList<DataValue>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, double, ArrayOf<ReadValueId>, IList<DataValue>,
+                    IList<ServiceResult>, CancellationToken>(
+                    (context, _, _, _, _, _) => readIdentity.TrySetResult(context.UserIdentity))
+                .Returns(default(ValueTask));
+            nodeManager
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    PermissionType.Read,
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, NodeId, PermissionType, CancellationToken>(
+                    (context, _, _, _) => permissionIdentity.TrySetResult(context.UserIdentity))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
+            using var group = new SamplingGroup(
+                mockServer.Object,
+                nodeManager.Object,
+                SamplingRates(),
+                creatorContext,
+                500);
+            Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
+            item.SetupGet(m => m.Session).Returns(owner.Object);
+            item.Setup(m => m.GetReadValueId()).Returns(new ReadValueId
+            {
+                NodeId = new NodeId(10, 1),
+                AttributeId = Attributes.Value
+            });
+
+            Assert.That(group.StartMonitoring(creatorContext, item.Object), Is.True);
+            group.ApplyChanges();
+
+            Assert.That(
+                await readIdentity.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Is.SameAs(ownerIdentity.Object));
+            Assert.That(
+                await permissionIdentity.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Is.SameAs(ownerIdentity.Object));
         }
     }
 }

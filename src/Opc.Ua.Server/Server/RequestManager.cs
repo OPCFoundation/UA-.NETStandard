@@ -545,6 +545,10 @@ namespace Opc.Ua.Server
         /// pay the full budget before failing. It is left registered so that a handler which does
         /// eventually finish still reports completion normally.
         /// </para>
+        /// <para>
+        /// Publish requests are not waited for: they do not dispatch into NodeManagers and are
+        /// parked until a notification or keep-alive is due.
+        /// </para>
         /// </summary>
         /// <param name="budget">The longest the drain may wait.</param>
         /// <returns>The ids of the requests to wait for.</returns>
@@ -558,6 +562,13 @@ namespace Opc.Ua.Server
             foreach (OperationContext request in m_requests.Values)
             {
                 if (m_lifecycleExtension?.ShouldExcludeRequestLocked(request.RequestId) == true)
+                {
+                    continue;
+                }
+
+                // A Publish never dispatches into a NodeManager, but stays parked until the next
+                // notification or keep-alive, so waiting for it would stall every drain.
+                if (request.RequestType == RequestType.Publish)
                 {
                     continue;
                 }

@@ -698,6 +698,18 @@ stream body (a serialized `UABinaryFileDataType` whose `SupportedDataType` is
 `ApplicationConfigurationDataType`) and is treated opaquely by the node manager,
 so the concrete encoding is entirely the provider's responsibility.
 
+A provider that also implements `IApplicationConfigurationFileTargetProvider`
+receives the `CloseAndUpdate` `Targets` (§7.8.5.2: contents not referenced by a
+target are ignored). Its target-aware `ValidateConfigurationAsync` returns an
+`ApplicationConfigurationUpdatePlan`: any non-Good per-target result rejects the
+whole update with `Uncertain` and those `UpdateResults`, and
+`InterruptsSessions = true` defers the apply by the Client-supplied
+`RestartDelayTime` so the Client receives the response first (the response then
+carries the plan's `NewVersion`; a second update is rejected with
+`Bad_InvalidState` until the deferred apply has run). Providers that only
+implement `IApplicationConfigurationFileProvider` keep applying the whole file
+immediately.
+
 ### TrustList Size Limits (OPC UA Part 12 §8.4.5)
 
 `ServerConfiguration.MaxTrustListSize` advertises, in bytes, the largest
@@ -718,10 +730,12 @@ The effective, actually-enforced limit is derived from the advertised
 | finite, at or below the ceiling | the configured `MaxTrustListSize` |
 
 The effective limit is enforced consistently — before allocation — on
-`TrustList.Read`/`Write` (cumulatively across chunks, overflow-safe),
+`TrustList.Write` (cumulatively across chunks, overflow-safe),
 `CloseAndUpdate` (the staged payload is decoded under the effective bound), and
-the direct `AddCertificate` path (an oversized certificate is rejected with
-`Bad_EncodingLimitsExceeded`).
+the direct `AddCertificate` path. An oversized `Write` or `AddCertificate` is
+rejected with `Bad_RequestTooLarge`. `TrustList.Read` is not limited: it
+returns the TrustList the server encoded itself, and a requested `Length`
+beyond the remaining data is clamped to what is left.
 
 ```csharp
 builder.ConfigureServerConfiguration(o =>

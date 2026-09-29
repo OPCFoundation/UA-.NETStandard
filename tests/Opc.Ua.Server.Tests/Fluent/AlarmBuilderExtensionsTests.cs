@@ -185,17 +185,30 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void MonitorVariableSetsSourceNodeAndName()
+        public void MonitorVariableMakesTheVariableTheConditionSource()
         {
             (NodeManagerBuilder b, _, BaseDataVariableState src) = CreateBuilder();
-            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+            var rootId = new NodeId("Root", kNs);
+            INodeBuilder nb = b.Node(rootId);
 
             IAlarmBuilder<NonExclusiveLimitAlarmState> ab = nb.CreateLimitAlarm(
-                new QualifiedName("OverTemp", kNs))
-                .MonitorVariable(src);
+                new QualifiedName("OverTemp", kNs));
 
+            // Part 9 5.8.2: InputNode names a Variable, never the parent Object.
+            Assert.That(ab.Alarm.InputNode!.Value.IsNull, Is.True);
+
+            ab.MonitorVariable(src);
+
+            // The Variable becomes the ConditionSource the events name (Part 9 5.5.2):
+            // HasCondition to the alarm and HasEventSource from the owning Object.
             Assert.That(ab.Alarm.SourceNode!.Value, Is.EqualTo(src.NodeId));
             Assert.That(ab.Alarm.SourceName!.Value, Is.EqualTo("Temp"));
+            Assert.That(ab.Alarm.InputNode.Value, Is.EqualTo(src.NodeId));
+            Assert.That(src.ReferenceExists(ReferenceTypeIds.HasCondition, false, ab.Alarm.NodeId), Is.True);
+            Assert.That(ab.Alarm.Parent!.NodeId, Is.EqualTo(rootId));
+            Assert.That(
+                ab.Alarm.Parent.ReferenceExists(ReferenceTypeIds.HasEventSource, false, src.NodeId),
+                Is.True);
         }
 
         [Test]

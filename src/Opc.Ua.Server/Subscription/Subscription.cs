@@ -251,16 +251,17 @@ namespace Opc.Ua.Server
                 storedSubscription.LastSentMessage);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
-            // UserIdentityToken is null for anonymous sessions; preserve the saved-owner
-            // identity in that case (the field already supports null).
+            // UserIdentityToken is null for anonymous sessions; the owner is then an
+            // anonymous identity, so EffectiveIdentity is never null before a Session
+            // reclaims the subscription (TransferSubscriptions checks its token type).
             m_savedOwnerIdentity = storedSubscription.UserIdentityToken != null
                 ? new UserIdentity(storedSubscription.UserIdentityToken)
-                : null;
-            m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
+                : new UserIdentity();
+            m_ownerUserTokenType = m_savedOwnerIdentity.TokenType;
             m_ownerClientApplicationUri = storedSubscription is IStoredSubscriptionState ownerState
                 ? ownerState.OwnerClientApplicationUri
                 : null;
-            if (m_savedOwnerIdentity != null)
+            if (storedSubscription.UserIdentityToken != null)
             {
                 ClientUserIdResolver.TryResolveContinuityKey(
                     m_savedOwnerIdentity.TokenHandler,
@@ -1731,14 +1732,18 @@ namespace Opc.Ua.Server
                 messages,
                 availableSequenceNumberList,
                 out moreNotifications,
-                out uint newlyUnacknowledgedCount);
+                out uint discardedMessageCount);
             moreNotifications |= m_itemsToPublish.Count > 0;
 
-            if (newlyUnacknowledgedCount > 0)
+            if (discardedMessageCount > 0)
             {
+                // Messages dropped unsent on overflow or evicted from the retransmission queue
+                // were discarded before the client acknowledged them (Part 5
+                // SubscriptionDiagnosticsDataType). The UnacknowledgedMessageCount is recomputed
+                // from the queue by Publish.
                 lock (m_diagnosticsLock)
                 {
-                    Diagnostics.UnacknowledgedMessageCount += newlyUnacknowledgedCount;
+                    Diagnostics.DiscardedMessageCount += discardedMessageCount;
                     MarkDiagnosticsDirty();
                 }
             }

@@ -2831,12 +2831,14 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (propertyState != null)
+                    if (propertyState != null && nodeToWrite.AttributeId == Attributes.Value)
                     {
+                        // compare the stored value after the write: the written DataValue
+                        // (possibly an IndexRange slice) is not comparable with the old value.
                         CheckIfSemanticsHaveChanged(
                             systemContext,
                             propertyState,
-                            nodeToWrite.Value,
+                            propertyState.Value,
                             previousPropertyValue);
                     }
 
@@ -2872,9 +2874,10 @@ namespace Opc.Ua.Server
         {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
+            bool hasSemanticChangeFlag = AsyncCustomNodeManager.HasSemanticChangeFlag(property);
 
-            if (propertyName
-                is not BrowseNames.EURange
+            if (!hasSemanticChangeFlag &&
+                propertyName is not BrowseNames.EURange
                     and not BrowseNames.InstrumentRange
                     and not BrowseNames.EngineeringUnits
                     and not BrowseNames.Title
@@ -2891,6 +2894,16 @@ namespace Opc.Ua.Server
 
             // ceck if property value changed
             if (Utils.IsEqual(newPropertyValue, previousPropertyValue))
+            {
+                return;
+            }
+
+            // the SemanticChangeEvent is raised once per change, whether or not the
+            // owning node is monitored (Part 3 5.6.2).
+            NodeState? changedNode = property.Parent;
+            if (changedNode != null &&
+                !hasSemanticChangeFlag &&
+                !AsyncCustomNodeManager.IsSemanticChangeProperty(changedNode, propertyName))
             {
                 return;
             }
@@ -2912,87 +2925,36 @@ namespace Opc.Ua.Server
                 NodeState node = handle.Node;
                 BaseInstanceState? propertyState = node.FindChild(
                     systemContext,
-                    property!.BrowseName);
+                    property.BrowseName);
 
                 if (propertyState != null &&
-                    property != null &&
-                    propertyState.NodeId == property.NodeId)
+                    propertyState.NodeId == property.NodeId &&
+                    (hasSemanticChangeFlag || AsyncCustomNodeManager.IsSemanticChangeProperty(node, propertyName)))
                 {
-                    if ((
-                            node is AnalogItemState &&
-                            (propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits)
-                        ) ||
-                        (
-                            node is TwoStateDiscreteState &&
-                            (propertyName == BrowseNames.FalseState ||
-                                propertyName == BrowseNames.TrueState)
-                        ) ||
-                        (node is MultiStateDiscreteState &&
-                            (propertyName == BrowseNames.EnumStrings)) ||
-                        (
-                            node is ArrayItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title)
-                        ) ||
-                        (
-                            (node is YArrayItemState || node is XYArrayItemState) &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition)
-                        ) ||
-                        (
-                            node is ImageItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition ||
-                                propertyName == BrowseNames.YAxisDefinition)
-                        ) ||
-                        (
-                            node is CubeItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.XAxisDefinition ||
-                                propertyName == BrowseNames.YAxisDefinition ||
-                                propertyName == BrowseNames.ZAxisDefinition)
-                        ) ||
-                        (
-                            node is NDimensionArrayItemState &&
-                            (
-                                propertyName == BrowseNames.InstrumentRange ||
-                                propertyName == BrowseNames.EURange ||
-                                propertyName == BrowseNames.EngineeringUnits ||
-                                propertyName == BrowseNames.Title ||
-                                propertyName == BrowseNames.AxisDefinition)))
-                    {
-                        monitoredItem.SetSemanticsChanged();
+                    monitoredItem.SetSemanticsChanged();
 
-                        var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
+                    // re-read in the context of the session owning the monitored item,
+                    // not in the context of the writer.
+                    ServerSystemContext itemContext = SystemContext.Copy(
+                        new OperationContext(kvp.Value));
+                    var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
-                        node.ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            monitoredItem.IndexRange,
-                            default,
-                            ref value);
+                    ServiceResult readResult = node.ReadAttribute(
+                        itemContext,
+                        Attributes.Value,
+                        monitoredItem.IndexRange,
+                        monitoredItem.DataEncoding,
+                        ref value);
 
-                        monitoredItem.QueueValue(value, ServiceResult.Good, true);
+                    monitoredItem.QueueValue(value, readResult, true);
 
-                        RaiseSemanticChangeEvent(systemContext, node, property);
-                    }
+                    changedNode ??= node;
                 }
+            }
+
+            if (changedNode != null)
+            {
+                RaiseSemanticChangeEvent(systemContext, changedNode, property);
             }
         }
 
@@ -3024,7 +2986,7 @@ namespace Opc.Ua.Server
                                 new SemanticChangeStructureDataType
                                 {
                                     Affected = node.NodeId,
-                                    AffectedType = property.TypeDefinitionId
+                                    AffectedType = (node as BaseInstanceState)?.TypeDefinitionId ?? NodeId.Null
                                 }
                             }.ToArrayOf();
 
@@ -4608,11 +4570,50 @@ namespace Opc.Ua.Server
                     {
                         if (ReferenceEquals(notifier, RootNotifiers[ii]))
                         {
+                            // detach the Server object (all events) subscriptions which were
+                            // linked to this root notifier, otherwise they are stranded in the
+                            // monitored nodes once the notifier is no longer a root notifier.
+                            if (m_monitoredItemManager.MonitoredNodes.TryGetValue(
+                                notifier.NodeId, out MonitoredNode2? monitored))
+                            {
+                                foreach (IEventMonitoredItem item in monitored.EventMonitoredItems.Values.ToArray())
+                                {
+                                    if (!item.MonitoringAllEvents)
+                                    {
+                                        continue;
+                                    }
+                                    (MonitoredNode2? removed, ServiceResult result) = m_monitoredItemManager
+                                        .SubscribeToEvents(SystemContext, notifier, item, unsubscribe: true);
+                                    if (ServiceResult.IsBad(result))
+                                    {
+                                        throw new ServiceResultException(result);
+                                    }
+                                    notifier.SetAreEventsMonitored(SystemContext, false, true);
+                                    if (removed != null)
+                                    {
+                                        OnSubscribeToEvents(SystemContext, removed, true);
+                                    }
+                                }
+                            }
+
                             notifier.OnReportEvent = null;
                             notifier.RemoveReference(
                                 ReferenceTypeIds.HasNotifier,
                                 true,
                                 ObjectIds.Server);
+
+                            ServerObjectState? serverObject = Server.ServerObject;
+                            if (serverObject != null &&
+                                serverObject.ReferenceExists(
+                                    ReferenceTypeIds.HasNotifier,
+                                    false,
+                                    notifier.NodeId))
+                            {
+                                serverObject.RemoveReference(
+                                    ReferenceTypeIds.HasNotifier,
+                                    false,
+                                    notifier.NodeId);
+                            }
                             RootNotifiers.RemoveAt(ii);
                             break;
                         }
@@ -5610,12 +5611,18 @@ namespace Opc.Ua.Server
             // validate parameters.
             MonitoringParameters parameters = itemToModify.RequestedParameters;
 
-            double previousSamplingInterval = datachangeItem!.SamplingInterval;
+            // a negative sampling interval selects the publishing interval of the
+            // subscription (Part 4 7.21), not the previous sampling interval.
+            double defaultSamplingInterval = datachangeItem!.SamplingInterval;
+            if (monitoredItem.SubscriptionCallback is ISubscription subscription)
+            {
+                defaultSamplingInterval = subscription.PublishingInterval;
+            }
 
             // check if the variable needs to be sampled.
             double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                 itemToModify.RequestedParameters.SamplingInterval,
-                previousSamplingInterval,
+                defaultSamplingInterval,
                 handle.Node,
                 datachangeItem.AttributeId,
                 MinSupportedSamplingInterval);

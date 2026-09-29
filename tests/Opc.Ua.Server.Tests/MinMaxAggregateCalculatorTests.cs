@@ -343,6 +343,44 @@ namespace Opc.Ua.Server.Tests
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(47.0).Within(0.0001));
         }
 
+        /// <summary>
+        /// Part 13 Tables 62 and 67: Range and Range2 return the source data
+        /// type; Double only when the range overflows it.
+        /// </summary>
+        [TestCase("Range")]
+        [TestCase("Range2")]
+        public void Range_ReturnsSourceDataType(string aggregateName)
+        {
+            NodeId aggregateId = aggregateName == "Range"
+                ? ObjectIds.AggregateFunction_Range
+                : ObjectIds.AggregateFunction_Range2;
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            var ints = new List<DataValue>();
+            var sbytes = new List<DataValue>();
+            int[] values = [10, 50, 20, 3, 15, 15];
+            for (int i = 0; i < values.Length; i++)
+            {
+                DateTimeUtc timestamp = startTime.AddMilliseconds(500 + (i * 2000));
+                ints.Add(new DataValue(new Variant(values[i]), StatusCodes.Good, timestamp, timestamp));
+                sbytes.Add(new DataValue(
+                    new Variant((sbyte)(i % 2 == 0 ? -100 : 100)),
+                    StatusCodes.Good,
+                    timestamp,
+                    timestamp));
+            }
+
+            DataValue intResult = ComputeAggregate(aggregateId, ints, startTime, endTime, 12000);
+            DataValue sbyteResult = ComputeAggregate(aggregateId, sbytes, startTime, endTime, 12000);
+
+            Assert.That(intResult.WrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+            Assert.That(intResult.WrappedValue.TryGetValue(out int range), Is.True);
+            Assert.That(range, Is.EqualTo(47));
+            // 200 does not fit into SByte.
+            Assert.That(sbyteResult.WrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
+            Assert.That((double)sbyteResult.WrappedValue.ConvertToDouble(), Is.EqualTo(200.0).Within(0.0001));
+        }
+
         [Test]
         public void MinimumActualTime2_ReturnsMinimumValue()
         {

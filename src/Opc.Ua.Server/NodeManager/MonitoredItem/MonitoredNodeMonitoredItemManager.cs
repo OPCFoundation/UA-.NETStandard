@@ -271,6 +271,7 @@ namespace Opc.Ua.Server
             {
                 monitoredNode.Remove(monitoredItem);
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0 ||
+                    monitoredItem is not IEventMonitoredItem { MonitoringAllEvents: true } ||
                     !IsEventMonitoredItemLinked(monitoredItem.Id))
                 {
                     MonitoredItems.TryRemove(monitoredItem.Id, out _);
@@ -417,7 +418,11 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredNode.Remove(monitoredItem);
-                if (!IsEventMonitoredItemLinked(monitoredItem.Id))
+
+                // an all-events item can stay linked to other root notifiers; any
+                // other event item is only linked to its own node.
+                if (!monitoredItem.MonitoringAllEvents ||
+                    !IsEventMonitoredItemLinked(monitoredItem.Id))
                 {
                     MonitoredItems.TryRemove(monitoredItem.Id, out _);
                 }

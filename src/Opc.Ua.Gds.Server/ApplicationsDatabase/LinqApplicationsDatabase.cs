@@ -59,8 +59,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public int ApplicationType { get; set; }
         public string? ProductUri { get; set; }
         public string? ServerCapabilities { get; set; }
-        public Dictionary<string, byte[]> Certificate { get; }
-        public Dictionary<string, string> TrustListId { get; }
+        // Settable for the JSON serializer: a get-only property is skipped on
+        // deserialization, which lost the certificates on every reload.
+        [JsonInclude]
+        public Dictionary<string, byte[]> Certificate { get; internal set; }
+
+        [JsonInclude]
+        public Dictionary<string, string> TrustListId { get; internal set; }
     }
 
     [Serializable]
@@ -75,7 +80,41 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string? SubjectName { get; set; }
         public string[]? DomainNames { get; set; }
         public string? PrivateKeyFormat { get; set; }
+
+        /// <summary>
+        /// OPC 10000-12 §7.9.4: the CertificateManager shall not persist the
+        /// private key password, so it only lives in memory.
+        /// </summary>
+        [JsonIgnore]
         public char[]? PrivateKeyPassword { get; set; }
+
+        /// <summary>
+        /// Whether the request was started with a private key password, so a
+        /// request whose (not persisted) password was lost by a restart is
+        /// not completed with an unprotected private key.
+        /// </summary>
+        public bool HasPrivateKeyPassword { get; set; }
+
+        /// <summary>
+        /// Reads the private key password that earlier versions persisted, so a
+        /// request pending across an upgrade keeps its password (in memory only)
+        /// instead of being completed with an unprotected key. Never written.
+        /// </summary>
+        [JsonPropertyName("PrivateKeyPassword")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public char[]? PersistedPrivateKeyPassword
+        {
+            get => null;
+            set
+            {
+                if (value is { Length: > 0 })
+                {
+                    PrivateKeyPassword = value;
+                    HasPrivateKeyPassword = true;
+                }
+            }
+        }
+
         public string? AuthorityId { get; set; }
         public byte[]? Certificate { get; set; }
     }
@@ -824,38 +863,18 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     (from x in Applications where x.ApplicationId == id select x).SingleOrDefault()
                     ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
-                CertificateRequest? request = (
-                    from x in CertificateRequests
-                    where x.AuthorityId == authorityId && x.ApplicationId == id
-                    select x
-                ).SingleOrDefault();
+                CertificateRequest request = StartRequest(
+                    id,
+                    certificateGroupId,
+                    certificateTypeId,
+                    authorityId);
 
-                bool isNew = false;
-
-                if (request == null)
-                {
-                    request = new CertificateRequest
-                    {
-                        RequestId = Guid.NewGuid(),
-                        AuthorityId = authorityId
-                    };
-                    isNew = true;
-                }
-
-                request.State = (int)CertificateRequestState.New;
-                request.CertificateGroupId = certificateGroupId;
-                request.CertificateTypeId = certificateTypeId;
                 request.SubjectName = null;
                 request.DomainNames = null;
                 request.PrivateKeyFormat = null;
                 request.PrivateKeyPassword = null;
+                request.HasPrivateKeyPassword = false;
                 request.CertificateSigningRequest = certificateRequest.ToArray();
-                request.ApplicationId = id;
-
-                if (isNew)
-                {
-                    CertificateRequests.Add(request);
-                }
 
                 SaveChanges();
 
@@ -881,38 +900,18 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     (from x in Applications where x.ApplicationId == id select x).SingleOrDefault()
                     ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
-                CertificateRequest? request = (
-                    from x in CertificateRequests
-                    where x.AuthorityId == authorityId && x.ApplicationId == id
-                    select x
-                ).SingleOrDefault();
+                CertificateRequest request = StartRequest(
+                    id,
+                    certificateGroupId,
+                    certificateTypeId,
+                    authorityId);
 
-                bool isNew = false;
-
-                if (request == null)
-                {
-                    request = new CertificateRequest
-                    {
-                        RequestId = Guid.NewGuid(),
-                        AuthorityId = authorityId
-                    };
-                    isNew = true;
-                }
-
-                request.State = (int)CertificateRequestState.New;
-                request.CertificateGroupId = certificateGroupId;
-                request.CertificateTypeId = certificateTypeId;
                 request.SubjectName = subjectName;
                 request.DomainNames = domainNames.ToArray();
                 request.PrivateKeyFormat = privateKeyFormat;
                 request.PrivateKeyPassword = privateKeyPassword.ToArray();
+                request.HasPrivateKeyPassword = !privateKeyPassword.IsEmpty;
                 request.CertificateSigningRequest = null;
-                request.ApplicationId = id;
-
-                if (isNew)
-                {
-                    CertificateRequests.Add(request);
-                }
 
                 SaveChanges();
 
@@ -988,10 +987,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                CertificateRequest request =
-                    (from x in CertificateRequests where x.RequestId == reqId select x)
-                        .SingleOrDefault()
-                    ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                CertificateRequest request = FindApplicationRequest(reqId, appId);
 
                 switch (request.State)
                 {
@@ -1037,10 +1033,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                CertificateRequest request =
-                    (from x in CertificateRequests where x.RequestId == reqId select x)
-                        .SingleOrDefault()
-                    ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                CertificateRequest request = FindApplicationRequest(reqId, appId);
 
                 switch (request.State)
                 {
@@ -1070,6 +1063,74 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public virtual void Save()
         {
+        }
+
+        /// <summary>
+        /// Creates the request record for a Start*Request call. Every call
+        /// returns a new RequestId. A request of the same caller for the same
+        /// application, certificate group and certificate type is superseded
+        /// (its old RequestId becomes invalid) so the table stays bounded, but
+        /// requests for other groups or types remain pending.
+        /// </summary>
+        private CertificateRequest StartRequest(
+            Guid applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            string authorityId)
+        {
+            CertificateRequest? request = (
+                from x in CertificateRequests
+                where x.AuthorityId == authorityId &&
+                    x.ApplicationId == applicationId &&
+                    x.CertificateGroupId == certificateGroupId &&
+                    x.CertificateTypeId == certificateTypeId
+                select x
+            ).FirstOrDefault();
+
+            if (request == null)
+            {
+                request = new CertificateRequest
+                {
+                    AuthorityId = authorityId,
+                    ApplicationId = applicationId,
+                    CertificateGroupId = certificateGroupId,
+                    CertificateTypeId = certificateTypeId
+                };
+                CertificateRequests.Add(request);
+            }
+
+            request.RequestId = Guid.NewGuid();
+            request.State = (int)CertificateRequestState.New;
+            request.Certificate = null;
+            return request;
+        }
+
+        /// <summary>
+        /// Returns the request only when it belongs to the application.
+        /// OPC 10000-12 §7.9.5: FinishRequest returns Bad_InvalidArgument when
+        /// the RequestId does not reference a valid request for the application,
+        /// so an application cannot complete another application's request.
+        /// </summary>
+        private CertificateRequest FindApplicationRequest(Guid requestId, Guid applicationId)
+        {
+            CertificateRequest request = (
+                from x in CertificateRequests
+                where x.RequestId == requestId && x.ApplicationId == applicationId
+                select x
+            ).SingleOrDefault()
+                ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+
+            if (request.HasPrivateKeyPassword &&
+                request.PrivateKeyPassword == null &&
+                request.State is (int)CertificateRequestState.New or (int)CertificateRequestState.Approved)
+            {
+                // the password was not persisted and is lost after a reload:
+                // the private key cannot be protected as requested.
+                request.State = (int)CertificateRequestState.Rejected;
+                SaveChanges();
+            }
+
+            return request;
         }
 
         private void SaveChanges()

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
@@ -783,12 +784,16 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
+                // Each validation step has a unique error status and audit event type
+                // that shall be reported if the check fails. The validator wraps the
+                // first error in a copy of itself, so report each status code only once.
+                var reported = new HashSet<StatusCode>();
                 while (exception != null)
                 {
-                    if (exception is ServiceResultException sre && sre.InnerResult != null)
+                    if (exception is ServiceResultException sre &&
+                        StatusCode.IsBad(sre.StatusCode) &&
+                        reported.Add(sre.StatusCode))
                     {
-                        // Each validation step has a unique error status and audit event type
-                        // that shall be reported if the check fails.
                         server.ReportAuditCertificateEvent(logger, systemContext, clientCertificate, sre);
                     }
                     exception = exception.InnerException;
@@ -812,7 +817,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                if (StatusCode.IsBad(sre!.InnerResult!.Code))
+                if (StatusCode.IsBad(sre.StatusCode))
                 {
                     AuditCertificateEventState auditCertificateEventState;
                     if (sre.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
@@ -875,7 +880,7 @@ namespace Opc.Ua.Server
                     auditCertificateEventState.SetChildValue(
                         systemContext,
                         BrowseNames.StatusCodeId,
-                        sre.InnerResult.StatusCode,
+                        sre.StatusCode,
                         false);
 
                     // set AuditCertificateEventType fields
@@ -1980,7 +1985,10 @@ namespace Opc.Ua.Server
                         $"AuditOpenSecureChannelEvent - Exception: {exception.Message}.");
                 }
 
-                StatusCode statusCode = StatusCodes.Good;
+                // capture the outcome before walking to an inner ServiceResultException:
+                // a failure without one (e.g. a CryptographicException) is still a failure.
+                bool succeeded = exception == null;
+                StatusCode statusCode = succeeded ? StatusCodes.Good : StatusCodes.Bad;
                 while (exception is not null and not ServiceResultException)
                 {
                     exception = exception.InnerException;
@@ -2011,7 +2019,7 @@ namespace Opc.Ua.Server
                     null,
                     EventSeverity.Min,
                     new LocalizedText(message),
-                    exception == null,
+                    succeeded,
                     actionTimestamp
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientUserId
 

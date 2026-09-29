@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -47,7 +47,7 @@ namespace Opc.Ua.Gds.Client
         private readonly ISession m_session;
         private readonly NodeId m_serviceNodeId;
         private readonly AuthorizationServiceTypeClient m_proxy;
-        private readonly Dictionary<string, NodeId> m_methodIds = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, NodeId> m_methodIds = new(StringComparer.Ordinal);
 
         /// <summary>
         /// Creates a client targeting a specific AuthorizationService
@@ -102,6 +102,7 @@ namespace Opc.Ua.Gds.Client
         {
             ArrayOf<Variant> outputArguments = await CallInstanceMethodAsync(
                 "StartRequestToken",
+                2,
                 ct,
                 new Variant(resourceId),
                 new Variant(policyId),
@@ -126,6 +127,7 @@ namespace Opc.Ua.Gds.Client
         {
             ArrayOf<Variant> outputArguments = await CallInstanceMethodAsync(
                 "FinishRequestToken",
+                4,
                 ct,
                 new Variant((Uuid)requestId),
                 new Variant(requestedRoles),
@@ -154,6 +156,7 @@ namespace Opc.Ua.Gds.Client
         {
             ArrayOf<Variant> outputArguments = await CallInstanceMethodAsync(
                 "RefreshToken",
+                4,
                 ct,
                 new Variant(resourceId),
                 new Variant(currentRefreshToken)).ConfigureAwait(false);
@@ -168,6 +171,7 @@ namespace Opc.Ua.Gds.Client
 
         private async ValueTask<ArrayOf<Variant>> CallInstanceMethodAsync(
             string browseName,
+            int expectedOutputCount,
             CancellationToken ct,
             params Variant[] inputArguments)
         {
@@ -192,7 +196,18 @@ namespace Opc.Ua.Gds.Client
                     response.ResponseHeader.StringTable);
             }
 
-            return response.Results[0].OutputArguments;
+            ArrayOf<Variant> outputArguments = response.Results[0].OutputArguments;
+            if (outputArguments.Count < expectedOutputCount)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "AuthorizationService method '{0}' returned {1} output arguments, expected {2}.",
+                    browseName,
+                    outputArguments.Count,
+                    expectedOutputCount);
+            }
+
+            return outputArguments;
         }
 
         private async ValueTask<NodeId> GetMethodIdAsync(string browseName, CancellationToken ct)
@@ -276,7 +291,19 @@ namespace Opc.Ua.Gds.Client
                 return default!;
             }
 
-            return (T)Convert.ChangeType(boxed, typeof(T), CultureInfo.InvariantCulture)!;
+            try
+            {
+                return (T)Convert.ChangeType(boxed, typeof(T), CultureInfo.InvariantCulture)!;
+            }
+            catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    ex,
+                    "AuthorizationService output argument {0} has unexpected type {1}.",
+                    index,
+                    boxed.GetType().Name);
+            }
         }
 
         private static ByteString GetByteStringOutput(ArrayOf<Variant> outputArguments, int index)
@@ -287,7 +314,16 @@ namespace Opc.Ua.Gds.Client
             }
 
             object? boxed = outputArguments[index].AsBoxedObject(Variant.BoxingBehavior.Legacy);
-            return boxed is byte[] bytes ? ByteString.From(bytes) : default;
+            return boxed switch
+            {
+                null => default,
+                byte[] bytes => ByteString.From(bytes),
+                _ => throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "AuthorizationService output argument {0} has unexpected type {1}.",
+                    index,
+                    boxed.GetType().Name)
+            };
         }
 
         private static Guid GetGuidOutput(ArrayOf<Variant> outputArguments, int index)
