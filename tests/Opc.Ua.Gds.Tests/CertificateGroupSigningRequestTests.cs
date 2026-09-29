@@ -76,14 +76,151 @@ namespace Opc.Ua.Gds.Tests
                 Throws.Nothing);
         }
 
-        private static ByteString CreateSigningRequest(string? applicationUri)
+        /// <summary>
+        /// OPC 10000-12 §7.9.3: a CSR whose key does not fit the requested
+        /// CertificateTypeId is rejected by StartSigningRequest with
+        /// Bad_InvalidArgument, not accepted and failed in FinishRequest.
+        /// </summary>
+        [Test]
+        public void RsaCsrForEccCertificateTypeIsRejected()
         {
-            using var rsa = RSA.Create(2048);
+            using var certificateGroup = new CertificateGroup(NUnitTelemetryContext.Create());
+            var application = new ApplicationRecordDataType { ApplicationUri = ApplicationUri };
+
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await certificateGroup
+                    .VerifySigningRequestAsync(
+                        application,
+                        Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                        CreateSigningRequest(ApplicationUri))
+                    .ConfigureAwait(false));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(sre.Message, Does.Contain("RSA").And.Contain("ECC"));
+
+            Assert.That(
+                async () => await certificateGroup
+                    .VerifySigningRequestAsync(
+                        application,
+                        Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        CreateSigningRequest(ApplicationUri))
+                    .ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void EccCsrForRsaCertificateTypeIsRejected()
+        {
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    CreateEccSigningRequest(ECCurve.NamedCurves.nistP256)));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(sre.Message, Does.Contain("nistP256").And.Contain("RSA"));
+        }
+
+        [Test]
+        public void EccCsrWithOtherCurveIsRejected()
+        {
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                    CreateEccSigningRequest(ECCurve.NamedCurves.nistP384)));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(sre.Message, Does.Contain("nistP384").And.Contain("nistP256"));
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.8.4.8 / §7.8.4.9 key sizes; §7.9.3 returns
+        /// Bad_NotSupported for an unsupported key size.
+        /// </summary>
+        [Test]
+        public void RsaKeySizeOutsideCertificateTypeRangeIsNotSupported()
+        {
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    CreateSigningRequest(ApplicationUri, 1024)));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(sre.Message, Does.Contain("1024"));
+
+            sre = Assert.Throws<ServiceResultException>(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.RsaMinApplicationCertificateType,
+                    CreateSigningRequest(ApplicationUri, 3072)));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(sre.Message, Does.Contain("3072"));
+        }
+
+        [Test]
+        public void UnsupportedEccCertificateTypeIsNotSupported()
+        {
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.EccCurve25519ApplicationCertificateType,
+                    CreateEccSigningRequest(ECCurve.NamedCurves.nistP256)));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        [Test]
+        public void MatchingCsrKeysAreAccepted()
+        {
+            ByteString rsa2048 = CreateSigningRequest(ApplicationUri);
+            ByteString nistP256 = CreateEccSigningRequest(ECCurve.NamedCurves.nistP256);
+
+            Assert.That(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, rsa2048),
+                Throws.Nothing);
+            Assert.That(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.RsaMinApplicationCertificateType, rsa2048),
+                Throws.Nothing);
+            Assert.That(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.ApplicationCertificateType, rsa2048),
+                Throws.Nothing);
+            Assert.That(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType, nistP256),
+                Throws.Nothing);
+            Assert.That(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.EccApplicationCertificateType, nistP256),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void UndecodableCsrIsRejected()
+        {
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => CertificateGroup.VerifySigningRequestKey(
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    ByteString.From([0x30, 0x03, 0x02, 0x01, 0x00])));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        private static ByteString CreateSigningRequest(string? applicationUri, int keySize = 2048)
+        {
+            using var rsa = RSA.Create(keySize);
             var request = new CertificateRequest(
                 "CN=CsrTest",
                 rsa,
                 HashAlgorithmName.SHA256,
                 RSASignaturePadding.Pkcs1);
+            AddApplicationUri(request, applicationUri);
+            return ByteString.From(request.CreateSigningRequest());
+        }
+
+        private static ByteString CreateEccSigningRequest(ECCurve curve)
+        {
+            using var ecdsa = ECDsa.Create(curve);
+            var request = new CertificateRequest("CN=CsrTest", ecdsa, HashAlgorithmName.SHA256);
+            AddApplicationUri(request, ApplicationUri);
+            return ByteString.From(request.CreateSigningRequest());
+        }
+
+        private static void AddApplicationUri(CertificateRequest request, string? applicationUri)
+        {
             if (applicationUri != null)
             {
                 var altNames = new SubjectAlternativeNameBuilder();
@@ -91,7 +228,6 @@ namespace Opc.Ua.Gds.Tests
                 altNames.AddDnsName("localhost");
                 request.CertificateExtensions.Add(altNames.Build());
             }
-            return ByteString.From(request.CreateSigningRequest());
         }
     }
 }

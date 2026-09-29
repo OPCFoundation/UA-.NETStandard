@@ -286,8 +286,6 @@ namespace Opc.Ua.Gds.Server
                 .OnCall = OnQueryApplications;
             Method<RegisterApplicationMethodState>(directory, BrowseNames.RegisterApplication)
                 .OnCall = OnRegisterApplication;
-            Method<GetApplicationMethodState>(directory, BrowseNames.GetApplication)
-                .OnCall = OnGetApplication;
             Method<RevokeCertificateMethodState>(directory, BrowseNames.RevokeCertificate)
                 .OnCallAsync = OnRevokeCertificateAsync;
             Method<CheckRevocationStatusMethodState>(directory, BrowseNames.CheckRevocationStatus)
@@ -306,6 +304,9 @@ namespace Opc.Ua.Gds.Server
             SelfAdministered<FindApplicationsMethodState>(
                     directory, BrowseNames.FindApplications)
                 .OnCall = OnFindApplications;
+            SelfAdministered<GetApplicationMethodState>(
+                    directory, BrowseNames.GetApplication)
+                .OnCall = OnGetApplication;
             SelfAdministered<StartNewKeyPairRequestMethodState>(
                     directory, BrowseNames.StartNewKeyPairRequest)
                 .OnCall = OnStartNewKeyPairRequest;
@@ -1392,7 +1393,10 @@ namespace Opc.Ua.Gds.Server
             string applicationUri,
             ref ArrayOf<ApplicationRecordDataType> applications)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
+            // OPC 10000-12 §6.5.3: FindApplications "can be called by any
+            // Client", and §6.5.4 names no Role. It is also the only way a
+            // pull client (§7.6, Anonymous + ApplicationSelfAdmin) learns
+            // the ApplicationId of its own record, so no role check here.
             m_logger.OnFindApplications(applicationUri);
 
             // OPC 10000-12 §6.5.4: the result holds at most the one application
@@ -2166,8 +2170,23 @@ namespace Opc.Ua.Gds.Server
                     return result;
                 }
 
-                // verify the CSR integrity for the application
-                await certificateGroup.VerifySigningRequestAsync(application, certificateRequest, cancellationToken).ConfigureAwait(false);
+                // verify the CSR integrity for the application and, per
+                // OPC 10000-12 §7.9.3, that its key fits the requested type
+                if (certificateGroup is CertificateGroup typedGroup)
+                {
+                    await typedGroup.VerifySigningRequestAsync(
+                        application,
+                        resolvedTypeId,
+                        certificateRequest,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await certificateGroup.VerifySigningRequestAsync(
+                        application,
+                        certificateRequest,
+                        cancellationToken).ConfigureAwait(false);
+                }
 
                 // store request in the queue for approval
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
@@ -2345,13 +2364,22 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
+                        // OPC 10000-12 §7.9.5 has no Bad_ConfigurationError:
+                        // keep the status of a ServiceResultException (e.g.
+                        // Bad_InvalidArgument for a CSR the group cannot
+                        // sign) and fall back to Bad_RequestNotAllowed, whose
+                        // text indicates the exact reason.
+                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
                         result.ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadConfigurationError,
+                            e,
+                            StatusCodes.BadRequestNotAllowed,
                             "Error Generating Certificate={0}\nApplicationId={1}\nApplicationUri={2}\nApplicationName={3}",
                             e.Message,
                             applicationId.ToString(),
                             application.ApplicationUri!,
-                            application.ApplicationNames[0].Text!);
+                            application.ApplicationNames.IsEmpty
+                                ? string.Empty
+                                : application.ApplicationNames[0].Text!);
                         return result;
                     }
                 }
@@ -2371,8 +2399,11 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
+                        // Same result mapping as the signing request path.
+                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
                         result.ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadConfigurationError,
+                            e,
+                            StatusCodes.BadRequestNotAllowed,
                             "Error Generating New Key Pair Certificate={0}\nApplicationId={1}\nApplicationUri={2}",
                             e.Message,
                             applicationId.ToString(),
@@ -3308,5 +3339,13 @@ namespace Opc.Ua.Gds.Server
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 20, Level = LogLevel.Information,
             Message = "OnKeyCredentialRevoke: {CredentialId}")]
         public static partial void OnKeyCredentialRevoke(this ILogger logger, string credentialId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 21, Level = LogLevel.Warning,
+            Message = "FinishRequest {RequestId} for {ApplicationUri} failed to issue the certificate.")]
+        public static partial void FinishRequestIssueFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId requestId,
+            string? applicationUri);
     }
 }
