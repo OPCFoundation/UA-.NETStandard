@@ -683,6 +683,31 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
+        [TestCase("nsu=x;y", "0:nsu=x;y")]
+        [TestCase("nsu=urn:a;b", "0:nsu=urn:a;b")]
+        [TestCase("nsuffix", "nsuffix")]
+        public void WriteQualifiedNameInNamespaceZeroWithNsuPrefixRoundTrips(string name, string expected)
+        {
+            // A name that looks like the namespace uri form needs the "0:" prefix to parse
+            // back into namespace 0 (Part 6 5.1.12, 5.4.2.14).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var value = new QualifiedName(name, 0);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteQualifiedName(JsonProperties.Value, value);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            Assert.Multiple(() =>
+            {
+                Assert.That(document.RootElement.GetProperty(JsonProperties.Value).GetString(), Is.EqualTo(expected));
+                Assert.That(decoder.ReadQualifiedName(JsonProperties.Value), Is.EqualTo(value));
+            });
+        }
+
         [TestCase(3, false)]
         [TestCase(4, true)]
         public void WriteExtensionObjectJsonBodyRespectsNestingLimit(int bodyDepth, bool exceeds)

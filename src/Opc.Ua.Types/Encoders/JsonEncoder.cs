@@ -1869,6 +1869,16 @@ namespace Opc.Ua
                 useNamespaceUri = false;
             }
 
+            if (value.NamespaceIndex == 0 &&
+                value.Name != null &&
+                value.Name.StartsWith("nsu=", StringComparison.Ordinal) &&
+                value.Name.IndexOf(':', StringComparison.Ordinal) < 0)
+            {
+                // Without the index prefix the name would parse back as a namespace
+                // uri form (5.1.12, 5.4.2.14).
+                return "0:" + value.Name;
+            }
+
             if (!string.IsNullOrEmpty(value.Name) || value.NamespaceIndex == 0)
             {
                 return value.Format(Context, useNamespaceUri);
