@@ -488,11 +488,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 }
             };
 
-            // The managed session decides whether to suppress a failed keepalive before it raises the
-            // event, so observe that decision synchronously. The recovery started by this failure restarts
-            // the keepalive with an immediate read that can land while the channel entry still restores
-            // after Ready, where suppression is intended; restore the status here so that read succeeds,
-            // and keep any record it would emit out of the assertion.
+            // The recovery started by the failed keepalive restarts the keepalive with an immediate read
+            // that can land while the channel entry still restores after Ready, where suppression is
+            // intended. Fail only one read, so that follow-up read is Good however quickly recovery runs,
+            // and observe the suppression decision synchronously: the managed session makes it before it
+            // raises the event.
             int failedKeepAlives = 0;
             bool failureSuppressed = false;
             harness.Session.KeepAlive += (_, args) =>
@@ -500,14 +500,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 if (args.Status != null && ServiceResult.IsBad(args.Status) &&
                     Interlocked.Increment(ref failedKeepAlives) == 1)
                 {
-                    harness.KeepAliveStatus = StatusCodes.Good;
                     failureSuppressed = harness.Logs.Records.Any(
                         record => record.EventId.Name == "ManagedSessionKeepAliveFailureSuppressedWhile");
                 }
             };
             var keepAliveInterval = TimeSpan.FromMilliseconds(100);
             Task keepAliveTimer = harness.Clock.WaitForTimerChangedAsync(keepAliveInterval, keepAliveInterval);
-            harness.KeepAliveStatus = StatusCodes.BadNoCommunication;
+            harness.FailNextKeepAlive(StatusCodes.BadNoCommunication);
             harness.Session.KeepAliveInterval = (int)keepAliveInterval.TotalMilliseconds;
             await WaitForPhaseAsync(keepAliveTimer, "replacement keepalive timer").ConfigureAwait(false);
             harness.Clock.Advance(keepAliveInterval);
