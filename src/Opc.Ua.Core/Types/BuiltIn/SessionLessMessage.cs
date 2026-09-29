@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.IO;
-using System.Text;
 
 namespace Opc.Ua
 {
@@ -57,7 +57,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            using var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context);
+            // The decoder checks the buffer against MaxMessageSize before parsing.
+            using var decoder = new JsonDecoder(new ReadOnlySequence<byte>(buffer), context);
             // decode the actual message.
             var message = new SessionLessServiceMessage();
             message.Decode(decoder);

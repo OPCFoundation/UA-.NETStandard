@@ -66,6 +66,7 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
+                CheckMessageSize(utf8Json.Length);
                 m_document = JsonDocument.Parse(
                     utf8Json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
@@ -91,6 +92,10 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
+                if (Context.MaxMessageSize > 0)
+                {
+                    stream = ReadBounded(stream);
+                }
                 m_document = JsonDocument.Parse(
                     stream,
                     ParseOptions(Context.MaxEncodingNestingLevels));
@@ -116,6 +121,13 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
+                if (Context.MaxMessageSize > 0 &&
+                    (long)json.Length * 3 > Context.MaxMessageSize)
+                {
+                    // Every char is at least one UTF-8 byte and at most three.
+                    CheckMessageSize(json.Length);
+                    CheckMessageSize(Encoding.UTF8.GetByteCount(json));
+                }
                 m_document = JsonDocument.Parse(
                     json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
@@ -1713,12 +1725,19 @@ namespace Opc.Ua
                         symbol = text[..split];
                         text = text[(split + 1)..];
                     }
-                    if (int.TryParse(text, out int enumValue))
+                    if (int.TryParse(
+                        text,
+                        NumberStyles.AllowLeadingSign,
+                        CultureInfo.InvariantCulture,
+                        out int enumValue))
                     {
                         value = EnumHelper.Int32ToEnum<T>(enumValue);
                         return true;
                     }
-                    if (Enum.TryParse(symbol, true, out T o))
+                    // A symbol names one value, Enum.TryParse would also accept a
+                    // flag combination ("A, B").
+                    if (symbol.IndexOf(',', StringComparison.Ordinal) < 0 &&
+                        Enum.TryParse(symbol, true, out T o))
                     {
                         value = o;
                         return true;
@@ -1767,7 +1786,11 @@ namespace Opc.Ua
                         symbol = text[..split];
                         text = text[(split + 1)..];
                     }
-                    if (int.TryParse(text, out int enumValue))
+                    if (int.TryParse(
+                        text,
+                        NumberStyles.AllowLeadingSign,
+                        CultureInfo.InvariantCulture,
+                        out int enumValue))
                     {
                         value = new EnumValue(enumValue, symbol);
                         return true;
@@ -4338,9 +4361,10 @@ namespace Opc.Ua
                             if (found.ValueKind != JsonValueKind.Undefined)
                             {
                                 int index = masks.IndexOf(fieldName);
-                                if (index >= 0)
+                                // The mask has 32 bits, 1 << 32 wraps to bit 0.
+                                if (index is >= 0 and < 32)
                                 {
-                                    value |= (uint)(1 << index);
+                                    value |= 1u << index;
                                 }
                             }
                         }
@@ -4495,20 +4519,17 @@ namespace Opc.Ua
             {
                 return element;
             }
-#if CASE_INSENSITIVE_FIELD_MATCHING // Perf - make it an option
-            else
+            else if (m_options.CaseInsensitivePropertyMatching && fieldName != null)
             {
-                // Try case insensitive
-                var pn = Encoding.UTF8.GetString(fieldName);
-                foreach (var p in o.EnumerateObject())
+                // Not compliant with Part 6, only done when opted in.
+                foreach (JsonProperty property in o.EnumerateObject())
                 {
-                    if (p.Name.Equals(pn, StringComparison.OrdinalIgnoreCase))
+                    if (property.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
                     {
-                        return p.Value;
+                        return property.Value;
                     }
                 }
             }
-#endif
             return default;
         }
 
@@ -4682,6 +4703,47 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The public constructors apply MaxMessageSize like the static
+        /// DecodeMessage does, so no caller parses an unbounded document.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckMessageSize(long length)
+        {
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    Context.MaxMessageSize,
+                    length);
+            }
+        }
+
+        /// <summary>
+        /// Checks the remaining length of a seekable stream, or copies a
+        /// non-seekable one while checking MaxMessageSize, before parsing.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Stream ReadBounded(Stream stream)
+        {
+            if (stream.CanSeek)
+            {
+                CheckMessageSize(stream.Length - stream.Position);
+                return stream;
+            }
+            var buffer = new MemoryStream();
+            byte[] chunk = new byte[8192];
+            int read;
+            while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+            {
+                CheckMessageSize(buffer.Length + read);
+                buffer.Write(chunk, 0, read);
+            }
+            buffer.Position = 0;
+            return buffer;
+        }
+
+        /// <summary>
         /// Handle parser exceptions
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -4690,6 +4752,9 @@ namespace Opc.Ua
         {
             switch (ex)
             {
+                case ServiceResultException sre:
+                    // A limit or validation failure raised before or after parsing.
+                    throw sre;
                 case JsonException jre when jre.Message.Contains(
                     "maximum configured depth",
                     StringComparison.Ordinal):

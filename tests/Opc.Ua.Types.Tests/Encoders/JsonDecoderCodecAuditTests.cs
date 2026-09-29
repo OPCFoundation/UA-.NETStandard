@@ -365,6 +365,112 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void CaseInsensitivePropertyMatchingOptionIsHonoured()
+        {
+            // The option was never read.
+            ServiceMessageContext context = CreateContext();
+            const string json = "{\"maxage\":1.5}";
+
+            using var matching = new JsonDecoder(
+                json,
+                context,
+                new JsonDecoderOptions { CaseInsensitivePropertyMatching = true });
+            using var strict = new JsonDecoder(json, context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(matching.ReadDouble("MaxAge"), Is.EqualTo(1.5));
+                Assert.That(strict.ReadDouble("MaxAge"), Is.Zero);
+            });
+        }
+
+        [Test]
+        public void EnumerationSymbolMustNameOneValue()
+        {
+            // Enum.TryParse accepted a flag combination as one symbol.
+            ServiceMessageContext context = CreateContext();
+            using JsonDecoder decoder = Field(context, "\"AccessLevel, ArrayDimensions\"");
+
+            AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadEnumerated<AttributeWriteMask>("F"));
+        }
+
+        [TestCase("\"Object_ 1\"")]
+        [TestCase("\"Object_(1)\"")]
+        [TestCase("\"Object, Variable\"")]
+        public void EnumerationValueMustBeAnInvariantInteger(string json)
+        {
+            ServiceMessageContext context = CreateContext();
+            using JsonDecoder decoder = Field(context, json);
+
+            AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadEnumerated("F"));
+        }
+
+        [Test]
+        public void EnumerationVerboseFormIsAccepted()
+        {
+            ServiceMessageContext context = CreateContext();
+            using var decoder = new JsonDecoder("{\"A\":\"Object_1\",\"B\":\"Variable_2\"}", context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoder.ReadEnumerated<NodeClass>("A"), Is.EqualTo(NodeClass.Object));
+                Assert.That(decoder.ReadEnumerated("B").Value, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void EncodingMaskIgnoresFieldsBeyondBit31()
+        {
+            // 1 << 32 wraps to bit 0, so field 33 set the bit of field 1.
+            ServiceMessageContext context = CreateContext();
+            var masks = new System.Collections.Generic.List<string>();
+            for (int ii = 0; ii < 33; ii++)
+            {
+                masks.Add("F" + ii);
+            }
+            using var decoder = new JsonDecoder("{\"F32\":1}", context);
+
+            Assert.That(decoder.ReadEncodingMask(masks), Is.Zero);
+        }
+
+        [Test]
+        public void PublicConstructorsApplyMaxMessageSize()
+        {
+            ServiceMessageContext context = CreateContext();
+            context.MaxMessageSize = 64;
+            string json = "{\"A\":\"" + new string('x', 100) + "\"}";
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
+
+            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, () => _ = new JsonDecoder(json, context));
+            AssertStatus(
+                StatusCodes.BadEncodingLimitsExceeded,
+                () => _ = new JsonDecoder(new System.Buffers.ReadOnlySequence<byte>(bytes), context));
+            AssertStatus(
+                StatusCodes.BadEncodingLimitsExceeded,
+                () => _ = new JsonDecoder(new System.IO.MemoryStream(bytes), context));
+            AssertStatus(
+                StatusCodes.BadEncodingLimitsExceeded,
+                () => _ = new JsonDecoder(new NonSeekableStream(bytes), context));
+
+            // "ä" is two UTF-8 bytes, 40 of them exceed 64 bytes in 48 chars.
+            string wide = "{\"A\":\"" + new string('ä', 40) + "\"}";
+            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, () => _ = new JsonDecoder(wide, context));
+
+            using var small = new JsonDecoder(new NonSeekableStream(System.Text.Encoding.UTF8.GetBytes("{\"A\":1}")), context);
+            Assert.That(small.ReadInt32("A"), Is.EqualTo(1));
+        }
+
+        private sealed class NonSeekableStream : System.IO.MemoryStream
+        {
+            public NonSeekableStream(byte[] buffer)
+                : base(buffer)
+            {
+            }
+
+            public override bool CanSeek => false;
+        }
+
+        [Test]
         public void SameMemberNameInSiblingObjectsIsAccepted()
         {
             ServiceMessageContext context = CreateContext();
