@@ -78,6 +78,10 @@ inline framing.
 
 ## Server side
 
+`StandardServer` releases data-channel authorization timers and event subscriptions
+when it stops. Cleanup remains safe during subsequent disposal, even after the
+server's session and role managers have been released.
+
 ```csharp
 // One manager per SecureChannel. The channel implementation creates it.
 DataChannelManager channels = binaryChannel.EnableDataChannels(

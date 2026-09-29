@@ -300,11 +300,24 @@ namespace Opc.Ua.Server
             return aborted;
         }
 
+        /// <summary>
+        /// Subscribes to the current server managers and starts periodic authorization checks.
+        /// </summary>
         private void InitializeDataChannelServices()
         {
-            ServerInternal.SessionManager.SessionClosing += OnDataChannelSessionClosing;
-            ServerInternal.SessionManager.SessionActivated += OnDataChannelSessionActivated;
-            ServerInternal.RoleManager.RoleConfigurationChanged += OnDataChannelRoleConfigurationChanged;
+            IServerInternal server = ServerInternal;
+            ISessionManager sessionManager = server.SessionManager;
+            IRoleManager roleManager = server.RoleManager;
+            m_detachDataChannelHandlers = () =>
+            {
+                sessionManager.SessionClosing -= OnDataChannelSessionClosing;
+                sessionManager.SessionActivated -= OnDataChannelSessionActivated;
+                roleManager.RoleConfigurationChanged -= OnDataChannelRoleConfigurationChanged;
+            };
+
+            sessionManager.SessionClosing += OnDataChannelSessionClosing;
+            sessionManager.SessionActivated += OnDataChannelSessionActivated;
+            roleManager.RoleConfigurationChanged += OnDataChannelRoleConfigurationChanged;
             m_dataChannelAuthorizationTimer = TimeProvider.CreateTimer(
                 _ => _ = RecheckDataChannelAuthorizationAsync(CancellationToken.None).AsTask(),
                 null,
@@ -312,20 +325,14 @@ namespace Opc.Ua.Server
                 DataChannelAuthorizationRecheckInterval);
         }
 
+        /// <summary>
+        /// Releases the original subscriptions once, even when server manager properties have already been cleared.
+        /// </summary>
         private void ShutdownDataChannelServices()
         {
             m_dataChannelAuthorizationTimer?.Dispose();
             m_dataChannelAuthorizationTimer = null;
-
-            try
-            {
-                ServerInternal.SessionManager.SessionClosing -= OnDataChannelSessionClosing;
-                ServerInternal.SessionManager.SessionActivated -= OnDataChannelSessionActivated;
-                ServerInternal.RoleManager.RoleConfigurationChanged -= OnDataChannelRoleConfigurationChanged;
-            }
-            catch (ServiceResultException)
-            {
-            }
+            Interlocked.Exchange(ref m_detachDataChannelHandlers, null)?.Invoke();
 
             foreach (DataChannelSecureChannelState state in m_dataChannelStates.Values)
             {
@@ -750,5 +757,10 @@ namespace Opc.Ua.Server
 
         private readonly ConcurrentDictionary<string, DataChannelSecureChannelState> m_dataChannelStates = new();
         private ITimer? m_dataChannelAuthorizationTimer;
+
+        /// <summary>
+        /// Detaches handlers from the manager instances that published them, independently of current server state.
+        /// </summary>
+        private Action? m_detachDataChannelHandlers;
     }
 }

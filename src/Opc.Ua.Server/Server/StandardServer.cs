@@ -4533,6 +4533,8 @@ namespace Opc.Ua.Server
             // is torn down.
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
 
+            ShutdownDataChannelServices();
+
             await RunShutdownStageAsync(
                     failures,
                     serverInternal.DrainRoleStateBindingAsync)
