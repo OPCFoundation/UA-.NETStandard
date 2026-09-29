@@ -1918,6 +1918,26 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadVariantFailsWhenTheValueCannotBeDecoded()
+        {
+            // the error used to be returned as a BadDecodingError value, with
+            // the reader left inside the Value element.
+            ServiceMessageContext messageContext = CreateMockContext();
+            messageContext.Factory.AddEncodeableType(typeof(TestEncodeableThatThrows));
+            string xml = "<Root xmlns=\"" + Namespaces.OpcUaXsd + "\"><Value><ExtensionObject>" +
+                "<TypeId><Identifier>i=99998</Identifier></TypeId>" +
+                "<Body><TestEncodeableThatThrows><Value>1</Value></TestEncodeableThatThrows></Body>" +
+                "</ExtensionObject></Value></Root>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadVariant("Root"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
         public void ReadFieldRejectsNilElementWithContent()
         {
             ServiceMessageContext messageContext = CreateMockContext();
@@ -2940,6 +2960,33 @@ namespace Opc.Ua.Types.Tests.Encoders
             public object Clone()
             {
                 return new TestEncodeableWithTypeId();
+            }
+        }
+
+        [DataContract(Name = "TestEncodeableThatThrows", Namespace = Namespaces.OpcUaXsd)]
+        private sealed class TestEncodeableThatThrows : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(99998, 0);
+            public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
+            public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                throw new InvalidOperationException("Decode failed.");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableThatThrows;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableThatThrows();
             }
         }
 

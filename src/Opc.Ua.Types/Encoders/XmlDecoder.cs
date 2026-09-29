@@ -1051,10 +1051,17 @@ namespace Opc.Ua
                         {
                             value = ReadVariantValue();
                         }
-                        catch (Exception ex) when (ex is not ServiceResultException)
+                        catch (Exception ex) when (ex is not ServiceResultException and not OutOfMemoryException)
                         {
+                            // a malformed value fails the decode: returning a
+                            // BadDecodingError value left the reader at an
+                            // arbitrary position inside the Value element.
                             m_logger.ErrorReadingVariant(ex);
-                            value = new Variant(StatusCodes.BadDecodingError);
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                ex,
+                                "Error reading variant value: {0}",
+                                ex.Message);
                         }
                         EndField("Value");
                     }
