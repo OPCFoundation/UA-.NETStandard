@@ -1369,6 +1369,69 @@ namespace Opc.Ua.Client.Tests
             context.Verify();
         }
 
+        /// <summary>
+        /// L9-8: the lookups swallowed every exception, so a cancelled lookup
+        /// reported "node does not exist" instead of honouring cancellation.
+        /// </summary>
+        [Test]
+        public void LookupsPropagateCancellation()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new Mock<INodeCacheContext>();
+            context.Setup(c => c.NamespaceUris).Returns(new NamespaceTable());
+            var nodeCache = new NodeCache(context.Object, telemetry);
+            var id = new NodeId("uncached", 0);
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    async () => await nodeCache.FindAsync(id, cts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(
+                    async () => await nodeCache.IsKnownAsync(id, cts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(
+                    async () => await nodeCache.FindReferenceTypeNameAsync(id, cts.Token)
+                        .ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+            });
+        }
+
+        /// <summary>
+        /// L9-6: an empty DataValue (legal on the wire) collided with the
+        /// "missing slot" sentinel, so the next node's value landed in its
+        /// slot and the next slot stayed empty.
+        /// </summary>
+        [Test]
+        public async Task GetValuesAsyncKeepsEmptyDataValueInItsOwnSlotAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ArrayOf<NodeId> ids = [new("empty", 0), new("value", 0)];
+            var context = new Mock<INodeCacheContext>();
+            context
+                .Setup(c => c.FetchValuesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ResultSet<DataValue>
+                {
+                    Results = [default, new(new Variant(456), StatusCodes.Good, DateTime.UtcNow)],
+                    Errors = [ServiceResult.Good, ServiceResult.Good]
+                });
+            var nodeCache = new NodeCache(context.Object, telemetry);
+
+            ArrayOf<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+                .ConfigureAwait(false);
+
+            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result[0].IsNull, Is.True, "the empty value belongs to the first node");
+            Assert.That(result[1].WrappedValue, Is.EqualTo(new Variant(456)));
+        }
+
         [Test]
         public async Task GetValuesAsyncShouldReturnValuesFromCacheAsync()
         {

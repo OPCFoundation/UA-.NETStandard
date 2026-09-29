@@ -535,7 +535,10 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (obj == null && IsNullDiagnosticInfo)
+            // Only the top level object compares equal to null. A nested
+            // all-default inner diagnostic info must not equal a missing one,
+            // that would make Equals asymmetric and break the hash contract.
+            if (obj == null && depth == 0 && IsNullDiagnosticInfo)
             {
                 return true;
             }
@@ -573,14 +576,16 @@ namespace Opc.Ua
                     return false;
                 }
 
+                if (depth >= MaxInnerDepth)
+                {
+                    // ignore the remaining inner diagnostic info on both sides
+                    // and consider it equal (GetHashCode stops here as well).
+                    return true;
+                }
+
                 if (InnerDiagnosticInfo != null)
                 {
-                    if (depth < MaxInnerDepth)
-                    {
-                        return InnerDiagnosticInfo.Equals(value.InnerDiagnosticInfo, depth + 1);
-                    }
-                    // ignore the remaining inner diagnostic info and consider it equal.
-                    return true;
+                    return InnerDiagnosticInfo.Equals(value.InnerDiagnosticInfo, depth + 1);
                 }
 
                 return value.InnerDiagnosticInfo == null;

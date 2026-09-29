@@ -133,6 +133,30 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// ActivateSession validates a signing certificate the client embeds in an
+        /// EncryptedSecret with the validator the server exposes to its sessions
+        /// (OPC 10000-6 6.8.3). It must be the peer validator CreateSession uses:
+        /// a trusted client certificate passes, an untrusted one does not.
+        /// </summary>
+        [Test]
+        public async Task SessionsValidateEmbeddedSigningCertificatesWithThePeerValidatorAsync()
+        {
+            ICertificateValidatorEx validator =
+                (m_fixture.Server.CurrentInstance as ICertificateValidatorProvider)?.CertificateValidator;
+            Assert.That(validator, Is.Not.Null);
+
+            CertificateValidationResult trusted = await validator
+                .ValidateAsync(m_trusted, ct: CancellationToken.None)
+                .ConfigureAwait(false);
+            CertificateValidationResult untrusted = await validator
+                .ValidateAsync(m_untrusted, ct: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(trusted.IsValid, Is.True);
+            Assert.That(untrusted.IsValid, Is.False);
+        }
+
+        /// <summary>
         /// Verifies that even a trusted certificate requires the client description to contain its application URI.
         /// </summary>
         [TestCase(null)]

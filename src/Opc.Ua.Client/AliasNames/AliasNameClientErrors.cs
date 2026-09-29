@@ -55,8 +55,12 @@ namespace Opc.Ua.Client.AliasNames
                         : string.Empty) +
                     ".");
             }
+            // BadMethodInvalid is what a server returns when the type-level
+            // MethodId is called on a category that does not expose the
+            // (optional) method (Part 4 §5.12.2.4), so it means "not supported".
             if (code == StatusCodes.BadNotSupported ||
-                code == StatusCodes.BadNotImplemented)
+                code == StatusCodes.BadNotImplemented ||
+                code == StatusCodes.BadMethodInvalid)
             {
                 return new NotSupportedException(
                     $"OPC UA Part 17 {operation} is not supported by this " +

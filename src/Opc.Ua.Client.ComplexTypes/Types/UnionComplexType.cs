@@ -138,13 +138,15 @@ namespace Opc.Ua.Client.ComplexTypes
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)
             {
+                // The Verbose JSON encoding writes no SwitchField, so the
+                // selector has to be recovered from the member name. Every
+                // union field is a candidate: union fields are never
+                // IsOptional (Part 3 §8.51), so filtering by it left the list
+                // empty and every such union decoded as null.
                 var fields = new List<string>();
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
-                    if (property.IsOptional)
-                    {
-                        fields.Add(property.Name);
-                    }
+                    fields.Add(property.Name);
                 }
 
                 unionSelector = decoder.ReadSwitchField(fields, out _);

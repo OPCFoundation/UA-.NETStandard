@@ -462,13 +462,19 @@ namespace Opc.Ua.Bindings
             {
                 // First number after wrap around and as initial value shall be 0
                 Interlocked.Exchange(ref m_sequenceNumber, 0);
-                Interlocked.Exchange(ref m_localSequenceNumber, 0);
-                return retVal;
             }
+            // Track the number actually sent so the next AEAD nonce uses it as LastSequenceNumber,
+            // including across the wrap (OPC 10000-6 6.8.1).
             Interlocked.Exchange(ref m_localSequenceNumber, retVal);
 
             return retVal;
         }
+
+        /// <summary>
+        /// The sequence number of the chunk sent before the one being secured, used as the
+        /// LastSequenceNumber input of the AEAD nonce (OPC 10000-6 6.8.1).
+        /// </summary>
+        internal uint LastSentSequenceNumber => (uint)(Interlocked.Read(ref m_localSequenceNumber) - 1);
 
         /// <summary>
         /// Takes a send-order ticket for a secured message.

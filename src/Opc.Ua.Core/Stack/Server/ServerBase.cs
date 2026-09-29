@@ -1560,7 +1560,8 @@ namespace Opc.Ua
                 ApplicationUri = description.ApplicationUri,
                 ApplicationType = description.ApplicationType,
                 ProductUri = description.ProductUri,
-                GatewayServerUri = description.DiscoveryProfileUri,
+                GatewayServerUri = description.GatewayServerUri,
+                DiscoveryProfileUri = description.DiscoveryProfileUri,
                 DiscoveryUrls = discoveryUrls
             };
 

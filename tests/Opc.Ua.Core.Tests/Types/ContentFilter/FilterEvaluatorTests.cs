@@ -168,6 +168,26 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
         }
 
+        /// <summary>
+        /// Part 4 7.7.2: an unrecognized operator decoded from the wire is reported per element
+        /// as Bad_FilterOperatorInvalid instead of faulting the whole validation.
+        /// </summary>
+        [Test]
+        public void ValidateReportsUnknownOperatorPerElement()
+        {
+            var element = new ContentFilterElement { FilterOperator = (FilterOperator)99 };
+            element.SetOperands([new LiteralOperand(Variant.From(1))]);
+            var filter = new Ua.ContentFilter { Elements = [element] };
+
+            Ua.ContentFilter.Result result = null;
+            Assert.DoesNotThrow(() => result = filter.Validate(m_filterContext));
+
+            Assert.That(result.Status.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+            Assert.That(result.ElementResults[0].Status.StatusCode,
+                Is.EqualTo(StatusCodes.BadFilterOperatorInvalid));
+            Assert.DoesNotThrow(() => element.ToString((INodeTable)null!));
+        }
+
         [Test]
         public void SharedDependenciesAreEvaluatedOnceAndUnlinkedElementsAreNotEvaluated()
         {
@@ -229,6 +249,45 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From("hello"), Variant.From("world"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void EqualsTreatsEmptyArraysOfSameDataTypeAsEqual()
+        {
+            // Part 4 7.7.3: "When testing for equality, a Server shall treat null and
+            // empty arrays of the same DataType as equal", whatever their shape.
+            var emptyRows = Variant.From(new int[0, 2].ToMatrixOf());
+            var emptyColumns = Variant.From(new int[2, 0].ToMatrixOf());
+            ArrayOf<int> emptyArray = [];
+
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, emptyColumns)
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, Variant.From(emptyArray))
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, Variant.From(ArrayOf<int>.Null))
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+
+            // a different DataType or a non-empty operand is still unequal.
+            Assert.That(
+                BuildBinaryFilter(
+                    FilterOperator.Equals,
+                    emptyRows,
+                    Variant.From(new double[2, 0].ToMatrixOf()))
+                    .Evaluate(m_filterContext, m_target),
+                Is.False);
+            Assert.That(
+                BuildBinaryFilter(
+                    FilterOperator.Equals,
+                    emptyRows,
+                    Variant.From(new int[1, 1].ToMatrixOf()))
+                    .Evaluate(m_filterContext, m_target),
+                Is.False);
         }
 
         [Test]

@@ -51,7 +51,8 @@ namespace Opc.Ua.Aot.Tests
                 await Assert.That(value.TryGetValue(out QualifiedName actual)).IsTrue();
                 await Assert.That(actual.Name).IsEqualTo(name);
                 await Assert.That(actual.NamespaceIndex).IsEqualTo((ushort)ns);
-                await Assert.That(value.GetHashCode()).IsEqualTo(input.GetHashCode());
+                // A null qualified name equals Variant.Null and hashes like it.
+                await Assert.That(value.GetHashCode()).IsEqualTo(input.IsNull ? 0 : input.GetHashCode());
                 await Assert.That(value.AsBoxedObject() is QualifiedName).IsTrue();
                 await CheckAsync(input, value, default(VariantBuilder)).ConfigureAwait(false);
             }
@@ -102,7 +103,8 @@ namespace Opc.Ua.Aot.Tests
                 await Assert.That(actual.Memory.Equals(input.Memory)).IsTrue();
                 await Assert.That(value.GetByteArray().Span.SequenceEqual(input.Span)).IsTrue();
                 buffer[1] = 42;
-                await Assert.That(value.GetHashCode()).IsEqualTo(input.GetHashCode());
+                // A null or empty byte string hashes like Variant.Null.
+                await Assert.That(value.GetHashCode()).IsEqualTo(input.IsEmpty ? 0 : input.GetHashCode());
                 await Assert.That(value.AsBoxedObject() is ByteString).IsTrue();
                 await CheckAsync(input, value, default(VariantBuilder)).ConfigureAwait(false);
             }

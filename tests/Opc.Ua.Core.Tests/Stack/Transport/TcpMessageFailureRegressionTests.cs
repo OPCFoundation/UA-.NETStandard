@@ -139,6 +139,76 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// Verifies that an Abort chunk faults the pending request with the status it carries,
+        /// decoded before the chunk is handed to the partial-message buffers, and that every
+        /// rental is returned exactly once.
+        /// </summary>
+        [Test]
+        public async Task AbortChunkFaultsPendingRequestWithItsStatusAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var pool = new CountingPool();
+            var context = ServiceMessageContext.Create(telemetry);
+            var buffers = new BufferManager("response-abort", 65536, telemetry, pool);
+            using var channel = new ClientProbe(buffers, new ChannelQuotas(context), telemetry);
+            var sentRequest = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var transport = new Mock<IUaSCByteTransport>();
+            transport.Setup(value => value.SendChunkAsync(
+                    It.IsAny<BufferCollection>(), It.IsAny<CancellationToken>()))
+                .Returns((BufferCollection chunks, CancellationToken _) =>
+                {
+                    sentRequest.TrySetResult(BitConverter.ToUInt32(chunks[0].Array!, chunks[0].Offset + 20));
+                    return default;
+                });
+            channel.OpenForTest(transport.Object);
+            Task<IServiceResponse> pending = channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 19 } },
+                60000, CancellationToken.None).AsTask();
+            try
+            {
+                uint requestId = await sentRequest.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                byte[] buffer = buffers.TakeBuffer(8192, "response-abort");
+                using (var encoder = new BinaryEncoder(buffer, 0, 8192, context))
+                {
+                    encoder.WriteUInt32(null, TcpMessageType.Message | TcpMessageType.Abort);
+                    encoder.WriteUInt32(null, 24 + 4 + 4 + 5);
+                    encoder.WriteUInt32(null, 1);
+                    encoder.WriteUInt32(null, 1);
+                    encoder.WriteUInt32(null, 6);
+                    encoder.WriteUInt32(null, requestId);
+                    encoder.WriteUInt32(null, StatusCodes.BadTooManyOperations.Code);
+                    encoder.WriteString(null, "abort");
+                    await channel.FeedAsync(new ArraySegment<byte>(buffer, 0, encoder.Close())).ConfigureAwait(false);
+                }
+
+                ServiceResultException? failure = null;
+                try
+                {
+                    await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch (ServiceResultException error)
+                {
+                    failure = error;
+                }
+                Assert.That(failure, Is.Not.Null);
+                Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            }
+            finally
+            {
+                channel.Dispose();
+                try
+                {
+                    await pending.ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                }
+            }
+            Assert.That(pool.Outstanding, Is.Zero);
+            Assert.That(pool.Duplicates, Is.Zero);
+        }
+
+        /// <summary>
         /// Verifies that quota rejection encodes a valid secured abort even when the remaining payload is very short.
         /// </summary>
         [Test]

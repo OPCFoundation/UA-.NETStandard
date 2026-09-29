@@ -312,6 +312,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void GetHashCodeEqualObjectsReturnSameHash()
+        {
+            StructureDefinition def1 = CreatePopulatedDefinition();
+            StructureDefinition def2 = CreatePopulatedDefinition();
+            def2.FirstExplicitFieldIndex = def1.FirstExplicitFieldIndex + 1;
+
+            Assert.That(def1.Equals(def2), Is.True);
+            Assert.That(def1.GetHashCode(), Is.EqualTo(def2.GetHashCode()));
+        }
+
+        [Test]
         public void GetHashCodeDefaultInstanceDoesNotThrow()
         {
             var definition = new StructureDefinition();

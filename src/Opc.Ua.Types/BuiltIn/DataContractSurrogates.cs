@@ -263,7 +263,13 @@ namespace Opc.Ua
         public T[] Elements { get; set; }
 
         /// <inheritdoc/>
-        public MatrixOf<T> Value => new(Elements, Dimensions);
+        /// <remarks>
+        /// A matrix without elements or dimensions (as produced from a
+        /// null matrix) round trips to <see cref="MatrixOf{T}.Null"/>.
+        /// </remarks>
+        public MatrixOf<T> Value => Elements == null || Dimensions is null or { Length: 0 } ?
+            default :
+            new(Elements, Dimensions);
 
         /// <inheritdoc/>
         public object GetValue()

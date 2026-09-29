@@ -713,7 +713,16 @@ namespace Opc.Ua.Wot
         /// is a partial closure, so it is reported rather than returned as if
         /// it were whole.
         /// </summary>
-        TraversalBudgetExhausted = 6062
+        TraversalBudgetExhausted = 6062,
+
+        /// <summary>
+        /// Two different security schemes of a projection resolve to the same
+        /// qualified name <c>&lt;sourceName&gt;_&lt;scheme&gt;</c> - a source
+        /// scheme and one the projection defines itself, or the schemes of two
+        /// sources. Reusing either definition for the other's forms would
+        /// state a security the author did not, so the view is refused.
+        /// </summary>
+        ProjectionSecurityConflict = 6063
     }
 
     /// <summary>

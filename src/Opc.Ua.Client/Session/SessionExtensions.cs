@@ -230,7 +230,18 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            int maxByteStringLength = (int)session.ServerCapabilities.MaxByteStringLength;
+            // An absent server property reads as 0 (Part 5 6.3.2: not provided = no
+            // limit) and a value beyond int range is effectively unlimited as well:
+            // use the client's own encoder limit in both cases.
+            uint serverLimit = session.ServerCapabilities.MaxByteStringLength;
+            int clientLimit = session.MessageContext.MaxByteStringLength;
+            int maxByteStringLength = serverLimit is 0 or > int.MaxValue
+                ? clientLimit
+                : (int)serverLimit;
+            if (clientLimit > 0 && maxByteStringLength > clientLimit)
+            {
+                maxByteStringLength = clientLimit;
+            }
             if (maxByteStringLength <= 1)
             {
                 throw ServiceResultException.Create(

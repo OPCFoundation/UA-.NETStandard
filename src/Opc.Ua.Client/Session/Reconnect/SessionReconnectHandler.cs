@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
+using Opc.Ua.Security;
 
 namespace Opc.Ua.Client
 {
@@ -655,8 +656,9 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Updates the configured endpoint from the server discovery endpoint.
-        /// Falls back to the best available endpoint if the original security
-        /// configuration is no longer supported by the server.
+        /// If the original security configuration is no longer offered by the
+        /// server, falls back only to an endpoint that is at least as secure as
+        /// the original one; the security is never downgraded.
         /// </summary>
         /// <param name="endpoint">The configured endpoint to update.</param>
         /// <param name="connection">The optional transport connection for reverse connect.</param>
@@ -666,62 +668,130 @@ namespace Opc.Ua.Client
         {
             // EndpointUrl and SecurityPolicyUri are nullable on ConfiguredEndpoint but every
             // session entering reconnect was created with both values populated, so the
-            // bangs reflect that lifecycle invariant. The null! arguments in the catch block
-            // are intentional sentinels for "no security policy" passed to the modern API
-            // which retains a non-nullable parameter for backward compatibility.
+            // bangs reflect that lifecycle invariant.
+            MessageSecurityMode originalMode = endpoint.Description.SecurityMode;
+            string originalPolicyUri = endpoint.Description.SecurityPolicyUri!;
             try
             {
-                if (connection != null)
-                {
-                    await endpoint
-                        .UpdateFromServerAsync(
-                            endpoint.EndpointUrl!,
-                            connection,
-                            endpoint.Description.SecurityMode,
-                            endpoint.Description.SecurityPolicyUri!,
-                            m_telemetry)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    await endpoint
-                        .UpdateFromServerAsync(
-                            endpoint.EndpointUrl!,
-                            endpoint.Description.SecurityMode,
-                            endpoint.Description.SecurityPolicyUri!,
-                            m_telemetry)
-                        .ConfigureAwait(false);
-                }
+                await UpdateFromServerAsync(endpoint, connection, originalMode, originalPolicyUri)
+                    .ConfigureAwait(false);
             }
             catch (ServiceResultException sre) when (
                 sre.StatusCode == StatusCodes.BadSecurityPolicyRejected ||
                 sre.StatusCode == StatusCodes.BadSecurityModeRejected)
             {
-                // The original endpoint security configuration is no longer available on the server.
-                // Fall back to the best available endpoint without security constraints.
+                // The original endpoint security configuration is no longer available on the
+                // server. The discovery reply is unauthenticated (Part 4 5.5.1), so never relax
+                // the configured security: only accept an endpoint that is at least as secure.
                 m_logger.OriginalEndpointSecurityConfigurationNotAvailable(sre.Message);
-                if (connection != null)
+                EndpointDescription? fallback = SelectFallbackEndpoint(
+                    endpoint.Description,
+                    endpoint.DiscoveryEndpoints,
+                    m_logger);
+                if (fallback == null)
                 {
-                    await endpoint
-                        .UpdateFromServerAsync(
-                            endpoint.EndpointUrl!,
-                            connection,
-                            MessageSecurityMode.Invalid,
-                            null!,
-                            m_telemetry)
-                        .ConfigureAwait(false);
+                    m_logger.NoEndpointWithEqualOrStrongerSecurity(originalMode, originalPolicyUri);
+                    throw;
                 }
-                else
+
+                await UpdateFromServerAsync(
+                    endpoint,
+                    connection,
+                    fallback.SecurityMode,
+                    fallback.SecurityPolicyUri!).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Selects an endpoint from the discovered endpoints to fall back to when
+        /// the original security configuration is not offered anymore. Only an
+        /// endpoint with a security mode at least as strong as the original one
+        /// and a locally computed security level that is non-zero and not lower
+        /// than the original one qualifies. The server advertised security level
+        /// is not trusted because the discovery reply is not authenticated.
+        /// </summary>
+        /// <returns>The fallback endpoint or <c>null</c> if none qualifies.</returns>
+        internal static EndpointDescription? SelectFallbackEndpoint(
+            EndpointDescription original,
+            ArrayOf<EndpointDescription> discoveryEndpoints,
+            ILogger logger)
+        {
+            MessageSecurityMode originalMode = original.SecurityMode;
+            byte originalLevel = SecuredApplication.CalculateSecurityLevel(
+                originalMode,
+                original.SecurityPolicyUri!,
+                logger);
+            bool originalSecured =
+                originalMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt ||
+                (original.SecurityPolicyUri != null &&
+                    original.SecurityPolicyUri != SecurityPolicies.None);
+
+            EndpointDescription? best = null;
+            byte bestLevel = 0;
+            bool bestSameProfile = false;
+            foreach (EndpointDescription candidate in discoveryEndpoints)
+            {
+                if (candidate == null ||
+                    candidate.SecurityPolicyUri == null ||
+                    candidate.SecurityMode < originalMode ||
+                    candidate.SecurityMode > MessageSecurityMode.SignAndEncrypt)
                 {
-                    await endpoint
-                        .UpdateFromServerAsync(
-                            endpoint.EndpointUrl!,
-                            MessageSecurityMode.Invalid,
-                            null!,
-                            m_telemetry)
-                        .ConfigureAwait(false);
+                    continue;
+                }
+
+                if (originalSecured &&
+                    (candidate.SecurityMode == MessageSecurityMode.None ||
+                        candidate.SecurityPolicyUri == SecurityPolicies.None))
+                {
+                    continue;
+                }
+
+                byte level = SecuredApplication.CalculateSecurityLevel(
+                    candidate.SecurityMode,
+                    candidate.SecurityPolicyUri,
+                    logger);
+                if (level == 0 || level < originalLevel)
+                {
+                    continue;
+                }
+
+                bool sameProfile = string.Equals(
+                    candidate.TransportProfileUri,
+                    original.TransportProfileUri,
+                    StringComparison.Ordinal);
+                if (best == null ||
+                    level > bestLevel ||
+                    (level == bestLevel && sameProfile && !bestSameProfile))
+                {
+                    best = candidate;
+                    bestLevel = level;
+                    bestSameProfile = sameProfile;
                 }
             }
+
+            return best;
+        }
+
+        private Task UpdateFromServerAsync(
+            ConfiguredEndpoint endpoint,
+            ITransportWaitingConnection? connection,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri)
+        {
+            if (connection != null)
+            {
+                return endpoint.UpdateFromServerAsync(
+                    endpoint.EndpointUrl!,
+                    connection,
+                    securityMode,
+                    securityPolicyUri,
+                    m_telemetry);
+            }
+            return endpoint.UpdateFromServerAsync(
+                endpoint.EndpointUrl!,
+                securityMode,
+                securityPolicyUri,
+                m_telemetry);
         }
 
         /// <summary>
@@ -816,11 +886,19 @@ namespace Opc.Ua.Client
         public static partial void CouldNotReconnectSessionErrorMessage(this ILogger logger, RedactionWrapper<Exception> errorMessage);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 12, Level = LogLevel.Warning,
-            Message = "Original endpoint security configuration not available on server, falling back to best" +
-                " available endpoint. {Message}")]
+            Message = "Original endpoint security configuration not available on server, looking for an" +
+                " endpoint with equal or stronger security. {Message}")]
         public static partial void OriginalEndpointSecurityConfigurationNotAvailable(
             this ILogger logger,
             string message);
+
+        [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 13, Level = LogLevel.Error,
+            Message = "Server offers no endpoint with security equal to or stronger than {SecurityMode}" +
+                " {SecurityPolicyUri}, refusing to downgrade the endpoint security.")]
+        public static partial void NoEndpointWithEqualOrStrongerSecurity(
+            this ILogger logger,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri);
     }
 
 }

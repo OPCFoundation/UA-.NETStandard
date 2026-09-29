@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 tokenId,
                 policy.SigningKeyLength,
                 policy.EncryptingKeyLength,
-                policy.NonceLength);
+                AesCtrNonceLayout.KeyNonceLength);
 
             var publisherRing = new PubSubSecurityKeyRing("integration-group");
             publisherRing.SetCurrent(key);

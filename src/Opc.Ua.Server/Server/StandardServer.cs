@@ -738,9 +738,16 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                     }
                 }
-                else
+                else if (clientNonce.Length > 128)
                 {
-                    clientNonce = default;
+                    // A nonce sent on a None channel is kept: the None channel
+                    // variant of an enhanced user token signature
+                    // (ServerNonce | Hash(ServerCertificate) | ClientNonce)
+                    // covers the nonce the client sent. Part 4 5.7.2.3 (Table 16)
+                    // requires Bad_NonceInvalid for a nonce longer than 128 bytes
+                    // on every channel. An empty or short nonce stays accepted on
+                    // a None channel, where nothing else requires one.
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
                 // load the certificate for the security profile. The session
@@ -4072,7 +4079,13 @@ namespace Opc.Ua.Server
                     configuration,
                     MessageContext,
                     TimeProvider,
-                    SecurityPolicyRegistry);
+                    SecurityPolicyRegistry)
+                {
+                    // the validator CreateSession checks client certificates
+                    // with; ActivateSession validates an embedded user token
+                    // signing certificate with it.
+                    CertificateValidator = CertificateManager
+                };
 
                 foreach (IUserTokenAuthenticator authenticator in m_preStartAuthenticators)
                 {

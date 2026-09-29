@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
         private static CallResponse BuildSuccessfulResponse()
         {
-            int total = Policy.SigningKeyLength + Policy.EncryptingKeyLength + Policy.NonceLength;
+            int total = Policy.SigningKeyLength + Policy.EncryptingKeyLength + AesCtrNonceLayout.KeyNonceLength;
             byte[] keyBytes = new byte[total];
             for (int i = 0; i < total; i++)
             {

@@ -321,7 +321,7 @@ namespace Opc.Ua.Server
             defaultText = defaultText.WithTranslationInfo(info);
             bool isMultilanguageRequested =
                 preferredLocales.Count > 0 &&
-                preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
+                preferredLocales[0]?.ToLowerInvariant() is "mul" or "qst";
 
             // check for exact match.
             if (preferredLocales.Count > 0)

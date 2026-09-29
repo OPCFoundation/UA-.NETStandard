@@ -153,12 +153,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
+            // hash exactly the members IsEqual compares; the base class has
+            // no value based hash code.
             return HashCode.Combine(
-                base.GetHashCode(),
+                DefaultEncodingId,
                 BaseDataType,
                 StructureType,
-                Fields,
-                FirstExplicitFieldIndex);
+                Fields);
         }
 
         /// <inheritdoc/>

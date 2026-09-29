@@ -108,29 +108,39 @@ namespace Opc.Ua
                     out List<string> stringTable,
                     nodesToBrowse.Count,
                     operationLimit);
-                foreach (ArrayOf<BrowseDescription> nodesToBrowseBatch in nodesToBrowse.Batch((int)operationLimit))
+                try
                 {
-                    requestHeader.RequestHandle = 0;
-                    response = await base.BrowseAsync(
-                        requestHeader,
-                        view,
-                        requestedMaxReferencesPerNode,
-                        nodesToBrowseBatch,
-                        ct).ConfigureAwait(false);
+                    foreach (ArrayOf<BrowseDescription> nodesToBrowseBatch in nodesToBrowse.Batch((int)operationLimit))
+                    {
+                        requestHeader.RequestHandle = 0;
+                        response = await base.BrowseAsync(
+                            requestHeader,
+                            view,
+                            requestedMaxReferencesPerNode,
+                            nodesToBrowseBatch,
+                            ct).ConfigureAwait(false);
 
-                    ArrayOf<BrowseResult> batchResults = response.Results;
-                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<BrowseResult> batchResults = response.Results;
+                        ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
-                    ValidateResponse(batchResults, nodesToBrowseBatch);
-                    ValidateDiagnosticInfos(batchDiagnosticInfos, nodesToBrowseBatch);
+                        ValidateResponse(batchResults, nodesToBrowseBatch);
+                        ValidateDiagnosticInfos(batchDiagnosticInfos, nodesToBrowseBatch);
 
-                    AddResponses(
-                        ref results,
-                        ref diagnosticInfos,
-                        ref stringTable,
-                        batchResults,
-                        batchDiagnosticInfos,
-                        response.ResponseHeader.StringTable);
+                        AddResponses(
+                            ref results,
+                            ref diagnosticInfos,
+                            ref stringTable,
+                            batchResults,
+                            batchDiagnosticInfos,
+                            response.ResponseHeader.StringTable);
+                    }
+                }
+                catch (Exception) when (results.Count > 0)
+                {
+                    // The caller never sees the continuation points of the completed
+                    // batches, so release them before the failure propagates.
+                    await ReleaseBrowseContinuationPointsAsync(results).ConfigureAwait(false);
+                    throw;
                 }
 
                 ValidateResponse(response);
@@ -189,28 +199,38 @@ namespace Opc.Ua
                     out List<string> stringTable,
                     continuationPoints.Count,
                     operationLimit);
-                foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch((int)operationLimit))
+                try
                 {
-                    requestHeader.RequestHandle = 0;
-                    response = await base.BrowseNextAsync(
-                        requestHeader,
-                        releaseContinuationPoints,
-                        continuationPointsBatch,
-                        ct).ConfigureAwait(false);
+                    foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch((int)operationLimit))
+                    {
+                        requestHeader.RequestHandle = 0;
+                        response = await base.BrowseNextAsync(
+                            requestHeader,
+                            releaseContinuationPoints,
+                            continuationPointsBatch,
+                            ct).ConfigureAwait(false);
 
-                    ArrayOf<BrowseResult> batchResults = response.Results;
-                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
+                        ArrayOf<BrowseResult> batchResults = response.Results;
+                        ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
-                    ValidateResponse(batchResults, continuationPointsBatch);
-                    ValidateDiagnosticInfos(batchDiagnosticInfos, continuationPointsBatch);
+                        ValidateResponse(batchResults, continuationPointsBatch);
+                        ValidateDiagnosticInfos(batchDiagnosticInfos, continuationPointsBatch);
 
-                    AddResponses(
-                        ref results,
-                        ref diagnosticInfos,
-                        ref stringTable,
-                        batchResults,
-                        batchDiagnosticInfos,
-                        response.ResponseHeader.StringTable);
+                        AddResponses(
+                            ref results,
+                            ref diagnosticInfos,
+                            ref stringTable,
+                            batchResults,
+                            batchDiagnosticInfos,
+                            response.ResponseHeader.StringTable);
+                    }
+                }
+                catch (Exception) when (results.Count > 0 && !releaseContinuationPoints)
+                {
+                    // The caller never sees the continuation points the completed
+                    // batches returned, so release them before the failure propagates.
+                    await ReleaseBrowseContinuationPointsAsync(results).ConfigureAwait(false);
+                    throw;
                 }
 
                 ValidateResponse(response);
@@ -496,31 +516,45 @@ namespace Opc.Ua
                     out List<string> stringTable,
                     nodesToRead.Count,
                     operationLimit);
-                foreach (ArrayOf<HistoryReadValueId> batchNodesToRead in nodesToRead
-                    .Batch((int)operationLimit))
+                try
                 {
-                    requestHeader.RequestHandle = 0;
-                    response = await base.HistoryReadAsync(
-                        requestHeader,
+                    foreach (ArrayOf<HistoryReadValueId> batchNodesToRead in nodesToRead
+                        .Batch((int)operationLimit))
+                    {
+                        requestHeader.RequestHandle = 0;
+                        response = await base.HistoryReadAsync(
+                            requestHeader,
+                            historyReadDetails,
+                            timestampsToReturn,
+                            releaseContinuationPoints,
+                            batchNodesToRead,
+                            ct).ConfigureAwait(false);
+
+                        ArrayOf<HistoryReadResult> batchResults = response.Results;
+                        ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
+
+                        ValidateResponse(batchResults, batchNodesToRead);
+                        ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToRead);
+
+                        AddResponses(
+                            ref results,
+                            ref diagnosticInfos,
+                            ref stringTable,
+                            batchResults,
+                            batchDiagnosticInfos,
+                            response.ResponseHeader.StringTable);
+                    }
+                }
+                catch (Exception) when (results.Count > 0 && !releaseContinuationPoints)
+                {
+                    // The caller never sees the continuation points the completed
+                    // batches returned, so release them before the failure propagates.
+                    await ReleaseHistoryContinuationPointsAsync(
                         historyReadDetails,
                         timestampsToReturn,
-                        releaseContinuationPoints,
-                        batchNodesToRead,
-                        ct).ConfigureAwait(false);
-
-                    ArrayOf<HistoryReadResult> batchResults = response.Results;
-                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
-
-                    ValidateResponse(batchResults, batchNodesToRead);
-                    ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToRead);
-
-                    AddResponses(
-                        ref results,
-                        ref diagnosticInfos,
-                        ref stringTable,
-                        batchResults,
-                        batchDiagnosticInfos,
-                        response.ResponseHeader.StringTable);
+                        nodesToRead,
+                        results).ConfigureAwait(false);
+                    throw;
                 }
 
                 ValidateResponse(response);
@@ -772,29 +806,39 @@ namespace Opc.Ua
                     out List<string> stringTable,
                     itemsToCreate.Count,
                     operationLimit);
-                foreach (ArrayOf<MonitoredItemCreateRequest> batchItemsToCreate in itemsToCreate
-                    .Batch((int)operationLimit))
+                try
                 {
-                    requestHeader.RequestHandle = 0;
-                    response = await base.CreateMonitoredItemsAsync(
-                        requestHeader,
-                        subscriptionId,
-                        timestampsToReturn,
-                        batchItemsToCreate,
-                        ct).ConfigureAwait(false);
+                    foreach (ArrayOf<MonitoredItemCreateRequest> batchItemsToCreate in itemsToCreate
+                        .Batch((int)operationLimit))
+                    {
+                        requestHeader.RequestHandle = 0;
+                        response = await base.CreateMonitoredItemsAsync(
+                            requestHeader,
+                            subscriptionId,
+                            timestampsToReturn,
+                            batchItemsToCreate,
+                            ct).ConfigureAwait(false);
 
-                    ArrayOf<MonitoredItemCreateResult> batchResults = response.Results;
-                    ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
-                    ValidateResponse(batchResults, batchItemsToCreate);
-                    ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToCreate);
+                        ArrayOf<MonitoredItemCreateResult> batchResults = response.Results;
+                        ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
+                        ValidateResponse(batchResults, batchItemsToCreate);
+                        ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToCreate);
 
-                    AddResponses(
-                        ref results,
-                        ref diagnosticInfos,
-                        ref stringTable,
-                        batchResults,
-                        batchDiagnosticInfos,
-                        response.ResponseHeader.StringTable);
+                        AddResponses(
+                            ref results,
+                            ref diagnosticInfos,
+                            ref stringTable,
+                            batchResults,
+                            batchDiagnosticInfos,
+                            response.ResponseHeader.StringTable);
+                    }
+                }
+                catch (Exception) when (results.Count > 0)
+                {
+                    // The caller never learns the ids of the items the completed
+                    // batches created, so delete them before the failure propagates.
+                    await DeleteCreatedMonitoredItemsAsync(subscriptionId, results).ConfigureAwait(false);
+                    throw;
                 }
 
                 ValidateResponse(response);
@@ -1489,6 +1533,119 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Best effort release of the browse continuation points returned by the
+        /// batches that completed before a later batch failed (Part 4 7.9).
+        /// </summary>
+        private async ValueTask ReleaseBrowseContinuationPointsAsync(List<BrowseResult> results)
+        {
+            var continuationPoints = new List<ByteString>();
+            foreach (BrowseResult? result in results)
+            {
+                if (result != null && !result.ContinuationPoint.IsEmpty)
+                {
+                    continuationPoints.Add(result.ContinuationPoint);
+                }
+            }
+            if (continuationPoints.Count == 0)
+            {
+                return;
+            }
+            try
+            {
+                await BrowseNextAsync(
+                    null,
+                    true,
+                    continuationPoints.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Best effort, the original failure is what the caller sees. The
+                // server frees the continuation points when the session closes.
+            }
+        }
+
+        /// <summary>
+        /// Best effort release of the history continuation points returned by the
+        /// batches that completed before a later batch failed.
+        /// </summary>
+        private async ValueTask ReleaseHistoryContinuationPointsAsync(
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<HistoryReadValueId> nodesToRead,
+            List<HistoryReadResult> results)
+        {
+            var nodesToRelease = new List<HistoryReadValueId>();
+            for (int ii = 0; ii < results.Count && ii < nodesToRead.Count; ii++)
+            {
+                HistoryReadResult? result = results[ii];
+                if (result != null && !result.ContinuationPoint.IsEmpty)
+                {
+                    HistoryReadValueId nodeToRead = nodesToRead[ii];
+                    nodesToRelease.Add(new HistoryReadValueId
+                    {
+                        NodeId = nodeToRead.NodeId,
+                        IndexRange = nodeToRead.IndexRange,
+                        DataEncoding = nodeToRead.DataEncoding,
+                        ContinuationPoint = result.ContinuationPoint
+                    });
+                }
+            }
+            if (nodesToRelease.Count == 0)
+            {
+                return;
+            }
+            try
+            {
+                await HistoryReadAsync(
+                    null,
+                    historyReadDetails,
+                    timestampsToReturn,
+                    true,
+                    nodesToRelease.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Best effort, the original failure is what the caller sees.
+            }
+        }
+
+        /// <summary>
+        /// Best effort deletion of the monitored items created by the batches
+        /// that completed before a later batch failed.
+        /// </summary>
+        private async ValueTask DeleteCreatedMonitoredItemsAsync(
+            uint subscriptionId,
+            List<MonitoredItemCreateResult> results)
+        {
+            var monitoredItemIds = new List<uint>();
+            foreach (MonitoredItemCreateResult? result in results)
+            {
+                if (result != null && StatusCode.IsGood(result.StatusCode))
+                {
+                    monitoredItemIds.Add(result.MonitoredItemId);
+                }
+            }
+            if (monitoredItemIds.Count == 0)
+            {
+                return;
+            }
+            try
+            {
+                await DeleteMonitoredItemsAsync(
+                    null,
+                    subscriptionId,
+                    monitoredItemIds.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Best effort, the original failure is what the caller sees.
+            }
+        }
+
+        /// <summary>
         /// Add the result of a batched service call to the results.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -1534,7 +1691,11 @@ namespace Opc.Ua
                     diagnosticInfos.Add(null!);
                 }
             }
-            else if (batchedStringTable.Count > 0)
+
+            // Padding and rebasing are independent: the batch strings are appended
+            // after the strings already collected (e.g. by the other list of a
+            // SetTriggering call sharing this string table).
+            if (batchedStringTable.Count > 0 && stringTable.Count > 0)
             {
                 // correct indexes in the string table
                 int stringTableOffset = stringTable.Count;

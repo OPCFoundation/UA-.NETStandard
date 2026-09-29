@@ -1175,13 +1175,44 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionOptions options = snapshots[0].ToOptions();
             var optionsMonitor = new OptionsMonitor<SubscriptionOptions>(options);
 
-            for (int i = 1; i < snapshots.Count; i++)
+            try
             {
-                ct.ThrowIfCancellationRequested();
-                await AttachSecondaryPartitionAsync(
-                    wrapper, handler, optionsMonitor,
-                    snapshots[i], transferSubscriptions, ct)
-                    .ConfigureAwait(false);
+                for (int i = 1; i < snapshots.Count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await AttachSecondaryPartitionAsync(
+                        wrapper, handler, optionsMonitor,
+                        snapshots[i], transferSubscriptions, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                // The primary and any secondaries attached so far are
+                // registered, but the caller never receives the wrapper.
+                // Roll back like RestoreAsync does for a failed transfer so
+                // no zombie keeps a server subscription alive and keeps
+                // calling the handler with nobody able to dispose it.
+                IReadOnlyList<IManagedSubscription> partitions = wrapper.Partitions;
+                lock (m_subscriptionLock)
+                {
+                    m_logicals.Remove(wrapper);
+                    foreach (IManagedSubscription partition in partitions)
+                    {
+                        m_subscriptions.Remove(partition);
+                    }
+                }
+                try
+                {
+                    await wrapper.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception disposeException)
+                    when (disposeException is not OutOfMemoryException)
+                {
+                    m_logger.ReCreationDidNotComplete(
+                        partitions.Count > 0 ? partitions[0].Id : 0);
+                }
+                throw;
             }
             return wrapper;
         }
@@ -1224,11 +1255,25 @@ namespace Opc.Ua.Client.Subscriptions
                 wrapper.ForwardingHandler ?? handler;
             IManagedSubscription partition = MintPreloadedPartition(
                 effective, optionsMonitor, loadState);
-            AttachReactiveFallback(partition, wrapper);
+            try
+            {
+                AttachReactiveFallback(partition, wrapper);
 
-            // Append to the wrapper's partition list so the composite
-            // collection's policy + index account for it.
-            wrapper.AppendPreloadedPartition(partition);
+                // Append to the wrapper's partition list so the composite
+                // collection's policy + index account for it.
+                wrapper.AppendPreloadedPartition(partition);
+            }
+            catch
+            {
+                // Not yet owned by the wrapper, so the group rollback would
+                // not find it.
+                lock (m_subscriptionLock)
+                {
+                    m_subscriptions.Remove(partition);
+                }
+                await partition.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
 
             // Best-effort transfer: when the saved ServerId is
             // non-zero AND the caller asked for transfer, issue
@@ -2024,6 +2069,19 @@ namespace Opc.Ua.Client.Subscriptions
                         m_consecutivePublishErrors = 0;
                         m_lastLoggedErrorStatus = default;
 
+                        //
+                        // Snapshot the pending-creation state BEFORE the id
+                        // lookup. A creation assigns its id before it clears
+                        // its in-progress flag, so a creation that is no
+                        // longer pending at the snapshot has its id visible
+                        // to the lookup, and one that completes after the
+                        // snapshot is still covered by the snapshot. The
+                        // orphan delete below is decided on this snapshot
+                        // only; a later, separate check could observe the
+                        // creation completed after a lookup that missed it.
+                        //
+                        bool creationPending = m_outer.HasSubscriptionsPendingCreation();
+
                         // Get the subscription with the provided identifier
                         IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
                         publishLatency = m_outer.m_timeProvider.GetElapsedTime(
@@ -2047,6 +2105,18 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                         else if (!ct.IsCancellationRequested)
                         {
+                            //
+                            // The Publish itself succeeded, so the server has
+                            // processed the acknowledgements it carried. End
+                            // the in-flight request now: a failure below must
+                            // not re-queue those acknowledgements (the server
+                            // would answer Bad_SequenceNumberUnknown), and a
+                            // drain must not wait for the throttle or the
+                            // orphan delete below.
+                            //
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+
                             //
                             // The identifier does not resolve to any subscription
                             // this manager owns. Delete the orphan on the server,
@@ -2073,7 +2143,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 await DelayUnresolvedSubscriptionAsync(ct)
                                     .ConfigureAwait(false);
                             }
-                            else if (m_outer.HasSubscriptionsPendingCreation())
+                            else if (creationPending)
                             {
                                 // Log only the first response of a run for the
                                 // same identifier so a long lived creation window
@@ -2111,7 +2181,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 await m_outer.m_session.DeleteSubscriptionsAsync(
                                     null,
                                     [subscriptionId],
-                                    ct).ConfigureAwait(false);
+                                    attemptToken).ConfigureAwait(false);
                                 //
                                 // Retire the identifier so responses that were
                                 // already in flight, or that the server emits
@@ -2353,26 +2423,43 @@ namespace Opc.Ua.Client.Subscriptions
                         .ReadAsync(pauseCts.Token).AsTask();
                     Task pausedTask = m_outer.m_publishingPaused
                         .WaitAsync(pauseCts.Token);
-                    Task completed = await Task.WhenAny(readTask, pausedTask)
-                        .ConfigureAwait(false);
-                    if (ReferenceEquals(completed, pausedTask))
+                    bool readConsumed = false;
+                    SubscriptionAcknowledgement firstAck;
+                    try
                     {
-                        await pausedTask.ConfigureAwait(false);
-                        await pauseCts.CancelAsync().ConfigureAwait(false);
-                        try
+                        Task completed = await Task.WhenAny(readTask, pausedTask)
+                            .ConfigureAwait(false);
+                        if (ReferenceEquals(completed, pausedTask))
                         {
-                            SubscriptionAcknowledgement acknowledgement =
-                                await readTask.ConfigureAwait(false);
-                            m_outer.m_acks.Writer.TryWrite(acknowledgement);
+                            // Throws when the wait timed out or was cancelled;
+                            // the finally below still rescues a racing ack.
+                            await pausedTask.ConfigureAwait(false);
+                            return [];
                         }
-                        catch (OperationCanceledException)
-                        {
-                        }
-                        return [];
+                        firstAck = await readTask.ConfigureAwait(false);
+                        readConsumed = true;
                     }
-
-                    SubscriptionAcknowledgement firstAck =
-                        await readTask.ConfigureAwait(false);
+                    finally
+                    {
+                        if (!readConsumed)
+                        {
+                            // A writer can hand an acknowledgement to the
+                            // pending read in the same instant the wait ends.
+                            // Put it back on every exit path, otherwise it is
+                            // never sent and the server keeps the message in
+                            // its retransmission queue.
+                            await pauseCts.CancelAsync().ConfigureAwait(false);
+                            try
+                            {
+                                SubscriptionAcknowledgement acknowledgement =
+                                    await readTask.ConfigureAwait(false);
+                                m_outer.m_acks.Writer.TryWrite(acknowledgement);
+                            }
+                            catch (Exception) when (readTask.IsCanceled || readTask.IsFaulted)
+                            {
+                            }
+                        }
+                    }
                     await pauseCts.CancelAsync().ConfigureAwait(false);
                     try
                     {
@@ -2453,13 +2540,18 @@ namespace Opc.Ua.Client.Subscriptions
                 foreach (IManagedSubscription s in created)
                 {
                     TimeSpan publishingInterval = s.CurrentPublishingInterval;
-                    TimeSpan keepAlive = publishingInterval.Multiply(s.CurrentKeepAliveCount);
+                    // Saturate: the server may revise both factors up to the
+                    // limits of their wire types (Part 4 §5.14.2.2), and a
+                    // throwing multiply here would fault every publish worker.
+                    TimeSpan keepAlive = SaturatingTimeSpan.Multiply(
+                        publishingInterval, s.CurrentKeepAliveCount);
                     if (timeout < keepAlive)
                     {
                         timeout = keepAlive;
                     }
 
-                    int pi = (int)publishingInterval.TotalMilliseconds;
+                    int pi = (int)Math.Min(
+                        publishingInterval.TotalMilliseconds, int.MaxValue);
                     if (pi <= 0)
                     {
                         continue;
@@ -2475,7 +2567,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // value for PublishingInterval * KeepAliveCount
                 // TODO: Validate this against spec
                 //
-                timeout = timeout.Multiply(2);
+                timeout = SaturatingTimeSpan.Multiply(timeout, 2);
                 if (timeout < s_minOperationTimeout)
                 {
                     timeout = s_minOperationTimeout;

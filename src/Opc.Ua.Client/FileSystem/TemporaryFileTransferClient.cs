@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -108,14 +109,24 @@ namespace Opc.Ua.Client.FileSystem
         /// handle; disposing the stream issues <c>Close</c> per the
         /// regular <c>FileType</c> lifecycle.
         /// </summary>
+        /// <remarks>
+        /// When the server generates the file asynchronously it returns a
+        /// <c>FileTransferStateMachineType</c> object, and <c>Read</c> fails
+        /// until its state reaches <c>ReadTransfer</c> (Part 20 §4.4.3). This
+        /// method waits for that transition (bounded by
+        /// <paramref name="ct"/>) before returning the stream.
+        /// </remarks>
         /// <param name="generateOptions">Server-defined generation
         /// options; pass <c>default</c> for "no options".</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="IOException">The server reported that
+        /// generating the file failed (the state machine entered
+        /// <c>Error</c>).</exception>
         public async ValueTask<UaFileStream> GenerateFileForReadAsync(
             Variant generateOptions = default,
             CancellationToken ct = default)
         {
-            (NodeId fileNodeId, uint handle, _) = await Proxy
+            (NodeId fileNodeId, uint handle, NodeId completionStateMachine) = await Proxy
                 .GenerateFileForReadAsync(generateOptions, ct)
                 .ConfigureAwait(false);
 
@@ -126,6 +137,11 @@ namespace Opc.Ua.Client.FileSystem
 
             try
             {
+                if (!completionStateMachine.IsNull)
+                {
+                    await WaitForReadTransferAsync(completionStateMachine, ct)
+                        .ConfigureAwait(false);
+                }
                 return new UaFileStream(
                     fileProxy,
                     handle,
@@ -148,6 +164,103 @@ namespace Opc.Ua.Client.FileSystem
                 throw;
             }
         }
+
+        /// <summary>
+        /// Polls <c>CurrentState/Id</c> of the completion state machine until
+        /// the asynchronous generation reaches <c>ReadTransfer</c>.
+        /// </summary>
+        private async ValueTask WaitForReadTransferAsync(
+            NodeId stateMachine,
+            CancellationToken ct)
+        {
+            ArrayOf<BrowsePath> browsePaths = new[]
+            {
+                new BrowsePath
+                {
+                    StartingNode = stateMachine,
+                    RelativePath = new RelativePath
+                    {
+                        Elements =
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                                IsInverse = false,
+                                IncludeSubtypes = true,
+                                TargetName = new QualifiedName(BrowseNames.CurrentState)
+                            },
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                                IsInverse = false,
+                                IncludeSubtypes = true,
+                                TargetName = new QualifiedName(BrowseNames.Id)
+                            }
+                        ]
+                    }
+                }
+            }.ToArrayOf();
+            TranslateBrowsePathsToNodeIdsResponse response = await Session
+                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
+                .ConfigureAwait(false);
+            ClientBase.ValidateResponse(response.Results, browsePaths);
+            BrowsePathResult result = response.Results[0];
+            if (StatusCode.IsBad(result.StatusCode) || result.Targets.Count == 0)
+            {
+                // The state cannot be observed; Read reports the outcome.
+                return;
+            }
+
+            ArrayOf<ReadValueId> nodesToRead = new[]
+            {
+                new ReadValueId
+                {
+                    NodeId = ExpandedNodeId.ToNodeId(
+                        result.Targets[0].TargetId,
+                        Session.MessageContext.NamespaceUris),
+                    AttributeId = Attributes.Value
+                }
+            }.ToArrayOf();
+            TimeSpan delay = TimeSpan.FromMilliseconds(50);
+            while (true)
+            {
+                ReadResponse read = await Session.ReadAsync(
+                    null,
+                    0.0,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    ct).ConfigureAwait(false);
+                ClientBase.ValidateResponse(read.Results, nodesToRead);
+                DataValue value = read.Results[0];
+                if (StatusCode.IsBad(value.StatusCode) ||
+                    !value.WrappedValue.TryGetValue(out NodeId state))
+                {
+                    return;
+                }
+                // Part 20 4.4.3: Read fails until the state reaches
+                // ReadTransfer. Idle means generation has not started yet,
+                // so keep waiting (bounded by the caller's token).
+                if (state.Equals(ObjectIds.FileTransferStateMachineType_ReadTransfer))
+                {
+                    return;
+                }
+                if (state.Equals(ObjectIds.FileTransferStateMachineType_Error))
+                {
+                    throw new IOException(
+                        "The server failed to generate the temporary file for reading " +
+                        "(the FileTransferStateMachine entered the Error state).");
+                }
+                await Task.Delay(delay, ct).ConfigureAwait(false);
+                if (delay < s_maxStatePollDelay)
+                {
+                    delay = TimeSpan.FromTicks(Math.Min(
+                        delay.Ticks * 2,
+                        s_maxStatePollDelay.Ticks));
+                }
+            }
+        }
+
+        private static readonly TimeSpan s_maxStatePollDelay = TimeSpan.FromSeconds(1);
 
         /// <summary>
         /// Asks the server to allocate a temporary file for writing.

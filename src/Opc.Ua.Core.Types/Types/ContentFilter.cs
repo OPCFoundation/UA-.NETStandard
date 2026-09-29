@@ -532,8 +532,12 @@ namespace Opc.Ua
                     operandCount = -1;
                     break;
                 default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unexpected FilterOperator {m_filterOperator}");
+                    // Part 4 7.7.2: an unrecognized operator is a per-element error.
+                    result.Status = ServiceResult.Create(
+                        StatusCodes.BadFilterOperatorInvalid,
+                        "ContentFilterElement has an unrecognized FilterOperator ({0}).",
+                        m_filterOperator);
+                    return result;
             }
 
             if (operandCount != -1)
@@ -807,8 +811,12 @@ namespace Opc.Ua
 
                     break;
                 default:
-                    throw ServiceResultException.Unexpected(
-                        $"Unknown filter operator {FilterOperator}");
+                    // used for logging: an unrecognized operator from the wire must not throw.
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "<unknown filter operator {0}>",
+                        FilterOperator);
+                    break;
             }
 
             return buffer.ToString();

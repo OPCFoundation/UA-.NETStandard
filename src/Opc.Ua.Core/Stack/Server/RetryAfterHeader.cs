@@ -121,9 +121,15 @@ namespace Opc.Ua
                 }
 
                 long milliseconds = parameter.Value.GetInt64(0);
-                return milliseconds > 0
-                    ? TimeSpan.FromMilliseconds(milliseconds)
-                    : null;
+                if (milliseconds <= 0)
+                {
+                    return null;
+                }
+
+                // the value comes from the peer: clamp it like the text hints so
+                // an oversized value cannot overflow TimeSpan.
+                long maxMilliseconds = (long)RetryAfterHint.MaxRetryAfter.TotalMilliseconds;
+                return TimeSpan.FromMilliseconds(Math.Min(milliseconds, maxMilliseconds));
             }
 
             return null;

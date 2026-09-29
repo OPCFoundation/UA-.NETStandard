@@ -710,6 +710,7 @@ namespace Opc.Ua.Client
 
             ThrowIfDisposed();
 
+            ReverseConnectInfo? replaced;
             lock (m_lock)
             {
                 if (!CanMutateEndpoints(m_state))
@@ -722,10 +723,20 @@ namespace Opc.Ua.Client
                 // activated one) so CreateEndpointInfo can plumb the
                 // CertificateManager into the listener when the endpoint URL
                 // needs TLS termination (WSS). Instance state is not mutated.
+                m_manualEndpoints.TryGetValue(endpointUrl, out replaced);
                 m_manualEndpoints[endpointUrl] = CreateEndpointInfo(
                     endpointUrl,
                     false,
                     configuration ?? m_appConfig);
+            }
+
+            if (replaced != null)
+            {
+                // The replaced host is no longer reachable from the map, so
+                // teardown would never dispose it. The manager is not serving
+                // in the states that allow mutation, so the host is not bound;
+                // DisposeHostAsync logs and swallows failures.
+                _ = DisposeHostAsync(replaced).AsTask();
             }
         }
 
@@ -2194,6 +2205,12 @@ namespace Opc.Ua.Client
             ReverseConnectStrategy reverseConnectStrategy,
             bool verifyServing = false)
         {
+            // Undefined (or Any without Once/Always) is documented to default to
+            // Once; without this it would never be removed and behave as Always.
+            if ((reverseConnectStrategy & ~ReverseConnectStrategy.Any) == 0)
+            {
+                reverseConnectStrategy |= ReverseConnectStrategy.Once;
+            }
             var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting)
             {
                 ReverseConnectStrategy = reverseConnectStrategy

@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography;
@@ -268,6 +269,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(secret, Is.EqualTo(remote.GenerateSecret(local, null)));
         }
 
+        /// <summary>
+        /// With SecureChannelEnhancements the client verifies the OpenSecureChannel response over
+        /// the response bytes followed by its own request signature (OPC 10000-6 6.7.5). A client
+        /// key larger than the server key makes that signature longer than the response signature,
+        /// so it must not be appended in place into an exactly sized decrypted buffer.
+        /// </summary>
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+        [TestCase(SecurityPolicies.RSA_DH_ChaChaPoly)]
+        public async Task OpenResponseVerifiesWhenClientSignatureIsLongerAsync(string policyUri)
+        {
+            if (!AssertPolicyAvailability(policyUri))
+            {
+                return;
+            }
+            using var harness = new HandoffHarness(policyUri, clientKeySize: 4096, pool: new ExactSizePool());
+
+            await harness.OpenAsync().ConfigureAwait(false);
+        }
+
         private static bool AssertPolicyAvailability(string policyUri)
         {
             if (SecurityPolicies.Default.GetInfo(policyUri) != null)
@@ -284,11 +304,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class HandoffHarness : IDisposable
         {
-            public HandoffHarness(string policyUri, bool withIssuers = false)
+            public HandoffHarness(
+                string policyUri,
+                bool withIssuers = false,
+                ushort clientKeySize = 0,
+                ArrayPool<byte>? pool = null)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var context = ServiceMessageContext.Create(telemetry);
-                var buffers = new BufferManager("reconnect-keys", 65536, telemetry);
+                BufferManager buffers = pool != null
+                    ? new BufferManager("reconnect-keys", 65536, telemetry, pool)
+                    : new BufferManager("reconnect-keys", 65536, telemetry);
                 var validator = new Mock<ICertificateValidatorEx>();
                 validator.Setup(value => value.ValidateAsync(
                         It.IsAny<CertificateCollection>(),
@@ -311,6 +337,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         .SetCAConstraint().SetIssuer(m_rootCertificate).CreateForRSA();
                     m_clientCertificate = CertificateBuilder.Create("CN=ReconnectClient")
                         .SetIssuer(m_issuerCertificate).CreateForRSA();
+                }
+                else if (clientKeySize > 0)
+                {
+                    m_clientCertificate = DefaultCertificateFactory.Instance
+                        .CreateCertificate("CN=ReconnectClient")
+                        .SetRSAKeySize(clientKeySize)
+                        .CreateForRSA();
                 }
                 else
                 {
@@ -476,6 +509,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             private readonly Certificate? m_rootCertificate;
             private readonly CertificateCollection m_chain = [];
             private readonly CancellationTokenSource m_timeout = new(TimeSpan.FromSeconds(15));
+        }
+
+        /// <summary>
+        /// Rents arrays of exactly the requested length, so a write past a rental fails at once.
+        /// </summary>
+        private sealed class ExactSizePool : ArrayPool<byte>
+        {
+            public override byte[] Rent(int minimumLength)
+            {
+                return new byte[minimumLength];
+            }
+
+            public override void Return(byte[] array, bool clearArray = false)
+            {
+            }
         }
 
         private sealed class HandoffChannel : TcpServerChannel

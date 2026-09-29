@@ -1800,18 +1800,27 @@ namespace Opc.Ua.Bindings
 
             if (oscRequestSignature != null && SecurityPolicy!.SecureChannelEnhancements)
             {
-                // copy OpenSecureChannel request signature if provided before verifying.
-                dataToVerify = new ArraySegment<byte>(
+                // append the OpenSecureChannel request signature to the signed bytes before verifying.
+                // Build a separate buffer: the request signature can be longer than the response
+                // signature it replaces, so it may not fit into the decrypted message buffer.
+                int signedLength = plainText.Count - signatureSize;
+                byte[] signedData = new byte[signedLength + oscRequestSignature.Length];
+
+                Array.Copy(
                     plainText.GetArray(),
                     plainText.Offset,
-                    plainText.Count - signatureSize + oscRequestSignature.Length);
+                    signedData,
+                    0,
+                    signedLength);
 
                 Array.Copy(
                     oscRequestSignature,
-                    dataToVerify.Offset,
-                    dataToVerify.GetArray(),
-                    dataToVerify.Count - oscRequestSignature.Length,
+                    0,
+                    signedData,
+                    signedLength,
                     oscRequestSignature.Length);
+
+                dataToVerify = new ArraySegment<byte>(signedData);
             }
             else
             {

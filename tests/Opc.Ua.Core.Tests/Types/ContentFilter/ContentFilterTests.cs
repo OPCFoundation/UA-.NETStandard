@@ -385,6 +385,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 Variant.From((byte)2), Variant.From((byte)3),
                 FilterOperator.BitwiseAnd, Variant.From((byte)3),
                 FilterOperator.Equals, Variant.From(false));
+            // Equals with a NULL operand is NULL (OPC 10000-4 7.7.3), even
+            // when both operands are NULL, and a NULL filter result is FALSE.
             yield return new TestCaseData(
                 Variant.From("invalid"), Variant.From((byte)3),
                 FilterOperator.BitwiseOr, Variant.Null,

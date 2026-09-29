@@ -346,11 +346,11 @@ namespace Opc.Ua.Wot
                 {
                     continue;
                 }
-                string local =
-                    LocalName(GetElementString(property.Value, "uav:browseName")) ??
-                    property.Key;
+                // Keyed by the affordance key, which the JSON object makes
+                // unique: two affordances may share a local BrowseName in
+                // different namespaces.
                 catalog.Add(
-                    local,
+                    property.Key,
                     await schemaResolver.ResolveAndCompareAsync(
                         reference,
                         property.Value,
@@ -1200,12 +1200,17 @@ namespace Opc.Ua.Wot
 
             var nodeSet = new UANodeSet
             {
-                NamespaceUris = SeedNamespaceUris(document, modelUri),
+                NamespaceUris = SeedNamespaceUris(document, modelUri, diagnostics),
                 Models =
                 [
                     new ModelTableEntry { ModelUri = modelUri }
                 ]
             };
+
+            // The synthesis appends every namespace its identifiers introduce;
+            // the table is published once it is complete rather than copied on
+            // every new URI.
+            BeginNamespaceTable(nodeSet);
             string rootNodeId = GenerateRootNodeId(nodeSet, rootLocal);
             if (authoredRootId is not null)
             {
@@ -1323,6 +1328,7 @@ namespace Opc.Ua.Wot
 
             int affordanceCount = 0;
             var propertyNodeIds = new Dictionary<string, string>(StringComparer.Ordinal);
+            var ownedComponents = new OwnedComponents(items);
 
             foreach (KeyValuePair<string, JsonElement> property in document.Properties)
             {
@@ -1333,8 +1339,10 @@ namespace Opc.Ua.Wot
                 SynthesizeProperty(
                     document, nodeSet, property.Key, property.Value, rootLocal,
                     rootNodeId, isThingModel, declaredLocale,
-                    items, rootReferences, propertyNodeIds, externalSchemas, diagnostics);
+                    items, rootReferences, propertyNodeIds, ownedComponents,
+                    externalSchemas, diagnostics);
             }
+            ownedComponents.Flush();
 
             // Sections 6.4 and 6.4.1 relate two affordances - the annotated one
             // and the sibling that carries its unit - so the analog Properties
@@ -1423,6 +1431,7 @@ namespace Opc.Ua.Wot
                 document, dataTypeIdentities, nodeSet, items, diagnostics);
             ValidateNestedOnlySelection(nestedOnly, items, diagnostics);
             nodeSet.Items = [.. items];
+            CompleteNamespaceTable(nodeSet);
             return nodeSet;
         }
 
@@ -1438,6 +1447,7 @@ namespace Opc.Ua.Wot
             List<UANode> items,
             List<Reference> rootReferences,
             Dictionary<string, string> propertyNodeIds,
+            OwnedComponents ownedComponents,
             WotExternalSchemaCatalog? externalSchemas,
             List<WotDiagnostic> diagnostics)
         {
@@ -1515,7 +1525,7 @@ namespace Opc.Ua.Wot
             ValidateVariableValue(schema, variable.DataType, key, diagnostics);
             variable.Value ??= BuildVariableValue(schema, variable.DataType);
 
-            ReportUnsupportedSchema(schema, nodeId, local, externalSchemas, diagnostics);
+            ReportUnsupportedSchema(schema, nodeId, key, externalSchemas, diagnostics);
 
             items.Add(variable);
             propertyNodeIds[key] = nodeId;
@@ -1530,7 +1540,7 @@ namespace Opc.Ua.Wot
             }
             else
             {
-                AddOwnedComponent(items, owner, nodeId, ownership);
+                ownedComponents.Add(owner, nodeId, ownership);
             }
             _ = isThingModel;
         }
@@ -1603,6 +1613,9 @@ namespace Opc.Ua.Wot
                 }
             }
 
+            var forward = new Dictionary<UANode, HashSet<string>>();
+            var added = new Dictionary<UANode, List<Reference>>();
+            var owners = new List<UANode>();
             foreach (UANode node in items)
             {
                 if (node.References is null || string.IsNullOrEmpty(node.NodeId))
@@ -1625,61 +1638,125 @@ namespace Opc.Ua.Wot
                     // A forward HasComponent does not satisfy an inverse
                     // HasProperty, and treating it as satisfied left that
                     // relation stated in one direction only.
-                    bool present = false;
-                    foreach (Reference existing in owner.References ?? [])
+                    if (!forward.TryGetValue(owner, out HashSet<string>? present))
                     {
-                        if (existing.IsForward &&
-                            string.Equals(
-                                existing.Value, node.NodeId, StringComparison.Ordinal) &&
-                            IsSameComponentReferenceType(
-                                existing.ReferenceType, reference.ReferenceType))
+                        // Built once per owner and kept current below, rather
+                        // than rescanning and copying the owner's References
+                        // for every child, which was O(N^2) for N children.
+                        present = new HashSet<string>(StringComparer.Ordinal);
+                        foreach (Reference existing in owner.References ?? [])
                         {
-                            present = true;
-                            break;
+                            if (existing.IsForward && IsComponentReference(existing.ReferenceType))
+                            {
+                                present.Add(ForwardKey(existing.ReferenceType, existing.Value));
+                            }
                         }
+                        forward[owner] = present;
                     }
-                    if (present)
+                    if (!present.Add(ForwardKey(reference.ReferenceType, node.NodeId)))
                     {
                         continue;
                     }
 
-                    var references = new List<Reference>(owner.References ?? [])
+                    if (!added.TryGetValue(owner, out List<Reference>? pending))
                     {
-                        new Reference
-                        {
-                            ReferenceType = reference.ReferenceType,
-                            IsForward = true,
-                            Value = node.NodeId
-                        }
-                    };
-                    owner.References = [.. references];
+                        pending = [];
+                        added[owner] = pending;
+                        owners.Add(owner);
+                    }
+                    pending.Add(new Reference
+                    {
+                        ReferenceType = reference.ReferenceType,
+                        IsForward = true,
+                        Value = node.NodeId
+                    });
                 }
+            }
+
+            foreach (UANode owner in owners)
+            {
+                owner.References = [.. owner.References ?? [], .. added[owner]];
+            }
+
+            static string ForwardKey(string? referenceType, string? target)
+            {
+                string type = IsSameComponentReferenceType(referenceType, "HasProperty")
+                    ? "HasProperty"
+                    : "HasComponent";
+                return type + "|" + target;
             }
         }
-        private static void AddOwnedComponent(
-            List<UANode> items,
-            string owner,
-            string nodeId,
-            string referenceType = "HasComponent")
+
+        /// <summary>
+        /// Collects the forward component References that property affordances
+        /// add to an owner they name through <c>uav:componentOf</c>.
+        /// </summary>
+        /// <remarks>
+        /// Looking the owner up by a scan of every Node and copying its
+        /// References array once per child made N children of one owner cost
+        /// O(N^2). The owner is found through an index that takes in the Nodes
+        /// added since the last lookup, and each owner's References are
+        /// rewritten once, by <see cref="Flush"/>, in the order the children
+        /// were added - the order the per-child copies produced.
+        /// </remarks>
+        private sealed class OwnedComponents
         {
-            foreach (UANode node in items)
+            public OwnedComponents(List<UANode> items)
             {
-                if (!string.Equals(node.NodeId, owner, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-                var references = new List<Reference>(node.References ?? [])
-                {
-                    new Reference
-                    {
-                        ReferenceType = referenceType,
-                        IsForward = true,
-                        Value = nodeId
-                    }
-                };
-                node.References = [.. references];
-                return;
+                m_items = items;
             }
+
+            /// <summary>
+            /// Adds the forward Reference from <paramref name="owner"/> to
+            /// <paramref name="nodeId"/>, if a Node with that NodeId exists.
+            /// </summary>
+            public void Add(string owner, string nodeId, string referenceType)
+            {
+                for (; m_indexed < m_items.Count; m_indexed++)
+                {
+                    // The first Node with a NodeId owns it, as the scan found.
+                    if (m_items[m_indexed].NodeId is { } id && !m_byId.ContainsKey(id))
+                    {
+                        m_byId[id] = m_items[m_indexed];
+                    }
+                }
+                if (!m_byId.TryGetValue(owner, out UANode? node))
+                {
+                    return;
+                }
+                if (!m_pending.TryGetValue(owner, out List<Reference>? references))
+                {
+                    references = [];
+                    m_pending[owner] = references;
+                    m_owners.Add(new KeyValuePair<UANode, List<Reference>>(node, references));
+                }
+                references.Add(new Reference
+                {
+                    ReferenceType = referenceType,
+                    IsForward = true,
+                    Value = nodeId
+                });
+            }
+
+            /// <summary>
+            /// Appends the collected References to their owners.
+            /// </summary>
+            public void Flush()
+            {
+                foreach (KeyValuePair<UANode, List<Reference>> owner in m_owners)
+                {
+                    owner.Key.References = [.. owner.Key.References ?? [], .. owner.Value];
+                }
+                m_owners.Clear();
+                m_pending.Clear();
+            }
+
+            private readonly List<UANode> m_items;
+            private readonly Dictionary<string, UANode> m_byId = new(StringComparer.Ordinal);
+            private readonly Dictionary<string, List<Reference>> m_pending =
+                new(StringComparer.Ordinal);
+            private readonly List<KeyValuePair<UANode, List<Reference>>> m_owners = [];
+            private int m_indexed;
         }
 
         /// <summary>
@@ -2679,17 +2756,33 @@ namespace Opc.Ua.Wot
         /// converted, which is what makes a BrowseName keep the namespace it was
         /// written with and what lets the documents of one set agree on index.
         /// A gap in the sequence stops the seed: an index is only meaningful if
-        /// every index below it is bound.
+        /// every index below it is bound. The prefixes are read from one pass
+        /// over the <c>@context</c>, not a lookup per prefix that scans it, and
+        /// the table stops at the 65535 entries a UInt16 NamespaceIndex can
+        /// address (OPC 10000-3 8.2.2).
         /// </remarks>
-        private static string[] SeedNamespaceUris(WotDocument document, string modelUri)
+        private static string[] SeedNamespaceUris(
+            WotDocument document,
+            string modelUri,
+            List<WotDiagnostic> diagnostics)
         {
             var uris = new List<string>();
+            var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (document.TryGetContext(out JsonElement context))
+            {
+                CollectContextNamespaces(context, bindings);
+            }
             for (int index = 1; ; index++)
             {
                 string prefix = "ns" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                if (!TryGetContextNamespace(document, prefix, out string namespaceUri) ||
+                if (!bindings.TryGetValue(prefix, out string? namespaceUri) ||
                     namespaceUri.Length == 0)
                 {
+                    break;
+                }
+                if (uris.Count >= ushort.MaxValue)
+                {
+                    diagnostics.Add(NamespaceTableFull(namespaceUri, uris.Count));
                     break;
                 }
                 uris.Add(namespaceUri);
@@ -2707,6 +2800,12 @@ namespace Opc.Ua.Wot
             int existing = uris.IndexOf(modelUri);
             if (existing < 0)
             {
+                if (uris.Count >= ushort.MaxValue)
+                {
+                    // The model's namespace displaces the last bound prefix.
+                    diagnostics.Add(NamespaceTableFull(uris[uris.Count - 1], uris.Count));
+                    uris.RemoveAt(uris.Count - 1);
+                }
                 uris.Insert(0, modelUri);
             }
             else if (existing > 0)
@@ -2715,6 +2814,41 @@ namespace Opc.Ua.Wot
                 uris.Insert(0, modelUri);
             }
             return [.. uris];
+        }
+
+        /// <summary>
+        /// Collects the string-valued prefix bindings of an <c>@context</c>
+        /// with the precedence <see cref="TryGetContextNamespace(JsonElement, string, out string)"/>
+        /// resolves a single prefix by: the last definition within an object,
+        /// the first array entry that binds the prefix to a string.
+        /// </summary>
+        private static void CollectContextNamespaces(
+            JsonElement context,
+            Dictionary<string, string> bindings)
+        {
+            if (context.ValueKind == JsonValueKind.Object)
+            {
+                var definitions = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                foreach (JsonProperty property in context.EnumerateObject())
+                {
+                    definitions[property.Name] = property.Value;
+                }
+                foreach (KeyValuePair<string, JsonElement> definition in definitions)
+                {
+                    if (definition.Value.ValueKind == JsonValueKind.String &&
+                        !bindings.ContainsKey(definition.Key))
+                    {
+                        bindings[definition.Key] = definition.Value.GetString()!;
+                    }
+                }
+            }
+            else if (context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
+                {
+                    CollectContextNamespaces(entry, bindings);
+                }
+            }
         }
 
         private static bool TryGetContextNamespace(
@@ -3188,7 +3322,7 @@ namespace Opc.Ua.Wot
         private static void ReportUnsupportedSchema(
             JsonElement schema,
             string nodeId,
-            string local,
+            string affordanceKey,
             WotExternalSchemaCatalog? externalSchemas,
             List<WotDiagnostic> diagnostics)
         {
@@ -3198,7 +3332,7 @@ namespace Opc.Ua.Wot
                 ReportExternalSchema(
                     external.GetString()!,
                     nodeId,
-                    local,
+                    affordanceKey,
                     externalSchemas,
                     diagnostics);
                 return;
@@ -3229,13 +3363,13 @@ namespace Opc.Ua.Wot
         private static void ReportExternalSchema(
             string reference,
             string nodeId,
-            string local,
+            string affordanceKey,
             WotExternalSchemaCatalog? externalSchemas,
             List<WotDiagnostic> diagnostics)
         {
             WotExternalSchemaResult? result =
                 externalSchemas is not null &&
-                externalSchemas.TryGet(local, out WotExternalSchemaResult found)
+                externalSchemas.TryGet(affordanceKey, out WotExternalSchemaResult found)
                     ? found
                     : null;
             if (result is null || result.Outcome == WotExternalSchemaOutcome.NotEvaluated)
@@ -3344,7 +3478,11 @@ namespace Opc.Ua.Wot
                 {
                     return name;
                 }
-                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                if (!TryGetOrAppendNamespaceUri(
+                    nodeSet, namespaceUri, diagnostics, out int namespaceIndex))
+                {
+                    return rawBrowseName;
+                }
                 return namespaceIndex.ToString(
                     System.Globalization.CultureInfo.InvariantCulture) +
                     ":" +
@@ -3402,7 +3540,11 @@ namespace Opc.Ua.Wot
                 {
                     return name;
                 }
-                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                if (!TryGetOrAppendNamespaceUri(
+                    nodeSet, namespaceUri, diagnostics, out int namespaceIndex))
+                {
+                    return rawBrowseName;
+                }
                 return namespaceIndex.ToString(
                     System.Globalization.CultureInfo.InvariantCulture) +
                     ":" +
@@ -3461,7 +3603,11 @@ namespace Opc.Ua.Wot
                 {
                     return identifier;
                 }
-                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                if (!TryGetOrAppendNamespaceUri(
+                    nodeSet, namespaceUri, diagnostics, out int namespaceIndex))
+                {
+                    return portableNodeId;
+                }
                 return "ns=" +
                     namespaceIndex.ToString(
                         System.Globalization.CultureInfo.InvariantCulture) +
@@ -3485,30 +3631,170 @@ namespace Opc.Ua.Wot
             return WotPortableIdentity.IsSessionLocalNodeId(nodeId);
         }
 
-        private static int GetOrAppendNamespaceUri(
+        /// <summary>
+        /// Gets the NamespaceIndex of a URI in the NodeSet's namespace table,
+        /// appending the URI when the table does not hold it yet.
+        /// </summary>
+        /// <remarks>
+        /// The lookup goes through an index kept beside the NodeSet rather than
+        /// a scan of the table, which made every nsu= identifier of a document
+        /// that introduces U namespaces cost O(U). A NamespaceIndex is a
+        /// UInt16 (OPC 10000-3 8.2.2), so a document cannot introduce more
+        /// namespaces than one can address, and a URI the table already holds
+        /// beyond that bound is reported rather than given an index that does
+        /// not fit. While a synthesis builds the table (see
+        /// <see cref="BeginNamespaceTable"/>) new URIs go to a growable list and
+        /// the array is published once at the end; outside one each new URI
+        /// publishes a new array, as the table is read straight after.
+        /// </remarks>
+        private static bool TryGetOrAppendNamespaceUri(
             UANodeSet nodeSet,
-            string namespaceUri)
+            string namespaceUri,
+            List<WotDiagnostic> diagnostics,
+            out int namespaceIndex)
         {
-            if (nodeSet.NamespaceUris is not null)
+            NamespaceIndex index = GetNamespaceIndex(nodeSet);
+            if (index.Indexes.TryGetValue(namespaceUri, out namespaceIndex))
             {
-                for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
+                if (namespaceIndex <= ushort.MaxValue)
                 {
-                    if (string.Equals(
-                        nodeSet.NamespaceUris[ii],
-                        namespaceUri,
-                        StringComparison.Ordinal))
+                    return true;
+                }
+                diagnostics.Add(NamespaceTableFull(namespaceUri, ushort.MaxValue));
+                namespaceIndex = 0;
+                return false;
+            }
+            if (index.Uris.Count >= ushort.MaxValue)
+            {
+                diagnostics.Add(NamespaceTableFull(namespaceUri, index.Uris.Count));
+                namespaceIndex = 0;
+                return false;
+            }
+            index.Uris.Add(namespaceUri);
+            namespaceIndex = index.Uris.Count;
+            index.Indexes[namespaceUri] = namespaceIndex;
+            if (index.Deferred)
+            {
+                index.Pending = true;
+            }
+            else
+            {
+                PublishNamespaceTable(nodeSet, index);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the namespace table of a NodeSet, including the URIs a running
+        /// synthesis appended but has not published yet.
+        /// </summary>
+        private static IReadOnlyList<string> GetNamespaceTable(UANodeSet nodeSet)
+        {
+            if (s_namespaceIndexes.TryGetValue(nodeSet, out NamespaceIndex? index) &&
+                ReferenceEquals(index.Table, nodeSet.NamespaceUris))
+            {
+                return index.Uris;
+            }
+            return nodeSet.NamespaceUris ?? [];
+        }
+
+        /// <summary>
+        /// Defers publishing the namespace table of a NodeSet under synthesis
+        /// until <see cref="CompleteNamespaceTable"/>, so U new namespaces cost
+        /// O(U) instead of one array copy each.
+        /// </summary>
+        private static void BeginNamespaceTable(UANodeSet nodeSet)
+        {
+            GetNamespaceIndex(nodeSet).Deferred = true;
+        }
+
+        /// <summary>
+        /// Publishes the namespace URIs appended since
+        /// <see cref="BeginNamespaceTable"/> to the NodeSet.
+        /// </summary>
+        private static void CompleteNamespaceTable(UANodeSet nodeSet)
+        {
+            if (!s_namespaceIndexes.TryGetValue(nodeSet, out NamespaceIndex? index))
+            {
+                return;
+            }
+            index.Deferred = false;
+            if (index.Pending && ReferenceEquals(index.Table, nodeSet.NamespaceUris))
+            {
+                PublishNamespaceTable(nodeSet, index);
+            }
+        }
+
+        private static NamespaceIndex GetNamespaceIndex(UANodeSet nodeSet)
+        {
+            NamespaceIndex index = s_namespaceIndexes.GetValue(
+                nodeSet, static _ => new NamespaceIndex());
+            string[]? uris = nodeSet.NamespaceUris;
+            if (!index.Synchronized || !ReferenceEquals(index.Table, uris))
+            {
+                // Built on first use, and again if anything else replaced the
+                // table; the first entry of a URI listed twice is its index.
+                index.Uris.Clear();
+                index.Indexes.Clear();
+                if (uris is not null)
+                {
+                    index.Uris.AddRange(uris);
+                    for (int ii = 0; ii < uris.Length; ii++)
                     {
-                        return ii + 1;
+                        if (uris[ii] is not null && !index.Indexes.ContainsKey(uris[ii]))
+                        {
+                            index.Indexes[uris[ii]] = ii + 1;
+                        }
                     }
                 }
+                index.Table = uris;
+                index.Synchronized = true;
+                index.Pending = false;
             }
-            var uris = nodeSet.NamespaceUris is null
-                ? new List<string>()
-                : new List<string>(nodeSet.NamespaceUris);
-            uris.Add(namespaceUri);
-            nodeSet.NamespaceUris = [.. uris];
-            return uris.Count;
+            return index;
         }
+
+        private static void PublishNamespaceTable(UANodeSet nodeSet, NamespaceIndex index)
+        {
+            string[] table = [.. index.Uris];
+            nodeSet.NamespaceUris = table;
+            index.Table = table;
+            index.Pending = false;
+        }
+
+        private static WotDiagnostic NamespaceTableFull(string namespaceUri, int count)
+        {
+            return new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ValidationError,
+                $"The namespace '{namespaceUri}' cannot be added: the NodeSet " +
+                $"already holds {count} namespaces, the most a UInt16 " +
+                "NamespaceIndex can address.",
+                new WotLocation(reference: namespaceUri));
+        }
+
+        /// <summary>
+        /// The namespace table of a NodeSet with the NamespaceIndex of every
+        /// URI in it. <see cref="Uris"/> is authoritative; <see cref="Table"/>
+        /// is the array it was last read from or published to.
+        /// </summary>
+        private sealed class NamespaceIndex
+        {
+            public string[]? Table { get; set; }
+
+            public bool Synchronized { get; set; }
+
+            public bool Deferred { get; set; }
+
+            public bool Pending { get; set; }
+
+            public List<string> Uris { get; } = [];
+
+            public Dictionary<string, int> Indexes { get; } = new(StringComparer.Ordinal);
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UANodeSet, NamespaceIndex>
+            s_namespaceIndexes = new();
 
         private static bool HasTypeAnnotation(WotDocument document, string annotation)
         {

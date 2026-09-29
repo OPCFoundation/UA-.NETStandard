@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 TokenId,
                 signingKeyLength: policy.SigningKeyLength,
                 encryptingKeyLength: policy.EncryptingKeyLength,
-                keyNonceLength: policy.NonceLength);
+                keyNonceLength: policy.NonceLength == 0 ? 0 : AesCtrNonceLayout.KeyNonceLength);
 
             var senderRing = new PubSubSecurityKeyRing("group");
             senderRing.SetCurrent(key);
@@ -157,8 +157,10 @@ namespace Opc.Ua.PubSub.Tests.Security
 
             Assert.Multiple(() =>
             {
-                Assert.That(seqFirst, Is.Zero);
-                Assert.That(seqSecond, Is.EqualTo(1UL));
+                // Part 14 Table 156: the SequenceNumber starts at 1 per key.
+                Assert.That(seqFirst, Is.EqualTo(1UL));
+                Assert.That(seqSecond, Is.EqualTo(2UL));
+                Assert.That(nonceFirst, Has.Length.EqualTo(8));
                 Assert.That(nonceSecond, Is.Not.EqualTo(nonceFirst));
             });
         }
@@ -187,7 +189,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 TokenId,
                 signingKeyLength: policy.SigningKeyLength,
                 encryptingKeyLength: policy.EncryptingKeyLength,
-                keyNonceLength: policy.NonceLength);
+                keyNonceLength: policy.NonceLength == 0 ? 0 : AesCtrNonceLayout.KeyNonceLength);
             PublisherId publisherA = PublisherId.FromUInt32(100U);
             PublisherId publisherB = PublisherId.FromUInt32(200U);
             UadpSecurityWrapper senderAGroup1 = CreateWrapper(policy, key, publisherA);
@@ -237,7 +239,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 TokenId,
                 signingKeyLength: policy.SigningKeyLength,
                 encryptingKeyLength: policy.EncryptingKeyLength,
-                keyNonceLength: policy.NonceLength);
+                keyNonceLength: policy.NonceLength == 0 ? 0 : AesCtrNonceLayout.KeyNonceLength);
             PublisherId publisherId = PublisherId.FromUInt32(300U);
             UadpSecurityWrapper signOnlySender = CreateWrapper(policy, key, publisherId);
             UadpSecurityWrapper securedSender = CreateWrapper(policy, key, publisherId);
@@ -310,7 +312,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 TokenId,
                 signingKeyLength: policy.SigningKeyLength,
                 encryptingKeyLength: policy.EncryptingKeyLength,
-                keyNonceLength: policy.NonceLength);
+                keyNonceLength: policy.NonceLength == 0 ? 0 : AesCtrNonceLayout.KeyNonceLength);
             PublisherId publisherId = PublisherId.FromUInt32(321U);
             UadpSecurityWrapper sender = CreateWrapper(policy, key, publisherId);
 
@@ -349,7 +351,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 TokenId,
                 signingKeyLength: policy.SigningKeyLength,
                 encryptingKeyLength: policy.EncryptingKeyLength,
-                keyNonceLength: policy.NonceLength);
+                keyNonceLength: policy.NonceLength == 0 ? 0 : AesCtrNonceLayout.KeyNonceLength);
             PublisherId publisherId = PublisherId.FromUInt32(654U);
             UadpSecurityWrapper sender = CreateWrapper(policy, key, publisherId);
             var receiverWindow = new SecurityTokenWindow();

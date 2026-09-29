@@ -81,21 +81,27 @@ namespace Opc.Ua.WotCon.Tests
         public void RequiredNamespaceIndexRejectsOverflowWithoutWrapping()
         {
             var namespaces = new NamespaceTable();
-            for (int i = 1; i < ushort.MaxValue; i++)
+            // 0xFFFF is the "not mapped" marker, so 0xFFFE is the last usable index.
+            const int LastValidIndex = ushort.MaxValue - 1;
+            for (int i = 1; i < LastValidIndex; i++)
             {
                 namespaces.Append("urn:test:padding");
             }
             const string LastValidUri = "urn:test:last-valid";
-            Assert.That(namespaces.Append(LastValidUri), Is.EqualTo(ushort.MaxValue));
+            Assert.That(namespaces.Append(LastValidUri), Is.EqualTo(LastValidIndex));
             Assert.That(WotConModelPartition.GetRequiredNamespaceIndex(namespaces, LastValidUri),
-                Is.EqualTo(ushort.MaxValue));
+                Is.EqualTo(LastValidIndex));
             const string OverflowUri = "urn:test:overflow";
-            Assert.That(namespaces.Append(OverflowUri), Is.EqualTo(ushort.MaxValue + 1));
 
+            // The table itself refuses indexes beyond the UInt16 range, so an
+            // overflowing namespace can no longer wrap to a small index.
+            Assert.That(
+                () => namespaces.Append(OverflowUri),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(
                 () => WotConModelPartition.GetRequiredNamespaceIndex(namespaces, OverflowUri),
-                Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadConfigurationError));
+                Throws.TypeOf<ServiceResultException>());
         }
 
         private static NodeStateCollection RetainPartition(
