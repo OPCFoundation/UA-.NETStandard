@@ -1627,6 +1627,35 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadExtensionObjectBodyUnknownTypeIsNotBoundedByMaxStringLength()
+        {
+            // an extension object body is structured XML, not an XmlElement value,
+            // so only the depth limit applies to it (e.g. large configuration files).
+            var mockFactory = new Mock<IEncodeableFactory>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
+            {
+                MaxStringLength = 32
+            };
+
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            IEncodeableType type = encodeableType.Object;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+                .Returns(false);
+
+            string xml = "<CustomElement xmlns=\"http://test.namespace\"><Value>" +
+                new string('x', 1024) + "</Value></CustomElement>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+
+            ExtensionObject result = decoder.ReadExtensionObjectBody(new ExpandedNodeId(999));
+
+            Assert.That(result.TryGetAsXml(out XmlElement xmlElement), Is.True);
+            Assert.That(xmlElement.OuterXml, Does.Contain(new string('x', 1024)));
+        }
+
+        [Test]
         public void ReadExtensionObjectBodyUnknownTypeRejectsDeeplyNestedBody()
         {
             var mockFactory = new Mock<IEncodeableFactory>();

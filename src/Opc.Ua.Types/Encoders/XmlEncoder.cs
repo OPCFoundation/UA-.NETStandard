@@ -598,7 +598,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, value.IsEmpty, true, isArrayElement))
             {
-                WriteXmlBody(value);
+                WriteXmlBody(value, Context.MaxStringLength);
                 EndField(fieldName);
             }
         }
@@ -617,7 +617,7 @@ namespace Opc.Ua
         /// MaxStringLength and the XML element depth limit.
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
-        private void WriteXmlBody(XmlElement value)
+        private void WriteXmlBody(XmlElement value, int maxStringLength)
         {
             string body;
             try
@@ -635,7 +635,7 @@ namespace Opc.Ua
                 body = EncodingLimits.ReadXmlElementContent(
                     reader,
                     EncodingLimits.GetMaxXmlElementDepth(Context),
-                    Context.MaxStringLength,
+                    maxStringLength,
                     declareNoNamespace: true);
 
                 // the reader rejects a second root element or trailing text.
@@ -2170,7 +2170,8 @@ namespace Opc.Ua
                 {
                     // the body is not validated when it is received (e.g. an
                     // XML body of an unknown type in a binary message).
-                    WriteXmlBody(xml);
+                    // like the decoders, a body is not bounded by MaxStringLength.
+                    WriteXmlBody(xml, 0);
                 }
                 else if (extensionObject.TryGetValue(out IEncodeable? encodeable))
                 {

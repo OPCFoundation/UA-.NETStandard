@@ -867,7 +867,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true) && MoveToElement(null!))
             {
-                XmlElement value = XmlElement.From(ReadXmlElementContent(fieldName));
+                XmlElement value = XmlElement.From(ReadXmlElementContent(fieldName, Context.MaxStringLength));
                 EndField(fieldName);
                 return value;
             }
@@ -2661,7 +2661,9 @@ namespace Opc.Ua
                 }
             }
 
-            var xmlElement = XmlElement.From(ReadXmlElementContent(null));
+            // an extension object body is structured XML, bounded by the message
+            // and the depth limit, not by MaxStringLength like an XmlElement value.
+            var xmlElement = XmlElement.From(ReadXmlElementContent(null, 0));
             if (!xmlElement.IsValid)
             {
                 throw ServiceResultException.Create(
@@ -3091,11 +3093,12 @@ namespace Opc.Ua
 
         /// <summary>
         /// Reads the element the reader is positioned on as raw XML, bounded by
-        /// MaxStringLength and by the XML element depth limit.
+        /// maxStringLength (0 for none) and by the XML element depth limit.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private string ReadXmlElementContent(
             string? fieldName,
+            int maxStringLength,
             [CallerMemberName] string? functionName = null)
         {
             try
@@ -3103,7 +3106,7 @@ namespace Opc.Ua
                 return EncodingLimits.ReadXmlElementContent(
                     m_reader,
                     EncodingLimits.GetMaxXmlElementDepth(Context, m_nestingLevel),
-                    Context.MaxStringLength);
+                    maxStringLength);
             }
             catch (XmlException xe)
             {

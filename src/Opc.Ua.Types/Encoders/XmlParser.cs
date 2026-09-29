@@ -714,7 +714,7 @@ namespace Opc.Ua
                     context.Consumed.Add(childIdx);
                     context.Cursor = childIdx + 1;
 
-                    string outerXml = ReadXmlElementContent(fieldName, found);
+                    string outerXml = ReadXmlElementContent(fieldName, found, Context.MaxStringLength);
 
                     EndField(fieldName);
                     return XmlElement.From(outerXml);
@@ -2343,7 +2343,9 @@ namespace Opc.Ua
             context.Consumed.Add(bodyChildIdx);
             context.Cursor = bodyChildIdx + 1;
 
-            var xmlElement = XmlElement.From(ReadXmlElementContent(null, bodyChild));
+            // an extension object body is structured XML, bounded by the document
+            // and the depth limit, not by MaxStringLength like an XmlElement value.
+            var xmlElement = XmlElement.From(ReadXmlElementContent(null, bodyChild, 0));
             if (!xmlElement.IsValid)
             {
                 throw ServiceResultException.Create(
@@ -2355,7 +2357,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns an element as raw XML, bounded by MaxStringLength and by the
+        /// Returns an element as raw XML, bounded by maxStringLength (0 for none) and by the
         /// XML element depth limit. The element is copied through a reader
         /// because ImportNode(deep) and OuterXml recurse once per element level.
         /// </summary>
@@ -2363,6 +2365,7 @@ namespace Opc.Ua
         private string ReadXmlElementContent(
             string? fieldName,
             System.Xml.XmlElement element,
+            int maxStringLength,
             [CallerMemberName] string? functionName = null)
         {
             try
@@ -2372,7 +2375,7 @@ namespace Opc.Ua
                 return EncodingLimits.ReadXmlElementContent(
                     reader,
                     EncodingLimits.GetMaxXmlElementDepth(Context, m_nestingLevel),
-                    Context.MaxStringLength);
+                    maxStringLength);
             }
             catch (XmlException xe)
             {
