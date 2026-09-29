@@ -605,9 +605,9 @@ namespace Opc.Ua.Machinery.Server.Results
 
         private static bool OwnsSlot(ISystemContext context, DownloadSlot slot)
         {
-            NodeId? sessionId = SessionIdOf(context);
-            return slot.OwnerSessionId == null ||
-                sessionId == null ||
+            NodeId sessionId = SessionIdOf(context);
+            return slot.OwnerSessionId.IsNull ||
+                sessionId.IsNull ||
                 slot.OwnerSessionId == sessionId;
         }
 
@@ -627,9 +627,13 @@ namespace Opc.Ua.Machinery.Server.Results
             return null;
         }
 
-        private static NodeId? SessionIdOf(ISystemContext context)
+        /// <summary>
+        /// The session of the caller, or <see cref="NodeId.Null"/> for a call
+        /// that does not come through a session.
+        /// </summary>
+        private static NodeId SessionIdOf(ISystemContext context)
         {
-            return (context as ISessionSystemContext)?.SessionId;
+            return (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
         }
 
         private readonly ResultTransferState m_transfer;
@@ -647,7 +651,7 @@ namespace Opc.Ua.Machinery.Server.Results
         {
             public DownloadSlot(
                 uint handle,
-                NodeId? ownerSessionId,
+                NodeId ownerSessionId,
                 MachineryResult result,
                 DateTimeOffset created)
             {
@@ -660,7 +664,7 @@ namespace Opc.Ua.Machinery.Server.Results
 
             public uint Handle { get; }
 
-            public NodeId? OwnerSessionId { get; }
+            public NodeId OwnerSessionId { get; }
 
             public MachineryResult Result { get; }
 

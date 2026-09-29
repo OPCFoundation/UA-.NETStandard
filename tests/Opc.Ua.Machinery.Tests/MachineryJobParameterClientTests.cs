@@ -77,7 +77,7 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(planned.Customers[0], Is.EqualTo("Acme"));
             Assert.That(planned.CustomerOrderNumbers[0], Is.EqualTo("C-9"));
             Assert.That(planned.JobExecutionMode, Is.EqualTo(JobExecutionMode.TestMode));
-            Assert.That(planned.ReasonForStateChange?.Text, Is.EqualTo("Operator"));
+            Assert.That(planned.ReasonForStateChange.Text, Is.EqualTo("Operator"));
             Assert.That(planned.RunsPlanned, Is.EqualTo(4u));
             Assert.That(planned.PlannedProductionTime, Is.EqualTo(1_000.0));
             Assert.That(planned.PlannedSetupTime, Is.EqualTo(200.0));
@@ -133,7 +133,7 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(planned.JobExecutionMode, Is.EqualTo(JobExecutionMode.ProductionMode));
             Assert.That(planned.JobName.Count, Is.Zero);
             Assert.That(planned.PlannedDuration, Is.Null);
-            Assert.That(planned.ReasonForStateChange, Is.Null);
+            Assert.That(planned.ReasonForStateChange.IsNull, Is.True);
         }
 
         [Test]
@@ -179,7 +179,7 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(actual.Customers[0], Is.EqualTo("Acme"));
             Assert.That(actual.CustomerOrderNumbers[0], Is.EqualTo("C-9"));
             Assert.That(actual.JobExecutionMode, Is.EqualTo(JobExecutionMode.SimulationMode));
-            Assert.That(actual.ReasonForStateChange?.Text, Is.EqualTo("Done"));
+            Assert.That(actual.ReasonForStateChange.Text, Is.EqualTo("Done"));
             Assert.That(actual.RunsCompleted, Is.EqualTo(3u));
             Assert.That(actual.RunsStarted, Is.EqualTo(4u));
             Assert.That(actual.ActualQuantityCurrentRun, Is.EqualTo(5.0));

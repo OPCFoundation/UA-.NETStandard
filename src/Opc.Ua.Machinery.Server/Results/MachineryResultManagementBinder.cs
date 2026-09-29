@@ -254,7 +254,7 @@ namespace Opc.Ua.Machinery.Server.Results
         /// </summary>
         private uint? TryPin(ISystemContext context, ArrayOf<string> resultIds)
         {
-            NodeId? sessionId = (context as ISessionSystemContext)?.SessionId;
+            NodeId sessionId = SessionIdOf(context);
             DateTimeOffset now = m_timeProvider.GetUtcNow();
             lock (m_handleLock)
             {
@@ -296,7 +296,7 @@ namespace Opc.Ua.Machinery.Server.Results
 
         private ServiceResult Release(ISystemContext context, uint resultHandle)
         {
-            NodeId? sessionId = (context as ISessionSystemContext)?.SessionId;
+            NodeId sessionId = SessionIdOf(context);
             lock (m_handleLock)
             {
                 if (!m_handles.TryGetValue(resultHandle, out HandleEntry entry))
@@ -305,8 +305,8 @@ namespace Opc.Ua.Machinery.Server.Results
                         StatusCodes.BadInvalidArgument,
                         "Unknown result handle.");
                 }
-                if (entry.OwnerSessionId != null &&
-                    sessionId != null &&
+                if (!entry.OwnerSessionId.IsNull &&
+                    !sessionId.IsNull &&
                     entry.OwnerSessionId != sessionId)
                 {
                     return ServiceResult.Create(
@@ -414,8 +414,17 @@ namespace Opc.Ua.Machinery.Server.Results
         private readonly Lock m_handleLock = new();
         private uint m_nextHandle;
 
+        /// <summary>
+        /// The session of the caller, or <see cref="NodeId.Null"/> for a call
+        /// that does not come through a session.
+        /// </summary>
+        private static NodeId SessionIdOf(ISystemContext context)
+        {
+            return (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
+        }
+
         private readonly record struct HandleEntry(
-            NodeId? OwnerSessionId,
+            NodeId OwnerSessionId,
             ArrayOf<string> ResultIds,
             DateTimeOffset PinnedAt);
     }

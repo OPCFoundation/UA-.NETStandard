@@ -75,9 +75,10 @@ namespace Opc.Ua.Machinery.Client
         public JobExecutionMode? JobExecutionMode { get; init; }
 
         /// <summary>
-        /// Why the last state change happened.
+        /// Why the last state change happened, or <see cref="LocalizedText.Null"/>
+        /// when the parameter is not set.
         /// </summary>
-        public LocalizedText? ReasonForStateChange { get; init; }
+        public LocalizedText ReasonForStateChange { get; init; }
 
         /// <summary>
         /// The number of runs to perform; zero when the machine cannot know it,
@@ -207,9 +208,10 @@ namespace Opc.Ua.Machinery.Client
         public JobExecutionMode? JobExecutionMode { get; init; }
 
         /// <summary>
-        /// Why the last state change happened.
+        /// Why the last state change happened, or <see cref="LocalizedText.Null"/>
+        /// when the parameter is not set.
         /// </summary>
-        public LocalizedText? ReasonForStateChange { get; init; }
+        public LocalizedText ReasonForStateChange { get; init; }
 
         /// <summary>
         /// How many runs have completed.
@@ -370,9 +372,9 @@ namespace Opc.Ua.Machinery.Client
             return ValueOf(id).TryGetValue(out bool flag) ? flag : null;
         }
 
-        public LocalizedText? Text(string id)
+        public LocalizedText Text(string id)
         {
-            return ValueOf(id).TryGetValue(out LocalizedText text) ? text : null;
+            return ValueOf(id).TryGetValue(out LocalizedText text) ? text : LocalizedText.Null;
         }
 
         public ArrayOf<LocalizedText> Texts(string id)
