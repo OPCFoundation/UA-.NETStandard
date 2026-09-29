@@ -862,7 +862,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 byte[] bytes;
                 if (malformed == "framing")
                 {
-                    bytes = "{\"UaTypeId\":\"i=632\",\"UaBody\":"u8.ToArray();
+                    bytes = "{\"UaTypeId\":\"i=632\",\"ResponseHeader\":"u8.ToArray();
                 }
                 else
                 {
@@ -870,7 +870,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     if (malformed == "missing-handle")
                     {
                         JsonObject envelope = JsonNode.Parse(bytes)!.AsObject();
-                        envelope["UaBody"]!["ResponseHeader"]!.AsObject().Remove("RequestHandle");
+                        envelope["ResponseHeader"]!.AsObject().Remove("RequestHandle");
                         bytes = Encoding.UTF8.GetBytes(envelope.ToJsonString());
                     }
                 }

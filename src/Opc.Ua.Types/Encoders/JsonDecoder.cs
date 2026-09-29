@@ -4268,12 +4268,19 @@ namespace Opc.Ua
                             SetMappingTables(namespaces, servers);
                         }
                     }
-                    if (TryGetNodeIdFromElement(
+                    // Messages are ExtensionObjects with a JSON encoded body (Part 6
+                    // 5.4.9, 7.4.5), so the body fields follow the UaTypeId inline and
+                    // there is no UaEncoding or UaBody field (Part 6 5.4.2.16).
+                    if (GetPropertyElement(JsonProperties.UaEncoding).ValueKind ==
+                            JsonValueKind.Undefined &&
+                        GetPropertyElement(JsonProperties.UaBody).ValueKind ==
+                            JsonValueKind.Undefined &&
+                        TryGetNodeIdFromElement(
                             GetPropertyElement(JsonProperties.UaTypeId),
                             out NodeId typeId) &&
                         !typeId.IsNull &&
                         TryGetEncodeableFromElement(
-                            GetPropertyElement(JsonProperties.UaBody),
+                            element,
                             typeId,
                             out value))
                     {

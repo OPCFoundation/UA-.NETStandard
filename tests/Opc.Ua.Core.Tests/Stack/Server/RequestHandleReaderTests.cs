@@ -181,17 +181,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
         }
 
-        [TestCase("{\"UaTypeId\":\"i=629\",\"UaBody\":{\"RequestHeader\":{\"RequestHandle\":42}}}", 42u)]
-        [TestCase("{\"UaBody\":{\"NodesToRead\":[],\"RequestHeader\":{\"Timestamp\":\"x\",\"RequestHandle\":42}},\"UaTypeId\":\"i=629\"}", 42u)]
-        [TestCase("{\"UaBody\":{\"Other\":{\"RequestHandle\":1},\"RequestHeader\":{\"RequestHandle\":42}}}", 42u)]
-        [TestCase("{\"UaBody\":{\"List\":[{\"RequestHeader\":{\"RequestHandle\":1}}],\"RequestHeader\":{\"RequestHandle\":42}}}", 42u)]
-        [TestCase("{\"UaBody\":{\"RequestHeader\":{\"RequestHandle\":42}, broken", 42u)]
-        [TestCase("{\"RequestHeader\":{\"RequestHandle\":42}}", 0u)]
-        [TestCase("{\"Other\":{\"UaBody\":{\"RequestHeader\":{\"RequestHandle\":42}}}}", 0u)]
-        [TestCase("{\"UaBody\":{\"RequestHandle\":42}}", 0u)]
-        [TestCase("{\"UaBody\":{\"RequestHeader\":{\"RequestHandle\":\"42\"}}}", 0u)]
-        [TestCase("{\"UaBody\":{\"RequestHeader\":{\"RequestHandle\":-1}}}", 0u)]
-        [TestCase("{\"UaBody\": broken {\"RequestHeader\":{\"RequestHandle\":42}}}", 0u)]
+        [TestCase("{\"UaTypeId\":\"i=629\",\"RequestHeader\":{\"RequestHandle\":42}}", 42u)]
+        [TestCase("{\"NodesToRead\":[],\"RequestHeader\":{\"Timestamp\":\"x\",\"RequestHandle\":42},\"UaTypeId\":\"i=629\"}", 42u)]
+        [TestCase("{\"Other\":{\"RequestHandle\":1},\"RequestHeader\":{\"RequestHandle\":42}}", 42u)]
+        [TestCase("{\"List\":[{\"RequestHeader\":{\"RequestHandle\":1}}],\"RequestHeader\":{\"RequestHandle\":42}}", 42u)]
+        [TestCase("{\"RequestHeader\":{\"RequestHandle\":42}, broken", 42u)]
+        [TestCase("{\"UaBody\":{\"RequestHeader\":{\"RequestHandle\":42}}}", 0u)]
+        [TestCase("{\"Other\":{\"RequestHeader\":{\"RequestHandle\":42}}}", 0u)]
+        [TestCase("{\"RequestHandle\":42}", 0u)]
+        [TestCase("{\"RequestHeader\":{\"RequestHandle\":\"42\"}}", 0u)]
+        [TestCase("{\"RequestHeader\":{\"RequestHandle\":-1}}", 0u)]
+        [TestCase("{\"RequestHeader\": broken {\"RequestHandle\":42}}", 0u)]
         [TestCase("", 0u)]
         [TestCase("junk!", 0u)]
         public void FromJsonFindsOnlyTheRequestHeaderHandle(string json, uint expected)
