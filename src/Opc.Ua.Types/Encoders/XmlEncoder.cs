@@ -952,13 +952,18 @@ namespace Opc.Ua
 
                 WriteNodeId("TypeId", localTypeId);
 
-                // write the body.
-                m_writer.WriteStartElement("Body", Namespaces.OpcUaXsd);
+                // a TypeId without a body leaves out the optional Body element
+                // (Part 6 5.3.1.16), as the decoders read it.
+                if (value.Encoding != ExtensionObjectEncoding.None)
+                {
+                    // write the body.
+                    m_writer.WriteStartElement("Body", Namespaces.OpcUaXsd);
 
-                WriteExtensionObjectBody(value);
+                    WriteExtensionObjectBody(value);
 
-                // end of body.
-                m_writer.WriteEndElement();
+                    // end of body.
+                    m_writer.WriteEndElement();
+                }
 
                 EndField(fieldName);
                 PopNamespace();

@@ -1638,6 +1638,32 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteExtensionObjectWithTypeIdAndNoBodyRoundTrips()
+        {
+            // BinaryDecoder returns such a value for encoding byte 0x00.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var value = new ExtensionObject(new ExpandedNodeId(42));
+            string xml;
+            using (var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
+                null,
+                messageContext))
+            {
+                encoder.WriteExtensionObject("EO", value);
+                xml = encoder.CloseAndReturnText();
+            }
+
+            Assert.That(xml, Does.Not.Contain("Body"));
+            using var decoder = new XmlDecoder(XmlReader.Create(new StringReader(xml)), messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            decoder.ReadStartElement();
+            ExtensionObject decoded = decoder.ReadExtensionObject("EO");
+            Assert.That(decoded.TypeId, Is.EqualTo(value.TypeId));
+            Assert.That(decoded.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
+        }
+
+        [Test]
         public void WriteDateTimeWritesTheEarliestValueAsYearOne()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
