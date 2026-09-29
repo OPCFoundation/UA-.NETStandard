@@ -241,13 +241,18 @@ namespace Opc.Ua
         /// that contains it. <see cref="Decimal.Decode"/> is the only caller,
         /// and this stays internal so it remains the only one.
         /// </remarks>
+        /// <param name="maxLength">The largest number of bytes the caller
+        /// accepts, checked before anything is read; 0 for no limit.</param>
         /// <param name="bytes">The rest of the body.</param>
         /// <returns>
         /// <c>false</c> when no body is being decoded or the writer did not
         /// fill in its length, in which case the extent is unknown and nothing
         /// is read.
         /// </returns>
-        internal bool TryReadRemainingBodyBytes(out byte[] bytes)
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the rest of
+        /// the body is longer than <paramref name="maxLength"/>.</exception>
+        internal bool TryReadRemainingBodyBytes(int maxLength, out byte[] bytes)
         {
             if (m_bodyEnd < 0)
             {
@@ -262,6 +267,14 @@ namespace Opc.Ua
             // as something other than BadDecodingError. An empty run says the
             // same thing and lets the caller reject it in its own terms.
             int remaining = m_bodyEnd - Position;
+            if (maxLength > 0 && remaining > maxLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "ExtensionObject body remainder of {0} bytes exceeds the limit of {1}.",
+                    remaining,
+                    maxLength);
+            }
             bytes = remaining > 0 ? SafeReadBytes(remaining) : [];
             return true;
         }
