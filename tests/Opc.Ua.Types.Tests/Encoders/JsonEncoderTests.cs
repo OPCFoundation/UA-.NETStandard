@@ -684,6 +684,32 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteEnumeratedWithoutLiteralWritesNumericString()
+        {
+            // Without a literal for the value only the numeric value is encoded as a JSON
+            // string (Part 6 5.4.4.2), not "99_99" or "Object, Variable_3".
+            const TimestampsToReturn undefined = (TimestampsToReturn)99;
+            const NodeClass combined = NodeClass.Object | NodeClass.Variable;
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", undefined)),
+                    Is.EqualTo("""{"E":"99"}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", combined)),
+                    Is.EqualTo("""{"E":"3"}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", NodeClass.Variable)),
+                    Is.EqualTo("""{"E":"Variable_2"}"""));
+                Assert.That(
+                    Encode(
+                        JsonEncoderOptions.Verbose,
+                        w => w.WriteEnumeratedArray("E", new[] { NodeClass.Object, combined }.ToArrayOf())),
+                    Is.EqualTo("""{"E":["Object_1","3"]}"""));
+            });
+        }
+
+        [Test]
         public void WriteExtensionObjectWithUnmappedNamespaceWritesNsuTypeId()
         {
             // A TypeId whose namespace is not in the table keeps its identity in the nsu=

@@ -1276,10 +1276,17 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         private void WriteEnumerated<T>(T value) where T : struct, Enum
         {
-            int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            int numeric = EnumHelper.EnumToInt32(value);
             if (m_options.EnumerationAsNumber)
             {
                 m_writer.WriteNumberValue(numeric);
+                return;
+            }
+            // Without a literal for the value (undefined or combined flags) only the
+            // numeric value is encoded as a JSON string (5.4.4.2).
+            if (!Enum.IsDefined(typeof(T), value))
+            {
+                m_writer.WriteStringValue(numeric.ToString(CultureInfo.InvariantCulture));
                 return;
             }
             m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", value, numeric));
