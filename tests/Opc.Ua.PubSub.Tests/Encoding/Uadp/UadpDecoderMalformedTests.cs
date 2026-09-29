@@ -305,6 +305,47 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decoded.DataSetMessages[1].MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
         }
 
+        [TestCase((byte)0x0C)]
+        [TestCase((byte)0x10)]
+        [TestCase((byte)0x14)]
+        [TestCase((byte)0x1C)]
+        [TestCase((byte)0x40)]
+        [TestCase((byte)0x80)]
+        public void ReservedExtendedFlags2ValuesAreRejected(byte ext2)
+        {
+            // Probe-shaped body after the header so that a lenient decoder
+            // would accept the frame.
+            byte[] frame = [0x91, 0x80, ext2, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x81, 0x03];
+            Assert.That(UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()), Is.Null);
+            Assert.That(UadpDecoder.TryReadOuterPrefix(frame, out _, out _, out _, out _), Is.False);
+        }
+
+        [Test]
+        public void PayloadHeaderWithZeroCountReturnsNull()
+        {
+            // UADPFlags 0x41 (PayloadHeader), Count 0, then a keep-alive
+            // DataSetMessage that must not be decoded.
+            byte[] frame = [0x41, 0x00, 0x81, 0x03];
+            Assert.That(UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()), Is.Null);
+            Assert.That(UadpDecoder.TryReadOuterPrefix(frame, out _, out _, out _, out _), Is.False);
+        }
+
+        [Test]
+        public void AbsentPublisherIdDecodesAsNullInBothPaths()
+        {
+            byte[] frame = [0x01, 0x81, 0x03];
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(
+                UadpDecoder.TryReadOuterPrefix(frame, out _, out _, out PublisherId prefixPublisherId, out _),
+                Is.True);
+            Assert.That(decoded!.PublisherId.IsNull, Is.True);
+            Assert.That(decoded.PublisherId, Is.EqualTo(prefixPublisherId));
+            Assert.That(
+                ((UadpNetworkMessage)decoded).ContentMask.HasFlag(UadpNetworkMessageContentMask.PublisherId),
+                Is.False);
+        }
+
         [Test]
         public void DiscoveryRequestRejectsWriterIdCountBeyondRemainingBytes()
         {

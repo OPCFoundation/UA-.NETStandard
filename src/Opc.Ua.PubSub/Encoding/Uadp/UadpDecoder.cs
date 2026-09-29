@@ -163,8 +163,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 ext2 = (ExtendedFlags2EncodingMask)ext2Byte;
             }
+            if (!IsSupportedExtendedFlags2(ext2))
+            {
+                return null;
+            }
 
-            var publisherId = PublisherId.FromByte(0);
+            // An absent PublisherId is reported as PublisherId.Null, the
+            // same identity TryReadOuterPrefix uses for replay and
+            // reassembly bookkeeping; ContentMask tells whether it was sent.
+            PublisherId publisherId = PublisherId.Null;
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
             {
                 if (!((byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask)).TryGetPublisherIdType(
@@ -278,7 +285,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if ((uadpFlags & UadpFlagsEncodingMask.PayloadHeaderEnabled) != 0)
             {
                 contentMask |= UadpNetworkMessageContentMask.PayloadHeader;
-                if (!reader.TryReadByte(out byte count))
+                // A DataSetMessage NetworkMessage shall contain at least
+                // one DataSetMessage (Part 14 §7.2.4.5.2 Table 160).
+                if (!reader.TryReadByte(out byte count) || count == 0)
                 {
                     return null;
                 }
@@ -507,8 +516,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 ext2 = (ExtendedFlags2EncodingMask)ext2Byte;
             }
+            if (!IsSupportedExtendedFlags2(ext2))
+            {
+                return false;
+            }
 
-            securityEnabled = (ext1 & ExtendedFlags1EncodingMask.SecurityEnabled) != 0;
+            securityEnabled =(ext1 & ExtendedFlags1EncodingMask.SecurityEnabled) != 0;
             chunkMessage = (ext2 & ExtendedFlags2EncodingMask.ChunkMessage) != 0;
 
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
@@ -585,7 +598,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             ushort[]? payloadWriterIds = null;
             if ((uadpFlags & UadpFlagsEncodingMask.PayloadHeaderEnabled) != 0)
             {
-                if (!reader.TryReadByte(out byte count))
+                if (!reader.TryReadByte(out byte count) || count == 0)
                 {
                     return false;
                 }
@@ -645,12 +658,28 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             return true;
         }
 
+        /// <summary>
+        /// Validates the ExtendedFlags2 byte. Bits 2-4 are an enumerated
+        /// UADP NetworkMessage type (000 DataSetMessage, 001 discovery
+        /// probe, 010 discovery announcement) and bits 6-7 are reserved;
+        /// receivers skip messages with reserved values
+        /// (Part 14 §7.2.4.4.2 Table 154).
+        /// </summary>
+        private static bool IsSupportedExtendedFlags2(ExtendedFlags2EncodingMask ext2)
+        {
+            const byte networkMessageTypeMask = 0x1C;
+            const byte reservedMask = 0xC0;
+            byte value = (byte)ext2;
+            return (value & reservedMask) == 0 &&
+                ((value & networkMessageTypeMask) >> 2) <= 2;
+        }
+
         private static bool TryReadPublisherId(
             ref UadpBinaryReader reader,
             PublisherIdType type,
             out PublisherId publisherId)
         {
-            publisherId = PublisherId.FromByte(0);
+            publisherId = PublisherId.Null;
             switch (type)
             {
                 case PublisherIdType.Byte:
