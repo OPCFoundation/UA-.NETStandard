@@ -295,16 +295,24 @@ namespace Opc.Ua
         /// </summary>
         public bool LoadStringTable(StringTable stringTable)
         {
-            int count = SafeReadInt32();
+            int count = ReadArrayLength(4);
 
-            if (count < -0)
+            if (count < 0)
             {
                 return false;
             }
 
-            for (uint ii = 0; ii < count; ii++)
+            for (int ii = 0; ii < count; ii++)
             {
-                stringTable.Append(ReadString(null) ?? string.Empty);
+                string? value = ReadString(null);
+                if (string.IsNullOrEmpty(value))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "String table entry {0} is null or empty.",
+                        ii);
+                }
+                stringTable.Append(value!);
             }
 
             return true;

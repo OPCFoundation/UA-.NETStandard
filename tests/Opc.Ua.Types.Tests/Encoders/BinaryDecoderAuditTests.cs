@@ -432,6 +432,62 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        [TestCase(-1)]
+        [TestCase(0)]
+        public void LoadStringTableRejectsNullOrEmptyEntry(int entryLength)
+        {
+            byte[] bytes = Build(w =>
+            {
+                w.Write(1);
+                w.Write(entryLength);
+            });
+
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            AssertStatus(
+                () => decoder.LoadStringTable(new StringTable()),
+                StatusCodes.BadDecodingError);
+        }
+
+        [Test]
+        public void LoadStringTableAppliesMaxArrayLength()
+        {
+            ServiceMessageContext context = CreateContext();
+            context.MaxArrayLength = 1;
+            byte[] bytes = Build(w =>
+            {
+                w.Write(2);
+                w.Write(1);
+                w.Write((byte)'a');
+                w.Write(1);
+                w.Write((byte)'b');
+            });
+
+            using var decoder = new BinaryDecoder(bytes, context);
+            AssertStatus(
+                () => decoder.LoadStringTable(new StringTable()),
+                StatusCodes.BadEncodingLimitsExceeded);
+        }
+
+        [Test]
+        public void LoadStringTableReadsEntries()
+        {
+            byte[] bytes = Build(w =>
+            {
+                w.Write(2);
+                w.Write(1);
+                w.Write((byte)'a');
+                w.Write(1);
+                w.Write((byte)'b');
+            });
+
+            var table = new StringTable();
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            Assert.That(decoder.LoadStringTable(table), Is.True);
+            Assert.That(table.Count, Is.EqualTo(2));
+            Assert.That(table.GetString(1), Is.EqualTo("b"));
+        }
+
+        [Test]
         public void DataValuePicosecondsOfAtLeast10000AreTreatedAs9999()
         {
             // SourceTimestamp | SourcePicoseconds | ServerTimestamp | ServerPicoseconds
