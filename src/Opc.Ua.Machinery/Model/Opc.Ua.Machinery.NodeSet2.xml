@@ -1,14 +1,45 @@
-<?xml version='1.0' encoding='utf-8'?>
-<UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" xmlns:ns1="http://unifiedautomation.com/Configuration/NodeSet.xsd" xmlns:ns2="http://opcfoundation.org/UA/2008/02/Types.xsd">
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/Machinery/</Uri>
     <Uri>http://opcfoundation.org/UA/DI/</Uri>
-    </NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/IA/</Uri>
+  </NamespaceUris>
   <Models>
     <Model ModelUri="http://opcfoundation.org/UA/Machinery/" Version="1.04.1" PublicationDate="2026-01-01T00:00:00Z" ModelVersion="1.4.1">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
       <RequiredModel ModelUri="http://opcfoundation.org/UA/DI/" Version="1.04.0" PublicationDate="2022-11-03T00:00:00Z" />
-      </Model>
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/IA/" Version="1.01.2" PublicationDate="2024-02-28T00:00:00Z" />
+    </Model>
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -41,7 +72,7 @@
   </Aliases>
   <Extensions>
     <Extension>
-      <ns1:ModelInfo Tool="UaModeler" Version="1.8.1" Hash="wMYTpAsaXyFJzX3vC1ZKJg==" />
+      <ua:ModelInfo Tool="UaModeler" Version="1.8.1" Hash="wMYTpAsaXyFJzX3vC1ZKJg==" xmlns:ua="http://unifiedautomation.com/Configuration/NodeSet.xsd" />
     </Extension>
   </Extensions>
   <UAObjectType NodeId="ns=1;i=1011" BrowseName="1:IMachineTagNameplateType" IsAbstract="true">
@@ -62,6 +93,75 @@
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1011</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1007" BrowseName="1:IMachineryEquipmentType" IsAbstract="true">
+    <DisplayName>IMachineryEquipmentType</DisplayName>
+    <Description>Provides base identification information of MachineryEquipment that can be set by the user.</Description>
+    <Category>Machinery MachineryEquipment</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/17.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1011</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6107</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6109</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6108</Reference>
+      <Reference ReferenceType="HasInterface" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6107" BrowseName="1:Description" ParentNodeId="ns=1;i=1007" DataType="LocalizedText" AccessLevel="3">
+    <DisplayName>Description</DisplayName>
+    <Description>Additional information and description about the MachineryEquipment. Should be used if Description Attribute cannot be written via OPC UA and should be ideally identical to Description Attribute.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6109" BrowseName="1:EquipmentLife" ParentNodeId="ns=1;i=1007" DataType="Number">
+    <DisplayName>EquipmentLife</DisplayName>
+    <Description>Lifetime indication of the MachineryEquipment.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=468</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1007</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6112</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6110</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6111</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6112" BrowseName="EngineeringUnits" ParentNodeId="ns=1;i=6109" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6109</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6110" BrowseName="2:LimitValue" ParentNodeId="ns=1;i=6109" DataType="Number">
+    <DisplayName>LimitValue</DisplayName>
+    <Description>LimitValue indicates when the end of lifetime has been reached.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6109</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6111" BrowseName="2:StartValue" ParentNodeId="ns=1;i=6109" DataType="Number">
+    <DisplayName>StartValue</DisplayName>
+    <Description>StartValue indicates the initial value, when there is still the full lifetime left.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6109</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6108" BrowseName="1:MachineryEquipmentTypeId" ParentNodeId="ns=1;i=1007" DataType="String" AccessLevel="3">
+    <DisplayName>MachineryEquipmentTypeId</DisplayName>
+    <Description>Identification of a generic MachineryEquipment. Defined by each company (e.g., company has an MachineryEquipmentTypeId for all 8 mm drills).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1007</Reference>
     </References>
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=1003" BrowseName="1:IMachineryItemVendorNameplateType" IsAbstract="true">
@@ -181,7 +281,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
     </References>
     <Value>
-      <ns2:String />
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"></uax:String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6014" BrowseName="2:ComponentName" ParentNodeId="ns=1;i=1004" DataType="LocalizedText" AccessLevel="3">
@@ -193,7 +293,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
     </References>
     <Value>
-      <ns2:LocalizedText />
+      <uax:LocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" />
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6088" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1004" DataType="QualifiedName" AccessLevel="3">
@@ -204,10 +304,10 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
     </References>
     <Value>
-      <ns2:QualifiedName>
-                <ns2:NamespaceIndex>2</ns2:NamespaceIndex>
-                <ns2:Name>Identification</ns2:Name>
-            </ns2:QualifiedName>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>2</uax:NamespaceIndex>
+                <uax:Name>Identification</uax:Name>
+            </uax:QualifiedName>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6012" BrowseName="2:DeviceClass" ParentNodeId="ns=1;i=1004" DataType="String">
@@ -340,10 +440,10 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
     </References>
     <Value>
-      <ns2:QualifiedName>
-                <ns2:NamespaceIndex>2</ns2:NamespaceIndex>
-                <ns2:Name>Identification</ns2:Name>
-            </ns2:QualifiedName>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>2</uax:NamespaceIndex>
+                <uax:Name>Identification</uax:Name>
+            </uax:QualifiedName>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6029" BrowseName="1:Location" ParentNodeId="ns=1;i=1012" DataType="String" AccessLevel="3">
@@ -363,6 +463,525 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
     </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1005" BrowseName="1:MachineryComponentIdentificationType">
+    <DisplayName>MachineryComponentIdentificationType</DisplayName>
+    <Description>Contains information about the identification and nameplate of a component</Description>
+    <Category>Machinery Component Identification</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/10.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6016</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6017</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6016" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1005" DataType="QualifiedName" AccessLevel="3">
+    <DisplayName>DefaultInstanceBrowseName</DisplayName>
+    <Description>The default BrowseName for instances of the type.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+    <Value>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>2</uax:NamespaceIndex>
+                <uax:Name>Identification</uax:Name>
+            </uax:QualifiedName>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6017" BrowseName="2:DeviceRevision" ParentNodeId="ns=1;i=1005" DataType="String">
+    <DisplayName>DeviceRevision</DisplayName>
+    <Description>A string representation of the overall revision level of the component. Often, it is increased when either the SoftwareRevision and / or the HardwareRevision of the component is increased. As an example, it can be used in ERP systems together with the ProductCode.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1009" BrowseName="1:MachineryOperationCounterType">
+    <DisplayName>MachineryOperationCounterType</DisplayName>
+    <Category>Machinery Operation Counter</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/14.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=2;i=1005</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6082</Reference>
+      <Reference ReferenceType="HasInterface">ns=2;i=480</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6081</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6080</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6079</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6082" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1009" DataType="QualifiedName" AccessLevel="3">
+    <DisplayName>DefaultInstanceBrowseName</DisplayName>
+    <Description>The default BrowseName for instances of the type</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+    <Value>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>2</uax:NamespaceIndex>
+                <uax:Name>OperationCounters</uax:Name>
+            </uax:QualifiedName>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6081" BrowseName="2:OperationCycleCounter" ParentNodeId="ns=1;i=1009" DataType="UInteger" AccessLevel="3">
+    <DisplayName>OperationCycleCounter</DisplayName>
+    <Description>OperationCycleCounter is counting the times the component switches from not performing an activity to performing an activity. For example, each time a valve starts moving, is counted. This value shall only increase during the lifetime of the component and shall not be reset when the component is restarted.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6080" BrowseName="2:OperationDuration" ParentNodeId="ns=1;i=1009" DataType="Duration" AccessLevel="3">
+    <DisplayName>OperationDuration</DisplayName>
+    <Description>OperationDuration is the duration the MachineryItem has been powered and performing an activity. This counter is intended for machines and components where a distinction is made between switched on and in operation. For example, a drive might be powered on but not operating. It is not intended for machines or components always performing an activity like sensors always measuring data. This value shall only increase during the lifetime of the MachineryItem and shall not be reset when it is restarted. The OperationDuration is provided as Duration, i.e., in milliseconds or even fractions of a millisecond. However, the Server is not expected to update the value in such a high frequency, but maybe once a minute or once an hour, depending on the application.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6079" BrowseName="2:PowerOnDuration" ParentNodeId="ns=1;i=1009" DataType="Duration" AccessLevel="3">
+    <DisplayName>PowerOnDuration</DisplayName>
+    <Description>PowerOnDuration is the duration the MachineryItem has been powered. The main purpose is to determine the time in which degradation of the MachineryItem occurred. The details, when the time is counted, is implementation-specific. Companion specifications might define specific rules. Typically, when the MachineryItem has supply voltage and the main CPU is running, the time is counted. This may include any kind of sleep mode, but may not include pure Wake on LAN. This value shall only increase during the lifetime of the MachineryItem and shall not be reset when it is restarted. The PowerOnDuration is provided as Duration, i.e., in milliseconds or even fractions of a millisecond. However, the Server is not expected to update the value in such a high frequency, but maybe once a minute or once an hour, depending on the application.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1013" BrowseName="1:MachineryEquipmentFolderType">
+    <DisplayName>MachineryEquipmentFolderType</DisplayName>
+    <Description>Defines an entry point for MachineryEquipment of a MachineryItem.</Description>
+    <Category>Machinery MachineryEquipment</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/17.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5052</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6105</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5052" BrowseName="1:&lt;MachineryEquipment&gt;" SymbolicName="MachineryEquipment" ParentNodeId="ns=1;i=1013">
+    <DisplayName>&lt;MachineryEquipment&gt;</DisplayName>
+    <Description>Placeholder for MachineryEquipment that implements the IMachineryEquipmentType.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1013</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6096</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6097</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6098</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6099</Reference>
+      <Reference ReferenceType="HasInterface">ns=1;i=1007</Reference>
+      <Reference ReferenceType="HasInterface">ns=2;i=15035</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6100</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6101</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6102</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6103</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6104</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6096" BrowseName="2:AssetId" ParentNodeId="ns=1;i=5052" DataType="String" AccessLevel="3">
+    <DisplayName>AssetId</DisplayName>
+    <Description>Companywide unique ID for a specific asset (Each 8 mm drill of a company has the same MachineryEquipmentTypeId and a unique AssetId).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6097" BrowseName="2:ComponentName" ParentNodeId="ns=1;i=5052" DataType="LocalizedText" AccessLevel="3">
+    <DisplayName>ComponentName</DisplayName>
+    <Description>Used name for the MachineryEquipment.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6098" BrowseName="1:Description" ParentNodeId="ns=1;i=5052" DataType="LocalizedText" AccessLevel="3">
+    <DisplayName>Description</DisplayName>
+    <Description>Additional information and description about the MachineryEquipment. Should be used if Description Attribute cannot be written via OPC UA and should be ideally identical to Description Attribute.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6099" BrowseName="2:DeviceClass" ParentNodeId="ns=1;i=5052" DataType="String">
+    <DisplayName>DeviceClass</DisplayName>
+    <Description>Class of the MachineryEquipment (e.g.: Each drill of a company has the DeviceClass "drill").</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6100" BrowseName="1:Location" ParentNodeId="ns=1;i=5052" DataType="String" AccessLevel="3">
+    <DisplayName>Location</DisplayName>
+    <Description>Location of the MachineryEquipment (e.g.: Storage Location; Position in the Tool Changer; Position on the machine).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6101" BrowseName="1:MachineryEquipmentTypeId" ParentNodeId="ns=1;i=5052" DataType="String" AccessLevel="3">
+    <DisplayName>MachineryEquipmentTypeId</DisplayName>
+    <Description>Identification of a generic MachineryEquipment. Defined by each company (e.g., company has an MachineryEquipmentTypeId for all 8 mm drills).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6102" BrowseName="2:ManufacturerUri" ParentNodeId="ns=1;i=5052" DataType="String">
+    <DisplayName>ManufacturerUri</DisplayName>
+    <Description>Manufacturer of the MachineryEquipment.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6103" BrowseName="2:Model" ParentNodeId="ns=1;i=5052" DataType="LocalizedText">
+    <DisplayName>Model</DisplayName>
+    <Description>Model of the MachineryEquipment.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6104" BrowseName="2:SerialNumber" ParentNodeId="ns=1;i=5052" DataType="String">
+    <DisplayName>SerialNumber</DisplayName>
+    <Description>Serial Number of the MachineryEquipment.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5052</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6105" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1013" DataType="QualifiedName" AccessLevel="3">
+    <DisplayName>DefaultInstanceBrowseName</DisplayName>
+    <Description>The default BrowseName for instances of the type.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+    <Value>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>1</uax:NamespaceIndex>
+                <uax:Name>MachineryEquipment</uax:Name>
+            </uax:QualifiedName>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1015" BrowseName="1:MachineryLifetimeCounterType">
+    <DisplayName>MachineryLifetimeCounterType</DisplayName>
+    <Category>Machinery Lifetime Counter</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/15.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6083</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6087</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6083" BrowseName="1:&lt;LifetimeVariable&gt;" SymbolicName="LifetimeVariable" ParentNodeId="ns=1;i=1015" DataType="Number" AccessLevel="3">
+    <DisplayName>&lt;LifetimeVariable&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11510</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=468</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1015</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6086</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6084</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6085</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6086" BrowseName="EngineeringUnits" ParentNodeId="ns=1;i=6083" DataType="EUInformation">
+    <DisplayName>EngineeringUnits</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6083</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6084" BrowseName="2:LimitValue" ParentNodeId="ns=1;i=6083" DataType="Number">
+    <DisplayName>LimitValue</DisplayName>
+    <Description>LimitValue indicates when the end of lifetime has been reached.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6083</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6085" BrowseName="2:StartValue" ParentNodeId="ns=1;i=6083" DataType="Number">
+    <DisplayName>StartValue</DisplayName>
+    <Description>StartValue indicates the initial value, when there is still the full lifetime left.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6083</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6087" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1015" DataType="QualifiedName" AccessLevel="3">
+    <DisplayName>DefaultInstanceBrowseName</DisplayName>
+    <Description>The default BrowseName for instances of the type</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1015</Reference>
+    </References>
+    <Value>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>1</uax:NamespaceIndex>
+                <uax:Name>LifetimeCounters</uax:Name>
+            </uax:QualifiedName>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1014" BrowseName="1:MonitoringType">
+    <DisplayName>MonitoringType</DisplayName>
+    <Description>Entry point for monitoring information of a MachineryItem.</Description>
+    <Category>Machinery Monitoring</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/16.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5047</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6089</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5045</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5046</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5044</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5047" BrowseName="1:Consumption" ParentNodeId="ns=1;i=1014">
+    <DisplayName>Consumption</DisplayName>
+    <Description>Entry point for consumption information of the MachineryItem.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6089" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1014" DataType="QualifiedName">
+    <DisplayName>DefaultInstanceBrowseName</DisplayName>
+    <Description>The default BrowseName for instances of the type.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+    <Value>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>1</uax:NamespaceIndex>
+                <uax:Name>Monitoring</uax:Name>
+            </uax:QualifiedName>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5045" BrowseName="1:Health" ParentNodeId="ns=1;i=1014">
+    <DisplayName>Health</DisplayName>
+    <Description>Entry point of health information of the MachineryItem.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1014</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6095</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5051</Reference>
+      <Reference ReferenceType="HasInterface">ns=2;i=15051</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6095" BrowseName="2:DeviceHealth" ParentNodeId="ns=1;i=5045" DataType="DeviceHealthEnumeration" AccessLevel="3">
+    <DisplayName>DeviceHealth</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5045</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5051" BrowseName="2:DeviceHealthAlarms" ParentNodeId="ns=1;i=5045">
+    <DisplayName>DeviceHealthAlarms</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5045</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5046" BrowseName="1:Process" ParentNodeId="ns=1;i=1014">
+    <DisplayName>Process</DisplayName>
+    <Description>Entry point for process information of the MachineryItem.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5044" BrowseName="1:Status" ParentNodeId="ns=1;i=1014">
+    <DisplayName>Status</DisplayName>
+    <Description>Entry point for status information of the MachineryItem. If this Object is provided, and the MachineryItemState is provided, it shall be referenced. If this Object is provided and the MachineryOperationMode is provided, it shall be referenced.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1014</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5048</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5049</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5050</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5048" BrowseName="1:MachineryItemState" ParentNodeId="ns=1;i=5044">
+    <DisplayName>MachineryItemState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5044</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6090</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6090" BrowseName="CurrentState" ParentNodeId="ns=1;i=5048" DataType="LocalizedText">
+    <DisplayName>CurrentState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2760</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5048</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6091</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6091" BrowseName="Id" ParentNodeId="ns=1;i=6090" DataType="NodeId">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6090</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5049" BrowseName="1:MachineryOperationMode" ParentNodeId="ns=1;i=5044">
+    <DisplayName>MachineryOperationMode</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1008</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5044</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6092</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6092" BrowseName="CurrentState" ParentNodeId="ns=1;i=5049" DataType="LocalizedText">
+    <DisplayName>CurrentState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=2760</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5049</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6093</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6093" BrowseName="Id" ParentNodeId="ns=1;i=6092" DataType="NodeId">
+    <DisplayName>Id</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6092</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5050" BrowseName="1:Stacklight" ParentNodeId="ns=1;i=5044">
+    <DisplayName>Stacklight</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=3;i=1002</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5044</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6094</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6094" BrowseName="3:StacklightMode" ParentNodeId="ns=1;i=5050" DataType="StacklightOperationMode" AccessLevel="3">
+    <DisplayName>StacklightMode</DisplayName>
+    <Description>Shows in what way (stack of individual lights, level meter, running light) the stacklight unit is used.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5050</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1017" BrowseName="1:NotificationsType">
+    <DisplayName>NotificationsType</DisplayName>
+    <Description>Provides notifications as events or objects.</Description>
+    <Category>Machinery Notifications</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/18.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6106</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6106" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1017" DataType="QualifiedName" AccessLevel="3">
+    <DisplayName>DefaultInstanceBrowseName</DisplayName>
+    <Description>The default BrowseName for instances of the type.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1017</Reference>
+    </References>
+    <Value>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>1</uax:NamespaceIndex>
+                <uax:Name>Notifications</uax:Name>
+            </uax:QualifiedName>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1006" BrowseName="1:MachineComponentsType">
+    <DisplayName>MachineComponentsType</DisplayName>
+    <Description>Contains all identifiable components of a machine</Description>
+    <Category>Machinery Find Components of Machines</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/11.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6018</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5002" BrowseName="1:&lt;Component&gt;" SymbolicName="Component" ParentNodeId="ns=1;i=1006">
+    <DisplayName>&lt;Component&gt;</DisplayName>
+    <Description>Represents the identifiable components of a machine.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasAddIn">ns=1;i=5003</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5003" BrowseName="2:Identification" ParentNodeId="ns=1;i=5002">
+    <DisplayName>Identification</DisplayName>
+    <Description>Contains information about the identification and nameplate of a MachineryItem</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=1;i=5002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6019</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6020</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6019" BrowseName="2:Manufacturer" ParentNodeId="ns=1;i=5003" DataType="LocalizedText">
+    <DisplayName>Manufacturer</DisplayName>
+    <Description>A human-readable, localized name of the manufacturer of the MachineryItem.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6020" BrowseName="2:SerialNumber" ParentNodeId="ns=1;i=5003" DataType="String">
+    <DisplayName>SerialNumber</DisplayName>
+    <Description>A string containing a unique production number of the manufacturer of the MachineryItem. The global uniqueness of the serial number is only given in the context of the manufacturer, and potentially the model. The value shall not change during the life-cycle of the MachineryItem.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5003</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6018" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1006" DataType="QualifiedName" AccessLevel="3">
+    <DisplayName>DefaultInstanceBrowseName</DisplayName>
+    <Description>The default BrowseName for instances of the type.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1006</Reference>
+    </References>
+    <Value>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>1</uax:NamespaceIndex>
+                <uax:Name>Components</uax:Name>
+            </uax:QualifiedName>
+    </Value>
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=1002" BrowseName="1:MachineryItemState_StateMachineType">
     <DisplayName>MachineryItemState_StateMachineType</DisplayName>
@@ -402,10 +1021,10 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
     </References>
     <Value>
-      <ns2:QualifiedName>
-                <ns2:NamespaceIndex>1</ns2:NamespaceIndex>
-                <ns2:Name>MachineryItemState</ns2:Name>
-            </ns2:QualifiedName>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>1</uax:NamespaceIndex>
+                <uax:Name>MachineryItemState</uax:Name>
+            </uax:QualifiedName>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5006" BrowseName="1:Executing" ParentNodeId="ns=1;i=1002">
@@ -433,7 +1052,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5006</Reference>
     </References>
     <Value>
-      <ns2:UInt32>3</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">3</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5023" BrowseName="1:FromExecutingToExecuting" ParentNodeId="ns=1;i=1002">
@@ -455,7 +1074,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5023</Reference>
     </References>
     <Value>
-      <ns2:UInt32>14</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">14</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5020" BrowseName="1:FromExecutingToNotAvailable" ParentNodeId="ns=1;i=1002">
@@ -477,7 +1096,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5020</Reference>
     </References>
     <Value>
-      <ns2:UInt32>6</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">6</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5022" BrowseName="1:FromExecutingToNotExecuting" ParentNodeId="ns=1;i=1002">
@@ -499,7 +1118,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5022</Reference>
     </References>
     <Value>
-      <ns2:UInt32>8</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">8</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5021" BrowseName="1:FromExecutingToOutOfService" ParentNodeId="ns=1;i=1002">
@@ -521,7 +1140,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5021</Reference>
     </References>
     <Value>
-      <ns2:UInt32>7</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">7</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5010" BrowseName="1:FromNotAvailableToExecuting" ParentNodeId="ns=1;i=1002">
@@ -543,7 +1162,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5010</Reference>
     </References>
     <Value>
-      <ns2:UInt32>1</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5011" BrowseName="1:FromNotAvailableToNotAvailable" ParentNodeId="ns=1;i=1002">
@@ -565,7 +1184,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5011</Reference>
     </References>
     <Value>
-      <ns2:UInt32>12</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">12</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5009" BrowseName="1:FromNotAvailableToNotExecuting" ParentNodeId="ns=1;i=1002">
@@ -587,7 +1206,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5009</Reference>
     </References>
     <Value>
-      <ns2:UInt32>2</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5008" BrowseName="1:FromNotAvailableToOutOfService" ParentNodeId="ns=1;i=1002">
@@ -609,7 +1228,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5008</Reference>
     </References>
     <Value>
-      <ns2:UInt32>0</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">0</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5018" BrowseName="1:FromNotExecutingToExecuting" ParentNodeId="ns=1;i=1002">
@@ -631,7 +1250,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5018</Reference>
     </References>
     <Value>
-      <ns2:UInt32>11</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">11</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5016" BrowseName="1:FromNotExecutingToNotAvailable" ParentNodeId="ns=1;i=1002">
@@ -653,7 +1272,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5016</Reference>
     </References>
     <Value>
-      <ns2:UInt32>9</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">9</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5019" BrowseName="1:FromNotExecutingToNotExecuting" ParentNodeId="ns=1;i=1002">
@@ -675,7 +1294,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5019</Reference>
     </References>
     <Value>
-      <ns2:UInt32>15</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">15</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5017" BrowseName="1:FromNotExecutingToOutOfService" ParentNodeId="ns=1;i=1002">
@@ -697,7 +1316,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5017</Reference>
     </References>
     <Value>
-      <ns2:UInt32>10</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">10</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5014" BrowseName="1:FromOutOfServiceToExecuting" ParentNodeId="ns=1;i=1002">
@@ -719,7 +1338,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5014</Reference>
     </References>
     <Value>
-      <ns2:UInt32>4</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">4</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5012" BrowseName="1:FromOutOfServiceToNotAvailable" ParentNodeId="ns=1;i=1002">
@@ -741,7 +1360,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5012</Reference>
     </References>
     <Value>
-      <ns2:UInt32>3</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">3</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5013" BrowseName="1:FromOutOfServiceToNotExecuting" ParentNodeId="ns=1;i=1002">
@@ -763,7 +1382,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5013</Reference>
     </References>
     <Value>
-      <ns2:UInt32>5</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">5</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5015" BrowseName="1:FromOutOfServiceToOutOfService" ParentNodeId="ns=1;i=1002">
@@ -785,7 +1404,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5015</Reference>
     </References>
     <Value>
-      <ns2:UInt32>13</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">13</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5005" BrowseName="1:NotAvailable" ParentNodeId="ns=1;i=1002">
@@ -813,7 +1432,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5005</Reference>
     </References>
     <Value>
-      <ns2:UInt32>0</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">0</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5007" BrowseName="1:NotExecuting" ParentNodeId="ns=1;i=1002">
@@ -841,7 +1460,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
     </References>
     <Value>
-      <ns2:UInt32>2</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5004" BrowseName="1:OutOfService" ParentNodeId="ns=1;i=1002">
@@ -869,7 +1488,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5004</Reference>
     </References>
     <Value>
-      <ns2:UInt32>1</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=1008" BrowseName="1:MachineryOperationModeStateMachineType">
@@ -910,10 +1529,10 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
     </References>
     <Value>
-      <ns2:QualifiedName>
-                <ns2:NamespaceIndex>1</ns2:NamespaceIndex>
-                <ns2:Name>MachineryOperationMode</ns2:Name>
-            </ns2:QualifiedName>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>1</uax:NamespaceIndex>
+                <uax:Name>MachineryOperationMode</uax:Name>
+            </uax:QualifiedName>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5035" BrowseName="1:FromMaintenanceToMaintenance" ParentNodeId="ns=1;i=1008">
@@ -935,7 +1554,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5035</Reference>
     </References>
     <Value>
-      <ns2:UInt32>13</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">13</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5032" BrowseName="1:FromMaintenanceToNone" ParentNodeId="ns=1;i=1008">
@@ -957,7 +1576,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5032</Reference>
     </References>
     <Value>
-      <ns2:UInt32>3</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">3</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5034" BrowseName="1:FromMaintenanceToProcessing" ParentNodeId="ns=1;i=1008">
@@ -979,7 +1598,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5034</Reference>
     </References>
     <Value>
-      <ns2:UInt32>4</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">4</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5033" BrowseName="1:FromMaintenanceToSetup" ParentNodeId="ns=1;i=1008">
@@ -1001,7 +1620,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5033</Reference>
     </References>
     <Value>
-      <ns2:UInt32>5</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">5</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5028" BrowseName="1:FromNoneToMaintenance" ParentNodeId="ns=1;i=1008">
@@ -1023,7 +1642,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5028</Reference>
     </References>
     <Value>
-      <ns2:UInt32>0</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">0</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5031" BrowseName="1:FromNoneToNone" ParentNodeId="ns=1;i=1008">
@@ -1045,7 +1664,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5031</Reference>
     </References>
     <Value>
-      <ns2:UInt32>12</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">12</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5030" BrowseName="1:FromNoneToProcessing" ParentNodeId="ns=1;i=1008">
@@ -1067,7 +1686,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5030</Reference>
     </References>
     <Value>
-      <ns2:UInt32>1</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5029" BrowseName="1:FromNoneToSetup" ParentNodeId="ns=1;i=1008">
@@ -1089,7 +1708,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5029</Reference>
     </References>
     <Value>
-      <ns2:UInt32>2</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5041" BrowseName="1:FromProcessingToMaintenance" ParentNodeId="ns=1;i=1008">
@@ -1111,7 +1730,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5041</Reference>
     </References>
     <Value>
-      <ns2:UInt32>7</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">7</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5040" BrowseName="1:FromProcessingToNone" ParentNodeId="ns=1;i=1008">
@@ -1133,7 +1752,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5040</Reference>
     </References>
     <Value>
-      <ns2:UInt32>6</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">6</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5043" BrowseName="1:FromProcessingToProcessing" ParentNodeId="ns=1;i=1008">
@@ -1155,7 +1774,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5043</Reference>
     </References>
     <Value>
-      <ns2:UInt32>14</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">14</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5042" BrowseName="1:FromProcessingToSetup" ParentNodeId="ns=1;i=1008">
@@ -1177,7 +1796,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5042</Reference>
     </References>
     <Value>
-      <ns2:UInt32>8</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">8</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5037" BrowseName="1:FromSetupToMaintenance" ParentNodeId="ns=1;i=1008">
@@ -1199,7 +1818,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5037</Reference>
     </References>
     <Value>
-      <ns2:UInt32>10</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">10</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5036" BrowseName="1:FromSetupToNone" ParentNodeId="ns=1;i=1008">
@@ -1221,7 +1840,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5036</Reference>
     </References>
     <Value>
-      <ns2:UInt32>9</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">9</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5038" BrowseName="1:FromSetupToProcessing" ParentNodeId="ns=1;i=1008">
@@ -1243,7 +1862,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5038</Reference>
     </References>
     <Value>
-      <ns2:UInt32>11</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">11</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5039" BrowseName="1:FromSetupToSetup" ParentNodeId="ns=1;i=1008">
@@ -1265,7 +1884,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5039</Reference>
     </References>
     <Value>
-      <ns2:UInt32>15</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">15</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5025" BrowseName="1:Maintenance" ParentNodeId="ns=1;i=1008">
@@ -1293,7 +1912,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5025</Reference>
     </References>
     <Value>
-      <ns2:UInt32>1</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5024" BrowseName="1:None" ParentNodeId="ns=1;i=1008">
@@ -1321,7 +1940,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5024</Reference>
     </References>
     <Value>
-      <ns2:UInt32>0</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">0</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5026" BrowseName="1:Processing" ParentNodeId="ns=1;i=1008">
@@ -1349,7 +1968,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5026</Reference>
     </References>
     <Value>
-      <ns2:UInt32>3</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">3</uax:UInt32>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=5027" BrowseName="1:Setup" ParentNodeId="ns=1;i=1008">
@@ -1377,7 +1996,104 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5027</Reference>
     </References>
     <Value>
-      <ns2:UInt32>2</ns2:UInt32>
+      <uax:UInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2</uax:UInt32>
     </Value>
   </UAVariable>
-  </UANodeSet>
+  <UAObject NodeId="ns=1;i=1001" BrowseName="1:Machines" EventNotifier="1">
+    <DisplayName>Machines</DisplayName>
+    <Description>This object is the entry point to machines managed in the server. All machines are directly referenced by this object.</Description>
+    <Category>Machinery Find Machines</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/9.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5001" BrowseName="1:http://opcfoundation.org/UA/Machinery/" SymbolicName="http___opcfoundation_org_UA_Machinery_">
+    <DisplayName>http://opcfoundation.org/UA/Machinery/</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/Machinery/v104/docs/20.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6031</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6032</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6033</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6034</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6035</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6036</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6037</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6031" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=5001" DataType="Boolean">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">false</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6032" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=5001" DataType="DateTime">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-01-01T00:00:00Z</uax:DateTime>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6033" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=5001" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/Machinery/</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6034" BrowseName="NamespaceVersion" ParentNodeId="ns=1;i=5001" DataType="String">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.04.1</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6035" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=1;i=5001" DataType="IdType" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>StaticNodeIdTypes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <uax:ListOfInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:Int32>0</uax:Int32>
+            </uax:ListOfInt32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6036" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=1;i=5001" DataType="NumericRange" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>StaticNumericNodeIdRange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <uax:ListOfString xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6037" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=1;i=5001" DataType="String">
+    <DisplayName>StaticStringNodeIdPattern</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5001</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"></uax:String>
+    </Value>
+  </UAVariable>
+</UANodeSet>
