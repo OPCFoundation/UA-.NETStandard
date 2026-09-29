@@ -156,14 +156,23 @@ namespace Opc.Ua
         /// from inside another decoder - the nested body is part of the same
         /// message and must share both.
         /// </summary>
+        /// <param name="namespaceMappings">The outer namespace mappings.</param>
+        /// <param name="serverMappings">The outer server mappings.</param>
+        /// <param name="nestingLevel">The outer nesting level.</param>
+        /// <param name="bodyEnd">
+        /// The end of the ExtensionObject body when the whole buffer of this
+        /// decoder is such a body, -1 when unknown.
+        /// </param>
         internal void InheritDecodingState(
             ushort[]? namespaceMappings,
             ushort[]? serverMappings,
-            uint nestingLevel)
+            uint nestingLevel,
+            int bodyEnd = -1)
         {
             m_namespaceMappings = namespaceMappings;
             m_serverMappings = serverMappings;
             m_nestingLevel = nestingLevel;
+            m_bodyEnd = bodyEnd;
         }
 
         /// <summary>

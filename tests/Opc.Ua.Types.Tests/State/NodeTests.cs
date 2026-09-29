@@ -104,6 +104,32 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void CloneDoesNotShareReferenceTable()
+        {
+            var node = new Node
+            {
+                NodeId = new NodeId(7010),
+                NodeClass = NodeClass.Object,
+                BrowseName = new QualifiedName("OrigNode")
+            };
+            node.ReferenceTable.Add(ReferenceTypeIds.HasComponent, false, new NodeId(7011));
+
+            var clone = (Node)node.Clone();
+            clone.ReferenceTable.Add(ReferenceTypeIds.HasProperty, false, new NodeId(7012));
+            node.ReferenceTable.Add(ReferenceTypeIds.Organizes, false, new NodeId(7013));
+
+            Assert.That(clone.ReferenceTable, Is.Not.SameAs(node.ReferenceTable));
+            Assert.That(clone.ReferenceTable, Has.Count.EqualTo(2));
+            Assert.That(node.ReferenceTable, Has.Count.EqualTo(2));
+            Assert.That(clone.ReferenceTable.Exists(
+                ReferenceTypeIds.HasComponent, false, new NodeId(7011), false, null), Is.True);
+            Assert.That(node.ReferenceTable.Exists(
+                ReferenceTypeIds.HasProperty, false, new NodeId(7012), false, null), Is.False);
+            Assert.That(clone.ReferenceTable.Exists(
+                ReferenceTypeIds.Organizes, false, new NodeId(7013), false, null), Is.False);
+        }
+
+        [Test]
         public void IsEqualReturnsTrueForSameReference()
         {
             var node = new Node { NodeId = new NodeId(7002), NodeClass = NodeClass.Object };

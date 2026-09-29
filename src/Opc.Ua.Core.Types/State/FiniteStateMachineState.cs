@@ -586,7 +586,8 @@ namespace Opc.Ua
 
                 if (transitionId == 0)
                 {
-                    return StatusCodes.BadNotSupported;
+                    // assign the result so the audit event reports the failure (Part 5 6.4.3).
+                    return result = StatusCodes.BadNotSupported;
                 }
 
                 // check access rights.
@@ -620,6 +621,15 @@ namespace Opc.Ua
                 // report any changes to state machine.
                 ClearChangeMasks(context, true);
             }
+            catch (Exception ex)
+            {
+                // a failed transition must not be audited as successful.
+                result = ServiceResult.Create(
+                    ex,
+                    StatusCodes.BadUnexpectedError,
+                    "Unexpected error processing a state machine cause.");
+                throw;
+            }
             finally
             {
                 // report the event.
@@ -629,7 +639,8 @@ namespace Opc.Ua
                     UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
                     ReportEvent(context, e);
 
-                    if (m_causeId != causeId)
+                    // only a performed transition is reported as a program transition.
+                    if (m_causeId != causeId && ServiceResult.IsGood(result))
                     {
                         ReportAuditProgramTransitionEvent(
                             context,

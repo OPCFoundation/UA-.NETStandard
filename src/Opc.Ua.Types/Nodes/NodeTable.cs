@@ -308,6 +308,21 @@ namespace Opc.Ua
 
                 Node node = nodeSet.Copy(nodeToImport, NamespaceUris, ServerUris);
 
+                // replace any existing node (as Attach does), so a duplicate NodeId cannot
+                // throw midway through the import and leave the table half-imported.
+                List<IReference>? keptReferences = null;
+
+                if (Exists(node.NodeId))
+                {
+                    // Remove also strips the neighbours' references to the node; keep the
+                    // links the neighbours hold so they are mirrored again below. The table
+                    // does not record which side declared a link, so the ones the old copy
+                    // declared itself are kept as well.
+                    keptReferences = GetMirroredReferences(node.NodeId);
+                    Remove(node.NodeId);
+                    importedNodes.RemoveAll(imported => imported.NodeId == node.NodeId);
+                }
+
                 // assign a browse name.
                 if (node.BrowseName.IsNull)
                 {
@@ -352,6 +367,15 @@ namespace Opc.Ua
                         }
 
                         remoteNode.AddRef();
+                    }
+                }
+
+                if (keptReferences != null)
+                {
+                    foreach (IReference reference in keptReferences)
+                    {
+                        node.ReferenceTable
+                            .Add(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
                     }
                 }
 
@@ -428,6 +452,41 @@ namespace Opc.Ua
             }
 
             return importedNodes;
+        }
+
+        /// <summary>
+        /// Returns the references of a local node that the local target node mirrors,
+        /// i.e. the links that removing the node also removes from its neighbours.
+        /// </summary>
+        private List<IReference> GetMirroredReferences(NodeId nodeId)
+        {
+            var references = new List<IReference>();
+
+            if (Find(nodeId) is not ILocalNode source)
+            {
+                return references;
+            }
+
+            foreach (IReference reference in source.References)
+            {
+                if (reference.TargetId == nodeId ||
+                    InternalFind(reference.TargetId) is not ILocalNode target)
+                {
+                    continue;
+                }
+
+                if (target.References.Exists(
+                    reference.ReferenceTypeId,
+                    !reference.IsInverse,
+                    nodeId,
+                    false,
+                    null))
+                {
+                    references.Add(reference);
+                }
+            }
+
+            return references;
         }
 
         /// <summary>

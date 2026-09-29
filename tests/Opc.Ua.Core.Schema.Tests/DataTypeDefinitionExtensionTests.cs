@@ -159,6 +159,68 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        /// <summary>
+        /// S1-16: a dictionary that failed validation is not normalized; malformed entries
+        /// are reported as unsupported instead of throwing NullReference/ArgumentOutOfRange.
+        /// </summary>
+        [Test]
+        public void ToStructureDefinitionToleratesUnnormalizedEntries()
+        {
+            var empty = new Schema.Binary.StructuredType
+            {
+                Name = "Empty",
+                QName = CustomQName("Empty"),
+                Field = null
+            };
+
+            StructureDefinition definition = empty.ToStructureDefinition(
+                ExpandedNodeId.Null,
+                [],
+                new NamespaceTable(),
+                new NodeId(7102, SchemaTestData.TestNamespaceIndex));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(definition.Fields.Count, Is.Zero);
+                Assert.That(
+                    () => UnsupportedStructure(new Schema.Binary.FieldType { Name = "NoType" }),
+                    Throws.TypeOf<DataTypeNotSupportedException>());
+                Assert.That(
+                    () => UnsupportedStructure(
+                        Field("Values", "UInt16", Namespaces.OpcUa, lengthField: "Length")),
+                    Throws.TypeOf<DataTypeNotSupportedException>());
+            });
+        }
+
+        /// <summary>
+        /// A4-6: an unnamed field of an unvalidated dictionary makes only its structure
+        /// unsupported; it must not convert and then fail later in the type builder.
+        /// </summary>
+        [Test]
+        public void ToStructureDefinitionRejectsUnnamedFields()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => UnsupportedStructure(
+                        new Schema.Binary.FieldType { TypeName = new XmlQualifiedName("Int32", Namespaces.OpcUa) }),
+                    Throws.TypeOf<DataTypeNotSupportedException>());
+                Assert.That(
+                    () => UnsupportedStructure(
+                        Field(string.Empty, "Int32", Namespaces.OpcUa)),
+                    Throws.TypeOf<DataTypeNotSupportedException>());
+                Assert.That(
+                    () => UnsupportedStructure(
+                        new Schema.Binary.FieldType
+                        {
+                            TypeName = new XmlQualifiedName("Bit", Namespaces.OpcBinarySchema),
+                            Length = 32
+                        },
+                        Field("Value", "Int32", Namespaces.OpcUa)),
+                    Throws.TypeOf<DataTypeNotSupportedException>());
+            });
+        }
+
         [Test]
         public void ToEnumDefinitionMapsBinarySchemaValuesAndFallbackNames()
         {

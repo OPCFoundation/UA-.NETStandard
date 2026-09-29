@@ -322,12 +322,18 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
+            if (Text == null && string.IsNullOrEmpty(Locale))
+            {
+                // Equals LocalizedText.Null, so hash like a null variant.
+                return 0;
+            }
             var hash = new HashCode();
             if (Text != null)
             {
                 hash.Add(Text);
             }
-            if (Locale != null)
+            // Equals treats a null and an empty locale alike.
+            if (!string.IsNullOrEmpty(Locale))
             {
                 hash.Add(Locale);
             }
@@ -687,7 +693,9 @@ namespace Opc.Ua
             // TODO: Match case insensitive
 
             // Handle if mul or qst are requested as per Part 4 rules
-            if (preferredLocales[0].ToLowerInvariant() is kMulLocale or kQstLocale)
+            // A null or empty locale id means "unknown" (Part 3 8.4) and is
+            // skipped below.
+            if (preferredLocales[0]?.ToLowerInvariant() is kMulLocale or kQstLocale)
             {
                 // If there are no further entries, return all languages available.
                 // If there are more languages included after ‘mul’ or ‘qst’, return
@@ -697,9 +705,11 @@ namespace Opc.Ua
                     var filtered = new Dictionary<string, string>();
                     for (int i = 1; i < preferredLocales.Count; i++)
                     {
-                        if (Translations.TryGetValue(preferredLocales[i], out string? t))
+                        string requested = preferredLocales[i];
+                        if (!string.IsNullOrEmpty(requested) &&
+                            Translations.TryGetValue(requested, out string? t))
                         {
-                            filtered.Add(preferredLocales[i], t);
+                            filtered[requested] = t;
                         }
                     }
                     if (filtered.Count > 0)
@@ -719,7 +729,8 @@ namespace Opc.Ua
             // Try to find the first matching locale and then return a formatted text or the raw text
             foreach (string locale in preferredLocales)
             {
-                if (Translations.TryGetValue(locale, out string? text))
+                if (!string.IsNullOrEmpty(locale) &&
+                    Translations.TryGetValue(locale, out string? text))
                 {
                     return new LocalizedText(locale, text, this);
                 }
@@ -728,6 +739,10 @@ namespace Opc.Ua
             // Match language only e.g. en matches en-US and en-GB
             foreach (string locale in preferredLocales)
             {
+                if (string.IsNullOrEmpty(locale))
+                {
+                    continue;
+                }
                 string language = locale.Split('-')[0];
                 foreach (KeyValuePair<string, string> kvp in Translations)
                 {
@@ -856,6 +871,13 @@ namespace Opc.Ua
                 ILogger logger = AmbientMessageContext.Telemetry.CreateLogger<LocalizedText>();
                 logger.FailedToParseMultiLocaleJson(encodedText);
                 return null; // Return null if parsing fails
+            }
+
+            // valid json without any usable locale/text pair is not a
+            // multi language text.
+            if (result.Count == 0)
+            {
+                return null;
             }
             return new ReadOnlyDictionary<string, string>(result);
         }

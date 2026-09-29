@@ -542,7 +542,11 @@ namespace Opc.Ua
             {
                 Span<byte> encoded = stackalloc byte[maxByteCount];
                 int count = Encoding.UTF8.GetBytes(value, encoded);
-                WriteByteString(null, encoded[..count]);
+
+                // A String is not a ByteString on the wire: write the length
+                // and bytes directly so MaxByteStringLength is not applied.
+                WriteInt32(null, count);
+                WriteBytes(encoded[..count]);
                 return;
             }
 #endif
@@ -556,7 +560,11 @@ namespace Opc.Ua
                     minByteCountPerBuffer,
                     maxByteCountPerBuffer);
                 long count = Encoding.UTF8.GetBytes(value.AsSpan(), bufferWriter);
-                WriteByteString(null, bufferWriter.GetReadOnlySequence());
+                WriteInt32(null, (int)count);
+                foreach (ReadOnlyMemory<byte> segment in bufferWriter.GetReadOnlySequence())
+                {
+                    WriteBytes(segment.Span);
+                }
                 return;
             }
 #endif
@@ -1026,7 +1034,10 @@ namespace Opc.Ua
 
                 // write a placeholder for the body length.
                 WriteInt32(null, -1);
-                encodeable.Encode(this);
+
+                // count the body against the nesting budget like the
+                // non-seekable path and BinaryDecoder.ReadExtensionObject.
+                WriteEncodeable(encodeable);
 
                 // update body length.
                 long delta = writer.BaseStream.Position - start;

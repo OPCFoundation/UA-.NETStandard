@@ -52,7 +52,7 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<XmlParser>();
             m_nestingLevel = 0;
 
-            m_document = new XmlDocument();
+            m_document = CreateDocument();
             using (var reader = XmlReader.Create(
                 new StringReader(xml),
                 CoreUtils.DefaultXmlReaderSettings()))
@@ -77,7 +77,7 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<XmlParser>();
             m_nestingLevel = 0;
 
-            m_document = new XmlDocument();
+            m_document = CreateDocument();
             using (var reader = XmlReader.Create(
                 stream,
                 CoreUtils.DefaultXmlReaderSettings()))
@@ -102,7 +102,7 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<XmlParser>();
             m_nestingLevel = 0;
 
-            m_document = new XmlDocument();
+            m_document = CreateDocument();
             using (var reader = XmlReader.Create(
                 new StringReader(element.OuterXml ?? string.Empty),
                 CoreUtils.DefaultXmlReaderSettings()))
@@ -127,7 +127,7 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<XmlParser>();
             m_nestingLevel = 0;
 
-            m_document = new XmlDocument();
+            m_document = CreateDocument();
             using (var reader = XmlReader.Create(
                 new StringReader(element.OuterXml ?? string.Empty),
                 CoreUtils.DefaultXmlReaderSettings()))
@@ -152,7 +152,7 @@ namespace Opc.Ua
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<XmlParser>();
             m_nestingLevel = 0;
-            m_document = new XmlDocument();
+            m_document = CreateDocument();
             using (var reader = XmlReader.Create(xml, CoreUtils.DefaultXmlReaderSettings()))
             {
                 m_document.Load(reader);
@@ -169,7 +169,7 @@ namespace Opc.Ua
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry.CreateLogger<XmlParser>();
             m_nestingLevel = 0;
-            m_document = new XmlDocument();
+            m_document = CreateDocument();
             using (var reader = XmlReader.Create(
                 new StringReader(xml),
                 CoreUtils.DefaultXmlReaderSettings()))
@@ -177,6 +177,15 @@ namespace Opc.Ua
                 m_document.Load(reader);
             }
             PushWithSystemType(systemType);
+        }
+
+        /// <summary>
+        /// Creates the DOM. Whitespace is preserved so that a String element
+        /// holding only whitespace keeps it (xs:string, Part 6 5.3.1.5).
+        /// </summary>
+        private static XmlDocument CreateDocument()
+        {
+            return new XmlDocument { PreserveWhitespace = true };
         }
 
         /// <summary>
@@ -201,7 +210,8 @@ namespace Opc.Ua
 
                 while (Peek(elementName))
                 {
-                    string namespaceUri = ReadString(elementName)!;
+                    // table entries are URIs (xs:anyURI collapses whitespace).
+                    string namespaceUri = ReadString(elementName)?.Trim()!;
                     stringTable.Append(namespaceUri);
                 }
 
@@ -583,20 +593,27 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public string? ReadString(string? fieldName)
         {
-            if (BeginField(fieldName, true, out bool isNil))
+            if (BeginField(fieldName, true, out bool isNil, out string? whitespace))
             {
+                // xs:string has whiteSpace=preserve (Part 6 5.3.1.5): do not trim.
                 string? value = SafeReadString();
-
-                if (value != null)
-                {
-                    value = value.Trim();
-                }
-
                 EndField(fieldName);
                 return value;
             }
 
-            return !isNil ? string.Empty : null;
+            if (isNil)
+            {
+                return null;
+            }
+
+            // an element holding only whitespace keeps it (Part 6 5.3.1.5).
+            if (whitespace != null)
+            {
+                EncodingLimits.CheckStringLength(Context.MaxStringLength, whitespace);
+                return whitespace;
+            }
+
+            return string.Empty;
         }
 
         /// <inheritdoc/>
@@ -731,7 +748,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? identifierText = ReadString("Identifier");
+                string? identifierText = XmlDecoder.TrimNodeIdText(ReadString("Identifier"));
                 PopNamespace();
 
                 NodeId value;
@@ -769,7 +786,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? identifierText = ReadString("Identifier");
+                string? identifierText = XmlDecoder.TrimNodeIdText(ReadString("Identifier"));
                 PopNamespace();
 
                 ExpandedNodeId value;
@@ -862,17 +879,7 @@ namespace Opc.Ua
                     EndField("NamespaceIndex");
                 }
 
-                string? name = null;
-
-                if (BeginField("Name", true, out bool isNil))
-                {
-                    name = ReadString(null);
-                    EndField("Name");
-                }
-                else if (!isNil)
-                {
-                    name = string.Empty;
-                }
+                string? name = ReadString("Name");
 
                 PopNamespace();
                 EndField(fieldName);
@@ -894,28 +901,8 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? text = null;
-                string? locale = null;
-
-                if (BeginField("Locale", true, out bool isNil))
-                {
-                    locale = ReadString(null);
-                    EndField("Locale");
-                }
-                else if (!isNil)
-                {
-                    locale = string.Empty;
-                }
-
-                if (BeginField("Text", true, out isNil))
-                {
-                    text = ReadString(null);
-                    EndField("Text");
-                }
-                else if (!isNil)
-                {
-                    text = string.Empty;
-                }
+                string? locale = ReadString("Locale");
+                string? text = ReadString("Text");
 
                 var value = new LocalizedText(locale ?? string.Empty, text ?? string.Empty);
 
@@ -2900,7 +2887,18 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private bool BeginField(string? fieldName, bool isOptional, out bool isNil)
         {
+            return BeginField(fieldName, isOptional, out isNil, out _);
+        }
+
+        /// <summary>
+        /// Reads the start of field using DOM navigation. The whitespace of an element
+        /// that holds nothing else is returned in <paramref name="whitespace"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool BeginField(string? fieldName, bool isOptional, out bool isNil, out string? whitespace)
+        {
             isNil = false;
+            whitespace = null;
             m_lastFieldWasEmpty = false;
 
             // allow caller to skip reading element tag if field name is not specified.
@@ -2958,6 +2956,10 @@ namespace Opc.Ua
             if (isNil || isEmpty)
             {
                 m_lastFieldWasEmpty = isEmpty && !isNil;
+                if (m_lastFieldWasEmpty && found.InnerText.Length > 0)
+                {
+                    whitespace = found.InnerText;
+                }
                 return false;
             }
 

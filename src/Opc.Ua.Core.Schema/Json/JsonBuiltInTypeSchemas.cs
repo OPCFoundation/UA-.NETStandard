@@ -89,15 +89,14 @@ namespace Opc.Ua.Schema.Json
                 case BuiltInType.XmlElement:
                     return new JsonObject { ["type"] = "string" };
                 case BuiltInType.Enumeration:
-                    return new JsonObject { ["type"] = "integer" };
+                    // Verbose enumerations are encoded as "Name_Value" strings.
+                    return verbose
+                        ? new JsonObject { ["type"] = new JsonArray("integer", "string") }
+                        : new JsonObject { ["type"] = "integer" };
                 case BuiltInType.StatusCode:
-                    return verbose
-                        ? StandardRef(BuiltInType.StatusCode, defs)
-                        : Integer(uint.MinValue, uint.MaxValue);
                 case BuiltInType.LocalizedText:
-                    return verbose
-                        ? new JsonObject { ["type"] = "string" }
-                        : StandardRef(BuiltInType.LocalizedText, defs);
+                    // Part 6 5.4.2.12/5.4.2.15: objects in both the compact and verbose flavor.
+                    return StandardRef(type, defs);
                 case BuiltInType.NodeId:
                 case BuiltInType.ExpandedNodeId:
                 case BuiltInType.QualifiedName:

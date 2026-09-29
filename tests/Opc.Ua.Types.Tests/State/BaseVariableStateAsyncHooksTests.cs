@@ -62,6 +62,9 @@ namespace Opc.Ua.Types.Tests.State
     [Parallelizable]
     public class BaseVariableStateAsyncHooksTests
     {
+        private static readonly int[] s_initialArray = [1, 2, 3, 4];
+        private static readonly int[] s_slice = [20, 30];
+        private static readonly int[] s_mergedArray = [1, 20, 30, 4];
         private ITelemetryContext m_telemetry;
         private ServiceMessageContext m_messageContext;
 
@@ -330,6 +333,83 @@ namespace Opc.Ua.Types.Tests.State
                 "Cache must NOT advance when the async hook reports a Bad status.");
         }
 
+        [Test]
+        public async Task WriteAttributeAsyncMergesIndexRangeSliceIntoCachedValue()
+        {
+            SystemContext ctx = CreateSystemContext();
+            var v = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("Arr", 0),
+                BrowseName = new QualifiedName("Arr", 0),
+                DisplayName = new LocalizedText("Arr"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                Value = Variant.From(s_initialArray)
+            };
+            NumericRange observedRange = NumericRange.Null;
+
+            v.OnWriteValueAsync = (c, n, range, value, ct) =>
+            {
+                observedRange = range;
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            var dv = new DataValue(
+                Variant.From(s_slice),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
+
+            ServiceResult result = await v.WriteAttributeAsync(
+                ctx, Attributes.Value, NumericRange.Parse("1:2"), dv).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(observedRange.IsNull, Is.False);
+            Assert.That(v.Value.GetInt32Array(), Is.EqualTo(s_mergedArray.ToArrayOf()),
+                "An index-range write must only replace the addressed elements of the cached value.");
+        }
+
+        [Test]
+        public async Task WriteAttributeAsyncReportsChangeWhenCacheCannotAbsorbIndexRangeSlice()
+        {
+            SystemContext ctx = CreateSystemContext();
+            var v = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("ArrNoCache", 0),
+                BrowseName = new QualifiedName("ArrNoCache", 0),
+                DisplayName = new LocalizedText("ArrNoCache"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite
+            };
+
+            // the handler owns the data; the cached value was never assigned.
+            v.OnWriteValueAsync = (c, n, range, value, ct) =>
+                new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(ServiceResult.Good));
+            v.ClearChangeMasks(ctx, false);
+
+            var sourceTimestamp = new DateTimeUtc(2024, 1, 2, 3, 4, 5);
+            var dv = new DataValue(
+                Variant.From(s_slice),
+                StatusCodes.Uncertain,
+                sourceTimestamp);
+
+            ServiceResult result = await v.WriteAttributeAsync(
+                ctx, Attributes.Value, NumericRange.Parse("1:2"), dv).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(v.Value.IsNull, Is.True,
+                "The slice must not be stored as the whole value.");
+            Assert.That(v.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value),
+                "A successful handler write must still raise a value change.");
+            Assert.That(v.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(v.Timestamp, Is.EqualTo(sourceTimestamp));
+        }
+
         // -----------------------------------------------------------------
         // OnSimpleWriteValueAsync
         // -----------------------------------------------------------------
@@ -372,8 +452,32 @@ namespace Opc.Ua.Types.Tests.State
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, range, dv).ConfigureAwait(false);
 
-            Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadIndexRangeInvalid),
+            Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadWriteNotSupported),
                 "The simple async write hook does not support index-range writes.");
+        }
+
+        [Test]
+        public void WriteAttributeRejectsIndexRangeOnSimpleSyncHandler()
+        {
+            // Part 4 5.11.4.4: Bad_WriteNotSupported "is also used if writing of
+            // IndexRanges is not supported for a Node".
+            SystemContext ctx = CreateSystemContext();
+            BaseDataVariableState v = CreateReadableVariable();
+            bool called = false;
+            v.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref Variant _) =>
+            {
+                called = true;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = v.WriteAttribute(
+                ctx,
+                Attributes.Value,
+                NumericRange.Parse("0:3"),
+                new DataValue(new Variant(11.0)));
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
+            Assert.That(called, Is.False);
         }
 
         // -----------------------------------------------------------------

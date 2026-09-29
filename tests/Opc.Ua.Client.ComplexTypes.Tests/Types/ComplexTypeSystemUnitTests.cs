@@ -333,6 +333,62 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <summary>
+        /// A4-6: a structure definition with an empty field name is skipped as unsupported
+        /// without failing the other structures.
+        /// </summary>
+        [Test]
+        public async Task LoadAsyncSkipsStructureWithUnnamedFieldAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            MockResolver mockResolver = CreateCarTypeResolver(
+                out DataTypeNode carNode,
+                out _);
+            ushort namespaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(
+                Namespaces.MockResolverUrl);
+            uint nodeId = 7200;
+
+            var unnamedDefinition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields =
+                [
+                    new StructureField
+                    {
+                        Name = string.Empty,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
+            };
+            var unnamedNode = new DataTypeNode
+            {
+                NodeId = new NodeId(nodeId++, namespaceIndex),
+                NodeClass = NodeClass.DataType,
+                BrowseName = new QualifiedName("UnnamedFieldType", namespaceIndex),
+                DisplayName = LocalizedText.From("UnnamedFieldType"),
+                IsAbstract = false,
+                DataTypeDefinition = new ExtensionObject(unnamedDefinition)
+            };
+            AddEncodingNodes(mockResolver, unnamedNode, namespaceIndex, ref nodeId);
+            mockResolver.DataTypeNodes[unnamedNode.NodeId] = unnamedNode;
+
+            var factory = new DefaultComplexTypeFactory();
+            var typeSystem = new ComplexTypeSystem(mockResolver, factory, telemetry);
+            await typeSystem.LoadAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    typeSystem.GetDefinedDataTypeIds(),
+                    Is.EqualTo([NodeId.ToExpandedNodeId(carNode.NodeId, mockResolver.NamespaceUris)]));
+                Assert.That(
+                    typeSystem.GetDataTypeDefinitionsForDataType(unnamedNode.NodeId),
+                    Is.Empty);
+            });
+        }
+
+        /// <summary>
         /// A freshly created default complex type factory exposes no types.
         /// </summary>
         [Test]

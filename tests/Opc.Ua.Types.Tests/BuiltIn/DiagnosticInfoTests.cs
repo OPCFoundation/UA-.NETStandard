@@ -68,6 +68,22 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EqualsIsSymmetricForAllDefaultInnerDiagnosticInfo()
+        {
+            var withInner = new DiagnosticInfo { InnerDiagnosticInfo = new DiagnosticInfo() };
+            var withoutInner = new DiagnosticInfo();
+
+            bool forward = withInner.Equals(withoutInner);
+            bool backward = withoutInner.Equals(withInner);
+
+            Assert.That(forward, Is.EqualTo(backward));
+            if (forward)
+            {
+                Assert.That(withInner.GetHashCode(), Is.EqualTo(withoutInner.GetHashCode()));
+            }
+        }
+
+        [Test]
         public void CopyConstructorWithNullThrowsArgumentNullException()
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
@@ -525,6 +541,28 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Should return true because at depth 5, comparison is truncated
             Assert.That(di1, Is.EqualTo(di2));
+        }
+
+        [Test]
+        public void EqualsIsSymmetricWhenOnlyOneSideGoesBeyondMaxDepth()
+        {
+            // A1-7: a chain deeper than MaxInnerDepth and its truncated copy
+            // must compare equal in both directions (they hash alike).
+            var deep = new DiagnosticInfo(7, 0, 0, 0, null);
+            for (int i = 0; i <= DiagnosticInfo.MaxInnerDepth; i++)
+            {
+                deep = new DiagnosticInfo(1, 2, 3, 4, null) { InnerDiagnosticInfo = deep };
+            }
+            var truncated = new DiagnosticInfo(deep);
+            bool forward = deep.Equals(truncated);
+            bool backward = truncated.Equals(deep);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(forward, Is.True);
+                Assert.That(backward, Is.True);
+                Assert.That(deep.GetHashCode(), Is.EqualTo(truncated.GetHashCode()));
+            });
         }
 
         [Test]

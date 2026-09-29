@@ -4954,7 +4954,8 @@ namespace Opc.Ua.Server
                                     continue;
                                 }
                             }
-                            else
+                            // a null value has nothing to check (GetDouble would yield 0.0).
+                            else if (!doubleVariant.IsNull)
                             {
                                 double newValue = doubleVariant.GetDouble();
                                 if (newValue > analogItemState.InstrumentRange.Value.High ||

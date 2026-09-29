@@ -127,7 +127,10 @@ namespace Opc.Ua
                     var buffer = new ExtensionObject[encodeables.Length];
                     for (int ii = 0; ii < buffer.Length; ii++)
                     {
-                        buffer[ii] = Encode(context, encodeables[ii], useXml);
+                        // null elements are valid and stay null.
+                        buffer[ii] = encodeables[ii] == null
+                            ? ExtensionObject.Null
+                            : Encode(context, encodeables[ii], useXml);
                     }
 
                     value = buffer.ToArrayOf();

@@ -163,6 +163,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void GetHashCodeEqualObjectsReturnSameHash()
+        {
+            EnumDefinition def1 = CreatePopulatedDefinition();
+            EnumDefinition def2 = CreatePopulatedDefinition();
+
+            Assert.That(def1.GetHashCode(), Is.EqualTo(def2.GetHashCode()));
+        }
+
+        [Test]
         public void IsEqualDifferentFieldsReturnsFalse()
         {
             EnumDefinition def1 = CreatePopulatedDefinition();

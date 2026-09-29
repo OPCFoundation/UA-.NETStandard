@@ -63,8 +63,8 @@ namespace Opc.Ua.PubSub.Security
         int EncryptingKeyLength { get; }
 
         /// <summary>
-        /// Length, in bytes, of the per-message nonce required by
-        /// the encryption primitive.
+        /// Length, in bytes, of the per-message nonce carried in the
+        /// SecurityHeader (8 for AES-CTR, Part 14 Table 157).
         /// </summary>
         int NonceLength { get; }
 
@@ -109,7 +109,11 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="plaintext">Plain bytes.</param>
         /// <param name="encryptingKey">Encrypting key.</param>
-        /// <param name="nonce">Per-message nonce.</param>
+        /// <param name="nonce">
+        /// Counter block prefix <c>KeyNonce || MessageNonce</c> (Part 14
+        /// Table 157): the key's KeyNonce followed by the SecurityHeader
+        /// nonce.
+        /// </param>
         /// <param name="ciphertext">
         /// Destination buffer; must be at least
         /// <c>plaintext.Length</c> bytes long (CTR mode preserves
@@ -127,7 +131,11 @@ namespace Opc.Ua.PubSub.Security
         /// </summary>
         /// <param name="ciphertext">Cipher bytes.</param>
         /// <param name="encryptingKey">Encrypting key.</param>
-        /// <param name="nonce">Per-message nonce.</param>
+        /// <param name="nonce">
+        /// Counter block prefix <c>KeyNonce || MessageNonce</c> (Part 14
+        /// Table 157): the key's KeyNonce followed by the SecurityHeader
+        /// nonce.
+        /// </param>
         /// <param name="plaintext">
         /// Destination buffer; must be at least
         /// <c>ciphertext.Length</c> bytes long.

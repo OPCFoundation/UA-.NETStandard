@@ -436,8 +436,11 @@ namespace Opc.Ua
                 // check the length.
                 EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
 
-                // A whitespace only string is still a value - writing nothing
-                // would turn it into an empty string on the wire.
+                // Write whitespace only strings verbatim (xs:string preserves
+                // whitespace, Part 6 5.3.1.5); XmlDecoder/XmlParser read them
+                // back unchanged. Only NodeSet/design importers opt in to read
+                // such an element as "" (XmlDecoder.TreatWhitespaceOnlyStringsAsEmpty)
+                // because pretty-printed NodeSets use it for empty values.
                 if (!string.IsNullOrEmpty(value))
                 {
                     m_writer.WriteString(value);
@@ -2025,7 +2028,19 @@ namespace Opc.Ua
                     // encode extension object in xml.
                     XmlQualifiedName? xmlName = TypeInfo.GetXmlName(encodeable, Context);
                     m_writer.WriteStartElement(xmlName!.Name, xmlName.Namespace);
-                    encodeable!.Encode(this);
+
+                    // count the body against the nesting budget like
+                    // XmlDecoder.ReadExtensionObject does.
+                    CheckAndIncrementNestingLevel();
+                    try
+                    {
+                        encodeable!.Encode(this);
+                    }
+                    finally
+                    {
+                        m_nestingLevel--;
+                    }
+
                     m_writer.WriteEndElement();
                 }
                 else

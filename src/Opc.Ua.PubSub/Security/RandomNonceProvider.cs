@@ -54,11 +54,11 @@ namespace Opc.Ua.PubSub.Security
     {
         /// <summary>
         /// Default maximum number of messages emitted under a single
-        /// key before a rollover is forced. Comfortably below the
-        /// 2^64 sequence space and the AES block-count guidance while
-        /// remaining generous for high-rate publishers.
+        /// key before a rollover is forced: the full UInt32
+        /// <c>SequenceNumber</c> space of Part 14 Table 156, which starts
+        /// at 1 for every key.
         /// </summary>
-        public const ulong DefaultMaxMessagesPerKey = 1UL << 48;
+        public const ulong DefaultMaxMessagesPerKey = uint.MaxValue;
 
         private readonly Lock m_lock = new();
         private readonly RandomNumberGenerator m_rng;
@@ -81,7 +81,8 @@ namespace Opc.Ua.PubSub.Security
         /// key. <see cref="GetNext"/> throws once the cap is reached so
         /// the publisher forces a key rollover before the per-key
         /// counter could repeat a nonce. Defaults to
-        /// <see cref="DefaultMaxMessagesPerKey"/>.
+        /// <see cref="DefaultMaxMessagesPerKey"/>; larger values are
+        /// limited to it because the sequence number is a UInt32.
         /// </param>
         public RandomNonceProvider(
             in PublisherId publisherId,
@@ -96,7 +97,7 @@ namespace Opc.Ua.PubSub.Security
                     "The per-key message cap must be positive.");
             }
             PublisherIdLow64 = AesCtrNonceLayout.ToLow64(publisherId);
-            MaxMessagesPerKey = maxMessagesPerKey;
+            MaxMessagesPerKey = Math.Min(maxMessagesPerKey, DefaultMaxMessagesPerKey);
             m_rng = RandomNumberGenerator.Create();
         }
 
@@ -145,8 +146,10 @@ namespace Opc.Ua.PubSub.Security
                         "; a key rollover is required before sending further messages.");
                 }
 
-                ulong sequenceNumber = m_messageCount;
+                // Part 14 Table 156: the SequenceNumber is reset to 1
+                // after the key and SecurityTokenId are updated.
                 m_messageCount++;
+                ulong sequenceNumber = m_messageCount;
 
                 Span<byte> messageRandom = stackalloc byte[AesCtrNonceLayout.MessageRandomLength];
 #if NET6_0_OR_GREATER

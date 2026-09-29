@@ -147,6 +147,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Assert.That(enumDescription!.TypeId.InnerNodeId, Is.EqualTo(enumNode.NodeId));
                 Assert.That(enumDescription.BrowseName, Is.EqualTo(enumNode.BrowseName));
                 Assert.That(enumDescription.Definition, Is.SameAs(enumDefinition));
+                Assert.That(enumDescription.IsStructureOptionSet, Is.False);
                 Assert.That(schemaResolved, Is.True);
                 Assert.That(schema, Is.Not.Null);
                 Assert.That(schema!.ToSchemaString(), Does.Contain("VehicleType"));

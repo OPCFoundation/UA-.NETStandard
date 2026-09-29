@@ -2872,7 +2872,11 @@ namespace Opc.Ua.Schema.Model
             messageContext.NamespaceUris = mapNamespaces ? m_settings.NamespaceUris : namespaceUris;
             messageContext.ServerUris = m_serverUris;
 
-            var decoder = new XmlDecoder((XmlElement)source, messageContext);
+            var decoder = new XmlDecoder((XmlElement)source, messageContext)
+            {
+                // pretty-printed NodeSets write empty strings as layout whitespace.
+                TreatWhitespaceOnlyStringsAsEmpty = true
+            };
 
             var serverUris = new StringTable();
 

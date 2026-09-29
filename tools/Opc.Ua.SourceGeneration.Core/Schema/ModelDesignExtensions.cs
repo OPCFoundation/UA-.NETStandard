@@ -1606,7 +1606,11 @@ namespace Opc.Ua.Schema.Model
                 //   <uax:Boolean>true</uax:Boolean>
                 // </opc:DefaultValue >
 
-                using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
+                // hand-written designs may write empty strings as layout whitespace.
+                using var decoder = new XmlDecoder((XmlElement)defaultValue, context)
+                {
+                    TreatWhitespaceOnlyStringsAsEmpty = true
+                };
                 Variant variant = decoder.ReadVariantValue(null, default);
                 decodedValueType = variant.TypeInfo;
                 decodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
