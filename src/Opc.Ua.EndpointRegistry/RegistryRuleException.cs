@@ -37,7 +37,7 @@ namespace Opc.Ua.EndpointRegistry
     /// <summary>
     /// Exception raised by the Endpoint Registry semantic and structural validation rules.
     /// </summary>
-    public sealed class RegistryRuleException : ServiceResultException
+    public sealed class RegistryRuleException : ServiceResultException, IRegistryDiagnosticSource
     {
         /// <summary>
         /// Creates a rule exception with the normative diagnostic code and path.
