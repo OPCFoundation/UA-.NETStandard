@@ -808,6 +808,38 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task AddProductConfiguresOutsideThePresetLockAsync()
+        {
+            ScaleHandle scale = await CreateAsync(
+                ScaleKind.Simple,
+                extra: b => b.WithProductionPreset(p => p
+                    .AllowManagement()
+                    .AddProduct("P1", new LocalizedText("A")))).ConfigureAwait(false);
+            ScaleRuntimeServices services = scale.Services;
+            var preset = new ScaleProductionPreset(
+                services,
+                scale.Scale.ProductionPreset!,
+                services.ScalesId(ScalesModel.ProductTypeOf(ScaleKind.Simple)),
+                () => default);
+
+            // The configure delegate is application code; one that waits for
+            // another thread reading the preset must not deadlock against it.
+            bool blocked = false;
+            ProductState product = preset.AddProduct(
+                "P2",
+                new LocalizedText("B"),
+                created =>
+                {
+                    var probe = new Thread(() => _ = preset.Products.Count) { IsBackground = true };
+                    probe.Start();
+                    blocked = !probe.Join(TimeSpan.FromSeconds(10));
+                });
+
+            Assert.That(blocked, Is.False, "a reader on another thread waited for the configure delegate");
+            Assert.That(preset.Find("P2"), Is.SameAs(product));
+        }
+
+        [Test]
         public async Task VehicleInformationCallsDoNotInterleaveAsync()
         {
             ScaleHandle scale = await CreateAsync(

@@ -164,6 +164,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <c>AddProduct</c> is called with. It receives the requested type,
         /// the <c>Products</c> folder and the browse name, and returns the new
         /// instance or <see langword="null"/> when it does not know the type.
+        /// It runs outside the preset's lock, before the product is published.
         /// </summary>
         public Func<NodeId, NodeState, QualifiedName, ProductState?>? ProductFactory { get; set; }
 
@@ -236,7 +237,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         /// <param name="productId">The unique product id.</param>
         /// <param name="productName">The product name.</param>
-        /// <param name="configure">Configures the product before it is published.</param>
+        /// <param name="configure">
+        /// Configures the product before it is published; runs outside the
+        /// preset's lock.
+        /// </param>
         /// <returns>The new product.</returns>
         /// <exception cref="ServiceResultException">The product cannot be added.</exception>
         public ProductState AddProduct(
@@ -357,7 +361,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             bool lockForCaller,
             out ServiceResult result)
         {
-            ProductState? product = null;
+            NodeState? products;
             lock (m_lock)
             {
                 if (string.IsNullOrEmpty(productId))
@@ -365,7 +369,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     result = ServiceResult.Create(StatusCodes.BadInvalidArgument, "A product id is required.");
                     return null!;
                 }
-                if (m_products.ContainsKey(productId))
+                if (m_products.ContainsKey(productId) || m_adding.Contains(productId))
                 {
                     result = ServiceResult.Create(
                         StatusCodes.BadNodeIdExists,
@@ -395,7 +399,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                         productType);
                     return null!;
                 }
-                if (Preset.Products == null)
+                products = Preset.Products;
+                if (products == null)
                 {
                     result = ServiceResult.Create(
                         StatusCodes.BadInvalidState,
@@ -403,8 +408,20 @@ namespace Opc.Ua.Scales.Server.Runtime
                     return null!;
                 }
 
+                // The id stays reserved while the product is built, so a
+                // concurrent AddProduct of the same id is refused.
+                m_adding.Add(productId);
+            }
+
+            ProductState? product;
+            try
+            {
+                // The product factory and the configure delegate are
+                // application code, so they run outside the lock: one that
+                // reaches the preset from another thread must not deadlock
+                // against it. The product is not published yet.
                 QualifiedName browseName = m_services.InstanceName(productId);
-                product = CreateProduct(productType, Preset.Products, browseName);
+                product = CreateProduct(productType, products, browseName);
                 if (product == null)
                 {
                     result = ServiceResult.Create(
@@ -424,8 +441,19 @@ namespace Opc.Ua.Scales.Server.Runtime
                     selectable: Preset.SelectProduct != null || Preset.CurrentProducts != null,
                     lockable: Lockable && m_services.LockService != null);
                 configure?.Invoke(product);
-                Preset.Products.AddChild(product);
-                m_products[productId] = product;
+
+                lock (m_lock)
+                {
+                    products.AddChild(product);
+                    m_products[productId] = product;
+                }
+            }
+            finally
+            {
+                lock (m_lock)
+                {
+                    m_adding.Remove(productId);
+                }
             }
 
             // Registered outside the lock: registration takes the node
@@ -1059,6 +1087,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly Func<ArrayOf<EUInformation>> m_allowedUnits;
         private readonly Dictionary<string, ProductState> m_products = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_removing = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_adding = new(StringComparer.Ordinal);
         private readonly List<string> m_current = [];
         private readonly Lock m_lock = new();
         private ArrayOf<string> m_currentProducts = [];
