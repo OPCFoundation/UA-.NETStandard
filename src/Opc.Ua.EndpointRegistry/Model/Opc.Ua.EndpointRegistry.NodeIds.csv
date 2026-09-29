@@ -447,3 +447,7 @@ NamespaceMetadata_NamespaceUri,69292,Variable
 NamespaceMetadata_NamespaceVersion,69293,Variable
 NamespaceMetadata_NamespacePublicationDate,69294,Variable
 NamespaceMetadata_IsNamespaceSubset,69295,Variable
+EndpointRegistry_RegistryId,69296,Variable
+EndpointRegistry_Snapshot,69297,Variable
+MediaEndpointRegistry_RegistryId,69298,Variable
+MediaEndpointRegistry_Snapshot,69299,Variable

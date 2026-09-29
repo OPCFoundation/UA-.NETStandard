@@ -1,6 +1,6 @@
 {
   "repository": "OPCF-Members/OPC30450-CloudInitiative",
-  "commit": "17f28faaf072fe6a61c0de775fdb6db683bf56ec",
+  "commit": "79e3ca0c1783685a78cea920cc204818ac78228b",
   "uncommittedSource": false,
   "uncommittedPaths": [],
   "catalogSha256": "fe8fee2d8d57cf0a131d4fd5ac29b10d1490d065b44d12fed467317e6a4b98a8",
@@ -21,9 +21,9 @@
     "spec:extras/schema-registry/tools/schema_native_ipc_types.py": "b553ac257c1b0d965c99c83378029b67362ae49a84ba318678d0a150717b6142",
     "spec:extras/schema-registry/tools/schema_native_types.py": "fdb4ff1c2922fe90f0a4bf165be55ef1e94217dadf12cc95fda8abbb15943226",
     "spec:extras/endpoint-registry/models/native-field-coverage.json": "0270d170d1acf115a69430e44df98845c91caa13e0807a49a71a2faa73c92ff9",
-    "spec:model/Opc.Ua.EndpointRegistry.NodeSet2.xml": "c3615739a80bc3c46cad7bde9281f2d476a76f0ce0330850d8fc46a6ce228dff",
-    "stack:src/Opc.Ua.EndpointRegistry/Model/Opc.Ua.EndpointRegistry.NodeSet2.xml": "c3615739a80bc3c46cad7bde9281f2d476a76f0ce0330850d8fc46a6ce228dff",
-    "stack:src/Opc.Ua.EndpointRegistry/Model/Opc.Ua.EndpointRegistry.NodeIds.csv": "23f8f744d27311b3a2673788f20049443fe95dd014fec4488f7ef244cefb123f"
+    "spec:model/Opc.Ua.EndpointRegistry.NodeSet2.xml": "889deb46b963edecaf5580dabd3a8ed50500faf0c91d4dbf53ccdb173561cff2",
+    "stack:src/Opc.Ua.EndpointRegistry/Model/Opc.Ua.EndpointRegistry.NodeSet2.xml": "889deb46b963edecaf5580dabd3a8ed50500faf0c91d4dbf53ccdb173561cff2",
+    "stack:src/Opc.Ua.EndpointRegistry/Model/Opc.Ua.EndpointRegistry.NodeIds.csv": "dab1c113746d3799b103af55e6c872787c7f9e162a5bc2f2a3afb7e0f2ba66b5"
   },
   "outputs": [
     "src/Opc.Ua.EndpointRegistry/EndpointRegistryNativeCatalog.g.cs",

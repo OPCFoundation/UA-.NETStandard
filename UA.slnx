@@ -135,6 +135,7 @@
     <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.Gds/Opc.Ua.Gds.csproj" />
     <Project Path="src/Opc.Ua.EndpointRegistry/Opc.Ua.EndpointRegistry.csproj" />
+    <Project Path="src/Opc.Ua.EndpointRegistry.Server/Opc.Ua.EndpointRegistry.Server.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Client/Opc.Ua.ISA95.Client.csproj" />
@@ -306,6 +307,7 @@
     <Project Path="tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
     <Project Path="tests/Opc.Ua.EndpointRegistry.Tests/Opc.Ua.EndpointRegistry.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.EndpointRegistry.Server.Tests/Opc.Ua.EndpointRegistry.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Intent.Tests/Opc.Ua.Robotics.Intent.Tests.csproj" />

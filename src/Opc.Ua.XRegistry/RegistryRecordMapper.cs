@@ -168,6 +168,29 @@ namespace Opc.Ua.XRegistry
             return document;
         }
 
+        /// <summary>
+        /// Returns the canonical form of a record built by application code: fields listed in
+        /// PresentFields keep their values, every unlisted field receives its canonical unused value
+        /// (generated constructors pre-initialize Structure fields), and field subtypes are selected
+        /// from the authored selectors. Presence is never inferred from a value.
+        /// </summary>
+        /// <exception cref="RegistryRecordMappingException">A present value is invalid.</exception>
+        public RegistryRecordDataType Canonicalize(RegistryRecordDataType record)
+        {
+            if (record is null)
+            {
+                throw new ArgumentNullException(nameof(record));
+            }
+            var operation = new Operation { IgnoreAbsentValues = true };
+            RegistryNativeTypeDescriptor type = Resolve(record, operation);
+            if (!Catalog.IsSubtype(type.Name, RegistryNativeCatalog.RecordType))
+            {
+                throw operation.Fail(StatusCodes.BadNotSupported, "A native record is required: " + type.Name);
+            }
+            RegistryValueDataType document = RestoreRecord(record, type, 0, operation);
+            return (RegistryRecordDataType)ProjectRecord(document, type, 0, new Operation());
+        }
+
         private IEncodeable ProjectRecord(
             RegistryValueDataType value,
             RegistryNativeTypeDescriptor type,
@@ -486,7 +509,7 @@ namespace Opc.Ua.XRegistry
                     }
                     if (!present.Contains(field.Name))
                     {
-                        if (!IsUnused(native[index], field))
+                        if (!operation.IgnoreAbsentValues && !IsUnused(native[index], field))
                         {
                             throw operation.Invalid("An absent field carries a noncanonical value: " + field.Name);
                         }
@@ -546,7 +569,7 @@ namespace Opc.Ua.XRegistry
             for (int index = 0; index < fields.Count; index++)
             {
                 if (index != present && index != additional && index != holder &&
-                    !IsUnused(native[index], fields[index]))
+                    !operation.IgnoreAbsentValues && !IsUnused(native[index], fields[index]))
                 {
                     throw operation.Invalid("An absent field carries a noncanonical value: " + fields[index].Name);
                 }
@@ -1304,6 +1327,11 @@ namespace Opc.Ua.XRegistry
         private sealed class Operation
         {
             public int Records { get; set; }
+
+            /// <summary>
+            /// Ignores the values of absent fields instead of requiring canonical unused values.
+            /// </summary>
+            public bool IgnoreAbsentValues { get; init; }
 
             public List<string> Path { get; } = [];
 

@@ -635,6 +635,8 @@
       <Reference ReferenceType="i=46">ns=3;i=69032</Reference>
       <Reference ReferenceType="i=47">ns=3;i=69033</Reference>
       <Reference ReferenceType="i=47">ns=3;i=69035</Reference>
+      <Reference ReferenceType="i=46">ns=3;i=69296</Reference>
+      <Reference ReferenceType="i=46">ns=3;i=69297</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="ns=3;i=69031" BrowseName="1:TypedAccess" ParentNodeId="ns=3;i=64100">
@@ -702,6 +704,8 @@
       <Reference ReferenceType="i=47">ns=3;i=69037</Reference>
       <Reference ReferenceType="i=46">ns=3;i=69038</Reference>
       <Reference ReferenceType="i=47">ns=3;i=69039</Reference>
+      <Reference ReferenceType="i=46">ns=3;i=69298</Reference>
+      <Reference ReferenceType="i=46">ns=3;i=69299</Reference>
     </References>
   </UAObject>
   <UAObject NodeId="ns=3;i=69037" BrowseName="1:TypedAccess" ParentNodeId="ns=3;i=64101">
@@ -5500,5 +5504,37 @@
     <Value>
       <uax:Boolean>false</uax:Boolean>
     </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=3;i=69296" BrowseName="1:RegistryId" DataType="i=12" ValueRank="-1" AccessLevel="1" UserAccessLevel="1" ParentNodeId="ns=3;i=64100">
+    <DisplayName>RegistryId</DisplayName>
+    <Description>Server-assigned identifier of this registry instance.</Description>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=3;i=64100</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=3;i=69297" BrowseName="3:Snapshot" DataType="ns=1;i=67015" ValueRank="-1" AccessLevel="1" UserAccessLevel="1" ParentNodeId="ns=3;i=64100">
+    <DisplayName>Snapshot</DisplayName>
+    <Description>Atomic native registry metadata and committed epoch.</Description>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=3;i=64100</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=3;i=69298" BrowseName="1:RegistryId" DataType="i=12" ValueRank="-1" AccessLevel="1" UserAccessLevel="1" ParentNodeId="ns=3;i=64101">
+    <DisplayName>RegistryId</DisplayName>
+    <Description>Server-assigned identifier of this registry instance.</Description>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=3;i=64101</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=3;i=69299" BrowseName="3:Snapshot" DataType="ns=1;i=67015" ValueRank="-1" AccessLevel="1" UserAccessLevel="1" ParentNodeId="ns=3;i=64101">
+    <DisplayName>Snapshot</DisplayName>
+    <Description>Atomic native registry metadata and committed epoch.</Description>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=3;i=64101</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+    </References>
   </UAVariable>
 </UANodeSet>

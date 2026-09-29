@@ -714,6 +714,23 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Implemented by a collection-qualified entity whose domain members change node structure.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IXRegistryCollectionProjectionStrategy.ConfigureEntityNode"/> may add optional
+    /// domain members only while a node is created. When the domain shape of a committed
+    /// generation differs from the published one, the engine replaces the node instead of
+    /// asking the strategy to change the structure of a published node.
+    /// </remarks>
+    public interface IXRegistryProjectionDomainShape
+    {
+        /// <summary>
+        /// Gets a stable key of the domain members' presence and TypeDefinitions.
+        /// </summary>
+        string DomainShape { get; }
+    }
+
+    /// <summary>
     /// Describes one Group of a named Group collection.
     /// </summary>
     public interface IXRegistryProjectionCollectionGroup : IXRegistryProjectionEntity

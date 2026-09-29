@@ -322,7 +322,8 @@ namespace Opc.Ua.XRegistry.Server
                         "server namespace table.");
                 }
             }
-            return new EntityShape(nodeId, typeDefinitionId, container, GetOptionalMembers(entity));
+            return new EntityShape(nodeId, typeDefinitionId, container, GetOptionalMembers(entity),
+                entity is IXRegistryProjectionDomainShape domain ? domain.DomainShape ?? string.Empty : string.Empty);
         }
 
         private void PrepareCollectionNodes(DesiredCollection desired)
@@ -986,7 +987,8 @@ namespace Opc.Ua.XRegistry.Server
             NodeId NodeId,
             NodeId TypeDefinitionId,
             QualifiedName Container,
-            OptionalMembers Members);
+            OptionalMembers Members,
+            string DomainShape);
 
         private sealed class CollectionProjectionPlan
         {

@@ -68,7 +68,7 @@ namespace Opc.Ua.XRegistry
         "Usage",
         "RCS1194:Implement exception constructors",
         Justification = "A mapping error always carries a status and a document path.")]
-    public sealed class RegistryRecordMappingException : ServiceResultException
+    public sealed class RegistryRecordMappingException : ServiceResultException, IRegistryDiagnosticSource
     {
         /// <summary>
         /// Initializes a mapping error.
@@ -96,5 +96,19 @@ namespace Opc.Ua.XRegistry
         /// Gets the member names and decimal array positions from the root to the offending value.
         /// </summary>
         public ArrayOf<string> Path { get; }
+
+        /// <summary>
+        /// Creates the typed diagnostic. Representation errors use the stable code <c>E_NATIVE_INPUT</c>.
+        /// </summary>
+        public RegistryDiagnosticDataType ToDiagnostic()
+        {
+            return new RegistryDiagnosticDataType
+            {
+                StatusCode = StatusCode,
+                Code = "E_NATIVE_INPUT",
+                Path = Path,
+                Detail = Message
+            };
+        }
     }
 }

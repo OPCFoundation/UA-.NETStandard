@@ -512,10 +512,7 @@ namespace Opc.Ua.XRegistry.Server
 
         private long Size(IEncodeable value, ulong maximum)
         {
-            using var stream = new CountingStream(checked((long)maximum));
-            using var encoder = new BinaryEncoder(stream, m_context, true);
-            value.Encode(encoder);
-            return stream.Length;
+            return RegistryEncodedSize.Measure(value, m_context, checked((long)maximum));
         }
 
         private Snapshot Find(ByteString id, NodeId session, string authorizationView)
@@ -738,75 +735,6 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         private sealed record ArrayView(int Count, Func<int, Variant> Get, ArrayOf<uint> Dimensions);
-
-        private sealed class CountingStream(long maximum) : Stream
-        {
-            public override bool CanRead => false;
-            public override bool CanSeek => true;
-            public override bool CanWrite => true;
-            public override long Length => m_length;
-            public override long Position
-            {
-                get => m_position;
-                set
-                {
-                    if (value < 0 || value > maximum)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                    }
-                    m_position = value;
-                }
-            }
-            public override void Flush()
-            {
-            }
-            public override int Read(byte[] buffer, int offset, int count) =>
-                throw new NotSupportedException("The stream only measures encoded bytes.");
-            public override long Seek(long offset, SeekOrigin origin)
-            {
-                Position = checked(offset + (origin switch
-                {
-                    SeekOrigin.Begin => 0,
-                    SeekOrigin.Current => m_position,
-                    SeekOrigin.End => m_length,
-                    _ => throw new ArgumentOutOfRangeException(nameof(origin))
-                }));
-                return m_position;
-            }
-            public override void SetLength(long value)
-            {
-                if (value < 0 || value > maximum)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-                m_length = value;
-            }
-            public override void Write(byte[] buffer, int offset, int count)
-            {
-                if (buffer is null || offset < 0 || count < 0 || offset > buffer.Length - count)
-                {
-                    throw new ArgumentException("Invalid encoded byte range.");
-                }
-                Advance(count);
-            }
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-            public override void Write(ReadOnlySpan<byte> buffer) => Advance(buffer.Length);
-#endif
-            public override void WriteByte(byte value) => Advance(1);
-
-            private void Advance(int count)
-            {
-                if (m_position > maximum - count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-                m_position += count;
-                m_length = Math.Max(m_length, m_position);
-            }
-
-            private long m_position;
-            private long m_length;
-        }
 
         private readonly Lock m_gate = new();
         private readonly ServiceMessageContext m_context;
