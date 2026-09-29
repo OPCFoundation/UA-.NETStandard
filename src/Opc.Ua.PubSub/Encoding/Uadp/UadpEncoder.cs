@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Diagnostics;
@@ -722,105 +723,52 @@ uadpFlags));
         }
 
         /// <summary>
-        /// Wraps a raw chunk frame produced by <see cref="UadpChunker"/>
-        /// in a self-contained UADP envelope carrying the
-        /// <see cref="ExtendedFlags2EncodingMask.ChunkMessage"/> bit so
-        /// that receivers can route it through
-        /// <see cref="UadpReassembler"/>.
+        /// Encodes a UADP DataSetMessage NetworkMessage as chunk
+        /// NetworkMessages: every DataSetMessage is split into chunks of
+        /// equal size (except the last one) that fit
+        /// <paramref name="maxNetworkMessageSize"/>.
         /// </summary>
         /// <remarks>
         /// Implements
         /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.4">
-        /// Part 14 §7.2.4.4.4 ChunkedNetworkMessage</see>. The chunker
-        /// emits header-prefixed payload bytes only; transport-level
-        /// routing requires a real UADP envelope around each chunk.
+        /// Part 14 §7.2.4.4.4 UADP Chunk NetworkMessage</see>. Each chunk
+        /// carries the header of <paramref name="message"/> with the chunk
+        /// bit, a PayloadHeader with the DataSetWriterId (Table 158) and
+        /// the chunk payload of Table 159. When
+        /// <paramref name="securityEnabled"/> is set the caller secures
+        /// every chunk on its own at <see cref="UadpChunkFrame.PayloadOffset"/>.
         /// </remarks>
-        /// <param name="chunkFrame">Chunk frame produced by
-        /// <see cref="UadpChunker.Split"/>.</param>
-        /// <param name="publisherId">Publisher identity copied into the
-        /// envelope so the receiver can compute the reassembly key.</param>
-        /// <param name="writerGroupId">WriterGroupId carried in the
-        /// optional GroupHeader. When <c>null</c> the GroupHeader is
-        /// omitted.</param>
-        /// <returns>The fully framed envelope plus chunk payload.</returns>
-        /// <exception cref="ArgumentException"></exception>
-        public static ReadOnlyMemory<byte> WriteChunkEnvelope(
-            ReadOnlyMemory<byte> chunkFrame,
-            PublisherId publisherId,
-            ushort? writerGroupId)
+        /// <param name="message">Source UADP message.</param>
+        /// <param name="context">Network message context.</param>
+        /// <param name="maxNetworkMessageSize">Maximum size of one chunk
+        /// NetworkMessage on the wire.</param>
+        /// <param name="securityOverhead">Bytes reserved per chunk for the
+        /// SecurityHeader and signature.</param>
+        /// <param name="securityEnabled">Set the SecurityHeader bit in the
+        /// chunk headers.</param>
+        /// <param name="fallbackSequenceNumber">MessageSequenceNumber for
+        /// DataSetMessages without a sequence number.</param>
+        /// <exception cref="InvalidOperationException"></exception>
+        internal static IReadOnlyList<UadpChunkFrame> EncodeChunks(
+            UadpNetworkMessage message,
+            PubSubNetworkMessageContext context,
+            int maxNetworkMessageSize,
+            int securityOverhead,
+            bool securityEnabled,
+            ushort fallbackSequenceNumber)
         {
-            if (chunkFrame.IsEmpty)
-            {
-                throw new ArgumentException(
-                    "Chunk frame must not be empty.",
-                    nameof(chunkFrame));
-            }
-            if (publisherId.IsNull)
-            {
-                throw new ArgumentException(
-                    "PublisherId must not be null.",
-                    nameof(publisherId));
-            }
-
-            PublisherIdType pidType = publisherId.Type;
-            UadpFlagsEncodingMask uadpFlags = UadpFlagsEncodingMask.PublisherIdEnabled |
-                UadpFlagsEncodingMask.ExtendedFlags1Enabled;
-            if (writerGroupId.HasValue)
-            {
-                uadpFlags |= UadpFlagsEncodingMask.GroupHeaderEnabled;
-            }
-            byte ext1 = (byte)ExtendedFlags1EncodingMask.ExtendedFlags2Enabled;
-            if (pidType != PublisherIdType.Byte)
-            {
-                ext1 |= pidType
-                    .EncodePublisherIdType();
-            }
-            const byte ext2 = (byte)ExtendedFlags2EncodingMask.ChunkMessage;
-
-            int envelopeSize = 1 +
-                1 +
-                1 +
-                EstimatePublisherIdSize(publisherId, pidType) +
-                (writerGroupId.HasValue ? 3 : 0);
-            byte[] result = new byte[envelopeSize + chunkFrame.Length];
-            var writer = new UadpBinaryWriter(result, 0, result.Length);
-
-            const byte version = 1;
-            writer.WriteByte(
-                (byte)((byte)uadpFlags | (version & 0x0F)));
-            writer.WriteByte(ext1);
-            writer.WriteByte(ext2);
-            WritePublisherId(ref writer, publisherId, pidType);
-            if (writerGroupId.HasValue)
-            {
-                writer.WriteByte((byte)GroupFlagsEncodingMask.WriterGroupIdEnabled);
-                writer.WriteUInt16Le(writerGroupId.Value);
-            }
-            writer.WriteBytes(chunkFrame.Span);
-            return result;
-        }
-
-        private static int EstimatePublisherIdSize(
-            PublisherId publisherId, PublisherIdType type)
-        {
-            switch (type)
-            {
-                case PublisherIdType.Byte:
-                    return 1;
-                case PublisherIdType.UInt16:
-                    return 2;
-                case PublisherIdType.UInt32:
-                    return 4;
-                case PublisherIdType.UInt64:
-                    return 8;
-                case PublisherIdType.String:
-                    string? s = publisherId.TryGetString(out string? str) ? str : null;
-                    int byteLen = s is null ? 0 : System.Text.Encoding.UTF8.GetByteCount(s);
-                    return 4 + byteLen;
-                default:
-                    throw new InvalidOperationException(
-                        $"Unsupported PublisherIdType {type}.");
-            }
+            UadpNetworkMessage plain = message.SecurityEnabled
+                ? message with { SecurityEnabled = false }
+                : message;
+            byte[] encoded = EncodeData(plain, context);
+            return UadpChunker.TrySplitNetworkMessage(
+                    encoded,
+                    maxNetworkMessageSize,
+                    securityOverhead,
+                    securityEnabled,
+                    fallbackSequenceNumber) ??
+                throw new InvalidOperationException(
+                    "The UADP NetworkMessage cannot be split into chunk NetworkMessages.");
         }
     }
 }

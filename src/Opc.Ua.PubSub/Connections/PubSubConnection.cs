@@ -911,69 +911,18 @@ namespace Opc.Ua.PubSub.Connections
                     bool frameSecured = false;
                     bool singleFrame = true;
 
-                    if (UadpDecoder.TryReadOuterPrefix(framePayload,
-                        out int prefixLength,
-                        out bool securityEnabled,
-                        out bool chunkMessage,
-                        out PublisherId framePublisherId,
-                        out ushort frameWriterGroupId))
+                    if (UadpDecoder.TryReadPrefix(framePayload, out UadpPrefixInfo framePrefix))
                     {
-                        if (chunkMessage)
-                        {
-                            ReadOnlyMemory<byte>? reassembled;
-                            try
-                            {
-                                reassembled = TryReassembleChunk(
-                                    framePayload, prefixLength,
-                                    framePublisherId, frameWriterGroupId);
-                            }
-                            catch (Exception ex)
-                            {
-                                // Fail-soft: a malformed or hostile chunk
-                                // must not terminate the receive loop.
-                                m_diagnostics.Increment(
-                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
-                                m_logger.InboundUadpChunkReassemblyThrew(ex);
-                                continue;
-                            }
-                            if (reassembled is null)
-                            {
-                                continue;
-                            }
-                            framePayload = reassembled.Value;
-                            // The message was reassembled from multiple chunk
-                            // frames, so no single wire frame faithfully
-                            // represents it; disable the raw-frame fast path.
-                            singleFrame = false;
-
-                            // Re-read the reassembled message's own outer prefix so
-                            // the security gate below is applied to the inner UADP
-                            // NetworkMessage. The chunk envelope carries no message
-                            // security; messages are encoded and security-wrapped
-                            // before they are chunked, so the reassembled payload is
-                            // the complete (secured or plain) NetworkMessage. Without
-                            // this re-entry a chunked frame would bypass signature,
-                            // encryption and replay verification (SA-REGR-01).
-                            if (!UadpDecoder.TryReadOuterPrefix(framePayload,
-                                out prefixLength,
-                                out securityEnabled,
-                                out bool reassembledChunk,
-                                out framePublisherId,
-                                out frameWriterGroupId) ||
-                                reassembledChunk)
-                            {
-                                // Fail-soft: a reassembled payload that is not a
-                                // well-formed, non-chunk UADP message is dropped
-                                // without terminating the receive loop.
-                                m_diagnostics.Increment(
-                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
-                                m_logger.ReassembledUadpPayloadInvalid();
-                                continue;
-                            }
-                        }
+                        int prefixLength = framePrefix.PrefixLength;
+                        bool securityEnabled = framePrefix.SecurityEnabled;
+                        PublisherId framePublisherId = framePrefix.PublisherId;
+                        ushort frameWriterGroupId = framePrefix.WriterGroupId;
 
                         // Unified inbound message-security enforcement applied to
-                        // both single-datagram and reassembled-chunk frames.
+                        // single NetworkMessages and to every chunk NetworkMessage:
+                        // each chunk is secured on its own (Part 14 §7.2.4.4.4), so
+                        // chunks are verified, decrypted and replay-checked before
+                        // they reach the reassembler.
                         if (RequiresInboundSecurity)
                         {
                             // Fail-closed: a secured reader never accepts
@@ -1011,6 +960,33 @@ namespace Opc.Ua.PubSub.Connections
                                 continue;
                             }
                             framePayload = unwrapped.Value;
+                        }
+
+                        if (framePrefix.ChunkMessage)
+                        {
+                            ReadOnlyMemory<byte>? reassembled;
+                            try
+                            {
+                                reassembled = TryReassembleChunk(framePayload, framePrefix);
+                            }
+                            catch (Exception ex)
+                            {
+                                // Fail-soft: a malformed or hostile chunk
+                                // must not terminate the receive loop.
+                                m_diagnostics.Increment(
+                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
+                                m_logger.InboundUadpChunkReassemblyThrew(ex);
+                                continue;
+                            }
+                            if (reassembled is null)
+                            {
+                                continue;
+                            }
+                            framePayload = reassembled.Value;
+                            // The message was reassembled from multiple chunk
+                            // frames, so no single wire frame faithfully
+                            // represents it; disable the raw-frame fast path.
+                            singleFrame = false;
                         }
 
                         frameSecured = securityEnabled;
@@ -2321,9 +2297,7 @@ namespace Opc.Ua.PubSub.Connections
                 payload.Length > m_maxNetworkMessageSize &&
                 networkMessage is UadpNetworkMessage uadpForChunk)
             {
-                await SendChunkedAsync(
-                    transport, payload, uadpForChunk.PublisherId, uadpForChunk.WriterGroupId,
-                    cancellationToken)
+                await SendChunkedAsync(transport, uadpForChunk, context, cancellationToken)
                     .ConfigureAwait(false);
                 return;
             }
@@ -2345,21 +2319,32 @@ namespace Opc.Ua.PubSub.Connections
             return encoder.EncodeAsync(networkMessage, context, cancellationToken);
         }
 
+        /// <summary>
+        /// Sends a UADP NetworkMessage that exceeds the maximum
+        /// NetworkMessage size as chunk NetworkMessages (Part 14
+        /// §7.2.4.4.4). Each chunk carries a piece of one DataSetMessage and
+        /// is secured on its own when the connection applies message
+        /// security.
+        /// </summary>
         private async ValueTask SendChunkedAsync(
             IPubSubTransport transport,
-            ReadOnlyMemory<byte> encoded,
-            PublisherId publisherId,
-            ushort? writerGroupId,
+            UadpNetworkMessage message,
+            PubSubNetworkMessageContext context,
             CancellationToken cancellationToken)
         {
             ushort sequenceNumber = unchecked(
                 (ushort)Interlocked.Increment(ref m_chunkSequenceNumber));
-            var chunker = new UadpChunker();
-            IReadOnlyList<byte[]> chunkFrames;
+            UadpSecurityWrapper? wrapper = m_securityWrapper;
+            IReadOnlyList<UadpChunkFrame> chunkFrames;
             try
             {
-                chunkFrames = chunker.Split(
-                    encoded, sequenceNumber, m_maxNetworkMessageSize);
+                chunkFrames = UadpEncoder.EncodeChunks(
+                    message,
+                    context,
+                    m_maxNetworkMessageSize,
+                    wrapper is null ? 0 : GetSecurityOverhead(wrapper),
+                    securityEnabled: wrapper is not null,
+                    sequenceNumber);
             }
             catch (Exception ex)
             {
@@ -2369,13 +2354,57 @@ namespace Opc.Ua.PubSub.Connections
                     $"UADP chunking failed: {ex.Message}");
                 throw;
             }
-            foreach (byte[] chunk in chunkFrames)
+            foreach (UadpChunkFrame chunk in chunkFrames)
             {
-                ReadOnlyMemory<byte> envelope = UadpEncoder.WriteChunkEnvelope(
-                    chunk, publisherId, writerGroupId);
-                await transport.SendAsync(envelope, topic: null, cancellationToken)
+                ReadOnlyMemory<byte> frame = chunk.Frame;
+                if (wrapper is not null)
+                {
+                    frame = await WrapChunkAsync(wrapper, chunk, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                await transport.SendAsync(frame, topic: null, cancellationToken)
                     .ConfigureAwait(false);
             }
+        }
+
+        private async ValueTask<ReadOnlyMemory<byte>> WrapChunkAsync(
+            UadpSecurityWrapper wrapper,
+            UadpChunkFrame chunk,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await wrapper
+                    .WrapAsync(
+                        chunk.Frame[..chunk.PayloadOffset],
+                        chunk.Frame[chunk.PayloadOffset..],
+                        m_securityWrapOptions,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.EncryptionErrors);
+                m_diagnostics.RecordError(
+                    StatusCodes.BadSecurityChecksFailed,
+                    $"UADP security wrap failed: {ex.Message}");
+                m_logger.UadpSecurityWrapFailed(ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Worst-case bytes the security wrapper adds to a chunk: the
+        /// SecurityHeader (flags, token id, nonce length and nonce) and the
+        /// signature.
+        /// </summary>
+        private static int GetSecurityOverhead(UadpSecurityWrapper wrapper)
+        {
+            return 1 + 4 + 1 + wrapper.Policy.NonceLength + wrapper.Policy.SignatureLength;
         }
 
         internal ValueTask SendTranscodedFrameAsync(
@@ -2402,18 +2431,26 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger.NoTransportOpen(Name);
                 return;
             }
-            if (m_maxNetworkMessageSize > 0 &&
-                frame.Length > m_maxNetworkMessageSize &&
-                UadpDecoder.TryReadOuterPrefix(frame,
-                    out _, out _, out bool chunkMessage,
-                    out PublisherId publisherId, out ushort writerGroupId) &&
-                !chunkMessage)
+            if (m_maxNetworkMessageSize > 0 && frame.Length > m_maxNetworkMessageSize)
             {
-                await SendChunkedAsync(
-                    transport, frame, publisherId,
-                    writerGroupId == 0 ? null : writerGroupId, cancellationToken)
-                    .ConfigureAwait(false);
-                return;
+                // Only unsecured DataSetMessage NetworkMessages can be split
+                // into chunk NetworkMessages here; a secured frame would have
+                // to be secured per chunk, which needs the original payload.
+                IReadOnlyList<UadpChunkFrame>? chunks = UadpChunker.TrySplitNetworkMessage(
+                    frame,
+                    m_maxNetworkMessageSize,
+                    securityOverhead: 0,
+                    securityEnabled: false,
+                    unchecked((ushort)Interlocked.Increment(ref m_chunkSequenceNumber)));
+                if (chunks is not null)
+                {
+                    foreach (UadpChunkFrame chunk in chunks)
+                    {
+                        await transport.SendAsync(chunk.Frame, topic: null, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    return;
+                }
             }
             if (properties.Count > 0 && transport is IPubSubHeaderTransport headerTransport)
             {
@@ -2509,14 +2546,18 @@ namespace Opc.Ua.PubSub.Connections
                 : "Uadp";
         }
 
+        /// <summary>
+        /// Feeds a (verified and decrypted) chunk NetworkMessage into the
+        /// reassembler and, once the payload is complete, returns the
+        /// cleartext NetworkMessage rebuilt from the chunk header and the
+        /// reassembled DataSetMessage (Part 14 §7.2.4.4.4).
+        /// </summary>
         private ReadOnlyMemory<byte>? TryReassembleChunk(
             ReadOnlyMemory<byte> frame,
-            int prefixLength,
-            PublisherId publisherId,
-            ushort writerGroupId)
+            in UadpPrefixInfo prefix)
         {
             m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksReceived);
-            ReadOnlyMemory<byte> inner = frame[prefixLength..];
+            ReadOnlyMemory<byte> inner = frame[prefix.PrefixLength..];
             if (!UadpChunker.TryParseChunk(inner,
                 out _, out _, out _, out _))
             {
@@ -2528,8 +2569,9 @@ namespace Opc.Ua.PubSub.Connections
             }
             int pendingBefore = m_reassembler.PendingCount;
             if (!m_reassembler.TryAddChunk(
-                publisherId, writerGroupId, inner,
-                out ReadOnlyMemory<byte>? reassembled))
+                prefix.PublisherId, prefix.WriterGroupId, prefix.ChunkDataSetWriterId, inner,
+                out ReadOnlyMemory<byte>? reassembled) ||
+                reassembled is null)
             {
                 int pendingAfter = m_reassembler.PendingCount;
                 if (pendingAfter < pendingBefore)
@@ -2540,7 +2582,8 @@ namespace Opc.Ua.PubSub.Connections
                 return null;
             }
             m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksReassembled);
-            return reassembled;
+            return UadpChunker.ComposeReassembledNetworkMessage(
+                frame.Span, prefix, reassembled.Value.Span);
         }
 
         private async ValueTask<ReadOnlyMemory<byte>?> TryUnwrapInboundAsync(
@@ -2962,10 +3005,6 @@ namespace Opc.Ua.PubSub.Connections
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 4, Level = LogLevel.Warning,
             Message = "Inbound UADP chunk reassembly threw; dropping frame.")]
         public static partial void InboundUadpChunkReassemblyThrew(this ILogger logger, Exception exception);
-
-        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 5, Level = LogLevel.Warning,
-            Message = "Reassembled UADP payload is not a valid non-chunk NetworkMessage; dropping frame.")]
-        public static partial void ReassembledUadpPayloadInvalid(this ILogger logger);
 
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 6, Level = LogLevel.Warning,
             Message = "Dropping unsecured inbound frame on connection '{Connection}' requiring {Mode}.")]
