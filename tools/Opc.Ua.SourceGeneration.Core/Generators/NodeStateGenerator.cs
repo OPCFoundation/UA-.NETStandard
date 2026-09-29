@@ -1100,11 +1100,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             bool isMethodOverrideWithDifferentClass =
-                instance is MethodDesign &&
-                instance.IsOverridden() &&
-                !instance.IsOverriddenWithSameClass(
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces);
+                IsMethodOverrideWithDifferentClass(instance);
             if (node.IsNotExplicitlyDefined ||
                 (instance.IsOverridden() && !isMethodOverrideWithDifferentClass))
             {
@@ -4325,7 +4321,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (instance.IsOverridden())
+                if (instance.IsOverridden() &&
+                    !IsMethodOverrideWithDifferentClass(instance))
                 {
                     continue;
                 }
@@ -4333,6 +4330,22 @@ namespace Opc.Ua.SourceGeneration
             }
 
             return additionalChildren;
+        }
+
+        /// <summary>
+        /// Returns whether a method overrides the supertype's method with
+        /// another method state class. The subtype then declares a field and a
+        /// property of its own that hide the supertype's, so it also has to
+        /// enumerate and remove the child itself: the supertype's field stays
+        /// empty.
+        /// </summary>
+        private bool IsMethodOverrideWithDifferentClass(InstanceDesign instance)
+        {
+            return instance is MethodDesign &&
+                instance.IsOverridden() &&
+                !instance.IsOverriddenWithSameClass(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces);
         }
 
         private List<InstanceDesign> GetChildrenWithProperties(
