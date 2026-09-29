@@ -683,6 +683,71 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
+        [TestCase(3, false)]
+        [TestCase(4, true)]
+        public void WriteExtensionObjectJsonBodyRespectsNestingLimit(int bodyDepth, bool exceeds)
+        {
+            // The root object (1) and the ExtensionObject (2) leave room for a body of depth
+            // 3, whose root object is the ExtensionObject itself.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxEncodingNestingLevels = 4;
+            var value = new ExtensionObject(new ExpandedNodeId(1), CreateNestedJsonObject(bodyDepth));
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+
+            if (exceeds)
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => writer.WriteExtensionObject(JsonProperties.Value, value));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
+            else
+            {
+                Assert.DoesNotThrow(() => writer.WriteExtensionObject(JsonProperties.Value, value));
+            }
+        }
+
+        [Test]
+        public void WriteExtensionObjectJsonBodyDeeperThanDefaultParserDepthRoundTrips()
+        {
+            // A body the decoder accepts under the default limit (deeper than the 64 levels
+            // JsonDocument parses by default) can be encoded again.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxEncodingNestingLevels = 200;
+            string body = CreateNestedJsonObject(100);
+            var value = new ExtensionObject(new ExpandedNodeId(1), body);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExtensionObject(JsonProperties.Value, value);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(
+                buffer.WrittenMemory,
+                new JsonDocumentOptions { MaxDepth = 200 });
+            Assert.That(document.RootElement.GetProperty(JsonProperties.Value).GetProperty("a").ValueKind,
+                Is.EqualTo(JsonValueKind.Object));
+        }
+
+        [Test]
+        public void WriteBeyondUtf8JsonWriterDepthThrowsBadEncodingLimitsExceeded()
+        {
+            // A nesting limit above the 1000 levels Utf8JsonWriter supports is capped, so a
+            // ServiceResultException is thrown instead of an InvalidOperationException.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxEncodingNestingLevels = 1500;
+            var value = new ExtensionObject(new ExpandedNodeId(1), CreateNestedJsonObject(1100));
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => writer.WriteExtensionObject(JsonProperties.Value, value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
         [Test]
         public void SetMappingTablesMapsIndexFormIdentifiers()
         {
@@ -882,6 +947,21 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             Assert.That(buffer.WrittenMemory.Length, Is.LessThanOrEqualTo(64));
+        }
+
+        /// <summary>
+        /// Creates {"a":{"a":...{}}} with the given number of nested objects.
+        /// </summary>
+        private static string CreateNestedJsonObject(int depth)
+        {
+            var builder = new System.Text.StringBuilder();
+            for (int i = 1; i < depth; i++)
+            {
+                builder.Append("{\"a\":");
+            }
+            builder.Append("{}");
+            builder.Append('}', depth - 1);
+            return builder.ToString();
         }
 
         private static string Encode(JsonEncoderOptions options, Action<JsonEncoder> write)

@@ -1575,9 +1575,14 @@ namespace Opc.Ua
 
         private void WriteJsonExtensionObjectBody(string rawJson, bool skipUaTypeId)
         {
+            // The body's root object is the ExtensionObject already opened, so its
+            // nested containers must fit into the levels left below the nesting limit.
+            int maxBodyDepth = GetMaxNestingDepth() - m_writer.CurrentDepth + 1;
             try
             {
-                using JsonDocument document = JsonDocument.Parse(rawJson);
+                using JsonDocument document = JsonDocument.Parse(
+                    rawJson,
+                    new JsonDocumentOptions { MaxDepth = maxBodyDepth });
                 if (document.RootElement.ValueKind != JsonValueKind.Object)
                 {
                     throw ServiceResultException.Create(
@@ -1597,10 +1602,36 @@ namespace Opc.Ua
             }
             catch (JsonException ex)
             {
+                if (IsValidJson(rawJson))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        ex,
+                        "ExtensionObject JSON body exceeds the maximum nesting level.");
+                }
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
                     ex,
                     "ExtensionObject JSON body is not valid JSON.");
+            }
+        }
+
+        /// <summary>
+        /// Whether a raw JSON body that failed to parse within the nesting limit is
+        /// valid JSON at any depth, so it failed because it is too deep.
+        /// </summary>
+        private static bool IsValidJson(string rawJson)
+        {
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(
+                    rawJson,
+                    new JsonDocumentOptions { MaxDepth = int.MaxValue });
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
             }
         }
 
@@ -2715,17 +2746,28 @@ namespace Opc.Ua
         {
             // check the nesting level for avoiding a stack overflow. The
             // container about to be opened must stay within the MaxDepth the
-            // JsonDecoder parses with: MaxEncodingNestingLevels, where zero
-            // means the System.Text.Json default depth.
-            int maxDepth = Context.MaxEncodingNestingLevels > 0
-                ? Context.MaxEncodingNestingLevels
-                : kDefaultJsonMaxDepth;
+            // JsonDecoder parses with.
+            int maxDepth = GetMaxNestingDepth();
             if (m_writer.CurrentDepth >= maxDepth)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     $"Maximum nesting level of {maxDepth} exceeded.");
             }
+        }
+
+        /// <summary>
+        /// The maximum container depth: MaxEncodingNestingLevels, where zero means
+        /// the System.Text.Json default depth the JsonDecoder then parses with.
+        /// Utf8JsonWriter cannot write deeper than 1000 levels and throws an
+        /// InvalidOperationException beyond, so the limit is capped there.
+        /// </summary>
+        private int GetMaxNestingDepth()
+        {
+            int maxDepth = Context.MaxEncodingNestingLevels > 0
+                ? Context.MaxEncodingNestingLevels
+                : kDefaultJsonMaxDepth;
+            return Math.Min(maxDepth, kMaxJsonWriterDepth);
         }
 
         /// <summary>
@@ -2744,6 +2786,11 @@ namespace Opc.Ua
         /// zero, which is what the JsonDecoder passes for an unset limit.
         /// </summary>
         private const int kDefaultJsonMaxDepth = 64;
+
+        /// <summary>
+        /// The maximum depth of a Utf8JsonWriter.
+        /// </summary>
+        private const int kMaxJsonWriterDepth = 1000;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<JsonEncoder>();
 
         private void DisposeWriterAndBuffer()
