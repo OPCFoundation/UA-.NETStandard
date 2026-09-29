@@ -2178,12 +2178,13 @@ namespace Opc.Ua
             int minElementSize,
             object description)
         {
-            if (dimensions.Length < 2)
+            if (dimensions.Length is < 2 or > MatrixOf.MaxMatrixRank)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Inline matrix has {0} dimension(s), at least 2 are required ({1}).",
+                    "Inline matrix has {0} dimension(s), 2 to {1} are required ({2}).",
                     dimensions.Length,
+                    MatrixOf.MaxMatrixRank,
                     description);
             }
 

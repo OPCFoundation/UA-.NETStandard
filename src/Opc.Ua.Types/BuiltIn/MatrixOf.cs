@@ -196,6 +196,12 @@ namespace Opc.Ua
                     "A matrix cannot have 0 dimensions. It must have at least 2 to be a matrix.",
                     nameof(dimensions));
             }
+            if (dimensions.Length > MatrixOf.MaxMatrixRank)
+            {
+                throw new ArgumentException(
+                    "A matrix cannot have more than 32 dimensions.",
+                    nameof(dimensions));
+            }
             int length;
             try
             {
@@ -725,6 +731,14 @@ namespace Opc.Ua
     public static class MatrixOf
     {
         /// <summary>
+        /// The largest number of dimensions a matrix may have, the maximum
+        /// rank of a .NET array (Array.CreateInstance). OPC 10000-6 does
+        /// not bound the rank, but a matrix of a higher rank received from
+        /// the wire could never be materialized by a consumer.
+        /// </summary>
+        internal const int MaxMatrixRank = 32;
+
+        /// <summary>
         /// Empty array
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -746,7 +760,8 @@ namespace Opc.Ua
         /// Determines whether <paramref name="dimensions"/> describe a
         /// well-formed multi-dimensional array (matrix) that can be represented
         /// on the wire as required by OPC UA Part 6 5.2.2.16: there are at least
-        /// two dimensions, every dimension is greater than zero, and - when
+        /// two and at most <see cref="MaxMatrixRank"/> dimensions, every
+        /// dimension is greater than zero, and - when
         /// <paramref name="elementCount"/> is not negative - the product of all
         /// dimensions equals the number of elements in the flattened array.
         /// A matrix Variant that violates these rules is inconsistent: encoders
@@ -777,7 +792,7 @@ namespace Opc.Ua
             ReadOnlySpan<int> dimensions,
             int elementCount = -1)
         {
-            if (dimensions.Length < 2)
+            if (dimensions.Length is < 2 or > MaxMatrixRank)
             {
                 return false;
             }
@@ -863,8 +878,8 @@ namespace Opc.Ua
         /// <param name="count">The number of encoded values.</param>
         /// <param name="shapeLength">The product of the dimensions that are
         /// greater than zero, which bounds every single dimension.</param>
-        /// <returns><c>false</c> if there are fewer than two dimensions or
-        /// the product of the non zero dimensions exceeds
+        /// <returns><c>false</c> if there are fewer than two or more than
+        /// <see cref="MaxMatrixRank"/> dimensions or the product of the non zero dimensions exceeds
         /// <see cref="MaxInlineMatrixLength"/>.</returns>
         internal static bool TryGetInlineMatrixElementCount(
             ReadOnlySpan<int> dimensions,
@@ -873,7 +888,7 @@ namespace Opc.Ua
         {
             count = 0;
             shapeLength = 0;
-            if (dimensions.Length < 2)
+            if (dimensions.Length is < 2 or > MaxMatrixRank)
             {
                 return false;
             }
