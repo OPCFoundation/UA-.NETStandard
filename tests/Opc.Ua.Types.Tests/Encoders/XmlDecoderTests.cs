@@ -1937,6 +1937,41 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        [TestCase("  <!-- c -->x", "  x")]
+        [TestCase(" <?pi data?> x ", "  x ")]
+        [TestCase(" <!-- c --> <![CDATA[x]]>", "  x")]
+        [TestCase(" <!-- c --> ", "  ")]
+        [TestCase("a<!-- c --> b", "a b")]
+        public void ReadStringKeepsWhitespaceAroundCommentsAndProcessingInstructions(
+            string content,
+            string expected)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = "<String xmlns=\"urn:test\">" + content + "</String>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+
+            Assert.That(decoder.ReadString("String"), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ReadStringKeepsLeadingWhitespaceWhenWhitespaceOnlyStringsAreEmpty()
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            const string xml = "<Root xmlns=\"urn:test\"><A> <!-- c -->x</A><B> </B></Root>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext)
+            {
+                TreatWhitespaceOnlyStringsAsEmpty = true
+            };
+            decoder.PushNamespace("urn:test");
+            decoder.ReadStartElement();
+
+            Assert.That(decoder.ReadString("A"), Is.EqualTo(" x"));
+            Assert.That(decoder.ReadString("B"), Is.Empty);
+        }
+
         [Test]
         public void ReadFieldRejectsNilElementWithContent()
         {

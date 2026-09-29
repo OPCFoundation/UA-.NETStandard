@@ -603,11 +603,17 @@ namespace Opc.Ua
                 fieldName,
                 true,
                 out bool isNil,
-                !TreatWhitespaceOnlyStringsAsEmpty,
+                true,
                 out string? whitespace))
             {
-                // xs:string has whiteSpace=preserve (Part 6 5.3.1.5): do not trim.
+                // xs:string has whiteSpace=preserve (Part 6 5.3.1.5): do not trim,
+                // and keep leading whitespace split off by a comment.
                 string? value = SafeReadString();
+                if (whitespace != null)
+                {
+                    value = whitespace + value;
+                    EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
+                }
                 EndField(fieldName);
                 return value;
             }
@@ -618,7 +624,7 @@ namespace Opc.Ua
             }
 
             // an element holding only whitespace keeps it (Part 6 5.3.1.5).
-            if (whitespace != null)
+            if (whitespace != null && !TreatWhitespaceOnlyStringsAsEmpty)
             {
                 EncodingLimits.CheckStringLength(Context.MaxStringLength, whitespace);
                 return whitespace;
@@ -3138,7 +3144,10 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the start of field. With <paramref name="captureWhitespace"/> the
         /// whitespace of an element that holds nothing else is returned in
-        /// <paramref name="whitespace"/> (the method returns false for it).
+        /// <paramref name="whitespace"/> (the method returns false for it). When
+        /// the method returns true it holds the leading whitespace that was
+        /// read before the content (split off by a comment or processing
+        /// instruction), which the caller prepends.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private bool BeginField(
@@ -3203,10 +3212,21 @@ namespace Opc.Ua
                     string? content = null;
                     if (captureWhitespace)
                     {
-                        // MoveToContent skips whitespace nodes, keep them for xs:string.
-                        while (m_reader.NodeType is XmlNodeType.Whitespace or XmlNodeType.SignificantWhitespace)
+                        // MoveToContent skips whitespace nodes, keep them for
+                        // xs:string - also past comments and processing
+                        // instructions, which are not part of the value.
+                        while (m_reader.NodeType is
+                            XmlNodeType.Whitespace or
+                            XmlNodeType.SignificantWhitespace or
+                            XmlNodeType.Comment or
+                            XmlNodeType.ProcessingInstruction)
                         {
-                            content = content == null ? m_reader.Value : content + m_reader.Value;
+                            if (m_reader.NodeType is
+                                XmlNodeType.Whitespace or
+                                XmlNodeType.SignificantWhitespace)
+                            {
+                                content = content == null ? m_reader.Value : content + m_reader.Value;
+                            }
                             m_reader.Read();
                         }
                     }
@@ -3233,6 +3253,9 @@ namespace Opc.Ua
                             "Element '{0}' is nil but has content.",
                             fieldName!);
                     }
+
+                    // the leading whitespace of content that follows.
+                    whitespace = content;
                 }
 
                 // caller must read contents of element.
