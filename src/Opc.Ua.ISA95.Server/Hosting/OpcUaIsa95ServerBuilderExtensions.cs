@@ -118,7 +118,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     serviceType == typeof(IIsa95JobStatusSourceV2) ||
                     serviceType == typeof(IIsa95JobExecutionController) ||
                     serviceType == typeof(IIsa95JobOrderCatalog) ||
-                    serviceType == typeof(IIsa95JobOrderCatalogChangeSource))
+                    serviceType == typeof(IIsa95JobOrderCatalogChangeSource) ||
+                    serviceType == typeof(IIsa95JobResponseCatalog) ||
+                    serviceType == typeof(IIsa95JobResponseChangeSource))
                 {
                     return true;
                 }
@@ -149,6 +151,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 serviceProvider.GetService<IIsa95JobOrderCatalog>();
             IIsa95JobOrderCatalogChangeSource? catalogChangeSource =
                 serviceProvider.GetService<IIsa95JobOrderCatalogChangeSource>();
+            // The ISA-95 node manager does not bind the response facets, but a
+            // companion model that shares the provider does, so they must not
+            // come from another provider either.
+            IIsa95JobResponseCatalog? responseCatalog =
+                serviceProvider.GetService<IIsa95JobResponseCatalog>();
+            IIsa95JobResponseChangeSource? responseChangeSource =
+                serviceProvider.GetService<IIsa95JobResponseChangeSource>();
             InMemoryIsa95JobControlProvider? defaultProvider =
                 serviceProvider.GetService<InMemoryIsa95JobControlProvider>();
 
@@ -164,6 +173,8 @@ namespace Microsoft.Extensions.DependencyInjection
             ClassifyProvider(executionController, defaultProvider, ref hasDefaultProvider, ref hasCustomProvider);
             ClassifyProvider(orderCatalog, defaultProvider, ref hasDefaultProvider, ref hasCustomProvider);
             ClassifyProvider(catalogChangeSource, defaultProvider, ref hasDefaultProvider, ref hasCustomProvider);
+            ClassifyProvider(responseCatalog, defaultProvider, ref hasDefaultProvider, ref hasCustomProvider);
+            ClassifyProvider(responseChangeSource, defaultProvider, ref hasDefaultProvider, ref hasCustomProvider);
             if (hasDefaultProvider && hasCustomProvider)
             {
                 throw new InvalidOperationException(
