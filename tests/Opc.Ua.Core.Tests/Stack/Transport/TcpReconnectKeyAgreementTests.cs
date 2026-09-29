@@ -389,6 +389,29 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(harness.Target.CurrentState, Is.Not.EqualTo(TcpChannelState.Open));
         }
 
+        /// <summary>
+        /// A renewal OpenSecureChannel naming another security policy is rejected before the certificate of the
+        /// open channel is replaced by the one configured for that policy.
+        /// </summary>
+        [Test]
+        public async Task RenewalNamingAnotherPolicyKeepsTheChannelCertificateAsync()
+        {
+            using var harness = new HandoffHarness(SecurityPolicies.Basic256Sha256);
+            await harness.OpenAsync().ConfigureAwait(false);
+            string? thumbprint = harness.Target.ServerCertificateThumbprint;
+            using Certificate sender = CreatePaddedCertificate("CN=OtherPolicySender", 16);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => harness.Target.ReadAsymmetricHeaderForTest(
+                    SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    sender.RawData,
+                    new byte[TcpMessageLimits.CertificateThumbprintSize]))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(thumbprint, Is.Not.Null);
+            Assert.That(harness.Target.ServerCertificateThumbprint, Is.EqualTo(thumbprint));
+        }
+
         private static Certificate CreatePaddedCertificate(string subject, int paddingSize)
         {
             using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -682,6 +705,30 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             public uint? CurrentTokenId => CurrentToken?.TokenId;
+
+            public string? ServerCertificateThumbprint => ServerCertificate?.Thumbprint;
+
+            /// <summary>
+            /// Parses an asymmetric security header naming the policy, sender certificate and receiver thumbprint.
+            /// </summary>
+            public void ReadAsymmetricHeaderForTest(string securityPolicyUri, byte[] senderCertificate, byte[] thumbprint)
+            {
+                byte[] buffer = new byte[senderCertificate.Length + 1024];
+                using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, Quotas.MessageContext);
+                encoder.WriteUInt32(null, TcpMessageType.Open | TcpMessageType.Final);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteUInt32(null, ChannelId);
+                encoder.WriteString(null, securityPolicyUri);
+                encoder.WriteByteString(null, senderCertificate);
+                encoder.WriteByteString(null, thumbprint);
+                int length = encoder.Close();
+
+                using var decoder = new BinaryDecoder(
+                    new ArraySegment<byte>(buffer, 0, length), Quotas.MessageContext);
+                Certificate? receiver = ServerCertificate;
+                ReadAsymmetricMessageHeader(decoder, ref receiver, out _, out CertificateCollection? chain, out _);
+                chain?.Dispose();
+            }
 
             /// <summary>
             /// Makes a renewed token pending, as a renew OpenSecureChannel does, and returns its token id.
