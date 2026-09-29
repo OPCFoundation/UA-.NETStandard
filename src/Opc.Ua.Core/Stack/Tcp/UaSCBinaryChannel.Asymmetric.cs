@@ -1979,43 +1979,50 @@ namespace Opc.Ua.Bindings
                 SecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None &&
                 receiverCertificate!.GetRSAPublicKey() != null)
             {
-                int paddingEnd;
+                // OPC 10000-6 §6.7.2.5.1 Table 61: [PaddingSize][Padding x N]
+                // [ExtraPaddingSize, keys > 2048 bits only][Signature]; every
+                // padding byte and the PaddingSize byte hold the low byte of N,
+                // the ExtraPaddingSize byte its high byte.
                 byte[] plainTextArray = plainText.GetArray();
+                int paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
+                int paddingValueIndex;
+                int paddingSizeFields;
                 if (X509Utils.GetRSAPublicKeySize(receiverCertificate!) > TcpMessageLimits
                     .KeySizeExtraPadding)
                 {
-                    paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
-                    paddingCount = plainTextArray[paddingEnd - 1] +
+                    paddingValueIndex = paddingEnd - 1;
+                    paddingCount = plainTextArray[paddingValueIndex] +
                         (plainTextArray[paddingEnd] * 256);
-
-                    //parse until paddingStart-1; the last one is actually the extrapaddingsize
-                    for (int ii = paddingEnd - paddingCount; ii < paddingEnd; ii++)
-                    {
-                        if (plainTextArray[ii] != plainTextArray[paddingEnd - 1])
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "Could not verify the padding in the message.");
-                        }
-                    }
+                    paddingSizeFields = 2;
                 }
                 else
                 {
-                    paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
-                    paddingCount = plainTextArray[paddingEnd];
+                    paddingValueIndex = paddingEnd;
+                    paddingCount = plainTextArray[paddingValueIndex];
+                    paddingSizeFields = 1;
+                }
 
-                    for (int ii = paddingEnd - paddingCount; ii < paddingEnd; ii++)
+                // the padding, including the PaddingSize byte, has to lie after
+                // the headers and the sequence header.
+                int paddingStart = paddingValueIndex - paddingCount;
+                if (paddingStart < plainText.Offset + headerSize + TcpMessageLimits.SequenceHeaderSize)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Could not verify the padding in the message.");
+                }
+
+                for (int ii = paddingStart; ii < paddingValueIndex; ii++)
+                {
+                    if (plainTextArray[ii] != plainTextArray[paddingValueIndex])
                     {
-                        if (plainTextArray[ii] != plainTextArray[paddingEnd])
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "Could not verify the padding in the message.");
-                        }
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "Could not verify the padding in the message.");
                     }
                 }
 
-                paddingCount++;
+                paddingCount += paddingSizeFields;
             }
 
             // decode message.

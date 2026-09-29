@@ -346,6 +346,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(chain![2].Subject, Is.EqualTo("CN=PaddedSecond"));
         }
 
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.5.1 Table 61: the PaddingSize byte, the padding and (for receiver keys larger than
+        /// 2048 bits) the ExtraPaddingSize byte are all removed from the OpenSecureChannel body.
+        /// </summary>
+        [TestCase((ushort)2048)]
+        [TestCase((ushort)4096)]
+        public async Task OpenSecureChannelBodyExcludesEveryPaddingByteAsync(ushort serverKeySize)
+        {
+            using var harness = new HandoffHarness(SecurityPolicies.Basic256Sha256, serverKeySize: serverKeySize);
+            ArraySegment<byte> chunk = await harness.Peer.CreateOpenAsync(false).ConfigureAwait(false);
+
+            int bodyLength = await harness.Target.ReadOpenBodyLengthAsync(chunk).ConfigureAwait(false);
+
+            Assert.That(bodyLength, Is.EqualTo(harness.Peer.LastOpenBodyLength));
+        }
+
         private static Certificate CreatePaddedCertificate(string subject, int paddingSize)
         {
             using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -364,7 +380,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 bool withIssuers = false,
                 ushort clientKeySize = 0,
                 ArrayPool<byte>? pool = null,
-                Certificate[]? appendedChain = null)
+                Certificate[]? appendedChain = null,
+                ushort serverKeySize = 0)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var context = ServiceMessageContext.Create(telemetry);
@@ -385,7 +402,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 };
                 SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri)
                     ?? throw new AssertionException("The requested key-agreement policy must be supported.");
-                m_serverCertificate = CreateCertificate("CN=ReconnectServer", policy);
+                m_serverCertificate = serverKeySize > 0
+                    ? DefaultCertificateFactory.Instance
+                        .CreateCertificate("CN=ReconnectServer")
+                        .SetRSAKeySize(serverKeySize)
+                        .CreateForRSA()
+                    : CreateCertificate("CN=ReconnectServer", policy);
                 if (withIssuers)
                 {
                     m_rootCertificate = CertificateBuilder.Create("CN=ReconnectRoot").SetCAConstraint().CreateForRSA();
@@ -610,6 +632,28 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             public ChannelToken Token => CurrentToken!;
+
+            /// <summary>
+            /// Reads an OpenSecureChannel chunk and returns the length of the body it carries.
+            /// </summary>
+            public async Task<int> ReadOpenBodyLengthAsync(ArraySegment<byte> chunk)
+            {
+                Certificate? sender = null;
+                try
+                {
+                    AsymmetricMessage message = await ReadAsymmetricMessageAsync(
+                        chunk, ServerCertificate, null, certificate => sender = certificate,
+                        CancellationToken.None).ConfigureAwait(false);
+                    int length = message.Body.Count;
+                    ReturnDecryptedBuffer(message.Body);
+                    return length;
+                }
+                finally
+                {
+                    sender?.Dispose();
+                }
+            }
+
             public bool FailReceiveStart { get; set; }
             public InvalidOperationException ReceiveError { get; } = new("Injected receive-loop failure.");
 
@@ -656,6 +700,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public ChannelToken Token => CurrentToken!;
 
+            public int LastOpenBodyLength { get; private set; }
+
             public async Task<ArraySegment<byte>> CreateOpenAsync(bool renew)
             {
                 m_pendingToken = CreateToken();
@@ -670,6 +716,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     RequestedLifetime = 60000
                 };
                 byte[] body = BinaryEncoder.EncodeMessage(request, Quotas.MessageContext);
+                LastOpenBodyLength = body.Length;
                 AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
                     TcpMessageType.Open, 77, ClientCertificate, ClientCertificateChain, ServerCertificate,
                     new ArraySegment<byte>(body), null, CancellationToken.None).ConfigureAwait(false);
