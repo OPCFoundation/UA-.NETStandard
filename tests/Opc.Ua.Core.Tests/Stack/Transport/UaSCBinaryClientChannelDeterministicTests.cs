@@ -308,6 +308,37 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "the parsed sender chain must be disposed when the receiver thumbprint is absent.");
         }
 
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.3: the SenderCertificate is null when the message is not signed, so a certificate on
+        /// an unsigned (SecurityPolicy None) OpenSecureChannel is discarded without being parsed.
+        /// </summary>
+        [Test]
+        public void ReadAsymmetricMessageHeaderDiscardsSenderCertificateOfUnsignedMessage()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.None,
+                sender.RawData,
+                new byte[TcpMessageLimits.CertificateThumbprintSize]);
+
+            (_, CertificateCollection? senderChain, string securityPolicyUri) =
+                channel.CallReadAsymmetricMessageHeader(new ArraySegment<byte>(header), null);
+
+            Assert.That(securityPolicyUri, Is.EqualTo(SecurityPolicies.None));
+            Assert.That(senderChain, Is.Null);
+            Assert.That(channel.ParsedSenderChain, Is.Null);
+        }
+
         [Test]
         public void VerifyMessageTypeWithWrongTypeThrowsBadTcpMessageTypeInvalid()
         {

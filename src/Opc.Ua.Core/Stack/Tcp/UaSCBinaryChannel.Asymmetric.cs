@@ -1406,6 +1406,16 @@ namespace Opc.Ua.Bindings
                     "The asymmetric security header could not be parsed.");
             }
 
+            // OPC 10000-6 §6.7.2.3: the SenderCertificate and the
+            // ReceiverCertificateThumbprint are null when the message is not
+            // signed. A certificate sent anyway was never proven to belong to
+            // the peer, so it is discarded rather than parsed and exposed as
+            // the channel's peer certificate.
+            if (securityPolicyUri == SecurityPolicies.None)
+            {
+                return;
+            }
+
             // Once the sender chain is parsed below it owns freshly allocated
             // certificate handles. Every remaining validation can throw, and an
             // out parameter is not handed back to the caller's using-block when
