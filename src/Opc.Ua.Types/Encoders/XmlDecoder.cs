@@ -745,7 +745,9 @@ namespace Opc.Ua
                     m_reader.MoveToContent();
                 }
 
-                value.InnerXml = m_reader.ReadInnerXml();
+                string innerXml = m_reader.ReadInnerXml();
+                CheckXmlElementDepth(innerXml);
+                value.InnerXml = innerXml;
 
                 EndField(fieldName);
                 return (XmlElement)value;
@@ -3331,7 +3333,43 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels,
                     functionName ?? string.Empty);
             }
+            EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Checks that the content of an XmlElement value does not nest deeper
+        /// than the nesting levels left. Assigning the content to the DOM and
+        /// serializing the element again both recurse once per element level
+        /// in System.Xml, so an unbounded depth overflows the stack.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckXmlElementDepth(string innerXml)
+        {
+            if (string.IsNullOrEmpty(innerXml))
+            {
+                return;
+            }
+
+            // Only the element structure matters here, the prefixes may be
+            // declared on the ancestors of the content.
+            using var reader = new XmlTextReader(innerXml, XmlNodeType.Element, null)
+            {
+                Namespaces = false,
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null
+            };
+            while (reader.Read())
+            {
+                if (reader.NodeType == XmlNodeType.Element &&
+                    m_nestingLevel + reader.Depth > Context.MaxEncodingNestingLevels)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Maximum nesting level of {0} was exceeded by an XmlElement",
+                        Context.MaxEncodingNestingLevels);
+                }
+            }
         }
 
         /// <summary>

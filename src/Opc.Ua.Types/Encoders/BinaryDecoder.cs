@@ -1376,344 +1376,372 @@ namespace Opc.Ua
                 return default;
             }
 
-            // read the encoding byte if we do not have the type info.
+            // Each form is read by its own method. A Variant nested in a Variant
+            // array, a DataValue or an ExtensionObject recurses through here, and a
+            // single method holding the temporaries of all three switches made every
+            // nesting level cost several KB of stack.
             if (typeInfo.IsScalar)
             {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        return Variant.Null;
-                    case BuiltInType.Boolean:
-                        return Variant.From(SafeReadBoolean());
-                    case BuiltInType.SByte:
-                        return Variant.From(SafeReadSByte());
-                    case BuiltInType.Byte:
-                        return Variant.From(SafeReadByte());
-                    case BuiltInType.Int16:
-                        return Variant.From(SafeReadInt16());
-                    case BuiltInType.UInt16:
-                        return Variant.From(SafeReadUInt16());
-                    case BuiltInType.Int32:
-                        return Variant.From(SafeReadInt32());
-                    case BuiltInType.Enumeration:
-                        return Variant.From(ReadEnumerated(null));
-                    case BuiltInType.UInt32:
-                        return Variant.From(SafeReadUInt32());
-                    case BuiltInType.Int64:
-                        return Variant.From(SafeReadInt64());
-                    case BuiltInType.UInt64:
-                        return Variant.From(SafeReadUInt64());
-                    case BuiltInType.Float:
-                        return Variant.From(SafeReadFloat());
-                    case BuiltInType.Double:
-                        return Variant.From(SafeReadDouble());
-                    case BuiltInType.String:
-                        return Variant.From(ReadString(null)!);
-                    case BuiltInType.DateTime:
-                        return Variant.From(ReadDateTime(null));
-                    case BuiltInType.Guid:
-                        return Variant.From(ReadGuid(null));
-                    case BuiltInType.ByteString:
-                        return Variant.From(ReadByteString(null));
-                    case BuiltInType.XmlElement:
-                        return Variant.From(ReadXmlElement(null));
-                    case BuiltInType.NodeId:
-                        return Variant.From(ReadNodeId(null));
-                    case BuiltInType.ExpandedNodeId:
-                        return Variant.From(ReadExpandedNodeId(null));
-                    case BuiltInType.StatusCode:
-                        return Variant.From(ReadStatusCode(null));
-                    case BuiltInType.QualifiedName:
-                        return Variant.From(ReadQualifiedName(null));
-                    case BuiltInType.LocalizedText:
-                        return Variant.From(ReadLocalizedText(null));
-                    case BuiltInType.ExtensionObject:
-                        return Variant.From(ReadExtensionObject(null));
-                    case BuiltInType.DataValue:
-                        return Variant.From(ReadDataValue(null));
-                    case BuiltInType.Variant:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.DiagnosticInfo:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unsupported built in type for Variant content ({0}).",
-                            typeInfo);
-                    default:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unexpected scalar built in type ({0}).",
-                            typeInfo);
-                }
+                return ReadScalarVariantValue(typeInfo);
             }
             if (typeInfo.IsArray)
             {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        return Variant.Null;
-                    case BuiltInType.Boolean:
-                        return Variant.From(ReadBooleanArray(null));
-                    case BuiltInType.SByte:
-                        return Variant.From(ReadSByteArray(null));
-                    case BuiltInType.Byte:
-                        return Variant.From(ReadByteArray(null));
-                    case BuiltInType.Int16:
-                        return Variant.From(ReadInt16Array(null));
-                    case BuiltInType.UInt16:
-                        return Variant.From(ReadUInt16Array(null));
-                    case BuiltInType.Int32:
-                        return Variant.From(ReadInt32Array(null));
-                    case BuiltInType.Enumeration:
-                        return Variant.From(ReadEnumeratedArray(null));
-                    case BuiltInType.UInt32:
-                        return Variant.From(ReadUInt32Array(null));
-                    case BuiltInType.Int64:
-                        return Variant.From(ReadInt64Array(null));
-                    case BuiltInType.UInt64:
-                        return Variant.From(ReadUInt64Array(null));
-                    case BuiltInType.Float:
-                        return Variant.From(ReadFloatArray(null));
-                    case BuiltInType.Double:
-                        return Variant.From(ReadDoubleArray(null));
-                    case BuiltInType.String:
-#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ReadStringArray(null));
-#pragma warning restore CS8620
-                    case BuiltInType.DateTime:
-                        return Variant.From(ReadDateTimeArray(null));
-                    case BuiltInType.Guid:
-                        return Variant.From(ReadGuidArray(null));
-                    case BuiltInType.ByteString:
-                        return Variant.From(ReadByteStringArray(null));
-                    case BuiltInType.XmlElement:
-                        return Variant.From(ReadXmlElementArray(null));
-                    case BuiltInType.NodeId:
-                        return Variant.From(ReadNodeIdArray(null));
-                    case BuiltInType.ExpandedNodeId:
-                        return Variant.From(ReadExpandedNodeIdArray(null));
-                    case BuiltInType.StatusCode:
-                        return Variant.From(ReadStatusCodeArray(null));
-                    case BuiltInType.QualifiedName:
-                        return Variant.From(ReadQualifiedNameArray(null));
-                    case BuiltInType.LocalizedText:
-                        return Variant.From(ReadLocalizedTextArray(null));
-                    case BuiltInType.ExtensionObject:
-                        return Variant.From(ReadExtensionObjectArray(null));
-                    case BuiltInType.DataValue:
-#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ReadDataValueArray(null));
-#pragma warning restore CS8620
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.Variant:
-                        return Variant.From(ReadVariantArray(null));
-                    case BuiltInType.DiagnosticInfo:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unsupported built in type for Variant array content ({0}).",
-                            typeInfo);
-                    default:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unexpected array built in type ({0}).",
-                            typeInfo);
-                }
+                return ReadArrayVariantValue(typeInfo);
             }
-            else if (readRawValue)
+            if (readRawValue)
             {
                 // A multi-dimensional structure field is an inline matrix.
                 // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
                 return ReadInlineMatrix(typeInfo);
             }
-            else
+            return ReadMatrixVariantValue(typeInfo);
+        }
+
+        /// <summary>
+        /// Reads the value of a scalar Variant.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadScalarVariantValue(TypeInfo typeInfo)
+        {
+            switch (typeInfo.BuiltInType)
             {
-                // read the dimensions for variant encoding after the array.
-                // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
-                int[] ReadDims()
-                {
-                    return ReadInt32Array(null).ToArray() ?? [];
-                }
+                case BuiltInType.Null:
+                    return Variant.Null;
+                case BuiltInType.Boolean:
+                    return Variant.From(SafeReadBoolean());
+                case BuiltInType.SByte:
+                    return Variant.From(SafeReadSByte());
+                case BuiltInType.Byte:
+                    return Variant.From(SafeReadByte());
+                case BuiltInType.Int16:
+                    return Variant.From(SafeReadInt16());
+                case BuiltInType.UInt16:
+                    return Variant.From(SafeReadUInt16());
+                case BuiltInType.Int32:
+                    return Variant.From(SafeReadInt32());
+                case BuiltInType.Enumeration:
+                    return Variant.From(ReadEnumerated(null));
+                case BuiltInType.UInt32:
+                    return Variant.From(SafeReadUInt32());
+                case BuiltInType.Int64:
+                    return Variant.From(SafeReadInt64());
+                case BuiltInType.UInt64:
+                    return Variant.From(SafeReadUInt64());
+                case BuiltInType.Float:
+                    return Variant.From(SafeReadFloat());
+                case BuiltInType.Double:
+                    return Variant.From(SafeReadDouble());
+                case BuiltInType.String:
+                    return Variant.From(ReadString(null)!);
+                case BuiltInType.DateTime:
+                    return Variant.From(ReadDateTime(null));
+                case BuiltInType.Guid:
+                    return Variant.From(ReadGuid(null));
+                case BuiltInType.ByteString:
+                    return Variant.From(ReadByteString(null));
+                case BuiltInType.XmlElement:
+                    return Variant.From(ReadXmlElement(null));
+                case BuiltInType.NodeId:
+                    return Variant.From(ReadNodeId(null));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(ReadExpandedNodeId(null));
+                case BuiltInType.StatusCode:
+                    return Variant.From(ReadStatusCode(null));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(ReadQualifiedName(null));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(ReadLocalizedText(null));
+                case BuiltInType.ExtensionObject:
+                    return Variant.From(ReadExtensionObject(null));
+                case BuiltInType.DataValue:
+                    return Variant.From(ReadDataValue(null));
+                case BuiltInType.Variant:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant content ({0}).",
+                        typeInfo);
+                default:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected scalar built in type ({0}).",
+                        typeInfo);
+            }
+        }
 
-                static MatrixOf<T> ToMatrix<T>(
-                    ArrayOf<T> values,
-                    int[] dimensions,
-                    TypeInfo typeInfo)
-                {
-                    if (!MatrixOf.IsValidMatrix(dimensions, values.Count))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Variant matrix ArrayDimensions [{0}] are inconsistent with {1} element(s) ({2}).",
-                            string.Join(",", dimensions),
-                            values.Count,
-                            typeInfo);
-                    }
-
-                    try
-                    {
-                        return values.ToMatrix(dimensions);
-                    }
-                    catch (ArgumentException)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Variant matrix ArrayDimensions [{0}] are inconsistent with {1} element(s) ({2}).",
-                            string.Join(",", dimensions),
-                            values.Count,
-                            typeInfo);
-                    }
-                }
-
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        return Variant.Null;
-                    case BuiltInType.Boolean:
-                        return Variant.From(ToMatrix(
-                            ReadBooleanArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.SByte:
-                        return Variant.From(ToMatrix(
-                            ReadSByteArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Byte:
-                        return Variant.From(ToMatrix(
-                            ReadByteArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Int16:
-                        return Variant.From(ToMatrix(
-                            ReadInt16Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.UInt16:
-                        return Variant.From(ToMatrix(
-                            ReadUInt16Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Int32:
-                        return Variant.From(ToMatrix(
-                            ReadInt32Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Enumeration:
-                        return Variant.From(ToMatrix(
-                            ReadEnumeratedArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.UInt32:
-                        return Variant.From(ToMatrix(
-                            ReadUInt32Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Int64:
-                        return Variant.From(ToMatrix(
-                            ReadInt64Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.UInt64:
-                        return Variant.From(ToMatrix(
-                            ReadUInt64Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Float:
-                        return Variant.From(ToMatrix(
-                            ReadFloatArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Double:
-                        return Variant.From(ToMatrix(
-                            ReadDoubleArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.String:
+        /// <summary>
+        /// Reads the value of a one-dimensional Variant array.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadArrayVariantValue(TypeInfo typeInfo)
+        {
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    return Variant.Null;
+                case BuiltInType.Boolean:
+                    return Variant.From(ReadBooleanArray(null));
+                case BuiltInType.SByte:
+                    return Variant.From(ReadSByteArray(null));
+                case BuiltInType.Byte:
+                    return Variant.From(ReadByteArray(null));
+                case BuiltInType.Int16:
+                    return Variant.From(ReadInt16Array(null));
+                case BuiltInType.UInt16:
+                    return Variant.From(ReadUInt16Array(null));
+                case BuiltInType.Int32:
+                    return Variant.From(ReadInt32Array(null));
+                case BuiltInType.Enumeration:
+                    return Variant.From(ReadEnumeratedArray(null));
+                case BuiltInType.UInt32:
+                    return Variant.From(ReadUInt32Array(null));
+                case BuiltInType.Int64:
+                    return Variant.From(ReadInt64Array(null));
+                case BuiltInType.UInt64:
+                    return Variant.From(ReadUInt64Array(null));
+                case BuiltInType.Float:
+                    return Variant.From(ReadFloatArray(null));
+                case BuiltInType.Double:
+                    return Variant.From(ReadDoubleArray(null));
+                case BuiltInType.String:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ToMatrix(
-                            ReadStringArray(null),
-                            ReadDims(),
-                            typeInfo));
+                    return Variant.From(ReadStringArray(null));
 #pragma warning restore CS8620
-                    case BuiltInType.DateTime:
-                        return Variant.From(ToMatrix(
-                            ReadDateTimeArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Guid:
-                        return Variant.From(ToMatrix(
-                            ReadGuidArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.ByteString:
-                        return Variant.From(ToMatrix(
-                            ReadByteStringArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.XmlElement:
-                        return Variant.From(ToMatrix(
-                            ReadXmlElementArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.NodeId:
-                        return Variant.From(ToMatrix(
-                            ReadNodeIdArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.ExpandedNodeId:
-                        return Variant.From(ToMatrix(
-                            ReadExpandedNodeIdArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.StatusCode:
-                        return Variant.From(ToMatrix(
-                            ReadStatusCodeArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.QualifiedName:
-                        return Variant.From(ToMatrix(
-                            ReadQualifiedNameArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.LocalizedText:
-                        return Variant.From(ToMatrix(
-                            ReadLocalizedTextArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.ExtensionObject:
-                        return Variant.From(ToMatrix(
-                            ReadExtensionObjectArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.DataValue:
+                case BuiltInType.DateTime:
+                    return Variant.From(ReadDateTimeArray(null));
+                case BuiltInType.Guid:
+                    return Variant.From(ReadGuidArray(null));
+                case BuiltInType.ByteString:
+                    return Variant.From(ReadByteStringArray(null));
+                case BuiltInType.XmlElement:
+                    return Variant.From(ReadXmlElementArray(null));
+                case BuiltInType.NodeId:
+                    return Variant.From(ReadNodeIdArray(null));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(ReadExpandedNodeIdArray(null));
+                case BuiltInType.StatusCode:
+                    return Variant.From(ReadStatusCodeArray(null));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(ReadQualifiedNameArray(null));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(ReadLocalizedTextArray(null));
+                case BuiltInType.ExtensionObject:
+                    return Variant.From(ReadExtensionObjectArray(null));
+                case BuiltInType.DataValue:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ToMatrix(
-                            ReadDataValueArray(null),
-                            ReadDims(),
-                            typeInfo));
+                    return Variant.From(ReadDataValueArray(null));
 #pragma warning restore CS8620
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.Variant:
-                        return Variant.From(ToMatrix(
-                            ReadVariantArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.DiagnosticInfo:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unsupported built in type for Variant matrix content ({0}).",
-                            typeInfo);
-                    default:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unexpected matrix built in type ({0}).",
-                            typeInfo);
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return Variant.From(ReadVariantArray(null));
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant array content ({0}).",
+                        typeInfo);
+                default:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected array built in type ({0}).",
+                        typeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Reads the value of a Variant matrix: the flattened elements followed
+        /// by the dimensions.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadMatrixVariantValue(TypeInfo typeInfo)
+        {
+            // read the dimensions for variant encoding after the array.
+            // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
+            int[] ReadDims()
+            {
+                return ReadInt32Array(null).ToArray() ?? [];
+            }
+
+            static MatrixOf<T> ToMatrix<T>(
+                ArrayOf<T> values,
+                int[] dimensions,
+                TypeInfo typeInfo)
+            {
+                if (!MatrixOf.IsValidMatrix(dimensions, values.Count))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Variant matrix ArrayDimensions [{0}] are inconsistent with {1} element(s) ({2}).",
+                        string.Join(",", dimensions),
+                        values.Count,
+                        typeInfo);
                 }
+
+                try
+                {
+                    return values.ToMatrix(dimensions);
+                }
+                catch (ArgumentException)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Variant matrix ArrayDimensions [{0}] are inconsistent with {1} element(s) ({2}).",
+                        string.Join(",", dimensions),
+                        values.Count,
+                        typeInfo);
+                }
+            }
+
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    return Variant.Null;
+                case BuiltInType.Boolean:
+                    return Variant.From(ToMatrix(
+                        ReadBooleanArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.SByte:
+                    return Variant.From(ToMatrix(
+                        ReadSByteArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Byte:
+                    return Variant.From(ToMatrix(
+                        ReadByteArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Int16:
+                    return Variant.From(ToMatrix(
+                        ReadInt16Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.UInt16:
+                    return Variant.From(ToMatrix(
+                        ReadUInt16Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Int32:
+                    return Variant.From(ToMatrix(
+                        ReadInt32Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Enumeration:
+                    return Variant.From(ToMatrix(
+                        ReadEnumeratedArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.UInt32:
+                    return Variant.From(ToMatrix(
+                        ReadUInt32Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Int64:
+                    return Variant.From(ToMatrix(
+                        ReadInt64Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.UInt64:
+                    return Variant.From(ToMatrix(
+                        ReadUInt64Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Float:
+                    return Variant.From(ToMatrix(
+                        ReadFloatArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Double:
+                    return Variant.From(ToMatrix(
+                        ReadDoubleArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.String:
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
+                    return Variant.From(ToMatrix(
+                        ReadStringArray(null),
+                        ReadDims(),
+                        typeInfo));
+#pragma warning restore CS8620
+                case BuiltInType.DateTime:
+                    return Variant.From(ToMatrix(
+                        ReadDateTimeArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Guid:
+                    return Variant.From(ToMatrix(
+                        ReadGuidArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.ByteString:
+                    return Variant.From(ToMatrix(
+                        ReadByteStringArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.XmlElement:
+                    return Variant.From(ToMatrix(
+                        ReadXmlElementArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.NodeId:
+                    return Variant.From(ToMatrix(
+                        ReadNodeIdArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(ToMatrix(
+                        ReadExpandedNodeIdArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.StatusCode:
+                    return Variant.From(ToMatrix(
+                        ReadStatusCodeArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(ToMatrix(
+                        ReadQualifiedNameArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(ToMatrix(
+                        ReadLocalizedTextArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.ExtensionObject:
+                    return Variant.From(ToMatrix(
+                        ReadExtensionObjectArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.DataValue:
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
+                    return Variant.From(ToMatrix(
+                        ReadDataValueArray(null),
+                        ReadDims(),
+                        typeInfo));
+#pragma warning restore CS8620
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return Variant.From(ToMatrix(
+                        ReadVariantArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant matrix content ({0}).",
+                        typeInfo);
+                default:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected matrix built in type ({0}).",
+                        typeInfo);
             }
         }
 
@@ -2872,6 +2900,7 @@ namespace Opc.Ua
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
             }
+            EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
         }
 
