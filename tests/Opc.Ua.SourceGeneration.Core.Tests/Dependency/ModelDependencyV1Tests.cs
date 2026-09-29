@@ -108,6 +108,90 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void WriteThenRead_RoundTripsVariableTypeDataType()
+        {
+            // A consumer that types a variable with a VariableType supplied by
+            // a referenced assembly needs that type's data type restriction to
+            // decide whether the generated state class takes a template
+            // parameter. Before the restriction was carried here, the consumer
+            // resolved a null DataTypeNode and the node state generator threw
+            // a bare NullReferenceException (OPC 40001-1 Machinery over the
+            // OPC 10000-100 DI LifetimeVariableType).
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Demo/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "LifetimeVariableType",
+                SymbolicNamespace = "http://example.org/UA/Demo/",
+                ClassName = "LifetimeVariable",
+                Kind = DependencyNodeKind.VariableType,
+                BaseTypeName = "BaseDataVariableType",
+                BaseTypeNamespace = "http://opcfoundation.org/UA/",
+                NumericId = 468,
+                DataTypeName = "Number",
+                DataTypeNamespace = "http://opcfoundation.org/UA/",
+                ValueRank = (int)ValueRank.Scalar
+            });
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            DependencyNode variableType = decoded.Nodes[0];
+            Assert.That(variableType.Kind, Is.EqualTo(DependencyNodeKind.VariableType));
+            Assert.That(variableType.DataTypeName, Is.EqualTo("Number"));
+            Assert.That(
+                variableType.DataTypeNamespace,
+                Is.EqualTo("http://opcfoundation.org/UA/"));
+            Assert.That(variableType.ValueRank, Is.EqualTo((int)ValueRank.Scalar));
+        }
+
+        [Test]
+        public void WriteThenRead_OmittedVariableTypeDataTypeStaysNull()
+        {
+            // A payload without a VariableType carries no declaration trailer,
+            // so a current reader must leave the fields null rather than
+            // consuming bytes that are not there.
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Demo/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "PlainType",
+                SymbolicNamespace = "http://example.org/UA/Demo/",
+                ClassName = "Plain",
+                Kind = DependencyNodeKind.ObjectType,
+                NumericId = 1
+            });
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes[0].DataTypeName, Is.Null);
+            Assert.That(decoded.Nodes[0].DataTypeNamespace, Is.Null);
+            Assert.That(decoded.Nodes[0].ValueRank, Is.Null);
+        }
+
+        [Test]
+        public void WriteThenRead_RoundTripsVariableTypeWithoutValueRank()
+        {
+            var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Demo/" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "LooseVariableType",
+                SymbolicNamespace = "http://example.org/UA/Demo/",
+                ClassName = "LooseVariable",
+                Kind = DependencyNodeKind.VariableType,
+                NumericId = 2,
+                DataTypeName = "BaseDataType",
+                DataTypeNamespace = "http://opcfoundation.org/UA/",
+                ValueRank = null
+            });
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes[0].DataTypeName, Is.EqualTo("BaseDataType"));
+            Assert.That(decoded.Nodes[0].ValueRank, Is.Null);
+        }
+
+        [Test]
         public void WriteThenRead_PreservesUnicodeBrowseNames()
         {
             var dependency = new ModelDependencyV1 { ModelUri = "http://example.org/UA/Unicode/" };
@@ -723,6 +807,157 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(
                 decoded.Nodes.SelectMany(n => n.Children).Select(c => c.DefaultValueNamespaceUris),
                 Has.All.Null);
+        }
+
+        /// <summary>
+        /// The BrowseName namespace and the ReferenceType of a child round
+        /// trip through the declaration trailer, next to the DataType of a
+        /// VariableType; a child without them reads back empty.
+        /// </summary>
+        [Test]
+        public void WriteThenReadRoundTripsChildDeclarations()
+        {
+            ModelDependencyV1 dependency = BuildDeclarationSnapshot(withDeclarations: true);
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes[0].DataTypeName, Is.EqualTo("Number"));
+            Assert.That(decoded.Nodes[0].ValueRank, Is.EqualTo(-1));
+            IReadOnlyList<DependencyChild> children = decoded.Nodes[1].Children;
+            Assert.Multiple(() =>
+            {
+                Assert.That(children[0].BrowseNameNamespace, Is.EqualTo(kOpcUa));
+                Assert.That(children[0].ReferenceTypeName, Is.EqualTo("HasComponent"));
+                Assert.That(children[0].ReferenceTypeNamespace, Is.EqualTo(kOpcUa));
+                Assert.That(children[1].BrowseNameNamespace, Is.Empty);
+                Assert.That(children[1].ReferenceTypeName, Is.EqualTo("HasAddIn"));
+                Assert.That(children[2].BrowseNameNamespace, Is.Empty);
+                Assert.That(children[2].ReferenceTypeName, Is.Empty);
+                Assert.That(children[2].ReferenceTypeNamespace, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// The declaration trailer only appends to the V1 format: the node and
+        /// child records keep their layout, so the payload without
+        /// declarations is a prefix of the one with them. A new reader reads
+        /// an old payload without declarations, and an old reader, which
+        /// ignores the unknown capability bit and stops after the trailers it
+        /// knows, reads a new payload.
+        /// </summary>
+        [Test]
+        public void DeclarationTrailerIsCompatibleWithOldPayloadsAndReaders()
+        {
+            ModelDependencyV1 withDeclarations = BuildDeclarationSnapshot(withDeclarations: true);
+            ModelDependencyV1 withoutDeclarations = BuildDeclarationSnapshot(withDeclarations: false);
+
+            byte[] old = Inflate(withoutDeclarations.ToBase64Payload());
+            byte[] full = Inflate(withDeclarations.ToBase64Payload());
+            Assert.That(full.Take(old.Length), Is.EqualTo(old), "the old payload is a prefix");
+
+            // New reader, old payload.
+            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old));
+            Assert.That(fromOld.Nodes[0].DataTypeName, Is.Null);
+            Assert.That(
+                fromOld.Nodes[1].Children.Select(c => c.BrowseNameNamespace + c.ReferenceTypeName),
+                Has.All.Empty);
+
+            // Old reader, new payload.
+            byte capabilities = full[old.Length];
+            Assert.That(capabilities & 0x04, Is.Not.Zero, "declaration trailer bit is set");
+            Assert.That(capabilities & 0x20, Is.Not.Zero, "extended identifier trailer bit is set");
+            Assert.That(capabilities & 0x40, Is.Zero, "fluent accessors stay unknown");
+            byte[] asOldReaderSeesIt = (byte[])full.Clone();
+            asOldReaderSeesIt[old.Length] = (byte)(capabilities & ~0x04);
+            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt));
+            Assert.That(oldView, Is.Not.Null);
+            Assert.That(oldView.FluentAccessorsEmitted, Is.Null);
+            Assert.That(oldView.Nodes[0].DataTypeName, Is.Null);
+            Assert.That(oldView.Nodes[1].Children, Has.Count.EqualTo(3));
+            Assert.That(
+                oldView.Nodes[1].Children.Select(c => c.BrowseNameNamespace + c.ReferenceTypeName),
+                Has.All.Empty);
+        }
+
+        /// <summary>
+        /// The declaration trailer is length prefixed, so a later version of
+        /// it is skipped instead of failing the payload.
+        /// </summary>
+        [Test]
+        public void ReadSkipsAnUnknownDeclarationTrailerVersion()
+        {
+            byte[] full = Inflate(BuildDeclarationSnapshot(withDeclarations: true).ToBase64Payload());
+            // capabilities, extended identifier trailer (version, count, and
+            // two null strings per node), then the declaration trailer.
+            int trailer = Inflate(BuildDeclarationSnapshot(withDeclarations: false)
+                .ToBase64Payload()).Length + 1 + 1 + 4 + (2 * 2);
+            Assert.That(full[trailer], Is.EqualTo((byte)1));
+            Assert.That(
+                BitConverter.ToInt32(full, trailer + 1),
+                Is.EqualTo(full.Length - trailer - 5),
+                "the declaration trailer is the last one");
+            full[trailer] = 2;
+
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full));
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.Nodes[0].DataTypeName, Is.Null);
+            Assert.That(decoded.Nodes[1].Children[0].BrowseNameNamespace, Is.Empty);
+        }
+
+        private const string kOpcUa = "http://opcfoundation.org/UA/";
+
+        private static ModelDependencyV1 BuildDeclarationSnapshot(bool withDeclarations)
+        {
+            const string ns = "http://example.org/UA/Declarations/";
+            var dependency = new ModelDependencyV1 { ModelUri = ns };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "LifetimeVariableType",
+                SymbolicNamespace = ns,
+                ClassName = "LifetimeVariable",
+                Kind = DependencyNodeKind.VariableType,
+                NumericId = 1,
+                DataTypeName = withDeclarations ? "Number" : null,
+                DataTypeNamespace = withDeclarations ? kOpcUa : null,
+                ValueRank = withDeclarations ? -1 : null
+            });
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "DeviceType",
+                SymbolicNamespace = ns,
+                ClassName = "Device",
+                Kind = DependencyNodeKind.ObjectType,
+                NumericId = 2,
+                Children =
+                [
+                    new DependencyChild
+                    {
+                        BrowseName = "EngineeringUnits",
+                        SymbolicName = "EngineeringUnits",
+                        InstanceKind = 2,
+                        BrowseNameNamespace = withDeclarations ? kOpcUa : string.Empty,
+                        ReferenceTypeName = withDeclarations ? "HasComponent" : string.Empty,
+                        ReferenceTypeNamespace = withDeclarations ? kOpcUa : string.Empty
+                    },
+                    new DependencyChild
+                    {
+                        BrowseName = "Identification",
+                        SymbolicName = "Identification",
+                        InstanceKind = 1,
+                        ReferenceTypeName = withDeclarations ? "HasAddIn" : string.Empty,
+                        ReferenceTypeNamespace = withDeclarations ? kOpcUa : string.Empty
+                    },
+                    new DependencyChild
+                    {
+                        BrowseName = "Plain",
+                        SymbolicName = "Plain",
+                        InstanceKind = 3
+                    }
+                ]
+            });
+            return dependency;
         }
 
         private static readonly string[] s_producerTable =

@@ -1146,6 +1146,13 @@ namespace Opc.Ua
             {
                 return 0;
             }
+            if (!ValueIsValueType && ValueIsDefaultOrNull)
+            {
+                // A typed null payload (null array, matrix, byte string,
+                // qualified name, ...) equals Variant.Null and must
+                // therefore hash like it.
+                return 0;
+            }
             if (TypeInfo.IsScalar)
             {
                 return TypeInfo.BuiltInType switch
@@ -1176,7 +1183,10 @@ namespace Opc.Ua
                     BuiltInType.UInt64 => m_union.UInt64.GetHashCode(),
                     BuiltInType.QualifiedName when IsPackedScalar => GetQualifiedName().GetHashCode(),
                     BuiltInType.NodeId when IsPackedScalar => GetNodeId().GetHashCode(),
-                    BuiltInType.ByteString when IsPackedScalar => GetByteString().GetHashCode(),
+                    // A null byte string equals the empty one (and Variant.Null),
+                    // so empty byte strings hash like the null variant.
+                    BuiltInType.ByteString when IsPackedScalar => HashByteString(GetByteString()),
+                    BuiltInType.ByteString when m_value is ByteString boxed => HashByteString(boxed),
                     BuiltInType.LocalizedText when IsPackedScalar => GetLocalizedText().GetHashCode(),
                     _ => m_value?.GetHashCode() ?? 0
                 };
@@ -1185,9 +1195,15 @@ namespace Opc.Ua
             {
                 // A byte array compares equal to a ByteString, so it must hash
                 // the same way as ByteString does.
-                return ReadOnlySpan.ComputeHash32(GetByteArray().Span);
+                ReadOnlySpan<byte> bytes = GetByteArray().Span;
+                return bytes.IsEmpty ? 0 : ReadOnlySpan.ComputeHash32(bytes);
             }
             return m_value?.GetHashCode() ?? 0;
+
+            static int HashByteString(ByteString value)
+            {
+                return value.IsEmpty ? 0 : value.GetHashCode();
+            }
         }
 
         /// <inheritdoc/>
@@ -5994,6 +6010,10 @@ namespace Opc.Ua
                     return this;
                 case BuiltInType.String:
                     return new LocalizedText(GetString());
+                case BuiltInType.QualifiedName:
+                    // Part 4 Table 121: implicit, the name becomes the text
+                    // without a locale (like a String does).
+                    return new LocalizedText(GetQualifiedName().Name);
                 case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                     // conversion not supported.
                     throw new InvalidCastException();
@@ -6095,9 +6115,147 @@ namespace Opc.Ua
             }
             if (TypeInfo.IsArray)
             {
-                return Collapse(Expand().ToArrayOf(v => v.ConvertTo(targetType)));
+                // Part 4 7.7.3: an array converts to an array of the target
+                // type by converting each element, so a one element or an
+                // empty array must stay an array.
+                if (!ValueIsValueType && ValueIsDefaultOrNull)
+                {
+                    return default;
+                }
+                ArrayOf<Variant> converted = Expand().ToArrayOf(v => v.ConvertTo(targetType));
+                if (converted.Count == 0)
+                {
+                    // Nothing was converted, so check the conversion is legal
+                    // and pick the element type a non-empty array would get.
+                    BuiltInType sourceType = TypeInfo.BuiltInType == BuiltInType.Enumeration
+                        ? BuiltInType.Int32
+                        : TypeInfo.BuiltInType;
+                    if (targetType == BuiltInType.Variant)
+                    {
+                        return CreateArray(converted, sourceType);
+                    }
+                    if (!IsConversionSupported(sourceType, targetType))
+                    {
+                        throw new InvalidCastException();
+                    }
+                    return CreateArray(converted, GetConvertedElementType(targetType));
+                }
+                return Collapse(converted, BuiltInType.Variant);
             }
             throw new InvalidCastException();
+        }
+
+        /// <summary>
+        /// The built-in type a scalar converted to <paramref name="targetType"/>
+        /// has (abstract types convert to a concrete one).
+        /// </summary>
+        /// <exception cref="InvalidCastException">if no element can be converted.</exception>
+        private static BuiltInType GetConvertedElementType(BuiltInType targetType)
+        {
+            return targetType switch
+            {
+                BuiltInType.Number => BuiltInType.Double,
+                BuiltInType.Integer => BuiltInType.Int64,
+                BuiltInType.UInteger => BuiltInType.UInt64,
+                BuiltInType.Enumeration => BuiltInType.Int32,
+                BuiltInType.Null or
+                BuiltInType.ExtensionObject or
+                BuiltInType.DataValue or
+                BuiltInType.DiagnosticInfo => throw new InvalidCastException(),
+                _ => targetType
+            };
+        }
+
+        /// <summary>
+        /// Whether a scalar of <paramref name="sourceType"/> can be converted
+        /// to <paramref name="targetType"/> by the ConvertToXxx methods (the
+        /// value itself may still fail to convert).
+        /// </summary>
+        /// <remarks>
+        /// These general-purpose conversions are a superset of Part 4 Table 121:
+        /// they also convert StatusCode, XmlElement and ExtensionObject to
+        /// String and String to StatusCode, XmlElement and ByteString. The
+        /// ContentFilter Cast operator restricts itself to Table 121.
+        /// </remarks>
+        private static bool IsConversionSupported(BuiltInType sourceType, BuiltInType targetType)
+        {
+            targetType = targetType switch
+            {
+                BuiltInType.Number => BuiltInType.Double,
+                BuiltInType.Integer => BuiltInType.Int64,
+                BuiltInType.UInteger => BuiltInType.UInt64,
+                BuiltInType.Enumeration => BuiltInType.Int32,
+                _ => targetType
+            };
+            if (sourceType == targetType || targetType == BuiltInType.Variant)
+            {
+                return true;
+            }
+            if (sourceType is
+                BuiltInType.Variant or
+                BuiltInType.Number or
+                BuiltInType.Integer or
+                BuiltInType.UInteger)
+            {
+                // The type of each element decides.
+                return true;
+            }
+            bool numeric = sourceType is
+                BuiltInType.Boolean or
+                BuiltInType.SByte or
+                BuiltInType.Byte or
+                BuiltInType.Int16 or
+                BuiltInType.UInt16 or
+                BuiltInType.Int32 or
+                BuiltInType.UInt32 or
+                BuiltInType.Int64 or
+                BuiltInType.UInt64 or
+                BuiltInType.Float or
+                BuiltInType.Double;
+            return targetType switch
+            {
+                BuiltInType.Boolean or
+                BuiltInType.SByte or
+                BuiltInType.Byte or
+                BuiltInType.Int16 or
+                BuiltInType.Float or
+                BuiltInType.Double => numeric || sourceType == BuiltInType.String,
+                BuiltInType.UInt16 or
+                BuiltInType.Int32 or
+                BuiltInType.UInt32 or
+                BuiltInType.Int64 or
+                BuiltInType.UInt64 => numeric || sourceType is
+                    BuiltInType.String or
+                    BuiltInType.StatusCode,
+                BuiltInType.String => numeric || sourceType is
+                    BuiltInType.DateTime or
+                    BuiltInType.Guid or
+                    BuiltInType.NodeId or
+                    BuiltInType.ExpandedNodeId or
+                    BuiltInType.LocalizedText or
+                    BuiltInType.QualifiedName or
+                    BuiltInType.XmlElement or
+                    BuiltInType.StatusCode or
+                    BuiltInType.ExtensionObject,
+                BuiltInType.DateTime or
+                BuiltInType.XmlElement or
+                BuiltInType.QualifiedName => sourceType == BuiltInType.String,
+                BuiltInType.LocalizedText => sourceType is
+                    BuiltInType.String or
+                    BuiltInType.QualifiedName,
+                BuiltInType.Guid => sourceType is BuiltInType.String or BuiltInType.ByteString,
+                BuiltInType.ByteString => sourceType is BuiltInType.String or BuiltInType.Guid,
+                BuiltInType.NodeId => sourceType is BuiltInType.String or BuiltInType.ExpandedNodeId,
+                BuiltInType.ExpandedNodeId => sourceType is BuiltInType.String or BuiltInType.NodeId,
+                BuiltInType.StatusCode => sourceType is
+                    BuiltInType.UInt16 or
+                    BuiltInType.Int32 or
+                    BuiltInType.UInt32 or
+                    BuiltInType.Int64 or
+                    BuiltInType.UInt64 or
+                    BuiltInType.String,
+                _ => false
+            };
         }
 
         /// <inheritdoc/>
@@ -7461,7 +7619,7 @@ namespace Opc.Ua
             if (TryGetIntegerBits(lhs, out ulong lhsBits) &&
                 TryGetIntegerBits(rhs, out ulong rhsBits))
             {
-                return FromIntegerBits(lhs.m_typeInfo, lhsBits & rhsBits, lhs.m_value);
+                return FromIntegerBits(lhs, rhs, lhsBits & rhsBits);
             }
             return default;
         }
@@ -7479,7 +7637,7 @@ namespace Opc.Ua
             if (TryGetIntegerBits(lhs, out ulong lhsBits) &&
                 TryGetIntegerBits(rhs, out ulong rhsBits))
             {
-                return FromIntegerBits(lhs.m_typeInfo, lhsBits | rhsBits, lhs.m_value);
+                return FromIntegerBits(lhs, rhs, lhsBits | rhsBits);
             }
             return default;
         }
@@ -7505,8 +7663,36 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Narrows the result of a bitwise operation back into the type of the
-        /// left hand operand instead of widening it to Int32.
+        /// Narrows the result of a bitwise operation into the type of the larger
+        /// operand (OPC 10000-4 7.7.3: the result matches the size of the largest
+        /// operand). Operands of the same size keep the left hand operand's type.
+        /// </summary>
+        private static Variant FromIntegerBits(Variant lhs, Variant rhs, ulong bits)
+        {
+            Variant result =
+                GetIntegerSize(rhs.m_typeInfo.BuiltInType) >
+                GetIntegerSize(lhs.m_typeInfo.BuiltInType) ? rhs : lhs;
+            return FromIntegerBits(result.m_typeInfo, bits, result.m_value);
+        }
+
+        /// <summary>
+        /// Size in bytes of an integer built in type, 0 for other types.
+        /// </summary>
+        private static int GetIntegerSize(BuiltInType builtInType)
+        {
+            return builtInType switch
+            {
+                BuiltInType.SByte or BuiltInType.Byte => 1,
+                BuiltInType.Int16 or BuiltInType.UInt16 => 2,
+                BuiltInType.Int32 or BuiltInType.UInt32 or BuiltInType.Enumeration => 4,
+                BuiltInType.Int64 or BuiltInType.UInt64 => 8,
+                _ => 0
+            };
+        }
+
+        /// <summary>
+        /// Narrows the bits of a bitwise operation into the given integer type
+        /// instead of widening it to Int32.
         /// </summary>
         private static Variant FromIntegerBits(TypeInfo typeInfo, ulong bits, object? source)
         {
@@ -7608,7 +7794,16 @@ namespace Opc.Ua
             {
                 return int.MinValue;
             }
-            if (GetStoredValue() is IComparable lhs && other.GetStoredValue() is IComparable rhs)
+            object? lhsValue = GetStoredValue();
+            object? rhsValue = other.GetStoredValue();
+            if (lhsValue is string lhsString && rhsValue is string rhsString)
+            {
+                // IComparable.CompareTo on string uses the current culture, so the
+                // order (and filter results) would depend on the process locale
+                // and disagree with the case sensitive, ordinal equality.
+                return Math.Sign(string.CompareOrdinal(lhsString, rhsString));
+            }
+            if (lhsValue is IComparable lhs && rhsValue is IComparable rhs)
             {
                 return lhs.CompareTo(rhs);
             }
@@ -8542,70 +8737,102 @@ namespace Opc.Ua
             }
             if (typeInfo.IsScalar)
             {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Boolean:
-                        return new Variant(items.ConvertAll(v => v.GetBoolean()));
-                    case BuiltInType.SByte:
-                        return new Variant(items.ConvertAll(v => v.GetSByte()));
-                    case BuiltInType.Byte:
-                        return new Variant(items.ConvertAll(v => v.GetByte()));
-                    case BuiltInType.Int16:
-                        return new Variant(items.ConvertAll(v => v.GetInt16()));
-                    case BuiltInType.UInt16:
-                        return new Variant(items.ConvertAll(v => v.GetUInt16()));
-                    case BuiltInType.Int32:
-                        return new Variant(items.ConvertAll(v => v.GetInt32()));
-                    case BuiltInType.UInt32:
-                        return new Variant(items.ConvertAll(v => v.GetUInt32()));
-                    case BuiltInType.Int64:
-                        return new Variant(items.ConvertAll(v => v.GetInt64()));
-                    case BuiltInType.UInt64:
-                        return new Variant(items.ConvertAll(v => v.GetUInt64()));
-                    case BuiltInType.Float:
-                        return new Variant(items.ConvertAll(v => v.GetFloat()));
-                    case BuiltInType.Double:
-                        return new Variant(items.ConvertAll(v => v.GetDouble()));
-                    case BuiltInType.String:
-                        return new Variant(items.ConvertAll(v => v.GetString()));
-                    case BuiltInType.DateTime:
-                        return new Variant(items.ConvertAll(v => v.GetDateTime()));
-                    case BuiltInType.Guid:
-                        return new Variant(items.ConvertAll(v => v.GetGuid()));
-                    case BuiltInType.ByteString:
-                        return new Variant(items.ConvertAll(v => v.GetByteString()));
-                    case BuiltInType.XmlElement:
-                        return new Variant(items.ConvertAll(v => v.GetXmlElement()));
-                    case BuiltInType.NodeId:
-                        return new Variant(items.ConvertAll(v => v.GetNodeId()));
-                    case BuiltInType.ExpandedNodeId:
-                        return new Variant(items.ConvertAll(v => v.GetExpandedNodeId()));
-                    case BuiltInType.StatusCode:
-                        return new Variant(items.ConvertAll(v => v.GetStatusCode()));
-                    case BuiltInType.QualifiedName:
-                        return new Variant(items.ConvertAll(v => v.GetQualifiedName()));
-                    case BuiltInType.LocalizedText:
-                        return new Variant(items.ConvertAll(v => v.GetLocalizedText()));
-                    case BuiltInType.ExtensionObject:
-                        return new Variant(items.ConvertAll(v => v.GetExtensionObject()));
-                    case BuiltInType.DataValue:
-                        return new Variant(items.ConvertAll(v => v.GetDataValue()));
-                    case BuiltInType.DiagnosticInfo:
-                        return default;
-                    case BuiltInType.Enumeration:
-                        return new Variant(items.ConvertAll(v => v.GetEnumeration()));
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.Variant:
-                        return new Variant(items);
-                }
+                return CreateArray(items, typeInfo.BuiltInType);
             }
             if (typeInfo.IsArray)
             {
                 // TODO: Collapse each individual one first
             }
             // TODO: Collapse matrix
+            return new Variant(items);
+        }
+
+        /// <summary>
+        /// Collapses a list of variants into an array variant like
+        /// <see cref="Collapse(ArrayOf{Variant})"/>, but keeps the array shape:
+        /// a single element stays a one element array and an empty list
+        /// becomes an empty array of <paramref name="emptyElementType"/>.
+        /// </summary>
+        internal static Variant Collapse(ArrayOf<Variant> items, BuiltInType emptyElementType)
+        {
+            if (items.Count == 0)
+            {
+                return CreateArray(items, emptyElementType);
+            }
+            if (items.Count == 1)
+            {
+                TypeInfo typeInfo = items.Span[0].TypeInfo;
+                return typeInfo.IsScalar
+                    ? CreateArray(items, typeInfo.BuiltInType)
+                    : new Variant(items);
+            }
+            return Collapse(items);
+        }
+
+        /// <summary>
+        /// Creates an array variant of <paramref name="builtInType"/> from
+        /// scalar variants of that type (a variant array for the abstract types).
+        /// </summary>
+        private static Variant CreateArray(ArrayOf<Variant> items, BuiltInType builtInType)
+        {
+            switch (builtInType)
+            {
+                case BuiltInType.Boolean:
+                    return new Variant(items.ConvertAll(v => v.GetBoolean()));
+                case BuiltInType.SByte:
+                    return new Variant(items.ConvertAll(v => v.GetSByte()));
+                case BuiltInType.Byte:
+                    return new Variant(items.ConvertAll(v => v.GetByte()));
+                case BuiltInType.Int16:
+                    return new Variant(items.ConvertAll(v => v.GetInt16()));
+                case BuiltInType.UInt16:
+                    return new Variant(items.ConvertAll(v => v.GetUInt16()));
+                case BuiltInType.Int32:
+                    return new Variant(items.ConvertAll(v => v.GetInt32()));
+                case BuiltInType.UInt32:
+                    return new Variant(items.ConvertAll(v => v.GetUInt32()));
+                case BuiltInType.Int64:
+                    return new Variant(items.ConvertAll(v => v.GetInt64()));
+                case BuiltInType.UInt64:
+                    return new Variant(items.ConvertAll(v => v.GetUInt64()));
+                case BuiltInType.Float:
+                    return new Variant(items.ConvertAll(v => v.GetFloat()));
+                case BuiltInType.Double:
+                    return new Variant(items.ConvertAll(v => v.GetDouble()));
+                case BuiltInType.String:
+                    return new Variant(items.ConvertAll(v => v.GetString()));
+                case BuiltInType.DateTime:
+                    return new Variant(items.ConvertAll(v => v.GetDateTime()));
+                case BuiltInType.Guid:
+                    return new Variant(items.ConvertAll(v => v.GetGuid()));
+                case BuiltInType.ByteString:
+                    return new Variant(items.ConvertAll(v => v.GetByteString()));
+                case BuiltInType.XmlElement:
+                    return new Variant(items.ConvertAll(v => v.GetXmlElement()));
+                case BuiltInType.NodeId:
+                    return new Variant(items.ConvertAll(v => v.GetNodeId()));
+                case BuiltInType.ExpandedNodeId:
+                    return new Variant(items.ConvertAll(v => v.GetExpandedNodeId()));
+                case BuiltInType.StatusCode:
+                    return new Variant(items.ConvertAll(v => v.GetStatusCode()));
+                case BuiltInType.QualifiedName:
+                    return new Variant(items.ConvertAll(v => v.GetQualifiedName()));
+                case BuiltInType.LocalizedText:
+                    return new Variant(items.ConvertAll(v => v.GetLocalizedText()));
+                case BuiltInType.ExtensionObject:
+                    return new Variant(items.ConvertAll(v => v.GetExtensionObject()));
+                case BuiltInType.DataValue:
+                    return new Variant(items.ConvertAll(v => v.GetDataValue()));
+                case BuiltInType.DiagnosticInfo:
+                    return default;
+                case BuiltInType.Enumeration:
+                    return new Variant(items.ConvertAll(v => v.GetEnumeration()));
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return new Variant(items);
+            }
             return new Variant(items);
         }
 

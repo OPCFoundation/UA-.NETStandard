@@ -2473,6 +2473,14 @@ namespace Opc.Ua.Schema.Model
                         node.SymbolicName = nameof(BrowseNames.DefaultXml);
                     }
                 }
+
+                // Every ParentNodeId is normalized before any id is built:
+                // BuildSymbolicId recurses into the parent, so a child listed
+                // ahead of a parent whose ParentNodeId is only recovered from an
+                // inverse reference (OPC 30050 PackML declares method arguments
+                // before their methods) would otherwise be named from the
+                // parent's bare name instead of its qualified one.
+                NormalizeParentNodeId(node);
             }
 
             CollectDigitPreservingNames();
@@ -2482,8 +2490,6 @@ namespace Opc.Ua.Schema.Model
 
             foreach (UANode node in m_nodeset.Items)
             {
-                NormalizeParentNodeId(node);
-
                 // A DataTypeEncoding is named after its DataType's final
                 // SymbolicName, which is only known once the DataType's own id
                 // (and any collision suffix) has been assigned.
@@ -2872,7 +2878,11 @@ namespace Opc.Ua.Schema.Model
             messageContext.NamespaceUris = mapNamespaces ? m_settings.NamespaceUris : namespaceUris;
             messageContext.ServerUris = m_serverUris;
 
-            var decoder = new XmlDecoder((XmlElement)source, messageContext);
+            var decoder = new XmlDecoder((XmlElement)source, messageContext)
+            {
+                // pretty-printed NodeSets write empty strings as layout whitespace.
+                TreatWhitespaceOnlyStringsAsEmpty = true
+            };
 
             var serverUris = new StringTable();
 

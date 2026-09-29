@@ -37,29 +37,47 @@ using SystemEncoding = System.Text.Encoding;
 namespace Opc.Ua.PubSub.Security
 {
     /// <summary>
-    /// Encodes and decodes the 12-byte AES-CTR <c>MessageNonce</c>
-    /// described by Part 14 Table 156, composed as
-    /// <c>RandomBytes || SequenceNumber</c>. The first 4 bytes carry a
-    /// publisher-chosen <c>MessageRandom</c> (CSPRNG) in big-endian
-    /// order; the trailing 8 bytes carry a monotonic per-key
-    /// <c>MessageSequenceNumber</c> in little-endian order. Because the
-    /// sequence number increments for every message produced under a
-    /// given key, no two nonces repeat within a key's lifetime — the
-    /// keystream-reuse hazard of a constant suffix is eliminated.
+    /// Encodes and decodes the 8-byte AES-CTR <c>MessageNonce</c>
+    /// carried in the UADP SecurityHeader, described by Part 14
+    /// Table 156 as <c>Random[4] || SequenceNumber (UInt32)</c>. The
+    /// first 4 bytes carry a publisher-chosen <c>MessageRandom</c>
+    /// (CSPRNG) in big-endian order; the trailing 4 bytes carry the
+    /// per-key <c>SequenceNumber</c> encoded as an OPC UA UInt32
+    /// (little-endian). Because the sequence number increments for
+    /// every message produced under a given key, no two nonces repeat
+    /// within a key's lifetime.
     /// </summary>
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3.2">
-    /// Part 14 §7.2.4.4.3.2 (Table 156) PubSub nonce composition</see>.
-    /// The receiver extracts the sequence number from the (signed)
-    /// nonce and feeds it to the replay window.
+    /// Part 14 §7.2.4.4.3.2 (Tables 156 and 157) PubSub nonce composition</see>.
+    /// The AES-CTR counter block is
+    /// <c>KeyNonce[4] || MessageNonce[8] || BlockCounter[4]</c>, where
+    /// <c>KeyNonce</c> is the nonce portion of the key data returned by
+    /// <c>GetSecurityKeys</c>. The receiver extracts the sequence number
+    /// from the (signed) nonce and feeds it to the replay window.
     /// </remarks>
     public static class AesCtrNonceLayout
     {
         /// <summary>
-        /// Length of the encoded nonce in bytes.
+        /// Length of the SecurityHeader <c>MessageNonce</c> in bytes.
+        /// For AES-CTR mode the length of the SecurityHeader Nonce
+        /// shall be 8 bytes (Part 14 Table 157).
         /// </summary>
-        public const int NonceLength = 12;
+        public const int NonceLength = 8;
+
+        /// <summary>
+        /// Length of the <c>KeyNonce</c> portion of the key data returned
+        /// by <c>GetSecurityKeys</c> (Part 14 Table 157).
+        /// </summary>
+        public const int KeyNonceLength = 4;
+
+        /// <summary>
+        /// Length of the counter block prefix
+        /// <c>KeyNonce || MessageNonce</c> that precedes the 4-byte
+        /// block counter (Part 14 Table 157).
+        /// </summary>
+        public const int CounterNonceLength = KeyNonceLength + NonceLength;
 
         /// <summary>
         /// Length of the <c>MessageRandom</c> prefix in bytes.
@@ -67,10 +85,9 @@ namespace Opc.Ua.PubSub.Security
         public const int MessageRandomLength = 4;
 
         /// <summary>
-        /// Length of the monotonic <c>MessageSequenceNumber</c> suffix
-        /// in bytes.
+        /// Length of the <c>SequenceNumber</c> suffix in bytes.
         /// </summary>
-        public const int SequenceNumberLength = 8;
+        public const int SequenceNumberLength = 4;
 
         /// <summary>
         /// Length of the publisher-id projection in bytes.
@@ -78,16 +95,17 @@ namespace Opc.Ua.PubSub.Security
         public const int PublisherIdLength = 8;
 
         /// <summary>
-        /// Writes the 12-byte nonce <code>[messageRandom (4 BE) ||
-        /// messageSequenceNumber (8 LE)]</code> into
+        /// Writes the 8-byte nonce <code>[messageRandom (4 BE) ||
+        /// sequenceNumber (UInt32 LE)]</code> into
         /// <paramref name="nonce"/>.
         /// </summary>
         /// <param name="messageRandom">Per-message random value.</param>
         /// <param name="messageSequenceNumber">
-        /// Monotonic per-key message sequence number.
+        /// Per-key message sequence number; must fit a UInt32.
         /// </param>
-        /// <param name="nonce">Destination span (must be 12 bytes).</param>
+        /// <param name="nonce">Destination span (must be 8 bytes).</param>
         /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static void Build(
             uint messageRandom,
             ulong messageSequenceNumber,
@@ -99,19 +117,25 @@ namespace Opc.Ua.PubSub.Security
                     $"Nonce buffer must be exactly {NonceLength} bytes.",
                     nameof(nonce));
             }
+            if (messageSequenceNumber > uint.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(messageSequenceNumber),
+                    "The AES-CTR SequenceNumber is a UInt32.");
+            }
             BinaryPrimitives.WriteUInt32BigEndian(
                 nonce[..MessageRandomLength],
                 messageRandom);
-            BinaryPrimitives.WriteUInt64LittleEndian(
+            BinaryPrimitives.WriteUInt32LittleEndian(
                 nonce.Slice(MessageRandomLength, SequenceNumberLength),
-                messageSequenceNumber);
+                (uint)messageSequenceNumber);
         }
 
         /// <summary>
-        /// Parses the 12-byte nonce produced by
+        /// Parses the 8-byte nonce produced by
         /// <see cref="Build"/>.
         /// </summary>
-        /// <param name="nonce">Source span (must be 12 bytes).</param>
+        /// <param name="nonce">Source span (must be 8 bytes).</param>
         /// <returns>The parsed components.</returns>
         /// <exception cref="ArgumentException"></exception>
         public static AesCtrNonceComponents Parse(
@@ -125,9 +149,48 @@ namespace Opc.Ua.PubSub.Security
             }
             uint messageRandom = BinaryPrimitives.ReadUInt32BigEndian(
                 nonce[..MessageRandomLength]);
-            ulong messageSequenceNumber = BinaryPrimitives.ReadUInt64LittleEndian(
+            uint messageSequenceNumber = BinaryPrimitives.ReadUInt32LittleEndian(
                 nonce.Slice(MessageRandomLength, SequenceNumberLength));
             return new AesCtrNonceComponents(messageRandom, messageSequenceNumber);
+        }
+
+        /// <summary>
+        /// Writes the counter block prefix <c>KeyNonce || MessageNonce</c>
+        /// (Part 14 Table 157) that the AES-CTR primitive extends with the
+        /// big-endian block counter.
+        /// </summary>
+        /// <param name="keyNonce">The KeyNonce portion of the key data.</param>
+        /// <param name="messageNonce">The SecurityHeader nonce.</param>
+        /// <param name="destination">
+        /// Destination span; must be exactly
+        /// <c>keyNonce.Length + messageNonce.Length</c> bytes.
+        /// </param>
+        /// <exception cref="ArgumentException"></exception>
+        internal static void WriteCounterNonce(
+            ReadOnlySpan<byte> keyNonce,
+            ReadOnlySpan<byte> messageNonce,
+            Span<byte> destination)
+        {
+            if (destination.Length != keyNonce.Length + messageNonce.Length)
+            {
+                throw new ArgumentException(
+                    "Destination must hold the KeyNonce and the MessageNonce.",
+                    nameof(destination));
+            }
+            keyNonce.CopyTo(destination);
+            messageNonce.CopyTo(destination[keyNonce.Length..]);
+        }
+
+        /// <summary>
+        /// Length of the <c>KeyNonce</c> portion of the key data for
+        /// <paramref name="policy"/>. AES-CTR is the only encryption the
+        /// UADP message security defines and its KeyNonce is 4 bytes
+        /// (Part 14 Table 157); a policy without a message nonce has no
+        /// KeyNonce either.
+        /// </summary>
+        internal static int GetKeyNonceLength(IPubSubSecurityPolicy policy)
+        {
+            return policy.NonceLength == 0 ? 0 : KeyNonceLength;
         }
 
         /// <summary>
@@ -227,7 +290,7 @@ namespace Opc.Ua.PubSub.Security
         }
 
         /// <summary>
-        /// Renders a 12-byte nonce as a hexadecimal string. Useful for
+        /// Renders an 8-byte nonce as a hexadecimal string. Useful for
         /// diagnostics — never log the encrypting key.
         /// </summary>
         /// <param name="nonce">Nonce bytes.</param>
@@ -249,14 +312,14 @@ namespace Opc.Ua.PubSub.Security
 
     /// <summary>
     /// The two components carried by an AES-CTR <c>MessageNonce</c>
-    /// parsed from its 12-byte wire layout by
+    /// parsed from its 8-byte wire layout by
     /// <see cref="AesCtrNonceLayout.Parse"/>.
     /// </summary>
     /// <param name="MessageRandom">
     /// Publisher-chosen 4-byte CSPRNG value carried in the nonce prefix.
     /// </param>
     /// <param name="MessageSequenceNumber">
-    /// Monotonic per-key message sequence number carried in the nonce
+    /// Per-key UInt32 message sequence number carried in the nonce
     /// suffix.
     /// </param>
     public readonly record struct AesCtrNonceComponents(

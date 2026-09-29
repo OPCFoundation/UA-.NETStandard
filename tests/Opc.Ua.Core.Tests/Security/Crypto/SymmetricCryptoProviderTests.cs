@@ -177,7 +177,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         /// <summary>
         /// AES counter mode is its own inverse, and the counter layout is fixed
         /// by Part 14 §7.2.4.4.3.2: a twelve byte nonce followed by a big endian
-        /// block counter starting at zero.
+        /// block counter starting at one.
         /// </summary>
         [Test]
         public void PlatformSymmetricProviderRoundTripsCounterMode()
@@ -206,6 +206,32 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                 Assert.That(ciphertext, Is.Not.EqualTo(plaintext));
                 Assert.That(recovered, Is.EqualTo(plaintext));
             });
+        }
+
+        /// <summary>
+        /// Part 14 §7.2.4.4.3.2 (Table 157) uses the RFC 3686 counter block
+        /// KeyNonce | MessageNonce | BlockCounter with the counter starting at 1,
+        /// so RFC 3686 test vector #2 must reproduce exactly.
+        /// </summary>
+        [Test]
+        public void PlatformSymmetricProviderCounterModeMatchesRfc3686Vector()
+        {
+            byte[] key = CoreUtils.FromHexString("7E24067817FAE0D743D6CE1F32539163");
+            byte[] nonce = CoreUtils.FromHexString("006CB6DBC0543B59DA48D90B");
+            byte[] plaintext = CoreUtils.FromHexString(
+                "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F");
+            byte[] expected = CoreUtils.FromHexString(
+                "5104A106168A72D9790D41EE8EDAD388EB2E1EFC46DA57C8FCE630DF9141BE28");
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] recovered = new byte[plaintext.Length];
+
+            PlatformSymmetricCryptoProvider.Instance.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes128Ctr, key, nonce, plaintext, ciphertext);
+            PlatformSymmetricCryptoProvider.Instance.Decrypt(
+                SymmetricEncryptionAlgorithm.Aes128Ctr, key, nonce, ciphertext, recovered);
+
+            Assert.That(ciphertext, Is.EqualTo(expected));
+            Assert.That(recovered, Is.EqualTo(plaintext));
         }
 
         /// <summary>

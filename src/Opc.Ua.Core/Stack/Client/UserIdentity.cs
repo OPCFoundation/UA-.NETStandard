@@ -312,12 +312,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
+            // hash only what Equals compares: the token handlers compare the
+            // token type and the user name / certificate / token data, never
+            // the policy id or display name.
             return HashCode.Combine(
-                PolicyId,
-                TokenType,
-                IssuedTokenType,
-                DisplayName,
-                GrantedRoleIds);
+                m_token.TokenType,
+                (m_token as UserNameIdentityTokenHandler)?.UserName);
         }
 
         private IUserIdentityTokenHandler m_token;

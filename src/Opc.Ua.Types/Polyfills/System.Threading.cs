@@ -68,11 +68,18 @@ namespace System.Threading
         /// guaranteed to be <c>true</c> once the returned <see cref="Task"/>
         /// completes — callers that need to observe the cancelled state
         /// synchronously must invoke <see cref="CancellationTokenSource.Cancel()"/>
-        /// directly instead of awaiting this method.
+        /// directly instead of awaiting this method, or track the request
+        /// themselves.
         /// </para>
         /// </remarks>
         public static Task CancelAsync(this CancellationTokenSource source)
         {
+            // like the BCL, a source that is already cancelled has nothing left to do.
+            if (source.IsCancellationRequested)
+            {
+                return Task.CompletedTask;
+            }
+
             return Task.Run(source.Cancel);
         }
 #endif

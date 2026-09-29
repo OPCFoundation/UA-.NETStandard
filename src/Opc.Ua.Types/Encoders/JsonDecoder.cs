@@ -1432,6 +1432,13 @@ namespace Opc.Ua
                     value = DateTimeUtc.MinValue;
                     return true;
                 case JsonValueKind.String when element.TryGetDateTime(out DateTime dt):
+                    // DateTime values are UTC on the wire (Part 6 5.1.4). A value
+                    // without an offset must not be interpreted in the host's
+                    // local time zone, so treat it as UTC.
+                    if (dt.Kind == DateTimeKind.Unspecified)
+                    {
+                        dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                    }
                     value = dt;
                     return true;
                 default:
@@ -1826,16 +1833,32 @@ namespace Opc.Ua
                     value = ExpandedNodeId.Null;
                     return true;
                 case JsonValueKind.String:
-                    return ExpandedNodeId.TryParse(
+                    string text = element.GetString()!;
+                    if (ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString()!,
+                        text,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
                         },
-                        out value);
+                        out value,
+                        out NodeIdParseError error))
+                    {
+                        return true;
+                    }
+
+                    if (error == NodeIdParseError.NoServerUriMapping)
+                    {
+                        // Part 6 5.4.2.11: a ServerUri that cannot be mapped to a
+                        // ServerIndex decodes as a String NodeId (NamespaceIndex 0,
+                        // ServerIndex 0) holding the JSON string. An unmapped
+                        // NamespaceUri is kept in the NamespaceUri field instead.
+                        value = new ExpandedNodeId(new NodeId(text, 0));
+                        return true;
+                    }
+                    return false;
                 case JsonValueKind.Number when element.TryGetUInt32(out uint id):
                     value = new ExpandedNodeId(id);
                     return true;
@@ -2464,17 +2487,29 @@ namespace Opc.Ua
                     value = NodeId.Null;
                     return true;
                 case JsonValueKind.String:
+                    string text = element.GetString()!;
                     if (ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString()!,
+                        text,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
                         },
-                        out ExpandedNodeId expandedNodeId))
+                        out ExpandedNodeId expandedNodeId) &&
+                        // a NodeId cannot reference another server ("svr=").
+                        expandedNodeId.ServerIndex == 0)
                     {
+                        if (!string.IsNullOrEmpty(expandedNodeId.NamespaceUri))
+                        {
+                            // Part 6 5.4.2.10: a NamespaceUri that cannot be
+                            // mapped to a NamespaceIndex decodes as a String
+                            // NodeId in namespace 0 holding the JSON string.
+                            value = new NodeId(text, 0);
+                            return true;
+                        }
+
                         value = ExpandedNodeId.ToNodeId(
                             expandedNodeId,
                             Context.NamespaceUris,
@@ -2809,12 +2844,26 @@ namespace Opc.Ua
                                 case 1: // binary
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
-                                        using var decoder = new BinaryDecoder(bytes.ToArray(), Context);
+                                        byte[] body = bytes.ToArray();
+                                        using var decoder = new BinaryDecoder(body, Context);
+
+                                        // The embedded body continues this message's
+                                        // nesting budget (approximated by the JSON
+                                        // element depth) and spans the whole buffer.
                                         decoder.InheritDecodingState(
                                             m_namespaceMappings,
                                             m_serverMappings,
-                                            0);
+                                            (uint)m_stack.Count,
+                                            body.Length);
                                         value = decoder.ReadEncodeable<T>(null, typeId);
+                                        if (decoder.Position != body.Length)
+                                        {
+                                            throw ServiceResultException.Create(
+                                                StatusCodes.BadDecodingError,
+                                                "Binary UaBody of type {0} has {1} unused byte(s).",
+                                                typeId,
+                                                body.Length - decoder.Position);
+                                        }
                                         return true;
                                     }
                                     break;
@@ -2830,7 +2879,7 @@ namespace Opc.Ua
                                         decoder.InheritDecodingState(
                                             m_namespaceMappings,
                                             m_serverMappings,
-                                            0);
+                                            (uint)m_stack.Count);
                                         decoder.PushNamespace(xmlElement.NamespaceURI);
                                         value = decoder.ReadEncodeable<T>(xmlElement.LocalName, typeId);
                                         decoder.PopNamespace();
@@ -2865,8 +2914,16 @@ namespace Opc.Ua
                                                     return true;
                                                 case JsonValueKind.Object:
                                                     m_stack.Push(uaBody);
-                                                    value.Decode(this);
-                                                    m_stack.Pop();
+                                                    try
+                                                    {
+                                                        value.Decode(this);
+                                                    }
+                                                    finally
+                                                    {
+                                                        // keep the element stack balanced
+                                                        // when the body throws.
+                                                        m_stack.Pop();
+                                                    }
                                                     return true;
                                             }
                                         }

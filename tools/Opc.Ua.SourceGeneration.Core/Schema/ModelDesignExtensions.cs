@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml;
@@ -227,6 +228,23 @@ namespace Opc.Ua.Schema.Model
                 return GetNodeStateNameSimple(typeDefinition);
             }
             var variableType = instance.TypeDefinitionNode as VariableTypeDesign;
+
+            // A VariableType materialised from a referenced assembly's
+            // dependency payload used to arrive without its DataType
+            // restriction, leaving DataTypeNode null and crashing here with a
+            // bare NullReferenceException that named neither the variable nor
+            // the type. The payload now carries the restriction; this check
+            // keeps any remaining gap diagnosable instead of unreadable.
+            if (variableType?.DataTypeNode == null)
+            {
+                throw new InvalidDataException(
+                    $"The data type of variable type " +
+                    $"'{instance.TypeDefinition}' could not be resolved, so the " +
+                    $"node state class of '{instance.SymbolicId?.Name ?? instance.BrowseName}' " +
+                    "cannot be determined. The type is most likely supplied by a " +
+                    "referenced assembly whose dependency payload predates the " +
+                    "VariableType data type entry - rebuild that assembly.");
+            }
 
             // check if the variable type restricted the datatype to eliminate the
             // need for a template parameter.
@@ -1606,7 +1624,11 @@ namespace Opc.Ua.Schema.Model
                 //   <uax:Boolean>true</uax:Boolean>
                 // </opc:DefaultValue >
 
-                using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
+                // hand-written designs may write empty strings as layout whitespace.
+                using var decoder = new XmlDecoder((XmlElement)defaultValue, context)
+                {
+                    TreatWhitespaceOnlyStringsAsEmpty = true
+                };
                 Variant variant = decoder.ReadVariantValue(null, default);
                 decodedValueType = variant.TypeInfo;
                 decodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);

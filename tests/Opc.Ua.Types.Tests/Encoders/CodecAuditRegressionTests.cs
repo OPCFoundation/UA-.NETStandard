@@ -144,6 +144,31 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        [TestCase(3)]
+        [TestCase(100)]
+        [TestCase(20000)]
+        public void BinaryEncoderDoesNotApplyMaxByteStringLengthToStrings(int length)
+        {
+            // Depending on the string size the encoder routed strings through
+            // WriteByteString, which applied MaxByteStringLength although the
+            // decoder only checks MaxStringLength.
+            ServiceMessageContext context = CreateContext();
+            context.MaxStringLength = 0;
+            context.MaxByteStringLength = 2;
+            string value = new('x', length);
+
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteString("Value", value);
+                buffer = encoder.CloseAndReturnBuffer();
+            }
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            Assert.That(decoder.ReadString("Value"), Is.EqualTo(value));
+        }
+
+        [Test]
         public void EncodeableMatrixWithInconsistentDimensionsIsADecodingError()
         {
             // MatrixOf throws ArgumentException for wire dimensions that do not
@@ -324,6 +349,140 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             Assert.That(xml, Does.Contain("   "));
+        }
+
+        [Test]
+        [TestCase("  secret ")]
+        [TestCase("\tTag\n")]
+        [TestCase("x")]
+        [TestCase("   ")]
+        [TestCase("\n  \t")]
+        public void XmlStringKeepsLeadingAndTrailingWhitespace(string value)
+        {
+            // ReadString trimmed the value although xs:string preserves
+            // whitespace (Part 6 5.3.1.5).
+            ServiceMessageContext context = CreateContext();
+
+            string xml;
+            using (var encoder = new XmlEncoder(context))
+            {
+                encoder.PushNamespace(kNs);
+                encoder.WriteString("Value", value);
+                encoder.PopNamespace();
+                xml = encoder.CloseAndReturnText();
+            }
+
+            string textXml;
+            using (var encoder = new XmlEncoder(context))
+            {
+                encoder.PushNamespace(kNs);
+                encoder.WriteLocalizedText("Text", new LocalizedText(" en ", value));
+                encoder.PopNamespace();
+                textXml = encoder.CloseAndReturnText();
+            }
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                context))
+            {
+                decoder.PushNamespace(kNs);
+                Assert.That(decoder.ReadString("Value"), Is.EqualTo(value));
+            }
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(textXml), CoreUtils.DefaultXmlReaderSettings()),
+                context))
+            {
+                decoder.PushNamespace(kNs);
+                LocalizedText text = decoder.ReadLocalizedText("Text");
+                Assert.That(text.Text, Is.EqualTo(value));
+                Assert.That(text.Locale, Is.EqualTo(" en "));
+            }
+
+            using var parser = new XmlParser(xml, context);
+            parser.PushNamespace(kNs);
+            Assert.That(parser.ReadString("Value"), Is.EqualTo(value));
+        }
+
+        [Test]
+        public void XmlWhitespaceOnlyStringIsEmptyWhenOptedIn()
+        {
+            // Pretty-printed NodeSets write an empty Locale as layout whitespace;
+            // their importers opt in to read such an element as "".
+            ServiceMessageContext context = CreateContext();
+            const string xml =
+                "<Text xmlns=\"" + kNs + "\">\n  <Locale>\n  </Locale>\n  <Text>Site</Text>\n</Text>";
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                context))
+            {
+                decoder.PushNamespace(kNs);
+                Assert.That(decoder.ReadLocalizedText("Text").Locale, Is.EqualTo("\n  "));
+            }
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                context)
+            {
+                TreatWhitespaceOnlyStringsAsEmpty = true
+            })
+            {
+                decoder.PushNamespace(kNs);
+                LocalizedText text = decoder.ReadLocalizedText("Text");
+                Assert.That(text.Locale, Is.Empty);
+                Assert.That(text.Text, Is.EqualTo("Site"));
+            }
+        }
+
+        [Test]
+        [TestCase("\n  i=85\n", "i=85")]
+        [TestCase("ns=2;i=5 ", "ns=2;i=5")]
+        [TestCase("\n  ns=1;s=Tag \n", "ns=1;s=Tag ")]
+        [TestCase(" s= a ", "s= a ")]
+        [TestCase("\n  nsu=urn:x;s=b \n", "nsu=urn:x;s=b ")]
+        [TestCase("\n  ns=1;s=Tag  \n    ", "ns=1;s=Tag  ")]
+        [TestCase("ns=1;s=Tag\t\r\n", "ns=1;s=Tag")]
+        [TestCase("ns=1;s=Tag\u0085", "ns=1;s=Tag")]
+        public void XmlNodeIdIdentifierIgnoresLayoutWhitespace(string identifier, string expected)
+        {
+            // ReadString keeps xs:string whitespace, but the NodeId parsers
+            // accept none, so a pretty-printed Identifier failed to decode.
+            // String ids keep trailing spaces but not control characters
+            // (Part 3 8.2.4).
+            ServiceMessageContext context = CreateContext();
+            string xml =
+                "<Node xmlns=\"" + kNs + "\"><Identifier>" + identifier + "</Identifier></Node>";
+            bool isAbsolute = expected.StartsWith("nsu=", StringComparison.Ordinal);
+
+            if (!isAbsolute)
+            {
+                using var decoder = new XmlDecoder(
+                    XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                    context);
+                decoder.PushNamespace(kNs);
+                Assert.That(decoder.ReadNodeId("Node"), Is.EqualTo(NodeId.Parse(expected)));
+
+                using var parser = new XmlParser(xml, context);
+                parser.PushNamespace(kNs);
+                Assert.That(parser.ReadNodeId("Node"), Is.EqualTo(NodeId.Parse(expected)));
+            }
+
+            using (var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                context))
+            {
+                decoder.PushNamespace(kNs);
+                Assert.That(
+                    decoder.ReadExpandedNodeId("Node"),
+                    Is.EqualTo(ExpandedNodeId.Parse(expected)));
+            }
+
+            using var expandedParser = new XmlParser(xml, context);
+            expandedParser.PushNamespace(kNs);
+            Assert.That(
+                expandedParser.ReadExpandedNodeId("Node"),
+                Is.EqualTo(ExpandedNodeId.Parse(expected)));
         }
 
         [Test]
@@ -557,6 +716,179 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             private long m_length;
             private bool m_disposed;
+        }
+
+        private static global::Opc.Ua.Encoders.Union CreateUnion()
+        {
+            var definition = new StructureDefinition
+            {
+                StructureType = StructureType.Union,
+                Fields = new StructureField[]
+                {
+                    new() { Name = "A", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                    new() { Name = "B", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+                }.ToArrayOf()
+            };
+            return new global::Opc.Ua.Encoders.Union(
+                new XmlQualifiedName("TestUnion", kNs),
+                new ExpandedNodeId(88821, 0),
+                new ExpandedNodeId(88822, 0),
+                new ExpandedNodeId(88823, 0),
+                definition,
+                new System.Collections.Generic.Dictionary<string, BuiltInType>
+                {
+                    ["A"] = BuiltInType.Int32,
+                    ["B"] = BuiltInType.Int32
+                });
+        }
+
+        [Test]
+        [TestCase(3u)]
+        [TestCase(0x7FFFFFFFu)]
+        [TestCase(0x80000001u)]
+        public void UnionWithOutOfRangeSwitchFieldIsADecodingError(uint selector)
+        {
+            // Decode stored any selector; Value then threw
+            // ArgumentOutOfRangeException and Encode wrote an invalid union.
+            ServiceMessageContext context = CreateContext();
+            byte[] buffer = BitConverter.GetBytes(selector);
+            global::Opc.Ua.Encoders.Union union = CreateUnion();
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => union.Decode(decoder));
+            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void UnionWithLastSwitchFieldDecodes()
+        {
+            ServiceMessageContext context = CreateContext();
+            byte[] buffer = [2, 0, 0, 0, 42, 0, 0, 0];
+            global::Opc.Ua.Encoders.Union union = CreateUnion();
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            union.Decode(decoder);
+
+            Assert.That(union.SwitchField, Is.EqualTo(2u));
+            Assert.That(union.Value, Is.EqualTo(new Variant(42)));
+        }
+
+        private static Nested CreateNestedChain(int depth)
+        {
+            var root = new Nested();
+            Nested current = root;
+            for (int ii = 0; ii < depth; ii++)
+            {
+                var child = new Nested();
+                current.Child = new ExtensionObject(child);
+                current = child;
+            }
+            return root;
+        }
+
+        [Test]
+        public void SeekableBinaryEncoderCountsExtensionObjectBodiesAgainstNestingLimit()
+        {
+            // The seekable stream path encoded the body without incrementing
+            // the nesting level while the decoder counts every body.
+            ServiceMessageContext context = CreateContext();
+            context.MaxEncodingNestingLevels = 4;
+            Nested root = CreateNestedChain(10);
+
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, context, true);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteExtensionObject("Body", new ExtensionObject(root)));
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void SeekableBinaryEncoderNestedExtensionObjectsWithinLimitRoundTrip()
+        {
+            ServiceMessageContext context = CreateContext();
+            context.Factory.AddEncodeableType(typeof(Nested));
+            context.MaxEncodingNestingLevels = 8;
+            Nested root = CreateNestedChain(3);
+
+            byte[] buffer;
+            using (var stream = new MemoryStream())
+            {
+                using (var encoder = new BinaryEncoder(stream, context, true))
+                {
+                    encoder.WriteExtensionObject("Body", new ExtensionObject(root));
+                }
+                buffer = stream.ToArray();
+            }
+
+            using var decoder = new BinaryDecoder(buffer, context);
+            ExtensionObject decoded = decoder.ReadExtensionObject("Body");
+            Assert.That(decoded.TryGetValue(out Nested result), Is.True);
+            Assert.That(result.IsEqual(root), Is.True);
+        }
+
+        [Test]
+        public void XmlEncoderCountsExtensionObjectBodiesAgainstNestingLimit()
+        {
+            // WriteExtensionObjectBody encoded the body without incrementing
+            // the nesting level while XmlDecoder counts every body.
+            ServiceMessageContext context = CreateContext();
+            context.MaxEncodingNestingLevels = 4;
+            Nested root = CreateNestedChain(10);
+
+            using var encoder = new XmlEncoder(context);
+            encoder.PushNamespace(kNs);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteExtensionObject("Body", new ExtensionObject(root)));
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// An encodeable with an ExtensionObject field used to build nested bodies.
+        /// </summary>
+        public sealed class Nested : IEncodeable
+        {
+            public ExtensionObject Child { get; set; }
+
+            public ExpandedNodeId TypeId => new(88811, 0);
+            public ExpandedNodeId BinaryEncodingId => new(88812, 0);
+            public ExpandedNodeId XmlEncodingId => new(88813, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteExtensionObject("Child", Child);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Child = decoder.ReadExtensionObject("Child");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                if (encodeable is not Nested other)
+                {
+                    return false;
+                }
+                bool hasChild = Child.TryGetValue(out Nested mine);
+                bool otherHasChild = other.Child.TryGetValue(out Nested theirs);
+                if (hasChild != otherHasChild)
+                {
+                    return false;
+                }
+                return !hasChild || mine.IsEqual(theirs);
+            }
+
+            public object Clone()
+            {
+                return new Nested { Child = Child };
+            }
         }
 
         /// <summary>

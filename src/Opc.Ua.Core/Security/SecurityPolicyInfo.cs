@@ -363,6 +363,60 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the data a user certificate signs for an X509 identity token.
+        /// </summary>
+        /// <remarks>
+        /// This policy must be the SecurityPolicy of the selected UserTokenPolicy
+        /// (OPC 10000-4 6.1.8). When the SecureChannel's SecurityMode is None and
+        /// this policy uses the enhanced calculation, the data to sign is
+        /// <c>ServerNonce | HASH(ServerCertificate) | ClientNonce</c>.
+        /// </remarks>
+        /// <param name="channelThumbprint">The thumbprint of the SecureChannel.</param>
+        /// <param name="serverNonce">The server nonce.</param>
+        /// <param name="serverCertificate">The server application certificate.</param>
+        /// <param name="serverChannelCertificate">The server certificate of the SecureChannel.</param>
+        /// <param name="clientCertificate">The client application certificate.</param>
+        /// <param name="clientChannelCertificate">The client certificate of the SecureChannel.</param>
+        /// <param name="clientNonce">The client nonce.</param>
+        /// <param name="channelSecurityMode">The SecurityMode of the SecureChannel.</param>
+        /// <exception cref="NotSupportedException"></exception>
+        public byte[] GetUserTokenSignatureData(
+            byte[]? channelThumbprint,
+            byte[]? serverNonce,
+            byte[]? serverCertificate,
+            byte[]? serverChannelCertificate,
+            byte[]? clientCertificate,
+            byte[]? clientChannelCertificate,
+            byte[]? clientNonce,
+            MessageSecurityMode channelSecurityMode)
+        {
+            if (SecureChannelEnhancements && channelSecurityMode == MessageSecurityMode.None)
+            {
+                using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
+                {
+                    CertificateThumbprintAlgorithm.SHA256 => SHA256.Create(),
+                    CertificateThumbprintAlgorithm.SHA384 => SHA384.Create(),
+                    CertificateThumbprintAlgorithm.SHA512 => SHA512.Create(),
+                    _ => throw new NotSupportedException()
+                };
+
+                return Utils.Append(
+                    serverNonce,
+                    serverCertificate != null ? hash.ComputeHash(serverCertificate) : null,
+                    clientNonce);
+            }
+
+            return GetUserTokenSignatureData(
+                channelThumbprint,
+                serverNonce,
+                serverCertificate,
+                serverChannelCertificate,
+                clientCertificate,
+                clientChannelCertificate,
+                clientNonce);
+        }
+
+        /// <summary>
         /// Returns the data to be signed by the server when creating a session.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>

@@ -444,11 +444,8 @@ namespace Opc.Ua
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            Variant lhs = GetValue(operands[0]);
-            Variant rhs = GetValue(operands[1]);
-
-            // an element with a null operand evaluates to NULL (§7.7.3).
-            if (IsNullValue(lhs) || IsNullValue(rhs))
+            // the operands must resolve to integers, anything else is NULL.
+            if (!TryGetBitwiseOperands(operands, out Variant lhs, out Variant rhs))
             {
                 return default;
             }
@@ -463,16 +460,132 @@ namespace Opc.Ua
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            Variant lhs = GetValue(operands[0]);
-            Variant rhs = GetValue(operands[1]);
-
-            // an element with a null operand evaluates to NULL (§7.7.3).
-            if (IsNullValue(lhs) || IsNullValue(rhs))
+            // the operands must resolve to integers, anything else is NULL.
+            if (!TryGetBitwiseOperands(operands, out Variant lhs, out Variant rhs))
             {
                 return default;
             }
 
             return lhs | rhs;
+        }
+
+        /// <summary>
+        /// Resolves the two bitwise operands to integers (OPC 10000-4 7.7.3).
+        /// A one element array is used as its scalar, and Boolean and String
+        /// operands are implicitly converted (Table 121) to the type of the
+        /// other operand when that is an integer (Table 122 precedence), else
+        /// Boolean to Byte and String to Int64. Operands without an implicit
+        /// integer conversion (e.g. Float, Double, StatusCode) or a failing
+        /// conversion make the element NULL.
+        /// </summary>
+        private bool TryGetBitwiseOperands(
+            FilterOperand[] operands,
+            out Variant lhs,
+            out Variant rhs)
+        {
+            lhs = ToScalarIfSingleElement(GetValue(operands[0]));
+            rhs = ToScalarIfSingleElement(GetValue(operands[1]));
+            bool lhsInteger = IsIntegerOperand(lhs);
+            bool rhsInteger = IsIntegerOperand(rhs);
+            return (lhsInteger || TryConvertToInteger(ref lhs, rhsInteger ? rhs : default)) &&
+                (rhsInteger || TryConvertToInteger(ref rhs, lhsInteger ? lhs : default));
+        }
+
+        /// <summary>
+        /// Implicitly converts a Boolean or String operand to an integer.
+        /// </summary>
+        private bool TryConvertToInteger(ref Variant value, Variant other)
+        {
+            if (!value.TypeInfo.IsScalar ||
+                value.TypeInfo.BuiltInType is not (BuiltInType.Boolean or BuiltInType.String) ||
+                IsNullValue(value))
+            {
+                return false;
+            }
+
+            BuiltInType targetType = other.TypeInfo.BuiltInType switch
+            {
+                BuiltInType.Null => value.TypeInfo.BuiltInType == BuiltInType.Boolean
+                    ? BuiltInType.Byte
+                    : BuiltInType.Int64,
+                BuiltInType.Enumeration => BuiltInType.Int32,
+                BuiltInType targetInteger => targetInteger
+            };
+
+            value = ConvertValue(value, targetType);
+            return !value.IsNull;
+        }
+
+        /// <summary>
+        /// Arrays of length 1 can be implicitly converted to a scalar of the
+        /// element type (OPC 10000-4 7.7.3).
+        /// </summary>
+        private static Variant ToScalarIfSingleElement(Variant value)
+        {
+            if (!value.TypeInfo.IsArray)
+            {
+                return value;
+            }
+
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    return value.TryGetValue(out ArrayOf<bool> bools) && bools.Count == 1
+                        ? Variant.From(bools[0])
+                        : value;
+                case BuiltInType.SByte:
+                    return value.TryGetValue(out ArrayOf<sbyte> sbytes) && sbytes.Count == 1
+                        ? Variant.From(sbytes[0])
+                        : value;
+                case BuiltInType.Byte:
+                    return value.TryGetValue(out ArrayOf<byte> bytes) && bytes.Count == 1
+                        ? Variant.From(bytes[0])
+                        : value;
+                case BuiltInType.Int16:
+                    return value.TryGetValue(out ArrayOf<short> int16s) && int16s.Count == 1
+                        ? Variant.From(int16s[0])
+                        : value;
+                case BuiltInType.UInt16:
+                    return value.TryGetValue(out ArrayOf<ushort> uint16s) && uint16s.Count == 1
+                        ? Variant.From(uint16s[0])
+                        : value;
+                case BuiltInType.Int32:
+                    return value.TryGetValue(out ArrayOf<int> int32s) && int32s.Count == 1
+                        ? Variant.From(int32s[0])
+                        : value;
+                case BuiltInType.UInt32:
+                    return value.TryGetValue(out ArrayOf<uint> uint32s) && uint32s.Count == 1
+                        ? Variant.From(uint32s[0])
+                        : value;
+                case BuiltInType.Int64:
+                    return value.TryGetValue(out ArrayOf<long> int64s) && int64s.Count == 1
+                        ? Variant.From(int64s[0])
+                        : value;
+                case BuiltInType.UInt64:
+                    return value.TryGetValue(out ArrayOf<ulong> uint64s) && uint64s.Count == 1
+                        ? Variant.From(uint64s[0])
+                        : value;
+                case BuiltInType.String:
+                    return value.TryGetValue(out ArrayOf<string> strings) && strings.Count == 1
+                        ? Variant.From(strings[0])
+                        : value;
+                default:
+                    return value;
+            }
+        }
+
+        /// <summary>
+        /// Whether a bitwise operand is an integer scalar (OPC 10000-4 7.7.3).
+        /// </summary>
+        private static bool IsIntegerOperand(Variant value)
+        {
+            return value.TypeInfo.IsScalar &&
+                value.TypeInfo.BuiltInType is
+                    BuiltInType.SByte or BuiltInType.Byte or
+                    BuiltInType.Int16 or BuiltInType.UInt16 or
+                    BuiltInType.Int32 or BuiltInType.UInt32 or
+                    BuiltInType.Int64 or BuiltInType.UInt64 or
+                    BuiltInType.Enumeration;
         }
 
         /// <summary>
@@ -485,6 +598,12 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
+            // null and empty arrays of the same DataType are equal (§7.7.3).
+            if (AreEmptyArraysOfSameType(lhs, rhs))
+            {
+                return true;
+            }
+
             // an element with a null operand evaluates to NULL (§7.7.3).
             if (IsNullValue(lhs) || IsNullValue(rhs))
             {
@@ -493,10 +612,38 @@ namespace Opc.Ua
 
             if (lhs.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
             {
-                return lhsString.Equals(rhsString, ContentFilter.EqualsOperatorDefaultStringComparison);
+                return string.Equals(
+                    lhsString,
+                    rhsString,
+                    ContentFilter.EqualsOperatorDefaultStringComparison);
             }
 
             return lhs.ValueEquals(rhs);
+        }
+
+        /// <summary>
+        /// Whether both operands are null or empty arrays or matrices of the
+        /// same DataType, which the Equals and InList operators treat as equal
+        /// (OPC 10000-4 7.7.3: "a Server shall treat null and empty arrays of
+        /// the same DataType as equal"). Variant.ValueEquals also compares the
+        /// dimensions of a matrix, so empty matrices of different shape (or an
+        /// empty matrix and an empty array) are only equal here.
+        /// </summary>
+        private static bool AreEmptyArraysOfSameType(Variant lhs, Variant rhs)
+        {
+            return !lhs.TypeInfo.IsUnknown &&
+                !rhs.TypeInfo.IsUnknown &&
+                !lhs.TypeInfo.IsScalar &&
+                !rhs.TypeInfo.IsScalar &&
+                lhs.TypeInfo.BuiltInType == rhs.TypeInfo.BuiltInType &&
+                IsNullOrEmptyArray(lhs) &&
+                IsNullOrEmptyArray(rhs);
+        }
+
+        private static bool IsNullOrEmptyArray(Variant value)
+        {
+            return value.AsBoxedObject(Variant.BoxingBehavior.Legacy) is not Array array ||
+                array.Length == 0;
         }
 
         /// <summary>
@@ -632,7 +779,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 0);
 
             Variant value = GetValue(operands[0]);
-            if (IsNullValue(value))
+            if (IsNullValue(value) && !value.IsEmptyArray)
             {
                 return default;
             }
@@ -643,6 +790,11 @@ namespace Opc.Ua
             for (int ii = 1; ii < operands.Length; ii++)
             {
                 Variant rhs = GetValue(operands[ii]);
+                if (AreEmptyArraysOfSameType(value, rhs))
+                {
+                    return true;
+                }
+
                 if (IsNullValue(rhs))
                 {
                     nullOperand = true;
@@ -651,7 +803,10 @@ namespace Opc.Ua
 
                 if (value.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
                 {
-                    if (lhsString.Equals(
+                    // a non-matching string operand only rules out this operand,
+                    // not the rest of the list.
+                    if (string.Equals(
+                        lhsString,
                         rhsString,
                         ContentFilter.EqualsOperatorDefaultStringComparison))
                     {
@@ -666,7 +821,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (nullOperand)
+            if (nullOperand || IsNullValue(value))
             {
                 return default;
             }
@@ -680,7 +835,8 @@ namespace Opc.Ua
         /// <see cref="LikePattern"/>.
         /// </summary>
         /// <remarks>
-        /// The operator resolves to FALSE if an operand cannot be resolved to a
+        /// A NULL operand makes the element NULL; otherwise the operator
+        /// resolves to FALSE if an operand cannot be resolved to a
         /// string. A pattern that is not a valid search string is treated the
         /// same way: it matches nothing. A literal pattern operand is already
         /// rejected with Bad_FilterOperandInvalid when the filter is validated
@@ -753,7 +909,8 @@ namespace Opc.Ua
             // get the value to cast.
             Variant value = GetValue(operands[0]);
 
-            if (value.IsNull)
+            // a NULL operand makes the element NULL (OPC 10000-4 7.7.3).
+            if (IsNullValue(value))
             {
                 return default;
             }
@@ -771,7 +928,39 @@ namespace Opc.Ua
                 return default; // not supported
             }
 
+            if (!IsTable121Conversion(value.TypeInfo.BuiltInType, targetType))
+            {
+                return default;
+            }
+
             return ConvertValue(value, targetType);
+        }
+
+        /// <summary>
+        /// Whether OPC 10000-4 Table 121 allows an (implicit or explicit)
+        /// conversion. <see cref="Variant.ConvertTo(BuiltInType)"/> is general
+        /// purpose and also converts pairs the table marks X; those are
+        /// rejected here so the Cast operator evaluates to NULL for them.
+        /// </summary>
+        private static bool IsTable121Conversion(BuiltInType sourceType, BuiltInType targetType)
+        {
+            if (sourceType == targetType || targetType == BuiltInType.Variant)
+            {
+                return true;
+            }
+
+            return (sourceType, targetType) switch
+            {
+                (BuiltInType.StatusCode, BuiltInType.String) or
+                (BuiltInType.String, BuiltInType.StatusCode) or
+                (BuiltInType.String, BuiltInType.XmlElement) or
+                (BuiltInType.String, BuiltInType.ByteString) or
+                (BuiltInType.XmlElement, _) or
+                (BuiltInType.ExtensionObject, _) or
+                (BuiltInType.DataValue, _) or
+                (BuiltInType.DiagnosticInfo, _) => false,
+                _ => true
+            };
         }
 
         private Variant ConvertValue(Variant value, BuiltInType targetType)

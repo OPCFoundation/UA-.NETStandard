@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
                 Assert.That(Policy.PolicyUri, Is.EqualTo(PubSubSecurityPolicyUri.PubSubAes256Ctr));
                 Assert.That(Policy.SigningKeyLength, Is.EqualTo(32));
                 Assert.That(Policy.EncryptingKeyLength, Is.EqualTo(32));
-                Assert.That(Policy.NonceLength, Is.EqualTo(12));
+                Assert.That(Policy.NonceLength, Is.EqualTo(8));
                 Assert.That(Policy.SignatureLength, Is.EqualTo(32));
             });
         }

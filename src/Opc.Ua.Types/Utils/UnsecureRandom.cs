@@ -43,11 +43,21 @@ namespace Opc.Ua
         public static readonly UnsecureRandom Shared = new();
 
         /// <summary>
-        /// Default random with fixed seed
+        /// Default random with a non-deterministic seed, so processes do not share one
+        /// sequence (e.g. the reconnect jitter that de-synchronises clients).
+        /// Use <see cref="UnsecureRandom(int)"/> for a reproducible sequence.
         /// </summary>
         private UnsecureRandom()
         {
-            m_random = new Random(0x62541);
+#pragma warning disable CA5394 // Do not use insecure randomness
+#if NETCOREAPP
+            m_random = new Random();
+#else
+            // the parameterless Random of .NET Framework seeds from the tick count, which
+            // processes started in the same tick share.
+            m_random = new Random(Guid.NewGuid().GetHashCode());
+#endif
+#pragma warning restore CA5394 // Do not use insecure randomness
         }
 
         /// <summary>

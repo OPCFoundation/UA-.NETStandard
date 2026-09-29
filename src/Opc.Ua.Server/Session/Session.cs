@@ -1168,7 +1168,12 @@ namespace Opc.Ua.Server
                         userTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates,
-                        ct: cancellationToken).ConfigureAwait(false);
+                        // a signing certificate the client embeds in an
+                        // EncryptedSecret is validated before it is used
+                        // (OPC 10000-6 6.8.3); without a validator it must be
+                        // the client certificate.
+                        (m_server as ICertificateValidatorProvider)?.CertificateValidator,
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                     when (e is not OperationCanceledException)
@@ -1199,7 +1204,8 @@ namespace Opc.Ua.Server
                         channelContext.ServerChannelCertificate,
                         ClientCertificate?.RawData,
                         channelContext.ClientChannelCertificate,
-                        clientNonceData);
+                        clientNonceData,
+                        EndpointDescription.SecurityMode);
 
                     if (!await token.VerifyAsync(
                             dataToSign,
@@ -1230,7 +1236,8 @@ namespace Opc.Ua.Server
                                 channelContext.ServerChannelCertificate,
                                 ClientCertificate?.RawData,
                                 channelContext.ClientChannelCertificate,
-                                clientNonceData);
+                                clientNonceData,
+                                EndpointDescription.SecurityMode);
 
                             if (!await token.VerifyAsync(
                                     dataToSign,

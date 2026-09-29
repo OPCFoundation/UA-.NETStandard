@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using System.Text;
 using System.Threading;
 
@@ -171,6 +170,12 @@ namespace Opc.Ua
                     ReportStateChange(context, false);
                 }
             }
+            catch (Exception ex)
+            {
+                // a failed response must not be audited as successful.
+                error = ServiceResult.Create(ex, StatusCodes.BadUnexpectedError, "Unexpected error responding to a Dialog.");
+                throw;
+            }
             finally
             {
                 if (AreEventsMonitored)
@@ -200,11 +205,19 @@ namespace Opc.Ua
                         Variant.From(new Variant[] { selectedResponse }),
                         false);
 
-                    e.SetChildValue(
-                        context,
-                        BrowseNames.SelectedResponse,
-                        selectedResponse.ToString(CultureInfo.InvariantCulture),
-                        false);
+                    // SelectedResponse is a mandatory UInt32 property that "shall contain the
+                    // response that was selected" (Part 9 5.10.5). A rejected negative request
+                    // selected no response and has no UInt32 form, and any sentinel would read
+                    // as a valid option index, so it is deliberately left unset; InputArguments
+                    // still carries the requested value and Status reports the failure.
+                    if (selectedResponse >= 0)
+                    {
+                        e.SetChildValue(
+                            context,
+                            BrowseNames.SelectedResponse,
+                            (uint)selectedResponse,
+                            false);
+                    }
 
                     ReportEvent(context, e);
                 }

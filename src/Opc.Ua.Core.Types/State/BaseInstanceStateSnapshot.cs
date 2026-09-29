@@ -124,6 +124,7 @@ namespace Opc.Ua
         private sealed class ChildNode
         {
             public NodeClass NodeClass { get; set; }
+            public NodeId NodeId { get; set; }
             public QualifiedName BrowseName { get; set; }
             public Variant Value { get; set; }
             public List<ChildNode>? Children { get; set; }
@@ -182,7 +183,12 @@ namespace Opc.Ua
         /// <returns>A snapshot of a node.</returns>
         private ChildNode CreateChildNode(ISystemContext context, BaseInstanceState state)
         {
-            var node = new ChildNode { NodeClass = state.NodeClass, BrowseName = state.BrowseName };
+            var node = new ChildNode
+            {
+                NodeClass = state.NodeClass,
+                NodeId = state.NodeId,
+                BrowseName = state.BrowseName
+            };
 
             if (state is BaseVariableState variable && !StatusCode.IsBad(variable.StatusCode))
             {
@@ -247,7 +253,14 @@ namespace Opc.Ua
             {
                 if (attributeId == Attributes.NodeId)
                 {
-                    return node.Value;
+                    // Part 4 7.7.4.5: the NodeId attribute, never the Value of a Variable.
+                    if (!node.NodeId.IsNull)
+                    {
+                        return node.NodeId;
+                    }
+
+                    // objects added via SetChildValue carry their NodeId as value.
+                    return node.NodeClass == NodeClass.Object ? node.Value : Variant.Null;
                 }
 
                 if (node.NodeClass == NodeClass.Variable && attributeId == Attributes.Value)
@@ -268,7 +281,13 @@ namespace Opc.Ua
                 return Variant.Null;
             }
 
-            for (int ii = 0; ii < node.Children!.Count; ii++) // intermediate nodes always have Children populated when path traversal continues
+            if (node.Children == null)
+            {
+                // leaves added via SetChildValue have no children.
+                return Variant.Null;
+            }
+
+            for (int ii = 0; ii < node.Children.Count; ii++)
             {
                 if (node.Children[ii].BrowseName == relativePath[index])
                 {

@@ -72,6 +72,7 @@ namespace Opc.Ua.Server
         IAsyncDisposable,
         ITimeProviderProvider,
         ISecurityPolicyRegistryProvider,
+        ICertificateValidatorProvider,
         INodeIdFactoryProvider,
         IServerServiceLevelControl
     {
@@ -426,6 +427,13 @@ namespace Opc.Ua.Server
         /// <see cref="IServerInternal"/>; never <c>null</c>.
         /// </summary>
         public ISecurityPolicyRegistry SecurityPolicyRegistry { get; }
+
+        /// <summary>
+        /// The validator the server checks peer certificates with. Surfaces
+        /// through the optional <see cref="ICertificateValidatorProvider"/>
+        /// interface; <c>null</c> until the hosting server supplies one.
+        /// </summary>
+        public ICertificateValidatorEx? CertificateValidator { get; set; }
 
         /// <summary>
         /// The session manager to use with the server.

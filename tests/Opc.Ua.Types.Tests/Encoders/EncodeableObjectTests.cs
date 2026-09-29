@@ -298,24 +298,31 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
 
-        [Test]
-        public void ApplyDataEncodingArrayWithNullExtensionCausesException()
+        [TestCase(BrowseNames.DefaultBinary)]
+        [TestCase(BrowseNames.DefaultXml)]
+        public void ApplyDataEncodingArrayWithNullExtensionKeepsTheNullElement(string encoding)
         {
-            // Arrange — a null (IsNull=true) extension sets encodeables[i]=null,
-            //   which then throws during encoding, exercising the catch block.
+            // Arrange — null elements are valid; they used to be passed to
+            //   Encode, whose NullReferenceException failed the whole value
+            //   with BadTypeMismatch.
             IServiceMessageContext context = CreateContext();
             ArrayOf<ExtensionObject> extensions = new ExtensionObject[]
             {
+                new(CreateTestArgument("Arg1")),
                 new() // IsNull = true
             }.ToArrayOf();
             var value = new Variant(extensions);
-            var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
+            var dataEncoding = new QualifiedName(encoding);
 
             // Act
             ServiceResult result = EncodeableObject.ApplyDataEncoding(context, dataEncoding, ref value);
 
-            // Assert — NRE caught by the exception handler
-            Assert.That(result.Code, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            // Assert
+            Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.TryGetValue(out ArrayOf<ExtensionObject> resultArray), Is.True);
+            Assert.That(resultArray.Count, Is.EqualTo(2));
+            Assert.That(resultArray[0].IsNull, Is.False);
+            Assert.That(resultArray[1].IsNull, Is.True);
         }
 
         [Test]

@@ -4412,7 +4412,10 @@ namespace Opc.Ua.Schema.Model
 
                 if (variableType.DefaultValue != null)
                 {
-                    var decoder = new XmlDecoder(variableType.DefaultValue, m_context);
+                    var decoder = new XmlDecoder(variableType.DefaultValue, m_context)
+                    {
+                        TreatWhitespaceOnlyStringsAsEmpty = true
+                    };
                     Variant variant = decoder.ReadVariantValue(null, default);
 
                     if (!variant.TypeInfo.IsUnknown)
@@ -4701,7 +4704,10 @@ namespace Opc.Ua.Schema.Model
 
                 if (variable.DefaultValue != null)
                 {
-                    var decoder = new XmlDecoder(variable.DefaultValue, m_context);
+                    var decoder = new XmlDecoder(variable.DefaultValue, m_context)
+                    {
+                        TreatWhitespaceOnlyStringsAsEmpty = true
+                    };
                     Variant variant = decoder.ReadVariantValue(null, default);
                     if (!variant.TypeInfo.IsUnknown)
                     {
@@ -7021,6 +7027,24 @@ namespace Opc.Ua.Schema.Model
                 dataTypeDesign.IsEnumeration = entry.IsEnumeration;
             }
 
+            if (design is VariableTypeDesign variableTypeDesign &&
+                !string.IsNullOrEmpty(entry.DataTypeName))
+            {
+                // LinkDependencyInstances resolves DataTypeNode from this
+                // QName; a consumer variable typed by this VariableType then
+                // resolves its own restriction from it the way ValidateInstance
+                // does for a locally declared type.
+                variableTypeDesign.DataType = new XmlQualifiedName(
+                    entry.DataTypeName,
+                    entry.DataTypeNamespace ?? string.Empty);
+
+                if (entry.ValueRank.HasValue)
+                {
+                    variableTypeDesign.ValueRank = (ValueRank)entry.ValueRank.Value;
+                    variableTypeDesign.ValueRankSpecified = true;
+                }
+            }
+
             if (design is DataTypeDesign dt && entry.Fields != null && entry.Fields.Count > 0)
             {
                 var parameters = new Parameter[entry.Fields.Count];
@@ -7080,15 +7104,39 @@ namespace Opc.Ua.Schema.Model
                 _ => new ObjectDesign()
             };
             instance.BrowseName = c.BrowseName ?? string.Empty;
+            // SymbolicName.Namespace is what qualifies the emitted browse name.
+            // A child the upstream model re-declared from a base type in
+            // another namespace carries that namespace in the payload; without
+            // it the child would be re-qualified into the declaring model and
+            // a standard member such as 0:EngineeringUnits would be emitted
+            // under the wrong namespace.
+            string browseNameNamespace =
+                string.IsNullOrEmpty(c.BrowseNameNamespace)
+                    ? parentSymbolicId.Namespace
+                    : c.BrowseNameNamespace;
             var childSymbolicId = new XmlQualifiedName(
                 string.IsNullOrEmpty(c.SymbolicName) ? c.BrowseName : c.SymbolicName,
-                parentSymbolicId.Namespace);
+                browseNameNamespace);
             instance.SymbolicName = childSymbolicId;
+            // The symbolic id stays in the declaring type's namespace: it is
+            // the identity SetOverriddenNodes matches on, not a browse name.
             instance.SymbolicId = new XmlQualifiedName(
                 NodeDesign.CreateSymbolicId(
                     parentSymbolicId.Name,
                     childSymbolicId.Name),
                 parentSymbolicId.Namespace);
+            // ImportInstance defaults the reference type for a locally declared
+            // instance, but a child materialised from a dependency payload never
+            // passes through it. Left null the generator emits
+            // ReferenceTypeId = NodeId.Null, and the child is then invisible to
+            // a filtered browse even though it is present in the node tree.
+            instance.ReferenceType = !string.IsNullOrEmpty(c.ReferenceTypeName)
+                ? new XmlQualifiedName(
+                    c.ReferenceTypeName,
+                    c.ReferenceTypeNamespace ?? string.Empty)
+                : new XmlQualifiedName(
+                    ModelDependencyV1.GetDefaultReferenceTypeName(c.InstanceKind),
+                    ModelDependencyV1.OpcUaNamespaceUri);
             instance.ModellingRule = c.ModellingRule switch
             {
                 1 => ModellingRule.Mandatory,
@@ -7197,12 +7245,26 @@ namespace Opc.Ua.Schema.Model
                                 HasArguments = method.HasArguments,
                                 IsDeclaration = true
                             };
-                    if (method.TypeDefinition == null &&
-                        method.MethodDeclarationNode != null &&
+                    // Chain the declaration to the method state so
+                    // ResolveMethodStateIdentity can walk past the declaration
+                    // to the identity the producing assembly actually named its
+                    // method state class after. Without the link the walk stops
+                    // at the declaration - whose symbolic id is the composed
+                    // "OwnerType_Method" - and a consumer that re-declares the
+                    // inherited method emits a reference to a
+                    // "OwnerType_MethodMethodState" class that the producer
+                    // never generated (OPC 34100 ECM re-declaring the OPC
+                    // 10000-100 DI LockingServices methods).
+                    if (method.MethodDeclarationNode != null &&
                         !ReferenceEquals(declaration, method.MethodDeclarationNode))
                     {
                         declaration.MethodDeclarationNode =
                             method.MethodDeclarationNode;
+                    }
+                    else if (method.MethodType != null &&
+                        !ReferenceEquals(declaration, method.MethodType))
+                    {
+                        declaration.MethodType = method.MethodType;
                     }
                     if (c.MethodDeclarationNumericId != 0)
                     {
@@ -7300,6 +7362,24 @@ namespace Opc.Ua.Schema.Model
                     m_nodes.TryGetValue(type.BaseType, out NodeDesign baseDesign))
                 {
                     type.BaseTypeNode = baseDesign as TypeDesign;
+                }
+                // Resolve a VariableType's own data type restriction. A target
+                // variable typed by this VariableType reads the restriction to
+                // decide whether its generated state class needs a template
+                // parameter, so leaving it null crashes the node state
+                // generator rather than degrading (see
+                // ModelDesignExtensions.GetNodeStateClassName). The design-file
+                // path does this in LinkDependencyInstances; payload-
+                // materialised types only pass through here.
+                if (type is VariableTypeDesign dependencyVariableType &&
+                    dependencyVariableType.DataTypeNode == null &&
+                    !IsNull(dependencyVariableType.DataType) &&
+                    m_nodes.TryGetValue(
+                        dependencyVariableType.DataType,
+                        out NodeDesign variableTypeDataType))
+                {
+                    dependencyVariableType.DataTypeNode =
+                        variableTypeDataType as DataTypeDesign;
                 }
                 // Resolve children's TypeDefinitionNode / DataTypeNode.
                 if (!type.HasChildren || type.Children?.Items == null)
@@ -7432,7 +7512,10 @@ namespace Opc.Ua.Schema.Model
         {
             try
             {
-                using var decoder = new XmlDecoder(defaultValue, m_context);
+                using var decoder = new XmlDecoder(defaultValue, m_context)
+                {
+                    TreatWhitespaceOnlyStringsAsEmpty = true
+                };
                 variant = decoder.ReadVariantValue(null, default);
                 return !variant.TypeInfo.IsUnknown;
             }

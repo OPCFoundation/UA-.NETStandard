@@ -1179,6 +1179,20 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        [TestCase("nsu=;i=85")]
+        [TestCase("nsu=;ns=2;i=5")]
+        [TestCase("svr=1;nsu=;s=A")]
+        public void TryParseWithoutContextRejectsEmptyNamespaceUri(string text)
+        {
+            // "nsu=;" has no namespace uri (Part 6 5.1.12); the context
+            // parser already rejected it.
+            bool success = ExpandedNodeId.TryParse(text, out _, out NodeIdParseError error);
+            Assert.That(success, Is.False);
+            Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidNamespaceFormat));
+            Assert.Throws<ServiceResultException>(() => ExpandedNodeId.Parse(text));
+        }
+
+        [Test]
         public void TryParseWithContextNsuNamespaceResolvedToIndex()
         {
             var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());

@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             IPubSubSecurityPolicy policy =
                 PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
-            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;
+            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + AesCtrNonceLayout.GetKeyNonceLength(policy);
             byte[] packed1 = new byte[total];
             byte[] packed2 = new byte[total];
             for (int i = 0; i < total; i++)
@@ -138,13 +138,39 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(unpacked[1].TokenId, Is.EqualTo(11U));
             Assert.That(unpacked[0].SigningKey.Length, Is.EqualTo(policy.SigningKeyLength));
             Assert.That(unpacked[0].EncryptingKey.Length, Is.EqualTo(policy.EncryptingKeyLength));
-            Assert.That(unpacked[0].KeyNonce.Length, Is.EqualTo(policy.NonceLength));
+            Assert.That(unpacked[0].KeyNonce.Length, Is.EqualTo(AesCtrNonceLayout.GetKeyNonceLength(policy)));
 
             byte[] firstSigning = unpacked[0].SigningKey.Span.ToArray();
             for (int i = 0; i < policy.SigningKeyLength; i++)
             {
                 Assert.That(firstSigning[i], Is.EqualTo((byte)i));
             }
+        }
+
+        [TestCase(PubSubSecurityPolicyUri.PubSubAes128Ctr, 32 + 16 + 4)]
+        [TestCase(PubSubSecurityPolicyUri.PubSubAes256Ctr, 32 + 32 + 4)]
+        public void Unpacked_SplitsSpecKeyDataWithFourByteKeyNonce(string policyUri, int keyDataLength)
+        {
+            // OPC 10000-14 7.2.4.4.3.1 / Table 157: the key data is
+            // SigningKey || EncryptingKey || KeyNonce with a 4-byte KeyNonce.
+            byte[] packed = new byte[keyDataLength];
+            for (int i = 0; i < packed.Length; i++)
+            {
+                packed[i] = (byte)i;
+            }
+
+            var response = new SksKeyResponse(
+                policyUri,
+                1U,
+                new[] { packed },
+                TimeSpan.Zero,
+                TimeSpan.FromMinutes(1));
+
+            ArrayOf<PubSubSecurityKey> unpacked = response.Unpacked;
+            Assert.That(unpacked.Count, Is.EqualTo(1));
+            Assert.That(
+                unpacked[0].KeyNonce.Span.ToArray(),
+                Is.EqualTo(packed.AsSpan(keyDataLength - 4).ToArray()));
         }
 
         [Test]
@@ -164,7 +190,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             IPubSubSecurityPolicy policy =
                 PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
-            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;
+            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + AesCtrNonceLayout.GetKeyNonceLength(policy);
             var response = new SksKeyResponse(
                 PubSubSecurityPolicyUri.PubSubAes128Ctr,
                 1U,
@@ -183,7 +209,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             IPubSubSecurityPolicy policy =
                 PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
-            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;
+            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + AesCtrNonceLayout.GetKeyNonceLength(policy);
             var response = new SksKeyResponse(
                 PubSubSecurityPolicyUri.PubSubAes128Ctr,
                 1U,

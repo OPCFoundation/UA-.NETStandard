@@ -135,5 +135,60 @@ namespace Opc.Ua.ISA95.Tests.Hosting
                 () => provider.GetRequiredService<Isa95ServerProviders>(),
                 Throws.InvalidOperationException);
         }
+
+        [Test]
+        public async Task CustomResponseFacetRegistrationDoesNotAddDefaultFacetsAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(new Mock<IIsa95JobResponseCatalog>().Object);
+            services.AddSingleton(new Mock<IIsa95JobResponseChangeSource>().Object);
+            services
+                .AddOpcUa()
+                .AddServer(_ => { })
+                .AddIsa95Server();
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(
+                provider.GetService<InMemoryIsa95JobControlProvider>(),
+                Is.Null);
+            Assert.That(
+                provider.GetRequiredService<Isa95ServerProviders>().JobOrderReceiverV2,
+                Is.Null);
+        }
+
+        [Test]
+        public async Task CustomResponseCatalogAddedAfterDefaultRegistrationIsRejectedAsync()
+        {
+            var services = new ServiceCollection();
+            services
+                .AddOpcUa()
+                .AddServer(_ => { })
+                .AddIsa95Server();
+            services.AddSingleton(new Mock<IIsa95JobResponseCatalog>().Object);
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(
+                () => provider.GetRequiredService<Isa95ServerProviders>(),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public async Task CustomResponseChangeSourceAddedAfterDefaultRegistrationIsRejectedAsync()
+        {
+            var services = new ServiceCollection();
+            services
+                .AddOpcUa()
+                .AddServer(_ => { })
+                .AddIsa95Server();
+            services.AddSingleton(new Mock<IIsa95JobResponseChangeSource>().Object);
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(
+                () => provider.GetRequiredService<Isa95ServerProviders>(),
+                Throws.InvalidOperationException);
+        }
     }
 }

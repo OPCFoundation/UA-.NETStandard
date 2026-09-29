@@ -1344,5 +1344,78 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(variable.Value, Is.EqualTo("hello"));
         }
+
+        [Test]
+        public void ConcurrentIndexRangeWritesDoNotLoseUpdates()
+        {
+            const int kElements = 32;
+            const int kIterations = 50;
+            SystemContext context = CreateSystemContext();
+
+            for (int iteration = 0; iteration < kIterations; iteration++)
+            {
+                var variable = new BaseDataVariableState(null)
+                {
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.OneDimension,
+                    AccessLevel = AccessLevels.CurrentReadOrWrite,
+                    UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+                    Value = Variant.From(new int[kElements])
+                };
+
+                using var start = new System.Threading.Barrier(kElements);
+                var writers = new System.Threading.Tasks.Task<ServiceResult>[kElements];
+                for (int ii = 0; ii < kElements; ii++)
+                {
+                    int index = ii;
+                    writers[ii] = System.Threading.Tasks.Task.Factory.StartNew(
+                        () =>
+                        {
+                            start.SignalAndWait();
+                            return variable.WriteAttribute(
+                                context,
+                                Attributes.Value,
+                                NumericRange.Parse(index.ToString(
+                                    System.Globalization.CultureInfo.InvariantCulture)),
+                                new DataValue(Variant.From(new int[] { index + 1 })));
+                        },
+                        System.Threading.CancellationToken.None,
+                        System.Threading.Tasks.TaskCreationOptions.LongRunning,
+                        System.Threading.Tasks.TaskScheduler.Default);
+                }
+
+                System.Threading.Tasks.Task.WaitAll(writers);
+
+                foreach (System.Threading.Tasks.Task<ServiceResult> writer in writers)
+                {
+                    Assert.That(ServiceResult.IsGood(writer.Result), Is.True);
+                }
+
+                int[] expected = new int[kElements];
+                for (int ii = 0; ii < kElements; ii++)
+                {
+                    expected[ii] = ii + 1;
+                }
+
+                Assert.That(variable.Value.GetInt32Array(), Is.EqualTo(expected.ToArrayOf()),
+                    "Every successful index-range write must be visible in the final value.");
+            }
+        }
+
+        [Test]
+        public void CloneKeepsExtendedAccessLevelBits()
+        {
+            // CurrentRead | CurrentWrite | NonatomicRead (bit 8) | NoSubDataTypes (bit 11).
+            const uint kAccessLevelEx = 0x03u | 0x100u | 0x800u;
+            var variable = new BaseDataVariableState(null)
+            {
+                AccessLevelEx = kAccessLevelEx
+            };
+
+            var copy = (BaseVariableState)variable.Clone();
+
+            Assert.That(copy.AccessLevelEx, Is.EqualTo(kAccessLevelEx));
+            Assert.That(copy.AccessLevel, Is.EqualTo(variable.AccessLevel));
+        }
     }
 }

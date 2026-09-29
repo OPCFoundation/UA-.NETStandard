@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -101,6 +102,7 @@ namespace Opc.Ua
         /// Updates the table of namespace uris.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="strings"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException">More entries than a UInt16 index can address.</exception>
         public void Update(IEnumerable<string> strings)
         {
             if (strings == null)
@@ -108,9 +110,20 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(strings));
             }
 
+            // same bound as Append (see ThrowIfFull), so the (ushort) index casts cannot wrap.
+            List<string> updated = [.. strings];
+
+            if (updated.Count > ushort.MaxValue)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The string table cannot hold more than {0} entries.",
+                    ushort.MaxValue);
+            }
+
             lock (m_syncRoot)
             {
-                m_strings = [.. strings];
+                m_strings = updated;
 
 #if DEBUG
                 if (m_shared)
@@ -150,8 +163,26 @@ namespace Opc.Ua
 
             lock (m_syncRoot)
             {
+                ThrowIfFull();
                 m_strings.Add(value);
                 return m_strings.Count - 1;
+            }
+        }
+
+        /// <summary>
+        /// Throws if another entry would not fit a UInt16 index. The indexes of the table
+        /// are namespace / server indexes (UInt16) and 0xFFFF is the "not mapped" marker,
+        /// so an entry past index 0xFFFE would silently wrap onto an existing index.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void ThrowIfFull()
+        {
+            if (m_strings.Count >= ushort.MaxValue)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The string table cannot hold more than {0} entries.",
+                    ushort.MaxValue);
             }
         }
 
@@ -214,6 +245,7 @@ namespace Opc.Ua
                     }
 #endif
 
+                    ThrowIfFull();
                     m_strings.Add(value);
                     return (ushort)(m_strings.Count - 1);
                 }
