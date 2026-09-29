@@ -590,6 +590,34 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public void PredefinedMetaDataTreatsTheMaximumTimeAsMissing()
+        {
+            // OPC 10000-6 treats both ends of the UtcTime range as "no time
+            // supplied"; the check must not depend on the host's time zone.
+            foreach (DateTimeUtc unset in new[] { DateTimeUtc.MinValue, DateTimeUtc.MaxValue })
+            {
+                var result = new MachineryResult(
+                    new ResultDataType
+                    {
+                        ResultMetaData = new ResultMetaDataType
+                        {
+                            ResultId = "unset-time",
+                            ExternalRecipeId = "ER",
+                            InternalRecipeId = "IR",
+                            JobId = "J",
+                            ProductId = "P",
+                            StepId = "S",
+                            CreationTime = unset
+                        }
+                    });
+
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => PredefinedResultMetaData.Validate(result, onIngestion: true))!;
+                Assert.That(ex.Message, Does.Contain("CreationTime"));
+            }
+        }
+
+        [Test]
         public async Task PredefinedMetaDataAndJobParameterValidationAsync()
         {
             Assert.Throws<ArgumentNullException>(

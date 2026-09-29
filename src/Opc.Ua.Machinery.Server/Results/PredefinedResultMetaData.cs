@@ -113,11 +113,13 @@ namespace Opc.Ua.Machinery.Server.Results
             AddIfBlank(ref missing, "ProductId", metaData.ProductId);
             AddIfBlank(ref missing, "StepId", metaData.StepId);
 
-            // CreationTime is a UtcTime; default(DateTime) is how an unset
-            // optional field arrives, and Min/Max are the two values OPC 10000-6
-            // treats as "no time supplied".
-            if (metaData.CreationTime == DateTime.MinValue ||
-                metaData.CreationTime == DateTime.MaxValue)
+            // CreationTime is a UtcTime; an unset optional field arrives as
+            // DateTimeUtc.MinValue, and MinValue and MaxValue are the two values
+            // OPC 10000-6 treats as "no time supplied". Comparing against the
+            // DateTime sentinels instead would go through a conversion that
+            // shifts DateTime.MaxValue by the host's UTC offset.
+            if (metaData.CreationTime == DateTimeUtc.MinValue ||
+                metaData.CreationTime == DateTimeUtc.MaxValue)
             {
                 (missing ??= []).Add("CreationTime");
             }
