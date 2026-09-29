@@ -458,6 +458,43 @@ namespace OpcUaPubSubJsonTests
                 Is.EqualTo(expected));
         }
 
+        [Test]
+        [TestSpec("7.2.5.6")]
+        public async Task ActionRequestEnvelopeWithResponseEntryIsRejectedAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            const string json =
+                "{\"MessageId\":\"a\",\"MessageType\":\"ua-action-request\",\"PublisherId\":\"P\"," +
+                "\"Messages\":[{\"DataSetWriterId\":1,\"RequestId\":1}," +
+                "{\"DataSetWriterId\":1,\"RequestId\":2,\"Status\":{\"Code\":2147483648}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Null);
+            Assert.That(JsonTestUtilities.Read(ctx,
+                PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        [TestSpec("7.2.5.6")]
+        public async Task ActionResponseEnvelopeDecodesEveryEntryAsResponseAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            const string json =
+                "{\"MessageId\":\"a\",\"MessageType\":\"ua-action-response\",\"PublisherId\":\"P\"," +
+                "\"Messages\":[{\"DataSetWriterId\":1,\"RequestId\":7}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            var action = result as Opc.Ua.PubSub.Encoding.Json.JsonActionNetworkMessage;
+            Assert.That(action, Is.Not.Null);
+            Assert.That(action!.Messages, Has.Count.EqualTo(1));
+            Assert.That(action.Messages[0].TryGetValue(out Opc.Ua.JsonActionResponseMessage? response), Is.True);
+            Assert.That(response!.RequestId, Is.EqualTo((ushort)7));
+            Assert.That(action.MessageId, Is.EqualTo("a"));
+        }
+
         private static PubSubNetworkMessageContext NewContextWithMetaData(
             DataSetMetaDataType metaData)
         {

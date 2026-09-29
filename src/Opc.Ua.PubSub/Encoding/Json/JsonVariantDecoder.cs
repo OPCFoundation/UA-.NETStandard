@@ -148,11 +148,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="context">Stack message context.</param>
         /// <param name="read">Reads the <see cref="SpliceFieldName"/>
         /// property.</param>
+        /// <param name="excludedProperty">Optional member of an object
+        /// <paramref name="element"/> that is not copied.</param>
         /// <returns>The decoded value.</returns>
         internal static T DecodeSpliced<T>(
             JsonElement element,
             IServiceMessageContext context,
-            Func<Ua.JsonDecoder, T> read)
+            Func<Ua.JsonDecoder, T> read,
+            string? excludedProperty = null)
         {
             using JsonBufferWriter buffer = new(256);
             using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
@@ -163,7 +166,22 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 writer.WriteStartObject();
                 writer.WritePropertyName(SpliceFieldName);
-                element.WriteTo(writer);
+                if (excludedProperty is not null && element.ValueKind == JsonValueKind.Object)
+                {
+                    writer.WriteStartObject();
+                    foreach (JsonProperty member in element.EnumerateObject())
+                    {
+                        if (!member.NameEquals(excludedProperty))
+                        {
+                            member.WriteTo(writer);
+                        }
+                    }
+                    writer.WriteEndObject();
+                }
+                else
+                {
+                    element.WriteTo(writer);
+                }
                 writer.WriteEndObject();
             }
             using Ua.JsonDecoder decoder = new(

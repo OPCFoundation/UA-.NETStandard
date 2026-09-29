@@ -157,9 +157,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         JsonDiscoveryMessage.MessageTypeConnection
                             => DecodeConnectionDiscovery(root, context),
                         JsonActionNetworkMessage.MessageTypeActionRequest
-                            => DecodeAction(root, context),
+                            => DecodeAction(root, context, isResponse: false),
                         JsonActionNetworkMessage.MessageTypeActionResponse
-                            => DecodeAction(root, context),
+                            => DecodeAction(root, context, isResponse: true),
                         JsonActionNetworkMessage.MessageTypeActionMetaData
                             => DecodeActionMetaData(root, context),
                         JsonActionNetworkMessage.MessageTypeActionResponder
@@ -577,24 +577,41 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="root">Root element.</param>
         /// <param name="context">Decoder context.</param>
+        /// <param name="isResponse">Whether the envelope MessageType is
+        /// <c>ua-action-response</c>; it selects the body type of every
+        /// entry in <c>Messages</c>.</param>
         /// <returns>Decoded action message or
         /// <see langword="null"/>.</returns>
         private static JsonActionNetworkMessage? DecodeAction(
             JsonElement root,
-            PubSubNetworkMessageContext context)
+            PubSubNetworkMessageContext context,
+            bool isResponse)
         {
-            Ua.JsonActionNetworkMessage? network =
-                DecodeEncodeable<Ua.JsonActionNetworkMessage>(root, context);
-            if (network is null || network.Messages.Count == 0)
+            // The envelope is decoded without Messages, which are decoded
+            // once below as the body type the MessageType selects.
+            Ua.JsonActionNetworkMessage? network;
+            try
+            {
+                network = JsonVariantDecoder.DecodeSpliced(
+                    root,
+                    context.MessageContext,
+                    static decoder => decoder.ReadEncodeable<Ua.JsonActionNetworkMessage>(
+                        JsonVariantDecoder.SpliceFieldName),
+                    excludedProperty: "Messages");
+            }
+            catch (ServiceResultException)
+            {
+                network = null;
+            }
+            ArrayOf<ExtensionObject> messages = network is null
+                ? []
+                : DecodeActionMessageBodies(root, isResponse, context);
+            if (network is null || messages.Count == 0)
             {
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                 return null;
             }
-            ArrayOf<ExtensionObject> messages = DecodeActionMessageBodies(
-                root,
-                network.Messages,
-                context);
             network.Messages = messages;
             return new JsonActionNetworkMessage
             {
@@ -609,24 +626,37 @@ namespace Opc.Ua.PubSub.Encoding.Json
             };
         }
 
+        /// <summary>
+        /// Decodes the <c>Messages</c> of an action NetworkMessage. A
+        /// NetworkMessage carries either ActionRequest or ActionResponse
+        /// messages (Part 14 §7.2.5.6): every entry is decoded as the type
+        /// selected by the envelope MessageType, and a request envelope
+        /// with a response entry (one carrying <c>Status</c>) is rejected.
+        /// </summary>
+        /// <returns>The decoded bodies; empty when the envelope is
+        /// invalid.</returns>
         private static ArrayOf<ExtensionObject> DecodeActionMessageBodies(
             JsonElement root,
-            ArrayOf<ExtensionObject> fallback,
+            bool isResponse,
             PubSubNetworkMessageContext context)
         {
             if (!root.TryGetProperty("Messages", out JsonElement messagesElement) ||
                 messagesElement.ValueKind != JsonValueKind.Array)
             {
-                return fallback;
+                return [];
             }
-            var messages = new List<ExtensionObject>();
+            var messages = new List<ExtensionObject>(CheckArrayLength(messagesElement, context));
             foreach (JsonElement entry in messagesElement.EnumerateArray())
             {
                 if (entry.ValueKind != JsonValueKind.Object)
                 {
                     continue;
                 }
-                IEncodeable? body = entry.TryGetProperty("Status", out _)
+                if (!isResponse && entry.TryGetProperty("Status", out _))
+                {
+                    return [];
+                }
+                IEncodeable? body = isResponse
                     ? DecodeEncodeable<Opc.Ua.JsonActionResponseMessage>(entry, context)
                     : DecodeEncodeable<Opc.Ua.JsonActionRequestMessage>(entry, context);
                 if (body is not null)
@@ -634,9 +664,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     messages.Add(new ExtensionObject(body));
                 }
             }
-            return messages.Count == 0
-                ? fallback
-                : new ArrayOf<ExtensionObject>(messages.ToArray());
+            return new ArrayOf<ExtensionObject>(messages.ToArray());
         }
 
         private static JsonActionNetworkMessage? DecodeActionMetaData(
