@@ -234,9 +234,13 @@ namespace Opc.Ua.Server.Tests
             m_requestManager.RequestReceived(context);
 
             // Act
-            // Wait for timer to expire since TimeoutHint = 100ms. Note the original timer runs every 1000ms.
-            // We need to wait a bit more than 1000ms.
-            await Task.Delay(1200).ConfigureAwait(false);
+            // Wait for timer to expire since TimeoutHint = 100ms. The timer runs every 1000ms;
+            // poll instead of a fixed delay so a loaded runner cannot miss the first tick.
+            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!eventFired && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(100).ConfigureAwait(false);
+            }
 
             // Assert
             Assert.That(eventFired, Is.True);
@@ -352,6 +356,32 @@ namespace Opc.Ua.Server.Tests
             Assert.That(waiter.IsCompleted, Is.True);
             Assert.That(waiter.IsCanceled, Is.False);
             Assert.That(waiter.IsFaulted, Is.False);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncDoesNotWaitForParkedPublishAsync()
+        {
+            using var readLifetime = new RequestLifetime();
+            using var publishLifetime = new RequestLifetime();
+            OperationContext read = CreateOperationContext(1, readLifetime);
+            var publish = new OperationContext(
+                new RequestHeader { RequestHandle = 2 },
+                null,
+                RequestType.Publish,
+                publishLifetime);
+
+            m_requestManager.RequestReceived(read);
+            m_requestManager.RequestReceived(publish);
+
+            Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(read);
+
+            await AssertCompletesWithinTimeoutAsync(waiter).ConfigureAwait(false);
+            Assert.That(publishLifetime.CancellationToken.IsCancellationRequested, Is.False);
+            m_requestManager.RequestCompleted(publish);
         }
 
         [Test]

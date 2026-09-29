@@ -148,6 +148,38 @@ namespace Opc.Ua.Server.FileSystem
             ForgetHandle(nodeId);
         }
 
+        bool IFileSystemHost.TryBeginMutation(string providerPath)
+        {
+            lock (m_lock)
+            {
+                return FileSystemDirectoryOperations.TryBeginMutation(
+                    Provider, m_handles.Values, m_mutations, providerPath);
+            }
+        }
+
+        void IFileSystemHost.EndMutation(string providerPath)
+        {
+            lock (m_lock)
+            {
+                FileSystemDirectoryOperations.EndMutation(
+                    Provider, m_handles.Values, m_mutations, providerPath);
+            }
+        }
+
+        bool IFileSystemHost.CanUserWrite(ISystemContext context)
+        {
+            return AllowAnonymousWrite || FileSystemDirectoryOperations.IsNonAnonymousOrInternal(context);
+        }
+
+        /// <summary>
+        /// Whether anonymous sessions may modify the mounted file system
+        /// (open for writing, create, delete, move or copy). Defaults to
+        /// <c>false</c>: only sessions with a non-anonymous user identity may
+        /// modify it. Enable only when the mount is meant to be writable by
+        /// every client.
+        /// </summary>
+        public bool AllowAnonymousWrite { get; set; }
+
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
         {
@@ -322,7 +354,10 @@ namespace Opc.Ua.Server.FileSystem
                 FileSystemEntry? entry = await Provider
                     .GetEntryAsync(providerPath, cancellationToken)
                     .ConfigureAwait(false);
-                if (parsed.Value.RootType != FileSystemNodeId.Root && entry == null)
+                // The NodeId kind must match the provider entry: a file NodeId for a
+                // directory (or the reverse) does not name an existing node.
+                if (parsed.Value.RootType != FileSystemNodeId.Root &&
+                    (entry == null || entry.Value.IsDirectory != (parsed.Value.RootType == FileSystemNodeId.Directory)))
                 {
                     return null!;
                 }
@@ -459,6 +494,7 @@ namespace Opc.Ua.Server.FileSystem
                     return handle;
                 }
                 handle = new FileHandle(Provider, providerPath);
+                FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                 m_handles.Add(identity, handle);
                 return handle;
             }
@@ -591,6 +627,11 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         private readonly Dictionary<string, FileHandle> m_handles = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Path identities of the Delete and Move mutations currently running; guarded by m_lock.
+        /// </summary>
+        private readonly List<string> m_mutations = [];
         private readonly Lock m_lock = new();
         private bool m_fileSystemDisposed;
 

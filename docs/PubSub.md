@@ -6,10 +6,16 @@
 > understands the OPC UA PubSub model
 > ([Part 14 §4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/4))
 > and focuses on **how to use the library**.
+>
+> New to PubSub? [OPC UA concepts](Concepts.md#clientserver-and-pubsub)
+> introduces publishers, subscribers, and datasets.
+> [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber)
+> exchanges messages on one computer with the reference sample.
 
 ## Table of contents
 
 - [At a glance](#at-a-glance)
+- [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber)
 - [Architecture](#architecture)
 - [Core abstractions](#core-abstractions)
 - [Fluent builder walkthrough](#fluent-builder-walkthrough)
@@ -18,15 +24,15 @@
 - [Encodings](#encodings)
 - [Transcoding](#transcoding)
 - [Discovery](#discovery)
-- [Security](#security)
+- [Security](#security-1)
 - [Security Key Service (SKS)](#security-key-service-sks)
+- [Actions (request/response)](#actions-requestresponse)
 - [Server-side address space](#server-side-address-space)
 - [Binding PubSub to an external OPC UA server (client-session adapters)](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
 - [High availability and redundancy](#high-availability-and-redundancy)
 - [Diagnostics](#diagnostics)
 - [Native AOT](#native-aot)
 - [Spec coverage](#spec-coverage)
-- [Test coverage](#test-coverage)
 - [Cross-references](#cross-references)
 
 ## At a glance
@@ -58,6 +64,72 @@
 - Runtime configuration mutation via
   `IPubSubApplication.AddConnectionAsync` / `AddWriterGroupAsync` / etc.
 - High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding (plus the experimental Avro mapping), transform pipelines, managed UADP re-securing, and optional experimental schema exchange for Avro / Arrow / JSON targets.
+
+## Run a first publisher and subscriber
+
+The [reference PubSub sample](../samples/PubSub/ConsoleReferencePubSubClient/README.md)
+contains a publisher and a subscriber in one executable. This exchange runs on
+one computer and needs no broker. From the repository root, build the sample
+once:
+
+```bash
+dotnet build samples/PubSub/ConsoleReferencePubSubClient
+```
+
+Start the subscriber in one terminal:
+
+```bash
+dotnet run --no-build --project samples/PubSub/ConsoleReferencePubSubClient -- subscriber --profile udp-uadp --endpoint opc.udp://127.0.0.1:4840
+```
+
+Start the publisher in a second terminal:
+
+```bash
+dotnet run --no-build --project samples/PubSub/ConsoleReferencePubSubClient -- publisher --profile udp-uadp --endpoint opc.udp://127.0.0.1:4840
+```
+
+The subscriber logs each DataSet it decodes, once per second:
+
+```text
+DataSet #1 received (3 fields): BoolToggle=False, Int32=1, DateTime=09/28/2026 12:18:50
+DataSet #2 received (3 fields): BoolToggle=True, Int32=2, DateTime=09/28/2026 12:18:51
+```
+
+The `udp-uadp` profile signs and encrypts the UADP messages with demo keys
+that are built into the sample. A production deployment obtains its keys from
+a [Security Key Service](#security-key-service-sks). Two warnings are expected:
+
+- `DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)`
+  appears when no matching message arrives for five seconds, for example
+  before the publisher starts. The reader resumes when messages arrive.
+- `Dropping unsecured inbound frame ... requiring SignAndEncrypt` appears once.
+  The publisher announces its DataSet metadata without message security, and
+  the secured subscriber discards the announcement. It decodes the DataSets
+  with the metadata configured on its DataSetReader instead.
+
+The sample's default endpoint, `opc.udp://239.0.0.1:4840`, is a multicast
+address. On one computer, the subscriber can miss multicast messages: the UDP
+transport disables multicast loopback by default
+(`UdpTransportOptions.MulticastLoopback`), and the publisher sends through the
+operating system's default multicast interface, which can differ from the
+interface that the subscriber joins. The unicast loopback address avoids both
+limitations. See [UDP / UADP](#udp--uadp) for the multicast options.
+
+A subscriber decodes a message only when it matches the publisher's settings:
+
+| Setting | Publisher option | Subscriber option | Sample default |
+| --- | --- | --- | --- |
+| Transport, encoding, and security | `--profile` | `--profile` | `udp-uadp` |
+| Endpoint | `--endpoint` | `--endpoint` | `opc.udp://239.0.0.1:4840` |
+| PublisherId | `--publisher-id` | `--publisher-id-filter` | `1` |
+| WriterGroupId | `--writer-group-id` | `--writer-group-id-filter` | `100` |
+| DataSetWriterId | `--data-set-writer-id` | `--data-set-writer-id-filter` | `1` |
+
+The DataSet fields must also agree. The sample uses RawData field encoding,
+which carries no type information, so the subscriber decodes the fields with
+the `DataSetMetaData` of its DataSetReader: `BoolToggle`, `Int32`, and
+`DateTime`. A subscriber whose settings do not match ignores the messages and
+reports the `MessageReceiveTimeout` fault.
 
 ## Architecture
 
@@ -218,6 +290,16 @@ emits a retained `JsonMetaDataMessage` / `UadpDiscoveryResponseMessage`
 on the well-known `ua-metadata` topic at startup and after each
 configuration version bump; subscribers cache it before the first
 KeyFrame arrives.
+
+A subscriber also registers the `DataSetMetaData` configured on each
+DataSetReader whose filter names an exact PublisherId, WriterGroupId, and
+DataSetWriterId
+([§6.2.9.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.9.4)).
+It can therefore decode RawData fields without first receiving an
+announcement; a later announcement replaces the entry. A reader with a
+wildcard filter depends on announcements for RawData. A DataSetMessage that
+omits its ConfigurationVersion is decoded with the registered metadata; one
+that carries a different MajorVersion is rejected.
 
 Subscribers can also **actively** request discovery information with
 `IPubSubApplication.RequestDiscoveryAsync(...)` (Part 14 §7.2.4.6): it sends a
@@ -498,6 +580,20 @@ broadcast. The transport honours the
 | `MessageRepeatCount`       | How many times the publisher re-sends the same NetworkMessage.       |
 | `MessageRepeatDelay`       | Delay between repeats; receivers deduplicate using `SequenceNumber`. |
 
+`UdpTransportOptions`, configured with `AddUdpTransport(options => ...)` or the
+`OpcUa:PubSub:Udp` configuration section, sets the socket behavior. Its
+defaults favor containment over reach:
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `Ttl` | `1` | Multicast and unicast time-to-live; keeps multicast on the local subnet. |
+| `MulticastLoopback` | `false` | Whether this host receives copies of its own multicast messages. |
+| `PreferredNetworkInterface` | `null` | NIC name or local IP address used to join multicast groups when the connection address does not name one; otherwise the first operational interface for the address family. |
+
+A receiving connection joins its multicast group on that interface. A
+sending connection uses the operating system's default multicast interface.
+For a publisher and subscriber on one computer, use a unicast loopback address,
+as in [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber).
 
 ### Ethernet / UADP (`opc.eth://`)
 
@@ -559,7 +655,6 @@ services.AddOpcUa().AddPubSub(pubsub => pubsub
 Notes: only UADP encoding is defined for the Ethernet mapping (no JSON over `opc.eth://`); frames exceeding `MaxFrameSize` (the link MTU) cannot be sent, so enable UADP chunking or raise the MTU; the native AF_PACKET / BPF backends are exercised by opt-in / manual tests only (they need privileges and real hardware), while CI uses the in-memory loopback backend.
 
 **Security.** The Ethernet mapping provides **no transport-level authentication, integrity, or confidentiality** (unlike `opc.dtls://`): raw Layer 2 frames are unauthenticated and unencrypted, and any node on the broadcast / VLAN domain can sniff, inject, replay, or spoof them. Always configure **message-level PubSub security** (`SecurityMode = SignAndEncrypt` with a SecurityGroup / SKS), exactly as for UDP — the transport applies the same inbound security gate. The transport logs a prominent **warning** when a connection is opened with `SecurityMode = None`. Run the process with the **least privilege** required for raw L2 access — on Linux grant the `CAP_NET_RAW` capability to the binary (`setcap cap_net_raw+ep`) rather than running as root; `Promiscuous` mode is off by default and broadens the receive exposure when enabled. The in-memory loopback backend delivers every frame to all peers on its bus (no destination filtering) and is a test / diagnostic double only — it must not be relied on as a security or isolation boundary. SharpPcap (+ PacketDotNet) are pinned native dependencies tracked under the repository's SDL native-code policy (see `Directory.Packages.props`).
-
 
 ### DTLS / UADP (`opc.dtls://`)
 
@@ -651,7 +746,7 @@ transport open throws a clear `NotSupportedException`.
 | Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | Not registered. | None. |
 | Curve25519 / Curve448 mandatory profiles | Unsupported: .NET BCL has no portable X25519/X448 API; fail-closed. | Unsupported. | Unsupported. |
 
-Peer authentication reuses the injected stack `CertificateValidator` /
+Peer authentication reuses the injected stack certificate validator /
 certificate stores. Certificates must be ECC/ECDSA and match the selected profile
 hash strength. DTLS records enforce sequence-number protection and anti-replay
 per RFC 9147.
@@ -2057,7 +2152,7 @@ below maps Part 14 sections to the type / file that implements them.
 - [Migration sub-doc — `migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md)
 - [External server adapter](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
 - [Dependency Injection](DependencyInjection.md)
-- [Native AOT Testing](NativeAoT.md)
+- [Native AOT](NativeAoT.md)
 - [Profiles and Facets](Profiles.md#pubsub-transports)
 - [Certificate Manager](CertificateManager.md)
 - [Sessions](Sessions.md) — Part 4 service set used by the SKS client.

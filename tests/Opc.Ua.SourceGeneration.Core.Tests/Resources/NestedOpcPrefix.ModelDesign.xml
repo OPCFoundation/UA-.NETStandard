@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Model whose C# prefix contains the segment "Opc". References to the
+  standard model ("Opc.Ua.DataTypes...") emitted inside
+  "namespace Acme.Opc.Ua.Pumps" must be global:: qualified, or "Opc"
+  binds to "Acme.Opc".
+-->
+<opc:ModelDesign
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns="http://test.org/UA/NestedOpcPrefix/"
+  TargetNamespace="http://test.org/UA/NestedOpcPrefix/"
+  TargetXmlNamespace="http://test.org/UA/NestedOpcPrefix/Types.xsd"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2026-07-25T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace
+      Name="NestedOpcPrefix"
+      Prefix="Acme.Opc.Ua.Pumps"
+      XmlNamespace="http://test.org/UA/NestedOpcPrefix/Types.xsd"
+      XmlPrefix="NestedOpcPrefix">http://test.org/UA/NestedOpcPrefix/</opc:Namespace>
+    <opc:Namespace
+      Name="OpcUa"
+      Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:DataType SymbolicName="PumpSettings" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="Speed" DataType="ua:Double" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:VariableType SymbolicName="FlowVariableType" BaseType="ua:BaseDataVariableType" DataType="ua:Double">
+    <opc:Children>
+      <opc:Property SymbolicName="MaxFlow" DataType="ua:Double" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:VariableType>
+
+  <opc:ObjectType SymbolicName="PumpType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="Flow" TypeDefinition="FlowVariableType" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="Settings" DataType="PumpSettings" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+</opc:ModelDesign>

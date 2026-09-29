@@ -298,6 +298,29 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task BrowseAsync_KnownNonReferenceType_ReturnsBadReferenceTypeIdInvalidAsync()
+        {
+            IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
+            OperationContext ctx = CreateContext();
+
+            var nodeToBrowse = new BrowseDescription
+            {
+                NodeId = ObjectIds.ObjectsFolder,
+                ReferenceTypeId = ObjectTypeIds.BaseObjectType,
+                BrowseDirection = BrowseDirection.Forward
+            };
+
+            (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
+                ctx,
+                new ViewDescription(),
+                0u,
+                new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+        }
+
+        [Test]
         public async Task BrowseAsync_InvalidBrowseDirection_ReturnsBadBrowseDirectionInvalidAsync()
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;

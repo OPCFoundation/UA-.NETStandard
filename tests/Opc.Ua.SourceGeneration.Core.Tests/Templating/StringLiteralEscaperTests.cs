@@ -77,6 +77,27 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             Assert.That(modified, Is.False);
         }
 
+        /// <summary>
+        /// Regression: NEL, LINE SEPARATOR and PARAGRAPH SEPARATOR are C# new-line
+        /// characters that end a regular string literal (CS1010) but were passed
+        /// through unescaped.
+        /// </summary>
+        [TestCase('\u0085', "\\u0085")]
+        [TestCase('\u2028', "\\u2028")]
+        [TestCase('\u2029', "\\u2029")]
+        public void UnicodeNewLineIsEscaped(char newLine, string expected)
+        {
+            string input = "a" + newLine + "b";
+
+            string escaped = StringLiteralEscaper.AsCSharpStringLiteralContent(
+                input, out bool modified);
+
+            Assert.That(escaped, Is.EqualTo("a" + expected + "b"));
+            Assert.That(modified, Is.True);
+            Assert.That(StringLiteralEscaper.RequiresEscaping(input), Is.True);
+            AssertRoundTrips(input);
+        }
+
         [Test]
         public void DoubleQuote_BecomesEscapedQuote()
         {

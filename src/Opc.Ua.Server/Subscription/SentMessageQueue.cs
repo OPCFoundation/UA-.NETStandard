@@ -203,22 +203,26 @@ namespace Opc.Ua.Server
         /// <param name="messages">The messages to enqueue (may be trimmed in place on overflow).</param>
         /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
         /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
-        /// <param name="newlyUnacknowledgedCount">
-        /// The number of older unacknowledged messages evicted (for diagnostics); <c>0</c> when no eviction was needed.
+        /// <param name="discardedMessageCount">
+        /// The number of messages discarded before they were acknowledged (for diagnostics): new messages
+        /// dropped unsent because the batch exceeds the queue limit plus older messages evicted from the
+        /// retransmission queue; <c>0</c> when nothing was discarded.
         /// </param>
         public NotificationMessage Enqueue(
             List<NotificationMessage> messages,
             List<uint> availableSequenceNumbers,
             out bool moreNotifications,
-            out uint newlyUnacknowledgedCount)
+            out uint discardedMessageCount)
         {
-            newlyUnacknowledgedCount = 0;
+            discardedMessageCount = 0;
             uint effectiveMaxMessageCount = Math.Max(1u, MaxMessageCount);
 
             // have to drop unsent messages if out of queue space.
             int overflowCount = (int)Math.Max(0, messages.Count - effectiveMaxMessageCount);
             if (overflowCount > 0)
             {
+                // Dropped unsent messages were never acknowledged either (Part 5 DiscardedMessageCount).
+                discardedMessageCount = (uint)overflowCount;
                 m_logger.WARNINGQUEUEOVERFLOWDroppingCountMessagesIncrease(overflowCount, Id, MaxMessageCount);
                 for (int ii = 0; ii < overflowCount; ii++)
                 {
@@ -235,7 +239,7 @@ namespace Opc.Ua.Server
                 (long)SentMessages.Count + messages.Count - effectiveMaxMessageCount);
             if (evictionCount > 0)
             {
-                newlyUnacknowledgedCount = (uint)evictionCount;
+                discardedMessageCount += (uint)evictionCount;
 
                 if (m_retransmissionStore != null)
                 {

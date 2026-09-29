@@ -2,6 +2,18 @@
 
 > **When to read this:** Read this for `ApplicationConfiguration` changes, the removed Data-Contract serializer, Newtonsoft removal from `Opc.Ua.Core`, the new `ParseExtension` / `UpdateExtension` signature, and session / browser state persistence.
 
+## Contents
+
+- [Configuration](#configuration)
+  - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
+  - [TraceConfiguration apply APIs removed](#traceconfiguration-apply-apis-removed)
+  - [MinMetadataSamplingInterval removed, MinSupportedSamplingInterval added](#minmetadatasamplinginterval-removed-minsupportedsamplinginterval-added)
+  - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
+  - [ParseExtension/UpdateExtension signature changed](#parseextensionupdateextension-signature-changed)
+  - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
+  - [IJsonEncodeable interface removed](#ijsonencodeable-interface-removed)
+- [Session and Browser State Persistence](#session-and-browser-state-persistence)
+
 ## Configuration
 
 ### Data Contract Serializer support removed

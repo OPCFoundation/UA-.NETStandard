@@ -53,8 +53,8 @@
              consumer (apps/tests). net8.0 (unlike net9.0+/net10.0) does not define
              System.Threading.Lock or X509CertificateLoader in its BCL, so the
              netstandard2.1 libraries' public polyfills for those types do not collide
-             with the consumer's BCL. This matches the net8.0 framework the netstandard2.1
-             test stage already runs (azure-pipelines.yml). -->
+             with the consumer's BCL. This matches the net8.0 test host the netstandard2.1
+             CI profile runs on (.github/scripts/get-ci-matrix.ps1). -->
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>

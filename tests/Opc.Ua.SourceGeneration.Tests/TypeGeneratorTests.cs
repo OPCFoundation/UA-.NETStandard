@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
@@ -271,6 +272,257 @@ namespace TestApp.NotPartial
 
             Assert.That(result.GeneratedSources, Has.Length.EqualTo(0),
                 "Should not generate code for non-partial class");
+        }
+
+        /// <summary>
+        /// Regression: [DataType] on a struct generated a <c>partial class</c>
+        /// companion (CS0261) with no generator diagnostic explaining it.
+        /// </summary>
+        [TestCase("partial struct")]
+        [TestCase("partial record struct")]
+        public void StructReportsUnsupportedTargetAndGeneratesNothing(string declaration)
+        {
+            string source = $@"
+using Opc.Ua;
+
+namespace TestApp.Structs
+{{
+    [DataType]
+    public {declaration} Point
+    {{
+        public double X {{ get; set; }}
+    }}
+}}";
+            GeneratorRunResult result = RunGenerator(
+                source, out Compilation output, expectErrors: true);
+
+            Assert.That(result.GeneratedSources, Is.Empty);
+            Diagnostic[] unsupported = [.. result.Diagnostics
+                .Where(d => d.Id == "MODELGEN037")];
+            Assert.That(unsupported, Has.Length.EqualTo(1));
+            Assert.That(
+                unsupported[0].GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("struct"));
+            Assert.That(
+                output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                "the user's struct must compile untouched");
+        }
+
+        /// <summary>
+        /// D1: a [DataType] class deriving from an encodeable whose
+        /// definition cannot be resolved (a hand-written IEncodeable here)
+        /// encodes the base fields first, but its StructureDefinition can only
+        /// list its own fields (OPC 10000-3 8.48). That was silent; it is now
+        /// reported (MODELGEN038). A [DataType] base is resolved and is not.
+        /// </summary>
+        [Test]
+        public void UnresolvedBaseDefinitionIsReported()
+        {
+            const string source =
+                """
+                using Opc.Ua;
+
+                namespace TestApp.Bases
+                {
+                    public class HandBase : IEncodeable
+                    {
+                        public int A { get; set; }
+                        public virtual ExpandedNodeId TypeId => ExpandedNodeId.Null;
+                        public virtual ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
+                        public virtual ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
+                        public virtual void Encode(IEncoder encoder) { encoder.WriteInt32("A", A); }
+                        public virtual void Decode(IDecoder decoder) { A = decoder.ReadInt32("A"); }
+                        public virtual bool IsEqual(IEncodeable encodeable) { return encodeable is HandBase b && b.A == A; }
+                        public virtual object Clone() { return MemberwiseClone(); }
+                    }
+
+                    [DataType(Namespace = "urn:bases")]
+                    public partial class HandDerived : HandBase
+                    {
+                        public int B { get; set; }
+                    }
+
+                    [DataType(Namespace = "urn:bases")]
+                    public partial class GenBase
+                    {
+                        public int C { get; set; }
+                    }
+
+                    [DataType(Namespace = "urn:bases")]
+                    public partial class GenDerived : GenBase
+                    {
+                        public int D { get; set; }
+                    }
+                }
+                """;
+            GeneratorRunResult result = RunGenerator(source, expectWarnings: true);
+
+            Diagnostic[] unresolved = [.. result.Diagnostics.Where(d => d.Id == "MODELGEN038")];
+            Assert.That(unresolved, Has.Length.EqualTo(1));
+            Assert.That(unresolved[0].Severity, Is.EqualTo(DiagnosticSeverity.Warning));
+            string message = unresolved[0].GetMessage(CultureInfo.InvariantCulture);
+            Assert.That(message, Does.Contain("TestApp.Bases.HandDerived"));
+            Assert.That(message, Does.Contain("TestApp.Bases.HandBase"));
+        }
+
+        /// <summary>
+        /// Regression: a nested [DataType] was completed by an unrelated
+        /// top-level type of the same name. It is now emitted inside partial
+        /// declarations of its containing types, and the namespace-level
+        /// activators are named after the nesting so two nested types of the
+        /// same name do not collide.
+        /// </summary>
+        [Test]
+        public void NestedTypesAreGeneratedInsideTheirContainingTypes()
+        {
+            const string source = @"
+using Opc.Ua;
+
+namespace TestApp.Nested
+{
+    public static partial class Models
+    {
+        [DataType]
+        public partial class Foo
+        {
+            public string Name { get; set; }
+            public int Count { get; set; }
+        }
+
+        [DataType]
+        public enum Kind
+        {
+            First = 0,
+            Second = 1
+        }
+    }
+
+    public partial class Other
+    {
+        public partial record class Inner
+        {
+            [DataType]
+            public partial class Foo
+            {
+                public double Value { get; set; }
+            }
+        }
+    }
+}";
+            GeneratorRunResult result = RunGenerator(source, out Compilation output);
+
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
+            string generated = result.GeneratedSources[0].SourceText.ToString();
+            Assert.That(generated, Does.Contain("static partial class Models"));
+            Assert.That(generated, Does.Contain("partial record class Inner"));
+            Assert.That(generated, Does.Contain("Models_FooActivator"));
+            Assert.That(generated, Does.Contain("Other_Inner_FooActivator"));
+            Assert.That(generated, Does.Contain("Models_KindActivator"));
+            Assert.That(
+                generated,
+                Does.Contain("EncodeableType<global::TestApp.Nested.Models.Foo>"));
+
+            INamedTypeSymbol nested = output.GetTypeByMetadataName(
+                "TestApp.Nested.Models+Foo");
+            Assert.That(nested, Is.Not.Null);
+            Assert.That(
+                nested.AllInterfaces.Select(i => i.Name),
+                Does.Contain("IEncodeable"),
+                "the generated members must complete the nested type");
+            Assert.That(
+                output.GetTypeByMetadataName("TestApp.Nested.Foo"),
+                Is.Null,
+                "no unrelated top-level type may be generated");
+        }
+
+        [TestCase(
+            "public partial class Box<T> { public int Value { get; set; } }",
+            "generic",
+            TestName = "GenericDataTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "public class Outer { [DataType] public partial class Foo { public int Value { get; set; } } }",
+            "must be declared partial",
+            TestName = "DataTypeInNonPartialContainingTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "public partial class Outer { [DataType] private partial class Foo { public int Value { get; set; } } }",
+            "public or internal",
+            TestName = "PrivateNestedDataTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "file partial class Foo { public int Value { get; set; } }",
+            "file-local",
+            TestName = "FileLocalDataTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "file partial class Outer { [DataType] public partial class Foo { public int Value { get; set; } } }",
+            "file-local",
+            TestName = "DataTypeInFileLocalContainingTypeReportsUnsupportedTarget")]
+        [TestCase(
+            "public abstract partial class Foo { public int Value { get; set; } }",
+            "abstract",
+            TestName = "AbstractDataTypeReportsUnsupportedTarget")]
+        public void UnsupportedDataTypeTargetReportsDiagnostic(string declaration, string reason)
+        {
+            // A top-level declaration carries its own [DataType]; the nested
+            // ones apply it on the inner type.
+            string attribute = declaration.Contains("[DataType]", StringComparison.Ordinal)
+                ? string.Empty
+                : "[DataType]";
+            string source = $@"
+using Opc.Ua;
+
+namespace TestApp.Unsupported
+{{
+    {attribute}
+    {declaration}
+}}";
+            GeneratorRunResult result = RunGenerator(source, expectErrors: true);
+
+            Assert.That(result.GeneratedSources, Is.Empty);
+            Diagnostic[] unsupported = [.. result.Diagnostics
+                .Where(d => d.Id == "MODELGEN037")];
+            Assert.That(unsupported, Has.Length.EqualTo(1));
+            Assert.That(
+                unsupported[0].GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain(reason));
+        }
+
+        /// <summary>
+        /// Regression: Roslyn compares hint names case-insensitively, so two
+        /// namespaces differing only in case claimed the same hint name, the
+        /// second AddSource threw and the remaining files were dropped.
+        /// </summary>
+        [Test]
+        public void NamespacesDifferingOnlyInCaseGetDistinctHintNames()
+        {
+            const string source = @"
+using Opc.Ua;
+
+namespace Acme.Types
+{
+    [DataType]
+    public partial class First
+    {
+        public int Value { get; set; }
+    }
+}
+
+namespace Acme.types
+{
+    [DataType]
+    public partial class Second
+    {
+        public int Value { get; set; }
+    }
+}";
+            GeneratorRunResult result = RunGenerator(source);
+
+            Assert.That(result.Exception, Is.Null);
+            Assert.That(result.Diagnostics.Where(d => d.Id == "MODELGEN003"), Is.Empty);
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(2));
+            string[] hintNames = [.. result.GeneratedSources.Select(s => s.HintName)];
+            Assert.That(
+                hintNames.Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                Is.EqualTo(2));
         }
 
         [Test]
@@ -704,6 +956,216 @@ namespace AB.C
                 hintNames,
                 Is.EqualTo(expectedHintNames),
                 "the hint name has to keep the namespace's dots to stay unique");
+        }
+
+        /// <summary>
+        /// A4-3: [DataType] diagnostics were reported at a location outside
+        /// source (no syntax tree), so #pragma warning disable did not
+        /// suppress them. They are reported in the annotated type's syntax
+        /// tree again.
+        /// </summary>
+        [Test]
+        public void DataTypeWarningHonoursPragmaSuppression()
+        {
+            const string declaration = @"
+    [DataType]
+    public partial class WithHelper
+    {
+        public int Value { get; set; }
+        public Helper Link { get; set; }
+    }
+
+    public class Helper { }";
+            ImmutableArray<Diagnostic> reported = RunGeneratorForDiagnostics(
+                "using Opc.Ua;\nnamespace TestApp.Pragma\n{" + declaration + "\n}");
+            Diagnostic warning = reported.Single(d => d.Id == "MODELGEN002");
+            Assert.That(warning.IsSuppressed, Is.False);
+            Assert.That(warning.Location.IsInSource, Is.True, "reported in the syntax tree");
+            Assert.That(warning.Location.SourceTree.FilePath, Is.EqualTo("TestSource.cs"));
+
+            ImmutableArray<Diagnostic> suppressed = RunGeneratorForDiagnostics(
+                "using Opc.Ua;\nnamespace TestApp.Pragma\n{\n#pragma warning disable MODELGEN002" +
+                declaration + "\n#pragma warning restore MODELGEN002\n}");
+            Assert.That(
+                suppressed.Where(d => d.Id == "MODELGEN002" && !d.IsSuppressed),
+                Is.Empty,
+                "#pragma warning disable suppresses the warning");
+        }
+
+        /// <summary>
+        /// A4-3: the [NodeManager] target diagnostics are reported in the
+        /// annotated class's syntax tree as well.
+        /// </summary>
+        [Test]
+        public void NodeManagerDiagnosticIsReportedInSource()
+        {
+            const string source =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                    public sealed class NodeManagerAttribute : global::System.Attribute
+                    {
+                        public string NamespaceUri { get; set; }
+                    }
+                }
+                namespace TestApp.Managers
+                {
+                    [global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = "http://test.org/UA/Any")]
+                    public class NotPartialManager
+                    {
+                    }
+                }
+                """;
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+            ImmutableArray<Diagnostic> reported = RunGeneratorForDiagnostics(
+                source,
+                options,
+                [EmbeddedText.From("DemoModel.xml")]);
+
+            Diagnostic notPartial = reported.Single(d => d.Id == "MODELGEN011");
+            Assert.That(notPartial.Location.IsInSource, Is.True, "reported in the syntax tree");
+            Assert.That(notPartial.Location.SourceTree.FilePath, Is.EqualTo("TestSource.cs"));
+        }
+
+        /// <summary>
+        /// A4-4: a [DataType] in the global namespace was emitted into
+        /// "namespace " (CS1001 in generated code). It is reported instead.
+        /// </summary>
+        [Test]
+        public void GlobalNamespaceDataTypeReportsUnsupportedTarget()
+        {
+            const string source = @"
+using Opc.Ua;
+
+[DataType]
+public partial class GlobalFoo
+{
+    public int Value { get; set; }
+}";
+            GeneratorRunResult result = RunGenerator(
+                source, out Compilation output, expectErrors: true);
+
+            Assert.That(result.GeneratedSources, Is.Empty);
+            Diagnostic unsupported = result.Diagnostics.Single(d => d.Id == "MODELGEN037");
+            Assert.That(
+                unsupported.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("global namespace"));
+            Assert.That(
+                output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                "no broken code may be generated");
+        }
+
+        /// <summary>
+        /// A4-5: a private parameterless constructor passed the constructor
+        /// check, and the generated activator's <c>new T()</c> failed with
+        /// CS0122.
+        /// </summary>
+        [TestCase("private")]
+        [TestCase("protected")]
+        public void InaccessibleParameterlessConstructorReportsError(string accessibility)
+        {
+            string source = $@"
+using Opc.Ua;
+
+namespace TestApp.Ctor
+{{
+    [DataType]
+    public partial class Hidden
+    {{
+        {accessibility} Hidden() {{ }}
+        public int Value {{ get; set; }}
+    }}
+}}";
+            GeneratorRunResult result = RunGenerator(
+                source, out Compilation output, expectErrors: true);
+
+            Assert.That(result.GeneratedSources, Is.Empty);
+            Diagnostic error = result.Diagnostics.Single(d => d.Id == "MODELGEN003");
+            Assert.That(
+                error.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain("public or internal parameterless"));
+            Assert.That(
+                output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty);
+        }
+
+        /// <summary>
+        /// A4-8/A4-4: a [NodeManager] in the global namespace (whose empty
+        /// namespace means "the model's namespace" to the generators) or a
+        /// file-local one got its members generated into a different type.
+        /// </summary>
+        [TestCase(
+            "[global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = \"http://test.org/UA/Any\")]\n" +
+            "public partial class GlobalManager { }",
+            "global namespace",
+            TestName = "GlobalNamespaceNodeManagerReportsUnsupportedTarget")]
+        [TestCase(
+            "namespace TestApp.Managers { [global::Opc.Ua.Server.Fluent.NodeManager(NamespaceUri = \"http://test.org/UA/Any\")]\n" +
+            "file partial class FileManager { } }",
+            "file-local",
+            TestName = "FileLocalNodeManagerReportsUnsupportedTarget")]
+        public void UnsupportedNodeManagerTargetReportsDiagnostic(string declaration, string reason)
+        {
+            string source =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                    public sealed class NodeManagerAttribute : global::System.Attribute
+                    {
+                        public string NamespaceUri { get; set; }
+                    }
+                }
+                """ + "\n" + declaration;
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+            ImmutableArray<Diagnostic> reported = RunGeneratorForDiagnostics(
+                source,
+                options,
+                [EmbeddedText.From("DemoModel.xml")]);
+
+            Diagnostic unsupported = reported.Single(d => d.Id == "MODELGEN036");
+            Assert.That(
+                unsupported.GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain(reason));
+        }
+
+        private static ImmutableArray<Diagnostic> RunGeneratorForDiagnostics(
+            string source,
+            AnalyzerOptionsProvider options = null,
+            ImmutableArray<AdditionalText> additionalTexts = default)
+        {
+            CSharpCompilation compilation = OptimizationLevel.Release
+                .CreateCompilation()
+                .AddCode(
+                    new[] { new System.Collections.Generic.KeyValuePair<string, string>(
+                        "TestSource.cs", source) }
+                    .WithOpcUaGeneratedStack(),
+                    LanguageVersion.Preview);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(new ModelSourceGenerator())
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(LanguageVersion.Preview));
+            if (options != null)
+            {
+                driver = driver.WithUpdatedAnalyzerConfigOptions(options);
+            }
+            if (!additionalTexts.IsDefaultOrEmpty)
+            {
+                driver = driver.AddAdditionalTexts(additionalTexts);
+            }
+            driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out _,
+                out ImmutableArray<Diagnostic> diagnostics);
+            return diagnostics;
         }
 
         private static GeneratorRunResult RunGenerator(

@@ -11,8 +11,8 @@
       an explicit not-applicable shell there as well.
 
       Without CustomTestTarget the project also exposes a net48 placeholder
-      target with no test code, so the Azure DevOps leg that invokes
-      `dotnet test -f net48` without CustomTestTarget finds a runnable target.
+      target with no test code, so a plain `dotnet test -f net48` without
+      CustomTestTarget finds a runnable target.
     -->
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net48;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>

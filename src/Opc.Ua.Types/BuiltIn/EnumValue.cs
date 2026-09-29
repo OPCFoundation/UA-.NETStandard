@@ -135,7 +135,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Try to get a xml name
+        /// Try to get the xml name of the enumerated type, which names the
+        /// elements of an enumeration array in XML (OPC 10000-6 5.3.4). A
+        /// value that only knows its symbol has no type name: the symbol
+        /// names the value, not the type.
         /// </summary>
         public XmlQualifiedName? XmlName
         {
@@ -143,14 +146,13 @@ namespace Opc.Ua
             {
                 switch (Source)
                 {
-                    case string str:
-                        if (!string.IsNullOrEmpty(str))
-                        {
-                            return new XmlQualifiedName(str);
-                        }
-                        goto default;
+                    // The data contract name of an enumeration is the name its
+                    // typed arrays are written with; an activator may be
+                    // registered under the model namespace URI instead.
                     case IEnumeratedType enumeratedType:
-                        return enumeratedType.XmlName;
+                        return (enumeratedType.Type is { IsEnum: true } clrType
+                            ? TypeInfo.GetXmlName(clrType)
+                            : null) ?? enumeratedType.XmlName;
                     case Type enumType:
                         return TypeInfo.GetXmlName(enumType);
                     default:

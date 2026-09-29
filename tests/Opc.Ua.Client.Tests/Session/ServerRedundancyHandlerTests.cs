@@ -470,6 +470,66 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// Verifies that an interface-typed call (the extension method) applies the
+        /// same health checks as the concrete handler.
+        /// </summary>
+        [Test]
+        public void InterfaceShouldFailoverDoesNotFailOverFromHealthyServer()
+        {
+            var info = new ServerRedundancyInfo
+            {
+                Mode = RedundancySupport.Hot,
+                ServiceLevel = ServiceLevels.HealthyMinimum,
+                ServiceLevelAccessible = true,
+                ServiceLevelSubrange = ServiceLevelSubrange.Healthy,
+                RedundantServers =
+                [
+                    CreateServerInfo("urn:backup", ServiceLevels.Maximum, ServerState.Running)
+                ]
+            };
+            IServerRedundancyHandler handler = m_handler;
+
+            ServerFailoverDecision decision = handler.ShouldFailover(
+                info, CreateCurrentEndpoint("urn:current"));
+
+            Assert.That(decision.IsFailoverWarranted, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that the extension fallback for a custom handler does not fail
+        /// over from a Healthy server even when a target is available.
+        /// </summary>
+        [Test]
+        public void CustomHandlerShouldFailoverDoesNotFailOverFromHealthyServer()
+        {
+            var info = new ServerRedundancyInfo
+            {
+                Mode = RedundancySupport.Hot,
+                ServiceLevel = ServiceLevels.Maximum,
+                ServiceLevelAccessible = true,
+                ServiceLevelSubrange = ServiceLevelSubrange.Healthy
+            };
+            var custom = new Mock<IServerRedundancyHandler>();
+            custom.Setup(h => h.SelectFailoverTarget(It.IsAny<ServerRedundancyInfo>(), It.IsAny<ConfiguredEndpoint>()))
+                .Returns(CreateCurrentEndpoint("urn:backup"));
+
+            ServerFailoverDecision healthy = custom.Object.ShouldFailover(
+                info, CreateCurrentEndpoint("urn:current"));
+            ServerFailoverDecision degraded = custom.Object.ShouldFailover(
+                new ServerRedundancyInfo
+                {
+                    Mode = RedundancySupport.Hot,
+                    ServiceLevel = ServiceLevels.DegradedMaximum,
+                    ServiceLevelAccessible = true,
+                    ServiceLevelSubrange = ServiceLevelSubrange.Degraded
+                },
+                CreateCurrentEndpoint("urn:current"));
+
+            Assert.That(healthy.IsFailoverWarranted, Is.False);
+            Assert.That(degraded.IsFailoverWarranted, Is.True);
+        }
+
+        /// <summary>
         /// Verifies that a degraded server fails over to a healthy peer.
         /// </summary>
         [Test]

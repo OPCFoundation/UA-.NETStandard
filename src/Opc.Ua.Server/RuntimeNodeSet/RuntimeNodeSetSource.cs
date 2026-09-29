@@ -214,9 +214,37 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             using var reader = XmlReader.Create(filePath, CoreUtils.DefaultXmlReaderSettings());
             var modelUris = new List<string>();
 
+            // Only UANodeSet/Models/Model declares a model; elements named Model
+            // inside values or extensions are data. Models precedes the nodes, so
+            // the scan stops once the Models element has been read.
+            bool inModels = false;
             while (reader.Read())
             {
+                if (inModels && reader.NodeType == XmlNodeType.EndElement && reader.Depth == 1)
+                {
+                    break;
+                }
                 if (reader.NodeType != XmlNodeType.Element ||
+                    !string.Equals(reader.NamespaceURI, kUANodeSetNamespace, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (reader.Depth == 1)
+                {
+                    if (string.Equals(reader.LocalName, "Models", StringComparison.Ordinal))
+                    {
+                        if (reader.IsEmptyElement)
+                        {
+                            break;
+                        }
+                        inModels = true;
+                    }
+                    continue;
+                }
+
+                if (!inModels ||
+                    reader.Depth != 2 ||
                     !string.Equals(reader.LocalName, "Model", StringComparison.Ordinal))
                 {
                     continue;
@@ -276,6 +304,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
             return declaredUris;
         }
+
+        private const string kUANodeSetNamespace = "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd";
     }
 
     /// <summary>

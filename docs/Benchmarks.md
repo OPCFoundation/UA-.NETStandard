@@ -1,10 +1,32 @@
 # Performance Benchmarks
 
-This document covers the performance of the **2.0** stack: how to run the
-BenchmarkDotNet harnesses, the **2.0 vs 1.5.378** comparison (what improved, what is
-still slower, and why, plus planned future work), the **pooled encodeable**
-(subscription-notification pooling) micro-benchmarks, and **server session scalability**
-(concurrent-session capacity vs 1.5.378).
+This document explains how to run the **2.0** stack's BenchmarkDotNet
+harnesses and summarizes its performance against **1.5.378**. It covers
+improvements, remaining slowdowns, and planned future work. It also reports
+the pooled encodeable micro-benchmarks and server session scalability.
+
+## Contents
+
+- [How to run](#how-to-run)
+- [2.0 vs 1.5.378](#20-vs-15378)
+  - [Why 2.0 differs](#why-20-differs-from-15378)
+  - [What was measured](#what-was-measured-20-vs-15378-409-matched-benchmarks)
+  - [What improved](#what-improved-in-20-vs-15378-and-why)
+  - [What is still slower](#what-is-still-slower-in-20-vs-15378-and-why)
+  - [Future work](#future-work)
+  - [Environment and caveats](#environment-and-caveats)
+- [Pooled encodeable](#pooled-encodeable)
+  - [Source](#source)
+  - [Methodology](#methodology)
+  - [Environment](#environment)
+  - [Results](#results)
+  - [Interpretation](#interpretation)
+  - [Reproducing](#reproducing)
+  - [Out of scope](#out-of-scope)
+- [Server session scalability](#server-session-scalability)
+  - [Observed scaling](#observed-scaling)
+  - [Subscription transport buffer pooling](#subscription-transport-buffer-pooling)
+  - [Sizing and configuration](#sizing-and-configuration)
 
 ## How to run
 
@@ -30,30 +52,32 @@ across every security policy.
 
 ## 2.0 vs 1.5.378
 
-This section compares the **2.0** stack against the previous **1.5.378** release on
-.NET 10, explains **what improved and why**, **what is still slower and why**, and the
-**future work** planned to close the remaining gaps.
+This section compares the **2.0** stack with **1.5.378** on .NET 10. It
+explains what improved, what remains slower, and what future work could
+close the gaps.
 
 All ratios below are **2.0 ÷ 1.5.378**. **< 1.0 means 2.0 is faster / allocates
 less; > 1.0 means 2.0 is slower / allocates more.**
 
-It is intended as living documentation: when a perf-sensitive change lands, update
-the relevant section and re-run the affected benchmark class (see
+Keep this section current as performance-sensitive changes land. Update the
+relevant results and rerun the affected benchmark class (see
 [How to run](#how-to-run)).
 
 ### Why 2.0 differs from 1.5.378
 
-2.0 is a deliberate redesign that, among many other things, replaced several
-reference types with **`readonly struct` value types** (`Variant`, `DataValue`,
-`NodeId`, `ExpandedNodeId`, `ByteString`, `ArrayOf<T>`, `DateTimeUtc`) and moved
-the client/server onto a fully `async` (TAP) pipeline. That redesign **reduces
-allocations and GC pressure** (fewer heap objects, less Gen2 traffic) but trades
-some of that for **higher per-access CPU cost** — every property read on a large
-`readonly struct` may copy the struct or re-run a discriminated-union switch.
+The 2.0 redesign replaced several reference types with **`readonly struct`
+value types**: `Variant`, `DataValue`, `NodeId`, `ExpandedNodeId`,
+`ByteString`, `ArrayOf<T>`, and `DateTimeUtc`. It also moved client and server
+operations to a fully `async` (TAP) pipeline.
 
-The benchmarks below quantify that trade-off: 2.0 allocates less and is faster on
-most client paths, at the cost of some encode/decode CPU on the value-type hot
-paths.
+The redesign **reduces allocations and GC pressure** by creating fewer heap
+objects and less Gen2 traffic. It can also increase per-access CPU cost.
+Reading a property from a large `readonly struct` may copy the struct or rerun
+a discriminated-union switch.
+
+The benchmarks below quantify this trade-off. Version 2.0 allocates less and
+runs faster on most client paths, but some value-type encoding and decoding
+paths use more CPU.
 
 ### What was measured (2.0 vs 1.5.378, 409 matched benchmarks)
 
@@ -62,12 +86,12 @@ paths.
   two areas only: the **binary encoder** and **session establishment**. Everything
   else is at parity or faster.
 
-> The two aggregate geomeans above are from the **baseline full-job** 2.0-vs-1.5.378
-> sweep (409 matched benchmarks). Several areas have since improved further (binary
-> decode allocation, in-memory and external-stream JSON — see the per-area rows below);
-> the full sweep was not re-run on the final tree, so the per-area table reflects the
-> current state while the aggregate is the documented baseline (the improvements only
-> move it further in 2.0's favour).
+> The two aggregate geomeans above come from the **baseline full-job**
+> 2.0-versus-1.5.378 sweep of 409 matched benchmarks. Several areas have since
+> improved, including binary decode allocation and in-memory and external-stream
+> JSON (see the per-area rows below). The team did not rerun the full sweep on
+> the final tree. The per-area table shows current results, while the aggregate
+> remains the documented baseline. These improvements favor 2.0 further.
 
 | Area | time | alloc |
 |---|--:|--:|
@@ -78,14 +102,16 @@ paths.
 | Binary encode (`BinaryEncoderBenchmarks`) | still slower¹ | ~parity¹ |
 | Session establishment (`SecurityPolicyBenchmarks`) | still slower³ | — |
 
-¹ The encoder still trails 1.5.378 on **time** (intrinsic value-type struct cost — see
-below). Its **allocation** is unchanged by the codec work: a ground-truth
-`GC.GetAllocatedBytesForCurrentThread` A/B over the benchmark payload shows identical
-per-op allocation before/after the `BinaryPrimitives` change (e.g. `ArraySegmentStream`
-76,808 B/op in both). The `Allocated` column that BenchmarkDotNet reports for the
-`ArrayPool`/`BufferManager`-backed stream variants is a pooled-buffer **accounting
-artifact** (pool rentals/returns attributed differently across separate runs) and is not a
-reliable per-op figure for those variants.
+¹ The encoder remains slower than 1.5.378 on **time**, consistent with the
+intrinsic cost of value-type structs (see below). The codec work did not change
+**allocation**. A `GC.GetAllocatedBytesForCurrentThread` A/B test on the
+benchmark payload measured the same allocation before and after the
+`BinaryPrimitives` change: 76,808 B/op for `ArraySegmentStream`.
+
+BenchmarkDotNet's `Allocated` values for `ArrayPool`/`BufferManager`-backed
+streams are an accounting artifact. Pool rentals and returns can be attributed
+differently across independent runs, so these values are not reliable per-op
+figures.
 ² External-stream JSON allocation improved from ~1.44× to ~1.29× once the
 `Utf8JsonWriter` is pooled/reused (below); the residual is inherent UTF-8 transcoding.
 ³ Session establishment remains the largest single regression vs 1.5.378; this is
@@ -186,15 +212,17 @@ bulk numeric-array copies described under [what improved](#binary-decoding-31-le
 
 #### JSON encoder, external-stream — improved by `Utf8JsonWriter` pooling
 
-The external-stream JSON variants (`JsonEncoderBenchmarks`, which write to a caller
-stream) trailed 1.5.378 because each encoder allocated a fresh `Utf8JsonWriter` and
-pays `Utf8JsonWriter` UTF-8 transcoding (vs 1.5.378's `StreamWriter`). 2.0 now
-**pools and reuses `Utf8JsonWriter` instances** for the external-stream and
-external-`IBufferWriter` constructors: a writer is rented from a small pool (keyed by
-`Indented`, capped) and re-targeted with `Utf8JsonWriter.Reset(...)` instead of being
-allocated per encoder, then returned on dispose. This removes the per-encoder writer
-allocation; the residual is the inherent UTF-8 transcoding. The in-memory path
-remains pooled via the `ArrayPool<byte>` buffer described above.
+The external-stream JSON variants in `JsonEncoderBenchmarks` write to a
+caller-provided stream. They trailed 1.5.378 because each encoder allocated a
+new `Utf8JsonWriter` and paid for UTF-8 transcoding (1.5.378 used
+`StreamWriter`).
+
+Version 2.0 now **pools and reuses `Utf8JsonWriter` instances** for external
+stream and `IBufferWriter` constructors. The pool is small, keyed by
+`Indented`, and capped. Each encoder rents a writer, retargets it with
+`Utf8JsonWriter.Reset(...)`, and returns it on disposal. This removes the
+per-encoder writer allocation; UTF-8 transcoding remains. The in-memory path
+continues to use the `ArrayPool<byte>` buffer described above.
 
 #### Session establishment — still slower; dominated by discovery + crypto
 
@@ -211,9 +239,10 @@ the security policies common to both 1.5.378 and 2.0 — for the true apples-to-
 change — **now exists** (`SecurityPolicySessionCommonWithV15378Benchmarks`, covering
 Basic128Rsa15, Basic256, Basic256Sha256, Aes128_Sha256_RsaOaep, Aes256_Sha256_RsaPss).
 
-An allocation profile of one **full connect including discovery** (Basic256Sha256) shows
-~3.2 MB/op dominated by **per-connect endpoint discovery** (`GetEndpointsAsync`) plus
-strings / `Char[]` / XML / `Byte[]` materialization:
+An allocation profile of one **full connect, including discovery**
+(`Basic256Sha256`) shows about **3.2 MB/op**. **Per-connect endpoint
+discovery** through `GetEndpointsAsync` accounts for most of the allocation.
+The profile attributes it to:
 
 | Allocator (Basic256Sha256 connect) | ~bytes/op |
 |---|--:|
@@ -230,15 +259,16 @@ regression and was deliberately not pursued. Session establishment is a
 one-time-per-connection cost, so absolute throughput impact is bounded to connect
 churn.
 
-> **Benchmark fidelity:** because real applications cache the discovered endpoints,
-> `SecurityPolicyBenchmarks.CreateCloseSessionAsync` /
-> `SessionLifecycleWithReadAsync` pass the cached `Endpoints` into `ConnectAsync`, so
-> they measure pure session **create / activate / close** rather than re-running
-> `GetEndpointsAsync` on every iteration. A separate `DiscoverEndpointsAsync`
-> benchmark tracks endpoint discovery in isolation. A first low-risk discovery
-> reduction has landed (`DiscoveryClient.PatchEndpointUrls` skips redundant endpoint-URL
-> rewrites, ~22 KB/op); the bulk of the remaining discovery cost is intrinsic
-> endpoint / user-token / application-description materialization and stays future work.
+> **Benchmark fidelity:** real applications cache discovered endpoints.
+> `SecurityPolicyBenchmarks.CreateCloseSessionAsync` and
+> `SessionLifecycleWithReadAsync` pass cached `Endpoints` to `ConnectAsync`.
+> These benchmarks create, activate, and close sessions without rerunning
+> `GetEndpointsAsync` on every iteration. `DiscoverEndpointsAsync` measures
+> endpoint discovery separately.
+> `DiscoveryClient.PatchEndpointUrls` skips redundant endpoint-URL rewrites
+> and reduces allocation by about 22 KB/op. Most remaining discovery cost
+> comes from materializing endpoints, user-token policies, and application
+> descriptions; that work remains future work.
 
 #### `JsonEncoderTests.ServiceMessageContext` — ~2× on a tiny absolute
 
@@ -250,24 +280,28 @@ work above. Low priority.
 
 ### Future work
 
-1. **Binary encoder — drive time to 1.5.378 parity.** Scalar writes already go through
-   `BinaryPrimitives` and numeric arrays bulk-blit (allocation is at parity). The remaining
-   gap is **time**, and a micro-profile localises it to the `Variant` value-type access path:
-   inside `WriteVariantValue` the `builtInType` switch already knows the type, but the
-   `Variant.GetXxx()` accessors then call `TryGetValue`/`TryGetScalar`, which re-read
-   `TypeInfo` and re-check scalar/type before returning the union value (scalar writes are
-   ~60–160 ns/op vs ~5–7 ns/op for the raw primitive write; `StatusCode`/`LocalizedText`/
-   `Guid`/`NodeId` are slowest). A potential win is `internal` "already-validated" union
-   accessors the encoder switch can call to skip the re-check — but an initial snapshot attempt
-   showed no clear measured win, so this is genuinely close to the intrinsic value-type cost and
-   should be re-attempted only with a profile-proven gain.
-2. **Session establishment — discovery materialization.** An apples-to-apples session
-   benchmark restricted to the security policies common to both 1.5.378 and 2.0 exists
-   (`SecurityPolicySessionCommonWithV15378Benchmarks`). The remaining work is to further
-   reduce the endpoint/user-token/app-description materialization and XML reader/writer
-   allocation in `GetEndpointsAsync` on the connect path (a first low-risk reduction has
-   landed; the bulk of the cost is intrinsic description materialization), and optionally
-   cache `ConfiguredEndpoint` so repeat connects skip discovery.
+1. **Binary encoder — drive time to 1.5.378 parity.** Scalar writes use
+   `BinaryPrimitives`, and numeric arrays bulk-blit; allocation is at parity.
+   The remaining gap is **time**. A micro-profile points to the `Variant`
+   value-type access path. Inside `WriteVariantValue`, the `builtInType`
+   switch already knows the type, but `Variant.GetXxx()` calls
+   `TryGetValue`/`TryGetScalar`, which reread `TypeInfo` and check the scalar
+   and type before returning the union value. Scalar writes take about
+   60–160 ns/op, compared with 5–7 ns/op for a raw primitive write.
+   `StatusCode`, `LocalizedText`, `Guid`, and `NodeId` are slowest.
+
+   Internal, already-validated union accessors might let the encoder skip
+   these checks. An initial attempt showed no clear measured gain. Revisit
+   this only if profiling demonstrates an improvement over the intrinsic
+   value-type cost.
+2. **Session establishment — discovery allocations.** The
+   `SecurityPolicySessionCommonWithV15378Benchmarks` benchmark compares only
+   security policies supported by both 1.5.378 and 2.0. Further work could
+   reduce allocations as `GetEndpointsAsync` builds endpoint, user-token, and
+   application-description data and processes XML. A low-risk reduction has
+   already landed, but most remaining cost comes from building the endpoint
+   description. Caching `ConfiguredEndpoint` could also let repeat connections
+   skip discovery.
 
 ### Environment and caveats
 
@@ -280,12 +314,12 @@ work above. Low priority.
 - The 1.5.378 baseline is a full-job run; the per-class encoder refresh on 2.0 is a
   faster, higher-variance ShortRun, so treat those ratios as directional. Non-encoder
   classes carry run-to-run variance.
-- **Pooled-stream allocation columns are unreliable:** for the `ArrayPool`/`BufferManager`-
-  backed stream variants (`ArraySegmentStream`, etc.), BenchmarkDotNet's `Allocated`
-  column attributes pool rentals/returns differently across separate runs, so it is **not**
-  a reliable per-op figure and must not be compared across two independent runs. Use a
-  ground-truth `GC.GetAllocatedBytesForCurrentThread` A/B for those (as was done to confirm
-  the binary-encoder allocation is unchanged by the `BinaryPrimitives` work).
+- **Pooled-stream allocation columns are unreliable.** For `ArrayPool`- and
+  `BufferManager`-backed streams such as `ArraySegmentStream`, BenchmarkDotNet
+  can attribute pool rentals and returns differently across independent runs.
+  Do not compare these columns as per-op figures. Use a
+  `GC.GetAllocatedBytesForCurrentThread` A/B test instead, as in the
+  binary-encoder comparison above.
 - **Legacy target frameworks:** 2.0 perf optimization targets the modern runtime (.NET 10).
   The **.NET Framework (net48)** and **netstandard2.0** target frameworks are **not** a
   performance optimization target for 2.0: where a fast path is gated on `NET6_0_OR_GREATER`
@@ -396,7 +430,23 @@ activator pool system.
 
 ## Server session scalability
 
-The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` (`tests/Opc.Ua.Sessions.Tests/LoadTest.cs`) exercises the reference server under many concurrent sessions. Each session opens its own secure channel, creates one slow-publishing subscription (1000 ms) with a single monitored item on a shared value node, and a separate writer session changes that value periodically; every session is expected to receive value-change notifications over a steady-state window. It runs over `Basic256Sha256` (sign & encrypt) and asserts that all sessions connect and all receive notifications. It is parameterized from a `500` baseline up to a `10000` stress case (500, 1000, 1500, 2000, 2500, 4000, 5000, 8000, 10000), selected by name (e.g. `ServerManySessionsLoadTestAsync(2000)`).
+The `[Explicit]` macro test
+`ServerManySessionsLoadTestAsync(int sessionCount)` in
+`tests/Opc.Ua.Sessions.Tests/LoadTest.cs` exercises the reference server with
+many concurrent sessions. Each session opens a secure channel and creates a
+slow-publishing subscription (1000 ms) with one monitored item on a shared
+value node. A separate writer session changes that value periodically. The
+test checks that every session receives value-change notifications during a
+steady-state window. It uses `Basic256Sha256` (sign and encrypt) and requires
+all sessions to connect and receive notifications.
+
+The test offers these session counts:
+
+- 500 (baseline)
+- 1000, 1500, 2000, 2500
+- 4000, 5000, 8000, 10000 (stress case)
+
+Select a case by name, for example `ServerManySessionsLoadTestAsync(2000)`.
 
 > For a deep, code-referenced analysis of *why* a single node tops out here — the establishment vs steady-state boundaries and the built-in controls for degrading gracefully under load — see [Server Session Scalability](ServerScalability.md).
 
@@ -411,9 +461,27 @@ The `[Explicit]` macro test `ServerManySessionsLoadTestAsync(int sessionCount)` 
 
 ### Observed scaling
 
-On comparable hardware **1.5.378** capped a single node at roughly **~2000 concurrent sessions**: every held long-poll `Publish` pinned a request-processing worker, so the worker pool - not CPU - became the bottleneck as the session count climbed. **2.0** decouples held Publishes from the worker budget (`ServerConfiguration.DecoupleHeldPublishRequests`, on by default), so a small worker pool serves many thousands of parked Publishes and the ceiling moves out to session establishment (the CPU-bound RSA handshake) - about **~4000** concurrent sessions on the 6-core machine below.
+On comparable hardware, **1.5.378** capped a single node at about **2000
+concurrent sessions**. Each held long-poll `Publish` pinned a request
+processing worker, so the worker pool—not the CPU—became the bottleneck as
+sessions increased.
 
-The numbers below were measured on an **Intel Xeon W-2235 (6 physical cores / 12 logical threads), 64 GB RAM, 64-bit Windows**, with the client and the in-process reference server running in the *same* process on a shared developer machine under light background load. Because both ends share the same cores, session establishment - a CPU-bound `Basic256Sha256` RSA handshake performed on both the client and the server - is the dominant cost, and its throughput declines as concurrency rises. Steady-state publish delivery is serviced by a per-cycle sweep parallelized across cores; for every count that established cleanly, all sessions received 100 % of their notifications within the steady-state window (0 drops).
+Version **2.0** decouples held Publishes from the worker budget by default
+(`ServerConfiguration.DecoupleHeldPublishRequests`). A small worker pool can
+therefore serve many parked Publishes. The limit shifts to session
+establishment, where CPU-bound RSA handshakes support about **4000** sessions
+on the six-core machine below.
+
+These measurements used an **Intel Xeon W-2235 (6 physical cores / 12 logical
+threads), 64 GB RAM, 64-bit Windows**. The client and in-process reference
+server shared a developer machine under light background load. Both ends
+competed for the same cores, so `Basic256Sha256` RSA handshakes on the client
+and server dominated establishment time. Throughput declined as concurrency
+increased.
+
+A per-cycle sweep parallelized across cores delivered steady-state Publishes.
+For every count that established successfully, all sessions received 100% of
+their notifications within the steady-state window (0 drops).
 
 | Concurrent sessions | Sessions establish | Average sessions/sec created | All sessions receive notifications |
 | --- | --- | --- | --- |
@@ -425,7 +493,23 @@ The numbers below were measured on an **Intel Xeon W-2235 (6 physical cores / 12
 | 4000 | Yes | 11 | Yes |
 | 10000 | No (*) | — | — |
 
-(*) These figures are hardware- and load-dependent and are directional; they improve on dedicated hardware where the client and server run on separate machines. With `ServerConfiguration.DecoupleHeldPublishRequests` on (the default) and `MaxRequestThreadCount` sized to the active establishment concurrency (~200) rather than to the session count, this 6-core machine cleanly established every session and delivered 100 % of notifications up to **~4000** concurrent sessions. At 10000 it tips into a secure-channel connect storm (repeated handshake aborts/retries and tens of thousands of channel attempts for the target) and does not establish the full set within the connect budget - so on this hardware establishment, not notification delivery, is the ceiling; more cores push it higher. When sessions establish but do not receive notifications the last column instead reads `No (N drops)`, where `N` is the number of sessions that did not receive notifications within the window. See [Server Session Scalability](ServerScalability.md) for the code-referenced analysis and the built-in controls for degrading gracefully under load.
+(*) These figures depend on hardware and load. They are directional and may
+improve on dedicated hardware with separate client and server machines.
+
+Enable `ServerConfiguration.DecoupleHeldPublishRequests` (the default) and
+set `MaxRequestThreadCount` to active session-establishment concurrency
+(about 200). On this six-core machine, that setup established every session
+and delivered 100% of notifications up to **~4000** concurrent sessions.
+At 10000 sessions, repeated
+handshake aborts and retries caused a secure-channel connect storm, with tens
+of thousands of channel attempts. The server did not establish all sessions
+within the connect budget. On this machine, session establishment—not
+notification delivery—limits capacity; more cores can raise the limit.
+
+If sessions connect but do not receive notifications, the last table column
+shows `No (N drops)`. `N` is the number of sessions that missed notifications
+during the window. See [Server Session Scalability](ServerScalability.md) for
+the code-referenced analysis and controls for graceful degradation under load.
 
 ### Subscription transport buffer pooling
 
@@ -433,14 +517,42 @@ The numbers below were measured on an **Intel Xeon W-2235 (6 physical cores / 12
 
 Channels now normalize their advertised send and receive limits to the largest protocol-safe value that keeps the data plus cookie in the same `ArrayPool` bucket (while preserving the OPC UA 8,192-byte minimum), and both TCP transport creation paths receive that normalized limit. A configured value of either 65,535 or 65,536 consequently uses 65,536-byte arrays instead of 131,072-byte arrays.
 
-The explicit net10.0 harness `SubscriptionArrayPoolDiagnosticsLoadTests` (`tests/Opc.Ua.Sessions.Tests/SubscriptionArrayPoolDiagnosticsLoadTests.cs`) measures real subscription traffic with 255 and 257 session Publish queues (immediately below and above the parallel Publish threshold) plus a slow-consumer case. Across both configured buffer sizes, all measured scenarios used only the 65,536-byte bucket, rents and returns balanced exactly after quiescence, outstanding buffers returned to zero, peak outstanding buffers stayed between 528 and 536, and the measurement windows triggered no Gen 2 collections. The 500-session regression baseline also completed for `opc.tcp`, `https`, and `opc.https`, with all 500 sessions receiving notifications.
+The explicit net10.0 harness
+`SubscriptionArrayPoolDiagnosticsLoadTests`
+(`tests/Opc.Ua.Sessions.Tests/SubscriptionArrayPoolDiagnosticsLoadTests.cs`)
+measures real subscription traffic in three cases: 255 and 257 session
+Publish queues (just below and above the parallel Publish threshold), plus a
+slow consumer.
+
+Across both configured buffer sizes:
+
+- Every scenario used only the 65,536-byte bucket.
+- Rent and return counts balanced after quiescence.
+- Outstanding buffers returned to zero; peak outstanding buffers ranged from
+  528 to 536.
+- No Gen 2 collections occurred during measurement.
+
+The 500-session regression baseline also completed for `opc.tcp`, `https`,
+and `opc.https`. All 500 sessions received notifications.
 
 The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `BufferManager.TakeBuffer`/`ReturnBuffer` pairs in 56.18 us versus 52.52 us for direct `ArrayPool<byte>.Shared` use, with no managed allocation reported for either pooled path. These short-run timings are directional; the subscription harness is the authoritative ownership and bucket-size check.
 
 ### Sizing and configuration
 
 * `MaxSessionCount` (default 100) caps the concurrent open sessions; size `MaxChannelCount` (one channel per session) and `MaxSubscriptionCount` above the target session count.
-* `MaxRequestThreadCount` caps concurrent request processing. With `ServerConfiguration.DecoupleHeldPublishRequests` on (the default), a held long-polled `Publish` releases its worker at the park point instead of occupying it for the whole wait, so the pool no longer has to scale with the session count - size it to the active (non-parked) establishment concurrency (a small pool of ~100–200 workers cleanly served thousands of sessions in measurement). Sizing it to the session count is counterproductive: a very large pool oversubscribes the cores during the connect burst, slowing establishment and lowering the ceiling. `MinRequestThreadCount` pre-warms the pool so a connect burst is not throttled by thread-pool cold-start. (Setting `DecoupleHeldPublishRequests = false` restores the legacy coupling, where a server serving N sessions again needs a pool well above N or held `Publish` requests starve other services with `BadRequestTimeout`.)
+* `MaxRequestThreadCount` caps concurrent request processing. With
+  `ServerConfiguration.DecoupleHeldPublishRequests` enabled (the default), a
+  held long-poll `Publish` releases its worker while it waits. Set
+  `MaxRequestThreadCount` for the number of sessions being established at
+  once, not the total number of open sessions. In these measurements,
+  100–200 workers served thousands of sessions. A very large pool
+  oversubscribes cores during connection bursts and slows establishment.
+  `MinRequestThreadCount` prewarms the pool to avoid thread-pool cold start.
+
+  Set `DecoupleHeldPublishRequests = false` to restore the legacy behavior.
+  Held Publishes then occupy workers. A server handling N sessions needs a
+  pool well above N to prevent other services from returning
+  `BadRequestTimeout`.
 * `MaxFailedAuthenticationAttempts` (default 5; `0` disables) is the brute-force lockout threshold, keyed per client certificate. A single-certificate client that opens many sessions can trip it on transient handshake failures, after which further sessions are rejected with `BadUserAccessDenied`; disable or raise it for such clients.
 * Session establishment is CPU-bound (RSA handshakes) but parallelizes across cores; throttle/stagger concurrent connects and scale cores for bulk connection throughput.
 

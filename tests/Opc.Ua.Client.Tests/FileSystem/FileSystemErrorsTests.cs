@@ -121,6 +121,18 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
+        public void BadNotReadableMapsToIOExceptionNotUnauthorized()
+        {
+            // The server's FileType Open reports a file locked for writing
+            // as Bad_NotReadable, which is a sharing violation, not an
+            // access denial.
+            var ex = new ServiceResultException(StatusCodes.BadNotReadable);
+            Exception mapped = FileSystemErrors.Translate(ex, "/foo", targetIsDirectory: false);
+            Assert.That(mapped, Is.InstanceOf<IOException>());
+            Assert.That(mapped, Is.Not.InstanceOf<UnauthorizedAccessException>());
+        }
+
+        [Test]
         public void UnmappedStatusCodePassesThroughOriginalException()
         {
             var ex = new ServiceResultException(StatusCodes.BadInternalError);

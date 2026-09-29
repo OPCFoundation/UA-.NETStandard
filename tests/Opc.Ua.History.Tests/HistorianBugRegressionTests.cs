@@ -658,6 +658,7 @@ namespace Opc.Ua.History.Tests
                 {
                     builder.UseProvider(provider).Historize(
                         variable,
+                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
                         systemContext: SystemContext,
                         capabilities: capabilities,
                         autoCapture: false);

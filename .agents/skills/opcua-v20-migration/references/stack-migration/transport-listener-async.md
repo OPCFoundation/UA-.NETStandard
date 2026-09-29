@@ -11,6 +11,23 @@ There is **no `[Obsolete]` shim** for this change; the sync methods are
 gone. Update every call site that previously invoked `listener.Open` /
 `listener.Close` / `listener.Dispose`.
 
+## Contents
+
+- [What changed](#what-changed)
+  - [`ITransportListener`](#itransportlistener)
+  - [`ITransportListenerCertificateRotation`](#itransportlistenercertificaterotation)
+  - [`ITransportListenerFactory`](#itransportlistenerfactory)
+  - [`ServerBase`](#serverbase)
+  - [`ReverseConnectHost`](#reverseconnecthost)
+  - [`ReverseConnectManager.RegisterWaitingConnection`](#reverseconnectmanagerregisterwaitingconnection)
+  - [Reverse-connect configuration providers](#reverse-connect-configuration-providers)
+  - [Dependency-injection startup](#dependency-injection-startup)
+- [Migration steps](#migration-steps)
+  - [Application / sample code](#application--sample-code)
+  - [Custom transport binding implementations](#custom-transport-binding-implementations)
+  - [Custom server subclass (`StandardServer` / `LdsServer` heir)](#custom-server-subclass-standardserver--ldsserver-heir)
+- [Why](#why)
+
 ## What changed
 
 ### `ITransportListener`

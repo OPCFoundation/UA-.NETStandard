@@ -518,19 +518,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(variableFactory, Does.Contain(
                 "nodeState.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.EncryptionRequired"));
             Assert.That(variableFactory, Does.Contain(
-                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+                "nodeState.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
 
             string objectFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedObjectType");
             Assert.That(objectFactory, Does.Contain(
                 "nodeState.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.EncryptionRequired"));
             Assert.That(objectFactory, Does.Contain(
-                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+                "nodeState.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
 
             string methodFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedMethodType");
             Assert.That(methodFactory, Does.Contain(
                 "nodeState.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.SigningRequired"));
             Assert.That(methodFactory, Does.Contain(
-                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+                "nodeState.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
         }
 
         [Test]
@@ -792,6 +792,48 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             Assert.Fail("Instance method definition not found: " + methodName);
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Regression: with a bound class name the output file names were just
+        /// <c>{Class}.NodeManager.g.cs</c> etc., so two managers sharing a class
+        /// name in different namespaces overwrote each other in the output file
+        /// system and only the last one was generated.
+        /// </summary>
+        [Test]
+        public void BoundManagersWithTheSameClassNameInDifferentNamespacesBothSurvive()
+        {
+            const string designFile = "TestModel.xml";
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            using var fileSystem = new VirtualFileSystem();
+            string resources = Path.Combine(Directory.GetCurrentDirectory(), "Resources");
+            foreach (string ns in new[] { "Srv.Boiler", "Srv.Pump" })
+            {
+                Generators.GenerateCode(new DesignFileCollection
+                {
+                    Targets = [Path.Combine(resources, designFile)],
+                    IdentifierFilePath = Path.Combine(
+                        resources,
+                        Path.GetFileNameWithoutExtension(designFile) + ".csv"),
+                    Options = new DesignFileOptions
+                    {
+                        GenerateNodeManager = true,
+                        NodeManagerNamespace = ns,
+                        NodeManagerClassName = "ModelNodeManager"
+                    }
+                }, fileSystem, string.Empty, telemetry);
+            }
+
+            foreach (string suffix in new[] { ".NodeManager.g.cs", ".NodeManagerFactory.g.cs", ".FluentBuilders.g.cs" })
+            {
+                string[] files = [.. fileSystem.CreatedFiles.Where(
+                    c => c.EndsWith("ModelNodeManager" + suffix, StringComparison.Ordinal))];
+                Assert.That(files, Has.Length.EqualTo(2), suffix);
+                Assert.That(
+                    files.Select(f => Encoding.UTF8.GetString(fileSystem.Get(f))),
+                    Has.One.Contains("namespace Srv.Boiler").And.One.Contains("namespace Srv.Pump"),
+                    suffix);
+            }
         }
 
         private static Dictionary<string, string> GenerateForTestModel(

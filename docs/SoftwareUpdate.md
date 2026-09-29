@@ -8,6 +8,24 @@ This document explains how to expose the OPC 10000-100 §10.3
 software-update facet on a Device Integration (DI) device, what
 address-space surface it creates, and how clients drive it.
 
+## Contents
+
+- [Address-space layout](#address-space-layout)
+- [Server side — fluent surface](#server-side--fluent-surface)
+  - [Method-handler hooks](#method-handler-hooks)
+  - [Server-side state reporting](#server-side-state-reporting)
+- [Storage abstractions](#storage-abstractions)
+  - [Package-store contract](#package-store-contract)
+  - [File-system layout and provider composition](#file-system-layout-and-provider-composition)
+  - [Seeding a package](#seeding-a-package)
+- [File-transfer pipeline](#file-transfer-pipeline)
+- [Client side](#client-side)
+  - [Uploading a package](#uploading-a-package)
+  - [Typed Part 16 state-machine surface](#typed-part-16-state-machine-surface)
+- [Hosted-server walkthrough](#hosted-server-walkthrough)
+- [Implementation pointers](#implementation-pointers)
+- [Spec references](#spec-references)
+
 ## Address-space layout
 
 `WithSoftwareUpdate(...)` materialises one
@@ -34,9 +52,14 @@ address-space surface it creates, and how clients drive it.
        └─ Confirm                     (Method)
 ```
 
-The Loading subtype is configurable: `UsePackageLoading()` (default,
-file transfer + `CloseAndCommit`), `UseDirectLoading()`,
-`UseCachedLoading()`. The full structure is added to the
+Choose the loading subtype with one of these methods:
+
+- `UsePackageLoading()` (default), which uses file transfer and
+  `CloseAndCommit`.
+- `UseDirectLoading()`.
+- `UseCachedLoading()`.
+
+The full structure is added to the
 `AsyncCustomNodeManager`'s `PredefinedNodes` via
 `AddPredefinedNodeAsync`, so direct NodeId lookup, browse, subscription
 wiring, and method calls all work out of the box.
@@ -91,10 +114,9 @@ device.WithSoftwareUpdate(packageStore, su => su
     }));
 ```
 
-`ISoftwareUpdateContext` exposes the device NodeId, the server's
-system context, the package store, and the per-device software
-folder so handlers can persist version metadata without having to
-re-resolve any of these.
+`ISoftwareUpdateContext` exposes the device NodeId, server system context,
+package store, and per-device software folder. Handlers can use these values
+to persist version metadata without resolving them again.
 
 ### Server-side state reporting
 
@@ -125,9 +147,9 @@ device.WithSoftwareUpdate(packageStore, su => su
     }));
 ```
 
-Each hook fires twice per method call — `Started` before the
-application callback runs, then `Completed` on success or `Failed`
-(with the exception message) on failure. The hook is invoked from the
+Each method call raises two hook events. `Started` fires before the
+application callback. On success, the method raises `Completed`; on failure,
+it raises `Failed` with the exception message. The hook runs in the
 service call's async context; exceptions thrown by the hook are
 logged and swallowed so instrumentation faults never abort the
 underlying SU operation. Domain-keyed `SoftwareUpdatePhase` (rather
@@ -164,6 +186,77 @@ Default implementations:
 | `FileSystemPackageStore` | Disk-backed, composed over `IFileSystemProvider`. |
 | `MemorySoftwareFolder` | Default for `WithSoftwareUpdate`. |
 | `FileSystemSoftwareFolder` | Persistence across server restarts. |
+
+### Package-store contract
+
+`ISoftwarePackageStore` implementations must support concurrent calls.
+The interface exposes the following asynchronous operations:
+
+| Operation | Result |
+| --- | --- |
+| `ListAsync` | Enumerate package metadata. |
+| `GetAsync` | Return the matching `SoftwarePackage`, or null if absent. |
+| `ExistsAsync` | Report whether an id is present. |
+| `OpenReadAsync` | Return a caller-owned payload stream; throw `FileNotFoundException` for an unknown id. |
+| `AddAsync` | Copy the supplied stream and add or replace the package with that id. |
+| `DeleteAsync` | Return whether a package was removed. |
+
+`SoftwarePackage` carries `Id`, `Version`, `Vendor`, `Description`, `SizeBytes`,
+`CreatedAt`, and an optional `Hash`. Both in-box stores compute `SizeBytes` and
+`CreatedAt` during `AddAsync`; callers may supply zero and `default` for those
+fields. They do not compute a content hash from an empty `Hash`.
+See [`ISoftwarePackageStore`](../src/Opc.Ua.Di.Server/SoftwareUpdate/ISoftwarePackageStore.cs)
+for the exact signatures.
+
+### File-system layout and provider composition
+
+`FileSystemPackageStore` stores each package beneath a provider-relative root:
+
+```text
+{root}/
+    {package-id}/
+        payload.bin
+        metadata.json
+```
+
+The JSON metadata uses the source-generated `SoftwarePackageJsonContext`, so
+serialization does not require reflection. Package ids must be nonempty, must
+not contain `/` or `\`, and must not be `.` or `..`; invalid ids throw
+`ArgumentException`.
+
+Reuse the server's configured `IFileSystemProvider`:
+
+```csharp
+ISoftwarePackageStore store = new FileSystemPackageStore(
+    provider: fileSystemProvider,
+    rootPath: "/SoftwarePackages");
+```
+
+The provider must permit writes for add/delete operations. A read-only provider
+can still serve list, metadata, and payload-read operations. The same provider can
+also be mounted through `FileSystemNodeManager`; use the store API rather than
+editing package files directly.
+
+### Seeding a package
+
+Resolve `ISoftwarePackageStore` from the host, then copy the payload into it.
+The caller owns and disposes the source stream:
+
+```csharp
+ISoftwarePackageStore store = serviceProvider.GetRequiredService<ISoftwarePackageStore>();
+using FileStream payload = File.OpenRead("firmware.bin");
+SoftwarePackage package = await store.AddAsync(
+    new SoftwarePackage(
+        Id: "firmware-1.0.0",
+        Version: "1.0.0",
+        Vendor: "Acme",
+        Description: "Device firmware",
+        SizeBytes: 0,
+        CreatedAt: default,
+        Hash: string.Empty),
+    payload,
+    ct);
+```
 
 ## File-transfer pipeline
 

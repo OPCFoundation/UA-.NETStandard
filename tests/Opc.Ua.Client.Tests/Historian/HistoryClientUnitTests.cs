@@ -674,6 +674,49 @@ namespace Opc.Ua.Client.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that a null ServerProfileArray element is skipped instead of
+        /// throwing a NullReferenceException.
+        /// </summary>
+        [Test]
+        public async Task GetConformanceInfoAsyncSkipsNullProfileElementAsync()
+        {
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ReadResponse>(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results =
+                    [
+                        new DataValue(Variant.From(
+                        [
+                            (string)null!,
+                            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022"
+                        ])),
+                        new DataValue(Variant.From(
+                        [
+                            new QualifiedName("Attribute Read")
+                        ]))
+                    ],
+                    DiagnosticInfos = []
+                }));
+            var client = new HistoryClient(mockSession.Object);
+
+            HistoricalConformanceInfo info =
+                await client.GetConformanceInfoAsync().ConfigureAwait(false);
+
+            Assert.That(info.ServerProfiles, Has.Count.EqualTo(1));
+            Assert.That(
+                info.ServerProfiles[0],
+                Does.Contain("HistoricalRawData2022"));
+        }
+
+        /// <summary>
         /// Verifies that modified-history reads yield the returned data and request modified-history details.
         /// </summary>
         [Test]

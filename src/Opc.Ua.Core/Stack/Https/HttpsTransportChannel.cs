@@ -825,7 +825,7 @@ namespace Opc.Ua.Bindings
         /// it, distinguishing a transport failure worth retrying from a delivered
         /// HTTP error or a rejected TLS handshake.
         /// </summary>
-        private static StatusCode MapRequestFailure(HttpRequestException exception)
+        internal static StatusCode MapRequestFailure(HttpRequestException exception)
         {
             if (exception.InnerException is WebException webException)
             {

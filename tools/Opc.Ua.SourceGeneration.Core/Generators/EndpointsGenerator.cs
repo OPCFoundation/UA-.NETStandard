@@ -159,9 +159,9 @@ namespace Opc.Ua.SourceGeneration
                 serviceType.Name);
             context.Out.Write("    secureChannelContext");
 
-            if (serviceType.Request != null || serviceType.Request.Fields.Length > 0)
+            if (serviceType.Request?.Fields is { Length: > 0 } fields)
             {
-                foreach (Parameter field in serviceType.Request.Fields)
+                foreach (Parameter field in fields)
                 {
                     context.Out.WriteLine(",");
                     context.Out.Write("    request.{0}", field.Name);

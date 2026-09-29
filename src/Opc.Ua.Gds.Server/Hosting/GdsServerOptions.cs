@@ -87,7 +87,8 @@ namespace Opc.Ua.Gds.Server.Hosting
 
         /// <summary>
         /// Filesystem root used for the certificate stores. When empty,
-        /// defaults to <c>%TEMP%/OPC Foundation/{ApplicationName}/pki</c>.
+        /// defaults to <c>{LocalApplicationData}/OPC Foundation/{ApplicationName}/pki</c>
+        /// (per-user; the shared temp directory is not used).
         /// </summary>
         public string PkiRoot { get; set; } = string.Empty;
 
@@ -136,9 +137,10 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// <summary>
         /// Whether new certificate requests are auto-approved.
         /// Convenient for quickstart samples; do not enable in
-        /// production.
+        /// production. Off by default, so requests wait for an
+        /// administrator's approval.
         /// </summary>
-        public bool AutoApprove { get; set; } = true;
+        public bool AutoApprove { get; set; }
 
         /// <summary>
         /// Filesystem path for the trusted CA Authorities store.
@@ -157,6 +159,17 @@ namespace Opc.Ua.Gds.Server.Hosting
         /// group's CA. When empty, defaults to <c>{PkiRoot}/CA</c>.
         /// </summary>
         public string BaseCertificateGroupStorePath { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The certificate groups the GDS issues certificates for. When no
+        /// group has the Id <c>Default</c> (or <c>DefaultApplicationGroup</c>),
+        /// the mandatory <c>DefaultApplicationGroup</c> (Id
+        /// <c>Default</c>, <c>RsaSha256ApplicationCertificateType</c>) is
+        /// configured with its CA under
+        /// <c>{BaseCertificateGroupStorePath}/default</c>. Bindable from
+        /// configuration, e.g. <c>OpcUa:Gds:Server:CertificateGroups:0:Id</c>.
+        /// </summary>
+        public IList<GdsCertificateGroupOptions> CertificateGroups { get; } = [];
 
         /// <summary>
         /// Default subject-name suffix appended to certificates issued

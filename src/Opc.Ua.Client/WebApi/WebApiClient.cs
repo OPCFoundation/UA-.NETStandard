@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -87,8 +88,15 @@ namespace Opc.Ua.Client.WebApi
         /// </summary>
         /// <param name="httpClient">The HTTP client to use.</param>
         /// <param name="options">Configuration options.</param>
+        /// <exception cref="ServiceResultException">
+        /// <c>BadSecurityChecksFailed</c> when credentials are configured and the
+        /// client's base address is not <c>https://</c>.</exception>
         public WebApiClient(HttpClient httpClient, WebApiClientOptions? options = null)
-            : this(httpClient, ownsHttpClient: false, configureHttpClient: true, options)
+            : this(
+                ThrowIfCredentialsOverPlainHttp(httpClient, options),
+                ownsHttpClient: false,
+                configureHttpClient: true,
+                options)
         {
         }
 
@@ -109,6 +117,7 @@ namespace Opc.Ua.Client.WebApi
             WebApiClientOptions? options)
             : this(httpClient, ownsHttpClient: false, configureHttpClient: false, options)
         {
+            ThrowIfCredentialsOverPlainHttp(baseAddress, m_options);
             m_baseAddress = baseAddress;
         }
 
@@ -188,11 +197,55 @@ namespace Opc.Ua.Client.WebApi
             // handed to HttpClient — HttpClient only understands the
             // registered transport schemes.
             Uri normalizedAddress = NormalizeOpcUaUrl(baseAddress);
+            ThrowIfCredentialsOverPlainHttp(normalizedAddress, options);
             HttpClient httpClient = options?.HttpMessageHandler != null
                 ? new HttpClient(options.HttpMessageHandler, disposeHandler: options.DisposeHandler)
                 : new HttpClient();
             httpClient.BaseAddress = normalizedAddress;
             return new WebApiClient(httpClient, ownsHttpClient: true, configureHttpClient: true, options);
+        }
+
+        /// <summary>
+        /// Checks a caller-supplied client before its default headers are
+        /// written, so credentials are never installed on a non-TLS client.
+        /// </summary>
+        private static HttpClient ThrowIfCredentialsOverPlainHttp(
+            HttpClient httpClient,
+            WebApiClientOptions? options)
+        {
+            if (httpClient?.BaseAddress != null)
+            {
+                ThrowIfCredentialsOverPlainHttp(httpClient.BaseAddress, options);
+            }
+            // A null client is rejected by the constructor it is passed to.
+            return httpClient!;
+        }
+
+        /// <summary>
+        /// Refuses to send Bearer / Basic credentials in cleartext: the
+        /// Authorization header would otherwise go out over a plain
+        /// <c>http://</c> address (the WSS channel rejects the same case).
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// <c>BadSecurityChecksFailed</c> when credentials are configured and
+        /// <paramref name="address"/> is not <c>https://</c>.</exception>
+        private static void ThrowIfCredentialsOverPlainHttp(
+            Uri address,
+            WebApiClientOptions? options)
+        {
+            if (options == null ||
+                (options.BearerToken == null && !options.BasicCredentials.HasValue))
+            {
+                return;
+            }
+            if (!address.IsAbsoluteUri ||
+                !string.Equals(address.Scheme, Utils.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Web API credentials must not be sent over a non-TLS address. " +
+                    "Use an https:// endpoint or omit BearerToken/BasicCredentials.");
+            }
         }
 
         private static Uri NormalizeOpcUaUrl(Uri url)
@@ -287,6 +340,20 @@ namespace Opc.Ua.Client.WebApi
             }
             ThrowIfDisposed();
 
+            // The caller may set BaseAddress after construction (or not at
+            // all), so check the address this request is actually sent to.
+            if (m_authorization != null)
+            {
+                Uri? effectiveBase = m_baseAddress ?? m_httpClient.BaseAddress;
+                if (effectiveBase == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Web API credentials require an https:// base address.");
+                }
+                ThrowIfCredentialsOverPlainHttp(effectiveBase, m_options);
+            }
+
             byte[] body = WebApiBodyCodec.EncodeBody(
                 request,
                 m_messageContext,
@@ -327,6 +394,14 @@ namespace Opc.Ua.Client.WebApi
             using HttpResponseMessage response = await m_httpClient
                 .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token)
                 .ConfigureAwait(false);
+
+            // Translate throttling (HTTP 429/503, e.g. a rate limiter gate) into
+            // BadServerTooBusy with the Retry-After hint, like HttpsTransportChannel.
+            if ((int)response.StatusCode == 429 ||
+                response.StatusCode == HttpStatusCode.ServiceUnavailable)
+            {
+                throw HttpsTransportChannel.CreateServerTooBusyException(response);
+            }
 
             response.EnsureSuccessStatusCode();
 

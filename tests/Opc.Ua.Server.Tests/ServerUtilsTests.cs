@@ -270,7 +270,7 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             using var resourceMgr = new ResourceManager(new ApplicationConfiguration());
             serverMock.Setup(s => s.ResourceManager).Returns(resourceMgr);
-            OperationContext context = CreateContext(DiagnosticsMasks.ServiceLocalizedText);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationLocalizedText);
 
             var error = new ServiceResult(StatusCodes.BadNodeIdInvalid);
 
@@ -278,13 +278,15 @@ namespace Opc.Ua.Server.Tests
                 serverMock.Object, context, error, m_logger);
 
             Assert.That(result, Is.Not.Null);
+            serverMock.Verify(s => s.ResourceManager, Times.Once);
         }
 
         [Test]
-        public void CreateDiagnosticInfo_WithoutServiceLocalizedText_SkipsTranslation()
+        public void CreateDiagnosticInfo_WithoutOperationLocalizedText_SkipsTranslation()
         {
             var serverMock = new Mock<IServerInternal>();
-            OperationContext context = CreateContext(DiagnosticsMasks.OperationSymbolicId);
+            OperationContext context = CreateContext(
+                DiagnosticsMasks.OperationSymbolicId | DiagnosticsMasks.ServiceLocalizedText);
 
             var error = new ServiceResult(StatusCodes.BadNodeIdInvalid);
 

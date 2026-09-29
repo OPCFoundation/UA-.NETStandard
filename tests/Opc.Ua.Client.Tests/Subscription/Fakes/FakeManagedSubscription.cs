@@ -54,7 +54,19 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public uint ServerId => Id;
 
         public bool Created { get; set; }
-        public bool IsCreationInProgress { get; set; }
+        public bool IsCreationInProgress
+        {
+            get => OnIsCreationInProgress?.Invoke() ?? m_isCreationInProgress;
+            set => m_isCreationInProgress = value;
+        }
+
+        /// <summary>
+        /// Optional override for reads of <see cref="IsCreationInProgress"/>,
+        /// e.g. to complete a creation exactly when the manager checks it.
+        /// </summary>
+        public Func<bool>? OnIsCreationInProgress { get; set; }
+
+        private bool m_isCreationInProgress;
         public bool IsIntentionallyDeleted { get; set; }
         public TimeSpan CurrentPublishingInterval { get; set; }
         public byte CurrentPriority { get; set; }

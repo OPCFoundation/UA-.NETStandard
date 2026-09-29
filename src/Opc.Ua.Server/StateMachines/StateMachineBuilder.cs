@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -1468,7 +1467,7 @@ namespace Opc.Ua.Server.StateMachines
         /// FiniteStateMachineState.DoTransition is sync). Each invocation
         /// runs on the thread pool with ConfigureAwait(false), so no
         /// sync-over-async wait occurs anywhere; exceptions are
-        /// captured and logged via Debug.WriteLine in line with the
+        /// captured and logged through the dispatcher logger in line with the
         /// existing SafeInvoke pattern.
         /// </summary>
         private readonly Dictionary<uint,
@@ -1594,7 +1593,7 @@ namespace Opc.Ua.Server.StateMachines
         {
             foreach (Action<ISystemContext, uint> synchronizer in m_initialStateSynchronizers)
             {
-                SafeInvoke(() => synchronizer(context, stateId));
+                SafeInvoke(() => synchronizer(context, stateId), 0, stateId);
             }
 
             KeyValuePair<uint, TimedTransitionEntry>[] snapshot;
@@ -1872,7 +1871,7 @@ namespace Opc.Ua.Server.StateMachines
             {
                 foreach (Action<ISystemContext, TState> h in exitList)
                 {
-                    SafeInvoke(() => h(context, m_stateMachine));
+                    SafeInvoke(() => h(context, m_stateMachine), from, 0);
                 }
             }
             if (from != 0 &&
@@ -1887,7 +1886,7 @@ namespace Opc.Ua.Server.StateMachines
 
             foreach (Action<ISystemContext, TState, uint, uint> observer in m_transitionObservers)
             {
-                SafeInvoke(() => observer(context, m_stateMachine, from, to));
+                SafeInvoke(() => observer(context, m_stateMachine, from, to), from, to);
             }
             foreach (Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask>
                 observer in m_transitionObserversAsync)
@@ -1899,7 +1898,7 @@ namespace Opc.Ua.Server.StateMachines
             {
                 foreach (Action<ISystemContext, TState> h in enterList)
                 {
-                    SafeInvoke(() => h(context, m_stateMachine));
+                    SafeInvoke(() => h(context, m_stateMachine), 0, to);
                 }
             }
             if (to != 0 &&
@@ -2006,7 +2005,7 @@ namespace Opc.Ua.Server.StateMachines
             return StateMachineBuilder.ResolveStateId(m_stateMachine, nodeId);
         }
 
-        private static void SafeInvoke(Action action)
+        private void SafeInvoke(Action action, uint from, uint to)
         {
             try
             {
@@ -2014,8 +2013,9 @@ namespace Opc.Ua.Server.StateMachines
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(
-                    $"StateMachineBuilder lifecycle handler threw: {ex}");
+                // the transition is already committed; the failure must
+                // reach the server log, not only a Debug build trace.
+                m_logger.LifecycleHandlerFailed(ex, from, to);
             }
         }
 
@@ -2033,9 +2033,7 @@ namespace Opc.Ua.Server.StateMachines
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine(
-                        "StateMachineBuilder async lifecycle handler " +
-                        $"(from={fromAt}, to={toAt}) threw: {ex}");
+                    m_logger.LifecycleHandlerFailed(ex, fromAt, toAt);
                 }
             });
         }
@@ -2054,9 +2052,7 @@ namespace Opc.Ua.Server.StateMachines
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine(
-                        "StateMachineBuilder async transition observer " +
-                        $"(from={from}, to={to}) threw: {ex}");
+                    m_logger.LifecycleHandlerFailed(ex, from, to);
                 }
             });
         }
@@ -2156,5 +2152,13 @@ namespace Opc.Ua.Server.StateMachines
         [LoggerMessage(EventId = ServerEventIds.StateMachineBuilder + 1, Level = LogLevel.Warning,
             Message = "Timed transition from state {StateId} was rejected: {Result}.")]
         public static partial void TimedTransitionRejected(this ILogger logger, uint stateId, ServiceResult result);
+
+        /// <summary>
+        /// Reports an exception raised by an enter, exit, transition or
+        /// synchronizer handler. A zero state id means "not applicable".
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StateMachineBuilder + 2, Level = LogLevel.Error,
+            Message = "State machine lifecycle handler (from state {FromState}, to state {ToState}) failed.")]
+        public static partial void LifecycleHandlerFailed(this ILogger logger, Exception exception, uint fromState, uint toState);
     }
 }

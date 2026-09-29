@@ -550,6 +550,139 @@ namespace Opc.Ua.Schema.Model.Tests
                 "the 40th bit is the highest one used, so 40 entries are emitted");
             Assert.That(decoded[31].Text, Is.EqualTo("BitThirtyOne"));
             Assert.That(decoded[39].Text, Is.EqualTo("BitThirtyNine"));
+
+            // D4: "The LocalizedText of undefined bits shall be null"
+            // (OPC 10000-3 5.8.3 Table 16), not a "Reserved" text.
+            Assert.That(decoded[1].IsNull, Is.True);
+            Assert.That(decoded[38].IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// D4: a subtype of the OptionSet structure has as many bits as its
+        /// fields define (OPC 10000-3 8.40); its OptionSetValues stopped at
+        /// bit 31. Fields without a mask get the next bit, not the next
+        /// integer (a third field got 3, which names two bits).
+        /// </summary>
+        [Test]
+        public void ValidateStructureOptionSetEmitsAllBitsAndAssignsImplicitBits()
+        {
+            const string path = "memory://structure-option-set-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(OptionSetDesign(
+                """
+                <opc:DataType SymbolicName="BigSet" BaseType="ua:OptionSet" IsOptionSet="true">
+                  <opc:Fields>
+                    <opc:Field Name="First" />
+                    <opc:Field Name="Second" />
+                    <opc:Field Name="Third" />
+                    <opc:Field Name="High" BitMask="10000000000" />
+                    <opc:Field Name="AfterHigh" />
+                  </opc:Fields>
+                </opc:DataType>
+                """)));
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([path], [], null);
+
+            var optionSet = (DataTypeDesign)validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "BigSet");
+            Assert.That(
+                optionSet.Fields.Select(f => f.Identifier),
+                Is.EqualTo(new decimal[] { 1, 2, 4, 1UL << 40, 1UL << 41 }));
+            var decoded = (Opc.Ua.LocalizedText[])optionSet.Children.Items
+                .OfType<VariableDesign>()
+                .First(v => v.SymbolicName.Name == "OptionSetValues")
+                .DecodedValue;
+            Assert.That(decoded, Has.Length.EqualTo(42));
+            Assert.That(decoded[2].Text, Is.EqualTo("Third"));
+            Assert.That(decoded[3].IsNull, Is.True);
+            Assert.That(decoded[40].Text, Is.EqualTo("High"));
+            Assert.That(decoded[41].Text, Is.EqualTo("AfterHigh"));
+        }
+
+        /// <summary>
+        /// A subtype of the OptionSet structure has no upper bit (OPC 10000-3
+        /// 8.40): a BitMask beyond 64 bits was ignored (the field got an
+        /// implicit bit) and implicit bits stopped at 95 (decimal masks).
+        /// </summary>
+        [Test]
+        public void ValidateStructureOptionSetSupportsBitsBeyond95()
+        {
+            const string path = "memory://huge-option-set-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(OptionSetDesign(
+                $"""
+                <opc:DataType SymbolicName="HugeSet" BaseType="ua:OptionSet" IsOptionSet="true">
+                  <opc:Fields>
+                    <opc:Field Name="First" />
+                    <opc:Field Name="B95" BitMask="8{new string('0', 23)}" />
+                    <opc:Field Name="B96" />
+                    <opc:Field Name="B130" BitMask="4{new string('0', 32)}" />
+                    <opc:Field Name="B131" />
+                  </opc:Fields>
+                </opc:DataType>
+                """)));
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([path], [], null);
+
+            var optionSet = (DataTypeDesign)validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "HugeSet");
+            Assert.That(
+                optionSet.Fields.Select(f => f.TryGetOptionSetBit(out int bit) ? bit : -1),
+                Is.EqualTo(s_hugeSetBits));
+            var decoded = (Opc.Ua.LocalizedText[])optionSet.Children.Items
+                .OfType<VariableDesign>()
+                .First(v => v.SymbolicName.Name == "OptionSetValues")
+                .DecodedValue;
+            Assert.That(decoded, Has.Length.EqualTo(132));
+            Assert.That(decoded[95].Text, Is.EqualTo("B95"));
+            Assert.That(decoded[96].Text, Is.EqualTo("B96"));
+            Assert.That(decoded[129].IsNull, Is.True);
+            Assert.That(decoded[130].Text, Is.EqualTo("B130"));
+            Assert.That(decoded[131].Text, Is.EqualTo("B131"));
+        }
+
+        private static readonly int[] s_hugeSetBits = [0, 95, 96, 130, 131];
+
+        /// <summary>
+        /// D4: an OptionSet field names one bit (OPC 10000-3 8.40, 8.52); a
+        /// mask of several bits, or a bit used twice, is rejected.
+        /// </summary>
+        [TestCase("<opc:Field Name=\"Both\" Identifier=\"3\" />", "not a single bit")]
+        [TestCase("<opc:Field Name=\"A\" BitMask=\"0002\" /><opc:Field Name=\"B\" Identifier=\"2\" />", "same bit")]
+        public void ValidateOptionSetFieldThatIsNotOneBitThrows(string fields, string message)
+        {
+            const string path = "memory://bad-option-set-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(OptionSetDesign(
+                "<opc:DataType SymbolicName=\"BadSet\" BaseType=\"ua:UInt32\" IsOptionSet=\"true\"><opc:Fields>" +
+                fields +
+                "</opc:Fields></opc:DataType>")));
+            ModelDesignValidator validator = CreateValidator();
+
+            Exception ex = Assert.Catch(() => validator.Validate([path], [], null));
+
+            Assert.That(ex.Message, Does.Contain("BadSet"));
+            Assert.That(ex.Message, Does.Contain(message));
+        }
+
+        private static string OptionSetDesign(string dataTypes)
+        {
+            return
+                $"""
+                <?xml version="1.0" encoding="utf-8" ?>
+                <opc:ModelDesign
+                    xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                    xmlns:ua="http://opcfoundation.org/UA/"
+                    xmlns="http://test.org/UA/Options/"
+                    TargetNamespace="http://test.org/UA/Options/">
+                  <opc:Namespaces>
+                    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                        XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                        >http://opcfoundation.org/UA/</opc:Namespace>
+                    <opc:Namespace Name="Options" Prefix="Options">http://test.org/UA/Options/</opc:Namespace>
+                  </opc:Namespaces>
+                  {dataTypes}
+                </opc:ModelDesign>
+                """;
         }
 
         /// <summary>

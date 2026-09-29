@@ -777,6 +777,64 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// A keep-alive carries the next sequence number to be sent (Part 4
+        /// §5.14.1.1), so a keep-alive two ahead of the last data message
+        /// proves the message in between was lost. It must be republished
+        /// right away instead of waiting for the next data message.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveAfterGapRepublishesMissingMessageAsync()
+        {
+            SetupRepublish();
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 28
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(5),
+                    [5], []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 5).ConfigureAwait(false);
+
+                // Data message 6 is lost; the keep-alive names 7 as next.
+                sut.KeepAliveNotificationReceived.Reset();
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 7 },
+                    [5, 6], []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 5, 6, 7 }));
+                Assert.That(sut.MissingMessageCount, Is.EqualTo(1));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(6));
+
+                // A second keep-alive with the same number does not republish
+                // again, and the data message that reuses 7 is not a gap.
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 7 },
+                    [6], []).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(7),
+                    [6, 7], []).ConfigureAwait(false);
+                await WaitForDataSeqNumberAsync(sut, 7).ConfigureAwait(false);
+
+                Assert.That(sut.MissingMessageCount, Is.EqualTo(1));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.Is<uint>(s => s == 6),
+                        It.IsAny<CancellationToken>()),
+                    Times.Once);
+            }
+        }
+
         [Test]
         public async Task EmptyNotificationDataIsTreatedAsKeepAliveAsync()
         {
@@ -1203,8 +1261,12 @@ namespace Opc.Ua.Client.Subscriptions
                     .AsTask();
 
                 await firstRepublishStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                // The keep-alive names 9, the message right after the
+                // recovered ones, so processing it after the recovery does
+                // not start a keep-alive gap recovery that races the
+                // republish count asserted below.
                 await sut.OnPublishReceivedAsync(
-                    new NotificationMessage { SequenceNumber = 20 },
+                    new NotificationMessage { SequenceNumber = 9 },
                     [11, 12],
                     []).ConfigureAwait(false);
 
@@ -1276,6 +1338,54 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// A reconnect that transfers the subscription onto the same object
+        /// keeps the dedup gate. Messages that were already dispatched but
+        /// not yet acknowledged are still listed as available by the server
+        /// (Part 4 §5.14.7.2); they must be acknowledged, not republished and
+        /// dispatched a second time.
+        /// </summary>
+        [Test]
+        public async Task RecoverTransferredMessagesSkipsAlreadyProcessedMessagesAsync()
+        {
+            SetupRepublish();
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 27
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(9),
+                    [], []).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(10),
+                    [], []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 10).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(2).ConfigureAwait(false);
+                m_completion.QueuedAcks.Clear();
+
+                await sut.RecoverTransferredMessagesAsync([9, 10, 11], default)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 9, 10, 11 }));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.Is<uint>(s => s == 9 || s == 10),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+                await m_completion.WaitForQueuedAckAsync(3).ConfigureAwait(false);
+                Assert.That(
+                    m_completion.QueuedAcks.Select(a => a.SequenceNumber),
+                    Is.EquivalentTo(new uint[] { 9, 10, 11 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(11));
+            }
+        }
+
         [Test]
         public async Task RecoverTransferredMessagesAdvancesGateWhenRepublishFailsAsync()
         {
@@ -1313,6 +1423,148 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.ReceivedSequenceNumbers,
                     Is.EqualTo(new uint[] { 9 }));
                 Assert.That(sut.MissingMessageCount, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// A gap republish that failed leaves the message undelivered although
+        /// the data gate moved past it. Transfer recovery must republish it
+        /// instead of acknowledging it as already dispatched, while messages
+        /// really dispatched are still only acknowledged.
+        /// </summary>
+        [Test]
+        public async Task RecoverTransferredMessagesRepublishesMessageWhoseGapRepublishFailedAsync()
+        {
+            SetupRepublishFailingFirst(11, 1);
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 29
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(10),
+                    [], []).ConfigureAwait(false);
+                // Data 11 is lost and its republish fails.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(12),
+                    [11, 12], []).ConfigureAwait(false);
+                await WaitForReceivedCountAsync(sut, 2).ConfigureAwait(false);
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 10, 12 }));
+
+                await sut.RecoverTransferredMessagesAsync([11, 12], default)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 10, 12, 11 }));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.Is<uint>(s => s == 11),
+                        It.IsAny<CancellationToken>()),
+                    Times.Exactly(2));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.Is<uint>(s => s == 12),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(12));
+            }
+        }
+
+        /// <summary>
+        /// A keep-alive recovery whose republish fails must not advance the
+        /// data gate over the unrecovered message, so the gap-walk of the
+        /// next data message retries it.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveRecoveryFailureLeavesGapForNextDataMessageAsync()
+        {
+            SetupRepublishFailingFirst(11, 1);
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 30
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(10),
+                    [], []).ConfigureAwait(false);
+                await WaitForDataSeqNumberAsync(sut, 10).ConfigureAwait(false);
+
+                sut.KeepAliveNotificationReceived.Reset();
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 12 },
+                    [11], []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(10));
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(12),
+                    [11, 12], []).ConfigureAwait(false);
+                await WaitForReceivedCountAsync(sut, 4).ConfigureAwait(false);
+
+                // 10, the keep-alive 12, then 11 recovered by the gap-walk
+                // and data 12.
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 10, 12, 11, 12 }));
+            }
+        }
+
+        /// <summary>
+        /// A keep-alive that proves a gap nothing can be recovered for must
+        /// not advance the data gate: the missing message may still be in
+        /// flight and must be delivered when it arrives.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveWithoutRecoverableMessagesKeepsDataGateAsync()
+        {
+            SetupRepublish();
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 31
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(10),
+                    [], []).ConfigureAwait(false);
+                await WaitForDataSeqNumberAsync(sut, 10).ConfigureAwait(false);
+
+                // The keep-alive overtakes data 11, which the server does
+                // not list (no retransmission queue).
+                sut.KeepAliveNotificationReceived.Reset();
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 12 },
+                    [], []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(11),
+                    [], []).ConfigureAwait(false);
+                // Data 13 follows, so a dropped 11 shows in the content below
+                // instead of as a timeout.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(13),
+                    [], []).ConfigureAwait(false);
+                DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+                while (!sut.ReceivedSequenceNumbers.ToArray().Contains(13u) &&
+                    DateTimeOffset.UtcNow < deadline)
+                {
+                    await Task.Delay(10).ConfigureAwait(false);
+                }
+
+                // 10, the keep-alive 12, then the late original 11, then 13.
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 10, 12, 11, 13 }));
+                Assert.That(sut.RepublishMessageCount, Is.Zero);
             }
         }
 
@@ -1356,6 +1608,30 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                 }
             }
+        }
+
+        private void SetupRepublishFailingFirst(uint failingSequenceNumber, int failures)
+        {
+            int remaining = failures;
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, uint _, uint sequenceNumber, CancellationToken _) =>
+                {
+                    if (sequenceNumber == failingSequenceNumber &&
+                        Interlocked.Decrement(ref remaining) >= 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                    }
+                    return new ValueTask<RepublishResponse>(new RepublishResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        NotificationMessage = BuildDataChangeMessage(sequenceNumber)
+                    });
+                });
         }
 
         private void SetupRepublish()
@@ -1422,6 +1698,42 @@ namespace Opc.Ua.Client.Subscriptions
                         $"Timeout: LastSequenceNumberProcessed = {sut.LastSequenceNumberProcessed}, " +
                         $"expected = {expected}, received = " +
                         $"[{string.Join(",", sut.ReceivedSequenceNumbers)}]");
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task WaitForReceivedCountAsync(
+            TestMessageProcessor sut,
+            int expected,
+            int timeoutSeconds = 5)
+        {
+            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(timeoutSeconds);
+            while (sut.ReceivedSequenceNumbers.Count < expected)
+            {
+                if (DateTimeOffset.UtcNow > deadline)
+                {
+                    Assert.Fail(
+                        $"Timeout: received {sut.ReceivedSequenceNumbers.Count}, " +
+                        $"expected = {expected}");
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task WaitForDataSeqNumberAsync(
+            TestMessageProcessor sut,
+            uint expected,
+            int timeoutSeconds = 5)
+        {
+            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(timeoutSeconds);
+            while (sut.LastDataSequenceNumberProcessed != expected)
+            {
+                if (DateTimeOffset.UtcNow > deadline)
+                {
+                    Assert.Fail(
+                        $"Timeout: LastDataSequenceNumberProcessed = " +
+                        $"{sut.LastDataSequenceNumberProcessed}, expected = {expected}");
                 }
                 await Task.Delay(10).ConfigureAwait(false);
             }

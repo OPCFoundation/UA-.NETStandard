@@ -6,6 +6,13 @@ UA session: the raw `Session` and its reconnect helper, the
 `ManagedSession` facade, the pluggable subscription engines, and how to
 choose between them.
 
+> **New to the client API?** Run the client in
+> [Getting started](GettingStarted.md) first. For new applications, read
+> [`ManagedSession`](#3-managedsession--the-connection-state-machine-facade)
+> and [Putting it all together](#7-putting-it-all-together). Sections 1 and 2
+> describe the raw `Session` and `SessionReconnectHandler` for applications
+> that manage the connection lifecycle themselves.
+
 ## Quick reference
 
 | Type | Creates | Reconnect | Subscription engine | Recommended for |
@@ -21,14 +28,55 @@ choose between them.
 
 Everything below explains how these pieces fit together.
 
+## Contents
+
+- [Quick reference](#quick-reference)
+- [1. `Session` — the OPC UA session primitive](#1-session--the-opc-ua-session-primitive)
+  - [Operation limits and `MaxArrayLength`](#operation-limits-and-maxarraylength)
+  - [Plugging in a subscription engine](#plugging-in-a-subscription-engine)
+  - [`DefaultSessionFactory`](#defaultsessionfactory)
+- [2. `SessionReconnectHandler` — legacy reconnect driver](#2-sessionreconnecthandler--legacy-reconnect-driver)
+  - [Supported session types](#supported-session-types)
+- [3. `ManagedSession` — the connection-state-machine facade](#3-managedsession--the-connection-state-machine-facade)
+  - [Failure of the initial connect](#failure-of-the-initial-connect)
+  - [Recovery after an established connection is exhausted](#recovery-after-an-established-connection-is-exhausted)
+  - [`ManagedSessionFactory`](#managedsessionfactory)
+  - [`ManagedSessionBuilder`](#managedsessionbuilder)
+  - [Reconnect semantics on `ManagedSession`](#reconnect-semantics-on-managedsession)
+  - [Closing a `ManagedSession`](#closing-a-managedsession)
+  - [Server retry-after backpressure](#server-retry-after-backpressure)
+- [4. `IClientChannelManager` — centralised channel sharing and reconnect](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
+  - [Session factory choices](#session-factory-choices)
+  - [Channel identity (`ManagedChannelKey`)](#channel-identity-managedchannelkey)
+  - [State model](#state-model)
+  - [Participant model — `IReconnectParticipant`](#participant-model--ireconnectparticipant)
+  - [Retry policy — `IChannelReconnectPolicy`](#retry-policy--ichannelreconnectpolicy)
+  - [HTTPS resilience vs channel-mgr reconnect](#https-resilience-vs-channel-mgr-reconnect)
+  - [HTTPS factory + OPC UA cert validation: secure-by-default fallback](#https-factory--opc-ua-cert-validation-secure-by-default-fallback)
+  - [Shared retry budget with `ManagedSession`](#shared-retry-budget-with-managedsession)
+  - [Diagnostics surface contract — what tags and structured log fields carry](#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry)
+  - [DI registration](#di-registration)
+  - [Migrating from `AttachChannel` / `DetachChannel`](#migrating-from-attachchannel--detachchannel)
+  - [Testing the channel manager](#testing-the-channel-manager)
+- [5. Subscription engines](#5-subscription-engines)
+  - [`ClassicSubscriptionEngine`](#classicsubscriptionengine)
+  - [`DefaultSubscriptionEngine` (V2)](#defaultsubscriptionengine-v2)
+  - [Unbounded monitored items (default)](#unbounded-monitored-items-default)
+  - [V2 notification pooling (opt-in)](#v2-notification-pooling-opt-in)
+  - [Server-side request/response pooling](#server-side-requestresponse-pooling)
+  - [Choosing an engine](#choosing-an-engine)
+- [6. The `INodeCache` surface](#6-the-inodecache-surface)
+- [7. Putting it all together](#7-putting-it-all-together)
+- [Server session lifecycle](#server-session-lifecycle)
+- [See also](#see-also)
+
 ## 1. `Session` — the OPC UA session primitive
 
-`Session` (`src/Opc.Ua.Client/Session/Session.cs`) is the lowest-level
-client object that maps directly to a UA secure-channel + session pair on
-the server. It implements `ISession` and exposes the full surface of the
-OPC UA service set (Read, Write, Browse, Call, AddNodes, etc.) plus
-session-level concerns: keep-alive, namespace tables, the type tree, the
-node cache, and a publish pipeline.
+`Session` (`src/Opc.Ua.Client/Session/Session.cs`) is the lowest-level client
+object. It maps directly to a UA SecureChannel and Session on the server.
+`Session` implements `ISession` and exposes OPC UA services such as Read,
+Write, Browse, Call, and AddNodes. It also manages keep-alive, namespace
+tables, the type tree, the node cache, and the publish pipeline.
 
 A `Session` is bound to:
 
@@ -346,8 +394,15 @@ connection state machine transitions `Connected → Reconnecting` and:
    session against the failover endpoint.
 5. On success, transitions `Reconnecting → Connected` and releases the
    service gate, replaying any deferred calls.
-6. On exhaustion (`MaxRetries` reached), transitions to `Closed` and
-   surfaces a `ServiceResultException` to outstanding callers.
+6. If the retry budget and failover are exhausted after an established
+   connection, reports `Disconnected` and the last error, then schedules a new
+   bounded cycle after the policy's maximum backoff (at least one second).
+   Closing or disposing the session stops recovery.
+
+A failed initial connection has a different lifetime: `CreateAsync` disposes the
+half-built session and throws when its policy is exhausted. See
+[initial-connect failure](#failure-of-the-initial-connect) and
+[established-session recovery](#recovery-after-an-established-connection-is-exhausted).
 
 When a `ManagedSession` is backed by `IClientChannelManager`, participant reactivation uses the
 manager's `IChannelReconnectPolicy`. The default `ExponentialBackoffChannelReconnectPolicy`
@@ -909,7 +964,7 @@ bound. Use `.WithChannelReconnectTimeout(Timeout.InfiniteTimeSpan)` to opt out o
 the participant-imposed bound. Explicit caller budgets still apply.
 
 For migration notes on the budget-aware APIs, see
-[the migration guide](MigrationGuide.md#shared-reconnect-budget-for-managedsession-and-the-channel-manager).
+[the session migration guide](migrate/2.0.x/sessions-subscriptions.md#managedsession-and-automatic-reconnection).
 
 ### Diagnostics surface contract — what tags and structured log fields carry
 
@@ -979,12 +1034,16 @@ services.AddOpcUa()
         };
     });
 
-// Single channel manager + multiple sessions sharing channels per endpoint:
-var sp = services.BuildServiceProvider();
-var managedFactory = sp.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
-ManagedSession s1 = await managedFactory(ct);
-ManagedSession s2 = await managedFactory(ct); // shares s1's underlying channel
+// Each call creates a distinct, caller-owned session using the shared channel manager:
+await using var sp = services.BuildServiceProvider();
+var managedFactory = sp.GetRequiredService<IManagedSessionFactory>();
+await using ManagedSession s1 = await managedFactory.ConnectAsync(endpoint, ct);
+await using ManagedSession s2 = await managedFactory.ConnectAsync(endpoint, ct);
 ```
+
+The `Func<CancellationToken, Task<ManagedSession>>` registration is different: it
+caches one connected session. Repeated awaits return that same instance; use it
+for a single fixed endpoint, not to create independently owned sessions.
 
 ### Migrating from `AttachChannel` / `DetachChannel`
 

@@ -250,9 +250,23 @@ namespace Opc.Ua.Server
                         i++;
                     }
                     value = subject[vs..i];
-                    if (i < subject.Length)
+                    if (i >= subject.Length)
                     {
-                        i++; // skip closing quote
+                        // unterminated quoted value.
+                        return string.Empty;
+                    }
+                    i++; // skip closing quote
+                    while (i < subject.Length && subject[i] == ' ')
+                    {
+                        i++;
+                    }
+                    if (i < subject.Length && subject[i] != ',')
+                    {
+                        // An escaped quote ("") or trailing characters mean the value
+                        // contains a quote, which no X509Subject criteria can express.
+                        // Refuse to match rather than truncate it into a shorter,
+                        // possibly privileged, subject.
+                        return string.Empty;
                     }
                 }
                 else
@@ -263,6 +277,10 @@ namespace Opc.Ua.Server
                         i++;
                     }
                     value = subject[vs..i].Trim();
+                    if (value.Contains('"', StringComparison.Ordinal))
+                    {
+                        return string.Empty;
+                    }
                 }
                 if (name.Length > 0 && IsKnownSubjectName(name))
                 {

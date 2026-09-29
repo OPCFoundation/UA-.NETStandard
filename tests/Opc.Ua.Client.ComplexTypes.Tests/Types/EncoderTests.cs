@@ -240,6 +240,53 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <summary>
+        /// Verbose JSON carries no SwitchField; the selected union field must be
+        /// recovered from the member name even though union fields are never
+        /// IsOptional.
+        /// </summary>
+        [Test]
+        [Category("ComplexTypes")]
+        public void DecodeVerboseJsonUnionSelectsFieldByName()
+        {
+            (_, Type complexType) = TypeDictionary[StructureType.Union];
+            var expected = (UnionComplexType)Activator.CreateInstance(complexType);
+            expected["Int32"] = Variant.From(42);
+            Assert.That(expected.SwitchField, Is.Not.Zero);
+
+            var union = (UnionComplexType)Activator.CreateInstance(complexType);
+            using var decoder = new JsonDecoder("{\"Int32\":42}", EncoderContext);
+            union.Decode(decoder);
+
+            Assert.That(union.SwitchField, Is.EqualTo(expected.SwitchField));
+            Assert.That(union.Value, Is.EqualTo(Variant.From(42)));
+        }
+
+        /// <summary>
+        /// A SwitchField beyond the defined union fields is a decoding error
+        /// (Part 6 §5.2.8) instead of a poisoned object.
+        /// </summary>
+        [Test]
+        [Category("ComplexTypes")]
+        public void DecodeUnionWithOutOfRangeSwitchFieldThrows()
+        {
+            (_, Type complexType) = TypeDictionary[StructureType.Union];
+            var union = (UnionComplexType)Activator.CreateInstance(complexType);
+
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(EncoderContext))
+            {
+                encoder.WriteUInt32(null, (uint)union.GetPropertyCount() + 1);
+                buffer = encoder.CloseAndReturnBuffer();
+            }
+
+            using var decoder = new BinaryDecoder(buffer, EncoderContext);
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => union.Decode(decoder));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(union.SwitchField, Is.Zero);
+        }
+
+        /// <summary>
         /// Verify serialize/encode of a structured type initiated from outside of an IEncoder instance.
         /// </summary>
         [Theory]
