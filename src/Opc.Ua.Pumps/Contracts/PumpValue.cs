@@ -133,17 +133,17 @@ namespace Opc.Ua.Pumps
         }
 
         /// <summary>
-        /// Gets the value as a string array, or <see langword="null"/> when it
-        /// is absent, bad, or not an array of strings - the shape of the
-        /// OPC 40223 identifier lists such as <c>RedundantPumpIDs</c>.
+        /// Gets the value as a string array, or <see cref="ArrayOf{T}.Null"/>
+        /// when it is absent, bad, or not an array of strings - the shape of
+        /// the OPC 40223 identifier lists such as <c>RedundantPumpIDs</c>.
         /// </summary>
-        public ArrayOf<string>? AsStringArray()
+        public ArrayOf<string> AsStringArray()
         {
             if (StatusCode.IsBad(StatusCode))
             {
-                return null;
+                return ArrayOf<string>.Null;
             }
-            return Value.TryGetValue(out ArrayOf<string> texts) ? texts : (ArrayOf<string>?)null;
+            return Value.TryGetValue(out ArrayOf<string> texts) ? texts : ArrayOf<string>.Null;
         }
 
         /// <summary>

@@ -209,26 +209,26 @@ namespace Opc.Ua.Pumps.Server.Builders
                 MachineryBrowseNames.InitialOperationDate,
                 nameplate.InitialOperationDate.HasValue
                     ? Variant.From((DateTimeUtc)nameplate.InitialOperationDate.Value)
-                    : (Variant?)null);
+                    : Variant.Null);
             SetValue(
                 identification,
                 MachineryBrowseNames.YearOfConstruction,
                 nameplate.YearOfConstruction.HasValue
                     ? Variant.From(nameplate.YearOfConstruction.Value)
-                    : (Variant?)null);
+                    : Variant.Null);
             SetValue(
                 identification,
                 MachineryBrowseNames.MonthOfConstruction,
                 nameplate.MonthOfConstruction.HasValue
                     ? Variant.From(nameplate.MonthOfConstruction.Value)
-                    : (Variant?)null);
+                    : Variant.Null);
 
             SetValue(
                 identification,
                 BrowseNames.DayOfConstruction,
                 nameplate.DayOfConstruction.HasValue
                     ? Variant.From(nameplate.DayOfConstruction.Value)
-                    : (Variant?)null);
+                    : Variant.Null);
             SetText(identification, BrowseNames.ArticleNumber, nameplate.ArticleNumber);
             SetText(identification, BrowseNames.OrderProductCode, nameplate.OrderProductCode);
             SetText(identification, BrowseNames.TypeOfProduct, nameplate.TypeOfProduct);
@@ -245,7 +245,7 @@ namespace Opc.Ua.Pumps.Server.Builders
                 BrowseNames.PhysicalAddress,
                 nameplate.PhysicalAddress != null
                     ? Variant.From(new ExtensionObject(nameplate.PhysicalAddress))
-                    : (Variant?)null);
+                    : Variant.Null);
 
             return this;
         }
@@ -278,11 +278,11 @@ namespace Opc.Ua.Pumps.Server.Builders
         private static void SetValue(
             IPumpGroupBuilder group,
             string browseName,
-            Variant? value)
+            Variant value)
         {
-            if (value.HasValue)
+            if (!value.IsNull)
             {
-                group.Set(browseName, value.Value);
+                group.Set(browseName, value);
             }
         }
     }

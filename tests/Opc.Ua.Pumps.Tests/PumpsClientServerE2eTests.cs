@@ -232,8 +232,8 @@ namespace Opc.Ua.Pumps.Tests
                 {
                     Assert.That(multiPump!.PumpRole, Is.EqualTo(PumpRoleEnum.Master));
                     Assert.That(multiPump.NumberOfPumps, Is.EqualTo(2u));
-                    Assert.That(multiPump.RedundantPumpIDs, Is.Not.Null);
-                    Assert.That(multiPump.RedundantPumpIDs!.Value.ToArray(), Is.EqualTo(redundantPumpIds));
+                    Assert.That(multiPump.RedundantPumpIDs.IsNull, Is.False);
+                    Assert.That(multiPump.RedundantPumpIDs.ToArray(), Is.EqualTo(redundantPumpIds));
                 });
 
                 PumpValueSet signals = await pumps.ReadSignalsAsync(found.NodeId);

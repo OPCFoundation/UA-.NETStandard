@@ -216,12 +216,13 @@ namespace Opc.Ua.Pumps
 
         /// <summary>
         /// Gets the string array published under
-        /// <paramref name="browseName"/>, or <see langword="null"/>.
+        /// <paramref name="browseName"/>, or <see cref="ArrayOf{T}.Null"/>.
         /// </summary>
         /// <param name="browseName">The browse name to read.</param>
-        public ArrayOf<string>? GetStringArray(string browseName)
+        public ArrayOf<string> GetStringArray(string browseName)
         {
-            return this[browseName]?.AsStringArray();
+            PumpValue? value = this[browseName];
+            return value is null ? ArrayOf<string>.Null : value.AsStringArray();
         }
 
         /// <summary>

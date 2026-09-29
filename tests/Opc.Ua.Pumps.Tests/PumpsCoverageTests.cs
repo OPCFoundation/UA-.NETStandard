@@ -143,7 +143,7 @@ namespace Opc.Ua.Pumps.Tests
                 string[] strings = ["a", "b"];
                 Assert.That(
                     Val(Variant.From((ArrayOf<string>)strings))
-                        .AsStringArray()!.Value.ToArray(),
+                        .AsStringArray().ToArray(),
                     Is.EqualTo(strings));
 
                 // A bad status blanks every accessor.
@@ -152,13 +152,13 @@ namespace Opc.Ua.Pumps.Tests
                 Assert.That(bad.AsBoolean(), Is.Null);
                 Assert.That(bad.AsString(), Is.Null);
                 Assert.That(bad.AsUInt32(), Is.Null);
-                Assert.That(bad.AsStringArray(), Is.Null);
+                Assert.That(bad.AsStringArray().IsNull, Is.True);
                 Assert.That(bad.AsEnum<PumpRoleEnum>(), Is.Null);
                 Assert.That(bad.AsDateTime(), Is.Null);
 
                 // A wrong-typed value coerces to null rather than throwing.
                 Assert.That(Val(Variant.From("text")).AsDouble(), Is.Null);
-                Assert.That(Val(Variant.From(1.0)).AsStringArray(), Is.Null);
+                Assert.That(Val(Variant.From(1.0)).AsStringArray().IsNull, Is.True);
             });
         }
 
@@ -186,7 +186,7 @@ namespace Opc.Ua.Pumps.Tests
                 Assert.That(set.GetEnum<PumpRoleEnum>(BrowseNames.PumpRole),
                     Is.EqualTo(PumpRoleEnum.Master));
                 Assert.That(
-                    set.GetStringArray(BrowseNames.RedundantPumpIDs)!.Value.ToArray(),
+                    set.GetStringArray(BrowseNames.RedundantPumpIDs).ToArray(),
                     Is.EqualTo(redundantPumpIds));
                 Assert.That(set.GetDateTime(BrowseNames.ExchangeTime), Is.Not.Null);
                 Assert.That(set.Names, Has.Count.EqualTo(3));

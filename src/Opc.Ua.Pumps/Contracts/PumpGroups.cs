@@ -243,18 +243,21 @@ namespace Opc.Ua.Pumps
 
         /// <summary>
         /// The pumps in ascending order of priority for the addition operation
-        /// mode (<c>DistributionPriority</c>).
+        /// mode (<c>DistributionPriority</c>), or <see cref="ArrayOf{T}.Null"/>
+        /// when the pump system does not publish them.
         /// </summary>
-        public ArrayOf<string>? DistributionPriority { get; init; }
+        public ArrayOf<string> DistributionPriority { get; init; }
 
         /// <summary>
-        /// The pumps of the pump system (<c>PumpCollectiveIDs</c>).
+        /// The pumps of the pump system (<c>PumpCollectiveIDs</c>), or
+        /// <see cref="ArrayOf{T}.Null"/> when not published.
         /// </summary>
-        public ArrayOf<string>? PumpCollectiveIDs { get; init; }
+        public ArrayOf<string> PumpCollectiveIDs { get; init; }
 
         /// <summary>
-        /// The currently redundant pumps (<c>RedundantPumpIDs</c>).
+        /// The currently redundant pumps (<c>RedundantPumpIDs</c>), or
+        /// <see cref="ArrayOf{T}.Null"/> when not published.
         /// </summary>
-        public ArrayOf<string>? RedundantPumpIDs { get; init; }
+        public ArrayOf<string> RedundantPumpIDs { get; init; }
     }
 }
