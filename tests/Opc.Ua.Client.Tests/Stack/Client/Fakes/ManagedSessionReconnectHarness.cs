@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// <param name="status">The data-value status returned by the next keepalive read.</param>
         public void FailNextKeepAlive(StatusCode status)
         {
-            Volatile.Write(ref m_nextKeepAliveStatus, status.Code);
+            Volatile.Write(ref m_nextKeepAliveStatus, unchecked((int)status.Code));
         }
 
         /// <summary>
@@ -559,8 +559,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     read.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State:
                     Interlocked.Increment(ref m_keepAliveReadCount);
                     m_initialKeepAliveRead.TrySetResult(true);
-                    var nextKeepAliveStatus = new StatusCode(
-                        Interlocked.Exchange(ref m_nextKeepAliveStatus, StatusCodes.Good.Code));
+                    var nextKeepAliveStatus = new StatusCode(unchecked((uint)Interlocked.Exchange(
+                        ref m_nextKeepAliveStatus, unchecked((int)StatusCodes.Good.Code))));
                     return new ReadResponse
                     {
                         ResponseHeader = channel.CreateGoodHeader(),
@@ -823,7 +823,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         private IManagedTransportChannel? m_recoveryLease;
         private long m_recoveryStartedAt;
         private int m_keepAliveReadCount;
-        private uint m_nextKeepAliveStatus = StatusCodes.Good.Code;
+        private int m_nextKeepAliveStatus = unchecked((int)StatusCodes.Good.Code);
         private int m_channelCount;
         private int m_sessionCount;
         private int m_activationCount;
