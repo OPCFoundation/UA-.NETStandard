@@ -1732,6 +1732,26 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteEncodeableRestoresTheNestingLevelWhenEncodeThrows()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxEncodingNestingLevels = 2;
+            using var encoder = new XmlEncoder(messageContext);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            // a caller that skips failing items keeps using the encoder.
+            for (int ii = 0; ii < 5; ii++)
+            {
+                Assert.Throws<InvalidOperationException>(
+                    () => encoder.WriteEncodeable("Failing", new ThrowingEncodeable(), default));
+            }
+
+            Assert.DoesNotThrow(
+                () => encoder.WriteEncodeable("Item", new TestArrayElement { Value = 1 }, default));
+        }
+
+        [Test]
         public void WriteDateTimeWritesTheEarliestValueAsYearOne()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -7373,6 +7393,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             public object Clone()
             {
                 return new TestArrayElement { Value = Value };
+            }
+        }
+
+        internal sealed class ThrowingEncodeable : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(99996, 0);
+            public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
+            public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
+
+            public void Encode(IEncoder encoder)
+            {
+                throw new InvalidOperationException("Encode failed.");
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is ThrowingEncodeable;
+            }
+
+            public object Clone()
+            {
+                return new ThrowingEncodeable();
             }
         }
 
