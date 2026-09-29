@@ -834,20 +834,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariant(string? fieldName, in Variant value)
         {
-            // Scalar values cannot nest, so skip the nesting-level bookkeeping
-            // (and the try/finally) for the common scalar fast path.
-            // DataValue and ExtensionObject are excluded because they can recurse:
-            // DataValue via WrappedValue (Variant -> DataValue -> Variant -> ...)
-            // and ExtensionObject via IEncodeable.
-            BuiltInType builtInType = value.TypeInfo.BuiltInType;
-            if (value.TypeInfo.IsScalar &&
-                builtInType != BuiltInType.DataValue &&
-                builtInType != BuiltInType.ExtensionObject)
-            {
-                WriteVariantValue(in value, false);
-                return;
-            }
-
+            // Every Variant counts as a nesting level, also a scalar that
+            // cannot nest: BinaryDecoder.ReadVariant counts each one, so an
+            // encoder that skipped them could emit a message one level deeper
+            // than its own peer accepts.
             CheckAndIncrementNestingLevel();
 
             try

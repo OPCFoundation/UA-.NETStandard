@@ -225,8 +225,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void BinaryDecodeSourcePicosecondsWithoutTimestampThrowsBadDecodingError()
+        public void BinaryDecodeSourcePicosecondsWithoutTimestampAreIgnored()
         {
+            // OPC 10000-6 5.2.2.17: "If the source timestamp is missing the
+            // Picoseconds are ignored."
             byte[] bytes =
             [
                 0x10,
@@ -235,14 +237,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext ctx = CreateContext();
             using var decoder = new BinaryDecoder(bytes, ctx);
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadDataValue(null));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            Assert.That(ex.InnerException, Is.Null);
+            DataValue value = decoder.ReadDataValue(null);
+            Assert.That(value.SourcePicoseconds, Is.Zero);
+            Assert.That(value.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
         }
 
         [Test]
-        public void BinaryDecodeServerPicosecondsWithoutTimestampThrowsBadDecodingError()
+        public void BinaryDecodeServerPicosecondsWithoutTimestampAreIgnored()
         {
             byte[] bytes =
             [
@@ -252,10 +254,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext ctx = CreateContext();
             using var decoder = new BinaryDecoder(bytes, ctx);
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadDataValue(null));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            Assert.That(ex.InnerException, Is.Null);
+            DataValue value = decoder.ReadDataValue(null);
+            Assert.That(value.ServerPicoseconds, Is.Zero);
+            Assert.That(value.ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
         }
 
         [Test]
