@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,26 +81,24 @@ namespace Opc.Ua.Di.Client
                     (_, continuationPoint, ArrayOf<ReferenceDescription> page) = await session
                         .BrowseNextAsync(null, false, continuationPoint, ct)
                         .ConfigureAwait(false);
-                    if (page.Count == 0 && !continuationPoint.IsEmpty)
+                    if (page.Count == 0)
                     {
                         // A server that hands out continuation points
                         // without references would never let the loop end.
-                        await session
-                            .ReleaseContinuationPointAsync(continuationPoint, logger)
-                            .ConfigureAwait(false);
                         break;
                     }
                     references.AddRange(page);
                 }
             }
-            catch (OperationCanceledException) when (!continuationPoint.IsEmpty)
+            finally
             {
-                // OPC 10000-4 §5.9.3.2: a client that stops following a
-                // continuation point releases it.
+                // OPC 10000-4 §5.9.3.2 requires releasing a continuation point
+                // the client stops following - after an empty page, a
+                // cancellation or a failed call alike. An exhausted point is
+                // empty and needs no release.
                 await session
                     .ReleaseContinuationPointAsync(continuationPoint, logger)
                     .ConfigureAwait(false);
-                throw;
             }
             return references;
         }

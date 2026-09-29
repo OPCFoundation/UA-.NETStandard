@@ -294,6 +294,49 @@ namespace Opc.Ua.Di.Tests
 
         private static readonly string[] s_pagedDevices = ["Device 1", "Device 2", "Device 3"];
 
+        [Test]
+        public void AFailedBrowseNextReleasesTheContinuationPoint()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            var first = new ByteString(new byte[] { 1 });
+            SetupBrowseReturns(sessionMock, new BrowseResult
+            {
+                StatusCode = StatusCodes.Good,
+                ContinuationPoint = first,
+                References = new ReferenceDescription[]
+                {
+                    MakeReference("device-1", "Device 1", "DeviceType")
+                }
+            });
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    false,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    true,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(NextPage(ByteString.Empty));
+
+            var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            sessionMock.Verify(
+                s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    true,
+                    It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == first),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
         private static BrowseNextResponse NextPage(
             ByteString continuationPoint,
             params ReferenceDescription[] references)
