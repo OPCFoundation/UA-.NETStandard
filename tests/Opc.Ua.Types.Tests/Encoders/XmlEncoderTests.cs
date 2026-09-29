@@ -1491,6 +1491,75 @@ namespace Opc.Ua.Types.Tests.Encoders
                 "xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\" />"));
         }
 
+        [TestCase("x\u0001y")]
+        [TestCase("x\u0000")]
+        [TestCase("￾")]
+        [TestCase("surrogate")]
+        [TestCase("lowsurrogate")]
+        public void WriteStringRejectsCharactersXmlCannotRepresent(string value)
+        {
+            // attribute arguments cannot carry unpaired surrogates.
+            value = value switch
+            {
+                "surrogate" => "\uD800y",
+                "lowsurrogate" => "y\uDC00",
+                _ => value
+            };
+
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var encoder = new XmlEncoder(messageContext);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteString("String", value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+
+            // the same check applies to every text written through WriteString.
+            ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteLocalizedText("Text", new LocalizedText("en", value)));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteStringRejectsCharactersXmlCannotRepresentWithDefaultWriterSettings()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
+                null,
+                messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteString("String", "x\u0001y"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteStringRoundTripsValidCharacters()
+        {
+            const string value = "a\tb\nc 😀 é";
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            string xml;
+            using (var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
+                null,
+                messageContext))
+            {
+                encoder.WriteString("String", value);
+                xml = encoder.CloseAndReturnText();
+            }
+
+            using var decoder = new XmlDecoder(
+                XmlReader.Create(new StringReader(xml)),
+                messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            decoder.ReadStartElement();
+            Assert.That(decoder.ReadString("String"), Is.EqualTo(value));
+        }
+
         [Test]
         public void WriteDateTimeWithFieldNameWritesValue()
         {

@@ -54,7 +54,6 @@ namespace Opc.Ua
             m_nestingLevel = 0;
 
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
-            settings.CheckCharacters = false;
             settings.ConformanceLevel = ConformanceLevel.Auto;
             settings.NamespaceHandling = NamespaceHandling.OmitDuplicates;
             settings.NewLineHandling = NewLineHandling.Replace;
@@ -443,10 +442,55 @@ namespace Opc.Ua
                 // because pretty-printed NodeSets use it for empty values.
                 if (!string.IsNullOrEmpty(value))
                 {
+                    CheckXmlChars(value!);
                     m_writer.WriteString(value);
                 }
 
                 EndField(fieldName);
+            }
+        }
+
+        /// <summary>
+        /// Throws BadEncodingError for a string XML 1.0 cannot represent.
+        /// </summary>
+        /// <remarks>
+        /// xs:string (Part 6 5.3.1.5) only holds XML characters: most C0 control
+        /// characters, U+FFFE/U+FFFF and unpaired surrogates have no XML form,
+        /// not even as a character reference. Writing them produced a document
+        /// that every XML parser, XmlDecoder included, rejects as a whole, or
+        /// left the writer in an error state.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void CheckXmlChars(string value)
+        {
+            try
+            {
+                XmlConvert.VerifyXmlChars(value);
+            }
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "String cannot be encoded in XML: {0}",
+                    xe.Message);
+            }
+
+            // a surrogate is only a character as part of a pair.
+            for (int ii = 0; ii < value.Length; ii++)
+            {
+                if (char.IsHighSurrogate(value[ii]) &&
+                    ii + 1 < value.Length &&
+                    char.IsLowSurrogate(value[ii + 1]))
+                {
+                    ii++;
+                }
+                else if (char.IsSurrogate(value[ii]))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "String cannot be encoded in XML: unpaired surrogate at index {0}.",
+                        ii);
+                }
             }
         }
 
