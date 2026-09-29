@@ -1705,6 +1705,33 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteEncodeableArrayWritesNullElementsAsNil()
+        {
+            // a null element threw NullReferenceException.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var values = new ArrayOf<TestArrayElement>(
+                [new TestArrayElement { Value = 1 }, null, new TestArrayElement { Value = 3 }]);
+            string xml;
+            using (var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
+                null,
+                messageContext))
+            {
+                encoder.WriteEncodeableArray("A", values);
+                xml = encoder.CloseAndReturnText();
+            }
+
+            Assert.That(xml, Does.Contain("<uax:TestArrayElement xsi:nil=\"true\" />"));
+            using var decoder = new XmlDecoder(XmlReader.Create(new StringReader(xml)), messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            decoder.ReadStartElement();
+            ArrayOf<TestArrayElement> decoded = decoder.ReadEncodeableArray<TestArrayElement>("A");
+            Assert.That(decoded.Count, Is.EqualTo(3));
+            Assert.That(decoded[2].Value, Is.EqualTo(3));
+        }
+
+        [Test]
         public void WriteDateTimeWritesTheEarliestValueAsYearOne()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
@@ -7316,6 +7343,38 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static readonly float[] s_floatArray = [1.0f, 2.0f];
         private static readonly double[] s_doubleArray = [1.0, 2.0];
         private static readonly string[] s_stringArray = ["a", "b"];
+
+        [System.Runtime.Serialization.DataContract(
+            Name = "TestArrayElement",
+            Namespace = Namespaces.OpcUaXsd)]
+        internal sealed class TestArrayElement : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(99997, 0);
+            public ExpandedNodeId BinaryEncodingId => ExpandedNodeId.Null;
+            public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
+
+            public int Value { get; set; }
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32("Value", Value);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Value = decoder.ReadInt32("Value");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestArrayElement other && other.Value == Value;
+            }
+
+            public object Clone()
+            {
+                return new TestArrayElement { Value = Value };
+            }
+        }
 
         internal sealed class TestEncodeableWithNamespace : IEncodeable
         {

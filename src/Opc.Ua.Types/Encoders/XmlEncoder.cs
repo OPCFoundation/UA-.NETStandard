@@ -1750,11 +1750,45 @@ namespace Opc.Ua
                 // encode each element in the array.
                 for (int ii = 0; ii < values.Count; ii++)
                 {
+                    if (values[ii] == null)
+                    {
+                        WriteNullEncodeableArrayElement<T>(encodeableTypeId);
+                        continue;
+                    }
                     WriteEncodeable(values[ii]);
                 }
 
                 EndField(fieldName);
             }
+        }
+
+        /// <summary>
+        /// Writes a null element of an encodeable array as a nil element named
+        /// like the elements the decoder reads, so that it is not dropped and
+        /// the positions of the following elements do not shift (Part 6 5.3.4).
+        /// </summary>
+        /// <typeparam name="T">The element type of the array.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteNullEncodeableArrayElement<T>(ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            XmlQualifiedName? xmlName = Context.Factory.TryGetEncodeableType(
+                encodeableTypeId, out IEncodeableType? encodeableType)
+                ? encodeableType.XmlName
+                : TypeInfo.GetXmlName(typeof(T));
+            if (xmlName == null || string.IsNullOrEmpty(xmlName.Name))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode a null element of an array of {0}.",
+                    typeof(T).Name);
+            }
+
+            PushNamespace(xmlName.Namespace == Namespaces.OpcUa
+                ? Namespaces.OpcUaXsd
+                : xmlName.Namespace);
+            BeginField(xmlName.Name, true, true, true);
+            PopNamespace();
         }
 
         /// <inheritdoc/>
