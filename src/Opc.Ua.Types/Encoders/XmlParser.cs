@@ -2678,6 +2678,11 @@ namespace Opc.Ua
                     return value;
                 }
 
+                // An absent element returns null, unlike XmlDecoder, which returns
+                // the pre-created instance for message fields. The parser reads
+                // configuration files, whose optional sections are nullable and
+                // mean "not configured" when absent (e.g. ServerConfiguration of
+                // a client application); a default instance would configure them.
                 return default!;
             }
             finally
