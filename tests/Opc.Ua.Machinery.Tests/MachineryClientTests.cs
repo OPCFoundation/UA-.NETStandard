@@ -141,6 +141,45 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public async Task ProcessValuesBelowMonitoringAreFoundAsync()
+        {
+            IProcessValueHandle? onMachine = null;
+            IProcessValueHandle? belowMonitoring = null;
+            IMachineHandle<BaseObjectState> machine = await m_fixture!.CreateBuildContext()
+                .AddMachine(new QualifiedName("Oven-2"))
+                .WithIdentification(id =>
+                {
+                    id.Manufacturer = new LocalizedText("Acme");
+                    id.SerialNumber = "OV-2";
+                    id.ProductInstanceUri = "urn:acme:oven:2";
+                })
+                .WithMonitoring(monitoring => monitoring
+                    .WithMachineryItemState(MachineryItemStateValue.NotExecuting))
+                .WithProcessValue(new QualifiedName("Pressure"), pv => pv.WithValue(1).Bind(out onMachine))
+                .WithProcessValue(new QualifiedName("Temperature"), pv => pv.WithValue(2).Bind(out belowMonitoring))
+                .BuildAsync()
+                .ConfigureAwait(false);
+
+            // OPC 40001-2 lets a server hang a process value below Monitoring
+            // instead of on the machine; move one there.
+            ushort machineryNamespace = (ushort)m_fixture.Manager.Server.NamespaceUris.GetIndex(
+                Opc.Ua.Machinery.Namespaces.Machinery);
+            BaseInstanceState monitoringState = machine.State.FindChild(
+                m_fixture.Manager.SystemContext,
+                new QualifiedName(BrowseNames.Monitoring, machineryNamespace))!;
+            machine.State.RemoveChild(belowMonitoring!.State);
+            monitoringState.AddChild(belowMonitoring.State);
+
+            var found = new List<NodeId>();
+            await foreach (MachineEntry entry in m_client!.EnumerateProcessValuesAsync(machine.NodeId))
+            {
+                found.Add(entry.NodeId);
+            }
+
+            Assert.That(found, Is.EquivalentTo(new[] { onMachine!.NodeId, belowMonitoring.NodeId }));
+        }
+
+        [Test]
         public void MachinesFolderResolvesFromTheMachineryNamespace()
         {
             Assert.That(m_client!.MachinesFolderId.IsNull, Is.False);

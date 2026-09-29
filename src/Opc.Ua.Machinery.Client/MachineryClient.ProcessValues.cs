@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using MachineryBrowseNames = Opc.Ua.Machinery.BrowseNames;
 using PadimBrowseNames = Opc.Ua.PADIM.BrowseNames;
 using ProcessValueBrowseNames = Opc.Ua.Machinery.ProcessValues.BrowseNames;
 
@@ -46,8 +47,10 @@ namespace Opc.Ua.Machinery.Client
         /// OPC 40001-2 does not fix where process values hang — the examples
         /// put them on a sensor component, on the machine, and below
         /// <c>Monitoring</c> — so they are found by type definition rather
-        /// than by browse path: every object below the item whose type is
-        /// <c>ProcessValueType</c> or a subtype counts.
+        /// than by browse path: every object directly below the item, or
+        /// directly below its <c>Monitoring</c> object, whose type is
+        /// <c>ProcessValueType</c> or a subtype counts. The process values of
+        /// a component are found by passing the component.
         /// </remarks>
         /// <param name="machineryItem">The machine or component to inspect.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
@@ -55,27 +58,44 @@ namespace Opc.Ua.Machinery.Client
             NodeId machineryItem,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            int namespaceIndex = Session.NamespaceUris.GetIndex(
-                Opc.Ua.Machinery.ProcessValues.Namespaces.MachineryProcessValues);
-            if (namespaceIndex < 0)
+            if (!TryGetNamespaceIndex(
+                Opc.Ua.Machinery.ProcessValues.Namespaces.MachineryProcessValues,
+                out ushort namespaceIndex))
             {
                 yield break;
             }
             var processValueTypeId = new NodeId(
                 Opc.Ua.Machinery.ProcessValues.ObjectTypes.ProcessValueType,
-                (ushort)namespaceIndex);
+                namespaceIndex);
 
-            await foreach (MachineEntry entry in EnumerateChildObjectsAsync(
+            await foreach (MachineEntry entry in EnumerateProcessValuesBelowAsync(
                     machineryItem,
+                    processValueTypeId,
                     cancellationToken).ConfigureAwait(false))
             {
-                // A vendor subtype of ProcessValueType is a process value too.
-                if (await Session.NodeCache
-                    .IsTypeOfAsync(entry.TypeDefinitionId, processValueTypeId, cancellationToken)
-                    .ConfigureAwait(false))
-                {
-                    yield return entry;
-                }
+                yield return entry;
+            }
+
+            if (!TryGetNamespaceIndex(
+                Opc.Ua.Machinery.Namespaces.Machinery,
+                out ushort machineryNamespaceIndex))
+            {
+                yield break;
+            }
+            NodeId monitoring = await ResolveChildAsync(
+                machineryItem,
+                new QualifiedName(MachineryBrowseNames.Monitoring, machineryNamespaceIndex),
+                cancellationToken).ConfigureAwait(false);
+            if (monitoring.IsNull)
+            {
+                yield break;
+            }
+            await foreach (MachineEntry entry in EnumerateProcessValuesBelowAsync(
+                    monitoring,
+                    processValueTypeId,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                yield return entry;
             }
         }
 
@@ -226,6 +246,25 @@ namespace Opc.Ua.Machinery.Client
             return response.Results.Count == 0
                 ? StatusCodes.BadUnexpectedError
                 : response.Results[0].StatusCode;
+        }
+
+        private async IAsyncEnumerable<MachineEntry> EnumerateProcessValuesBelowAsync(
+            NodeId parent,
+            NodeId processValueTypeId,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await foreach (MachineEntry entry in EnumerateChildObjectsAsync(
+                    parent,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                // A vendor subtype of ProcessValueType is a process value too.
+                if (await Session.NodeCache
+                    .IsTypeOfAsync(entry.TypeDefinitionId, processValueTypeId, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    yield return entry;
+                }
+            }
         }
 
         private static ushort? AsUInt16(
