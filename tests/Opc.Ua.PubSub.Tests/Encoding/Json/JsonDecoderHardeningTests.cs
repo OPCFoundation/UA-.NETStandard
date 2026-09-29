@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Tests;
 
@@ -209,6 +211,49 @@ namespace OpcUaPubSubJsonTests
             Assert.That(decoded[0].Name, Is.EqualTo("Field4999"));
             Assert.That(decoded[0].Value, Is.EqualTo(new Variant(4999)));
             Assert.That(decoded[fieldCount - 1].Value, Is.EqualTo(new Variant(0)));
+        }
+
+        [TestCase(PubSubDataSetMessageType.KeyFrame)]
+        [TestCase(PubSubDataSetMessageType.DeltaFrame)]
+        [TestCase(PubSubDataSetMessageType.KeepAlive)]
+        [TestSpec("7.2.5.4.1")]
+        public async Task HeaderlessSingleDataSetMessageWithMessageTypeAndPublisherIdRoundTripsAsync(
+            PubSubDataSetMessageType messageType)
+        {
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(
+                JsonTestUtilities.CreateMetaData());
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                DataSetWriterId = 1,
+                PublisherId = PublisherId.FromString("P"),
+                SequenceNumber = 3,
+                MessageType = messageType,
+                MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1 },
+                ContentMask = JsonDataSetMessageContentMask.DataSetWriterId |
+                    JsonDataSetMessageContentMask.PublisherId |
+                    JsonDataSetMessageContentMask.SequenceNumber |
+                    JsonDataSetMessageContentMask.MetaDataVersion |
+                    JsonDataSetMessageContentMask.MessageType,
+                Fields = JsonTestUtilities.CreateFields()
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                ContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader |
+                    JsonNetworkMessageContentMask.SingleDataSetMessage,
+                DataSetMessages = [dsm]
+            };
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+
+            PubSubNetworkMessage? result = await new Opc.Ua.PubSub.Encoding.Json.JsonDecoder()
+                .TryDecodeAsync(bytes, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null, JsonTestUtilities.ToText(bytes));
+            Assert.That(result!.PublisherId, Is.EqualTo(PublisherId.FromString("P")));
+            Assert.That(result.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(result.DataSetMessages[0].MessageType, Is.EqualTo(messageType));
+            Assert.That(result.DataSetMessages[0].Fields,
+                Has.Count.EqualTo(messageType == PubSubDataSetMessageType.KeepAlive ? 0 : 3));
         }
 
         private static PubSubNetworkMessageContext NewContextWithMetaData(

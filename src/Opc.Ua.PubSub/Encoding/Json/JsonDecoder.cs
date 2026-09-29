@@ -119,11 +119,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
                             PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                         return null;
                     }
-                    if (!root.TryGetProperty("MessageType", out JsonElement typeElement) ||
-                        typeElement.ValueKind != JsonValueKind.String)
+                    bool hasMessageType = root.TryGetProperty("MessageType", out JsonElement typeElement) &&
+                        typeElement.ValueKind == JsonValueKind.String;
+                    string messageType = hasMessageType
+                        ? typeElement.GetString() ?? string.Empty
+                        : string.Empty;
+                    // Without a NetworkMessage header the root is a single
+                    // DataSetMessage, which may carry its own PublisherId and a
+                    // DataSetMessage MessageType (Part 14 §7.2.5.4.1 Table 185).
+                    if (!hasMessageType || JsonDataSetMessageType.TryParse(messageType, out _))
                     {
                         if (root.TryGetProperty("MessageId", out _) ||
-                            root.TryGetProperty("PublisherId", out _) ||
                             root.TryGetProperty("Messages", out _))
                         {
                             context.Diagnostics.Increment(
@@ -134,7 +140,6 @@ namespace Opc.Ua.PubSub.Encoding.Json
                             PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
                         return DecodeDataWithoutNetworkHeader(root, context);
                     }
-                    string messageType = typeElement.GetString() ?? string.Empty;
                     context.Diagnostics.Increment(
                         PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
                     return messageType switch
@@ -238,6 +243,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             return new JsonNetworkMessage
             {
+                // A header-less single DataSetMessage names its Publisher itself.
+                PublisherId = singleMessage
+                    ? ((JsonDataSetMessage)dataSetMessages[0]).PublisherId
+                    : PublisherId.Null,
                 ContentMask = singleMessage
                     ? JsonNetworkMessageContentMask.SingleDataSetMessage
                     : JsonNetworkMessageContentMask.None,
@@ -760,7 +769,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 metaVersion,
                 context);
             JsonEncodingMode detectedMode = DetectMode(entry);
-            if (!JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode) && metaData is null)
+            // A header-only DataSetMessage (e.g. ua-keepalive) has no
+            // fields to type, so it does not need metadata.
+            bool hasFields = hasPayloadWrapper || !hasDataSetHeader;
+            if (hasFields &&
+                !JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode) &&
+                metaData is null)
             {
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ResolverErrors);
@@ -814,6 +828,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         {
             return entry.TryGetProperty("DataSetWriterId", out _) ||
                 entry.TryGetProperty("DataSetWriterName", out _) ||
+                entry.TryGetProperty("PublisherId", out _) ||
+                entry.TryGetProperty("WriterGroupName", out _) ||
+                entry.TryGetProperty("MinorVersion", out _) ||
                 entry.TryGetProperty("SequenceNumber", out _) ||
                 entry.TryGetProperty("MetaDataVersion", out _) ||
                 entry.TryGetProperty("Timestamp", out _) ||
