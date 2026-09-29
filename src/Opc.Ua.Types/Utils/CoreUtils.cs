@@ -137,6 +137,79 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Decodes the percent-encoded NamespaceUri or ServerUri of the string
+        /// form of a NodeId, ExpandedNodeId or QualifiedName. Part 6 5.1.12
+        /// uses the RFC 3986 percent-encoding, so the escaped octets are UTF-8.
+        /// A malformed escape or an invalid UTF-8 sequence fails the decode
+        /// instead of being kept verbatim, so that every parser resolves the
+        /// same text to the same URI.
+        /// </summary>
+        internal static bool TryUnescapeUri(
+            ReadOnlySpan<char> uri,
+            [NotNullWhen(true)] out string? result)
+        {
+            int first = uri.IndexOf('%');
+            if (first < 0)
+            {
+                result = uri.ToString();
+                return true;
+            }
+
+            var buffer = new StringBuilder(uri.Length);
+            byte[] octets = new byte[uri.Length / 3];
+            int ii = 0;
+            while (ii < uri.Length)
+            {
+                if (uri[ii] != '%')
+                {
+                    buffer.Append(uri[ii++]);
+                    continue;
+                }
+
+                // Collect a run of escapes, a multi-byte character spans several.
+                int count = 0;
+                while (ii < uri.Length && uri[ii] == '%')
+                {
+                    int high = ii + 2 < uri.Length ? HexDigitValue(uri[ii + 1]) : -1;
+                    int low = high >= 0 ? HexDigitValue(uri[ii + 2]) : -1;
+                    if (low < 0)
+                    {
+                        result = null;
+                        return false;
+                    }
+                    octets[count++] = (byte)((high << 4) | low);
+                    ii += 3;
+                }
+
+                try
+                {
+                    buffer.Append(s_strictUtf8.GetString(octets, 0, count));
+                }
+                catch (DecoderFallbackException)
+                {
+                    result = null;
+                    return false;
+                }
+            }
+
+            result = buffer.ToString();
+            return true;
+
+            static int HexDigitValue(char ch)
+            {
+                return ch switch
+                {
+                    >= '0' and <= '9' => ch - '0',
+                    >= 'A' and <= 'F' => ch - 'A' + 10,
+                    >= 'a' and <= 'f' => ch - 'a' + 10,
+                    _ => -1
+                };
+            }
+        }
+
+        private static readonly UTF8Encoding s_strictUtf8 = new(false, true);
+
+        /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
