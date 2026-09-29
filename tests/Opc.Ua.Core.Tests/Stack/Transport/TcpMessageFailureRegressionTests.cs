@@ -131,6 +131,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 channel.Dispose();
             }
+            // The request chunks are released by the write completion, which runs on a pool thread after the
+            // transport send returned and so may still be pending after the response completed the request.
+            await channel.WriteCompleted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             Assert.That(pool.Outstanding, Is.Zero);
             Assert.That(pool.Duplicates, Is.Zero);
         }
@@ -329,6 +332,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public TcpChannelState CurrentState => State;
 
             /// <summary>
+            /// Gets a task that completes once a write has finished and released its buffers.
+            /// </summary>
+            public Task WriteCompleted => m_writeCompleted.Task;
+
+            /// <summary>
             /// Installs a token and fake transport and seeds the previously accepted sequence number.
             /// </summary>
             public void OpenForTest(IUaSCByteTransport transport)
@@ -353,6 +361,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 return OnChunkReceivedAsync(message, CancellationToken.None);
             }
+
+            /// <inheritdoc/>
+            protected override void HandleWriteComplete(
+                BufferCollection? buffers, object? state, int bytesWritten, ServiceResult result)
+            {
+                base.HandleWriteComplete(buffers, state, bytesWritten, result);
+                m_writeCompleted.TrySetResult(true);
+            }
+
+            private readonly TaskCompletionSource<bool> m_writeCompleted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>
