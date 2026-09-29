@@ -265,6 +265,7 @@ namespace Opc.Ua
             m_updateUnshelveTimer = null;
 
             UnshelveTime = DateTime.MinValue;
+            m_shelveTime = 0;
 
             if (!shelved)
             {
@@ -306,19 +307,38 @@ namespace Opc.Ua
                 }
 
                 shelvingState.UnshelveTime!.Value = shelveTime; // UnshelveTime is created with ShelvingState
-                UnshelveTime = m_timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds((int)shelveTime);
 
-                m_updateUnshelveTimer = m_timeProvider.CreateTimer(
-                    OnUnshelveTimeUpdate,
-                    context,
-                    TimeSpan.FromMilliseconds(UnshelveTimeUpdateRate),
-                    TimeSpan.FromMilliseconds(UnshelveTimeUpdateRate));
+                if (shelveTime >= double.MaxValue)
+                {
+                    // A one shot shelve without MaxTimeShelved lasts until the alarm
+                    // goes inactive or is unshelved (Part 9 5.8.17.1): no unshelve timer.
+                    UnshelveTime = DateTime.MaxValue;
+                }
+                else
+                {
+                    DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                    UnshelveTime = shelveTime < (DateTime.MaxValue - now).TotalMilliseconds
+                        ? now.AddMilliseconds(shelveTime)
+                        : DateTime.MaxValue;
 
-                m_unshelveTimer = m_timeProvider.CreateTimer(
-                    OnTimerExpired,
-                    context,
-                    TimeSpan.FromMilliseconds((int)shelveTime),
-                    Timeout.InfiniteTimeSpan);
+                    // the unshelve timer measures the shelve time on the monotonic clock,
+                    // so a step of the wall clock does not change when the alarm is unshelved.
+                    m_shelveTime = shelveTime;
+                    m_shelveStartTimestamp = m_timeProvider.GetTimestamp();
+
+                    m_updateUnshelveTimer = m_timeProvider.CreateTimer(
+                        OnUnshelveTimeUpdate,
+                        context,
+                        TimeSpan.FromMilliseconds(UnshelveTimeUpdateRate),
+                        TimeSpan.FromMilliseconds(UnshelveTimeUpdateRate));
+
+                    m_unshelveTimer = m_timeProvider.CreateTimer(
+                        OnTimerExpired,
+                        context,
+                        GetUnshelveTimerDueTime(shelveTime),
+                        Timeout.InfiniteTimeSpan);
+                }
+
                 shelvingState.CauseProcessingCompleted(context, state);
             }
 
@@ -495,7 +515,12 @@ namespace Opc.Ua
         {
             double delta = 0;
 
-            if (UnshelveTime != DateTime.MinValue)
+            if (UnshelveTime == DateTime.MaxValue)
+            {
+                // unbounded (one shot) shelve.
+                delta = double.MaxValue;
+            }
+            else if (UnshelveTime != DateTime.MinValue)
             {
                 delta = (UnshelveTime - m_timeProvider.GetUtcNow().UtcDateTime).TotalMilliseconds;
 
@@ -564,6 +589,12 @@ namespace Opc.Ua
                     ReportStateChange(context, false);
                 }
             }
+            catch (Exception ex)
+            {
+                // a failed shelve must not be audited as successful.
+                error = ServiceResult.Create(ex, StatusCodes.BadUnexpectedError, "Unexpected error shelving a Condition.");
+                throw;
+            }
             finally
             {
                 if (AreEventsMonitored)
@@ -629,7 +660,8 @@ namespace Opc.Ua
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
-                if (shelvingTime <= 0 ||
+                if (!(shelvingTime > 0) ||
+                    double.IsInfinity(shelvingTime) ||
                     (MaxTimeShelved is { } maxTimeShelved && shelvingTime > maxTimeShelved.Value))
                 {
                     return error = StatusCodes.BadShelvingTimeOutOfRange;
@@ -655,6 +687,12 @@ namespace Opc.Ua
                 {
                     ReportStateChange(context, false);
                 }
+            }
+            catch (Exception ex)
+            {
+                // a failed shelve must not be audited as successful.
+                error = ServiceResult.Create(ex, StatusCodes.BadUnexpectedError, "Unexpected error shelving a Condition.");
+                throw;
             }
             finally
             {
@@ -748,6 +786,12 @@ namespace Opc.Ua
                     ReportStateChange(context, false);
                 }
             }
+            catch (Exception ex)
+            {
+                // a failed unshelve must not be audited as successful.
+                error = ServiceResult.Create(ex, StatusCodes.BadUnexpectedError, "Unexpected error unshelving a Condition.");
+                throw;
+            }
             finally
             {
                 // raise the audit event.
@@ -788,6 +832,18 @@ namespace Opc.Ua
         {
             try
             {
+                // shelve times beyond the maximum timer due time are re-armed until reached.
+                if (m_shelveTime > 0)
+                {
+                    double remaining = m_shelveTime -
+                        m_timeProvider.GetElapsedTime(m_shelveStartTimestamp).TotalMilliseconds;
+                    if (remaining >= 1 && m_unshelveTimer is { } timer)
+                    {
+                        timer.Change(GetUnshelveTimerDueTime(remaining), Timeout.InfiniteTimeSpan);
+                        return;
+                    }
+                }
+
                 OnTimedUnshelve?.Invoke((ISystemContext)state!, this); // Timer state is the system context passed at construction
                 OnUnshelveTimeUpdate(state);
             }
@@ -795,6 +851,14 @@ namespace Opc.Ua
             {
                 m_logger.UnshelveError(e);
             }
+        }
+
+        /// <summary>
+        /// Returns a timer due time for the shelve time clamped to the range a timer supports.
+        /// </summary>
+        private static TimeSpan GetUnshelveTimerDueTime(double milliseconds)
+        {
+            return TimeSpan.FromMilliseconds(Math.Min(Math.Max(milliseconds, 0), kMaxTimerDueTime));
         }
 
         /// <summary>
@@ -821,9 +885,16 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// The maximum due time (in milliseconds) supported by a timer.
+        /// </summary>
+        private const double kMaxTimerDueTime = 4294967294.0;
+
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider = TimeProvider.System;
         private bool m_oneShot;
+        private double m_shelveTime;
+        private long m_shelveStartTimestamp;
         private ITimer? m_unshelveTimer;
         private ITimer? m_updateUnshelveTimer;
     }

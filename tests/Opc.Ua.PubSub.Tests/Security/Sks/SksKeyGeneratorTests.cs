@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(key.Lifetime, Is.EqualTo(TimeSpan.FromMinutes(2)));
             Assert.That(key.SigningKey.Length, Is.EqualTo(policy.SigningKeyLength));
             Assert.That(key.EncryptingKey.Length, Is.EqualTo(policy.EncryptingKeyLength));
-            Assert.That(key.KeyNonce.Length, Is.EqualTo(policy.NonceLength));
+            Assert.That(key.KeyNonce.Length, Is.EqualTo(AesCtrNonceLayout.GetKeyNonceLength(policy)));
         }
 
         [Test]
@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             var now = DateTimeUtc.From(DateTime.UtcNow);
             PubSubSecurityKey key = SksKeyGenerator.Generate(policy, 1U, now, TimeSpan.FromMinutes(1));
             byte[] packed = SksKeyGenerator.Pack(key);
-            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;
+            int total = policy.SigningKeyLength + policy.EncryptingKeyLength + AesCtrNonceLayout.GetKeyNonceLength(policy);
             Assert.That(packed, Has.Length.EqualTo(total));
 
             byte[] signing = key.SigningKey.Span.ToArray();

@@ -64,6 +64,13 @@ namespace Opc.Ua.SourceGeneration
         /// Previous versions
         /// </summary>
         internal List<NodesetFile> PreviousVersions { get; set; }
+
+        /// <summary>
+        /// The ModelVersion used to order editions of the model: the item
+        /// metadata Version when set, otherwise the ModelTableEntry
+        /// ModelVersion (OPC 10000-6 F.2). Null when neither declares one.
+        /// </summary>
+        internal string ModelVersion { get; init; }
     }
 
     /// <summary>
@@ -147,6 +154,14 @@ namespace Opc.Ua.SourceGeneration
             .Select(x => $"{x.FileName},{x.Info.Prefix},{x.Info.Name}");
 
         /// <summary>
+        /// The identifier CSV files claimed by a NodeSet through its
+        /// <c>IdentifierFile</c> metadata. They belong to that NodeSet and must
+        /// not be picked up as the identifier file of a ModelDesign input.
+        /// </summary>
+        public IEnumerable<string> IdentifierFilePaths => m_identifierFiles
+            .Select(entry => entry.IdentifierFile);
+
+        /// <summary>
         /// Identifier sidecar validation errors discovered while loading NodeSets.
         /// </summary>
         public IReadOnlyList<NodesetIdentifierValidationError> IdentifierValidationErrors
@@ -215,29 +230,48 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
-                    string name = GetNameFromUri(model.ModelUri); // Get a sane name and prefix
+                    // The model URI is the one the NodeSet declares. An item
+                    // ModelUri that differs cannot rename the model - the nodes
+                    // stay in the NodeSet's namespace, and the collection is
+                    // keyed and its dependencies resolved by the declared URI -
+                    // so honouring it made the model vanish without a word.
+                    if (!string.IsNullOrEmpty(options.ModelUri) &&
+                        !string.Equals(options.ModelUri, model.ModelUri, StringComparison.Ordinal))
+                    {
+                        m_logger.LogWarning(
+                            "NodeSet ({File}) declares model URI {DeclaredModelUri}, " +
+                            "which differs from the ModelUri item metadata {ModelUri}. " +
+                            "The declared model URI is used.",
+                            file,
+                            model.ModelUri,
+                            options.ModelUri);
+                    }
+
+                    // Get a sane name and prefix
+                    string name = GetDefaultNameFromUri(model.ModelUri);
+                    string prefix = GetDefaultPrefixFromUri(model.ModelUri);
                     var info = new NodesetFile
                     {
                         FileName = file,
                         NodeSet = nodeset,
+                        // OPC 10000-6 F.2 Table F.1: editions are ordered by the
+                        // SemVer ModelVersion; the Version attribute is "not
+                        // intended for programmatic comparisons".
+                        ModelVersion = FirstNonEmpty(options.Version, model.ModelVersion),
                         Info = new NodesetFileOptions // Set reasonable defaults if not provided
                         {
-                            ModelUri = !string.IsNullOrEmpty(options.ModelUri) ?
-                                options.ModelUri : model.ModelUri,
-                            // The NodeSet's own <Model Version="..."> before the
-                            // publication date: a file that declares a version
-                            // was being compared by date, so "1.05.9" and
-                            // "1.05.10" were ordered by when they were published
-                            // rather than by which version is newer.
+                            ModelUri = model.ModelUri,
+                            // A label only; ordering uses ModelVersion above.
                             Version = FirstNonEmpty(
                                 options.Version,
+                                model.ModelVersion,
                                 model.Version,
                                 model.PublicationDate.ToString(
                                     "yyyy-MM-dd", CultureInfo.InvariantCulture)),
                             Name = !string.IsNullOrEmpty(options.Name) ?
                                 options.Name : name,
                             Prefix = !string.IsNullOrEmpty(options.Prefix) ?
-                                options.Prefix : name,
+                                options.Prefix : prefix,
                             Ignore = options.Ignore,
                             IdentifierFile = options.IdentifierFile
                         }
@@ -341,15 +375,22 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            Dictionary<string, NodesetFile> dependencies = [];
+            // Seed the visited set with the root: a dependency that lists the
+            // root among its own NamespaceUris (mutual references) must not
+            // add the root a second time.
+            Dictionary<string, NodesetFile> dependencies = new(StringComparer.Ordinal)
+            {
+                [nodeset.Info.ModelUri] = nodeset
+            };
             if (!CollectDependencies(nodeset, dependencies, referencedModels))
             {
                 return null;
             }
 
-            List<string> files = [$"{nodeset.FileName},{nodeset.Info.Prefix},{nodeset.Info.Name}"];
+            NodesetFile root = nodeset;
+            List<string> files = [$"{root.FileName},{root.Info.Prefix},{root.Info.Name}"];
             foreach (NodesetFile dependency in dependencies.Values
-                .Where(x => x.Info.ModelUri != Namespaces.OpcUa))
+                .Where(x => !ReferenceEquals(x, root) && x.Info.ModelUri != Namespaces.OpcUa))
             {
                 files.Add($"{dependency.FileName},{dependency.Info.Prefix},{dependency.Info.Name}");
             }
@@ -427,21 +468,30 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Compares two NodeSets of the same model URI. Versions first (numeric
-        /// per component, because ordinally "1.05.9" sorts above "1.05.10"),
-        /// then the publication date - which also settles the case where one
-        /// side is versioned and the other only dated, and the version strings
-        /// are therefore not comparable at all.
+        /// Compares two NodeSets of the same model URI with
+        /// <see cref="SemVer.CompareModels"/>: the ModelVersion (item metadata
+        /// Version overrides the declared one) with SemVer precedence, then the
+        /// publication date, then the declared Version as a last heuristic. The
+        /// comparison must be a total order, because the newest of several
+        /// inputs is picked by pairwise replacement.
         /// </summary>
         private static int CompareVersions(NodesetFile left, NodesetFile right)
         {
-            int cmp = SemVer.CompareVersionStrings(left.Info.Version, right.Info.Version);
-            if (cmp != 0)
-            {
-                return cmp;
-            }
-            return DateTime.Compare(
-                GetPublicationDate(left), GetPublicationDate(right));
+            // OPC 10000-6 F.2 Table F.1: ModelVersion, then PublicationDate;
+            // the Version attribute only as a last heuristic.
+            return SemVer.CompareModels(
+                left.ModelVersion,
+                GetPublicationDate(left),
+                GetModel(left)?.Version,
+                right.ModelVersion,
+                GetPublicationDate(right),
+                GetModel(right)?.Version);
+        }
+
+        private static ModelTableEntry GetModel(NodesetFile nodeset)
+        {
+            ModelTableEntry[] models = nodeset.NodeSet?.Models;
+            return models != null && models.Length > 0 ? models[0] : null;
         }
 
         /// <summary>
@@ -493,12 +543,63 @@ namespace Opc.Ua.SourceGeneration
                 path = path[(colon + 1)..];
             }
 
-            // Remove invalid path characters
-            foreach (char c in Path.GetInvalidFileNameChars())
+            if (string.IsNullOrEmpty(path))
             {
-                path = path.Replace(c, '_');
+                // "http://example.com/" has no path to name the model after.
+                path = builder.IsAbsoluteUri ? builder.Host : string.Empty;
             }
-            return path;
+
+            // Control characters became '_' on Windows (invalid file name
+            // characters) and must keep doing so everywhere; every other
+            // character an identifier cannot hold is repaired by the callers.
+            return new string([.. path.Select(c => char.IsControl(c) ? '_' : c)]);
+        }
+
+        /// <summary>
+        /// The default <c>Namespaces</c> constant name for a model URI: a single
+        /// C# identifier. A name that already is one is returned unchanged;
+        /// anything else (a leading digit as in "2013/01/ISA95", a '.', or any
+        /// other character an identifier cannot hold) is repaired. The repair is
+        /// the same on every OS - it used to depend on the platform's invalid
+        /// file name characters.
+        /// </summary>
+        internal static string GetDefaultNameFromUri(string uri)
+        {
+            string name = GetNameFromUri(uri);
+            return string.IsNullOrEmpty(name) ? name : ToKeywordSafeIdentifier(name);
+        }
+
+        /// <summary>
+        /// A C# identifier that needs no '@' escape. The Name and Prefix are
+        /// also used in generated member names ("Add{Prefix}"), Roslyn hint
+        /// names and as XML namespace prefix, where the '@' that escapes a
+        /// keyword ("@class") is not allowed - a keyword gets a trailing '_'
+        /// ("class_") instead. Every other identifier is returned unchanged.
+        /// </summary>
+        private static string ToKeywordSafeIdentifier(string name)
+        {
+            string identifier = name.ToCSharpIdentifierPreserveCase();
+            return identifier.Length > 0 && identifier[0] == '@'
+                ? identifier[1..] + "_"
+                : identifier;
+        }
+
+        /// <summary>
+        /// The default C# namespace (prefix) for a model URI: dot separated C#
+        /// identifiers. Every segment that already is an identifier is kept
+        /// unchanged, so a prefix that compiled before is not renamed.
+        /// </summary>
+        internal static string GetDefaultPrefixFromUri(string uri)
+        {
+            string name = GetNameFromUri(uri);
+            if (string.IsNullOrEmpty(name))
+            {
+                return name;
+            }
+            return string.Join(
+                ".",
+                name.Split(['.'], StringSplitOptions.RemoveEmptyEntries)
+                    .Select(ToKeywordSafeIdentifier));
         }
 
         private readonly ILogger m_logger;

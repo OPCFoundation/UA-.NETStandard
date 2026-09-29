@@ -642,6 +642,44 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        [NonParallelizable]
+        public void EqualsWithSameLocalDateTimeShouldReturnTrue()
+        {
+            // the constructor converts local times to UTC, Equals must too. A local zone
+            // other than UTC is forced, otherwise raw and converted ticks are equal.
+            using LocalTimeZoneScope scope = LocalTimeZoneScope.Create();
+            var local = new DateTime(2023, 1, 1, 12, 0, 0, DateTimeKind.Local);
+            DateTimeUtc dateTimeUtc = local;
+
+            bool equalsDateTime = dateTimeUtc.Equals(local);
+            bool equalsObject = dateTimeUtc.Equals((object)local);
+
+            Assert.That(equalsDateTime, Is.True);
+            Assert.That(equalsObject, Is.True);
+        }
+
+        [Test]
+        public void MaxValueEqualsItsOwnLongAndDateTimeForms()
+        {
+            DateTimeUtc max = DateTimeUtc.MaxValue;
+
+            bool equalsOwnLong = max.Equals((long)max);
+            bool equalsLongMax = max.Equals(long.MaxValue);
+            bool equalsBoxedLongMax = max.Equals((object)long.MaxValue);
+            bool equalsDateTimeMax = max.Equals(
+                DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(equalsOwnLong, Is.True);
+                Assert.That(equalsLongMax, Is.True);
+                Assert.That(equalsBoxedLongMax, Is.True);
+                Assert.That(equalsDateTimeMax, Is.True);
+                Assert.That(max.CompareTo((long)max), Is.Zero);
+            });
+        }
+
+        [Test]
         public void EqualsWithDifferentDateTimeShouldReturnFalse()
         {
             // Arrange

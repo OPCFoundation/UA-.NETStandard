@@ -99,6 +99,139 @@ namespace Opc.Ua.Client.Tests.Identity
             Assert.That(status, Is.Not.Null);
         }
 
+        /// <summary>
+        /// L1-4: switching a UserName identity to an ECC user-token policy
+        /// cleared the ephemeral key before the activation that needed it,
+        /// so the token could never be encrypted. The key for the new policy
+        /// must be requested first (Part 6 6.8.2).
+        /// </summary>
+        [Test]
+        public async Task UpdateIdentityAsyncSwitchesToEccUserTokenPolicy()
+        {
+            Endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                .ConfigureAwait(false);
+            var userIdentity = new UserIdentity("user1", "password"u8);
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                userIdentity.TokenType,
+                userIdentity.IssuedTokenType,
+                endpoint.Description.SecurityPolicyUri);
+            string eccPolicyUri = null;
+            foreach (UserTokenPolicy policy in endpoint.Description.UserIdentityTokens)
+            {
+                if (policy.TokenType == UserTokenType.UserName &&
+                    policy.SecurityPolicyUri != null &&
+                    policy.SecurityPolicyUri.StartsWith(
+                        SecurityPolicies.ECC_nistP256,
+                        System.StringComparison.Ordinal))
+                {
+                    eccPolicyUri = policy.SecurityPolicyUri;
+                    break;
+                }
+            }
+            if (identityPolicy == null || eccPolicyUri == null)
+            {
+                Assert.Ignore("The test server endpoint does not advertise UserName tokens with an ECC policy.");
+            }
+
+            using ISession session = await ClientFixture
+                .ConnectAsync(endpoint, userIdentity)
+                .ConfigureAwait(false);
+            var rawSession = (Session)session;
+            SecretIdentifier passwordId = await CreatePasswordAsync("password1"u8.ToArray())
+                .ConfigureAwait(false);
+            var provider = new UserNamePasswordIdentityProvider(
+                "user2",
+                m_secretRegistry,
+                passwordId);
+
+            // The reference server only honours ECDHPolicyUri on CreateSession,
+            // so it may not hand out the key for the new policy; the switch must
+            // then fail cleanly (not with a null ephemeral key) and leave the
+            // current identity active.
+            string expectedUser = "user2";
+            try
+            {
+                await rawSession.UpdateIdentityAsync(provider, eccPolicyUri).ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecurityPolicyRejected)
+            {
+                expectedUser = "user1";
+            }
+
+            Assert.That(session.Identity.DisplayName, Is.EqualTo(expectedUser));
+            ServerStatusDataType status = await session
+                .ReadValueAsync<ServerStatusDataType>(VariableIds.Server_ServerStatus)
+                .ConfigureAwait(false);
+            Assert.That(status, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// G4 (review of L1-4): an ECC-to-ECC override fetches the ephemeral
+        /// key for the new policy by reactivating the current identity, which
+        /// replaces its key. When the new identity is then rejected, the
+        /// current identity must keep an ephemeral key: without one every
+        /// later reconnect fails before it reaches the server.
+        /// </summary>
+        [Test]
+        public async Task FailedEccToEccOverrideKeepsSessionReconnectable()
+        {
+            Endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.ECC_nistP256, Endpoints)
+                .ConfigureAwait(false);
+            var userIdentity = new UserIdentity("user1", "password"u8);
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                userIdentity.TokenType,
+                userIdentity.IssuedTokenType,
+                endpoint.Description.SecurityPolicyUri);
+            string currentPolicyUri = string.IsNullOrEmpty(identityPolicy?.SecurityPolicyUri)
+                ? endpoint.Description.SecurityPolicyUri
+                : identityPolicy.SecurityPolicyUri;
+            string eccPolicyUri = null;
+            foreach (UserTokenPolicy policy in endpoint.Description.UserIdentityTokens)
+            {
+                if (policy.TokenType == UserTokenType.UserName &&
+                    policy.SecurityPolicyUri != null &&
+                    CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                    policy.SecurityPolicyUri != currentPolicyUri)
+                {
+                    eccPolicyUri = policy.SecurityPolicyUri;
+                    break;
+                }
+            }
+            if (identityPolicy == null || eccPolicyUri == null)
+            {
+                Assert.Ignore("The test server endpoint does not advertise two ECC UserName token policies.");
+            }
+            TestContext.Out.WriteLine($"Token policy {currentPolicyUri}, override {eccPolicyUri}.");
+
+            using ISession session = await ClientFixture
+                .ConnectAsync(endpoint, userIdentity)
+                .ConfigureAwait(false);
+            var rawSession = (Session)session;
+            SecretIdentifier passwordId = await CreatePasswordAsync("wrong-password"u8.ToArray())
+                .ConfigureAwait(false);
+            var provider = new UserNamePasswordIdentityProvider(
+                "user2",
+                m_secretRegistry,
+                passwordId);
+
+            Assert.That(
+                async () => await rawSession.UpdateIdentityAsync(provider, eccPolicyUri).ConfigureAwait(false),
+                Throws.InstanceOf<ServiceResultException>());
+            Assert.That(session.Identity.DisplayName, Is.EqualTo("user1"));
+
+            await session.ReconnectAsync(null, null, default).ConfigureAwait(false);
+
+            ServerStatusDataType status = await session
+                .ReadValueAsync<ServerStatusDataType>(VariableIds.Server_ServerStatus)
+                .ConfigureAwait(false);
+            Assert.That(status, Is.Not.Null);
+            Assert.That(session.Identity.DisplayName, Is.EqualTo("user1"));
+        }
+
         private async Task<SecretIdentifier> CreatePasswordAsync(byte[] password)
         {
             var id = new SecretIdentifier(

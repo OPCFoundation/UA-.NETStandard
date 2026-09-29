@@ -558,6 +558,65 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Verifies that the in-flight BrowseName reservation beneath a remote parent only
+        /// blocks adds with the same relationship (Part 4 5.8.2.4): a concurrent add of the
+        /// same BrowseName with another ReferenceType succeeds, one with the same type fails.
+        /// </summary>
+        [Test]
+        public async Task AddNodeAsync_ConcurrentSameBrowseNameDifferentReferenceTypeUnderRemoteParentSucceedsAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            h.MockMasterNodeManager
+                .Setup(m => m.AddReferencesAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<IList<IReference>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref calls) == 1)
+                    {
+                        entered.TrySetResult(true);
+                        return new ValueTask(release.Task);
+                    }
+                    return default;
+                });
+
+            AddNodesItem CreateItem(NodeId referenceTypeId)
+            {
+                return new AddNodesItem
+                {
+                    ParentNodeId = ObjectIds.ObjectsFolder,
+                    ReferenceTypeId = referenceTypeId,
+                    BrowseName = new QualifiedName("SameName", ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = ObjectTypeIds.BaseObjectType
+                };
+            }
+
+            Task<(ServiceResult, NodeId)> inFlight = h.Manager
+                .AddNodeAsync(h.OperationContext, CreateItem(ReferenceTypeIds.Organizes)).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            (ServiceResult sameType, _) = await h.Manager
+                .AddNodeAsync(h.OperationContext, CreateItem(ReferenceTypeIds.Organizes)).ConfigureAwait(false);
+            (ServiceResult otherType, NodeId otherId) = await h.Manager
+                .AddNodeAsync(h.OperationContext, CreateItem(ReferenceTypeIds.HasComponent)).ConfigureAwait(false);
+
+            release.TrySetResult(true);
+            (ServiceResult first, NodeId firstId) = await inFlight.ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(first), Is.True, first.ToString());
+            Assert.That(sameType.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(ServiceResult.IsGood(otherType), Is.True, otherType.ToString());
+            Assert.That(otherId, Is.Not.EqualTo(firstId));
+        }
+
+        /// <summary>
         /// Verifies indexed browse-name reuse after renaming cannot overwrite the existing node's identifier.
         /// </summary>
         [Test]

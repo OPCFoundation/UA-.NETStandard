@@ -709,18 +709,20 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                string[] ids = [.. localeIds];
+                // A null LocaleId is legal on the wire (Part 3 8.4, "unknown") but
+                // carries no preference, and translation helpers do not expect it.
+                string[] ids = Array.FindAll<string>([.. localeIds], id => id != null);
+
+                // The diagnostics report the LocaleIds as specified by the client,
+                // null entries included (Part 5 12.11); only the preference list is filtered.
+                lock (m_diagnosticsLock)
+                {
+                    SessionDiagnostics.LocaleIds = [.. localeIds];
+                }
 
                 if (!Utils.IsEqual(ids, PreferredLocales))
                 {
                     PreferredLocales = ids;
-
-                    // update diagnostics.
-                    lock (m_diagnosticsLock)
-                    {
-                        SessionDiagnostics.LocaleIds = [.. localeIds];
-                    }
-
                     return true;
                 }
 
@@ -1166,7 +1168,12 @@ namespace Opc.Ua.Server
                         userTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates,
-                        ct: cancellationToken).ConfigureAwait(false);
+                        // a signing certificate the client embeds in an
+                        // EncryptedSecret is validated before it is used
+                        // (OPC 10000-6 6.8.3); without a validator it must be
+                        // the client certificate.
+                        (m_server as ICertificateValidatorProvider)?.CertificateValidator,
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                     when (e is not OperationCanceledException)
@@ -1197,7 +1204,8 @@ namespace Opc.Ua.Server
                         channelContext.ServerChannelCertificate,
                         ClientCertificate?.RawData,
                         channelContext.ClientChannelCertificate,
-                        clientNonceData);
+                        clientNonceData,
+                        EndpointDescription.SecurityMode);
 
                     if (!await token.VerifyAsync(
                             dataToSign,
@@ -1228,7 +1236,8 @@ namespace Opc.Ua.Server
                                 channelContext.ServerChannelCertificate,
                                 ClientCertificate?.RawData,
                                 channelContext.ClientChannelCertificate,
-                                clientNonceData);
+                                clientNonceData,
+                                EndpointDescription.SecurityMode);
 
                             if (!await token.VerifyAsync(
                                     dataToSign,

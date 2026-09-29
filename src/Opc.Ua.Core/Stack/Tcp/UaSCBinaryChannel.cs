@@ -448,13 +448,19 @@ namespace Opc.Ua.Bindings
             {
                 // First number after wrap around and as initial value shall be 0
                 Interlocked.Exchange(ref m_sequenceNumber, 0);
-                Interlocked.Exchange(ref m_localSequenceNumber, 0);
-                return retVal;
             }
+            // Track the number actually sent so the next AEAD nonce uses it as LastSequenceNumber,
+            // including across the wrap (OPC 10000-6 6.8.1).
             Interlocked.Exchange(ref m_localSequenceNumber, retVal);
 
             return retVal;
         }
+
+        /// <summary>
+        /// The sequence number of the chunk sent before the one being secured, used as the
+        /// LastSequenceNumber input of the AEAD nonce (OPC 10000-6 6.8.1).
+        /// </summary>
+        internal uint LastSentSequenceNumber => (uint)(Interlocked.Read(ref m_localSequenceNumber) - 1);
 
         /// <summary>
         /// Resets the sequence number after a connect.
@@ -564,89 +570,120 @@ namespace Opc.Ua.Bindings
             bool gateHeld,
             bool isFinal)
         {
-            bool firstChunk;
-            bool chunkOrSizeLimitsExceeded;
+            bool firstChunk = false;
+            bool chunkOrSizeLimitsExceeded = false;
             bool budgetExceeded = false;
             bool hasSession = true;
-            if (!isFinal && requestId != 0 && chunk.Array != null && m_chunkReassemblyBudget != null)
+            IServerResourceIsolationProvider? isolation = isServerContext ? Quotas.ResourceIsolationProvider : null;
+            ResourceIsolationOwner? owner = null;
+            IDisposable? incomingLease = null;
+            List<IDisposable>? releasedLeases = null;
+            bool chunkOwned = true;
+            try
             {
-                try
+                lock (m_partialMessageLock)
                 {
-                    hasSession = ServesActivatedSession;
-                }
-                catch
-                {
-                    ReturnBuffer(chunk, "SaveIntermediateChunk");
-                    throw;
-                }
-            }
-
-            lock (m_partialMessageLock)
-            {
-                // Disposal has already released the partial message and nothing
-                // will release it again, so a chunk arriving after that goes
-                // straight back to the pool rather than into a new collection.
-                if (m_partialMessageClosed)
-                {
-                    ReturnBuffer(chunk, "SaveIntermediateChunk");
-                    return false;
-                }
-
-                if (m_partialRequestId != requestId && m_partialMessageChunks != null)
-                {
-                    if (m_partialMessageChunks.Count > 0)
+                    if (m_partialMessageClosed)
+                    {
+                        return false;
+                    }
+                    if (m_partialRequestId != requestId && m_partialMessageChunks != null)
                     {
                         m_logger.UaSCChannelLog4(m_partialRequestId);
+                        m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                        m_partialMessageChunks = null;
+                        ReleasePartialMessageReservation();
+                        releasedLeases = DetachIsolationLeases();
                     }
-
-                    m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
-                    m_partialMessageChunks = null;
-                    ReleasePartialMessageReservation();
+                    owner = m_partialMessageOwner;
                 }
+                DisposeIsolationLeases(releasedLeases);
+                releasedLeases = null;
 
-                firstChunk = m_partialMessageChunks == null;
-                int savedSize = m_partialMessageChunks?.TotalSize ?? 0;
-                int savedCount = m_partialMessageChunks?.Count ?? 0;
-                int incomingCount = chunk.Array != null ? 1 : 0;
-                chunkOrSizeLimitsExceeded =
-                    chunk.Count > int.MaxValue - savedSize ||
-                    incomingCount > int.MaxValue - savedCount ||
-                    MessageLimitsExceeded(
-                        isServerContext,
-                        savedSize + chunk.Count,
-                        savedCount + incomingCount);
-
-                if (chunkOrSizeLimitsExceeded)
+                if (!isFinal && requestId != 0 && chunk.Array != null)
                 {
-                    m_partialMessageChunks?.Release(BufferManager, "SaveIntermediateChunk");
-                    m_partialMessageChunks = null;
-                    ReleasePartialMessageReservation();
-                }
-
-                if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
-                {
-                    if (isFinal || TryReservePartialMessageChunk(chunk.Array.Length, hasSession))
+                    hasSession = ServesActivatedSession;
+                    if (isolation != null)
                     {
-                        if (m_partialMessageChunks == null)
+                        if (owner == null)
                         {
-                            m_partialMessageChunks = [];
-                            m_partialMessageStartedAt = TimeProvider.GetTimestamp();
+                            var context = new SecureChannelContext(
+                                GlobalChannelId, EndpointDescription, RequestEncoding.Binary,
+                                ClientCertificate?.RawData, ServerCertificate?.RawData, ChannelThumbprint,
+                                (Transport?.RemoteEndpoint as System.Net.IPEndPoint)?.Address);
+                            owner = isolation is IResourceIsolationReassemblyProvider reassembly
+                                ? reassembly.ClassifyReassembly(context) : isolation.Classify(context);
                         }
-                        m_partialRequestId = requestId;
-                        m_partialMessageChunks.Add(chunk);
+                        budgetExceeded = !isolation.TryAcquire(
+                            ResourceIsolationStage.ReassemblyBytes, owner, chunk.Array.Length,
+                            out incomingLease, out _);
                     }
-                    else
+                }
+
+                lock (m_partialMessageLock)
+                {
+                    if (m_partialMessageClosed)
+                    {
+                        return false;
+                    }
+                    firstChunk = m_partialMessageChunks == null;
+                    int savedSize = m_partialMessageChunks?.TotalSize ?? 0;
+                    int savedCount = m_partialMessageChunks?.Count ?? 0;
+                    int incomingCount = chunk.Array != null ? 1 : 0;
+                    chunkOrSizeLimitsExceeded =
+                        chunk.Count > int.MaxValue - savedSize ||
+                        incomingCount > int.MaxValue - savedCount ||
+                        MessageLimitsExceeded(
+                            isServerContext, savedSize + chunk.Count, savedCount + incomingCount);
+
+                    if (!chunkOrSizeLimitsExceeded && !budgetExceeded && requestId != 0 && chunk.Array != null)
+                    {
+                        if (isFinal || TryReservePartialMessageChunk(
+                            chunk.Array.Length,
+                            isolation is IResourceIsolationReassemblyProvider || hasSession))
+                        {
+                            if (m_partialMessageChunks == null)
+                            {
+                                m_partialMessageChunks = [];
+                                m_partialMessageStartedAt = TimeProvider.GetTimestamp();
+                                m_partialMessageOwner = owner;
+                            }
+                            m_partialRequestId = requestId;
+                            m_partialMessageChunks.Add(chunk);
+                            chunkOwned = false;
+                            if (incomingLease != null)
+                            {
+                                (m_partialIsolationLeases ??= []).Add(incomingLease);
+                                incomingLease = null;
+                            }
+                        }
+                        else
+                        {
+                            budgetExceeded = true;
+                        }
+                    }
+                    if (chunkOrSizeLimitsExceeded || budgetExceeded)
                     {
                         m_partialMessageChunks?.Release(BufferManager, "SaveIntermediateChunk");
                         m_partialMessageChunks = null;
                         ReleasePartialMessageReservation();
-                        ReturnBuffer(chunk, "SaveIntermediateChunk");
-                        budgetExceeded = true;
+                        releasedLeases = DetachIsolationLeases();
                     }
                 }
-                else
+            }
+            finally
+            {
+                try
                 {
-                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                    if (chunkOwned)
+                    {
+                        ReturnBuffer(chunk, "SaveIntermediateChunk");
+                    }
+                }
+                finally
+                {
+                    incomingLease?.Dispose();
+                    DisposeIsolationLeases(releasedLeases);
                 }
             }
 
@@ -660,7 +697,8 @@ namespace Opc.Ua.Bindings
             {
                 m_logger.UaSCChannelChunkReassemblyBudgetExceeded(
                     ChannelId,
-                    hasSession ? m_chunkReassemblyBudget!.MaxBytes : m_chunkReassemblyBudget!.MaxBytesWithoutSession,
+                    hasSession ? m_chunkReassemblyBudget?.MaxBytes ?? 0 :
+                        m_chunkReassemblyBudget?.MaxBytesWithoutSession ?? 0,
                     hasSession);
                 try
                 {
@@ -751,12 +789,24 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected BufferCollection TakeSavedChunks()
         {
+            BufferCollection savedChunks;
+            List<IDisposable>? leases;
             lock (m_partialMessageLock)
             {
-                BufferCollection savedChunks = m_partialMessageChunks ?? [];
+                savedChunks = m_partialMessageChunks ?? [];
                 m_partialMessageChunks = null;
                 ReleasePartialMessageReservation();
+                leases = DetachIsolationLeases();
+            }
+            try
+            {
+                DisposeIsolationLeases(leases);
                 return savedChunks;
+            }
+            catch
+            {
+                savedChunks.Release(BufferManager, nameof(TakeSavedChunks));
+                throw;
             }
         }
 
@@ -766,14 +816,23 @@ namespace Opc.Ua.Bindings
         private protected void ClosePartialMessage()
         {
             BufferCollection? chunks;
+            List<IDisposable>? leases;
             lock (m_partialMessageLock)
             {
                 m_partialMessageClosed = true;
                 chunks = m_partialMessageChunks;
                 m_partialMessageChunks = null;
                 ReleasePartialMessageReservation();
+                leases = DetachIsolationLeases();
             }
-            chunks?.Release(BufferManager, nameof(ClosePartialMessage));
+            try
+            {
+                chunks?.Release(BufferManager, nameof(ClosePartialMessage));
+            }
+            finally
+            {
+                DisposeIsolationLeases(leases);
+            }
         }
 
         /// <summary>
@@ -836,8 +895,45 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        private List<IDisposable>? DetachIsolationLeases()
+        {
+            List<IDisposable>? leases = m_partialIsolationLeases;
+            m_partialIsolationLeases = null;
+            m_partialMessageOwner = null;
+            return leases;
+        }
+
+        private static void DisposeIsolationLeases(List<IDisposable>? leases)
+        {
+            if (leases == null)
+            {
+                return;
+            }
+            List<Exception>? failures = null;
+            foreach (IDisposable lease in leases)
+            {
+                try
+                {
+                    lease.Dispose();
+                }
+                catch (Exception exception)
+                {
+                    (failures ??= []).Add(exception);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("Reassembly resource release failed.", failures);
+            }
+        }
+
         /// <inheritdoc/>
         public virtual bool ChannelFull => m_activeWriteRequests > 100;
+
+        /// <summary>
+        /// Indicates that admission cleanup must preserve the channel until outstanding writes finish.
+        /// </summary>
+        internal bool HasPendingWrites => Volatile.Read(ref m_activeWriteRequests) != 0;
 
         /// <summary>
         /// Dispatches a complete UASC <c>MessageChunk</c> pulled from the
@@ -1664,6 +1760,10 @@ namespace Opc.Ua.Bindings
                 {
                     m_logger.UaSCChannelLog6(ChannelId, value);
                 }
+                if (value == TcpChannelState.Open && Transport is IUaSCHandshakeCompletionSource completion)
+                {
+                    completion.CompleteHandshake();
+                }
             }
         }
 
@@ -1798,6 +1898,8 @@ namespace Opc.Ua.Bindings
         private long m_partialMessageStartedAt;
         private long m_partialMessageReservedBytes;
         private readonly ChunkReassemblyBudget? m_chunkReassemblyBudget;
+        private ResourceIsolationOwner? m_partialMessageOwner;
+        private List<IDisposable>? m_partialIsolationLeases;
 
         /// <summary>
         /// Guards <see cref="m_partialMessageChunks"/>,

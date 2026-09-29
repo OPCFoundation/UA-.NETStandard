@@ -543,6 +543,23 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Sets the timeouts the default server redundancy handler uses for the
+        /// redundancy metadata read and peer endpoint lookup. Raise them on a
+        /// high-latency link. Takes effect when server redundancy is enabled and
+        /// no custom handler is supplied.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithServerRedundancyOptions(ServerRedundancyOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            m_options = m_options with { ServerRedundancy = options };
+            return this;
+        }
+
+        /// <summary>
         /// Use a specific subscription engine factory. Defaults to the V2
         /// engine when not specified.
         /// </summary>

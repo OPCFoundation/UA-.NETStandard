@@ -231,6 +231,8 @@ namespace Opc.Ua.Client.StateMachines
         /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"><c>CurrentState/Id</c> cannot be
+        /// resolved, or the observation ended before the target state was reached.</exception>
         /// <exception cref="OperationCanceledException"></exception>
         public static async ValueTask<FiniteStateSnapshot> WaitForStateAsync(
             this FiniteStateMachineTypeClient client,
@@ -261,6 +263,16 @@ namespace Opc.Ua.Client.StateMachines
                 return current;
             }
 
+            // Without CurrentState/Id there is nothing to observe; report it rather
+            // than ending the wait as a spurious cancellation.
+            NodeId currentStateIdNodeId = await client
+                .ResolveChildNodeIdAsync(BrowseNames.CurrentState, BrowseNames.Id, ct)
+                .ConfigureAwait(false);
+            if (currentStateIdNodeId.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotFound);
+            }
+
             TimeProvider tp = timeProvider ?? TimeProvider.System;
             using CancellationTokenSource? timeoutCts = timeout.HasValue
                 ? tp.CreateCancellationTokenSource(timeout.Value)
@@ -280,8 +292,14 @@ namespace Opc.Ua.Client.StateMachines
                 }
             }
 
-            throw new OperationCanceledException(
-                "Target state not reached before cancellation or timeout.", ct);
+            if (effective.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(
+                    "Target state not reached before cancellation or timeout.", ct);
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadInvalidState,
+                "The state observation ended before the target state was reached.");
         }
 
         /// <summary>
@@ -652,8 +670,63 @@ namespace Opc.Ua.Client.StateMachines
             ReferenceDescription r = response.Results[0].References[0];
             var childId = ExpandedNodeId.ToNodeId(
                 r.NodeId, parent.Session.MessageContext.NamespaceUris);
+
+            // Part 16 §4.4.16: the state and its sub-state machine are instance
+            // declarations of the StateMachineType, so the reference target is the
+            // type's declaration. Resolve the same-named component of this instance.
+            NodeId instanceChildId = await ResolveInstanceComponentAsync(
+                parent, r.BrowseName, ct).ConfigureAwait(false);
+            if (!instanceChildId.IsNull)
+            {
+                childId = instanceChildId;
+            }
             return new FiniteStateMachineTypeClient(
                 parent.Session, childId, telemetry);
+        }
+
+        private static async ValueTask<NodeId> ResolveInstanceComponentAsync(
+            FiniteStateMachineTypeClient parent,
+            QualifiedName browseName,
+            CancellationToken ct)
+        {
+            if (browseName.IsNull || string.IsNullOrEmpty(browseName.Name))
+            {
+                return NodeId.Null;
+            }
+
+            ArrayOf<BrowsePath> requests =
+            [
+                new BrowsePath
+                {
+                    StartingNode = parent.ObjectId,
+                    RelativePath = new RelativePath
+                    {
+                        Elements =
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                                IsInverse = false,
+                                IncludeSubtypes = true,
+                                TargetName = browseName
+                            }
+                        ]
+                    }
+                }
+            ];
+            TranslateBrowsePathsToNodeIdsResponse response =
+                await parent.Session.TranslateBrowsePathsToNodeIdsAsync(
+                    null, requests, ct).ConfigureAwait(false);
+            if (response == null ||
+                response.Results.Count == 0 ||
+                StatusCode.IsBad(response.Results[0].StatusCode) ||
+                response.Results[0].Targets.Count == 0)
+            {
+                return NodeId.Null;
+            }
+            return ExpandedNodeId.ToNodeId(
+                response.Results[0].Targets[0].TargetId,
+                parent.Session.MessageContext.NamespaceUris);
         }
 
         /// <summary>

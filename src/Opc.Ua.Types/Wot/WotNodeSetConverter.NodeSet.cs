@@ -160,6 +160,13 @@ namespace Opc.Ua.Wot
                 diagnostics);
             json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
 
+            // Checked before the readable document is parsed back below, which
+            // would throw for it; every later form only adds to it.
+            if (IsTooLarge(json, options, diagnostics))
+            {
+                return new WotConversionResult<WotDocument>(null, diagnostics);
+            }
+
             if (!IsReadableMappingComplete(json, nodeSet, options))
             {
                 var nativeDiagnostics = new List<WotDiagnostic>();
@@ -246,19 +253,31 @@ namespace Opc.Ua.Wot
                 json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
             }
 
-            if (json.Length > options.MaxJsonDocumentSize)
+            if (IsTooLarge(json, options, diagnostics))
             {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.JsonDocumentTooLarge,
-                    "Generated WoT document exceeds the configured " +
-                    $"{options.MaxJsonDocumentSize} byte limit."));
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
 #pragma warning disable CA2000 // Ownership of the returned WotDocument transfers to the caller through the result.
             WotDocument document = WotDocument.FromOwnedBytes(json, options);
 #pragma warning restore CA2000
             return new WotConversionResult<WotDocument>(document, diagnostics);
+        }
+
+        private static bool IsTooLarge(
+            byte[] json,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (json.Length <= options.MaxJsonDocumentSize)
+            {
+                return false;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.JsonDocumentTooLarge,
+                "Generated WoT document exceeds the configured " +
+                $"{options.MaxJsonDocumentSize} byte limit."));
+            return true;
         }
 
         private static byte[] WriteReadableDocument(

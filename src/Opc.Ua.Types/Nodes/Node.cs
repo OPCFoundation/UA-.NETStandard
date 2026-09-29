@@ -313,6 +313,20 @@ namespace Opc.Ua
             clone.AccessRestrictions = CoreUtils.Clone(AccessRestrictions);
             clone.References = CoreUtils.Clone(References);
 
+            // the indexed reference table is mutable, so the clone needs its own copy.
+            clone.m_referenceTable = null;
+
+            if (m_referenceTable != null)
+            {
+                foreach (IReference reference in m_referenceTable)
+                {
+                    clone.ReferenceTable.Add(
+                        reference.ReferenceTypeId,
+                        reference.IsInverse,
+                        reference.TargetId);
+                }
+            }
+
             return clone;
         }
 

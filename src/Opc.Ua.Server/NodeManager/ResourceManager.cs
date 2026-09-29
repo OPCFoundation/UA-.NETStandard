@@ -309,6 +309,9 @@ namespace Opc.Ua.Server
             LocalizedText defaultText,
             TranslationInfo info)
         {
+            // a null LocaleId is legal wire input (Part 3 8.4) and means unknown.
+            preferredLocales = RemoveUnknownLocales(preferredLocales);
+
             // check for trivial case.
             if (string.IsNullOrEmpty(info.Text) && string.IsNullOrEmpty(info.Key))
             {
@@ -318,7 +321,7 @@ namespace Opc.Ua.Server
             defaultText = defaultText.WithTranslationInfo(info);
             bool isMultilanguageRequested =
                 preferredLocales.Count > 0 &&
-                preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
+                preferredLocales[0]?.ToLowerInvariant() is "mul" or "qst";
 
             // check for exact match.
             if (preferredLocales.Count > 0)
@@ -458,6 +461,31 @@ namespace Opc.Ua.Server
 
                 return table;
             }
+        }
+
+        /// <summary>
+        /// Removes the null (unknown) entries from the requested locales.
+        /// </summary>
+        private static ArrayOf<string> RemoveUnknownLocales(ArrayOf<string> preferredLocales)
+        {
+            for (int ii = 0; ii < preferredLocales.Count; ii++)
+            {
+                if (preferredLocales[ii] != null)
+                {
+                    continue;
+                }
+
+                var locales = new List<string>(preferredLocales.Count);
+                for (int jj = 0; jj < preferredLocales.Count; jj++)
+                {
+                    if (preferredLocales[jj] != null)
+                    {
+                        locales.Add(preferredLocales[jj]);
+                    }
+                }
+                return locales.ToArrayOf();
+            }
+            return preferredLocales;
         }
 
         /// <summary>

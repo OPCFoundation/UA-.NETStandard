@@ -276,7 +276,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 tokenId: 1U,
                 policy.SigningKeyLength,
                 policy.EncryptingKeyLength,
-                policy.NonceLength);
+                AesCtrNonceLayout.KeyNonceLength);
             var ring = new PubSubSecurityKeyRing("group");
             ring.SetCurrent(key);
             return new UadpSecurityWrapper(

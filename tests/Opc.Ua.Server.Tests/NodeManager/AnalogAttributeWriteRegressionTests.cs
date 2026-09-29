@@ -120,6 +120,71 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// A null value has no elements to check against the InstrumentRange, so it must
+        /// not be treated as a scalar 0.0 and rejected with BadOutOfRange.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AnalogArrayNullValueWriteSkipsInstrumentRange(bool synchronous)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var syncManager = new SynchronousManager(server.Object))
+            using (var asyncManager = new AsynchronousManager(server.Object))
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None))
+            {
+                ushort ns = synchronous ? syncManager.NamespaceIndex : asyncManager.NamespaceIndexes[0];
+                var node = new AnalogItemState(null)
+                {
+                    NodeId = new NodeId("AnalogArray", ns),
+                    BrowseName = new QualifiedName("AnalogArray", ns),
+                    DataType = DataTypeIds.Double,
+                    ValueRank = ValueRanks.OneDimension,
+                    Value = ArrayOf.Wrapped(20.0, 30.0),
+                    AccessLevel = AccessLevels.CurrentReadOrWrite,
+                    UserAccessLevel = AccessLevels.CurrentReadOrWrite
+                };
+                node.InstrumentRange = new PropertyState<Range>.Implementation<StructureBuilder<Range>>(node)
+                {
+                    NodeId = new NodeId("ArrayRange", ns),
+                    BrowseName = new QualifiedName(BrowseNames.InstrumentRange),
+                    Value = new Range { Low = 10, High = 100 }
+                };
+                if (synchronous)
+                {
+                    syncManager.Register(node);
+                }
+                else
+                {
+                    await asyncManager.RegisterAsync(node).ConfigureAwait(false);
+                }
+                ArrayOf<WriteValue> writes =
+                [
+                    new WriteValue
+                    {
+                        NodeId = node.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(Variant.Null)
+                    }
+                ];
+                var errors = new ServiceResult[1];
+
+                if (synchronous)
+                {
+                    syncManager.Write(context, writes, errors);
+                }
+                else
+                {
+                    await asyncManager.WriteAsync(context, writes, errors).ConfigureAwait(false);
+                }
+
+                Assert.That(errors[0]?.StatusCode ?? StatusCodes.Good, Is.EqualTo(StatusCodes.Good));
+                Assert.That(node.Value.IsNull, Is.True);
+            }
+        }
+
         private sealed class SynchronousManager : CustomNodeManager2
         {
             public SynchronousManager(IServerInternal server)

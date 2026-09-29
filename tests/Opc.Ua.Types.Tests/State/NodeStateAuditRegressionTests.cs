@@ -313,6 +313,41 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void WriteChildAttributeReachesTypedFieldChildren()
+        {
+            // Generated types keep declared children in fields exposed through FindChild,
+            // not in m_children; WriteChildAttribute must reach them like ReadChildAttribute.
+            SystemContext context = CreateContext();
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId(2410u),
+                BrowseName = QualifiedName.From("Variable")
+            };
+            variable.EnumStrings = PropertyState<ArrayOf<LocalizedText>>.With<VariantBuilder>(
+                variable, new[] { LocalizedText.From("A") }.ToArrayOf());
+            variable.EnumStrings.NodeId = new NodeId(2411u);
+            variable.EnumStrings.BrowseName = QualifiedName.From("EnumStrings");
+            variable.EnumStrings.DataType = DataTypeIds.LocalizedText;
+            variable.EnumStrings.ValueRank = ValueRanks.OneDimension;
+            variable.EnumStrings.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.EnumStrings.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+            ServiceResult result = variable.WriteChildAttribute(
+                context,
+                new[] { QualifiedName.From("EnumStrings") }.ToArrayOf(),
+                0,
+                Attributes.Value,
+                new DataValue(Variant.From(
+                    new[] { LocalizedText.From("B"), LocalizedText.From("C") }.ToArrayOf())));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+                Assert.That(variable.EnumStrings.Value.Count, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
         public void ReplacedChildIsAdopted()
         {
             // The in-place replacement left Parent pointing at the previous

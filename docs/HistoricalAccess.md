@@ -1,17 +1,23 @@
 # Historical Access (OPC UA Part 11)
 
-## Overview
+## Contents
 
-The .NET Standard stack implements OPC UA Part 11 Historical Access end-to-end via a clean **provider model** that lets you back historizing variables with any time-series storage engine. A reference-quality **in-memory engine** ships in `Opc.Ua.Server` so getting started requires no extra packages.
-
-This document is split into:
-
+- [Overview](#overview)
 - **[Architecture](#architecture)** and **[Scope](#scope)** — what's implemented and how it fits together.
 - **[Server developer guide](#server-developer-guide)** — quick start, fluent builder, the registry, per-NodeManager wiring, annotations, configuration node.
-- **[Provider author guide](#provider-author-guide)** — interface-by-interface contract for writing a custom historian, including resume tokens, pagination, status codes, error semantics, thread-safety.
+- **[Provider author guide](#provider-author-guide)** — interface-by-interface contract for a custom historian, including resume tokens, pagination, status codes, error semantics, and thread safety.
 - **[Client developer guide](#client-developer-guide)** — `HistoryClient` usage patterns.
+- [Automatic value capture](#automatic-value-capture)
 - **[Capability discovery](#capability-discovery)** and **[Auditing](#auditing)**.
-- **[Limitations and roadmap](#limitations-and-roadmap)**.
+- [Part 11 profile conformance catalog](#part-11-profile-conformance-catalog)
+- [Limitations and roadmap](#limitations-and-roadmap)
+
+## Overview
+
+The .NET Standard stack implements OPC UA Part 11 Historical Access through
+a **provider model**. Use it to back historizing variables with any
+time-series storage engine. `Opc.Ua.Server` also includes an
+**in-memory engine**, so you can get started without extra packages.
 
 ## Architecture
 
@@ -182,9 +188,14 @@ await historian.HistorizeAsync(
 
 historian.Historize(
     pressure,
+    historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
     systemContext: SystemContext,
     capabilities: HistorianNodeCapabilities.ReadWrite);
 ```
+
+`historyAccessLevel` defaults to `AccessLevels.HistoryRead`: a historized
+variable is read-only for HistoryUpdate unless `HistoryWrite` is requested
+explicitly.
 
 `HistorianBuilder` ships three explicit registration scopes — pick the one that matches the scope of your storage backend:
 
@@ -237,6 +248,12 @@ Per-call overrides on `Historize(...)`:
 builder.Variable<int>("AuditLog")
        .OnRead(GetAuditValue)
        .Historize(provider: mySqliteProvider);
+
+// History is read-only by default (historyAccessLevel = HistoryRead).
+// HistoryUpdate needs an explicit opt-in; restrict it with RolePermissions.
+builder.Variable<double>("CorrectableSetpoint")
+       .Historize(
+           historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
 // Per-call capabilities — the same HistorianNodeCapabilities POCO the
 // HistorianBuilder uses; propagated to the provider's GetCapabilitiesAsync.
@@ -419,28 +436,38 @@ Without a resolved historian, the existing aggregate revision behavior is
 preserved: the processing interval is at least the monitored-item sampling
 interval and the start time is clamped directly to the retained queue window.
 
-When the revised aggregate `StartTime` is in the past and the provider
-implements `IHistorianDataProvider`, the async node-manager path pages raw
-history from `StartTime` to one captured server time and queues it
-oldest-to-newest before live delivery begins. Live values arriving while the
-provider is being read are buffered and delivered after the historical window;
-the current value is never queued ahead of that history. Future start times,
-non-Value attributes, and nodes without a raw historian retain the normal
-current-value initialization. Provider read failures queue an error
-notification and leave the monitored item active for later live values rather
-than silently falling back. A live-value buffer overflow fails creation because
-the history-to-live ordering can no longer be guaranteed. Required priming-error
-notifications remain protected while the live queue size is greater than one.
-A queue size of one retains only the newest notification, including after a
-resize: later samples may replace an error before publication, as specified in
+When a revised aggregate `StartTime` is in the past and the provider implements
+`IHistorianDataProvider`, the async node-manager path:
+
+- Reads raw history from `StartTime` to one captured server time.
+- Queues the history oldest-to-newest before live delivery begins.
+- Buffers live values that arrive during the read, then delivers them after
+  the historical window. It never queues the current value ahead of history.
+
+The following cases keep the normal current-value initialization:
+
+- The start time is in the future.
+- The monitored attribute is not `Value`.
+- The node has no raw historian.
+
+If a provider read fails, the server queues an error notification and keeps
+the monitored item active for later live values; it does not silently fall
+back. If the live-value buffer overflows, creation fails because the server
+can no longer guarantee history-to-live ordering.
+
+The server protects required priming-error notifications while the live queue
+size is greater than one. A queue size of one retains only the newest
+notification, even after a resize. Later samples can replace an error before
+publication, as specified in
 [Part 4, 5.13.1.5](https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.5).
-Growing that single-value buffer does not restore protection.
-Protection is transient queue state: durable restore retains the monitored-item
-definition, last value/error, and stored raw queue values, but does not reinstate priming
-protection or synthesize a notification absent from the stored queue.
-The sample store uses format 1 and shared-store definitions use format 3;
-interim formats that included notification-priority metadata (sample format 2
-and shared format 4) are not supported.
+Growing a single-value queue does not restore protection.
+
+Priming protection is transient queue state. Durable restore retains the
+monitored-item definition, last value or error, and stored raw queue values.
+It does not restore priming protection or synthesize a notification missing
+from the stored queue. The sample store uses format 1; shared-store
+definitions use format 3. The system does not support interim formats with
+notification-priority metadata (sample format 2 and shared format 4).
 
 Modifying an existing monitored item to a past-start aggregate uses the same
 history-before-live handoff whenever the aggregate calculator changes.
@@ -741,7 +768,10 @@ stepped or sloped interpolation and the result carries the Interpolated bits.
 `UseSimpleBounds=true` uses the nearest raw values as bounds; it does not return
 the nearest sample. `UseSimpleBounds=false` uses the nearest non-Bad values and
 marks the result Uncertain when Bad samples were skipped. Providers without
-this interface use the same calculation through the raw-read fallback.
+this interface use the same calculation through the raw-read fallback. When the
+fallback scans 100,000 raw values without finding a bound for a requested time,
+that time returns `Bad_BoundNotSupported` (Part 11 §4.6) and the other requested
+times are still answered.
 
 ### Annotations
 

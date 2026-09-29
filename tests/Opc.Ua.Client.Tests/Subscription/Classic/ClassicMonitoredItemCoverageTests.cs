@@ -643,6 +643,46 @@ namespace Opc.Ua.Client.Tests
             Assert.That(clone.ClientHandle, Is.EqualTo(item.ClientHandle));
         }
 
+        /// <summary>
+        /// Triggering links reference client handles, so a clone that keeps
+        /// the client handle must keep them for restoration after a session
+        /// recreate (L7-5). A clone with a fresh handle must not.
+        /// </summary>
+        [Test]
+        public void CloneWithCopyClientHandleKeepsTriggeringLinks()
+        {
+            MonitoredItem item = CreateItem();
+            item.TriggeredItems = [11u, 12u];
+            item.TriggeringItemId = 99;
+
+            MonitoredItem sameHandle = item.CloneMonitoredItem(false, true);
+            MonitoredItem newHandle = item.CloneMonitoredItem(false, false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sameHandle.TriggeredItems.ToArray(), Is.EqualTo(new uint[] { 11, 12 }));
+                Assert.That(sameHandle.TriggeringItemId, Is.Zero);
+                Assert.That(newHandle.TriggeredItems.IsEmpty, Is.True);
+            });
+        }
+
+        [Test]
+        public void SubscriptionCloneKeepsTriggeringLinksOfItems()
+        {
+            using var subscription = new Subscription(m_telemetry);
+            MonitoredItem triggering = CreateItem();
+            MonitoredItem triggered = CreateItem();
+            triggering.TriggeredItems = [triggered.ClientHandle];
+            subscription.AddItems([triggering, triggered]);
+
+            using Subscription clone = subscription.CloneSubscription(false);
+
+            MonitoredItem clonedTriggering = clone.FindItemByClientHandle(triggering.ClientHandle);
+            Assert.That(clonedTriggering, Is.Not.Null);
+            Assert.That(clonedTriggering.TriggeredItems.ToArray(),
+                Is.EqualTo(new[] { triggered.ClientHandle }));
+        }
+
         [Test]
         public void TemplateConstructorTruncatesDisplayNameAtLastSpace()
         {
@@ -896,6 +936,39 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.That(item.LastValue, Is.SameAs(notification));
                 Assert.That(item.LastMessage, Is.SameAs(message));
+            });
+        }
+
+        /// <summary>
+        /// A notification of the other kind for the item's client handle
+        /// (buggy server or handle clash) must not make LastMessage throw.
+        /// </summary>
+        [Test]
+        public void LastMessageIgnoresNotificationOfTheOtherKind()
+        {
+            MonitoredItem eventItem = CreateItem();
+            eventItem.NodeClass = NodeClass.Object;
+            eventItem.SaveValueInCache(new MonitoredItemNotification
+            {
+                ClientHandle = eventItem.ClientHandle,
+                Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow),
+                Message = new NotificationMessage()
+            });
+
+            MonitoredItem dataItem = CreateItem();
+            dataItem.SaveValueInCache(new EventFieldList
+            {
+                ClientHandle = dataItem.ClientHandle,
+                EventFields = [new Variant(1)],
+                Message = new NotificationMessage()
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => eventItem.LastMessage, Throws.Nothing);
+                Assert.That(eventItem.LastMessage, Is.Null);
+                Assert.That(() => dataItem.LastMessage, Throws.Nothing);
+                Assert.That(dataItem.LastMessage, Is.Null);
             });
         }
 

@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// </summary>
         private static readonly ElementInfo[] s_stateTable =
         [
-            new(Objects.ShelvedStateMachineType_OneShotShelved, BrowseNames.OneShotShelve, 1),
+            new(Objects.ShelvedStateMachineType_OneShotShelved, BrowseNames.OneShotShelved, 1),
             new(Objects.ShelvedStateMachineType_TimedShelved, BrowseNames.TimedShelved, 2),
             new(Objects.ShelvedStateMachineType_Unshelved, BrowseNames.Unshelved, 3)
         ];

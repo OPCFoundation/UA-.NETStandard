@@ -258,9 +258,14 @@ public sealed class StructuredArrayDraftTests
         Assert.That(draft.TryCommit(draft.InitialValue, out Variant nullValue, out string? error), Is.True, error);
         StructuredArrayValue empty = draft.Reshape(draft.InitialValue, [0, 3]);
         Assert.That(draft.TryCommit(empty, out Variant emptyValue, out error), Is.True, error);
-        Assert.That(context.RoundTrip(nullValue, raw: true).TryGetValue(out MatrixOf<int> nullMatrix), Is.True);
+        using var nullDecoder = new BinaryDecoder(context.EncodeVariant(nullValue, raw: true).ToArray(),
+            context.MessageContext);
+        Variant decodedNull = nullDecoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Int32, 2));
+        Assert.That(decodedNull.TryGetValue(out MatrixOf<int> nullMatrix), Is.True);
         Assert.That(nullMatrix.IsNull, Is.True);
-        Assert.That(nullMatrix.Dimensions, Is.EqualTo(s_nullMatrixDimensions));
+        Assert.That(nullMatrix.Dimensions, Is.Empty);
+        Assert.That(draft.InitialValue.Dimensions, Is.EqualTo(s_nullMatrixDimensions));
+        Assert.That(context.EncodeVariant(nullValue, raw: true), Is.EqualTo(ByteString.From([255, 255, 255, 255])));
         Assert.That(context.RoundTrip(emptyValue, raw: true).TryGetValue(out MatrixOf<int> emptyMatrix), Is.True);
         Assert.That(emptyMatrix.IsNull, Is.False);
         Assert.That(emptyMatrix.IsEmpty, Is.True);

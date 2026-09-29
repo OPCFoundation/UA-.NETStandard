@@ -55,6 +55,52 @@ namespace Opc.Ua.Types.Tests
         }
 
         [Test]
+        public void NullAndEmptyLocaleHashAlike()
+        {
+            var a = new LocalizedText(null, "Hi");
+            var b = new LocalizedText(string.Empty, "Hi");
+
+            Assert.That(a, Is.EqualTo(b));
+            Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+            Assert.That(new HashSet<LocalizedText> { a, b }, Has.Count.EqualTo(1));
+        }
+
+        [TestCase("{}")]
+        [TestCase("{\"t\":[]}")]
+        [TestCase("{\"t\":[[\"\",\"x\"]]}")]
+        [TestCase("{\"t\":[[\"en\"]]}")]
+        public void MulLocaleWithoutTranslationsDoesNotThrow(string text)
+        {
+            // Every decoder creates wire LocalizedText values this way; an
+            // ArgumentException here failed the whole message.
+            LocalizedText value = default;
+            Assert.DoesNotThrow(() => value = new LocalizedText("mul", text));
+            Assert.That(value.Locale, Is.EqualTo("mul"));
+            Assert.That(value.Text, Is.EqualTo(text));
+        }
+
+        [Test]
+        public void FilteringSkipsNullAndEmptyLocaleIds()
+        {
+            var original = new LocalizedText(new Dictionary<string, string>
+            {
+                ["en-US"] = "Hello",
+                ["de-DE"] = "Hallo"
+            }, default);
+
+            LocalizedText german = original.FilterByPreferredLocales([null, string.Empty, "de-DE"]);
+            LocalizedText first = original.FilterByPreferredLocales([null]);
+            LocalizedText multi = original.FilterByPreferredLocales(["mul", null, "de-DE", "de-DE"]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(german.Locale, Is.EqualTo("de-DE"));
+                Assert.That(first.IsNullOrEmpty, Is.False);
+                Assert.That(multi.Translations, Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
         public void SelectedTemplateUsesSelectedCultureAndRetainsFallbackArguments()
         {
             var fallback = new TranslationInfo("measurement", "en-US", "Value {0:N1}", 1234.5);

@@ -31,6 +31,7 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1359,6 +1360,60 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 c => c.CloseAsync(It.IsAny<CancellationToken>()),
                 Times.Never);
             channel.Verify(c => c.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// G6 (review of L1-3): disposing or closing a managed session from a
+        /// Notification handler of its inner session made the state machine
+        /// worker dispose the inner session, which waited the full drain
+        /// timeout (30 s) for the very handler that waited for the close.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task CloseFromInnerNotificationHandlerDoesNotWaitForItsDrainAsync(bool dispose)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            var channel = new Mock<IManagedTransportChannel>();
+            channel.SetupGet(c => c.MessageContext).Returns(
+                configuration.CreateMessageContext());
+
+            var innerSession = new BlockingCloseSession(
+                channel.Object,
+                configuration,
+                endpoint);
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                endpoint,
+                innerSession,
+                telemetry);
+            managedSession.StateMachine.Start();
+
+            var closed = new TaskCompletionSource<TimeSpan>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Assert.That(innerSession.RunBackgroundWork("Notification", () =>
+            {
+                var watch = Stopwatch.StartNew();
+                if (dispose)
+                {
+                    managedSession.Dispose();
+                }
+                else
+                {
+                    managedSession.CloseAsync(0, closeChannel: true)
+                        .GetAwaiter().GetResult();
+                }
+                closed.SetResult(watch.Elapsed);
+            }), Is.True);
+
+            TimeSpan elapsed = await closed.Task
+                .WaitAsync(TimeSpan.FromSeconds(60))
+                .ConfigureAwait(false);
+            Assert.That(elapsed, Is.LessThan(TimeSpan.FromSeconds(8)));
+            Assert.That(innerSession.Disposed, Is.True);
         }
 
         [Test]

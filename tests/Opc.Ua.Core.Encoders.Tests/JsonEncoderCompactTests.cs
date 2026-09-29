@@ -693,7 +693,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
-            Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
+            Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 2));
             MatrixOf<long> a1 = v1.GetInt64Matrix();
             Assert.That(a1.Dimensions, Has.Length.EqualTo(2));
             Assert.That(a1.Count, Is.EqualTo(6));
@@ -707,6 +707,12 @@ namespace Opc.Ua.Core.Encoders.Tests
             Assert.That(a2.Dimensions[0], Is.EqualTo(1));
             Assert.That(a2.Dimensions[1], Is.EqualTo(2));
             Assert.That(a2.Dimensions[2], Is.EqualTo(3));
+
+            // A populated matrix must have the rank the field declares.
+            using var strict = new JsonDecoder(data, context);
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => strict.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3)));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]

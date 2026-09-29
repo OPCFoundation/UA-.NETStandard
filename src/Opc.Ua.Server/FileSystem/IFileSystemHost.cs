@@ -125,6 +125,29 @@ namespace Opc.Ua.Server.FileSystem
         void ForgetHandle(NodeId nodeId);
 
         /// <summary>
+        /// Starts a Delete or Move of the provider path: fails when a file at, or
+        /// below, the path is open or has an open pending, and otherwise refuses new
+        /// opens there until <see cref="EndMutation"/> is called.
+        /// </summary>
+        /// <param name="providerPath">The provider-relative file or directory path.</param>
+        /// <returns><c>false</c> when the path is locked by an open file.</returns>
+        bool TryBeginMutation(string providerPath);
+
+        /// <summary>
+        /// Ends a mutation started by a successful <see cref="TryBeginMutation"/>.
+        /// </summary>
+        /// <param name="providerPath">The provider path passed to <see cref="TryBeginMutation"/>.</param>
+        void EndMutation(string providerPath);
+
+        /// <summary>
+        /// Whether the user of the calling context may modify the hosted
+        /// file system (open for writing, create, delete, move or copy).
+        /// </summary>
+        /// <param name="context">The calling context.</param>
+        /// <returns><c>true</c> when the caller may modify the file system.</returns>
+        bool CanUserWrite(ISystemContext context);
+
+        /// <summary>
         /// Applies an admitted provider mutation and reconciles the hosted address space.
         /// </summary>
         /// <param name="kind">The operation to apply.</param>

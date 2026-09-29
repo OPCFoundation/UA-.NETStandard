@@ -254,6 +254,20 @@ namespace Opc.Ua.Client.Tests.FileSystem
             return childId;
         }
 
+        /// <summary>
+        /// Removes a node from the address space, simulating another client
+        /// (or the server) deleting it behind the FileSystemClient's back.
+        /// </summary>
+        public void RemoveNode(NodeId nodeId)
+        {
+            Nodes.Remove(nodeId);
+            ChildrenOf.Remove(nodeId);
+            foreach (List<NodeId> children in ChildrenOf.Values)
+            {
+                children.Remove(nodeId);
+            }
+        }
+
         private void RegisterNode(
             NodeId nodeId,
             QualifiedName name,
@@ -290,6 +304,10 @@ namespace Opc.Ua.Client.Tests.FileSystem
         private BrowsePathResult ResolveBrowsePath(BrowsePath path)
         {
             NodeId current = path.StartingNode;
+            if (!Nodes.ContainsKey(current))
+            {
+                return BadResult(StatusCodes.BadNodeIdUnknown);
+            }
             foreach (RelativePathElement element in path.RelativePath.Elements)
             {
                 NodeId match = NodeId.Null;
@@ -348,6 +366,16 @@ namespace Opc.Ua.Client.Tests.FileSystem
         {
             NodeId source = description.NodeId;
             var refs = new List<ReferenceDescription>();
+            if (!Nodes.ContainsKey(source))
+            {
+                // Like a real server: browsing a deleted node fails.
+                return new BrowseResult
+                {
+                    StatusCode = StatusCodes.BadNodeIdUnknown,
+                    ContinuationPoint = default,
+                    References = refs.ToArrayOf()
+                };
+            }
 
             // HasTypeDefinition browse — used by ReadTypeDefinitionAsync
             // to classify a single object.

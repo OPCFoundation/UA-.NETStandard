@@ -333,6 +333,210 @@ namespace Opc.Ua.Client.Tests.Roles
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        [Test]
+        public async Task ListRolesAsyncFollowsBrowseContinuationPointAsync()
+        {
+            var firstRole = new NodeId(6101u);
+            var secondRole = new NodeId(6102u);
+            var continuationPoint = ByteString.From(new byte[] { 1, 2, 3 });
+            m_session.Setup(s => s.BrowseAsync(
+                    null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            ContinuationPoint = continuationPoint,
+                            References = [new ReferenceDescription { NodeId = firstRole }]
+                        }
+                    ]
+                });
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, false,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    Results = [new BrowseResult { References = [new ReferenceDescription { NodeId = secondRole }] }]
+                });
+            m_session.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    null, It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, ArrayOf<BrowsePath> paths, CancellationToken _) =>
+                {
+                    var results = new BrowsePathResult[paths.Count];
+                    for (int i = 0; i < results.Length; i++)
+                    {
+                        results[i] = new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch };
+                    }
+                    return new TranslateBrowsePathsToNodeIdsResponse { Results = results.ToArrayOf() };
+                });
+            m_session.Setup(s => s.ReadAsync(
+                    null, 0, TimestampsToReturn.Neither,
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results = [new DataValue(Variant.From(new QualifiedName("Role")))]
+                });
+
+            IReadOnlyList<RoleInfo> roles = await m_client.ListRolesAsync().ConfigureAwait(false);
+
+            Assert.That(roles, Has.Count.EqualTo(2));
+            Assert.That(roles[0].RoleId, Is.EqualTo(firstRole));
+            Assert.That(roles[1].RoleId, Is.EqualTo(secondRole));
+        }
+
+        /// <summary>
+        /// Review G16: a server that answers every BrowseNext with an empty
+        /// page and a continuation point must not keep ListRolesAsync looping
+        /// forever; the point is released when the client gives up.
+        /// </summary>
+        [Test]
+        public void ListRolesAsyncStopsOnEndlessEmptyBrowseNextPages()
+        {
+            var continuationPoint = ByteString.From(new byte[] { 1, 2, 3 });
+            m_session.SetupGet(s => s.MessageContext)
+                .Returns(ServiceMessageContext.Create(Opc.Ua.Tests.NUnitTelemetryContext.Create()));
+            m_session.Setup(s => s.BrowseAsync(
+                    null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results = [new BrowseResult { ContinuationPoint = continuationPoint }]
+                });
+            int browseNextCalls = 0;
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, false,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    browseNextCalls++;
+                    return new BrowseNextResponse
+                    {
+                        Results = [new BrowseResult { ContinuationPoint = continuationPoint }]
+                    };
+                });
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, true,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse { Results = [new BrowseResult()] });
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.ListRolesAsync().ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(browseNextCalls, Is.LessThan(20));
+            m_session.Verify(s => s.BrowseNextAsync(
+                null, true,
+                It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Review G16: the continuation point is released on any BrowseNext
+        /// failure, not only on cancellation, and the original error surfaces.
+        /// </summary>
+        [Test]
+        public void ListRolesAsyncReleasesContinuationPointWhenBrowseNextFails()
+        {
+            var continuationPoint = ByteString.From(new byte[] { 1, 2, 3 });
+            m_session.SetupGet(s => s.MessageContext)
+                .Returns(ServiceMessageContext.Create(Opc.Ua.Tests.NUnitTelemetryContext.Create()));
+            m_session.Setup(s => s.BrowseAsync(
+                    null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            ContinuationPoint = continuationPoint,
+                            References = [new ReferenceDescription { NodeId = new NodeId(6101u) }]
+                        }
+                    ]
+                });
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, false,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+            m_session.Setup(s => s.BrowseNextAsync(
+                    null, true,
+                    It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse { Results = [new BrowseResult()] });
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.ListRolesAsync().ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            m_session.Verify(s => s.BrowseNextAsync(
+                null, true,
+                It.Is<ArrayOf<ByteString>>(cps => cps.Count == 1),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
+        public void ListRolesAsyncThrowsWhenRoleSetBrowseFails()
+        {
+            m_session.Setup(s => s.BrowseAsync(
+                    null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results = [new BrowseResult { StatusCode = StatusCodes.BadNodeIdUnknown }]
+                });
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.ListRolesAsync().ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public async Task ReadRoleAsyncKeepsValuesAlignedWhenATargetIsNotLocalAsync()
+        {
+            var roleId = new NodeId(6201u);
+            var applicationsId = new NodeId(7202u);
+            m_session.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    null, It.Is<ArrayOf<BrowsePath>>(paths => paths.Count == 6), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    Results =
+                    [
+                        // Identities resolves to a node in a namespace the session does not know.
+                        new BrowsePathResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            Targets = [new BrowsePathTarget { TargetId = new ExpandedNodeId(7201u, "urn:not-in-table") }]
+                        },
+                        ResultFor(applicationsId),
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch },
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch },
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch },
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch }
+                    ]
+                });
+            m_session.Setup(s => s.ReadAsync(
+                    null, 0, TimestampsToReturn.Neither,
+                    It.Is<ArrayOf<ReadValueId>>(nodes =>
+                        nodes.Count == 2 && nodes[0].NodeId == roleId && nodes[1].NodeId == applicationsId),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(Variant.From(new QualifiedName("Role"))),
+                        new DataValue(Variant.From(s_applications.ToArrayOf()))
+                    ]
+                });
+
+            RoleInfo role = await m_client.ReadRoleAsync(roleId).ConfigureAwait(false);
+
+            Assert.That(role.Identities, Is.Empty);
+            Assert.That(role.Applications, Is.EqualTo(s_applications));
+        }
+
         private static BrowsePathResult ResultFor(NodeId nodeId)
         {
             return new BrowsePathResult

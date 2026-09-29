@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
@@ -1029,16 +1030,20 @@ namespace Opc.Ua.SourceGeneration
 
             var dataType = field.Value.Parent as DataTypeDesign;
             string path = field.Key;
+            // The value is addressed through the generated structure property,
+            // which can differ from the authored field name (e.g. a field named
+            // like its enclosing type or a reserved member gets a suffix).
+            string valuePath = field.Value.GetPropertyName();
 
             if (dataType.IsDotNetEqualityComparable(field.Value.ValueRank))
             {
-                context.Out.WriteLine("if (m_value.{0} != newValue.{0})", path);
+                context.Out.WriteLine("if (m_value.{0} != newValue.{0})", valuePath);
             }
             else
             {
                 context.Out.WriteLine(
                     "if (!global::Opc.Ua.CoreUtils.IsEqual(m_value.{0}, newValue.{0}))",
-                    path);
+                    valuePath);
             }
             context.Out.WriteLine("{");
             context.Out.WriteLine(
@@ -1059,6 +1064,7 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(Tokens.ChildName, field.Key);
             context.Template.AddReplacement(Tokens.ChildPath, field.Key);
+            context.Template.AddReplacement(Tokens.PropertyName, field.Value.GetPropertyName());
 
             string childDataType = field.Value.DataTypeNode.GetDotNetTypeName(
                 field.Value.ValueRank,
@@ -1162,7 +1168,7 @@ namespace Opc.Ua.SourceGeneration
 
             switch (field.DataTypeNode.BasicDataType)
             {
-                case BasicDataType.UserDefined:
+                case BasicDataType.UserDefined when HasTypedArgumentValueRank(field):
                     context.Out.WriteLine(
                         "_inputArguments[{2}].TryGetValue(" +
                         "out {1} {0}, " +
@@ -1205,7 +1211,7 @@ namespace Opc.Ua.SourceGeneration
 
             switch (field.DataTypeNode.BasicDataType)
             {
-                case BasicDataType.UserDefined:
+                case BasicDataType.UserDefined when HasTypedArgumentValueRank(field):
                     context.Out.WriteLine(
                         "_outputArguments[{2}].TryGetValue(" +
                         "out {1} {0}, " +
@@ -1242,7 +1248,7 @@ namespace Opc.Ua.SourceGeneration
             string fieldName = GetMethodArgumentIdentifier(field);
             switch (field.DataTypeNode.BasicDataType)
             {
-                case BasicDataType.UserDefined:
+                case BasicDataType.UserDefined when HasTypedArgumentValueRank(field):
                     context.Out.WriteLine(
                         "_outputArguments[{1}] = global::Opc.Ua.Variant.FromStructure({0});",
                         fieldName,
@@ -1351,7 +1357,7 @@ namespace Opc.Ua.SourceGeneration
             string fieldName = GetMethodArgumentIdentifier(field, upperCamelCase: true);
             switch (field.DataTypeNode.BasicDataType)
             {
-                case BasicDataType.UserDefined:
+                case BasicDataType.UserDefined when HasTypedArgumentValueRank(field):
                     context.Out.WriteLine(
                         "_outputArguments[{1}] = global::Opc.Ua.Variant.FromStructure(_result.{0});",
                         fieldName,
@@ -1570,7 +1576,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.AccessorSymbol, "public new");
             if (!instance.IsOverridden())
             {
-                if (!s_builtInPropertyNames.Contains(instance.SymbolicName.Name) ||
+                if (!RequiresNewModifier(node.Parent?.Design, instance.SymbolicName.Name) ||
                     (instance is VariableDesign && instance.SymbolicName.Name == "Value"))
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
@@ -1974,7 +1980,7 @@ namespace Opc.Ua.SourceGeneration
                             ", ",
                             root.Category
                                 .Split([','])
-                                .Select(c => CoreUtils.Format("\"{0}\"", c.Trim()))))
+                                .Select(c => c.Trim().AsStringLiteral())))
                     : null);
             // Specification
             context.Template.AddReplacement(
@@ -2555,20 +2561,12 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(Tokens.ValueComparison,
                     "!global::Opc.Ua.CoreUtils.IsEqual(m_value, newValue)");
             }
-            context.Template.AddReplacement(
-                Tokens.DefaultValue,
-                variableType.DataTypeNode.GetValueAsCode(
-                    variableType.ValueRank,
-                    variableType.DefaultValue,
-                    variableType.DecodedValue,
-                    true,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    m_messageContext,
-                    () => AddXmlInitializerForComplexValue(
-                        variableType,
-                        variableType.DataTypeNode,
-                        variableType.DefaultValue)));
+            // The VariableType default value is emitted by the type's factory
+            // (AddVariableTypeStateFactoryReplacements), which maps namespace
+            // indexes through the NodeSet's table (OPC 10000-6 F.14). The state
+            // class template has no default value: computing one here without
+            // that table produced a NodeSet-local literal nobody rendered and
+            // registered an unused XML value resource.
             context.Template.AddReplacement(Tokens.ValueRank, valueRank);
             context.Template.AddReplacement(
                 Tokens.ArrayDimensions,
@@ -2911,7 +2909,7 @@ namespace Opc.Ua.SourceGeneration
                 "new global::Opc.Ua.BaseDataVariableTypeState");
 
             context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
-                "state.WrappedValue = {0};",
+                "baseState.WrappedValue = {0};",
                 node.DataTypeNode.GetValueAsCode(
                     node.ValueRank,
                     node.DefaultValue,
@@ -2923,7 +2921,9 @@ namespace Opc.Ua.SourceGeneration
                     () => AddXmlInitializerForComplexValue(
                         node,
                         node.DataTypeNode,
-                        node.DefaultValue))));
+                        node.DefaultValue),
+                    node.DecodedValueNamespaceUris,
+                    kNamespaceTableContextVariable)));
             string dataTypeId =
                 GetNodeIdConstantForDataType(node, m_context.ModelDesign.Namespaces);
             context.Template.AddReplacement(
@@ -2937,7 +2937,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ArrayDimensions,
                 !string.IsNullOrEmpty(arrayDims)
-                    ? CoreUtils.Format("state.ArrayDimensions = {0};", arrayDims)
+                    ? CoreUtils.Format("baseState.ArrayDimensions = {0};", arrayDims)
                     : null);
         }
 
@@ -2984,7 +2984,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ArrayDimensions,
                 !string.IsNullOrEmpty(arrayDims)
-                    ? CoreUtils.Format("state.ArrayDimensions = {0};", arrayDims)
+                    ? CoreUtils.Format("baseState.ArrayDimensions = {0};", arrayDims)
                     : null);
 
             context.Template.AddReplacement(
@@ -3010,20 +3010,20 @@ namespace Opc.Ua.SourceGeneration
                     case "XmlSchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                            "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
                             "global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
                         return;
                     case "OPCBinarySchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                            "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
                             "global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
                         return;
                 }
                 // unknown type system
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
-                    "state.WrappedValue = global::Opc.Ua.Variant.Null;");
+                    "baseState.WrappedValue = global::Opc.Ua.Variant.Null;");
                 return;
             }
 
@@ -3055,7 +3055,7 @@ namespace Opc.Ua.SourceGeneration
             else
             {
                 context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
-                    "state.WrappedValue = {0};",
+                    "baseState.WrappedValue = {0};",
                     node.DataTypeNode.GetValueAsCode(
                         node.ValueRank,
                         node.DefaultValue,
@@ -3067,7 +3067,9 @@ namespace Opc.Ua.SourceGeneration
                         () => AddXmlInitializerForComplexValue(
                             node,
                             node.DataTypeNode,
-                            node.DefaultValue))));
+                            node.DefaultValue),
+                        node.DecodedValueNamespaceUris,
+                        kNamespaceTableContextVariable)));
             }
         }
 
@@ -3129,7 +3131,7 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(
                     Tokens.DataTypeDefinition,
                     CoreUtils.Format(
-                        "new global::Opc.Ua.ExtensionObject({0}.DataTypeDefinitions.Create{1}({2}))",
+                        "new global::Opc.Ua.ExtensionObject(global::{0}.DataTypeDefinitions.Create{1}({2}))",
                         m_context.ModelDesign.Namespaces.GetNamespacePrefix(node.SymbolicName.Namespace),
                         node.SymbolicName.Name,
                         kNamespaceTableContextVariable));
@@ -3208,7 +3210,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.MethodDeclarationId,
                 node.MethodDeclarationNode != null
                     ? CoreUtils.Format(
-                        "state.MethodDeclarationId = {0};",
+                        "baseState.MethodDeclarationId = {0};",
                         (HasResolvableNodeId(node.MethodDeclarationNode) ||
                             !node.NumericIdSpecified
                                 ? node.MethodDeclarationNode
@@ -4241,8 +4243,16 @@ namespace Opc.Ua.SourceGeneration
                     reference.TargetPath.Length == 0 &&
                     node.Parent?.Design != null)
                 {
+                    // An empty target path names the root of the hierarchy
+                    // (the type or the top-level instance), which is only the
+                    // immediate parent for a direct child.
+                    NodeToGenerate hierarchyRoot = node.Parent;
+                    while (hierarchyRoot.Parent?.Design != null)
+                    {
+                        hierarchyRoot = hierarchyRoot.Parent;
+                    }
                     references.Add(new ReferenceToGenerate(
-                        node.Parent.Design,
+                        hierarchyRoot.Design,
                         reference.ReferenceType,
                         isInverse));
                     continue;
@@ -4443,7 +4453,7 @@ namespace Opc.Ua.SourceGeneration
             };
 
             return constant != null
-                ? CoreUtils.Format("state.ModellingRuleId = new global::Opc.Ua.NodeId({0});", constant)
+                ? CoreUtils.Format("baseState.ModellingRuleId = new global::Opc.Ua.NodeId({0});", constant)
                 : null;
         }
 
@@ -4687,6 +4697,20 @@ namespace Opc.Ua.SourceGeneration
             XmlQualifiedName ReferenceTypeId,
             bool IsInverse);
 
+        /// <summary>
+        /// True when the argument's code type is the data type itself (scalar,
+        /// ArrayOf or MatrixOf). Every other value rank (ScalarOrArray,
+        /// ScalarOrOneDimension, Any) is carried as a plain Variant, see
+        /// ModelDesignExtensions.GetMethodArgumentTypeAsCode.
+        /// </summary>
+        private static bool HasTypedArgumentValueRank(Parameter parameter)
+        {
+            return parameter.ValueRank is
+                ValueRank.Scalar or
+                ValueRank.Array or
+                ValueRank.OneOrMoreDimensions;
+        }
+
         private static string GetMethodArgumentIdentifier(
             Parameter parameter,
             bool upperCamelCase = false)
@@ -4773,6 +4797,101 @@ namespace Opc.Ua.SourceGeneration
             // instance method and therefore must be declared "public new".
             "Validate"
         ];
+
+        /// <summary>
+        /// True when a child property named <paramref name="name"/> on the
+        /// generated class of <paramref name="parent"/> hides an inherited
+        /// member of the runtime base class and must be declared
+        /// <c>public new</c>.
+        /// </summary>
+        internal static bool RequiresNewModifier(NodeDesign parent, string name)
+        {
+            return s_builtInPropertyNames.Contains(name) ||
+                HidesRuntimeBaseMember(parent, name);
+        }
+
+        /// <summary>
+        /// True when a child property named <paramref name="name"/> on the
+        /// generated class of <paramref name="parent"/> hides a member it
+        /// inherits from the runtime base class (for example a child Property
+        /// named <c>DataType</c> on a VariableType class hides
+        /// <c>BaseVariableState.DataType</c>, one named <c>Categories</c>
+        /// hides <c>NodeState.Categories</c>), so it must be declared
+        /// <c>public new</c>.
+        /// </summary>
+        private static bool HidesRuntimeBaseMember(NodeDesign parent, string name)
+        {
+            return parent switch
+            {
+                ObjectTypeDesign or ObjectDesign => s_objectStateMemberNames.Value.Contains(name),
+                VariableTypeDesign or VariableDesign => s_variableStateMemberNames.Value.Contains(name),
+                MethodDesign => s_methodStateMemberNames.Value.Contains(name),
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Returns the names of the members of <paramref name="type"/> and its
+        /// base classes that a derived class sees (public and protected), i.e.
+        /// the names a generated child property hides. Read from the runtime
+        /// types themselves so a member added to them is never missed.
+        /// </summary>
+        private static HashSet<string> GetInheritedMemberNames(Type type)
+        {
+            const BindingFlags kFlags = BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            for (Type current = type; current != null; current = current.BaseType)
+            {
+                foreach (MemberInfo member in current.GetMembers(kFlags))
+                {
+                    bool visible = member switch
+                    {
+                        ConstructorInfo => false,
+                        MethodInfo method => !method.IsSpecialName && IsVisibleToDerived(method),
+                        PropertyInfo property => property.GetIndexParameters().Length == 0 &&
+                            (IsVisibleToDerived(property.GetGetMethod(true)) ||
+                                IsVisibleToDerived(property.GetSetMethod(true))),
+                        EventInfo @event => IsVisibleToDerived(@event.GetAddMethod(true)),
+                        FieldInfo field => !field.IsSpecialName &&
+                            (field.IsPublic || field.IsFamily || field.IsFamilyOrAssembly),
+                        Type nested => nested.IsNestedPublic || nested.IsNestedFamily ||
+                            nested.IsNestedFamORAssem,
+                        _ => false
+                    };
+                    if (visible)
+                    {
+                        names.Add(member.Name);
+                    }
+                }
+            }
+            return names;
+        }
+
+        private static bool IsVisibleToDerived(MethodBase method)
+        {
+            return method != null &&
+                (method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly);
+        }
+
+        /// <summary>
+        /// Members inherited by generated Object and ObjectType classes.
+        /// </summary>
+        private static readonly Lazy<HashSet<string>> s_objectStateMemberNames =
+            new(() => GetInheritedMemberNames(typeof(BaseObjectState)));
+
+        /// <summary>
+        /// Members inherited by generated Variable and VariableType classes
+        /// ("Value" is handled separately).
+        /// </summary>
+        private static readonly Lazy<HashSet<string>> s_variableStateMemberNames =
+            new(() => GetInheritedMemberNames(typeof(BaseVariableState)));
+
+        /// <summary>
+        /// Members inherited by generated Method classes.
+        /// </summary>
+        private static readonly Lazy<HashSet<string>> s_methodStateMemberNames =
+            new(() => GetInheritedMemberNames(typeof(MethodState)));
 
         private static readonly string[] s_builtInMethodNames =
         [

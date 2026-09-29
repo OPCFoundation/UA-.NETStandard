@@ -692,6 +692,37 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task Publish_RegisterAsRootNotifier_FailureStopsRunningWorkerAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            manager.FailRootNotifierRegistration = true;
+            BaseObjectState notifier = MakeNotifier(manager, "RootFailed");
+
+            var iteratorEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var iteratorObservedCancel = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => CancelObservingStream(iteratorEntered, iteratorObservedCancel, ct),
+                new EventPublishOptions { AlwaysOn = true, RegisterAsRootNotifier = true });
+
+            // The AlwaysOn worker starts before the seal drains the root
+            // registration.
+            await WaitForAsync(iteratorEntered.Task).ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.EventSources.CompleteRegistrationsAsync()
+                    .ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+
+            // The failed source must not leave an orphaned event producer
+            // that runs until the manager is disposed.
+            await WaitForAsync(iteratorObservedCancel.Task).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task Publish_RegisterAsRootNotifier_IsDrainedOnlyOnceAsync()
         {
             using TestablePublishManager manager = CreateManager();
@@ -1764,8 +1795,17 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (FailRootNotifierRegistration)
+                {
+                    throw new InvalidOperationException("Root notifier registration failed.");
+                }
                 return base.AddRootNotifierAsync(notifier, cancellationToken);
             }
+
+            /// <summary>
+            /// Makes <see cref="AddRootNotifierAsync"/> throw.
+            /// </summary>
+            public bool FailRootNotifierRegistration { get; set; }
 
             public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
 

@@ -91,9 +91,14 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!string.IsNullOrEmpty(Thumbprint) && !string.IsNullOrEmpty(id.Thumbprint))
+            // An identifier with a thumbprint only equals another identifier
+            // with the same thumbprint; this keeps Equals transitive and
+            // consistent with GetHashCode.
+            bool hasThumbprint = !string.IsNullOrEmpty(Thumbprint);
+            if (hasThumbprint || !string.IsNullOrEmpty(id.Thumbprint))
             {
-                return Thumbprint == id.Thumbprint;
+                return hasThumbprint &&
+                    string.Equals(Thumbprint, id.Thumbprint, StringComparison.OrdinalIgnoreCase);
             }
 
             if (SubjectName != id.SubjectName)
@@ -114,12 +119,13 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
-            return HashCode.Combine(
-                Thumbprint,
-                m_storePath,
-                StoreType,
-                SubjectName,
-                CertificateType);
+            // Hash only the fields Equals compares.
+            if (!string.IsNullOrEmpty(Thumbprint))
+            {
+                return StringComparer.OrdinalIgnoreCase.GetHashCode(Thumbprint!);
+            }
+
+            return HashCode.Combine(SubjectName, CertificateType);
         }
 
         /// <summary>

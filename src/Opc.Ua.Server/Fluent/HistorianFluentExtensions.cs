@@ -108,8 +108,9 @@ namespace Opc.Ua.Server.Fluent
         /// <param name="variable">The variable builder to historize.</param>
         /// <param name="historyAccessLevel">
         /// Access-level bits OR-ed onto <c>AccessLevel</c> and
-        /// <c>UserAccessLevel</c>. Defaults to
-        /// <c>HistoryRead | HistoryWrite</c>.
+        /// <c>UserAccessLevel</c>. Defaults to <c>HistoryRead</c> so the
+        /// history is read-only; pass <c>HistoryRead | HistoryWrite</c>
+        /// (ideally together with RolePermissions) to allow HistoryUpdate.
         /// </param>
         /// <param name="capabilities">
         /// Optional per-node capability set passed to
@@ -143,7 +144,7 @@ namespace Opc.Ua.Server.Fluent
         /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static IVariableBuilder<TValue> Historize<TValue>(
             IVariableBuilder<TValue> variable,
-            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            byte historyAccessLevel = AccessLevels.HistoryRead,
             HistorianNodeCapabilities? capabilities = null,
             IHistorianProvider? provider = null,
             bool autoCapture = true,
@@ -177,7 +178,7 @@ namespace Opc.Ua.Server.Fluent
         /// <exception cref="ArgumentNullException"><paramref name="variable"/> is <c>null</c>.</exception>
         public static INodeBuilder<BaseVariableState> Historize(
             INodeBuilder<BaseVariableState> variable,
-            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            byte historyAccessLevel = AccessLevels.HistoryRead,
             HistorianNodeCapabilities? capabilities = null,
             IHistorianProvider? provider = null,
             bool autoCapture = true,
@@ -379,7 +380,7 @@ namespace Opc.Ua.Server.Fluent
         /// <returns>The same variable builder.</returns>
         public static IVariableBuilder<TValue> Historize<TValue>(
             this IVariableBuilder<TValue> variable,
-            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            byte historyAccessLevel = AccessLevels.HistoryRead,
             HistorianNodeCapabilities? capabilities = null,
             IHistorianProvider? provider = null,
             bool autoCapture = true,
@@ -419,7 +420,7 @@ namespace Opc.Ua.Server.Fluent
         /// <returns>The same variable builder.</returns>
         public static INodeBuilder<BaseVariableState> Historize(
             this INodeBuilder<BaseVariableState> variable,
-            byte historyAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+            byte historyAccessLevel = AccessLevels.HistoryRead,
             HistorianNodeCapabilities? capabilities = null,
             IHistorianProvider? provider = null,
             bool autoCapture = true,

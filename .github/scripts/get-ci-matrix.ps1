@@ -10,9 +10,9 @@
 
     The workload is described once, here, as a table of profiles. A profile is a
     (runner OS, CustomTestTarget, test-host target framework, configuration,
-    category filter, tier) tuple. Projects are discovered from the file system -
-    the same '*.Tests.csproj' sweep .azurepipelines/get-matrix.ps1 performs - so
-    neither matrix has to be hand-maintained as projects are added or renamed.
+    category filter, tier) tuple. Projects are discovered from the file system
+    with a '*.Tests.csproj' sweep, so neither matrix has to be hand-maintained
+    as projects are added or renamed.
 
     CustomTestTarget, not '--framework', is the mechanism that pins the stack to
     a single target framework (see targets.props). The standard profiles are not
@@ -89,9 +89,7 @@ else {
     $RepositoryRoot = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 }
 
-# Runner images. Deliberately the GitHub-hosted labels: the Azure image aliases
-# (windows-2022-g2, ubuntu-22.04-g2) name Managed DevOps Pool images and mean
-# nothing here.
+# Runner images: GitHub-hosted labels.
 $RunnerImages = @{
     windows = 'windows-latest'
     linux   = 'ubuntu-latest'
@@ -111,8 +109,7 @@ $LatestSdk = '10.0.401'
 # The category filter the fast legs use. Tiers that lift it declare so below.
 $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
 
-# Projects that are not part of the mainline sweep, matching the exclusions in
-# .azurepipelines/test.yml:
+# Projects that are not part of the mainline sweep:
 #   Aot                   - published and run as native executables rather than
 #                           by 'dotnet test'; the workflows have their own jobs.
 #   Stress                - opt-in tier owned by .github/workflows/stress-test.yml.
@@ -203,7 +200,7 @@ $Profiles = @(
     @{ id = 'windows-net472'; os = 'windows'; customTestTarget = 'net472'; framework = 'net472'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'windows-netstandard2.0'; os = 'windows'; customTestTarget = 'netstandard2.0'; framework = 'net48'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'windows-netstandard2.1'; os = 'windows'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'linux-netstandard2.1'; os = 'linux'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
+    @{ id = 'linux-netstandard2.1'; os = 'linux'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('pr', 'full') }
     @{ id = 'linux-long-running'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full')
         tier = 'long-running'; filter = ''; hangTimeout = '30m'; coverage = $false
     }
@@ -216,7 +213,7 @@ $Profiles = @(
 )
 
 # Solution builds. 'solutions' is either '*' for every discovered .slnx or an
-# explicit list. Mirrors the Azure 'Build' stage: every solution across every
+# explicit list. Every solution across every
 # supported target framework in both configurations for the full scope, narrowed
 # for pull requests, plus the Linux leg that proves UA.slnx still compiles for
 # every Linux-capable target framework.

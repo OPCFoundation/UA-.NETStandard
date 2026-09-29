@@ -3284,9 +3284,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 releaseReload.SetResult(true);
                 await reload.ConfigureAwait(false);
 
+                // The re-queued reload runs in the background and opens the
+                // changed endpoint before it commits Started, so wait for the
+                // committed state too rather than only the open listener.
                 await WaitForAsync(
-                    () => harness.Listeners.Any(l => l.OpenedUrl == newUrl && l.IsOpen),
-                    "the re-queued reload must eventually open the changed endpoint").ConfigureAwait(false);
+                    () => harness.Listeners.Any(l => l.OpenedUrl == newUrl && l.IsOpen) &&
+                        manager.CurrentStateForTest == "Started",
+                    "the re-queued reload must eventually open the changed endpoint and commit")
+                    .ConfigureAwait(false);
                 Assert.That(
                     harness.Listeners.Any(l => l.OpenedUrl == liveUrl && l.IsOpen),
                     Is.False,
@@ -4158,13 +4163,16 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
                 // The watcher-triggered reload must reload from the file (the
                 // changed endpoint) AND reapply the option overlay, so the
-                // option-only endpoint remains open after the file change.
+                // option-only endpoint remains open after the file change. The
+                // reload opens its listeners before it commits Started, so wait
+                // for the committed state too.
                 await WaitForAsync(
                     () => harness.Listeners.Any(
                             l => l.OpenedUrl == changedFileUrl && l.IsOpen) &&
                         harness.Listeners.Any(
                             l => l.OpenedUrl == optionUrl && l.IsOpen) &&
-                        !harness.Listeners.Any(l => l.OpenedUrl == fileUrl && l.IsOpen),
+                        !harness.Listeners.Any(l => l.OpenedUrl == fileUrl && l.IsOpen) &&
+                        manager.CurrentStateForTest == "Started",
                     "the reload must open the changed file endpoint and keep the " +
                     "option overlay endpoint while replacing the original endpoint")
                     .ConfigureAwait(false);

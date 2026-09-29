@@ -182,8 +182,6 @@
     <File Path=".gitattributes" />
     <File Path=".github/copilot-instructions.md" />
     <File Path=".gitignore" />
-    <File Path="azure-pipelines-preview.yml" />
-    <File Path="azure-pipelines.yml" />
     <File Path="common.props" />
     <File Path="coverage-thresholds.json" />
     <File Path="Directory.Build.props" />
@@ -206,15 +204,9 @@
   </Folder>
   <Folder Name="/Solution Items/Azurepipelines/">
     <File Path=".azurepipelines/check-coverage.ps1" />
-    <File Path=".azurepipelines/ci.yml" />
-    <File Path=".azurepipelines/get-matrix.ps1" />
-    <File Path=".azurepipelines/get-root.ps1" />
-    <File Path=".azurepipelines/preview.yml" />
     <File Path=".azurepipelines/set-version.ps1" />
     <File Path=".azurepipelines/signlistDebug.txt" />
     <File Path=".azurepipelines/signlistRelease.txt" />
-    <File Path=".azurepipelines/sln.yml" />
-    <File Path=".azurepipelines/test.yml" />
   </Folder>
   <Folder Name="/Solution Items/Nuget/">
     <File Path="nuget/Opc.Ua.nuspec" />

@@ -169,7 +169,7 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public void GeneratedResourceUpdatedDecoderPopulatesTypedXRegistryFields()
         {
-            QualifiedName[][] layout = ResourceUpdatedEventTypeRecord.Decoder.StandardFields;
+            QualifiedName[][] layout = ResourceUpdatedEventTypeRecord.Decoder.GetStandardFields(null);
             var fields = Enumerable.Repeat(Variant.Null, layout.Length).ToArray();
             fields[IndexOf(layout, BrowseNames.SourceUrl)] =
                 new Variant("https://registry.example.test");

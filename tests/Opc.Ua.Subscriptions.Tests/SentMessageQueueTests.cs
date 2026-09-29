@@ -233,14 +233,33 @@ namespace Opc.Ua.Subscriptions.Tests
             NotificationMessage returned = queue.Enqueue(
                 Messages(1, 2, 3, 4, 5), available, out bool moreNotifications, out uint newlyUnacknowledged);
 
-            // The two oldest messages are dropped to respect the capacity of three.
+            // The two oldest messages are dropped to respect the capacity of three,
+            // and they count as discarded before acknowledgement.
             Assert.That(queue.SentCount, Is.EqualTo(3));
             Assert.That(returned.SequenceNumber, Is.EqualTo(3u));
             Assert.That(moreNotifications, Is.True);
-            Assert.That(newlyUnacknowledged, Is.Zero);
+            Assert.That(newlyUnacknowledged, Is.EqualTo(2u));
             Assert.That(queue.FindForRepublish(1), Is.Null);
             Assert.That(queue.FindForRepublish(2), Is.Null);
             Assert.That(queue.FindForRepublish(3), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Verifies that unsent overflow drops and retransmission evictions are both reported as discarded.
+        /// </summary>
+        [Test]
+        public void EnqueueReportsOverflowAndEvictionAsDiscarded()
+        {
+            SentMessageQueue queue = NewQueue(maxMessageCount: 2);
+            queue.Enqueue(Messages(1, 2), [], out _, out _);
+
+            queue.Enqueue(Messages(3, 4, 5, 6, 7), [], out _, out uint discarded);
+
+            // 3 unsent messages dropped (3, 4, 5) plus 2 retained ones evicted (1, 2).
+            Assert.That(discarded, Is.EqualTo(5u));
+            Assert.That(queue.SentCount, Is.EqualTo(2));
+            Assert.That(queue.FindForRepublish(6), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(7), Is.Not.Null);
         }
 
         [Test]

@@ -168,6 +168,26 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
         }
 
+        /// <summary>
+        /// Part 4 7.7.2: an unrecognized operator decoded from the wire is reported per element
+        /// as Bad_FilterOperatorInvalid instead of faulting the whole validation.
+        /// </summary>
+        [Test]
+        public void ValidateReportsUnknownOperatorPerElement()
+        {
+            var element = new ContentFilterElement { FilterOperator = (FilterOperator)99 };
+            element.SetOperands([new LiteralOperand(Variant.From(1))]);
+            var filter = new Ua.ContentFilter { Elements = [element] };
+
+            Ua.ContentFilter.Result result = null;
+            Assert.DoesNotThrow(() => result = filter.Validate(m_filterContext));
+
+            Assert.That(result.Status.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+            Assert.That(result.ElementResults[0].Status.StatusCode,
+                Is.EqualTo(StatusCodes.BadFilterOperatorInvalid));
+            Assert.DoesNotThrow(() => element.ToString((INodeTable)null!));
+        }
+
         [Test]
         public void SharedDependenciesAreEvaluatedOnceAndUnlinkedElementsAreNotEvaluated()
         {
@@ -229,6 +249,45 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From("hello"), Variant.From("world"));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void EqualsTreatsEmptyArraysOfSameDataTypeAsEqual()
+        {
+            // Part 4 7.7.3: "When testing for equality, a Server shall treat null and
+            // empty arrays of the same DataType as equal", whatever their shape.
+            var emptyRows = Variant.From(new int[0, 2].ToMatrixOf());
+            var emptyColumns = Variant.From(new int[2, 0].ToMatrixOf());
+            ArrayOf<int> emptyArray = [];
+
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, emptyColumns)
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, Variant.From(emptyArray))
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+            Assert.That(
+                BuildBinaryFilter(FilterOperator.Equals, emptyRows, Variant.From(ArrayOf<int>.Null))
+                    .Evaluate(m_filterContext, m_target),
+                Is.True);
+
+            // a different DataType or a non-empty operand is still unequal.
+            Assert.That(
+                BuildBinaryFilter(
+                    FilterOperator.Equals,
+                    emptyRows,
+                    Variant.From(new double[2, 0].ToMatrixOf()))
+                    .Evaluate(m_filterContext, m_target),
+                Is.False);
+            Assert.That(
+                BuildBinaryFilter(
+                    FilterOperator.Equals,
+                    emptyRows,
+                    Variant.From(new int[1, 1].ToMatrixOf()))
+                    .Evaluate(m_filterContext, m_target),
+                Is.False);
         }
 
         [Test]
@@ -550,9 +609,142 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithNullOperands()
         {
-            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.Null, Variant.Null);
-            bool result = filter.Evaluate(m_filterContext, m_target);
-            Assert.That(result, Is.True);
+            // OPC 10000-4 1.05.07 §7.7.3: an element with a null operand is NULL,
+            // and a filter that evaluates to NULL is FALSE. IsNull tests for null.
+            AssertIsNullResult(BuildBinaryElement(FilterOperator.Equals, Variant.Null, Variant.Null));
+        }
+
+        [TestCase(FilterOperator.Equals)]
+        [TestCase(FilterOperator.GreaterThan)]
+        [TestCase(FilterOperator.GreaterThanOrEqual)]
+        [TestCase(FilterOperator.LessThan)]
+        [TestCase(FilterOperator.LessThanOrEqual)]
+        [TestCase(FilterOperator.Like)]
+        [TestCase(FilterOperator.BitwiseAnd)]
+        [TestCase(FilterOperator.BitwiseOr)]
+        public void NullOperandMakesTheElementNullNotFalse(FilterOperator op)
+        {
+            AssertIsNullResult(BuildBinaryElement(op, Variant.Null, Variant.From(0)));
+            AssertIsNullResult(BuildBinaryElement(op, Variant.From(0), Variant.Null));
+        }
+
+        [Test]
+        public void NullIsNotEqualToZeroOrFalse()
+        {
+            AssertIsNullResult(BuildBinaryElement(FilterOperator.Equals, Variant.Null, Variant.From(0)));
+            AssertIsNullResult(BuildBinaryElement(FilterOperator.Equals, Variant.Null, Variant.From(false)));
+            AssertIsNullResult(BuildBinaryElement(FilterOperator.LessThan, Variant.Null, Variant.From(5)));
+        }
+
+        [Test]
+        public void MissingEventFieldDoesNotMatchAWhereClauseOrItsNegation()
+        {
+            // A field the event does not have resolves to a null value; the mock
+            // target returns Variant.Null for every attribute operand.
+            var missing = new SimpleAttributeOperand(ObjectTypeIds.BaseEventType, new QualifiedName("Missing"));
+
+            var equals = new ContentFilterElement { FilterOperator = FilterOperator.Equals };
+            equals.SetOperands([missing, new LiteralOperand(0)]);
+            var greaterThan = new ContentFilterElement { FilterOperator = FilterOperator.GreaterThan };
+            greaterThan.SetOperands([missing, new LiteralOperand(5)]);
+            var inList = new ContentFilterElement { FilterOperator = FilterOperator.InList };
+            inList.SetOperands([new LiteralOperand(3), new LiteralOperand(4), missing]);
+
+            AssertIsNullResult(equals);
+            AssertIsNullResult(greaterThan);
+            AssertIsNullResult(inList);
+        }
+
+        [Test]
+        public void BetweenWithANullOperandIsNull()
+        {
+            var between = new ContentFilterElement { FilterOperator = FilterOperator.Between };
+            between.SetOperands([new LiteralOperand(Variant.Null), new LiteralOperand(1), new LiteralOperand(9)]);
+            AssertIsNullResult(between);
+        }
+
+        [Test]
+        public void InListWithANullValueIsNull()
+        {
+            var inList = new ContentFilterElement { FilterOperator = FilterOperator.InList };
+            inList.SetOperands([new LiteralOperand(Variant.Null), new LiteralOperand(3), new LiteralOperand(4)]);
+            AssertIsNullResult(inList);
+        }
+
+        [Test]
+        public void InListMatchIsTrueDespiteANullListOperand()
+        {
+            // §7.7.3: InList is TRUE if any Equals is TRUE, like TRUE OR NULL.
+            var inList = new ContentFilterElement { FilterOperator = FilterOperator.InList };
+            inList.SetOperands([new LiteralOperand(3), new LiteralOperand(Variant.Null), new LiteralOperand(3)]);
+            var filter = new Ua.ContentFilter { Elements = [inList] };
+
+            Assert.That(filter.Evaluate(m_filterContext, m_target), Is.True);
+        }
+
+        [Test]
+        public void InListWithoutAMatchAndANullListOperandIsNull()
+        {
+            // FALSE OR NULL is NULL.
+            var inList = new ContentFilterElement { FilterOperator = FilterOperator.InList };
+            inList.SetOperands([new LiteralOperand(3), new LiteralOperand(4), new LiteralOperand(Variant.Null)]);
+            AssertIsNullResult(inList);
+        }
+
+        [Test]
+        public void IncomparableTypesAreFalseNotNull()
+        {
+            // §7.7.3: operands that cannot be converted to a common type make the
+            // operator FALSE, so its negation is TRUE.
+            var between = new ContentFilterElement { FilterOperator = FilterOperator.Between };
+            between.SetOperands(
+                [new LiteralOperand(5), new LiteralOperand(new QualifiedName("a")), new LiteralOperand(9)]);
+            Assert.That(Negated(between).Evaluate(m_filterContext, m_target), Is.True);
+            Assert.That(Negated(BuildBinaryElement(FilterOperator.LessThan, Variant.From(5), new QualifiedName("a")))
+                .Evaluate(m_filterContext, m_target), Is.True);
+        }
+
+        [Test]
+        public void IsNullFollowsTheNullableBuiltInTypes()
+        {
+            // OPC 10000-6 1.05.07 Table 1: numbers, Boolean and StatusCode have no
+            // null value; String, Guid, DateTime, NodeId, ... do; empty arrays are null.
+            Assert.That(IsNull(Variant.From(0)), Is.False);
+            Assert.That(IsNull(Variant.From(false)), Is.False);
+            Assert.That(IsNull(Variant.From(0.0)), Is.False);
+            Assert.That(IsNull(Variant.From(StatusCodes.Good)), Is.False);
+            Assert.That(IsNull(Variant.From(string.Empty)), Is.False);
+            Assert.That(IsNull(Variant.From((string)null)), Is.True);
+            Assert.That(IsNull(Variant.From(Uuid.Empty)), Is.True);
+            Assert.That(IsNull(Variant.From(NodeId.Null)), Is.True);
+            Assert.That(IsNull(Variant.From(Array.Empty<int>().ToArrayOf())), Is.True);
+            Assert.That(IsNull(Variant.From(s_oneElement.ToArrayOf())), Is.False);
+        }
+
+        private static readonly int[] s_oneElement = [1];
+
+        private bool IsNull(Variant value)
+        {
+            return BuildUnaryFilter(FilterOperator.IsNull, value).Evaluate(m_filterContext, m_target);
+        }
+
+        /// <summary>
+        /// Asserts that the element evaluates to NULL: only then are the element
+        /// and its negation both FALSE (a TRUE or FALSE result flips under Not).
+        /// </summary>
+        private void AssertIsNullResult(ContentFilterElement element)
+        {
+            var filter = new Ua.ContentFilter { Elements = [element] };
+
+            Assert.That(filter.Evaluate(m_filterContext, m_target), Is.False, "element");
+            Assert.That(Negated(element).Evaluate(m_filterContext, m_target), Is.False, "negation");
+        }
+
+        private static Ua.ContentFilter Negated(ContentFilterElement inner)
+        {
+            var notElement = new ContentFilterElement { FilterOperator = FilterOperator.Not };
+            notElement.SetOperands([new ElementOperand(1)]);
+            return new Ua.ContentFilter { Elements = [notElement, inner] };
         }
 
         [Test]

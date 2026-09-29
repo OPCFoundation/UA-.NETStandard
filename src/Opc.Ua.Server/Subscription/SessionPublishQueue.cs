@@ -464,9 +464,20 @@ namespace Opc.Ua.Server
 
                 if (m_queuedSubscriptions.TryGetValue(acknowledgement.SubscriptionId, out QueuedSubscription? subscription))
                 {
-                    ServiceResult? result = subscription.Subscription.Acknowledge(
-                        context,
-                        acknowledgement.SequenceNumber);
+                    ServiceResult? result;
+                    try
+                    {
+                        result = subscription.Subscription.Acknowledge(
+                            context,
+                            acknowledgement.SequenceNumber);
+                    }
+                    catch (ServiceResultException e)
+                    {
+                        // The subscription was deleted or transferred concurrently; that is
+                        // an operation-level result for this acknowledgement only (Part 4
+                        // 5.14.5), not a failure of the whole Publish.
+                        result = e.Result;
+                    }
 
                     if (ServiceResult.IsGood(result))
                     {

@@ -99,6 +99,7 @@ namespace Opc.Ua.Client.FileSystem
 
             if (code == StatusCodes.BadOutOfRange ||
                 code == StatusCodes.BadInvalidState ||
+                code == StatusCodes.BadNotReadable ||
                 code == StatusCodes.BadResourceUnavailable ||
                 code == StatusCodes.BadOutOfMemory ||
                 code == StatusCodes.BadInvalidArgument)

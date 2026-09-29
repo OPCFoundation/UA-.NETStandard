@@ -213,7 +213,7 @@ namespace Opc.Ua.ISA95.Tests.Client
         public void GeneratedStatusEventDecoderReturnsTypedPayload()
         {
             QualifiedName[][] standardFields =
-                V2.ISA95JobOrderStatusEventTypeRecord.Decoder.StandardFields;
+                V2.ISA95JobOrderStatusEventTypeRecord.Decoder.GetStandardFields(null);
             var fields = new Variant[standardFields.Length];
             fields[FindFieldIndex(standardFields, V2.BrowseNames.JobOrder)] =
                 Variant.FromStructure(

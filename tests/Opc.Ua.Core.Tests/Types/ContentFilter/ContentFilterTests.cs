@@ -367,6 +367,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
 
         private static IEnumerable<TestCaseData> NonBoolWithBinaryTestCases()
         {
+            // A result that is NULL is tested with IsNull: Equals with a null
+            // operand is itself NULL (OPC 10000-4 1.05.07 §7.7.3).
             yield return new TestCaseData(
                 Variant.From((byte)2), Variant.From((byte)3),
                 FilterOperator.BitwiseOr, Variant.From((byte)3),
@@ -383,14 +385,16 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 Variant.From((byte)2), Variant.From((byte)3),
                 FilterOperator.BitwiseAnd, Variant.From((byte)3),
                 FilterOperator.Equals, Variant.From(false));
+            // Equals with a NULL operand is NULL (OPC 10000-4 7.7.3), even
+            // when both operands are NULL, and a NULL filter result is FALSE.
             yield return new TestCaseData(
                 Variant.From("invalid"), Variant.From((byte)3),
                 FilterOperator.BitwiseOr, Variant.Null,
-                FilterOperator.Equals, Variant.From(true));
+                FilterOperator.IsNull, Variant.From(true));
             yield return new TestCaseData(
                 Variant.From("invalid"), Variant.From((byte)3),
                 FilterOperator.BitwiseAnd, Variant.Null,
-                FilterOperator.Equals, Variant.From(true));
+                FilterOperator.IsNull, Variant.From(true));
             yield return new TestCaseData(
                 Variant.From((ushort)5),
                 Variant.From((uint)BuiltInType.String),
@@ -405,7 +409,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 Variant.From((ushort)5),
                 Variant.From((uint)BuiltInType.Null),
                 FilterOperator.Cast, Variant.Null,
-                FilterOperator.Equals, Variant.From(true));
+                FilterOperator.IsNull, Variant.From(true));
             yield return new TestCaseData(
                 Variant.From((ushort)5),
                 Variant.From((uint)BuiltInType.Null),
@@ -448,7 +452,14 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             };
 
             var filterElement2 = new ContentFilterElement { FilterOperator = filterOp2 };
-            filterElement2.SetOperands([lFirstOperand, elementOperand]);
+            if (filterOp2 == FilterOperator.IsNull)
+            {
+                filterElement2.SetOperands([elementOperand]);
+            }
+            else
+            {
+                filterElement2.SetOperands([lFirstOperand, elementOperand]);
+            }
 
             Filter.WhereClause.Elements = new[] { filterElement2, filterElement1 };
 

@@ -64,6 +64,7 @@ namespace Opc.Ua
         public const int SessionClientExtensions = 500;
         public const int ManagedSessionPool = 510;
         public const int DefaultSessionFactory = 520;
+        public const int AliasNameResolver = 560;
 
         /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that

@@ -76,7 +76,9 @@ internal sealed class StructuredArrayValue
         stream.Position = 0;
         using var decoder = new BinaryDecoder(stream, context, leaveOpen: true);
         ArrayOf<int> dimensions = value.TypeInfo.IsMatrix ? decoder.ReadInt32Array(null) : default;
-        int count = decoder.ReadInt32(null);
+        int count = value.TypeInfo.IsMatrix
+            ? dimensions.IsNull ? -1 : GetElementCount(dimensions, ValueRanks.Any, [], context)
+            : decoder.ReadInt32(null);
         if (count < -1 || (context.MaxArrayLength > 0 && count > context.MaxArrayLength))
         {
             throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
@@ -139,9 +141,12 @@ internal sealed class StructuredArrayValue
         {
             if (!Dimensions.IsEmpty)
             {
-                encoder.WriteInt32Array(null, Dimensions);
+                encoder.WriteInt32Array(null, IsNull ? ArrayOf<int>.Null : Dimensions);
             }
-            encoder.WriteInt32(null, IsNull ? -1 : Elements.Count);
+            else
+            {
+                encoder.WriteInt32(null, IsNull ? -1 : Elements.Count);
+            }
             if (!IsNull)
             {
                 foreach (Variant element in Elements)

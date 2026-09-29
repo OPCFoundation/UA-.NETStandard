@@ -1,5 +1,12 @@
 # Cross-Assembly Model Dependencies
 
+## Contents
+
+- [Attribute shape](#attribute-shape)
+- [Payload wire format (`ModelDependencyV1`)](#payload-wire-format-modeldependencyv1)
+- [Diagnostics](#diagnostics)
+- [Implementation](#implementation)
+
 The OPC UA source generator emits `[assembly: Opc.Ua.ModelDependencyAttribute(...)]`
 metadata on every assembly that has nodesets or design files in `<AdditionalFiles>`.
 A single attribute carries both the lightweight dependency-closure information

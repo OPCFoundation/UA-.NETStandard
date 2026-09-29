@@ -299,6 +299,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.GetLocalizedText().Text, Is.EqualTo("value"));
         }
 
+        /// <summary>
+        /// Part 4 Table 121: QualifiedName converts implicitly to LocalizedText
+        /// (the name becomes the text, the namespace index is dropped).
+        /// </summary>
+        [Test]
+        public void ConvertToLocalizedTextFromQualifiedName()
+        {
+            var value = new Variant(new QualifiedName("Name", 3));
+            LocalizedText result = value.ConvertToLocalizedText().GetLocalizedText();
+            Assert.That(result.Text, Is.EqualTo("Name"));
+            Assert.That(string.IsNullOrEmpty(result.Locale), Is.True);
+            Assert.That(
+                value.ConvertTo(BuiltInType.LocalizedText).GetLocalizedText().Text,
+                Is.EqualTo("Name"));
+            Variant empty = Variant.From(ArrayOf<QualifiedName>.Empty)
+                .ConvertTo(BuiltInType.LocalizedText);
+            Assert.That(empty.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.LocalizedText));
+        }
+
         [Test]
         public void ConvertToLocalizedTextFromUnsupportedTypeThrows()
         {

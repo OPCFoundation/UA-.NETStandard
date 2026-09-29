@@ -140,7 +140,12 @@ namespace Opc.Ua.Server.Historian
         /// <param name="context">Operation context.</param>
         /// <param name="nodeId">The historizing variable.</param>
         /// <param name="startTime">Inclusive lower bound.</param>
-        /// <param name="endTime">Exclusive upper bound.</param>
+        /// <param name="endTime">
+        /// Exclusive upper bound, always greater than <paramref name="startTime"/>:
+        /// the dispatcher rejects unspecified or reversed ranges and turns a
+        /// request with equal times (Part 11 6.9.5.1: delete the value at
+        /// startTime) into the one-tick range <c>[startTime, startTime + 1 tick)</c>.
+        /// </param>
         /// <param name="isDeleteModified">
         /// When true, only modified-history entries (replaced/deleted
         /// versions) are deleted; the live raw value at each timestamp

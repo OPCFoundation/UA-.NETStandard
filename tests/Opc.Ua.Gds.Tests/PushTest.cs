@@ -509,7 +509,12 @@ namespace Opc.Ua.Gds.Tests
             // store as they are called, so there is nothing for ApplyChanges to
             // commit afterwards.
             await m_pushClient.PushClient.AddCertificateAsync(groupId, trustedCert, true).ConfigureAwait(false);
-            await m_pushClient.PushClient.AddCertificateAsync(groupId, issuerCert, false).ConfigureAwait(false);
+
+            // OPC 10000-12 §7.8.2.6: issuer certificates cannot be added with
+            // AddCertificate (IsTrustedCertificate FALSE is Bad_CertificateInvalid).
+            ServiceResultException addIssuer = Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_pushClient.PushClient.AddCertificateAsync(groupId, issuerCert, false).AsTask());
+            Assert.That(addIssuer.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
 
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(
@@ -517,11 +522,10 @@ namespace Opc.Ua.Gds.Tests
                 Is.GreaterThan(beforeTrustList.TrustedCertificates.Count));
             Assert.That(
                 afterAddTrustList.IssuerCertificates.Count,
-                Is.GreaterThan(beforeTrustList.IssuerCertificates.Count));
+                Is.EqualTo(beforeTrustList.IssuerCertificates.Count));
             Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
 
             await m_pushClient.PushClient.RemoveCertificateAsync(groupId, trustedCert.Thumbprint, true).ConfigureAwait(false);
-            await m_pushClient.PushClient.RemoveCertificateAsync(groupId, issuerCert.Thumbprint, false).ConfigureAwait(false);
 
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
@@ -566,7 +570,9 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(trustedCert, true).ConfigureAwait(false);
-            await m_pushClient.PushClient.AddCertificateAsync(issuerCert, false).ConfigureAwait(false);
+            ServiceResultException addIssuer = Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_pushClient.PushClient.AddCertificateAsync(issuerCert, false).AsTask());
+            Assert.That(addIssuer.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(
@@ -574,10 +580,9 @@ namespace Opc.Ua.Gds.Tests
                 Is.GreaterThan(beforeTrustList.TrustedCertificates.Count));
             Assert.That(
                 afterAddTrustList.IssuerCertificates.Count,
-                Is.GreaterThan(beforeTrustList.IssuerCertificates.Count));
+                Is.EqualTo(beforeTrustList.IssuerCertificates.Count));
             Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
             await m_pushClient.PushClient.RemoveCertificateAsync(trustedCert.Thumbprint, true).ConfigureAwait(false);
-            await m_pushClient.PushClient.RemoveCertificateAsync(issuerCert.Thumbprint, false).ConfigureAwait(false);
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
@@ -618,7 +623,16 @@ namespace Opc.Ua.Gds.Tests
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            await m_pushClient.PushClient.AddCertificateAsync(m_caCert, false).ConfigureAwait(false);
+
+            // Issuer certificates are added through the TrustList file
+            // (AddCertificate only accepts trusted certificates, §7.8.2.6).
+            TrustListDataType withIssuer = await m_pushClient.PushClient
+                .ReadTrustListAsync(TrustListMasks.IssuerCertificates).ConfigureAwait(false);
+            withIssuer.IssuerCertificates = withIssuer.IssuerCertificates.AddItem(
+                m_caCert.RawData.ToByteString());
+            bool applyChangesRequired = await m_pushClient.PushClient
+                .UpdateTrustListAsync(withIssuer).ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.True);
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(
@@ -1464,6 +1478,11 @@ namespace Opc.Ua.Gds.Tests
                     .AsClient()
                     .AddSecurityConfiguration(victimCertIds, victimPkiRoot, victimPkiRoot)
                     .SetAutoAcceptUntrustedCertificates(true)
+                    // The victim holds no CRL for the CA that issued the push server's
+                    // current certificate; this test is about the server enforcing the
+                    // pushed CRL, so the victim tolerates an unknown server revocation
+                    // status (OPC 10000-4 6.1.3: Find Revocation List is suppressible).
+                    .SetRejectUnknownRevocationStatus(false)
                     .SetRejectSHA1SignedCertificates(false)
                     .SetMinimumCertificateKeySize(1024)
                     .CreateAsync()

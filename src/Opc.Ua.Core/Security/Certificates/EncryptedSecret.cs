@@ -200,6 +200,61 @@ namespace Opc.Ua
             m_ownsSenderCertificate = owns;
         }
 
+        /// <summary>
+        /// Without a validator the embedded sender certificate cannot be
+        /// validated, so it must be the certificate the caller expects (e.g.
+        /// the client certificate of the secure channel, OPC 10000-4 7.40.2.5);
+        /// otherwise any self-generated certificate would be accepted to verify
+        /// the signature.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void ThrowIfUnexpectedSenderCertificate(CertificateCollection senderCertificateChain)
+        {
+            if (SenderCertificate != null &&
+                !Utils.IsEqual(senderCertificateChain[0].RawData, SenderCertificate.RawData))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "The sender certificate does not match the expected sender certificate.");
+            }
+        }
+
+        /// <summary>
+        /// Takes (AddRef'd) ownership of the leaf and the issuers of a
+        /// validated sender certificate chain.
+        /// </summary>
+        private void AdoptSenderCertificateChain(CertificateCollection senderCertificateChain)
+        {
+            Certificate? senderCertificateToReplace = senderCertificateChain[0].AddRef();
+            try
+            {
+                ReplaceSenderCertificate(senderCertificateToReplace, owns: true);
+                senderCertificateToReplace = null;
+            }
+            finally
+            {
+                senderCertificateToReplace?.Dispose();
+            }
+
+            CertificateCollection? senderIssuerCertificates = null;
+            try
+            {
+                senderIssuerCertificates = [];
+
+                for (int ii = 1; ii < senderCertificateChain.Count; ii++)
+                {
+                    senderIssuerCertificates.Add(senderCertificateChain[ii]);
+                }
+
+                ReplaceSenderIssuerCertificates(senderIssuerCertificates, owns: true);
+                senderIssuerCertificates = null;
+            }
+            finally
+            {
+                senderIssuerCertificates?.Dispose();
+            }
+        }
+
         private void ReplaceSenderIssuerCertificates(
             CertificateCollection? senderIssuerCertificates,
             bool owns)
@@ -1176,40 +1231,21 @@ namespace Opc.Ua
                     senderCertificate.ToArray(),
                     telemetry);
 
-                Certificate? senderCertificateToReplace = senderCertificateChain[0].AddRef();
-                try
-                {
-                    ReplaceSenderCertificate(senderCertificateToReplace, owns: true);
-                    senderCertificateToReplace = null;
-                }
-                finally
-                {
-                    senderCertificateToReplace?.Dispose();
-                }
-
-                CertificateCollection? senderIssuerCertificates = null;
-                try
-                {
-                    senderIssuerCertificates = [];
-
-                    for (int ii = 1; ii < senderCertificateChain.Count; ii++)
-                    {
-                        senderIssuerCertificates.Add(senderCertificateChain[ii]);
-                    }
-
-                    ReplaceSenderIssuerCertificates(senderIssuerCertificates, owns: true);
-                    senderIssuerCertificates = null;
-                }
-                finally
-                {
-                    senderIssuerCertificates?.Dispose();
-                }
-
-                // validate the sender.
+                // validate the sender before it replaces the expected sender
+                // certificate (OPC 10000-6 6.8.3).
                 if (Validator != null)
                 {
-                    await Validator.ValidateAsync(senderCertificateChain, ct: cancellationToken).ConfigureAwait(false);
+                    CertificateValidationResult result = await Validator
+                        .ValidateAsync(senderCertificateChain, ct: cancellationToken)
+                        .ConfigureAwait(false);
+                    result.ThrowIfInvalid();
                 }
+                else
+                {
+                    ThrowIfUnexpectedSenderCertificate(senderCertificateChain);
+                }
+
+                AdoptSenderCertificateChain(senderCertificateChain);
             }
 
             // extract the send certificate and any chain.
@@ -1358,39 +1394,24 @@ namespace Opc.Ua
                     senderCertificate.ToArray(),
                     telemetry);
 
-                Certificate? senderCertificateToReplace = senderCertificateChain[0].AddRef();
-                try
+                // validate the sender before it replaces the expected sender
+                // certificate (OPC 10000-6 6.8.3).
+                if (Validator != null)
                 {
-                    ReplaceSenderCertificate(senderCertificateToReplace, owns: true);
-                    senderCertificateToReplace = null;
-                }
-                finally
-                {
-                    senderCertificateToReplace?.Dispose();
-                }
-
-                CertificateCollection? senderIssuerCertificates = null;
-                try
-                {
-                    senderIssuerCertificates = [];
-
-                    for (int ii = 1; ii < senderCertificateChain.Count; ii++)
-                    {
-                        senderIssuerCertificates.Add(senderCertificateChain[ii]);
-                    }
-
-                    ReplaceSenderIssuerCertificates(senderIssuerCertificates, owns: true);
-                    senderIssuerCertificates = null;
-                }
-                finally
-                {
-                    senderIssuerCertificates?.Dispose();
-                }
-
-                // validate the sender.
 #pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
-                Validator?.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
+                    CertificateValidationResult result = Validator
+                        .ValidateAsync(senderCertificateChain, default)
+                        .GetAwaiter()
+                        .GetResult();
 #pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
+                    result.ThrowIfInvalid();
+                }
+                else
+                {
+                    ThrowIfUnexpectedSenderCertificate(senderCertificateChain);
+                }
+
+                AdoptSenderCertificateChain(senderCertificateChain);
             }
 
             // extract the send certificate and any chain.

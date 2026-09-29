@@ -566,10 +566,12 @@ namespace Opc.Ua.Bindings
                     using var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
 #pragma warning restore CA2000
 
-                    // check if the message needs to be aborted.
+                    // check if the message needs to be aborted. The segment holds
+                    // only the body (it starts after the headers), which is what
+                    // the receiver counts against MaxMessageSize.
                     if (MessageLimitsExceeded(
                         isRequest,
-                        messageSize + chunkToProcess.Count - headerSize,
+                        messageSize + chunkToProcess.Count,
                         ii + 1))
                     {
                         encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
@@ -703,7 +705,7 @@ namespace Opc.Ua.Bindings
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
-                (uint)(m_localSequenceNumber - 1), // already incremented to create this message. need the last one sent.
+                LastSentSequenceNumber, // already incremented to create this message. need the last one sent.
                 m_symmetricProvider);
         }
 

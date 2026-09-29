@@ -25,6 +25,12 @@ find the sub-doc that matches the symptom you are seeing.
 > skill, which knows when to load each sub-doc and runs the codefixer
 > for you.
 
+## Contents
+
+- [Migration sub-doc index](#migration-sub-doc-index)
+- [All sub-documents](#all-sub-documents)
+- [See also](#see-also)
+
 ## Migration sub-doc index
 
 Find the row that matches the error / API surface you are dealing with

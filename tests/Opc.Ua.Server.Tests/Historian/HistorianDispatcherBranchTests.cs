@@ -204,6 +204,88 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that raw deletion rejects an unspecified or reversed time
+        /// range (Part 11 6.9.5.1) without touching the archive.
+        /// </summary>
+        [TestCase(0, -1)]
+        [TestCase(-1, 3)]
+        [TestCase(4, 1)]
+        public async Task DispatchDeleteRawRejectsInvalidRangeAsync(int startSeconds, int endSeconds)
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(5);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            var details = new DeleteRawModifiedDetails
+            {
+                NodeId = nodeId,
+                StartTime = startSeconds < 0 ? DateTimeUtc.MinValue : HarnessFixture.BaseTime.AddSeconds(startSeconds),
+                EndTime = endSeconds < 0 ? DateTimeUtc.MinValue : HarnessFixture.BaseTime.AddSeconds(endSeconds),
+                IsDeleteModified = false
+            };
+
+            var result = new HistoryUpdateResult();
+            ServiceResult error = await HistorianDispatcher.DispatchDeleteRawAsync(
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidTimestampArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidTimestampArgument));
+            Assert.That(await ReadRawCountAsync(h, node, nodeId).ConfigureAwait(false), Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Verifies that raw deletion with StartTime == EndTime deletes the
+        /// value at StartTime (Part 11 6.9.5.1).
+        /// </summary>
+        [Test]
+        public async Task DispatchDeleteRawEqualTimesDeletesValueAtStartAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(5);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            var details = new DeleteRawModifiedDetails
+            {
+                NodeId = nodeId,
+                StartTime = HarnessFixture.BaseTime.AddSeconds(2),
+                EndTime = HarnessFixture.BaseTime.AddSeconds(2),
+                IsDeleteModified = false
+            };
+
+            var result = new HistoryUpdateResult();
+            ServiceResult error = await HistorianDispatcher.DispatchDeleteRawAsync(
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(await ReadRawCountAsync(h, node, nodeId).ConfigureAwait(false), Is.EqualTo(4));
+        }
+
+        private static async Task<int> ReadRawCountAsync(
+            HarnessFixture h,
+            BaseDataVariableState node,
+            NodeId nodeId)
+        {
+            var readDetails = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddSeconds(10),
+                IsReadModified = false
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+            var readResult = new HistoryReadResult();
+            ServiceResult readError = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext, h.Provider, node, nodeToRead, readDetails,
+                TimestampsToReturn.Source, readResult, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(readError), Is.True);
+            return readResult.HistoryData.TryGetValue(out HistoryData? hd) ? hd.DataValues.Count : 0;
+        }
+
+        /// <summary>
         /// Verifies that at-time deletion without a data-provider interface returns BadHistoryOperationUnsupported.
         /// </summary>
         [Test]
@@ -303,6 +385,39 @@ namespace Opc.Ua.Server.Tests.Historian
                 bogusAggregateId, TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
+        }
+
+        /// <summary>
+        /// Verifies that a positive ProcessingInterval shorter than one tick is
+        /// rejected instead of producing zero-width slices up to the output cap.
+        /// </summary>
+        [Test]
+        public async Task DispatchProcessedReadSubTickIntervalReturnsBadAggregateInvalidInputsAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            NodeId nodeId = h.SeedSamples(5);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                ProcessingInterval = 0.00001
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, h.Provider, node, nodeToRead, details,
+                ObjectIds.AggregateFunction_Average, TimestampsToReturn.Source, result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateInvalidInputs));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadAggregateInvalidInputs));
         }
 
         /// <summary>

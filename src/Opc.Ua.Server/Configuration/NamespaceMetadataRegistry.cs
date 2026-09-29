@@ -123,13 +123,43 @@ namespace Opc.Ua.Server
                 }
             }
 
+            // A missing metadata node is only remembered while the
+            // Namespaces node is unchanged: a node manager registered later
+            // can link its NamespaceMetadata through a reference that raises
+            // no StateChanged event, and its default permissions must then
+            // be found instead of the cached miss. Such changes either bump
+            // the generation (Invalidate) or leave pending change masks on
+            // the Namespaces node, both checked without enumerating it.
+            NodeStateChangeMasks pendingChanges = GetPendingNamespacesChanges();
+            long generation;
+            lock (m_lock)
+            {
+                if (m_missingByUri.TryGetValue(
+                        namespaceUri,
+                        out (long Generation, NodeStateChangeMasks PendingChanges) missing) &&
+                    missing.Generation == m_generation &&
+                    (pendingChanges & ~missing.PendingChanges) == 0)
+                {
+                    return null;
+                }
+                generation = m_generation;
+            }
+
             NamespaceMetadataState? namespaceMetadataState = await FindAsync(
                 namespaceUri, cancellationToken).ConfigureAwait(false);
 
             lock (m_lock)
             {
                 // remember the result for faster access.
-                m_statesByUri[namespaceUri] = namespaceMetadataState!;
+                if (namespaceMetadataState != null)
+                {
+                    m_statesByUri[namespaceUri] = namespaceMetadataState;
+                    m_missingByUri.Remove(namespaceUri);
+                }
+                else
+                {
+                    m_missingByUri[namespaceUri] = (generation, pendingChanges);
+                }
             }
 
             return namespaceMetadataState;
@@ -155,12 +185,15 @@ namespace Opc.Ua.Server
             NamespaceMetadataState? namespaceMetadataState = await GetAsync(
                 namespaceUri!, cancellationToken).ConfigureAwait(false);
 
-            lock (m_lock)
+            if (namespaceMetadataState != null)
             {
-                m_statesByIndex[namespaceIndex] = namespaceMetadataState!;
+                lock (m_lock)
+                {
+                    m_statesByIndex[namespaceIndex] = namespaceMetadataState;
+                }
             }
 
-            return namespaceMetadataState!;
+            return namespaceMetadataState;
         }
 
         /// <summary>
@@ -262,6 +295,7 @@ namespace Opc.Ua.Server
                 m_tracked.Clear();
                 m_statesByUri.Clear();
                 m_statesByIndex.Clear();
+                m_missingByUri.Clear();
             }
 
             foreach (NamespaceMetadataState metadataState in tracked)
@@ -343,6 +377,39 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Drops every cached lookup result. The host calls it when it
+        /// changes the references of <c>Server/Namespaces</c> without a
+        /// <c>StateChanged</c> notification, e.g. when another node manager
+        /// links its <see cref="NamespaceMetadataState"/>.
+        /// </summary>
+        public void Invalidate()
+        {
+            lock (m_lock)
+            {
+                m_statesByUri.Clear();
+                m_statesByIndex.Clear();
+                m_missingByUri.Clear();
+                m_generation++;
+            }
+        }
+
+        /// <summary>
+        /// Returns the child and reference changes of <c>Server/Namespaces</c>
+        /// that have not been announced through <c>StateChanged</c> yet. A
+        /// cached miss is only valid while no new such change appears.
+        /// </summary>
+        private NodeStateChangeMasks GetPendingNamespacesChanges()
+        {
+            if (m_host.FindServerNamespacesNode() is not NamespacesState serverNamespacesNode)
+            {
+                return NodeStateChangeMasks.None;
+            }
+
+            return serverNamespacesNode.ChangeMasks &
+                (NodeStateChangeMasks.Children | NodeStateChangeMasks.References);
+        }
+
+        /// <summary>
         /// Clear NamespaceMetadata nodes cache in case nodes are added or deleted
         /// </summary>
         private void OnServerNamespacesChanged(
@@ -355,11 +422,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    lock (m_lock)
-                    {
-                        m_statesByUri.Clear();
-                        m_statesByIndex.Clear();
-                    }
+                    Invalidate();
 
                     if (node is NamespacesState serverNamespacesNode)
                     {
@@ -447,6 +510,8 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly Dictionary<string, NamespaceMetadataState> m_statesByUri = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_statesByIndex = [];
+        private readonly Dictionary<string, (long Generation, NodeStateChangeMasks PendingChanges)> m_missingByUri = [];
+        private long m_generation;
         private readonly HashSet<NamespaceMetadataState> m_tracked = [];
         private readonly Lock m_lock = new();
     }

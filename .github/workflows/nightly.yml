@@ -74,9 +74,8 @@ jobs:
       env:
         INCLUDE_MACOS: ${{ github.event_name == 'schedule' || inputs.include_macos }}
       run: |
-        # Windows is included here and not in the pull-request workflow: it is
-        # the leg the Azure `testaot` stage owns today, so a full-scope run on
-        # Actions has to cover it before that stage can be retired.
+        # Windows is included here and not in the pull-request workflow, so
+        # the full-scope run is where win-x64 Native AoT is covered.
         $matrix = @(
             @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
             @{ os = 'windows-latest'; rid = 'win-x64' }
@@ -462,7 +461,7 @@ jobs:
           }
         }
 
-        # The crash-corpus replay is part of Azure parity and its matrix is
+        # The crash-corpus replay is part of the full scope and its matrix is
         # never empty, so unlike the other jobs it may not be skipped.
         if ($env:CORPUS_RESULT -eq 'skipped') {
           $bad += 'crash-corpus=skipped'

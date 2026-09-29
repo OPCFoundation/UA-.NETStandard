@@ -187,7 +187,10 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (!m_completed && !Token.IsCancellationRequested)
+                // check the own expiry flag too: on targets where CancelAsync cannot set the
+                // token synchronously the expiry's cancellation may still be pending, and
+                // overwriting m_cancellation would stop DisposeAsync awaiting it.
+                if (!m_completed && !m_expired && !Token.IsCancellationRequested)
                 {
                     m_cancelled = true;
                     m_completed = true;

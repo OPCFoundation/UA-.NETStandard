@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.Roles
 {
@@ -92,16 +93,60 @@ namespace Opc.Ua.Client.Roles
 
             ClientBase.ValidateResponse<BrowseDescription, BrowseResult>(
                 browseResponse.Results, browseDescriptions);
-            ArrayOf<ReferenceDescription> references = browseResponse.Results[0].References;
 
-            var roles = new List<RoleInfo>(references.Count);
             // Materialize references to a regular list so the async loop below
-            // does not capture a span enumerator across await boundaries.
-            var materializedRefs = new List<ReferenceDescription>(references.Count);
-            foreach (ReferenceDescription reference in references)
+            // does not capture a span enumerator across await boundaries. The
+            // server may page the RoleSet (Part 4 §5.9.2) even without a client
+            // limit, so follow the continuation point to the end.
+            var materializedRefs = new List<ReferenceDescription>();
+            BrowseResult result = browseResponse.Results[0];
+            if (StatusCode.IsBad(result.StatusCode))
             {
-                materializedRefs.Add(reference);
+                throw new ServiceResultException(result.StatusCode);
             }
+            ByteString continuationPoint = result.ContinuationPoint;
+            int emptyRounds = 0;
+            try
+            {
+                while (true)
+                {
+                    foreach (ReferenceDescription reference in result.References)
+                    {
+                        materializedRefs.Add(reference);
+                    }
+                    Browser.ThrowIfNoBrowseProgress(
+                        result.References,
+                        continuationPoint,
+                        ref emptyRounds);
+                    if (continuationPoint.IsEmpty)
+                    {
+                        break;
+                    }
+                    result = await BrowseNextAsync(continuationPoint, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (StatusCode.IsBad(result.StatusCode))
+                    {
+                        // The server has already dropped the point; there is
+                        // nothing left to release.
+                        continuationPoint = default;
+                        throw new ServiceResultException(result.StatusCode);
+                    }
+                    continuationPoint = result.ContinuationPoint;
+                }
+            }
+            catch (Exception) when (!continuationPoint.IsEmpty)
+            {
+                // Part 4 §5.9.3.2: release the point we stop following on any
+                // failure (cancellation, transport fault, no progress), best
+                // effort so the original exception is the one propagated.
+                await Session.ReleaseContinuationPointAsync(
+                    continuationPoint,
+                    Session.MessageContext.Telemetry.CreateLogger<RoleManagementClient>())
+                    .ConfigureAwait(false);
+                throw;
+            }
+
+            var roles = new List<RoleInfo>(materializedRefs.Count);
             foreach (ReferenceDescription reference in materializedRefs)
             {
                 var roleId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
@@ -123,6 +168,20 @@ namespace Opc.Ua.Client.Roles
                 roles.Add(info);
             }
             return roles;
+        }
+
+        private async ValueTask<BrowseResult> BrowseNextAsync(
+            ByteString continuationPoint,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<ByteString> continuationPoints = [continuationPoint];
+            BrowseNextResponse response = await Session.BrowseNextAsync(
+                null,
+                false,
+                continuationPoints,
+                cancellationToken).ConfigureAwait(false);
+            ClientBase.ValidateResponse(response.Results, continuationPoints);
+            return response.Results[0];
         }
 
         /// <inheritdoc/>
@@ -177,6 +236,12 @@ namespace Opc.Ua.Client.Roles
                 {
                     resolved[i] = ExpandedNodeId.ToNodeId(
                         pathResult.Targets[0].TargetId, Session.NamespaceUris);
+                    if (resolved[i].IsNull)
+                    {
+                        // Not a local node (unknown namespace or remote server):
+                        // skipped here and in the decode loop, keeping them aligned.
+                        continue;
+                    }
                     nodesToRead.Add(new ReadValueId
                     {
                         NodeId = resolved[i],

@@ -28,9 +28,7 @@ permissions:
 # There is deliberately no switch that hands any of it back to another CI
 # system: a configuration that shrinks this matrix would reduce what a pull
 # request is actually tested against without changing any check name, and the
-# reduction would not be visible on the pull request. Azure Pipelines still runs
-# its own legs during the migration overlap (see docs/DeveloperGuide.md); that
-# duplicates coverage rather than replacing it.
+# reduction would not be visible on the pull request.
 #
 # The full workload - every remaining target framework, the Debug legs and the
 # tiers that lift the category filter - lives in .github/workflows/nightly.yml,

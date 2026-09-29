@@ -946,6 +946,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(message3, Is.Not.Null);
             Assert.That(moreNotifications2, Is.True);
             Assert.That(moreNotifications3, Is.False);
+
+            // The third message evicted the unacknowledged first one from the
+            // two-message retransmission queue.
+            Assert.That(availableSequenceNumbers.Count, Is.EqualTo(2));
+            Assert.That(subscription.Diagnostics.UnacknowledgedMessageCount, Is.EqualTo(2u));
+            Assert.That(subscription.Diagnostics.DiscardedMessageCount, Is.EqualTo(1u));
         }
 
         [Test]

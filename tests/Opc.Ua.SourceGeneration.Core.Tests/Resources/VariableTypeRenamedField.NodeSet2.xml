@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/VariableTypeRenamedField/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/VariableTypeRenamedField/"
+           PublicationDate="2026-01-01T00:00:00Z"
+           Version="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2023-01-01T00:00:00Z"
+                     Version="1.05.03"/>
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+
+  <!-- Field "Measurement" collides with the enclosing type name and is
+       generated as property "MeasurementField"; "TypeId" is a reserved
+       member of every generated structure. -->
+  <UADataType NodeId="ns=1;i=100" BrowseName="1:Measurement">
+    <DisplayName>Measurement</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=101</Reference>
+    </References>
+    <Definition Name="1:Measurement">
+      <Field Name="Measurement" DataType="Double"/>
+      <Field Name="TypeId" DataType="String"/>
+      <Field Name="Unit" DataType="String"/>
+    </Definition>
+  </UADataType>
+
+  <UAObject NodeId="ns=1;i=101" BrowseName="Default Binary" ParentNodeId="ns=1;i=100">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAObject>
+
+  <UAVariableType NodeId="ns=1;i=300" BrowseName="1:MeasurementVariableType" DataType="ns=1;i=100">
+    <DisplayName>MeasurementVariableType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=301</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=302</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=303</Reference>
+    </References>
+  </UAVariableType>
+
+  <UAVariable NodeId="ns=1;i=301" BrowseName="1:Measurement" ParentNodeId="ns=1;i=300" DataType="Double">
+    <DisplayName>Measurement</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=300</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable NodeId="ns=1;i=302" BrowseName="1:TypeId" ParentNodeId="ns=1;i=300" DataType="String">
+    <DisplayName>TypeId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=300</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable NodeId="ns=1;i=303" BrowseName="1:Unit" ParentNodeId="ns=1;i=300" DataType="String">
+    <DisplayName>Unit</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=300</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>

@@ -87,6 +87,7 @@ namespace Opc.Ua
         {
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_logger = telemetry.CreateLogger<CertificateManager>();
+            m_changeSubject = new CertificateChangeSubject(m_logger);
             m_maxRejectedCertificates = maxRejectedCertificates;
             m_storeProviders = storeProviders?.ToList() ??
                 [
@@ -1662,7 +1663,7 @@ namespace Opc.Ua
         private readonly Dictionary<TrustListIdentifier, CertificateValidationCore> m_customCores = [];
         private readonly List<CertificateEntry> m_applicationCertificates = [];
         private readonly List<ICertificateStoreProvider> m_storeProviders;
-        private readonly CertificateChangeSubject m_changeSubject = new();
+        private readonly CertificateChangeSubject m_changeSubject;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
@@ -1707,5 +1708,13 @@ namespace Opc.Ua
             this ILogger logger,
             Exception? exception,
             Certificate? certificate);
+
+        [LoggerMessage(EventId = CoreEventIds.CertificateManager + 2, Level = LogLevel.Error,
+            Message = "A CertificateChanges observer threw while handling {Kind}; " +
+                "delivery continues with the remaining observers.")]
+        public static partial void CertificateChangeObserverFailed(
+            this ILogger logger,
+            Exception exception,
+            CertificateChangeKind? kind);
     }
 }

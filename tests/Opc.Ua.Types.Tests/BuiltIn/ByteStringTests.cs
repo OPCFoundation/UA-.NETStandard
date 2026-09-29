@@ -938,8 +938,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var bs = new ByteString(new byte[] { 1, 2, 3 });
 
+            // A non empty sequence sorts after an empty (or null) one.
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(bs.CompareTo((byte[]?)null), Is.LessThan(0));
+            Assert.That(bs.CompareTo((byte[]?)null), Is.GreaterThan(0));
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 

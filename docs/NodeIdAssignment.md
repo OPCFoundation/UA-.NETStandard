@@ -47,19 +47,20 @@ NodeId NextCounterNodeId();
 NodeId CreateChildNodeId(NodeId parentNodeId, QualifiedName browseName, ushort namespaceIndex, NamespaceTable namespaceUris);
 ```
 
-The namespace is why this is a contract rather than constructor
-configuration: a namespace belongs to the NodeManager, not to the node, and
-a manager learns its own namespace index only after the server's namespace
-table has been extended — which is later than a factory registered in
-dependency injection was built. Implementations are therefore immutable and
-the `With…` methods return a view, so one registered instance serves
-managers that own different namespaces.
+The factory needs the NodeManager's namespace index, but the server adds that
+namespace only after constructing the manager. A factory registered through
+dependency injection is therefore created too early to receive the final
+index as constructor configuration.
 
-`AsyncCustomNodeManager.NodeIdFactory` is typed as this interface, so a
-caller can put its own rule in front of `DefaultNodeIdFactory` by
-decorating it — claim one subtree, delegate the rest — instead of
-overriding `New` on the NodeManager and scattering the identifier rule
-across it.
+For that reason, `IRebasableNodeIdFactory` is a contract rather than
+constructor configuration. Implementations are immutable, and the `With…`
+methods return views with different namespaces. One registered factory can
+serve managers that own different namespaces.
+
+`AsyncCustomNodeManager.NodeIdFactory` uses this interface. A caller can
+decorate `DefaultNodeIdFactory` with a custom rule—for example, claim one
+subtree and delegate other nodes—instead of overriding `New` on the
+NodeManager and scattering the rule across it.
 
 The property is nullable, and null means *do not assign*. A node copy
 deliberately hides the factory from the children it materialises, so code
@@ -107,11 +108,11 @@ ordering. The index form is a fallback for an unregistered namespace; it
 is deliberately distinct so identifiers minted before the namespace was
 registered cannot collide with the ones minted after.
 
-The path is scratch. In every mode but `String` it is hashed and thrown
-away, so it is built into a stack buffer — or, when it does not fit, one
-rented from `ArrayPool<char>` — and never becomes a string at all. The
-length is measured and written by one routine, so the length reserved for
-a segment cannot drift from the length written into it.
+The path is temporary. Except in `String` mode, the factory hashes it and
+discards it without creating a string. It builds the path in a stack
+buffer, or rents a buffer from `ArrayPool<char>` when needed. One routine
+measures and writes the path, so the reserved segment length always
+matches the written length.
 
 ### Modes
 
@@ -157,24 +158,23 @@ could pass as a re-mint.
 
 Three consequences worth knowing:
 
-- The record is kept per namespace, because identifiers in different
-  namespaces cannot collide, and is shared by every view derived from one
-  factory — so two NodeManagers that rebase the registered factory onto
-  the same namespace are checked against each other, and draw sequential
-  identifiers from one counter rather than from two seeded moments apart.
-  Two NodeManagers that each construct a factory of their own instead of
-  taking the registered one share nothing, and have no way to.
-- It is never pruned. An identifier handed to a client stays spoken for
-  even after the node goes away, so re-minting it for a different path is
-  exactly the collision this catches. It costs roughly 50 bytes per
-  distinct path minted.
-- It covers what the factory mints, not identifiers a caller assigned
-  itself. `String` cannot collide and keeps no record. `Counter` cannot
-  collide with itself either, but it mints into the same numeric space a
-  hash does, so when checking is asked for it reserves what it hands out —
-  otherwise a namespace minting in both modes could issue one identifier
-  twice. It steps over a taken value rather than reporting it, because the
-  counter is the side free to move.
+- The factory keeps a record per namespace because identifiers in
+  different namespaces cannot collide. Views derived from one factory
+  share that record. Therefore, two NodeManagers that rebase the registered
+  factory onto the same namespace are checked against each other and draw
+  sequential identifiers from one counter. NodeManagers that construct
+  separate factories instead of using the registered factory do not share
+  records.
+- The factory never prunes the record. An identifier handed to a client
+  remains reserved after its node is removed, so re-minting it for another
+  path is a collision. The record costs roughly 50 bytes per distinct path.
+- It covers identifiers the factory mints, not identifiers a caller
+  assigns. `String` identifiers cannot collide, so the factory keeps no
+  record for them. `Counter` identifiers cannot collide with each other,
+  but they use the same numeric namespace as hashes. When checking is
+  enabled, the factory reserves each counter value to prevent another
+  mode from minting it. If a counter value is already taken, the factory
+  advances to the next value because the counter can move.
 
 `Counter` is for nodes whose browse paths repeat over time — per-session
 diagnostics objects, inference jobs, rediscovered assets. Its counter

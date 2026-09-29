@@ -2,7 +2,17 @@
 
 > **When to read this:** Read this for the move from pre-generated code files to the source-generated NodeManager / data-type model, including the project-structure changes and the new default for boolean properties.
 
-Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generators](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators) to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Example projects are provided in the Applications folder. Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
+## Contents
+
+- [Migrating model projects](#migrating-model-projects)
+- [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
+- [Server default Aggregate configuration now treats Uncertain as Bad (Part 13)](#server-default-aggregate-configuration-now-treats-uncertain-as-bad-part-13)
+- [MIG01 resolution playbook](#mig01-resolution-playbook)
+- [Project Structure](#project-structure)
+
+## Migrating model projects
+
+Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generators](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators) to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Example projects are provided under `samples/`. Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
 
 **Model compiler generated csharp code is not supported in this version!**
 
@@ -30,9 +40,9 @@ Code generation during compilation also allows not just emitting code ahead of t
 
 The stack itself uses source generators to generate the core opc ua code. Therefore all pre-generated code files (`Generated/` folders) have been removed and are now generated at build time. As a result of using source generators to generate the stack code all `*.nodeset2.xml` files previously included as embedded zip have been removed. Also, all `*.Types.xsd` and `*.Types.bsd` files are now included as string resource instead of embedded resources. If you need access to these, use the new `Schemas.XmlAsStream` and `Schemas.BinaryAsStream` APIs in the node manager namespace which produce a utf8 stream. Alternatively you can use the existing ModelCompiler tool to generate these files.
 
-When you encounter slower build times use incremental compilation and avoid changes to code in Opc.Ua and Opc.Ua.Core project. In addition you can change your builds to only build for your target framework using the dotnet `-f <tfm>` command line option, e.g. `-f net10`.
+When you encounter slower build times use incremental compilation and avoid changes to code in Opc.Ua and Opc.Ua.Core project. In addition you can change your builds to only build for your target framework using the dotnet `-f <tfm>` command line option, e.g. `-f net10.0`.
 
-### Default value of boolean properties in source-generated data types is now false
+## Default value of boolean properties in source-generated data types is now false
 
 **Breaking Change**: Boolean properties on source-generated data types now correctly default to `false` instead of `true`.
 
@@ -70,7 +80,7 @@ var connection = new PubSubConnectionDataType
 };
 ```
 
-### Server default Aggregate configuration now treats Uncertain as Bad (Part 13)
+## Server default Aggregate configuration now treats Uncertain as Bad (Part 13)
 
 **Behavioral Change (Part 13 compliance)**: The server-side default aggregate configuration returned by
 `AggregateManager.GetDefaultConfiguration(...)` — used when a `ReadProcessedDetails` request sets
@@ -83,7 +93,7 @@ Uncertain-quality samples as Bad when computing aggregate `StatusCode`s (unless 
 definition states otherwise). Clients that require the previous behavior should send an explicit
 `AggregateConfiguration` with `TreatUncertainAsBad = false` instead of `UseServerCapabilitiesDefaults = true`.
 
-### MIG01 resolution playbook
+## MIG01 resolution playbook
 
 The migration analyzer's source generator emits temporary
 `<Type>Collection : List<T>` compatibility wrappers. It reports `MIG01` when
@@ -106,7 +116,7 @@ replacing the wrapper with the intended fully qualified `List<T>` or
 wrapper explicitly in consumer source so the unresolved reference binds and
 the generator does not try to synthesize it.
 
-### Project Structure
+## Project Structure
 
 New `Opc.Ua` project as an intermediate project. Impact:
 

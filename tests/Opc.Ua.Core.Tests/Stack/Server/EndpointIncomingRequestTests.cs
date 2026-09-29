@@ -43,8 +43,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
     [Parallelizable]
     public class EndpointIncomingRequestTests
     {
+        /// <summary>
+        /// Hosts endpoint requests in a single-worker queue so queued and executing states are deterministic.
+        /// </summary>
         private sealed class TestServer : ServerBase
         {
+            /// <summary>
+            /// Initializes message context and installs the single-worker queue owned by this server.
+            /// </summary>
             public TestServer()
                 : base(NUnitTelemetryContext.Create(true))
             {
@@ -52,6 +58,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     "m_messageContext",
                     BindingFlags.NonPublic | BindingFlags.Instance);
                 field.SetValue(this, ServiceMessageContext.Create(NUnitTelemetryContext.Create(true)));
+                FieldInfo queueField = typeof(ServerBase).GetField(
+                    "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance);
+                ((IDisposable)queueField.GetValue(this)).Dispose();
+                m_queue = new RequestQueue(this, 1, 1, 10);
+                queueField.SetValue(this, m_queue);
             }
 
             public Action<IEndpointIncomingRequest> OnScheduleIncomingRequest { get; set; }
@@ -69,6 +80,23 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     base.ScheduleIncomingRequest(request, cancellationToken);
                 }
             }
+
+            /// <summary>
+            /// Releases the test queue before disposing the server's remaining state.
+            /// </summary>
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_queue.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            /// <summary>
+            /// Single-worker queue shared with the base server's dispatch path.
+            /// </summary>
+            private readonly RequestQueue m_queue;
         }
 
         private sealed class TestEndpointBase : EndpointBase
@@ -298,33 +326,82 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
+        /// <summary>
+        /// Cancellation before dispatch rejects the queued request without invoking its service.
+        /// </summary>
         [Test]
         public async Task ProcessAsyncCancellationAbortsQueuedServiceAsync()
         {
             using var server = new TestServer();
             var endpoint = new TestEndpointBase(server);
-            var req = new ReadRequest { RequestHeader = new RequestHeader() };
+            var req = new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 2 } };
             var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int queuedServiceCalls = 0;
 
             endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest),
-                async (_, _, lifetime) =>
+                async (request, _, lifetime) =>
                 {
-                    await Task.Delay(Timeout.InfiniteTimeSpan, lifetime.CancellationToken)
-                        .ConfigureAwait(false);
+                    if (request.RequestHeader.RequestHandle == 1)
+                    {
+                        started.TrySetResult(true);
+                        await release.Task.WaitAsync(lifetime.CancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref queuedServiceCalls);
+                    }
                     return new ReadResponse();
                 });
 
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            object blocking = endpoint.CreateIncomingRequest(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 1 } }, ctx);
+            Task<IServiceResponse> blockingResponse = TestEndpointBase.ProcessAsyncLocal(blocking).AsTask();
+            await started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
             object incoming = endpoint.CreateIncomingRequest(req, ctx);
             using var cancellation = new CancellationTokenSource();
-            ValueTask<IServiceResponse> responseTask =
-                TestEndpointBase.ProcessAsyncLocal(incoming, cancellation.Token);
-
+            Task<IServiceResponse> responseTask =
+                TestEndpointBase.ProcessAsyncLocal(incoming, cancellation.Token).AsTask();
             cancellation.Cancel();
+            Assert.That(responseTask.IsCompleted, Is.False, "The only worker still owns the first request.");
+            release.TrySetResult(true);
+            IServiceResponse first = await blockingResponse.WaitAsync(deadline.Token).ConfigureAwait(false);
+            IServiceResponse response = await responseTask.WaitAsync(deadline.Token).ConfigureAwait(false);
 
-            IServiceResponse response = await responseTask.AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(1))
-                .ConfigureAwait(false);
+            Assert.That(first, Is.InstanceOf<ReadResponse>());
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+            Assert.That(queuedServiceCalls, Is.Zero);
+        }
 
+        /// <summary>
+        /// Cancellation after service entry retains the endpoint's request-lifetime timeout mapping.
+        /// </summary>
+        [Test]
+        public async Task ProcessAsyncCancellationAbortsExecutingServiceWithTimeoutAsync()
+        {
+            using var server = new TestServer();
+            var endpoint = new TestEndpointBase(server);
+            var req = new ReadRequest { RequestHeader = new RequestHeader() };
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest),
+                async (_, _, lifetime) =>
+                {
+                    started.TrySetResult(true);
+                    await Task.Delay(Timeout.InfiniteTimeSpan, lifetime.CancellationToken).ConfigureAwait(false);
+                    return new ReadResponse();
+                });
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cancellation = new CancellationTokenSource();
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            Task<IServiceResponse> responseTask =
+                TestEndpointBase.ProcessAsyncLocal(incoming, cancellation.Token).AsTask();
+            await started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            cancellation.Cancel();
+            IServiceResponse response = await responseTask.WaitAsync(deadline.Token).ConfigureAwait(false);
             Assert.That(response, Is.InstanceOf<ServiceFault>());
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadTimeout));
         }

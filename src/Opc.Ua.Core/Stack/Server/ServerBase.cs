@@ -47,7 +47,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase
+    public partial class ServerBase : IServerBase, IResourceIsolationProviderSource, IRequestParkingPolicySource
     {
         /// <summary>
         /// Initializes object with default values.
@@ -76,12 +76,25 @@ namespace Opc.Ua
         public ServerBase(
             ITelemetryContext telemetry,
             ITransportBindingRegistry? transportBindings)
+            : this(telemetry, transportBindings, requestParkingPolicy: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a server with optional transport bindings and a custom-handler parking policy.
+        /// The policy supplements intrinsic Publish support and does not override DecoupleHeldPublishRequests.
+        /// </summary>
+        public ServerBase(
+            ITelemetryContext telemetry,
+            ITransportBindingRegistry? transportBindings,
+            IRequestParkingPolicy? requestParkingPolicy)
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger(this);
             m_transportBindings = transportBindings;
+            RequestParkingPolicy = requestParkingPolicy;
         }
 
         /// <summary>
@@ -210,6 +223,12 @@ namespace Opc.Ua
         public IServiceResponseMutator? ResponseMutator { get; set; }
 
         /// <summary>
+        /// Gets or sets the optional custom-handler parking policy. Configure it before starting the server.
+        /// Publish parking remains intrinsic; DecoupleHeldPublishRequests disables all worker decoupling.
+        /// </summary>
+        public IRequestParkingPolicy? RequestParkingPolicy { get; set; }
+
+        /// <summary>
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of EndpointDescription.</returns>
@@ -227,7 +246,7 @@ namespace Opc.Ua
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken = default)
         {
-            m_requestQueue.ScheduleIncomingRequest(request);
+            m_requestQueue.ScheduleIncomingRequest(request, cancellationToken);
         }
 
         /// <summary>
@@ -646,7 +665,9 @@ namespace Opc.Ua
                 minRequestThreadCount,
                 maxRequestThreadCount,
                 maxQueuedRequestCount,
-                decoupleHeldPublishRequests);
+                decoupleHeldPublishRequests,
+                ResourceIsolationProvider,
+                configuration.TransportQuotas?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize);
 
             // a fresh request queue re-arms the shutdown sequence for the (re)started server.
             lock (m_stopLock)
@@ -666,6 +687,14 @@ namespace Opc.Ua
         protected void StopRequestQueue()
         {
             m_requestQueue?.Dispose();
+        }
+
+        /// <summary>
+        /// Cancels admissions and drains executing and parked requests before server state is torn down.
+        /// </summary>
+        protected ValueTask StopRequestQueueAsync(CancellationToken cancellationToken = default)
+        {
+            return m_requestQueue?.StopAsync(cancellationToken) ?? default;
         }
 
         /// <summary>
@@ -988,6 +1017,12 @@ namespace Opc.Ua
         public ISessionBindingProvider? SessionBindingProvider { get; set; }
 
         /// <summary>
+        /// Gets or sets the shared resource-isolation policy used by listeners and decoded request dispatch.
+        /// Configure before startup; the host owns explicitly supplied providers.
+        /// </summary>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
         /// </summary>
         /// <remarks>
@@ -1141,7 +1176,8 @@ namespace Opc.Ua
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0,
                     ChunkReassemblyBudget = chunkReassemblyBudget,
-                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider
+                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider,
+                    ResourceIsolationProvider = ResourceIsolationProvider
                 };
 
                 settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;
@@ -1520,7 +1556,8 @@ namespace Opc.Ua
                 ApplicationUri = description.ApplicationUri,
                 ApplicationType = description.ApplicationType,
                 ProductUri = description.ProductUri,
-                GatewayServerUri = description.DiscoveryProfileUri,
+                GatewayServerUri = description.GatewayServerUri,
+                DiscoveryProfileUri = description.DiscoveryProfileUri,
                 DiscoveryUrls = discoveryUrls
             };
 
@@ -2183,14 +2220,16 @@ namespace Opc.Ua
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 9, Level = LogLevel.Debug,
             Message = "Too many operations. Active threads: {Count}")]
-        public static partial void ServerBaseLogMessage9(this ILogger logger, int count);
+        public static partial void RequestQueueFull(this ILogger logger, int count);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 10, Level = LogLevel.Error,
             Message = "Unexpected error processing incoming request.")]
-        public static partial void ServerBaseLogMessage10(this ILogger logger, Exception? exception);
+        public static partial void RequestQueueProcessingFailed(
+            this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 11, Level = LogLevel.Error,
             Message = "Failed to fault an incoming request after an error.")]
-        public static partial void ServerBaseLogMessage11(this ILogger logger, Exception? exception);
+        public static partial void RequestFaultDeliveryFailed(
+            this ILogger logger, Exception? exception);
     }
 }

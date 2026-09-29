@@ -189,15 +189,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-#if NET5_0_OR_GREATER
                 await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
-#else
-                using (ct.Register(static s => ((Socket)s!).Dispose(), socket))
-                {
-                    await socket.ConnectAsync(endpoint).ConfigureAwait(false);
-                }
-                ct.ThrowIfCancellationRequested();
-#endif
 
                 lock (m_socketLock)
                 {

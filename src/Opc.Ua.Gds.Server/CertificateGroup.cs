@@ -351,10 +351,11 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
+                // OPC 10000-12 §7.9.3: the ApplicationUri shall be specified
+                // in the CSR, so a CSR without a SubjectAltName URI is rejected.
                 X509SubjectAltNameExtension? altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
-                if (altNameExtension != null &&
-                    altNameExtension.Uris.Count > 0 &&
+                if (altNameExtension == null ||
                     !altNameExtension.Uris.Contains(application.ApplicationUri))
                 {
                     throw new ServiceResultException(
@@ -389,10 +390,16 @@ namespace Opc.Ua.Gds.Server
 
                 X509SubjectAltNameExtension? altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
-                if (altNameExtension != null)
+                if (altNameExtension == null)
                 {
-                    if (altNameExtension.Uris.Count > 0 &&
-                        !altNameExtension.Uris.Contains(application.ApplicationUri))
+                    // OPC 10000-12 §7.9.3: the ApplicationUri shall be specified in the CSR.
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateUriInvalid,
+                        "CSR has no AltNameExtension with the ApplicationUri " + application.ApplicationUri);
+                }
+                else
+                {
+                    if (!altNameExtension.Uris.Contains(application.ApplicationUri))
                     {
                         var applicationUriMissing = new StringBuilder();
                         applicationUriMissing.AppendLine(

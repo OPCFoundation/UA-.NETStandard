@@ -157,12 +157,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(ev.Symbol, Is.Null);
         }
 
+        /// <summary>
+        /// The symbol names the value, not the enumerated type, so it must
+        /// not name the elements of an XML enumeration array (OPC 10000-6
+        /// 5.3.4): an array of Blue and Green was written as &lt;Blue&gt;
+        /// and &lt;Green&gt; elements and only the first was read back.
+        /// </summary>
         [Test]
-        public void XmlNameFromStringSourceReturnsQualifiedName()
+        public void XmlNameFromStringSourceIsNull()
         {
             var ev = new EnumValue(0, "TestSymbol");
-            Assert.That(ev.XmlName, Is.Not.Null);
-            Assert.That(ev.XmlName!.Name, Is.EqualTo("TestSymbol"));
+            Assert.That(ev.XmlName, Is.Null);
         }
 
         [Test]

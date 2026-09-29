@@ -344,6 +344,7 @@ namespace Opc.Ua.Server.FileSystem
                     }
 
                     handle = new FileHandle(Provider, providerPath);
+                    FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                     m_handles.Add(identity, handle);
                     return handle;
                 }
@@ -390,6 +391,36 @@ namespace Opc.Ua.Server.FileSystem
                     }
                 }
                 retired?.Dispose();
+            }
+
+            /// <inheritdoc/>
+            public bool TryBeginMutation(string providerPath)
+            {
+                lock (m_lock)
+                {
+                    return FileSystemDirectoryOperations.TryBeginMutation(
+                        Provider, m_handles.Values, m_mutations, providerPath);
+                }
+            }
+
+            /// <inheritdoc/>
+            public void EndMutation(string providerPath)
+            {
+                lock (m_lock)
+                {
+                    FileSystemDirectoryOperations.EndMutation(
+                        Provider, m_handles.Values, m_mutations, providerPath);
+                }
+            }
+
+            /// <inheritdoc/>
+            /// <remarks>
+            /// The bound directory lives in the integrator's address space, which
+            /// controls user access through its RolePermissions and the binding options.
+            /// </remarks>
+            public bool CanUserWrite(ISystemContext context)
+            {
+                return true;
             }
 
             /// <inheritdoc/>
@@ -773,12 +804,12 @@ namespace Opc.Ua.Server.FileSystem
             {
                 EnsureDirectoryMethods(directory);
                 directory.DeleteFileSystemObject!.OnCallAsync = (context, method, objectId, objectToDelete, ct) =>
-                    FileSystemDirectoryOperations.DeleteAsync(this, objectToDelete, ct);
+                    FileSystemDirectoryOperations.DeleteAsync(this, context, providerPath, objectToDelete, ct);
                 directory.CreateFile!.OnCallAsync = (context, method, objectId, fileName, requestFileOpen, ct) =>
                     FileSystemDirectoryOperations.CreateFileAsync(
                         this, context, providerPath, fileName, requestFileOpen, ct);
                 directory.CreateDirectory!.OnCallAsync = (context, method, objectId, directoryName, ct) =>
-                    FileSystemDirectoryOperations.CreateDirectoryAsync(this, providerPath, directoryName, ct);
+                    FileSystemDirectoryOperations.CreateDirectoryAsync(this, context, providerPath, directoryName, ct);
                 directory.MoveOrCopy!.OnCallAsync = (
                     context,
                     method,
@@ -788,7 +819,7 @@ namespace Opc.Ua.Server.FileSystem
                     createCopy,
                     newName,
                     ct) => FileSystemDirectoryOperations.MoveOrCopyAsync(
-                        this, objectToMoveOrCopy, targetDirectory, createCopy, newName, ct);
+                        this, context, providerPath, objectToMoveOrCopy, targetDirectory, createCopy, newName, ct);
             }
 
             private void DetachDirectoryCallbacks(FileDirectoryState directory)
@@ -878,6 +909,11 @@ namespace Opc.Ua.Server.FileSystem
 
             private readonly SemaphoreSlim m_gate = new(1, 1);
             private readonly Dictionary<string, FileHandle> m_handles = new(StringComparer.Ordinal);
+
+            /// <summary>
+            /// Path identities of the Delete and Move mutations currently running; guarded by m_lock.
+            /// </summary>
+            private readonly List<string> m_mutations = [];
             private readonly Dictionary<NodeId, MaterializedNode> m_nodesById = [];
             private readonly Dictionary<string, MaterializedNode> m_nodesByPath = new(StringComparer.Ordinal);
             private readonly ISystemContext m_context;

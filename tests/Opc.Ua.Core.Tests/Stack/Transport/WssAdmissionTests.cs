@@ -39,6 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -50,6 +51,74 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [NonParallelizable]
     public sealed class WssAdmissionTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AcceptedReverseHelloAllowsPausedHandoffWithoutReleasingConnectionAsync(bool stopListener)
+        {
+            var provider = new CountingIsolationProvider();
+            var clock = new FakeTimeProvider();
+            await using HttpsTransportListener listener = CreateListener(
+                reverse: true, provider: provider, clock: clock);
+            var adopted = new TaskCompletionSource<IUaSCByteTransport>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            listener.ConnectionWaiting += (_, args) =>
+            {
+                args.Accepted = true;
+                adopted.TrySetResult(((TcpConnectionWaitingEventArgs)args).Transport);
+                return Task.CompletedTask;
+            };
+            using var request = new UpgradeRequest(CreateReverseHello());
+            Task handler = listener.AcceptWebSocketAsync(request.Context);
+            IUaSCByteTransport transport = await adopted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            try
+            {
+                await provider.WaitForHandshakeCompletionAsync().ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromMinutes(3));
+                Assert.That(handler.IsCompleted, Is.False);
+                Assert.That(request.Context.RequestAborted.IsCancellationRequested, Is.False);
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+                if (stopListener)
+                {
+                    await listener.StopAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                transport.Close();
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+        }
+
+        [Test]
+        public async Task ReverseConnectionWithoutReverseHelloStillExpiresAsync()
+        {
+            var provider = new CountingIsolationProvider();
+            var clock = new FakeTimeProvider();
+            await using HttpsTransportListener listener = CreateListener(
+                reverse: true, provider: provider, clock: clock);
+            using var request = new UpgradeRequest();
+            Task handler = listener.AcceptWebSocketAsync(request.Context);
+            try
+            {
+                await request.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                clock.Advance(TimeSpan.FromSeconds(119));
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.EqualTo(1));
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                clock.Advance(TimeSpan.FromSeconds(1));
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            }
+            finally
+            {
+                request.Context.Abort();
+                await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task RejectAllLimiterPreventsUacpUpgradeAsync()
         {
@@ -157,7 +226,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(true)]
         public async Task RejectedOrFailedReverseHandoffReturnsCapacityAsync(bool throwCallback)
         {
-            await using HttpsTransportListener listener = CreateListener(reverse: true);
+            var provider = new CountingIsolationProvider();
+            await using HttpsTransportListener listener = CreateListener(reverse: true, provider: provider);
             listener.ConnectionWaiting += (_, _) => throwCallback
                 ? throw new InvalidOperationException("handoff failed")
                 : Task.CompletedTask;
@@ -165,21 +235,78 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await listener.AcceptWebSocketAsync(request.Context).WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
             request.Socket.Verify(value => value.Abort(), Times.Once);
+            Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
             await AssertHealthyUpgradeAsync(listener).ConfigureAwait(false);
         }
 
         [TestCase(Profiles.OpcUaWsSubProtocolUaJson)]
         [TestCase(Profiles.OpcUaWsSubProtocolOpenApi)]
-        public async Task JsonUpgradeDoesNotUsePhysicalUascAdmissionAsync(string subProtocol)
+        public async Task JsonUpgradeUsesPhysicalConnectionAdmissionBeforeUpgradeAsync(string subProtocol)
         {
             var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter { Allow = false };
             await using HttpsTransportListener listener = CreateListener(limiter);
             using var request = new UpgradeRequest { UpgradeError = new IOException("upgrade reached") };
             request.Context.Request.Headers["Sec-WebSocket-Protocol"] = subProtocol;
+            await listener.AcceptWebSocketAsync(request.Context).ConfigureAwait(false);
+            Assert.That(request.UpgradeCalls, Is.Zero);
+            Assert.That(request.Context.Response.StatusCode, Is.EqualTo(503));
+            Assert.That(limiter.Calls, Is.EqualTo(1));
+        }
+
+        [TestCase(Profiles.OpcUaWsSubProtocolUacp)]
+        [TestCase(Profiles.OpcUaWsSubProtocolUaJson)]
+        [TestCase(Profiles.OpcUaWsSubProtocolOpenApi)]
+        public async Task RuntimeRejectionPrecedesUpgradeAndLegacyLimiterForEveryProfileAsync(string subProtocol)
+        {
+            var provider = new CountingIsolationProvider(rejectedStage: ResourceIsolationStage.Handshake);
+            var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter();
+            await using HttpsTransportListener listener = CreateListener(limiter, provider: provider);
+            using var request = new UpgradeRequest();
+            request.Context.Request.Headers["Sec-WebSocket-Protocol"] = subProtocol;
+            await listener.AcceptWebSocketAsync(request.Context).ConfigureAwait(false);
+            Assert.That(request.UpgradeCalls, Is.Zero);
+            Assert.That(request.Context.Response.StatusCode, Is.EqualTo(503));
+            Assert.That(limiter.Calls, Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+        }
+
+        [Test]
+        public async Task UpgradeFailureReleasesRuntimeStagesAsync()
+        {
+            var provider = new CountingIsolationProvider();
+            await using HttpsTransportListener listener = CreateListener(provider: provider);
+            using var request = new UpgradeRequest { UpgradeError = new IOException("upgrade failed") };
             Assert.ThrowsAsync<IOException>(async () =>
                 await listener.AcceptWebSocketAsync(request.Context).ConfigureAwait(false));
-            Assert.That(request.UpgradeCalls, Is.EqualTo(1));
-            Assert.That(limiter.Calls, Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HttpBodiesAreRejectedBeforeReadWithoutPretendingToBeConnectionsAsync(bool json)
+        {
+            var provider = new CountingIsolationProvider(rejectedStage: ResourceIsolationStage.ReassemblyBytes);
+            await using HttpsTransportListener listener = CreateListener(provider: provider);
+            var context = new DefaultHttpContext();
+            using var response = new MemoryStream();
+            context.Response.Body = response;
+            var body = new Mock<Stream>();
+            body.SetupGet(value => value.CanRead).Returns(true);
+            context.Request.Body = body.Object;
+            if (json)
+            {
+                await listener.SendJsonAsync(context).ConfigureAwait(false);
+            }
+            else
+            {
+                await listener.SendBinaryAsync(context).ConfigureAwait(false);
+            }
+            Assert.That(context.Response.StatusCode, Is.EqualTo(503));
+            Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+            body.VerifyNoOtherCalls();
         }
 
         private static async Task AssertHealthyUpgradeAsync(HttpsTransportListener listener)
@@ -202,12 +329,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private static HttpsTransportListener CreateListener(
             IConnectionRateLimiter? limiter = null,
-            bool reverse = false)
+            bool reverse = false,
+            IServerResourceIsolationProvider? provider = null,
+            TimeProvider? clock = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var listener = new HttpsTransportListener(Utils.UriSchemeWss, telemetry);
-            SetField(listener, "m_admission", new UaScConnectionAdmission(1, limiter));
-            SetField(listener, "m_quotas", new ChannelQuotas(ServiceMessageContext.Create(telemetry)));
+            SetField(listener, "m_admission", new UaScConnectionAdmission(1, limiter, provider, timeProvider: clock));
+            SetField(listener, "m_quotas", new ChannelQuotas(ServiceMessageContext.Create(telemetry))
+            {
+                ResourceIsolationProvider = provider
+            });
             SetField(listener, "m_bufferManager", new BufferManager(DefaultBufferManagerFactory.Instance
                 .Create("wss-admission", 65536, telemetry)));
             SetField(listener, "m_descriptions", new List<EndpointDescription>());
@@ -223,7 +355,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .SetValue(listener, value);
         }
 
-        private static byte[] CreateReverseHello()
+        internal static byte[] CreateReverseHello()
         {
             IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             byte[] buffer = new byte[256];

@@ -35,6 +35,7 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
@@ -111,6 +112,7 @@ namespace Opc.Ua.Schema.Model
             m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             m_fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<NodeSetToModelDesign>();
             m_index = [];
             m_symbolicIds = [];
 
@@ -149,18 +151,19 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            if (m_nodeset.Items != null)
+            // A NodeSet without nodes deserializes with a null Items array;
+            // treat it as empty so every pass below imports nothing.
+            m_nodeset.Items ??= [];
+
+            foreach (UANode node in m_nodeset.Items)
             {
-                foreach (UANode node in m_nodeset.Items)
+                NodeId nodeId = ImportNodeId(node.NodeId, false);
+                if (nodeId.IsNull)
                 {
-                    NodeId nodeId = ImportNodeId(node.NodeId, false);
-                    if (nodeId.IsNull)
-                    {
-                        throw new InvalidDataException(
-                            $"NodeId ({node.BrowseName}) is not valid.");
-                    }
-                    m_index.Add(nodeId, node);
+                    throw new InvalidDataException(
+                        $"NodeId ({node.BrowseName}) is not valid.");
                 }
+                m_index.Add(nodeId, node);
             }
         }
 
@@ -179,33 +182,78 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(filePath));
             }
+            // Only the root element decides. Reading it with an XmlReader copes
+            // with a root on the same line as the XML declaration (minified
+            // output) and with comments spanning several lines, which a line
+            // based scan misread.
             using TextReader reader = fileSystem.CreateTextReader(filePath);
-            for (int ii = 0; ii < 40; ii++)
+            var settings = new XmlReaderSettings
             {
-                string line = reader.ReadLine();
-                if (line == null)
-                {
-                    break;
-                }
-                line = line.TrimStart();
+                DtdProcessing = DtdProcessing.Ignore,
+                XmlResolver = null,
+                IgnoreComments = true,
+                IgnoreProcessingInstructions = true,
+                IgnoreWhitespace = true
+            };
+            try
+            {
+                using var xmlReader = XmlReader.Create(reader, settings);
+                return xmlReader.MoveToContent() == XmlNodeType.Element &&
+                    xmlReader.LocalName == "UANodeSet";
+            }
+            catch (XmlException)
+            {
+                // A NodeSet that is not well formed is still a NodeSet: it
+                // has to fail as one, in isolation, rather than fall through
+                // to the ModelDesign pass and abort every model with it.
+                return HasNodeSetRootName(fileSystem, filePath);
+            }
+        }
 
-                if (line.StartsWith("<?", StringComparison.Ordinal) ||
-                    line.StartsWith("<!", StringComparison.Ordinal) ||
-                    !line.StartsWith('<') ||
-                    string.IsNullOrEmpty(line))
+        /// <summary>
+        /// Scans the raw text of a document that is not well formed for the
+        /// name of its first element (skipping the declaration, processing
+        /// instructions, comments and a DOCTYPE) and checks whether that name
+        /// is UANodeSet, with or without a namespace prefix.
+        /// </summary>
+        private static bool HasNodeSetRootName(IFileSystem fileSystem, string filePath)
+        {
+            string text;
+            using (TextReader reader = fileSystem.CreateTextReader(filePath))
+            {
+                text = reader.ReadToEnd();
+            }
+
+            int index = 0;
+            while ((index = text.IndexOf('<', index)) >= 0)
+            {
+                if (string.CompareOrdinal(text, index, "<!--", 0, 4) == 0)
                 {
+                    int end = text.IndexOf("-->", index + 4, StringComparison.Ordinal);
+                    index = end < 0 ? text.Length : end + 3;
+                    continue;
+                }
+                if (index + 1 < text.Length && text[index + 1] is '?' or '!')
+                {
+                    int end = text.IndexOf('>', index + 1);
+                    index = end < 0 ? text.Length : end + 1;
                     continue;
                 }
 
-                string[] fields = line.Split();
-
-                if (fields.Length == 0)
-
+                int start = index + 1;
+                int stop = start;
+                while (stop < text.Length &&
+                    !char.IsWhiteSpace(text[stop]) &&
+                    text[stop] is not '>' and not '/')
                 {
-                    break;
+                    stop++;
                 }
-                return fields[0].Contains("UANodeSet", StringComparison.Ordinal);
+
+                string name = text[start..stop];
+                int colon = name.IndexOf(':', StringComparison.Ordinal);
+                return (colon < 0 ? name : name[(colon + 1)..]) == "UANodeSet";
             }
+
             return false;
         }
 
@@ -452,17 +500,54 @@ namespace Opc.Ua.Schema.Model
                     browseName.Namespace);
             }
 
+            // ImportQualifiedName replaces a leading digit with '_', which
+            // ToSymbolicName then turns into 'x'. Where that lossy name clashes
+            // (see CollectDigitPreservingNames) keep the digit, following the
+            // ToSymbolicName convention for a leading digit ("1Axis" ->
+            // "n1Axis").
+            if (m_digitPreservingNames.Contains(input.NodeId) &&
+                browseName.Name.Length > 0 &&
+                rawName is { Length: > 0 })
+            {
+                return new XmlQualifiedName(
+                    ToSymbolicName(rawName[0] + browseName.Name[1..]),
+                    browseName.Namespace);
+            }
+
             return new XmlQualifiedName(ToSymbolicName(browseName.Name), browseName.Namespace);
         }
 
         private static LocalizedText ImportLocalizedText(Export.LocalizedText[] input)
         {
-            if (input != null && input.Length > 0 && !string.IsNullOrWhiteSpace(input[0].Value))
+            if (input == null || input.Length == 0)
             {
-                return new LocalizedText { Value = input[0].Value, IsAutogenerated = false };
+                return null;
             }
 
-            return null;
+            // The design schema carries a single, locale-less default text. A
+            // NodeSet may list several translations in any order, so prefer the
+            // invariant or English entry over whichever happens to come first,
+            // and never let an empty first entry hide a later translation.
+            Export.LocalizedText selected =
+                Array.Find(input, x => !string.IsNullOrWhiteSpace(x?.Value) &&
+                    string.IsNullOrEmpty(x.Locale)) ??
+                Array.Find(input, x => !string.IsNullOrWhiteSpace(x?.Value) &&
+                    IsEnglishLocale(x.Locale)) ??
+                Array.Find(input, x => !string.IsNullOrWhiteSpace(x?.Value));
+
+            if (selected == null)
+            {
+                return null;
+            }
+
+            return new LocalizedText { Value = selected.Value, IsAutogenerated = false };
+        }
+
+        private static bool IsEnglishLocale(string locale)
+        {
+            return locale != null &&
+                (string.Equals(locale, "en", StringComparison.OrdinalIgnoreCase) ||
+                locale.StartsWith("en-", StringComparison.OrdinalIgnoreCase));
         }
 
         private ReferenceTypeDesign FindReferenceType(ExpandedNodeId targetId)
@@ -689,14 +774,16 @@ namespace Opc.Ua.Schema.Model
             output.ValueRankSpecified = true;
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
-            output.ArrayDimensions = input.ArrayDimensions;
+            output.ArrayDimensions = ImportArrayDimensions(input.ValueRank, input.ArrayDimensions);
 
             if (input.Value != null)
             {
-                XmlDecoder decoder = CreateDecoder(input.Value);
+                XmlDecoder decoder = CreateValueDecoder(input.Value, out NamespaceTable valueNamespaceUris);
                 output.DecodedValue = decoder
                     .ReadVariantValue(null, default)
                     .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                // The value keeps the NodeSet's own indexes; record their table.
+                output.DecodedValueNamespaceUris = valueNamespaceUris;
                 decoder.Close();
             }
 
@@ -755,7 +842,11 @@ namespace Opc.Ua.Schema.Model
             }
             TypeDesign parent = FindSuperType<TypeDesign>(subtype);
 
-            while (parent != null)
+            // A root type may declare itself as its own supertype (see the
+            // other IsTypeOf overload); stop instead of walking that forever.
+            var visited = new HashSet<XmlQualifiedName>();
+
+            while (parent != null && visited.Add(parent.SymbolicId))
             {
                 var parentId = new NodeId(
                     parent.NumericId,
@@ -797,6 +888,29 @@ namespace Opc.Ua.Schema.Model
             return false;
         }
 
+        /// <summary>
+        /// The number of bits a numeric OptionSet can use: the width of the
+        /// integer type it derives from (OPC 10000-3 5.8.2). A type that only
+        /// derives from the abstract UInteger/Integer is allowed the 64 bits of
+        /// the widest one.
+        /// </summary>
+        private int GetNumericOptionSetBitCount(UADataType dataType)
+        {
+            if (IsTypeOf(dataType, DataTypeIds.Byte) || IsTypeOf(dataType, DataTypeIds.SByte))
+            {
+                return 8;
+            }
+            if (IsTypeOf(dataType, DataTypeIds.UInt16) || IsTypeOf(dataType, DataTypeIds.Int16))
+            {
+                return 16;
+            }
+            if (IsTypeOf(dataType, DataTypeIds.UInt32) || IsTypeOf(dataType, DataTypeIds.Int32))
+            {
+                return 32;
+            }
+            return 64;
+        }
+
         private void UpdateDataTypeDesign(UADataType input, DataTypeDesign output)
         {
             if (input == null || output == null)
@@ -822,7 +936,8 @@ namespace Opc.Ua.Schema.Model
 
             if (input.Definition != null)
             {
-                if (IsTypeOf(input, DataTypeIds.OptionSet))
+                bool isStructureOptionSet = IsTypeOf(input, DataTypeIds.OptionSet);
+                if (isStructureOptionSet)
                 {
                     output.IsEnumeration = true;
                     output.IsStructure = false;
@@ -862,7 +977,7 @@ namespace Opc.Ua.Schema.Model
                         {
                             Name = symbolicName,
                             Description = ImportLocalizedText(ii.Description),
-                            ArrayDimensions = ii.ArrayDimensions,
+                            ArrayDimensions = ImportArrayDimensions(ii.ValueRank, ii.ArrayDimensions),
                             ValueRank = ImportValueRank(ii.ValueRank),
                             Parent = output
                         };
@@ -884,9 +999,36 @@ namespace Opc.Ua.Schema.Model
 
                         if (output.IsOptionSet)
                         {
-                            long mask = 1L << ii.Value;
-                            field.BitMask = $"{mask:X8}";
-                            field.Identifier = mask;
+                            // The Value of an OptionSet field is its bit
+                            // position (OPC 10000-3 8.52). It defaults to -1
+                            // when absent. A numeric OptionSet can only use the
+                            // bits of its base integer type (OPC 10000-3 5.8.2:
+                            // 8 for a Byte, 32 for a UInt32, ...), while a
+                            // subtype of the OptionSet structure (8.40) carries
+                            // its bits in a ByteString with no upper bound, so
+                            // the position is kept in OptionSetBit (the decimal
+                            // Identifier mask only reaches bit 95). A field
+                            // without a usable position is reported and left
+                            // out, so one bad field does not abort the import
+                            // of every model.
+                            int maxBits = isStructureOptionSet
+                                ? int.MaxValue
+                                : GetNumericOptionSetBitCount(input);
+                            if (ii.Value < 0 || ii.Value >= maxBits)
+                            {
+                                m_logger.LogError(
+                                    "OptionSet field '{DataType}/{Field}' has an invalid bit position ({Value}); " +
+                                    "expected a Value between 0 and {MaxBit}. The field is ignored.",
+                                    input.BrowseName,
+                                    ii.Name,
+                                    ii.Value,
+                                    maxBits - 1);
+                                continue;
+                            }
+
+                            field.OptionSetBit = ii.Value;
+                            field.BitMask = ModelDesignExtensions.GetOptionSetBitMask(ii.Value);
+                            field.Identifier = ModelDesignExtensions.GetOptionSetMask(ii.Value);
                             field.IdentifierSpecified = true;
                         }
                         else if (output.IsEnumeration)
@@ -977,8 +1119,10 @@ namespace Opc.Ua.Schema.Model
             output.DefaultValue = input.Value;
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
-            output.ArrayDimensions = input.ArrayDimensions;
-            output.MinimumSamplingInterval = (int)input.MinimumSamplingInterval;
+            output.ArrayDimensions = ImportArrayDimensions(input.ValueRank, input.ArrayDimensions);
+            output.MinimumSamplingInterval = ImportMinimumSamplingInterval(
+                input.MinimumSamplingInterval,
+                input.BrowseName);
             output.MinimumSamplingIntervalSpecified = true;
             output.Historizing = input.Historizing;
             output.HistorizingSpecified = input.Historizing;
@@ -1000,10 +1144,12 @@ namespace Opc.Ua.Schema.Model
 
             if (input.Value != null)
             {
-                XmlDecoder decoder = CreateDecoder(input.Value);
+                XmlDecoder decoder = CreateValueDecoder(input.Value, out NamespaceTable valueNamespaceUris);
                 output.DecodedValue = decoder
                     .ReadVariantValue(null, default)
                     .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                // The value keeps the NodeSet's own indexes; record their table.
+                output.DecodedValueNamespaceUris = valueNamespaceUris;
                 decoder.Close();
             }
 
@@ -1040,7 +1186,9 @@ namespace Opc.Ua.Schema.Model
                 var parameter = new Parameter
                 {
                     Name = argument.Name,
-                    ArrayDimensions = ImportArrayDimensions(argument.ArrayDimensions),
+                    ArrayDimensions = ImportArrayDimensions(
+                        argument.ValueRank,
+                        ImportArrayDimensions(argument.ArrayDimensions)),
                     ValueRank = ImportValueRank(argument.ValueRank),
                     Parent = method,
                     DataType = dataType.SymbolicId,
@@ -1092,7 +1240,9 @@ namespace Opc.Ua.Schema.Model
                 output.Add(new Parameter
                 {
                     Name = name,
-                    ArrayDimensions = GetElementValue(argument, "ArrayDimensions"),
+                    ArrayDimensions = ImportArrayDimensions(
+                        valueRank,
+                        GetListElementValue(argument, "ArrayDimensions")),
                     ValueRank = ImportValueRank(valueRank),
                     Parent = method,
                     DataType = dataType.SymbolicId,
@@ -1144,6 +1294,38 @@ namespace Opc.Ua.Schema.Model
                     .FirstOrDefault(child => child.LocalName == localName);
             }
             return current?.InnerText;
+        }
+
+        /// <summary>
+        /// Returns the child element texts of a list element (e.g. a
+        /// ListOfUInt32) joined with ','. InnerText would concatenate them
+        /// without a separator, turning dimensions 2 and 3 into "23".
+        /// </summary>
+        private static string GetListElementValue(
+            System.Xml.XmlElement element,
+            string localName)
+        {
+            System.Xml.XmlElement list = element?.ChildNodes
+                .OfType<System.Xml.XmlElement>()
+                .FirstOrDefault(child => child.LocalName == localName);
+            if (list == null)
+            {
+                return null;
+            }
+
+            string[] items =
+            [
+                .. list.ChildNodes
+                    .OfType<System.Xml.XmlElement>()
+                    .Select(child => child.InnerText.Trim())
+            ];
+            if (items.Length == 0)
+            {
+                string text = list.InnerText.Trim();
+                return text.Length == 0 ? null : text;
+            }
+
+            return string.Join(",", items);
         }
 
         private void UpdateMethodDesign(UAMethod input, MethodDesign output)
@@ -1198,10 +1380,11 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            foreach (UAVariable property in m_nodeset.Items.OfType<UAVariable>())
+            NodeId methodId = ImportNodeId(input.NodeId);
+
+            foreach (UAVariable property in GetVariablesByParent(methodId))
             {
-                if (ImportNodeId(property.ParentNodeId) != ImportNodeId(input.NodeId) ||
-                    property.References == null)
+                if (property.References == null)
                 {
                     continue;
                 }
@@ -1211,7 +1394,7 @@ namespace Opc.Ua.Schema.Model
                         ReferenceNode importedReference = ImportReference(reference);
                         return importedReference.ReferenceTypeId == ReferenceTypes.HasProperty &&
                             importedReference.IsInverse &&
-                            importedReference.TargetId == ImportNodeId(input.NodeId);
+                            importedReference.TargetId == methodId;
                     }))
                 {
                     propertyIds.Add(ImportNodeId(property.NodeId));
@@ -1243,6 +1426,37 @@ namespace Opc.Ua.Schema.Model
             output.AssignMethodArgumentCodeNames();
         }
 
+        /// <summary>
+        /// Returns the variables whose ParentNodeId is <paramref name="parentId"/>,
+        /// in NodeSet order. The index is built once on first use (after the
+        /// ParentNodeIds were normalized) instead of scanning every variable
+        /// for each method, which was quadratic for large NodeSets.
+        /// </summary>
+        private List<UAVariable> GetVariablesByParent(NodeId parentId)
+        {
+            if (m_variablesByParent == null)
+            {
+                m_variablesByParent = [];
+                foreach (UAVariable variable in m_nodeset.Items.OfType<UAVariable>())
+                {
+                    NodeId key = ImportNodeId(variable.ParentNodeId);
+                    if (key.IsNull)
+                    {
+                        continue;
+                    }
+                    if (!m_variablesByParent.TryGetValue(key, out List<UAVariable> list))
+                    {
+                        m_variablesByParent.Add(key, list = []);
+                    }
+                    list.Add(variable);
+                }
+            }
+
+            return m_variablesByParent.TryGetValue(parentId, out List<UAVariable> variables)
+                ? variables
+                : [];
+        }
+
         private void LinkChildToParent(UAInstance input)
         {
             NodeId nodeId = ImportNodeId(input.NodeId);
@@ -1256,7 +1470,7 @@ namespace Opc.Ua.Schema.Model
             NodeDesign referenceType = null;
             bool nonHierarchical = false;
 
-            UANode parentNode = FindNode(m_nodeset, parentId) ??
+            UANode parentNode = FindNode(parentId) ??
                 throw new InvalidDataException(
                     $"ParentNode ({input.ParentNodeId}) not found for node " +
                     $"{input.NodeId} ({input.BrowseName}).");
@@ -1294,9 +1508,21 @@ namespace Opc.Ua.Schema.Model
                     $"{input.NodeId} ({input.BrowseName}) not found.");
             }
 
-            if (!nonHierarchical && m_settings.NodesById.TryGetValue(nodeId, out NodeDesign child))
+            if (nonHierarchical)
             {
-                LinkChildToParent(parent, referenceType.SymbolicId, nodeId, child as InstanceDesign);
+                // Only a hierarchical reference makes the node a child. Keeping
+                // the ParentNodeId without linking would leave the node neither
+                // in its parent's Children nor among the top-level items, so it
+                // (and its subtree) vanished from the model. Import it as a
+                // top-level node instead; ImportReferences keeps the
+                // non-hierarchical reference to the parent as an explicit one.
+                input.ParentNodeId = null;
+                return;
+            }
+
+            if (m_settings.NodesById.TryGetValue(nodeId, out NodeDesign child))
+            {
+                LinkChildToParent(parent, referenceType.SymbolicId, child as InstanceDesign);
             }
         }
 
@@ -1357,16 +1583,16 @@ namespace Opc.Ua.Schema.Model
         private void LinkChildToParent(
             NodeDesign parent,
             XmlQualifiedName referenceTypeId,
-            NodeId childId,
             InstanceDesign child)
         {
-            if (!child.SymbolicId.Name.StartsWith(parent.SymbolicId.Name, StringComparison.Ordinal))
-            {
-                child.SymbolicId = new XmlQualifiedName(
-                    $"{parent.SymbolicId.Name}_{child.SymbolicId.Name}",
-                    m_settings.NamespaceUris.GetString(childId.NamespaceIndex));
-            }
-
+            // The SymbolicId is kept exactly as the symbolic id pass assigned
+            // it. A child of a de-duplicated parent (e.g. "Parameters_5002")
+            // was renamed here to "<parent id>_<child id>" after it had been
+            // registered under its assigned id, which left NodesByQName keyed
+            // by a name the generator never emitted, made the name depend on
+            // the order in which children and grand-children were linked, and
+            // disagreed with the ids GetImportedSymbols reports to identifier
+            // (NodeIds.csv) sidecars.
             List<InstanceDesign> children = [];
 
             if (parent.Children?.Items != null)
@@ -1401,12 +1627,10 @@ namespace Opc.Ua.Schema.Model
                 output.SymbolicId,
                 output.SymbolicName);
 
-            if (input is UAType &&
-                output.SymbolicId.Name.EndsWith(
-                    "_" + nodeId.IdentifierAsString, StringComparison.Ordinal))
+            if (HasCollisionSuffix(input))
             {
                 output.SymbolicName = new XmlQualifiedName(
-                    $"{output.SymbolicName.Name}_{nodeId.IdentifierAsString}",
+                    $"{output.SymbolicName.Name}_{GetCollisionSuffix(input.NodeId)}",
                     output.SymbolicName.Namespace);
             }
 
@@ -1454,6 +1678,39 @@ namespace Opc.Ua.Schema.Model
             return output;
         }
 
+        /// <summary>
+        /// Whether the symbolic id pass had to de-duplicate the SymbolicId of
+        /// a type. Such a type also gets the suffix on its SymbolicName (and
+        /// hence its class name). The clash is recorded when it happens: a
+        /// name that merely ends in "_&lt;identifier&gt;" ("Point_7" with i=7)
+        /// was not de-duplicated.
+        /// </summary>
+        private bool HasCollisionSuffix(UANode node)
+        {
+            return node is UAType && m_collisionSuffixed.Contains(node.NodeId);
+        }
+
+        /// <summary>
+        /// The suffix appended to a clashing SymbolicId: the node's identifier,
+        /// with every character that cannot appear in a C# identifier replaced
+        /// by '_'. Numeric ids and identifier-safe string ids are used as is;
+        /// a Guid ("6f1c...-..."), opaque (base64 '+', '/', '=') or string id
+        /// such as "Line1.Motor" used to be inserted verbatim and produced a
+        /// constant/class name that did not compile.
+        /// </summary>
+        private static string GetCollisionSuffix(string nodeId)
+        {
+            string identifier = NodeId.Parse(nodeId).IdentifierAsString;
+            var builder = new StringBuilder(identifier.Length);
+
+            foreach (char ch in identifier)
+            {
+                builder.Append(IsLetterOrDigit(ch) || ch == '_' ? ch : '_');
+            }
+
+            return builder.ToString();
+        }
+
         internal static XmlQualifiedName NormalizeSymbolicNameNamespace(
             UANode input,
             XmlQualifiedName symbolicId,
@@ -1470,24 +1727,19 @@ namespace Opc.Ua.Schema.Model
             return symbolicName;
         }
 
-        private UANode FindNode(UANodeSet nodeset, ExpandedNodeId targetId)
+        /// <summary>
+        /// Looks up a node of this NodeSet by its (imported) NodeId. Uses the
+        /// index built by the constructor; a linear scan parsing every NodeId
+        /// per lookup made large instance NodeSets quadratic.
+        /// </summary>
+        private UANode FindNode(NodeId targetId)
         {
             if (targetId.IsNull)
             {
                 return null;
             }
-            foreach (UANode ii in nodeset.Items)
-            {
-                NodeId id = ImportNodeId(ii.NodeId, true);
 
-                if (id == targetId)
-
-                {
-                    return ii;
-                }
-            }
-
-            return null;
+            return m_index.TryGetValue(targetId, out UANode node) ? node : null;
         }
 
         private NodeId FindTarget(
@@ -1536,36 +1788,73 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 NodeId dataTypeId = FindTarget(input, ReferenceTypeIds.HasEncoding, true);
+                UANode dataType = dataTypeId.IsNull
+                    ? FindDataTypeByEncoding(ImportNodeId(input.NodeId))
+                    : FindNode(dataTypeId);
 
-                if (dataTypeId.IsNull)
+                if (dataType != null)
                 {
-                    NodeId encodingId = ImportNodeId(input.NodeId);
+                    dataTypeId = ImportNodeId(dataType.NodeId);
 
-                    foreach (UANode dataType in m_nodeset.Items.Where(x => x is UADataType))
+                    return new XmlQualifiedName(
+                        $"{GetDataTypeSymbolicName(dataType)}_Encoding_{name.Name}",
+                        m_settings.NamespaceUris.GetString(dataTypeId.NamespaceIndex));
+                }
+            }
+
+            return name;
+        }
+
+        /// <summary>
+        /// Returns the first DataType of this NodeSet that declares a forward
+        /// HasEncoding reference to <paramref name="encodingId"/>. Used for an
+        /// encoding without the inverse reference; the index is built once
+        /// instead of scanning all DataTypes per encoding.
+        /// </summary>
+        private UANode FindDataTypeByEncoding(NodeId encodingId)
+        {
+            if (m_dataTypesByEncoding == null)
+            {
+                m_dataTypesByEncoding = [];
+                foreach (UANode dataType in m_nodeset.Items.Where(x => x is UADataType))
+                {
+                    foreach (Export.Reference ii in dataType.References ?? [])
                     {
-                        NodeId result = FindTarget(dataType, ReferenceTypeIds.HasEncoding, false, encodingId);
-
-                        if (!result.IsNull)
+                        ReferenceNode reference = ImportReference(ii);
+                        if (reference.ReferenceTypeId != ReferenceTypeIds.HasEncoding ||
+                            reference.IsInverse)
                         {
-                            dataTypeId = ImportNodeId(dataType.NodeId);
+                            continue;
+                        }
 
-                            return new XmlQualifiedName(
-                                $"{ImportSymbolicName(dataType).Name}_Encoding_{name.Name}",
-                                m_settings.NamespaceUris.GetString(dataTypeId.NamespaceIndex));
+                        NodeId targetId = ExpandedNodeId.ToNodeId(
+                            reference.TargetId,
+                            m_settings.NamespaceUris);
+                        if (!targetId.IsNull)
+                        {
+                            m_dataTypesByEncoding.TryAdd(targetId, dataType);
                         }
                     }
                 }
-                else
-                {
-                    UANode dataType = FindNode(m_nodeset, dataTypeId);
+            }
 
-                    if (dataType != null)
-                    {
-                        return new XmlQualifiedName(
-                            $"{ImportSymbolicName(dataType).Name}_Encoding_{name.Name}",
-                            m_settings.NamespaceUris.GetString(dataTypeId.NamespaceIndex));
-                    }
-                }
+            return m_dataTypesByEncoding.TryGetValue(encodingId, out UANode node) ? node : null;
+        }
+
+        /// <summary>
+        /// Returns the SymbolicName the DataType node ends up with, including the
+        /// collision suffix <see cref="ImportNode"/> appends to a type whose
+        /// SymbolicId was de-duplicated. Its encodings must be named after that
+        /// final name, which is what code generation looks them up by; the bare
+        /// name left a de-duplicated structure with null encoding ids.
+        /// </summary>
+        private string GetDataTypeSymbolicName(UANode dataType)
+        {
+            string name = ImportSymbolicName(dataType).Name;
+
+            if (HasCollisionSuffix(dataType))
+            {
+                name += "_" + GetCollisionSuffix(dataType.NodeId);
             }
 
             return name;
@@ -1953,42 +2242,7 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            foreach (UANode node in m_nodeset.Items)
-            {
-                // hack to ensure DataTypeEncodings have right symbolic names.
-                if (node is UAObject)
-                {
-                    if (string.IsNullOrEmpty(node.SymbolicName))
-                    {
-                        switch (node.BrowseName)
-                        {
-                            case BrowseNames.DefaultBinary:
-                                node.SymbolicName = nameof(BrowseNames.DefaultBinary);
-                                break;
-                            case BrowseNames.DefaultXml:
-                                node.SymbolicName = nameof(BrowseNames.DefaultXml);
-                                break;
-                        }
-                    }
-                    else if (node.SymbolicName == "DefaultXML")
-                    {
-                        node.SymbolicName = nameof(BrowseNames.DefaultXml);
-                    }
-                }
-
-                NormalizeParentNodeId(node);
-
-                XmlQualifiedName symbolicId = BuildSymbolicId(node);
-
-                while (m_symbolicIds.Values.Any(x => x == symbolicId))
-                {
-                    symbolicId = new XmlQualifiedName(
-                        $"{symbolicId.Name}_{NodeId.Parse(node.NodeId).IdentifierAsString}",
-                        symbolicId.Namespace);
-                }
-
-                m_symbolicIds.Add(node.NodeId, symbolicId);
-            }
+            AssignSymbolicIds();
 
             foreach (UANode node in m_nodeset.Items)
             {
@@ -2167,18 +2421,39 @@ namespace Opc.Ua.Schema.Model
                 if (referenceTypeId == ReferenceTypeIds.HasProperty ||
                     referenceTypeId == ReferenceTypeIds.HasComponent)
                 {
+                    // Only a parent in the node's own namespace can own it -
+                    // the same rule as for an explicit ParentNodeId above.
+                    // An inferred parent elsewhere (e.g. a component added to
+                    // the ns=0 Server object) would leave the node neither a
+                    // child nor a top-level item, silently dropping it and
+                    // its whole subtree from the model. Such a node stays
+                    // top-level unless another inverse reference names an
+                    // owner in its namespace.
+                    if (ImportNodeId(ii.Value).NamespaceIndex !=
+                        ImportNodeId(instance.NodeId).NamespaceIndex)
+                    {
+                        continue;
+                    }
+
                     instance.ParentNodeId = ii.Value;
                     break;
                 }
             }
         }
 
-        internal IEnumerable<NodesetImportedSymbol> GetImportedSymbols(string modelUri)
+        /// <summary>
+        /// Assigns the SymbolicId of every node in the set. Shared by
+        /// <see cref="Import"/> and <see cref="GetImportedSymbols"/>, which must
+        /// derive the same ids.
+        /// </summary>
+        private void AssignSymbolicIds()
         {
             m_symbolicIds.Clear();
+            m_collisionSuffixed.Clear();
 
             foreach (UANode node in m_nodeset.Items)
             {
+                // hack to ensure DataTypeEncodings have right symbolic names.
                 if (node is UAObject)
                 {
                     if (string.IsNullOrEmpty(node.SymbolicName))
@@ -2198,24 +2473,124 @@ namespace Opc.Ua.Schema.Model
                         node.SymbolicName = nameof(BrowseNames.DefaultXml);
                     }
                 }
+            }
 
-                // Exactly the normalization Import() applies, so the symbolic ids
-                // the sidecar validator reports match the ones the import pass
-                // derives - View and DataTypeEncoding nodes with a ParentNodeId
-                // used to come out with a parent-qualified id here and a bare one
-                // there, which the validator reported as an UnknownSymbol.
+            CollectDigitPreservingNames();
+
+            var usedIds = new HashSet<XmlQualifiedName>();
+            var encodings = new List<UANode>();
+
+            foreach (UANode node in m_nodeset.Items)
+            {
                 NormalizeParentNodeId(node);
 
-                XmlQualifiedName symbolicId = BuildSymbolicId(node);
-                while (m_symbolicIds.Values.Any(existing => existing == symbolicId))
+                // A DataTypeEncoding is named after its DataType's final
+                // SymbolicName, which is only known once the DataType's own id
+                // (and any collision suffix) has been assigned.
+                if (IsDataTypeEncoding(node))
                 {
-                    symbolicId = new XmlQualifiedName(
-                        $"{symbolicId.Name}_{NodeId.Parse(node.NodeId).IdentifierAsString}",
-                        symbolicId.Namespace);
+                    encodings.Add(node);
+                    continue;
                 }
 
-                m_symbolicIds[node.NodeId] = symbolicId;
+                AssignSymbolicId(node, usedIds);
             }
+
+            foreach (UANode node in encodings)
+            {
+                AssignSymbolicId(node, usedIds);
+            }
+        }
+
+        private bool IsDataTypeEncoding(UANode node)
+        {
+            return FindTarget(node, ReferenceTypeIds.HasTypeDefinition, false) ==
+                ObjectTypeIds.DataTypeEncodingType;
+        }
+
+        private void AssignSymbolicId(UANode node, HashSet<XmlQualifiedName> usedIds)
+        {
+            XmlQualifiedName symbolicId = BuildSymbolicId(node);
+
+            while (!usedIds.Add(symbolicId))
+            {
+                symbolicId = new XmlQualifiedName(
+                    $"{symbolicId.Name}_{GetCollisionSuffix(node.NodeId)}",
+                    symbolicId.Namespace);
+                m_collisionSuffixed.Add(node.NodeId);
+            }
+
+            m_symbolicIds[node.NodeId] = symbolicId;
+        }
+
+        /// <summary>
+        /// Finds the instances whose browse name starts with a digit and whose
+        /// default SymbolicName therefore loses that digit ("1Axis" and "2Axis"
+        /// both become "xAxis"). Where that makes the name clash with another
+        /// node of a different browse name - which fails code generation or
+        /// emits the wrong BrowseName constant - the digit is kept instead
+        /// ("n1Axis"). Names that do not clash are left as they are so that
+        /// existing generated identifiers stay stable.
+        /// </summary>
+        private void CollectDigitPreservingNames()
+        {
+            m_digitPreservingNames.Clear();
+
+            var browseNamesBySymbolicName = new Dictionary<XmlQualifiedName, HashSet<string>>();
+            var candidates = new List<(UANode Node, XmlQualifiedName Name)>();
+
+            foreach (UANode node in m_nodeset.Items)
+            {
+                if (string.IsNullOrEmpty(node.BrowseName))
+                {
+                    continue;
+                }
+
+                XmlQualifiedName name = ImportSymbolicName(node);
+                if (!browseNamesBySymbolicName.TryGetValue(name, out HashSet<string> browseNames))
+                {
+                    browseNamesBySymbolicName.Add(name, browseNames = new HashSet<string>(StringComparer.Ordinal));
+                }
+                browseNames.Add(QualifiedName.Parse(node.BrowseName).Name);
+
+                if (node is UAInstance && HasLeadingDigitBrowseName(node))
+                {
+                    candidates.Add((node, name));
+                }
+            }
+
+            foreach ((UANode node, XmlQualifiedName name) in candidates)
+            {
+                if (browseNamesBySymbolicName[name].Count > 1)
+                {
+                    m_digitPreservingNames.Add(node.NodeId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether the default SymbolicName of the node is derived from a browse
+        /// name that starts with a digit (the lossy case of ImportQualifiedName).
+        /// </summary>
+        private static bool HasLeadingDigitBrowseName(UANode node)
+        {
+            if (!string.IsNullOrEmpty(node.SymbolicName) || string.IsNullOrEmpty(node.BrowseName))
+            {
+                return false;
+            }
+
+            string rawName = QualifiedName.Parse(node.BrowseName).Name;
+            return rawName != null &&
+                rawName.Length > 0 &&
+                rawName[0] is >= '0' and <= '9';
+        }
+
+        internal IEnumerable<NodesetImportedSymbol> GetImportedSymbols(string modelUri)
+        {
+            // Exactly the id assignment Import() applies, so the symbolic ids
+            // the sidecar validator reports match the ones the import pass
+            // derives.
+            AssignSymbolicIds();
 
             foreach (UANode node in m_nodeset.Items)
             {
@@ -2449,54 +2824,81 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
+            return CreateDecoder(source, sourceNodeSetUri, mapNamespaces: true, out _);
+        }
+
+        /// <summary>
+        /// Creates a decoder for a Variable/VariableType value. The namespace
+        /// indexes inside the value are left as the NodeSet wrote them, and
+        /// <paramref name="sourceNamespaceUris"/> is the NodeSet's own table they
+        /// refer to. The design validator decodes the same XML again without any
+        /// mapping, so the decoded value must mean the same thing either way.
+        /// </summary>
+        private XmlDecoder CreateValueDecoder(
+            System.Xml.XmlElement source,
+            out NamespaceTable sourceNamespaceUris)
+        {
+            return CreateDecoder(source, null, mapNamespaces: false, out sourceNamespaceUris);
+        }
+
+        private XmlDecoder CreateDecoder(
+            System.Xml.XmlElement source,
+            string sourceNodeSetUri,
+            bool mapNamespaces,
+            out NamespaceTable sourceNamespaceUris)
+        {
             // The factory knows the standard OPC UA encodeable types. Without them, structured
             // NodeSet2 values such as method Argument lists (InputArguments/OutputArguments)
             // cannot be decoded and the generated typed method state would lose its arguments
             // and result fields.
-            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
-            messageContext.NamespaceUris = m_settings.NamespaceUris;
-            messageContext.ServerUris = m_serverUris;
-
-            var decoder = new XmlDecoder((XmlElement)source, messageContext);
-
-            var namespaceUris = new NamespaceTable();
+            var namespaceUris = new DecodedValueNamespaceTable(m_serverUris);
 
             if (sourceNodeSetUri == null ||
-                !m_settings.NamespaceTables.TryGetValue(sourceNodeSetUri, out string[] sourceNamespaceUris))
+                !m_settings.NamespaceTables.TryGetValue(sourceNodeSetUri, out string[] nodeSetNamespaceUris))
             {
-                sourceNamespaceUris = m_nodeset.NamespaceUris;
+                nodeSetNamespaceUris = m_nodeset.NamespaceUris;
             }
 
-            if (sourceNamespaceUris != null)
+            if (nodeSetNamespaceUris != null)
             {
-                for (int ii = 0; ii < sourceNamespaceUris.Length; ii++)
+                for (int ii = 0; ii < nodeSetNamespaceUris.Length; ii++)
                 {
-                    namespaceUris.Append(sourceNamespaceUris[ii]);
+                    namespaceUris.Append(nodeSetNamespaceUris[ii]);
                 }
             }
+            sourceNamespaceUris = namespaceUris;
+
+            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
+            messageContext.NamespaceUris = mapNamespaces ? m_settings.NamespaceUris : namespaceUris;
+            messageContext.ServerUris = m_serverUris;
+
+            var decoder = new XmlDecoder((XmlElement)source, messageContext)
+            {
+                // pretty-printed NodeSets write empty strings as layout whitespace.
+                TreatWhitespaceOnlyStringsAsEmpty = true
+            };
 
             var serverUris = new StringTable();
 
             if (m_nodeset.ServerUris != null)
             {
-                // Index 0 of a ServerUris table is reserved for the local
-                // server. The converter has no running server, so this entry
-                // may be unset; only prepend it when present to avoid a null
-                // StringTable.Append (regression: NodeSets that declare a
-                // top-level <ServerUris> table previously crashed generation).
-                string localServerUri = m_serverUris.GetString(0);
-                if (localServerUri != null)
-                {
-                    serverUris.Append(localServerUri);
-                }
+                // Index 0 of a ServerUris table is the local server, which the
+                // NodeSet's <ServerUris> table does not list (its first entry
+                // is svr=1). m_serverUris is seeded with a local placeholder,
+                // so svr=n in a value maps onto m_nodeset.ServerUris[n-1].
+                serverUris.Append(m_serverUris.GetString(0));
 
                 for (int ii = 0; ii < m_nodeset.ServerUris.Length; ii++)
                 {
                     serverUris.Append(m_nodeset.ServerUris[ii]);
+
+                    // The mapping is created without updating the target
+                    // table, so the remote servers must be known to it.
+                    m_serverUris.GetIndexOrAppend(m_nodeset.ServerUris[ii]);
                 }
             }
 
-            decoder.SetMappingTables(namespaceUris, serverUris);
+            decoder.SetMappingTables(mapNamespaces ? namespaceUris : null, serverUris);
 
             return decoder;
         }
@@ -2878,6 +3280,55 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// Returns the ArrayDimensions to carry into the design for the given
+        /// NodeSet ValueRank. The design ValueRank enumeration cannot hold a
+        /// rank above one (it maps to OneOrMoreDimensions) and code generation
+        /// recovers the rank from the number of ArrayDimensions entries, so a
+        /// ValueRank of n &gt; 1 without ArrayDimensions (optional in NodeSet2)
+        /// gets n unknown-length (0) dimensions instead of losing the rank.
+        /// </summary>
+        private static string ImportArrayDimensions(int valueRank, string arrayDimensions)
+        {
+            if (valueRank > 1 && string.IsNullOrWhiteSpace(arrayDimensions))
+            {
+                return string.Join(",", Enumerable.Repeat("0", valueRank));
+            }
+
+            return arrayDimensions;
+        }
+
+        /// <summary>
+        /// OPC 10000-3 5.6.2: MinimumSamplingInterval is a Duration in ms where
+        /// 0 means "continuous / exception based" and -1 "indeterminate"; no
+        /// other negative value (and no NaN) is defined. The design schema
+        /// carries the interval as an xs:int of whole milliseconds, so a
+        /// fractional interval cannot be kept exactly: it is rounded up, since
+        /// truncating 0.5 to 0 would turn "at least 0.5 ms" into "continuous".
+        /// An undefined value is imported as -1 (indeterminate) with a warning,
+        /// never as 0, which would claim continuous sampling.
+        /// </summary>
+        private int ImportMinimumSamplingInterval(double input, string browseName)
+        {
+            if (input == 0 || input == -1)
+            {
+                return (int)input;
+            }
+            if (double.IsNaN(input) || input < 0)
+            {
+                m_logger.LogWarning(
+                    "Variable '{BrowseName}' has an invalid MinimumSamplingInterval ({Value}); " +
+                    "only -1 (indeterminate), 0 (continuous) or a positive duration are defined. " +
+                    "It is imported as -1 (indeterminate).",
+                    browseName,
+                    input);
+                return -1;
+            }
+
+            double rounded = Math.Ceiling(input);
+            return rounded >= int.MaxValue ? int.MaxValue : (int)rounded;
+        }
+
+        /// <summary>
         /// Imports a namespace index.
         /// </summary>
         private ushort ImportNamespaceIndex(ushort namespaceIndex, NamespaceTable namespaceUris)
@@ -2958,6 +3409,26 @@ namespace Opc.Ua.Schema.Model
             return output.ToString();
         }
 
+        /// <summary>
+        /// Creates the server table used while importing. Index 0 is reserved
+        /// for the local server; without an entry there the first remote
+        /// server (svr=1 in the NodeSet) was appended at index 0 and treated
+        /// as local.
+        /// </summary>
+        private static StringTable CreateServerUris()
+        {
+            var serverUris = new StringTable();
+            serverUris.Append(kLocalServerUri);
+            return serverUris;
+        }
+
+        /// <summary>
+        /// Placeholder for the (unknown) local server at index 0 of the server
+        /// table. The converter has no running server.
+        /// </summary>
+
+        private const string kLocalServerUri = "urn:opcfoundation.org:SourceGeneration:LocalServer";
+
         private static readonly string[] s_keywords =
         [
             "private",
@@ -2991,11 +3462,42 @@ namespace Opc.Ua.Schema.Model
 
         private readonly NodeSetReaderSettings m_settings;
         private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private readonly IFileSystem m_fileSystem;
-        private readonly StringTable m_serverUris = new();
+        private readonly StringTable m_serverUris = CreateServerUris();
         private readonly UANodeSet m_nodeset;
         private readonly Dictionary<string, NodeId> m_aliases = [];
         private readonly Dictionary<NodeId, UANode> m_index;
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
+        private readonly HashSet<string> m_digitPreservingNames = [];
+        private readonly HashSet<string> m_collisionSuffixed = new(StringComparer.Ordinal);
+        private Dictionary<NodeId, List<UAVariable>> m_variablesByParent;
+        private Dictionary<NodeId, UANode> m_dataTypesByEncoding;
+    }
+
+    /// <summary>
+    /// The namespace table a NodeSet value was decoded with, together with
+    /// the server URI table its ExpandedNodeId server indexes refer to. Both
+    /// indexes are local to the NodeSet (OPC 10000-6 F.2, F.14); the code
+    /// generator resolves them to URIs and maps those at run time. Deriving
+    /// from <see cref="NamespaceTable"/> lets the server table travel wherever
+    /// the design copies a node's decoded-value namespace table.
+    /// </summary>
+    internal sealed class DecodedValueNamespaceTable : NamespaceTable
+    {
+        /// <summary>
+        /// Creates the table.
+        /// </summary>
+        /// <param name="serverUris">The server URIs the decoded server
+        /// indexes refer to (index 0 is the local server).</param>
+        public DecodedValueNamespaceTable(StringTable serverUris)
+        {
+            ServerUris = serverUris;
+        }
+
+        /// <summary>
+        /// The server URIs the decoded server indexes refer to.
+        /// </summary>
+        public StringTable ServerUris { get; }
     }
 }

@@ -406,5 +406,28 @@ namespace Opc.Ua.Gds.Tests
             await client.DisposeAsync().ConfigureAwait(false);
             Assert.That(client.IsConnected, Is.False);
         }
+
+        /// <summary>
+        /// OPC 10000-4 §7.38.2: a call made after the directory proxies were
+        /// cleared by a disconnect fails with Bad_ServerNotConnected ("the
+        /// Client is not connected to the Server"), not Bad_NotConnected.
+        /// </summary>
+        [Test]
+        public void CallWithoutDirectoryProxiesThrowsBadServerNotConnected()
+        {
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.Connected).Returns(true);
+            using GlobalDiscoveryServerClient client = CreateClient();
+            typeof(GlobalDiscoveryServerClient)
+                .GetProperty(nameof(GlobalDiscoveryServerClient.Session))!
+                .SetValue(client, session.Object);
+
+            ServiceResultException directory = Assert.ThrowsAsync<ServiceResultException>(
+                () => client.FindApplicationAsync("urn:test").AsTask());
+            Assert.That(directory.StatusCode, Is.EqualTo(StatusCodes.BadServerNotConnected));
+            ServiceResultException certificateDirectory = Assert.ThrowsAsync<ServiceResultException>(
+                () => client.GetCertificateGroupsAsync(new NodeId(1)).AsTask());
+            Assert.That(certificateDirectory.StatusCode, Is.EqualTo(StatusCodes.BadServerNotConnected));
+        }
     }
 }
