@@ -45,6 +45,18 @@ constructor remain compatible with events disabled. Event-enabled projections pr
 generation through `IXRegistryProjectionGenerationProvider`; version-aware projections opt into
 `IXRegistryVersionedProjectionStrategy`.
 
+Collection-qualified, metadata-only registries use the same `XRegistryProjectionEngine`. The
+registry state owner returns an `IXRegistryCollectionProjectionSnapshot` in each committed
+`XRegistryProjectionGeneration`. Groups and `MetadataResourceType` Resources are identified by
+collection-qualified Xids, so `/endpoints/orders` and `/messagegroups/orders` never alias; the
+collection folders are `GroupCollectionType` views, not entities. An
+`IXRegistryCollectionProjectionStrategy` creates the typed nodes and routes their
+`Delete(ExpectedEpoch)` to the committed-state owner. The engine publishes committed epochs
+verbatim and ignores a generation older than the active one. It validates a generation and builds
+its new nodes before changing the address space, and removes stale or replaced nodes before it adds
+new ones. A committed deletion whose activation fails returns `Uncertain`; the next activation
+retries the pending removals. `DetachAsync` removes every projected node.
+
 Document bytes live behind an injectable `IXRegistryResourceStore`; an in-process and a
 file-backed implementation ship with the package. Registry writes always require a
 `SignAndEncrypt` secure channel.

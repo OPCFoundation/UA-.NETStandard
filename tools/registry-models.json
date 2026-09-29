@@ -1,0 +1,55 @@
+{
+  "repository": "OPCF-Members/OPC30450-CloudInitiative",
+  "commit": "17f28faaf072fe6a61c0de775fdb6db683bf56ec",
+  "uncommittedSource": false,
+  "files": [
+    {
+      "source": "model\\Opc.Ua.XRegistry.NodeSet2.xml",
+      "target": "src\\Opc.Ua.XRegistry\\Opc.Ua.XRegistry.NodeSet2.xml",
+      "sha256": "50792b46fc4e6d0b92e7750c3021628844930060db42eaba22d372f48245a94f",
+      "namespaceUri": "http://opcfoundation.org/UA/xRegistry/",
+      "version": "0.10.0",
+      "publicationDate": "2026-09-29"
+    },
+    {
+      "source": "model\\Opc.Ua.XRegistry.NodeIds.csv",
+      "target": "src\\Opc.Ua.XRegistry\\Opc.Ua.XRegistry.NodeIds.csv",
+      "sha256": "1c989680c1d800b808b91f866f2ef30640bc005589e990aeaa41229326d75aa4",
+      "namespaceUri": "http://opcfoundation.org/UA/xRegistry/",
+      "version": "0.10.0",
+      "publicationDate": "2026-09-29"
+    },
+    {
+      "source": "model\\Opc.Ua.SchemaRegistry.NodeSet2.xml",
+      "target": "src\\Opc.Ua.SchemaRegistry\\Model\\Opc.Ua.SchemaRegistry.NodeSet2.xml",
+      "sha256": "24157b323c302fffd1a823719c9ae2f00f8cc0aab27bd37cd3aa127206274f42",
+      "namespaceUri": "http://opcfoundation.org/UA/SchemaRegistry/",
+      "version": "0.8.0",
+      "publicationDate": "2026-09-29"
+    },
+    {
+      "source": "model\\Opc.Ua.SchemaRegistry.NodeIds.csv",
+      "target": "src\\Opc.Ua.SchemaRegistry\\Model\\Opc.Ua.SchemaRegistry.NodeIds.csv",
+      "sha256": "a101baa6f495d480905340d862c8dbafd56c2fffb6046da58c4cecff4656031e",
+      "namespaceUri": "http://opcfoundation.org/UA/SchemaRegistry/",
+      "version": "0.8.0",
+      "publicationDate": "2026-09-29"
+    },
+    {
+      "source": "model\\Opc.Ua.EndpointRegistry.NodeSet2.xml",
+      "target": "src\\Opc.Ua.EndpointRegistry\\Model\\Opc.Ua.EndpointRegistry.NodeSet2.xml",
+      "sha256": "c3615739a80bc3c46cad7bde9281f2d476a76f0ce0330850d8fc46a6ce228dff",
+      "namespaceUri": "http://opcfoundation.org/UA/EndpointRegistry/",
+      "version": "0.3.0",
+      "publicationDate": "2026-09-29"
+    },
+    {
+      "source": "model\\Opc.Ua.EndpointRegistry.NodeIds.csv",
+      "target": "src\\Opc.Ua.EndpointRegistry\\Model\\Opc.Ua.EndpointRegistry.NodeIds.csv",
+      "sha256": "23f8f744d27311b3a2673788f20049443fe95dd014fec4488f7ef244cefb123f",
+      "namespaceUri": "http://opcfoundation.org/UA/EndpointRegistry/",
+      "version": "0.3.0",
+      "publicationDate": "2026-09-29"
+    }
+  ]
+}

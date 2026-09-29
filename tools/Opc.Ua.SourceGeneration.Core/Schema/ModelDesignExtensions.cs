@@ -2166,7 +2166,9 @@ namespace Opc.Ua.Schema.Model
                 }
                 foreach (InstanceDesign child in children)
                 {
-                    if (child.SymbolicName == instance.SymbolicName)
+                    // CLR Add methods use the local symbol, not the OPC UA namespace.
+                    if (child.ModellingRule is ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder &&
+                        string.Equals(child.SymbolicName.Name, instance.SymbolicName.Name, StringComparison.Ordinal))
                     {
                         return true;
                     }

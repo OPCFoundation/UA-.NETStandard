@@ -42,6 +42,15 @@ samples/WotCon/AggregationClient/Documents/SamplePump.NodeSet2.xml text eol=lf
 src/Opc.Ua.Positioning/Model/*.csv binary
 src/Opc.Ua.Positioning/Model/*.xml binary
 
+# Registry model imports carry exact upstream SHA-256 provenance on every platform.
+src/Opc.Ua.XRegistry/Opc.Ua.XRegistry.NodeSet2.xml text eol=lf
+src/Opc.Ua.XRegistry/Opc.Ua.XRegistry.NodeIds.csv text eol=lf
+src/Opc.Ua.SchemaRegistry/Model/*.xml text eol=lf
+src/Opc.Ua.SchemaRegistry/Model/*.csv text eol=lf
+src/Opc.Ua.EndpointRegistry/Model/*.xml text eol=lf
+src/Opc.Ua.EndpointRegistry/Model/*.csv text eol=lf
+tests/Opc.Ua.SchemaRegistry.Tests/Assets/*.ipc binary
+
 # Fuzz seed corpora, crash/timeout/slow reproducers and the vendored original
 # fork messages are exact byte sequences, not documents. Line-ending translation
 # changes their length and SHA-256, breaks the byte-exact provenance assertions,

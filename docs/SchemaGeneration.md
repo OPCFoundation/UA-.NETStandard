@@ -185,3 +185,16 @@ The provider reuses the core `ISchemaProvider` to resolve complex (structured/en
 ## Trimming and NativeAOT
 
 The library opts into `IsAotCompatible` and avoids reflection-based serialization. XSD is written with `System.Xml.Schema.XmlSchema`, BSD with a direct `System.Xml.XmlWriter`, and JSON with `System.Text.Json.Nodes` / `Utf8JsonWriter`. Schema generation is a configuration-time activity, not a hot path; documents are built lazily and can be cached by the caller. Because the generation logic lives in its own assembly, it is trimmed away entirely when an application does not generate schemas.
+
+## Shared JSON canonicalization
+
+`Opc.Ua.JsonCanonicalizer` in the Types library implements RFC 8785 JCS without reflection.
+`TryCanonicalize` returns canonical text, and `TryGetUtf8` returns its `ByteString` representation.
+Both return an explicit error when a value cannot be represented in the interoperable JCS number
+domain. Existing WoT semantic comparisons use the same implementation.
+
+JCS is appropriate only when the owning contract selects it, such as `SHA-256/JCS`. It must not be
+used for exact registry commit comparison, Arrow schema fingerprints or WoT residue digests,
+which have different identity rules. A named schema document is also not the same thing as the
+schema *generation* interface in this library: generic registry admission and selection are
+separate concerns.

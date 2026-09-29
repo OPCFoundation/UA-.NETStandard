@@ -1,0 +1,19 @@
+{
+  "status": "implementation-in-progress",
+  "specification": "OPCF-Members/OPC30450-CloudInitiative",
+  "claims": [
+    { "facet": "EndpointRegistry/Messages", "status": "not-claimed", "tests": [] },
+    { "facet": "EndpointRegistry/Endpoints", "status": "not-claimed", "tests": [] },
+    { "facet": "EndpointRegistry/Writable", "status": "not-claimed", "tests": [] },
+    { "facet": "EndpointRegistry/Federation", "status": "not-claimed", "tests": [] },
+    { "facet": "EndpointRegistry/Resolution", "status": "not-claimed", "tests": [] },
+    { "facet": "EndpointRegistry/PubSubBinding", "status": "not-claimed", "tests": [] },
+    { "facet": "EndpointRegistry/Media", "status": "not-claimed", "tests": [] },
+    { "facet": "EndpointRegistry/JsonCompatibility", "status": "not-claimed", "tests": [] },
+    { "facet": "SchemaRegistry/Reader", "status": "not-claimed", "tests": [] },
+    { "facet": "SchemaRegistry/NativeSnapshots", "status": "not-claimed", "tests": [] },
+    { "facet": "SchemaRegistry/NativeWritable", "status": "not-claimed", "tests": [] },
+    { "facet": "SchemaRegistry/Server", "status": "out-of-scope", "reason": "Automatic schema materialization is not required by the selected scope." },
+    { "facet": "SchemaRegistry/Full", "status": "out-of-scope", "reason": "No inbound xRegistry HTTP server, automatic materialization or full schema-evolution implementation." }
+  ]
+}

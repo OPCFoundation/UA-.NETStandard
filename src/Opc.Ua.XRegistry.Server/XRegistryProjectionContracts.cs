@@ -616,6 +616,249 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Identifies the role of a collection-qualified entity in a metadata projection.
+    /// </summary>
+    public enum XRegistryProjectionEntityRole
+    {
+        /// <summary>
+        /// A Group in a named Group collection.
+        /// </summary>
+        Group = 1,
+
+        /// <summary>
+        /// A metadata-only Resource of a collection-qualified Group.
+        /// </summary>
+        Resource = 2
+    }
+
+    /// <summary>
+    /// Describes the committed common metadata of one collection-qualified entity.
+    /// </summary>
+    /// <remarks>
+    /// The committed registry state supplies every value, including the epoch; the projection
+    /// engine publishes the values verbatim and never assigns or increments an epoch. A
+    /// <see langword="null"/> optional String, a null <see cref="DateTimeUtc"/> or a
+    /// <see langword="null"/> label map is published as an absent optional member. A change of
+    /// member presence, NodeId, TypeDefinition or container replaces the published node.
+    /// </remarks>
+    public interface IXRegistryProjectionEntity
+    {
+        /// <summary>
+        /// Gets the entity role.
+        /// </summary>
+        XRegistryProjectionEntityRole Role { get; }
+
+        /// <summary>
+        /// Gets the plural Group collection name, for example <c>endpoints</c>.
+        /// </summary>
+        string CollectionName { get; }
+
+        /// <summary>
+        /// Gets the GroupId of the Group, or of the Group that owns the Resource.
+        /// </summary>
+        string GroupId { get; }
+
+        /// <summary>
+        /// Gets the collection-qualified Xid, for example <c>/endpoints/orders</c> or
+        /// <c>/messagegroups/orders/messages/created</c>.
+        /// </summary>
+        string Xid { get; }
+
+        /// <summary>
+        /// Gets a stable NodeId allocated by the committed state, or <see cref="NodeId.Null"/>
+        /// to publish the NodeId derived from the registry NodeId path and <see cref="Xid"/>.
+        /// </summary>
+        NodeId NodeId { get; }
+
+        /// <summary>
+        /// Gets the committed TypeDefinition, or <see cref="ExpandedNodeId.Null"/> to publish the
+        /// TypeDefinition of the node created by the strategy. A non-null value must equal the
+        /// TypeDefinition of the created node.
+        /// </summary>
+        ExpandedNodeId TypeDefinitionId { get; }
+
+        /// <summary>
+        /// Gets the committed entity epoch.
+        /// </summary>
+        uint Epoch { get; }
+
+        /// <summary>
+        /// Gets the name, or <see langword="null"/> when absent.
+        /// </summary>
+        string? Name { get; }
+
+        /// <summary>
+        /// Gets the description, or <see langword="null"/> when absent.
+        /// </summary>
+        string? Description { get; }
+
+        /// <summary>
+        /// Gets the documentation URL, or <see langword="null"/> when absent.
+        /// </summary>
+        string? Documentation { get; }
+
+        /// <summary>
+        /// Gets the creation time, or a null value when absent.
+        /// </summary>
+        DateTimeUtc CreatedAt { get; }
+
+        /// <summary>
+        /// Gets the modification time, or a null value when absent.
+        /// </summary>
+        DateTimeUtc ModifiedAt { get; }
+
+        /// <summary>
+        /// Gets the labels, or <see langword="null"/> when absent.
+        /// </summary>
+        ImmutableSortedDictionary<string, string>? Labels { get; }
+    }
+
+    /// <summary>
+    /// Describes one Group of a named Group collection.
+    /// </summary>
+    public interface IXRegistryProjectionCollectionGroup : IXRegistryProjectionEntity
+    {
+        /// <summary>
+        /// Gets the metadata-only Resources of the Group.
+        /// </summary>
+        ArrayOf<IXRegistryProjectionMetadataResource> Resources { get; }
+    }
+
+    /// <summary>
+    /// Describes one metadata-only Resource published as a <c>MetadataResourceType</c> Object,
+    /// never as a <c>FileType</c> document.
+    /// </summary>
+    public interface IXRegistryProjectionMetadataResource : IXRegistryProjectionEntity
+    {
+        /// <summary>
+        /// Gets the plural Resource collection name within the Group, for example
+        /// <c>messages</c>.
+        /// </summary>
+        string ResourceCollectionName { get; }
+
+        /// <summary>
+        /// Gets the ResourceId.
+        /// </summary>
+        string ResourceId { get; }
+
+        /// <summary>
+        /// Gets the VersionId of the sole retained metadata Version, or
+        /// <see langword="null"/> when absent.
+        /// </summary>
+        string? VersionId { get; }
+
+        /// <summary>
+        /// Gets the BrowseName of the Group component that organizes the Resource collection,
+        /// or <see cref="QualifiedName.Null"/> when the Group organizes the Resource directly.
+        /// </summary>
+        QualifiedName ContainerBrowseName { get; }
+    }
+
+    /// <summary>
+    /// Describes one plural Group collection. The collection is a view and not an entity: it has
+    /// no Xid or epoch of its own.
+    /// </summary>
+    public interface IXRegistryProjectionCollection
+    {
+        /// <summary>
+        /// Gets the plural collection name, for example <c>messagegroups</c>.
+        /// </summary>
+        string Name { get; }
+
+        /// <summary>
+        /// Gets the BrowseName of the collection view, or <see cref="QualifiedName.Null"/> to use
+        /// <see cref="Name"/> in the model namespace. An existing <c>GroupCollectionType</c> child
+        /// of the registry Object with this BrowseName is reused and never deleted.
+        /// </summary>
+        QualifiedName BrowseName { get; }
+
+        /// <summary>
+        /// Gets a stable NodeId for a view created by the engine, or <see cref="NodeId.Null"/>
+        /// to derive one from the registry NodeId path and <see cref="Name"/>.
+        /// </summary>
+        NodeId NodeId { get; }
+
+        /// <summary>
+        /// Gets the Groups of the collection.
+        /// </summary>
+        ArrayOf<IXRegistryProjectionCollectionGroup> Groups { get; }
+    }
+
+    /// <summary>
+    /// Adds collection-qualified Groups and metadata-only Resources to a committed projection
+    /// snapshot.
+    /// </summary>
+    /// <remarks>
+    /// The registry state owner returns an instance as the
+    /// <see cref="XRegistryProjectionGeneration.Projection"/> of the generation it committed.
+    /// When the generation carries <see cref="XRegistryProjectionGeneration.Events"/>, the
+    /// committed registry epoch of that event snapshot orders activation exactly as for document
+    /// projections: an older generation never replaces a newer active one.
+    /// <see cref="IXRegistryProjectionSnapshot.Groups"/> keeps describing document-backed Groups
+    /// of the implicit <c>groups</c> collection.
+    /// </remarks>
+    public interface IXRegistryCollectionProjectionSnapshot : IXRegistryProjectionSnapshot
+    {
+        /// <summary>
+        /// Gets the Group collections of the generation.
+        /// </summary>
+        ArrayOf<IXRegistryProjectionCollection> Collections { get; }
+    }
+
+    /// <summary>
+    /// Supplies typed node construction and the committed deletion seam for collection-qualified,
+    /// metadata-only projections.
+    /// </summary>
+    /// <remarks>
+    /// Pass an implementation to the metadata-only <see cref="XRegistryProjectionEngine"/>
+    /// constructor, or implement it on an <see cref="IXRegistryProjectionStrategy"/> to project
+    /// document-backed and collection-qualified entities below one registry Object. Captured
+    /// generations are the committed generations of the registry state owner. The engine performs
+    /// all address-space changes; implementations must not add or delete nodes themselves.
+    /// </remarks>
+    public interface IXRegistryCollectionProjectionStrategy : IXRegistryProjectionGenerationProvider
+    {
+        /// <summary>
+        /// Creates the uninitialized view for a Group collection that the registry Object does
+        /// not already contain. The engine initializes, identifies and publishes it.
+        /// </summary>
+        GroupCollectionState CreateCollectionNode(
+            BaseObjectState registryNode,
+            IXRegistryProjectionCollection collection);
+
+        /// <summary>
+        /// Creates the uninitialized typed node of an entity: a <see cref="GroupState"/> for
+        /// <see cref="XRegistryProjectionEntityRole.Group"/> and a
+        /// <see cref="MetadataResourceState"/> for <see cref="XRegistryProjectionEntityRole.Resource"/>.
+        /// </summary>
+        BaseObjectState CreateEntityNode(NodeState parent, IXRegistryProjectionEntity entity);
+
+        /// <summary>
+        /// Called after the engine has applied the common metadata. When
+        /// <paramref name="created"/> is <see langword="true"/>, the node is not yet published and
+        /// optional domain members may be added. Otherwise only values of existing members may
+        /// change.
+        /// </summary>
+        void ConfigureEntityNode(
+            BaseObjectState node,
+            IXRegistryProjectionEntity entity,
+            bool created);
+
+        /// <summary>
+        /// Commits the deletion of the observed entity, including the Resources of a Group,
+        /// through the registry state owner. A nonzero <paramref name="expectedEpoch"/> must equal
+        /// the committed epoch; a mismatch returns <c>Bad_InvalidState</c> without a change.
+        /// A Bad result means nothing was committed. The engine activates the committed
+        /// generation afterwards.
+        /// </summary>
+        ValueTask<ServiceResult> DeleteEntityAsync(
+            ISystemContext context,
+            IXRegistryProjectionEntity entity,
+            uint expectedEpoch,
+            CancellationToken ct);
+    }
+
+    /// <summary>
     /// Carries the server seams required by <see cref="XRegistryProjectionEngine"/>.
     /// </summary>
     public sealed class XRegistryProjectionContext

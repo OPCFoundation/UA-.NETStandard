@@ -1096,6 +1096,30 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void PlaceholderMethodsHideInheritedClrSignaturesAcrossNamespaces()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "InheritedPlaceholders.NodeSet2.xml", telemetry, "InheritedPlaceholderBase.NodeSet2.xml");
+            ClassDeclarationSyntax[] classes = files
+                .Where(file => file.Key.EndsWith(".NodeStates.g.cs", StringComparison.Ordinal))
+                .SelectMany(file => CSharpSyntaxTree.ParseText(file.Value).GetRoot()
+                    .DescendantNodes().OfType<ClassDeclarationSyntax>())
+                .ToArray();
+            MethodDeclarationSyntax derived = classes
+                .Single(type => type.Identifier.ValueText == "DerivedCollectionState")
+                .Members.OfType<MethodDeclarationSyntax>()
+                .Single(method => method.Identifier.ValueText == "AddEntry_Placeholder");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(derived.Modifiers.Any(SyntaxKind.NewKeyword), Is.True, derived.ToString());
+                Assert.That(derived.ReturnType.ToString(), Is.EqualTo("global::Opc.Ua.FileState"));
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
+        [Test]
         public void HierarchicalReferencesGenerateDeterministicCompilableCode()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -1406,14 +1430,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            params string[] dependencies)
         {
             using var fileSystem = new VirtualFileSystem();
-            string path = Path.Combine(
-                Directory.GetCurrentDirectory(), "Resources", nodeSetResource);
-
             var nodesets = new NodesetFileCollection(
-                [(path, new NodesetFileOptions())],
+                [.. new[] { nodeSetResource }.Concat(dependencies).Select(resource =>
+                    (Path.Combine(Directory.GetCurrentDirectory(), "Resources", resource), new NodesetFileOptions()))],
                 [],
                 fileSystem,
                 telemetry);
