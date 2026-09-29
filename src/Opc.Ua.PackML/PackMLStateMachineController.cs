@@ -293,19 +293,21 @@ namespace Opc.Ua.PackML
         /// event), moving on to the state that follows it.
         /// </summary>
         /// <returns>
-        /// <c>Good</c>, or <c>Bad_InvalidState</c> when no acting state is
-        /// active.
+        /// <c>Good</c>, <c>Bad_InvalidState</c> when no acting state is
+        /// active, or the result the completion transition failed with - for
+        /// example the veto of an <c>OnBeforeTransition</c> handler.
         /// </returns>
         public ServiceResult CompleteActingState()
         {
             lock (m_lock)
             {
                 uint previous = CurrentStateCore();
-                if (!TryCompleteActingState())
+                if (!TryCompleteActingState(out ServiceResult? failure))
                 {
-                    return ServiceResult.Create(
-                        StatusCodes.BadInvalidState,
-                        "The PackML state machine is not in an acting state.");
+                    return failure ??
+                        ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "The PackML state machine is not in an acting state.");
                 }
                 Settle(previous);
             }
@@ -472,7 +474,7 @@ namespace Opc.Ua.PackML
                 // starts in Clearing, Running in Resetting), so completion
                 // repeats until the machine rests. The chain is bounded by the
                 // number of acting states.
-                for (int ii = 0; ii < 16 && TryCompleteActingState(); ii++)
+                for (int ii = 0; ii < 16 && TryCompleteActingState(out _); ii++)
                 {
                 }
             }
@@ -485,8 +487,13 @@ namespace Opc.Ua.PackML
         /// Performs the completion transition of the innermost active acting
         /// state, if there is one.
         /// </summary>
-        private bool TryCompleteActingState()
+        /// <param name="failure">
+        /// The result the transition failed with, or <see langword="null"/>
+        /// when no acting state is active.
+        /// </param>
+        private bool TryCompleteActingState(out ServiceResult? failure)
         {
+            failure = null;
             foreach (FiniteStateMachineState machine in InnermostFirst())
             {
                 if (!IsActive(machine))
@@ -503,6 +510,7 @@ namespace Opc.Ua.PackML
                 ServiceResult result = machine.DoTransition(m_context, transitionId, 0, default, []);
                 if (ServiceResult.IsBad(result))
                 {
+                    failure = result;
                     return false;
                 }
                 OnEntered(machine);

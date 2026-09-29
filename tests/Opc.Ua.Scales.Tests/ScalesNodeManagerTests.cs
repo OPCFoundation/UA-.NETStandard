@@ -488,6 +488,28 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task PackMLCompleteActingStateReportsWhyTheTransitionFailedAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple).ConfigureAwait(false);
+            PackMLStateMachineController packMl = scale.PackML!;
+            PackMLExecuteStateMachineState execute = scale.Scale.State!.MachineState!.ExecuteState!;
+            packMl.AutoCompleteActingStates = false;
+            Assert.That(ServiceResult.IsGood(packMl.Execute(PackMLCommand.Start)), Is.True);
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Starting));
+
+            // The equipment vetoes leaving Starting; the caller learns why.
+            execute.OnBeforeTransition = (context, machine, transitionId, causeId, inputs, outputs) =>
+                ServiceResult.Create(StatusCodes.BadDeviceFailure, "The infeed is not up to speed.");
+            ServiceResult vetoed = packMl.CompleteActingState();
+            Assert.That(vetoed.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDeviceFailure), vetoed.ToString());
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Starting));
+
+            execute.OnBeforeTransition = null;
+            Assert.That(ServiceResult.IsGood(packMl.CompleteActingState()), Is.True);
+            Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Execute));
+        }
+
+        [Test]
         public async Task PackMLStateChangedIsRaisedOutsideTheControllerLockAsync()
         {
             ScaleHandle scale = await CreateAsync(ScaleKind.Simple).ConfigureAwait(false);
