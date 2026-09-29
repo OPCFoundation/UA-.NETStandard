@@ -288,6 +288,27 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public void EnergyRejectsAMeteringPointNamedLikeMain()
+        {
+            ushort energyNamespaceIndex = NamespaceIndex(
+                Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy);
+
+            // Every resource already publishes Main; a second point with that
+            // browse name would give the folder two children of the same name.
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => NewMachine("Energy-Duplicate-Main")
+                    .WithEnergy(energy => energy.AddResource(
+                        MachineryEnergyCarrier.CompressedAir,
+                        air => air.AddMeteringPoint(
+                            new QualifiedName(
+                                Opc.Ua.Machinery.Energy.BrowseNames.Main,
+                                energyNamespaceIndex)))))!;
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
+        }
+
+        [Test]
         public void ThePredefinedJobParameterTableMatchesTheSpecification()
         {
             Assert.That(

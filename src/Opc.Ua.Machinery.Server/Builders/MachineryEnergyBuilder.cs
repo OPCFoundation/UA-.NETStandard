@@ -383,8 +383,9 @@ namespace Opc.Ua.Machinery.Server.Builders
             m_energyNamespaceIndex = MachineryBuilderUtilities.NamespaceIndex(
                 scope.Context,
                 Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy);
-            m_main = CreateMeteringPoint(
-                new QualifiedName(EnergyBrowseNames.Main, m_energyNamespaceIndex));
+            var mainName = new QualifiedName(EnergyBrowseNames.Main, m_energyNamespaceIndex);
+            m_names.Add(mainName);
+            m_main = CreateMeteringPoint(mainName);
         }
 
         public FolderState State { get; }
