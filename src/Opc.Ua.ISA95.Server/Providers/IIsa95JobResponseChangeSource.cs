@@ -33,8 +33,8 @@ using System.Threading;
 namespace Opc.Ua.ISA95.Server.Providers
 {
     /// <summary>
-    /// Publishes job responses as the provider receives them, so that a
-    /// projection layer can keep the <c>JobOrderResponseList</c> that
+    /// Publishes job responses as the provider receives and drops them, so
+    /// that a projection layer can keep the <c>JobOrderResponseList</c> that
     /// <see cref="IIsa95JobResponseCatalog"/> feeds current.
     /// </summary>
     /// <remarks>
@@ -48,8 +48,9 @@ namespace Opc.Ua.ISA95.Server.Providers
     /// </para>
     /// <para>
     /// Each subscriber receives exactly one change per response received after
-    /// it subscribes; subscribers are independent and cancellation or disposal
-    /// of one does not affect others.
+    /// it subscribes, and one per response the provider drops afterwards (for
+    /// example once it outlived its retention); subscribers are independent
+    /// and cancellation or disposal of one does not affect others.
     /// </para>
     /// </remarks>
     public interface IIsa95JobResponseChangeSource
@@ -68,10 +69,15 @@ namespace Opc.Ua.ISA95.Server.Providers
     }
 
     /// <summary>
-    /// One job response a provider received.
+    /// One job response a provider received or dropped.
     /// </summary>
     public readonly record struct Isa95JobResponseChange
     {
+        /// <summary>
+        /// Whether the provider dropped the response, rather than received it.
+        /// </summary>
+        public bool Removed { get; init; }
+
         /// <summary>
         /// The identifier of the received job response.
         /// </summary>
@@ -89,8 +95,8 @@ namespace Opc.Ua.ISA95.Server.Providers
         public required ulong SequenceNumber { get; init; }
 
         /// <summary>
-        /// The time at which the response was received, as reported by the
-        /// injected <see cref="System.TimeProvider"/>.
+        /// The time at which the response was received or dropped, as reported
+        /// by the injected <see cref="System.TimeProvider"/>.
         /// </summary>
         public required DateTimeUtc Timestamp { get; init; }
     }

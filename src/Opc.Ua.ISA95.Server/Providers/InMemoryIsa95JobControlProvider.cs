@@ -1056,7 +1056,13 @@ namespace Opc.Ua.ISA95.Server.Providers
             }
             foreach (string key in expired)
             {
+                Isa95JobResponse response = m_responses[key];
                 m_responses.Remove(key);
+
+                // A JobOrderResponseList driven by the change stream would
+                // otherwise keep listing the dropped response until the next
+                // one arrives.
+                SignalResponse(response.Id, response.JobOrderId, now, removed: true);
             }
         }
 
@@ -1129,14 +1135,19 @@ namespace Opc.Ua.ISA95.Server.Providers
             }
         }
 
-        private void SignalResponse(string jobResponseId, string jobOrderId, DateTimeUtc receivedAt)
+        private void SignalResponse(
+            string jobResponseId,
+            string jobOrderId,
+            DateTimeUtc timestamp,
+            bool removed = false)
         {
             var change = new Isa95JobResponseChange
             {
                 JobResponseId = jobResponseId,
                 JobOrderId = jobOrderId,
                 SequenceNumber = ++m_responseSequence,
-                Timestamp = receivedAt
+                Timestamp = timestamp,
+                Removed = removed
             };
 
             foreach (Subscription<Isa95JobResponseChange> subscriber in m_responseSubscribers)
