@@ -1240,6 +1240,41 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
         }
 
+        /// <summary>
+        /// CTT Attribute Write Index Err-001.js: a range that starts beyond
+        /// the target has no data (Part 4 7.27), even when the written data
+        /// also has a different size than the range.
+        /// </summary>
+        [Test]
+        public void UpdateRangeArrayReturnsNoDataForRangeBeyondTargetWithWrongSourceLength()
+        {
+            var dst = Variant.From([10, 20, 30]);
+            var src = Variant.From([10, 20, 30]);
+            var range = NumericRange.Parse("1073741824:1073741827");
+            StatusCode result = range.UpdateRange(ref dst, src);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        [Test]
+        public void UpdateRangeStringReturnsNoDataForRangeBeyondTargetWithWrongSourceLength()
+        {
+            Variant dst = "abc";
+            Variant src = "xyz";
+            var range = new NumericRange(5, 8);
+            StatusCode result = range.UpdateRange(ref dst, src);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        [Test]
+        public void UpdateRangeMatrixReturnsNoDataForRangeBeyondTargetWithWrongSliceDimensions()
+        {
+            MatrixOf<int> dst = new int[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
+            MatrixOf<int> slice = new int[,] { { 9 } }.ToMatrixOf();
+            var range = NumericRange.Parse("5:6,0:1");
+            StatusCode result = range.UpdateRange(ref dst, slice);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
         [Test]
         public void UpdateRangeArrayReturnsNoDataWhenOutOfBounds()
         {
