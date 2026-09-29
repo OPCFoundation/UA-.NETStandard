@@ -95,6 +95,56 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(((IMonitoredItemApplyState)sut).HasPendingChanges, Is.False);
         }
 
+        /// <summary>
+        /// A null and an empty IndexRange both mean "not used" (Part 4
+        /// §7.27). A restored item carries "" from the snapshot while the
+        /// application re-applies null; that must not force a recreate.
+        /// </summary>
+        [Test]
+        public void NullAndEmptyIndexRangeDoNotForceRecreate()
+        {
+            m_options.Configure(o => o with
+            {
+                StartNodeId = new NodeId("test", 0)
+            });
+            var sut = new TestMonitoredItem(m_context,
+                m_options, m_telemetry.CreateLogger("MonitoredItem"));
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            change.SetCreateResult(new MonitoredItemCreateRequest
+            {
+                MonitoringMode = MonitoringMode.Sampling,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = sut.ClientHandle,
+                    SamplingInterval = 1000,
+                    QueueSize = 5,
+                    DiscardOldest = true
+                }
+            }, new MonitoredItemCreateResult
+            {
+                StatusCode = StatusCodes.Good,
+                MonitoredItemId = 5,
+                RevisedSamplingInterval = 1000,
+                RevisedQueueSize = 5
+            }, 0, [], new ResponseHeader());
+            Assert.That(sut.Created, Is.True);
+
+            MonitoredItemOptions options = m_options.CurrentValue;
+            Assert.That(options.IndexRange, Is.Null);
+            var sameRange = new MonitoredItem.Change(sut, options,
+                options with { IndexRange = string.Empty });
+            Assert.That(sameRange.ForceRecreate, Is.False);
+            var otherRange = new MonitoredItem.Change(sut, options,
+                options with { IndexRange = "1:2" });
+            Assert.That(otherRange.ForceRecreate, Is.True);
+
+            // The snapshot round trip restores the options default.
+            MonitoredItemOptions restored = MonitoredItemStateSnapshot
+                .AsOptions("test", options, sut.ClientHandle, sut.ServerId, null)
+                .ToOptions();
+            Assert.That(restored.IndexRange, Is.Null);
+        }
+
         [Test]
         public void FailedChangeCanBeRequeued()
         {

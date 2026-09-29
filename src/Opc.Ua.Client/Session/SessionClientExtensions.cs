@@ -822,6 +822,16 @@ namespace Opc.Ua.Client
                         // will return empty array constant.
                         break;
                     }
+                    if (chunk.Length > maxByteStringLength)
+                    {
+                        // The server ignored the IndexRange: appending the chunk would
+                        // corrupt the value and the loop would never terminate.
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnknownResponse,
+                            "Server returned {0} bytes for an index range of {1} bytes.",
+                            chunk.Length,
+                            maxByteStringLength);
+                    }
                     if (chunk.Length < maxByteStringLength && offset == 0)
                     {
                         // Fast path for small values, just return the chunk
@@ -836,6 +846,14 @@ namespace Opc.Ua.Client
                     if (chunk.Length < maxByteStringLength)
                     {
                         break;
+                    }
+                    if ((long)offset + (2L * maxByteStringLength) - 1 > int.MaxValue)
+                    {
+                        // The next range would not fit into an int and the value
+                        // could not be returned as a single byte string anyway.
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "ByteString value exceeds the maximum supported length.");
                     }
                     offset += maxByteStringLength;
                 }

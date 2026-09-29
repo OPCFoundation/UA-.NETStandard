@@ -51,12 +51,18 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     {
         private readonly ISubscriptionManager m_subscriptionManager;
         private readonly SubscriptionOptions m_subscriptionOptions;
+        // CA2213: intentionally never disposed - a subscriber racing
+        // DisposeAsync may still wait on it and must be able to release it.
+        // SemaphoreSlim only holds unmanaged state once AvailableWaitHandle
+        // is accessed, which never happens here.
+#pragma warning disable CA2213
         private readonly SemaphoreSlim m_initLock = new(1, 1);
+#pragma warning restore CA2213
         private readonly ConcurrentDictionary<uint, Subscriber> m_subscribers = new();
         private readonly Notifier m_notifier;
 
         private ISubscription? m_subscription;
-        private bool m_disposed;
+        private volatile bool m_disposed;
         private long m_handleCounter;
 
         /// <summary>
@@ -114,7 +120,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             MonitoredItems.MonitoredItemOptions? options,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
+            ISubscription subscription = await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
 
             Channel<DataValueChange> channel = CreateChannel<DataValueChange>(
                 options?.QueueSize ?? 0,
@@ -128,6 +134,10 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
             try
             {
+                // A dispose that ran after the subscription was obtained has
+                // already completed the subscribers it saw; fail instead of
+                // waiting on a channel nobody completes.
+                ThrowIfDisposed();
                 foreach (NodeId nodeId in nodeIds)
                 {
                     MonitoredItems.MonitoredItemOptions itemOptions =
@@ -139,7 +149,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
                     string name = $"stream_data_{handle}_{nodeId}";
 
-                    if (m_subscription!.MonitoredItems.TryAdd(
+                    if (subscription.MonitoredItems.TryAdd(
                             name,
                             new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
                             out IMonitoredItem? item) &&
@@ -168,7 +178,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 {
                     try
                     {
-                        m_subscription?.MonitoredItems.TryRemove(item.ClientHandle);
+                        subscription.MonitoredItems.TryRemove(item.ClientHandle);
                     }
                     catch
                     {
@@ -227,7 +237,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             [EnumeratorCancellation] CancellationToken ct,
             Func<IMonitoredItem, CancellationToken, ValueTask>? onMonitoredItemReady = null)
         {
-            await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
+            ISubscription subscription = await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
 
             MonitoredItems.MonitoredItemOptions itemOptions = (options ?? new MonitoredItems.MonitoredItemOptions())
                 with
@@ -252,7 +262,8 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 
             try
             {
-                if (m_subscription!.MonitoredItems.TryAdd(
+                ThrowIfDisposed();
+                if (subscription.MonitoredItems.TryAdd(
                         name,
                         new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
                         out IMonitoredItem? item) &&
@@ -284,7 +295,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 {
                     try
                     {
-                        m_subscription?.MonitoredItems.TryRemove(clientHandle.Value);
+                        subscription.MonitoredItems.TryRemove(clientHandle.Value);
                     }
                     catch
                     {
@@ -311,32 +322,51 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             }
             m_subscribers.Clear();
 
-            if (m_subscription != null)
+            // Take the init lock so a first subscriber that is creating the
+            // subscription right now either finishes before we look at it
+            // (and we dispose what it created) or observes m_disposed and
+            // creates nothing. The lock is deliberately not disposed: such a
+            // racing subscriber may still be waiting on it and must be able
+            // to acquire and release it to observe the disposal.
+            ISubscription? subscription;
+            await m_initLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                subscription = m_subscription;
+                m_subscription = null;
+            }
+            finally
+            {
+                m_initLock.Release();
+            }
+
+            if (subscription != null)
             {
                 try
                 {
-                    await m_subscription.DisposeAsync().ConfigureAwait(false);
+                    await subscription.DisposeAsync().ConfigureAwait(false);
                 }
                 catch
                 {
                     // best effort cleanup
                 }
-                m_subscription = null;
             }
-
-            m_initLock.Dispose();
         }
 
-        private async ValueTask EnsureSubscriptionAsync(CancellationToken ct)
+        private async ValueTask<ISubscription> EnsureSubscriptionAsync(CancellationToken ct)
         {
-            if (m_subscription != null)
+            ISubscription? current = Volatile.Read(ref m_subscription);
+            if (current != null)
             {
-                return;
+                return current;
             }
+            ThrowIfDisposed();
 
             await m_initLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                ThrowIfDisposed();
+
                 // Double-check after acquiring the init lock — another
                 // caller may have created the subscription while we
                 // were waiting. CA1508's single-threaded flow analysis
@@ -346,17 +376,27 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
 #pragma warning disable CA1508
                 if (m_subscription != null)
                 {
-                    return;
+                    return m_subscription;
                 }
 #pragma warning restore CA1508
 
-                m_subscription = m_subscriptionManager.Add(
+                ISubscription created = m_subscriptionManager.Add(
                     m_notifier,
                     new OptionsMonitor<SubscriptionOptions>(m_subscriptionOptions));
+                Volatile.Write(ref m_subscription, created);
+                return created;
             }
             finally
             {
                 m_initLock.Release();
+            }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(StreamingSubscription));
             }
         }
 

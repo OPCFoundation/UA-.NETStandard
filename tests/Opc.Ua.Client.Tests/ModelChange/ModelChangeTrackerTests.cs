@@ -117,6 +117,53 @@ namespace Opc.Ua.Client.Tests.ModelChange
             Assert.That(raised, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// L9-11: the first caller's cancelled start tore down the pump that a
+        /// second, uncancelled caller had joined, failing that caller too.
+        /// </summary>
+        [Test]
+        public async Task CancelledFirstStartDoesNotFailAJoinedStartAsync()
+        {
+            var fake = new FakeStreamingSubscription(eventMonitoredItemCreated: false);
+            await using var tracker = new ModelChangeTracker(fake);
+
+            using var firstCts = new CancellationTokenSource();
+            Task first = tracker.StartTrackingAsync(firstCts.Token).AsTask();
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+            Task second = tracker.StartTrackingAsync().AsTask();
+
+            firstCts.Cancel();
+            Assert.That(
+                async () => await first.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            fake.CreateEventMonitoredItem();
+            await second.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            Assert.That(tracker.IsTracking, Is.True);
+            Assert.That(fake.SubscribeCallCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A start abandoned by its only waiter still stops the pump.
+        /// </summary>
+        [Test]
+        public async Task CancelledOnlyStartStopsTrackingAsync()
+        {
+            var fake = new FakeStreamingSubscription(eventMonitoredItemCreated: false);
+            await using var tracker = new ModelChangeTracker(fake);
+
+            using var cts = new CancellationTokenSource();
+            Task start = tracker.StartTrackingAsync(cts.Token).AsTask();
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            cts.Cancel();
+            Assert.That(
+                async () => await start.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(tracker.IsTracking, Is.False);
+        }
+
         [Test]
         public async Task StartTrackingAsyncIsIdempotent()
         {

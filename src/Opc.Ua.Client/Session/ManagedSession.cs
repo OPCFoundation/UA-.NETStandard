@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
         {
             m_configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
-            ConfiguredEndpoint = endpoint
+            m_configuredEndpoint = endpoint
                 ?? throw new ArgumentNullException(nameof(endpoint));
             SessionFactory = sessionFactory
                 ?? throw new ArgumentNullException(nameof(sessionFactory));
@@ -534,7 +534,13 @@ namespace Opc.Ua.Client
         public ISessionFactory SessionFactory { get; }
 
         /// <inheritdoc/>
-        public ConfiguredEndpoint ConfiguredEndpoint { get; }
+        /// <remarks>
+        /// Reports the endpoint of the current inner session, so it follows a
+        /// server failover or network-path rotation like <see cref="Endpoint"/>;
+        /// before the first connect it is the endpoint passed at creation.
+        /// </remarks>
+        public ConfiguredEndpoint ConfiguredEndpoint
+            => m_session?.ConfiguredEndpoint ?? m_configuredEndpoint;
 
         /// <inheritdoc/>
         public RedundancySupport RedundancySupport => m_redundancyInfo?.Mode ?? RedundancySupport.None;
@@ -985,12 +991,43 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.WriterLockAsync(ct)
-                .ConfigureAwait(false))
+            // An explicit identity replaces the identity provider: a refresh
+            // loop still bound to the provider would reactivate its identity
+            // on the next tick and silently undo this call. Stop the loop
+            // before taking the writer lock (the loop takes it too) and
+            // restart it if the update does not go through.
+            IClientIdentityProvider? provider = identity != null ? m_identityProvider : null;
+            if (provider != null)
             {
-                await InnerSession.UpdateSessionAsync(
-                    identity, preferredLocales, ct)
-                    .ConfigureAwait(false);
+                await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+            }
+
+            bool updated = false;
+            try
+            {
+                using (await m_serviceLock.WriterLockAsync(ct)
+                    .ConfigureAwait(false))
+                {
+                    await InnerSession.UpdateSessionAsync(
+                        identity, preferredLocales, ct)
+                        .ConfigureAwait(false);
+                }
+                updated = true;
+            }
+            finally
+            {
+                if (provider != null && ReferenceEquals(m_identityProvider, provider))
+                {
+                    if (updated)
+                    {
+                        m_identityProvider = null;
+                        m_identity = identity;
+                    }
+                    else
+                    {
+                        StartIdentityRefreshLoop();
+                    }
+                }
             }
         }
 
@@ -1025,6 +1062,8 @@ namespace Opc.Ua.Client
             m_closeTimeout = timeout;
             m_closeChannel = closeChannel;
 
+            // A Notification handler may be the caller and wait for the close.
+            m_session?.NoteCloseFromBackgroundWork();
             StateMachine.RequestClose();
 
             if (timeout > 0)
@@ -1252,7 +1291,7 @@ namespace Opc.Ua.Client
         private async Task<ServiceResult> HandleConnectAsync(
             CancellationToken ct)
         {
-            ConfiguredEndpoint endpoint = ConfiguredEndpoint;
+            ConfiguredEndpoint endpoint = m_configuredEndpoint;
             var attempted = new HashSet<ConfiguredEndpoint> { endpoint };
             while (true)
             {
@@ -1531,6 +1570,40 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Takes the service writer lock for reconnect / failover. Service
+        /// calls hold the reader lock for their whole round trip, so on a
+        /// silently dead channel they would keep recovery waiting until each
+        /// hits its OperationTimeout. Every keep-alive interval, check the
+        /// channel: once it is unhealthy, stop waiting for them; the recovery
+        /// then replaces the channel, which fails the stale calls, while new
+        /// calls stay excluded. On a healthy channel (e.g. a reconnect after
+        /// a certificate change) the calls complete normally, so the writer
+        /// stays exclusive and does not fail requests the server may have
+        /// already executed.
+        /// </summary>
+        private ValueTask<AsyncReaderWriterLock.Releaser> RecoveryWriterLockAsync(CancellationToken ct)
+        {
+            TimeSpan drainTimeout = TimeSpan.FromMilliseconds(
+                Math.Max(m_session?.KeepAliveInterval ?? 0, MinRecoveryDrainTimeoutMs));
+            return m_serviceLock.WriterLockAsync(drainTimeout, m_timeProvider, IsChannelUnhealthy, ct);
+        }
+
+        /// <summary>
+        /// Whether service calls in flight can no longer complete normally:
+        /// the keep-alive stopped or the managed channel is not ready.
+        /// </summary>
+        private bool IsChannelUnhealthy()
+        {
+            Session? session = m_session;
+            if (session == null || session.KeepAliveStopped)
+            {
+                return true;
+            }
+            IManagedTransportChannel? channel = session.ManagedChannel;
+            return channel != null && channel.State != ChannelState.Ready;
+        }
+
         private async Task<ServiceResult> HandleManualReconnectAsync(
             ITransportWaitingConnection? connection,
             ITransportChannel? channel,
@@ -1541,7 +1614,7 @@ namespace Opc.Ua.Client
             try
             {
                 using IDisposable recovery = InnerSession.DeferSubscriptionRecovery();
-                using (await m_serviceLock.WriterLockAsync(linked.Token).ConfigureAwait(false))
+                using (await RecoveryWriterLockAsync(linked.Token).ConfigureAwait(false))
                 {
                     if (connection == null && channel == null)
                     {
@@ -1589,7 +1662,7 @@ namespace Opc.Ua.Client
                 m_logger.ManagedSessionReconnecting();
 
                 using IDisposable recovery = session.DeferSubscriptionRecovery();
-                using (await m_serviceLock.WriterLockAsync(ct)
+                using (await RecoveryWriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
                     try
@@ -1852,7 +1925,7 @@ namespace Opc.Ua.Client
 
                 m_logger.ManagedSessionFailingOverEndpoint(failoverEndpoint.EndpointUrl);
 
-                using (await m_serviceLock.WriterLockAsync(ct)
+                using (await RecoveryWriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
                     Session? session = m_session;
@@ -1982,7 +2055,7 @@ namespace Opc.Ua.Client
             var completion = new TaskCompletionSource<ServerRedundancyInfo>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             m_redundancyEndpointRefreshTask = completion.Task;
-            ConfiguredEndpoint current = m_session?.ConfiguredEndpoint ?? ConfiguredEndpoint;
+            ConfiguredEndpoint current = ConfiguredEndpoint;
             if (!m_backgroundWork.Run("RefreshRedundantEndpoints", async shutdown =>
             {
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, shutdown);
@@ -2182,10 +2255,26 @@ namespace Opc.Ua.Client
 
             previousChannel?.StateChanged -= OnManagedChannelStateChanged;
             currentChannel?.StateChanged += OnManagedChannelStateChanged;
-            bool reconnecting = currentChannel?.State is
-                ChannelState.TransportReconnecting or ChannelState.TransportConnectedSessionReactivating;
+            SeedChannelReconnectTracking(currentChannel);
+        }
+
+        /// <summary>
+        /// Re-derives the channel-reconnect suppression from the lease now in
+        /// use. The Ready/Faulted/Closed transition that would have cleared a
+        /// reconnect tracked on the previous lease is never observed once its
+        /// handler is removed, and the new lease's attach-time state is raised
+        /// before the handler is added, so a stale count would otherwise
+        /// suppress every later keep-alive-triggered reconnect.
+        /// </summary>
+        private void SeedChannelReconnectTracking(IManagedTransportChannel? channel)
+        {
+            bool reconnecting = channel?.State is
+                ChannelState.TransportReconnecting or
+                ChannelState.TransportConnectedSessionReactivating;
             Interlocked.Exchange(ref m_channelReconnectInProgress, reconnecting ? 1 : 0);
-            Volatile.Write(ref m_channelReconnectStartedAt, reconnecting ? m_timeProvider.GetTimestamp() : 0);
+            Volatile.Write(
+                ref m_channelReconnectStartedAt,
+                reconnecting ? m_timeProvider.GetTimestamp() : 0);
         }
 
         private void WireSessionEvents(Session session)
@@ -2204,6 +2293,7 @@ namespace Opc.Ua.Client
                 OnInnerRenewUserIdentity;
             session.ManagedChannel?.StateChanged
                     += OnManagedChannelStateChanged;
+            SeedChannelReconnectTracking(session.ManagedChannel);
         }
 
         private void UnwireSessionEvents(Session session)
@@ -2403,6 +2493,13 @@ namespace Opc.Ua.Client
                 TimeSpan delay = GetIdentityRefreshDelay(provider.ExpiresAt, retryAttempt == 0);
                 try
                 {
+                    // Timers reject a due time above ~49.7 days; wait for a
+                    // far-away expiry in chunks and re-evaluate after each.
+                    while (delay > MaxTimerDueTime)
+                    {
+                        await DelayAsync(MaxTimerDueTime, ct).ConfigureAwait(false);
+                        delay = GetIdentityRefreshDelay(provider.ExpiresAt, retryAttempt == 0);
+                    }
                     await DelayAsync(delay, ct).ConfigureAwait(false);
                     await RefreshIdentityOnceAsync(provider, ct).ConfigureAwait(false);
                     retryAttempt = 0;
@@ -2634,6 +2731,11 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            // Disposed from a Notification handler of the inner session: the
+            // state machine worker disposes the inner session and must not wait
+            // for the drain of the handler that waits for this dispose.
+            m_session?.NoteCloseFromBackgroundWork();
+
             try
             {
                 await DisposeSessionResourcesAsync().ConfigureAwait(false);
@@ -2654,8 +2756,30 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Disposes this session like <see cref="DisposeAsync"/> but leaves the
+        /// server session (and its subscriptions) alive: the keep-alive, the
+        /// connection state machine and the reconnect machinery are stopped and
+        /// the channel is released, but no CloseSession is sent. Used by a demoted
+        /// client replica whose server session is taken over by the new leader
+        /// through token reuse.
+        /// </summary>
+        internal async ValueTask AbandonServerSessionAsync()
+        {
+            Volatile.Write(ref m_abandonServerSession, true);
+            await DisposeAsync().ConfigureAwait(false);
+        }
+
         private async ValueTask DisposeSessionResourcesAsync()
         {
+            if (Volatile.Read(ref m_abandonServerSession))
+            {
+                // First: from here on neither the identity refresh, the
+                // background work, the state machine close nor the inner
+                // dispose can reach the server session with its token.
+                m_session?.AbandonServerSession();
+            }
+
             await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
             UnsubscribeCertificateChanges();
             await StopRevalidationLoopAsync().ConfigureAwait(false);
@@ -2733,20 +2857,31 @@ namespace Opc.Ua.Client
         private RenewUserIdentityEventHandler? m_renewUserIdentity;
         private volatile Session? m_session;
         private ClientChannelManager? m_ownedChannelManager;
+        private bool m_abandonServerSession;
         private IDisposable? m_ownedTransportResources;
         private readonly AsyncReaderWriterLock m_serviceLock = new();
         private readonly ApplicationConfiguration m_configuration;
+        private readonly ConfiguredEndpoint m_configuredEndpoint;
         private readonly IReconnectPolicy m_reconnectPolicy;
         private readonly IServerRedundancyHandler? m_redundancyHandler;
         private static readonly TimeSpan IdentityRefreshSafetyMargin = TimeSpan.FromSeconds(60);
+        private static readonly TimeSpan MaxTimerDueTime = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+        private const int MinRecoveryDrainTimeoutMs = 1000;
 
         private readonly ILogger m_logger;
-        private readonly IUserIdentity? m_identity;
+
+        /// <summary>
+        /// The eager identity used to connect. Replaced by an explicit
+        /// <see cref="UpdateSessionAsync(IUserIdentity, ArrayOf{string}, CancellationToken)"/>
+        /// on a provider-backed session, which drops the provider.
+        /// </summary>
+        private IUserIdentity? m_identity;
 
         /// <summary>
         /// The provider that materializes user identities. Replaced by
         /// <see cref="UpdateIdentityAsync(IClientIdentityProvider, CancellationToken)"/>
-        /// so the refresh loop follows the identity that is actually active.
+        /// so the refresh loop follows the identity that is actually active,
+        /// and cleared by an explicit identity update.
         /// </summary>
         private volatile IClientIdentityProvider? m_identityProvider;
         private readonly TimeProvider m_timeProvider;

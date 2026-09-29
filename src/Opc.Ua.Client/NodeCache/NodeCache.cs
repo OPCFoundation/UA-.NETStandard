@@ -259,7 +259,11 @@ namespace Opc.Ua.Client
             var result = new List<DataValue>(nodeIds.Count);
             if (count != 0)
             {
+                // Track the slots to fill explicitly: an empty DataValue is a
+                // legal cached or returned value, so it cannot double as the
+                // marker of a missing slot.
                 var notFound = new List<NodeId>();
+                var missingIndices = new List<int>();
                 foreach (NodeId nodeId in nodeIds)
                 {
                     if (m_values.TryGet(nodeId, out DataValue dataValue))
@@ -268,14 +272,14 @@ namespace Opc.Ua.Client
                         continue;
                     }
                     notFound.Add(nodeId);
+                    missingIndices.Add(result.Count);
                     result.Add(default);
                 }
                 if (notFound.Count != 0)
                 {
-                    return FetchRemainingAsync(notFound, result, ct);
+                    return FetchRemainingAsync(notFound, missingIndices, result, ct);
                 }
             }
-            Debug.Assert(!result.Any(r => r.IsNull)); // None now should be null
             return new ValueTask<ArrayOf<DataValue>>(result.ToArrayOf());
         }
 
@@ -643,7 +647,7 @@ namespace Opc.Ua.Client
             {
                 return await GetNodeAsync(localId, ct).ConfigureAwait(false);
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 m_logger.CouldNotFindNodeNodeIdError(
                     nodeId,
@@ -727,7 +731,7 @@ namespace Opc.Ua.Client
                         targetId);
                 }
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 m_logger.CouldNotFetchReferencesNodeNodeId(
                     localId,
@@ -755,7 +759,7 @@ namespace Opc.Ua.Client
                 await PopulateReferenceTableAsync(localId, node, ct).ConfigureAwait(false);
                 return node;
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 m_logger.CouldNotFetchNodeNodeIdError(
                     nodeId,
@@ -830,7 +834,7 @@ namespace Opc.Ua.Client
                 await GetNodeAsync(typeId, ct).ConfigureAwait(false);
                 return true;
             }
-            catch
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 return false;
             }
@@ -943,7 +947,7 @@ namespace Opc.Ua.Client
                 INode node = await GetNodeAsync(referenceTypeId, ct).ConfigureAwait(false);
                 return node.BrowseName;
             }
-            catch
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 return QualifiedName.Null;
             }
@@ -1126,7 +1130,7 @@ namespace Opc.Ua.Client
             {
                 node = await GetNodeAsync(startNodeId, ct).ConfigureAwait(false);
             }
-            catch
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 return NodeId.Null;
             }
@@ -1266,10 +1270,11 @@ namespace Opc.Ua.Client
         /// </summary>
         private async ValueTask<ArrayOf<DataValue>> FetchRemainingAsync(
             List<NodeId> remainingIds,
+            List<int> missingIndices,
             List<DataValue> result,
             CancellationToken ct)
         {
-            Debug.Assert(result.Count(r => r.IsNull) == remainingIds.Count);
+            Debug.Assert(missingIndices.Count == remainingIds.Count);
 
             // fetch nodes and references from server.
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> readErrors) =
@@ -1278,7 +1283,6 @@ namespace Opc.Ua.Client
 
             Debug.Assert(values.Count == remainingIds.Count);
             Debug.Assert(readErrors.Count == remainingIds.Count);
-            int resultMissingIndex = 0;
             for (int index = 0; index < remainingIds.Count; index++)
             {
                 if (ServiceResult.IsBad(readErrors[index]))
@@ -1293,14 +1297,8 @@ namespace Opc.Ua.Client
                     // Add to cache
                     m_values.AddOrUpdate(remainingIds[index], values[index]);
                 }
-                while (!result[resultMissingIndex].IsNull)
-                {
-                    resultMissingIndex++;
-                    Debug.Assert(resultMissingIndex < result.Count);
-                }
-                result[resultMissingIndex] = values[index];
+                result[missingIndices[index]] = values[index];
             }
-            Debug.Assert(!result.Any(r => r.IsNull)); // None now should be null
             return result.ToArrayOf();
         }
 

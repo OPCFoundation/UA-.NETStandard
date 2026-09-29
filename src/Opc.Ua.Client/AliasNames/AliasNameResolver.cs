@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.AliasNames.Refresh;
 
 namespace Opc.Ua.Client.AliasNames
@@ -81,6 +82,8 @@ namespace Opc.Ua.Client.AliasNames
             Options = (options ?? new AliasNameResolverOptions()).Clone();
             m_strategy = Options.RefreshStrategy
                 ?? BuildBuiltInStrategy(Options);
+            m_logger = client.Session.MessageContext.Telemetry
+                .CreateLogger<AliasNameResolver>();
         }
 
         /// <summary>The wrapped <see cref="AliasNameClient"/>.</summary>
@@ -104,7 +107,19 @@ namespace Opc.Ua.Client.AliasNames
             {
                 return;
             }
-            await EnsureStrategyStartedAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await EnsureStrategyStartedAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException ||
+                !ct.IsCancellationRequested)
+            {
+                // The refresh strategy only drives invalidation; a server that
+                // rejects its subscription (or lacks the optional LastChange)
+                // must not make alias resolution fail. Run degraded (manual
+                // refresh) and retry the start on the next load.
+                m_logger.AliasRefreshStrategyStartFailed(ex, m_strategy.GetType().Name);
+            }
             await RefreshAsync(ct).ConfigureAwait(false);
         }
 
@@ -391,8 +406,27 @@ namespace Opc.Ua.Client.AliasNames
                     arr[i] = a.ReferencedNodes[i];
                     reverse[arr[i]] = key;
                 }
-                forward[key] = arr;
+                forward[key] = Merge(forward, key, arr);
             }
+        }
+
+        /// <summary>
+        /// The cache is keyed by <see cref="QualifiedName.Name"/> only, but
+        /// FindAlias may legally return the same name more than once (other
+        /// namespace, or defined in several sub-categories). Append the
+        /// targets of a repeated name instead of replacing the earlier ones.
+        /// </summary>
+        /// <typeparam name="T">The element type of the cached arrays.</typeparam>
+        private static T[] Merge<T>(Dictionary<string, T[]> map, string key, T[] values)
+        {
+            if (!map.TryGetValue(key, out T[]? existing) || existing.Length == 0)
+            {
+                return values;
+            }
+            var merged = new T[existing.Length + values.Length];
+            Array.Copy(existing, merged, existing.Length);
+            Array.Copy(values, 0, merged, existing.Length, values.Length);
+            return merged;
         }
 
         private static void PopulateFromVerbose(
@@ -413,14 +447,17 @@ namespace Opc.Ua.Client.AliasNames
                     uris[i] = i < a.ServerUris.Count ? a.ServerUris[i] : null;
                     reverse[arr[i]] = key;
                 }
-                forward[key] = arr;
-                serverUris[key] = uris;
+                // Merge both maps the same way so the ServerUris stay
+                // parallel to the targets.
+                forward[key] = Merge(forward, key, arr);
+                serverUris[key] = Merge(serverUris, key, uris);
             }
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly SemaphoreSlim m_strategyStartLock = new(1, 1);
         private readonly IAliasNameRefreshStrategy m_strategy;
+        private readonly ILogger m_logger;
 
         private Dictionary<string, ExpandedNodeId[]> m_forward
             = new(StringComparer.Ordinal);
@@ -445,5 +482,19 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         private long m_invalidationGeneration;
         private int m_strategyStarted;
+    }
+
+    /// <summary>
+    /// Source-generated logging for <see cref="AliasNameResolver"/>.
+    /// </summary>
+    internal static partial class AliasNameResolverLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.AliasNameResolver + 0, Level = LogLevel.Warning,
+            Message = "Alias refresh strategy {Strategy} failed to start; resolving without " +
+                "automatic invalidation and retrying the start on the next load.")]
+        public static partial void AliasRefreshStrategyStartFailed(
+            this ILogger logger,
+            Exception exception,
+            string strategy);
     }
 }

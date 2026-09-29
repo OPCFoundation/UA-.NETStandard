@@ -32,10 +32,13 @@
 // — and AliasNameResolver.DisposeAsync returns synchronously anyway.
 #pragma warning disable CA2007
 
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.AliasNames;
+using Opc.Ua.Client.AliasNames.Refresh;
 
 namespace Opc.Ua.Client.Tests.AliasNames
 {
@@ -143,6 +146,76 @@ namespace Opc.Ua.Client.Tests.AliasNames
         }
 
         [Test]
+        public async Task DuplicateAliasNamesMergeTargetsAsync()
+        {
+            // FindAlias searches sub-categories too, so the same Name may be
+            // returned twice; the second entry must not overwrite the first.
+            var harness = AliasNameSessionHarness.Create();
+            harness.CallHandler = _ => AliasesResult(
+                ("Temp", new ExpandedNodeId("T1", 2)),
+                ("Temp", new ExpandedNodeId("T2", 3)));
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
+            await using var resolver = new AliasNameResolver(client);
+
+            IReadOnlyList<ExpandedNodeId> result = await resolver
+                .ResolveAsync("Temp").ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(new[]
+            {
+                new ExpandedNodeId("T1", 2),
+                new ExpandedNodeId("T2", 3)
+            }));
+        }
+
+        [Test]
+        public async Task StrategyStartFailureDoesNotBreakResolveAsync()
+        {
+            var harness = AliasNameSessionHarness.Create();
+            harness.CallHandler = _ => AliasesResult(
+                ("A", new ExpandedNodeId("T1", 2)));
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var strategy = new ThrowingStartStrategy();
+            await using var resolver = new AliasNameResolver(
+                client,
+                new AliasNameResolverOptions { RefreshStrategy = strategy });
+
+            IReadOnlyList<ExpandedNodeId> result = await resolver
+                .ResolveAsync("A").ConfigureAwait(false);
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(strategy.StartCalls, Is.EqualTo(1));
+
+            // Loaded: a further resolve neither refetches nor restarts.
+            await resolver.ResolveAsync("A").ConfigureAwait(false);
+            Assert.That(strategy.StartCalls, Is.EqualTo(1));
+
+            // The start is retried on the next load.
+            resolver.Invalidate();
+            await resolver.ResolveAsync("A").ConfigureAwait(false);
+            Assert.That(strategy.StartCalls, Is.EqualTo(2));
+        }
+
+        private sealed class ThrowingStartStrategy
+            : IAliasNameRefreshStrategy
+        {
+            public int StartCalls { get; private set; }
+
+            public ValueTask StartAsync(
+                AliasNameClient client,
+                Action onInvalidate,
+                CancellationToken ct)
+            {
+                StartCalls++;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTooManySubscriptions, "rejected");
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
+        }
+
+        [Test]
         public async Task UnknownNameReturnsEmptyListAsync()
         {
             var harness = AliasNameSessionHarness.Create();
@@ -231,12 +304,33 @@ namespace Opc.Ua.Client.Tests.AliasNames
         }
 
         [Test]
-        public async Task VerboseResolverFallsBackToNonVerboseOnNotSupportedAsync()
+        public Task VerboseResolverFallsBackToNonVerboseOnNotSupportedAsync()
         {
             // Server returns BadNotImplemented for the verbose method —
             // the resolver must transparently fall back to FindAlias and
             // populate the cache from the non-verbose response.
+            return AssertVerboseFallbackAsync(StatusCodes.BadNotImplemented);
+        }
+
+        [Test]
+        public Task VerboseResolverFallsBackToNonVerboseOnMethodInvalidAsync()
+        {
+            // A category that does not expose the optional FindAliasVerbose
+            // returns BadMethodInvalid (Part 4 §5.12.2.4); that must also
+            // trigger the non-verbose fallback instead of failing every resolve.
+            return AssertVerboseFallbackAsync(StatusCodes.BadMethodInvalid);
+        }
+
+        private static async Task AssertVerboseFallbackAsync(StatusCode verboseStatus)
+        {
             var harness = AliasNameSessionHarness.Create();
+            // The category has no FindAliasVerbose instance method either, so
+            // the proxy's instance-MethodId retry finds nothing.
+            harness.BrowsePathHandler = _ => new BrowsePathResult
+            {
+                StatusCode = StatusCodes.BadNoMatch,
+                Targets = Array.Empty<BrowsePathTarget>().ToArrayOf()
+            };
             int verboseCalls = 0;
             int nonVerboseCalls = 0;
             harness.CallHandler = req =>
@@ -246,7 +340,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
                     verboseCalls++;
                     return new CallMethodResult
                     {
-                        StatusCode = StatusCodes.BadNotImplemented
+                        StatusCode = verboseStatus
                     };
                 }
                 nonVerboseCalls++;
