@@ -997,7 +997,12 @@ namespace Opc.Ua.Bindings
                 encoder.WriteUInt32(null, TcpMessageType.Error);
                 encoder.WriteUInt32(null, 0);
 
-                WriteErrorMessageBody(encoder, error);
+                // the reason is cut to what the peer's receive buffer holds after
+                // the message header, status code and reason length.
+                WriteErrorMessageBody(
+                    encoder,
+                    error,
+                    SendBufferSize - TcpMessageLimits.MessageTypeAndSize - 8);
 
                 int size = encoder.Close();
                 UpdateMessageSize(buffer, 0, size);

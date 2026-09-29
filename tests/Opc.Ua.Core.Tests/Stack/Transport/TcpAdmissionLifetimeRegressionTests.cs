@@ -277,7 +277,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public async Task IncompleteOpenMessagesStayWithinSharedBudgetAndANewClientConnectsAfterCleanupAsync()
+        public async Task IncompleteMessagesWithoutSessionStayWithinSharedBudgetAndANewClientConnectsAfterCleanupAsync()
         {
             var budget = new ChunkReassemblyBudget(64 * 1024);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -293,26 +293,36 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             harness.Quotas.ChannelLifetime = 1000;
             harness.Quotas.ChunkReassemblyBudget = budget;
             var clients = new List<Socket>();
+            var tokens = new List<(uint ChannelId, uint TokenId)>();
             try
             {
                 (Socket first, Socket accepted) = await harness.CreateFirstConnectionAsync().ConfigureAwait(false);
                 clients.Add(first);
                 harness.Admit(accepted);
                 await CompleteHelloAsync(harness, first).ConfigureAwait(false);
+                tokens.Add(await OpenNoneChannelAsync(harness, first).ConfigureAwait(false));
                 for (int i = 1; i < 3; i++)
                 {
                     Socket client = await harness.ConnectAsync().ConfigureAwait(false);
                     clients.Add(client);
                     await CompleteHelloAsync(harness, client).ConfigureAwait(false);
+                    tokens.Add(await OpenNoneChannelAsync(harness, client).ConfigureAwait(false));
                 }
                 Assert.That(harness.Channels, Has.Count.EqualTo(3));
 
+                // OpenSecureChannel is always a single chunk (OPC 10000-6 §6.7.2.2), so the
+                // reassembly budget of a channel without an activated session is filled with
+                // intermediate request chunks on the opened channels.
                 bool peerClosed = false;
-                for (uint sequence = 1; sequence <= 2 && !peerClosed && harness.Channels.Count == 3; sequence++)
+                for (uint sequence = 2; sequence <= 3 && !peerClosed && harness.Channels.Count == 3; sequence++)
                 {
-                    byte[] chunk = harness.CreateIntermediateOpenChunk(sequence);
-                    foreach (Socket client in clients)
+                    for (int index = 0; index < clients.Count; index++)
                     {
+                        Socket client = clients[index];
+                        byte[] chunk = harness.CreateIntermediateRequestChunk(
+                            tokens[index].ChannelId,
+                            tokens[index].TokenId,
+                            sequence);
                         using var stream = new NetworkStream(client, ownsSocket: false);
                         try
                         {
@@ -586,6 +596,53 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
             Assert.That(BitConverter.ToUInt32(acknowledge, 0), Is.EqualTo(TcpMessageType.Acknowledge));
             Assert.That(BitConverter.ToUInt32(acknowledge, 24), Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// Opens a SecurityPolicy None channel and returns its channel and token identifiers.
+        /// </summary>
+        private static async Task<(uint ChannelId, uint TokenId)> OpenNoneChannelAsync(
+            AcceptHarness harness,
+            Socket socket)
+        {
+            using var stream = new NetworkStream(socket, ownsSocket: false);
+            byte[] open = harness.CreateOpenChunk();
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            await stream.WriteAsync(open.AsMemory()).ConfigureAwait(false);
+#else
+            await stream.WriteAsync(open, 0, open.Length).ConfigureAwait(false);
+#endif
+            byte[] header = new byte[8];
+            await ReadExactAsync(stream, header, 0, header.Length).ConfigureAwait(false);
+            Assert.That(BitConverter.ToUInt32(header, 0), Is.EqualTo(TcpMessageType.Open | TcpMessageType.Final));
+            byte[] response = new byte[BitConverter.ToInt32(header, 4)];
+            header.CopyTo(response, 0);
+            await ReadExactAsync(stream, response, header.Length, response.Length - header.Length)
+                .ConfigureAwait(false);
+
+            using var decoder = new BinaryDecoder(
+                new ArraySegment<byte>(response, header.Length, response.Length - header.Length),
+                harness.Context);
+            uint channelId = decoder.ReadUInt32(null);
+            _ = decoder.ReadString(null);
+            _ = decoder.ReadByteString(null);
+            _ = decoder.ReadByteString(null);
+            _ = decoder.ReadUInt32(null);
+            _ = decoder.ReadUInt32(null);
+            OpenSecureChannelResponse message = decoder.DecodeMessage<OpenSecureChannelResponse>();
+            return (channelId, message.SecurityToken.TokenId);
+        }
+
+        private static async Task ReadExactAsync(NetworkStream stream, byte[] buffer, int offset, int count)
+        {
+            while (count > 0)
+            {
+                int read = await stream.ReadAsync(buffer, offset, count)
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(read, Is.GreaterThan(0));
+                offset += read;
+                count -= read;
+            }
         }
 
         private static async Task WaitForAsync(Func<bool> condition)
@@ -868,16 +925,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return buffer.AsSpan(0, count).ToArray();
             }
 
-            public byte[] CreateIntermediateOpenChunk(uint sequence)
+            public byte[] CreateIntermediateRequestChunk(uint channelId, uint tokenId, uint sequence)
             {
                 byte[] buffer = new byte[8192];
                 using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, Context);
-                encoder.WriteUInt32(null, TcpMessageType.Open | TcpMessageType.Intermediate);
+                encoder.WriteUInt32(null, TcpMessageType.Message | TcpMessageType.Intermediate);
                 encoder.WriteUInt32(null, 0);
-                encoder.WriteUInt32(null, 0);
-                encoder.WriteString(null, SecurityPolicies.None);
-                encoder.WriteByteString(null, ByteString.Empty);
-                encoder.WriteByteString(null, ByteString.Empty);
+                encoder.WriteUInt32(null, channelId);
+                encoder.WriteUInt32(null, tokenId);
                 encoder.WriteUInt32(null, sequence);
                 encoder.WriteUInt32(null, 1);
                 byte[] body = new byte[8000];

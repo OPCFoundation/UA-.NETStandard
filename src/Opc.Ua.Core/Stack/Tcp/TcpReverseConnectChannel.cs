@@ -191,10 +191,34 @@ namespace Opc.Ua.Bindings
                     TcpMessageType.ReverseHello,
                     messageChunk.Count);
 
-                // read peer information.
-                string? serverUri = decoder.ReadString(null);
-                string? endpointUrlString = decoder.ReadString(null);
-                var endpointUri = new Uri(endpointUrlString!);
+                // read peer information. OPC 10000-6 §7.1.2.6: both are less
+                // than 4096 bytes, and the Client returns Bad_TcpEndpointUrlInvalid
+                // and closes the connection if they are longer.
+                string? serverUri;
+                string? endpointUrlString;
+                try
+                {
+                    serverUri = decoder.ReadString(null, TcpMessageLimits.MaxEndpointUrlLength);
+                    endpointUrlString = decoder.ReadString(null, TcpMessageLimits.MaxEndpointUrlLength);
+                }
+                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                {
+                    ForceChannelFaultCore(
+                        StatusCodes.BadTcpEndpointUrlInvalid,
+                        "The ServerUri or EndpointUrl of the ReverseHello exceeds {0} bytes.",
+                        TcpMessageLimits.MaxEndpointUrlLength);
+                    return false;
+                }
+
+                if (serverUri == null ||
+                    endpointUrlString == null ||
+                    !Uri.TryCreate(endpointUrlString, UriKind.Absolute, out Uri? endpointUri))
+                {
+                    ForceChannelFaultCore(
+                        StatusCodes.BadTcpEndpointUrlInvalid,
+                        "The ReverseHello has no valid ServerUri or EndpointUrl.");
+                    return false;
+                }
 
                 State = TcpChannelState.Connecting;
 
@@ -203,7 +227,7 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         if (!await Listener
-                                .TransferListenerChannelAsync(Id, serverUri!, endpointUri)
+                                .TransferListenerChannelAsync(Id, serverUri, endpointUri)
                                 .ConfigureAwait(false))
                         {
                             SetResponseRequired(true);
