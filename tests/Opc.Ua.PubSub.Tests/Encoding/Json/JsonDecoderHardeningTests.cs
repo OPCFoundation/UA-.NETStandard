@@ -256,6 +256,44 @@ namespace OpcUaPubSubJsonTests
                 Has.Count.EqualTo(messageType == PubSubDataSetMessageType.KeepAlive ? 0 : 3));
         }
 
+        [Test]
+        [TestSpec("7.2.5.4.2")]
+        public async Task DataSetMessageWithOnlyMinorVersionResolvesRegisteredMetaDataAsync()
+        {
+            var registry = new DataSetMetaDataRegistry();
+            var key = new DataSetMetaDataKey(
+                PublisherId.FromString("MyPublisher"), 0, 102, Uuid.Empty, 672341762);
+            registry.Register(in key, new DataSetMetaDataType
+            {
+                Name = "Location",
+                Fields =
+                [
+                    new FieldMetaData
+                    {
+                        Name = "LocationName",
+                        BuiltInType = (byte)BuiltInType.String,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ],
+                ConfigurationVersion = new ConfigurationVersionDataType
+                {
+                    MajorVersion = 672341762,
+                    MinorVersion = 672341762
+                }
+            });
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext(registry);
+            const string json =
+                "{\"PublisherId\":\"MyPublisher\",\"DataSetWriterId\":102,\"SequenceNumber\":25460," +
+                "\"MinorVersion\":672341762,\"Timestamp\":\"2021-09-27T18:45:19.555Z\"," +
+                "\"Payload\":{\"LocationName\":\"Building A\"}}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(result.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant("Building A")));
+        }
+
         private static PubSubNetworkMessageContext NewContextWithMetaData(
             DataSetMetaDataType metaData)
         {

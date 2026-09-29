@@ -749,7 +749,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 : PublisherId.Null;
             string writerGroupName = ReadOptionalString(entry, "WriterGroupName", context);
             uint sequenceNumber = ReadOptionalUInt32(entry, "SequenceNumber");
-            ConfigurationVersionDataType metaVersion = ReadMetaVersion(entry);
+            ConfigurationVersionDataType metaVersion = ReadMetaVersion(entry, out bool hasMajorVersion);
             uint minorVersion = ReadOptionalUInt32(entry, "MinorVersion");
             if (minorVersion != 0)
             {
@@ -767,6 +767,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 envelopeClassId,
                 writerId,
                 metaVersion,
+                hasMajorVersion,
                 context);
             JsonEncodingMode detectedMode = DetectMode(entry);
             // A header-only DataSetMessage (e.g. ua-keepalive) has no
@@ -1034,9 +1035,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// Reads the <c>MetaDataVersion</c> property.
         /// </summary>
         /// <param name="root">Source object.</param>
+        /// <param name="hasMajorVersion">On return, whether a numeric
+        /// <c>MajorVersion</c> was present.</param>
         /// <returns>Configuration version (zeroed when absent).</returns>
-        private static ConfigurationVersionDataType ReadMetaVersion(JsonElement root)
+        private static ConfigurationVersionDataType ReadMetaVersion(
+            JsonElement root,
+            out bool hasMajorVersion)
         {
+            hasMajorVersion = false;
             if (!root.TryGetProperty("MetaDataVersion", out JsonElement value) ||
                 value.ValueKind != JsonValueKind.Object)
             {
@@ -1047,7 +1053,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             if (value.TryGetProperty("MajorVersion", out JsonElement majorElement) &&
                 majorElement.ValueKind == JsonValueKind.Number)
             {
-                majorElement.TryGetUInt32(out major);
+                hasMajorVersion = majorElement.TryGetUInt32(out major);
             }
             if (value.TryGetProperty("MinorVersion", out JsonElement minorElement) &&
                 minorElement.ValueKind == JsonValueKind.Number)
@@ -1222,6 +1228,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="dataSetClassId">DataSetClassId.</param>
         /// <param name="writerId">DataSetWriterId.</param>
         /// <param name="metaVersion">Configuration version.</param>
+        /// <param name="hasMajorVersion">Whether the DataSetMessage carried a
+        /// MajorVersion. Without one (only <c>MinorVersion</c>, or no version at
+        /// all) the metadata registered for the identity is used.</param>
         /// <param name="context">Decoder context.</param>
         /// <returns>Resolved metadata or
         /// <see langword="null"/>.</returns>
@@ -1230,6 +1239,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             Uuid dataSetClassId,
             ushort writerId,
             ConfigurationVersionDataType metaVersion,
+            bool hasMajorVersion,
             PubSubNetworkMessageContext context)
         {
             DataSetMetaDataKey key = new(
@@ -1241,8 +1251,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             MetaDataMatchResult result = context.MetaDataRegistry.TryGet(
                 in key,
                 out DataSetMetaDataType? metaData);
-            if (result is MetaDataMatchResult.Match
-                or MetaDataMatchResult.MinorVersionMismatch)
+            if (IsUsableMatch(result, hasMajorVersion))
             {
                 return metaData;
             }
@@ -1258,14 +1267,25 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         dataSetClassId,
                         metaVersion?.MajorVersion ?? 0);
                     result = context.MetaDataRegistry.TryGet(in key, out metaData);
-                    if (result is MetaDataMatchResult.Match
-                        or MetaDataMatchResult.MinorVersionMismatch)
+                    if (IsUsableMatch(result, hasMajorVersion))
                     {
                         return metaData;
                     }
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Whether a registry lookup result can be used to decode the
+        /// DataSetMessage. MetaDataVersion and MinorVersion are both
+        /// optional (Part 14 §7.2.5.4.1 Table 185); without a MajorVersion
+        /// any registered description for the identity applies.
+        /// </summary>
+        private static bool IsUsableMatch(MetaDataMatchResult result, bool hasMajorVersion)
+        {
+            return result is MetaDataMatchResult.Match or MetaDataMatchResult.MinorVersionMismatch ||
+                (!hasMajorVersion && result == MetaDataMatchResult.MajorVersionMismatch);
         }
 
         /// <summary>
