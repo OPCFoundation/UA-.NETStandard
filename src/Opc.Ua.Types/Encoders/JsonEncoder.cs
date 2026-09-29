@@ -275,9 +275,10 @@ namespace Opc.Ua
             m_messageStart = m_writer.BytesCommitted + m_writer.BytesPending;
             try
             {
-                WriteNodeId(
-                    JsonProperties.UaTypeId,
-                    ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris));
+                if (CanWriteUaTypeId(typeId))
+                {
+                    WriteUaTypeId(typeId);
+                }
                 message.Encode(this);
                 CheckMessageSize();
             }
@@ -1370,15 +1371,18 @@ namespace Opc.Ua
             }
             value.TryGetValue(out IEncodeable? encodeable);
 
+            // For an opaque Binary or XML body of a type the decoder did not know, the
+            // TypeId is the DataTypeEncoding id it was received with, not the DataType id
+            // 5.4.2.16 asks for: the context has no type system to map it, and a peer
+            // decoding the body back needs exactly that encoding id.
             ExpandedNodeId typeId = encodeable?.TypeId ?? value.TypeId;
-            var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
+            bool hasTypeId = CanWriteUaTypeId(typeId);
 
-            // A TypeId whose namespace is not in the local table cannot be written as a JSON
-            // NodeId. That is normal for a client encoding a server type it has not mapped, and
-            // the writers below already omit UaTypeId in that case. It is only unencodable when
-            // there is no body either, because then the envelope would collapse to {} and the
-            // type identity would be lost entirely.
-            if (localTypeId.IsNull && !typeId.IsNull &&
+            // A TypeId that cannot be written as a JSON NodeId (a server index, or no
+            // identifier) is omitted. It is only unencodable when there is no body either,
+            // because then the envelope would collapse to {} and the type identity would be
+            // lost entirely.
+            if (!hasTypeId && !typeId.IsNull &&
                 value.Encoding == ExtensionObjectEncoding.None && encodeable == null)
             {
                 throw ServiceResultException.Create(
@@ -1390,9 +1394,9 @@ namespace Opc.Ua
 
             // An ExtensionObject is the abstract Structure, so RawData keeps its
             // UaTypeId (5.4.1).
-            if (!localTypeId.IsNull)
+            if (hasTypeId)
             {
-                WriteNodeId(JsonProperties.UaTypeId, localTypeId);
+                WriteUaTypeId(typeId);
             }
             switch (value.Encoding)
             {
@@ -1405,7 +1409,7 @@ namespace Opc.Ua
                     rawJson = rawJson.Trim();
                     if (rawJson.Length > 1 && rawJson[0] == '{' && rawJson[^1] == '}')
                     {
-                        WriteJsonExtensionObjectBody(rawJson, !localTypeId.IsNull);
+                        WriteJsonExtensionObjectBody(rawJson, hasTypeId);
                         break;
                     }
                     if (rawJson.Length == 0)
@@ -1438,6 +1442,42 @@ namespace Opc.Ua
             }
 
             EndObject();
+        }
+
+        /// <summary>
+        /// Whether a TypeId can be written as the UaTypeId, a NodeId string (Part 6
+        /// 5.4.2.16, 5.4.2.10). A server index has no place in a NodeId.
+        /// </summary>
+        private bool CanWriteUaTypeId(in ExpandedNodeId typeId)
+        {
+            if (typeId.IsNull)
+            {
+                return false;
+            }
+            if (!ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris).IsNull)
+            {
+                return true;
+            }
+            return typeId.ServerIndex == 0 &&
+                !string.IsNullOrEmpty(typeId.NamespaceUri) &&
+                !typeId.InnerNodeId.IsNull;
+        }
+
+        /// <summary>
+        /// Writes the UaTypeId of an ExtensionObject or message (Part 6 5.4.2.16). A
+        /// TypeId whose NamespaceUri is not in the context's namespace table keeps its
+        /// type identity in the nsu= form of a NodeId (Part 6 5.4.2.10), which needs no
+        /// namespace table entry.
+        /// </summary>
+        private void WriteUaTypeId(in ExpandedNodeId typeId)
+        {
+            var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
+            if (!localTypeId.IsNull)
+            {
+                WriteNodeId(JsonProperties.UaTypeId, localTypeId);
+                return;
+            }
+            m_writer.WriteString(JsonProperties.UaTypeId, typeId.Format(Context, true));
         }
 
         private void WriteJsonExtensionObjectBody(string rawJson, bool skipUaTypeId)
@@ -1811,11 +1851,10 @@ namespace Opc.Ua
         private void WriteEncodeableAsExtensionObject<T>(T value) where T : IEncodeable
         {
             StartObject();
-            var typeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
             // Disregard RawDataMode as per 5.4.1 (encoding of Structure or Variant)
-            if (!typeId.IsNull)
+            if (CanWriteUaTypeId(value.TypeId))
             {
-                WriteNodeId(JsonProperties.UaTypeId, typeId);
+                WriteUaTypeId(value.TypeId);
             }
             value.Encode(this);
             EndObject();

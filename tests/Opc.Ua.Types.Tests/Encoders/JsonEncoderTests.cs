@@ -682,6 +682,32 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteExtensionObjectWithUnmappedNamespaceWritesNsuTypeId()
+        {
+            // A TypeId whose namespace is not in the table keeps its identity in the nsu=
+            // form of a NodeId (Part 6 5.4.2.16, 5.4.2.10) instead of being dropped.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var typeId = new ExpandedNodeId(5001u, "urn:unknown");
+            var value = new ExtensionObject(typeId, /*lang=json,strict*/ """{"A":1}""");
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExtensionObject(JsonProperties.Value, value);
+            }
+
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ExtensionObject decoded = decoder.ReadExtensionObject(JsonProperties.Value);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                    Is.EqualTo("""{"Value":{"UaTypeId":"nsu=urn:unknown;i=5001","A":1}}"""));
+                Assert.That(decoded.TypeId, Is.EqualTo(typeId));
+            });
+        }
+
+        [Test]
         public void RawDataKeepsTypeArtifactsOfAbstractTypedValues()
         {
             // RawData omits UaType/UaTypeId, but not for values of the abstract
