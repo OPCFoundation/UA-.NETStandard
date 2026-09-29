@@ -71,8 +71,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(encoded, Has.Length.GreaterThan(0));
 
             string payload = Encoding.UTF8.GetString(encoded);
-            Assert.That(payload, Does.Contain("TypeId"));
-            Assert.That(payload, Does.Contain("Body"));
+            Assert.That(payload, Does.StartWith("{\"UaTypeId\":\"i=395\",\"ResponseHeader\":"));
+            Assert.That(payload, Does.Not.Contain("UaBody"));
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
@@ -199,12 +199,40 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .ConfigureAwait(false);
             Assert.That(stream.ToArray(), Is.EqualTo(encoded));
 
-            // The encoded shape is recognised as a service response with the
-            // standard envelope (TypeId / Body) - sanity-check both elements.
+            // The response is an ExtensionObject: its UaTypeId and its fields
+            // inline, without a UaBody wrapper (Part 6 5.4.9, 5.4.2.16).
             string payload = Encoding.UTF8.GetString(encoded);
-            Assert.That(payload, Does.Contain("TypeId"));
-            Assert.That(payload, Does.Contain("Body"));
+            Assert.That(payload, Does.StartWith("{\"UaTypeId\":\"i=632\","));
+            Assert.That(payload, Does.Not.Contain("UaBody"));
             Assert.That(payload, Does.Contain("Results"));
+        }
+
+        [Test]
+        public void EncodeResponseReportsOversizedResponseAsServiceFault()
+        {
+            // A response beyond MaxMessageSize is answered with a ServiceFault, as on the
+            // binary channels, and not written unbounded for the client to reject.
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            context.MaxMessageSize = 1024;
+            var response = new ReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 77
+                },
+                Results = [new DataValue(new Variant(new string('<', 1024)))]
+            };
+
+            byte[] encoded = JsonRequestMapper.EncodeResponse(response, context);
+
+            Assert.That(encoded, Has.Length.LessThanOrEqualTo(1024));
+            IServiceResponse decoded = JsonDecoder.DecodeMessage<IServiceResponse>(encoded, context);
+            Assert.That(decoded, Is.InstanceOf<ServiceFault>());
+            Assert.That(decoded.ResponseHeader.RequestHandle, Is.EqualTo(77u));
+            Assert.That(
+                decoded.ResponseHeader.ServiceResult.Code,
+                Is.EqualTo(StatusCodes.BadResponseTooLarge.Code));
         }
 
         [Test]

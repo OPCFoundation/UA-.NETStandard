@@ -298,7 +298,8 @@ namespace Opc.Ua.Fuzzing
 
             try
             {
-                return decoder.ReadEncodeable<IEncodeable>("UaBody", encodeable.TypeId);
+                // The message body is inline next to the UaTypeId (Part 6 5.4.9, 5.4.2.16).
+                return decoder.DecodeMessage<IEncodeable>();
             }
             catch (ServiceResultException exception)
             {

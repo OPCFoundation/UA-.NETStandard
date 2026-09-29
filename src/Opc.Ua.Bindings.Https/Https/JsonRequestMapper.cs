@@ -44,8 +44,9 @@ namespace Opc.Ua.Bindings
     /// <remarks>
     /// <para>
     /// The JSON message envelope is the standard <c>JsonEncoder.EncodeMessage</c>
-    /// shape: a top-level object containing <c>TypeId</c> and <c>Body</c>
-    /// properties identifying the request/response. The compact
+    /// shape: the request/response encoded as an ExtensionObject (Part 6
+    /// §5.4.9), i.e. a top-level object with the <c>UaTypeId</c> of the
+    /// request/response followed by its fields inline (Part 6 §5.4.2.16). The compact
     /// (reversible) encoding flavour is mandatory per Part 6 §5.4.9 — the
     /// mapper enforces it via <see cref="JsonEncoderOptions.Compact"/>.
     /// </para>
@@ -268,6 +269,27 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(context));
             }
 
+            try
+            {
+                return Encode(response, context);
+            }
+            catch (ServiceResultException ex) when (
+                ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded &&
+                response is not ServiceFault)
+            {
+                // A response beyond MaxMessageSize or another encoding limit is
+                // reported to the client as a ServiceFault, like on the binary
+                // channels, instead of failing the transport.
+                var fault = new ServiceFault();
+                fault.ResponseHeader.Timestamp = DateTime.UtcNow;
+                fault.ResponseHeader.RequestHandle = response.ResponseHeader?.RequestHandle ?? 0;
+                fault.ResponseHeader.ServiceResult = StatusCodes.BadResponseTooLarge;
+                return Encode(fault, context);
+            }
+        }
+
+        private static byte[] Encode(IServiceResponse response, IServiceMessageContext context)
+        {
             using var memory = new MemoryStream();
             using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
             {

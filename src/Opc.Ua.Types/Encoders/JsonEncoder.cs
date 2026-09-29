@@ -245,14 +245,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(message));
             }
 
-            // convert the namespace uri to an index.
-            var typeId = ExpandedNodeId.ToNodeId(message.TypeId, Context.NamespaceUris);
-
-            // write the type id.
-            WriteNodeId(JsonProperties.UaTypeId, typeId);
-
-            // write the message.
-            WriteEncodeable(JsonProperties.UaBody, message);
+            WriteMessage(message, message.TypeId);
         }
 
         /// <inheritdoc/>
@@ -264,14 +257,34 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(message));
             }
 
-            // convert the namespace uri to an index.
-            var typeId = ExpandedNodeId.ToNodeId(encodeableTypeId, Context.NamespaceUris);
+            WriteMessage(message, encodeableTypeId);
+        }
 
-            // write the type id.
-            WriteNodeId(JsonProperties.UaTypeId, typeId);
-
-            // write the message.
-            WriteEncodeable(JsonProperties.UaBody, message, encodeableTypeId);
+        /// <summary>
+        /// Messages are encoded as ExtensionObjects (Part 6 5.4.9): the UaTypeId
+        /// followed by the fields of the JSON encoded body inline, without the
+        /// UaEncoding and UaBody fields that only exist for Binary and XML
+        /// bodies (Part 6 5.4.2.16). Like the BinaryEncoder the message must
+        /// fit into MaxMessageSize.
+        /// </summary>
+        /// <typeparam name="T">The type of the message.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteMessage<T>(T message, ExpandedNodeId typeId)
+            where T : IEncodeable
+        {
+            m_messageStart = m_writer.BytesCommitted + m_writer.BytesPending;
+            try
+            {
+                WriteNodeId(
+                    JsonProperties.UaTypeId,
+                    ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris));
+                message.Encode(this);
+                CheckMessageSize();
+            }
+            finally
+            {
+                m_messageStart = -1;
+            }
         }
 
         /// <inheritdoc/>
@@ -2491,6 +2504,30 @@ namespace Opc.Ua
             if (m_writer.BytesPending >= kFlushThreshold)
             {
                 m_writer.Flush();
+
+                // Abort an oversized message early instead of buffering it whole.
+                CheckMessageSize();
+            }
+        }
+
+        /// <summary>
+        /// Check that the message being encoded does not exceed MaxMessageSize.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckMessageSize()
+        {
+            if (m_messageStart < 0 || Context.MaxMessageSize <= 0)
+            {
+                return;
+            }
+            long size = m_writer.BytesCommitted + m_writer.BytesPending - m_messageStart;
+            if (Context.MaxMessageSize < size)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    Context.MaxMessageSize,
+                    size);
             }
         }
 
@@ -2784,6 +2821,7 @@ namespace Opc.Ua
         private ushort[]? m_serverMappings;
 #pragma warning restore IDE0052
         private bool m_disposed;
+        private long m_messageStart = -1;
         private const int kMaxPooledJsonWriters = 32;
         private static readonly ConcurrentQueue<Utf8JsonWriter> s_compactJsonWriterPool = new();
         private static readonly ConcurrentQueue<Utf8JsonWriter> s_indentedJsonWriterPool = new();

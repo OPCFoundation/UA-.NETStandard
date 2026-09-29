@@ -673,6 +673,92 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
+        [Test]
+        public void EncodeMessageWritesBodyInlineAfterUaTypeId()
+        {
+            // Messages are ExtensionObjects (Part 6 5.4.9) and a JSON encoded body is
+            // written inline, without UaEncoding and UaBody (Part 6 5.4.2.16).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.Builder
+                .AddEncodeableTypes(typeof(EncodeableFactory).Assembly)
+                .Commit();
+            var argument = new Argument { Name = "hello", ValueRank = -1 };
+
+            foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+            {
+                using var buffer = new PooledBufferWriter();
+                using (var encoder = new JsonEncoder(buffer, messageContext, options))
+                {
+                    encoder.EncodeMessage(argument, argument.TypeId);
+                }
+
+                using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+                JsonProperty first = document.RootElement.EnumerateObject().First();
+                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                Argument decoded = decoder.DecodeMessage<Argument>();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first.Name, Is.EqualTo(JsonProperties.UaTypeId), options.Name);
+                    Assert.That(first.Value.GetString(), Is.EqualTo("i=296"), options.Name);
+                    Assert.That(document.RootElement.GetProperty("Name").GetString(), Is.EqualTo("hello"), options.Name);
+                    Assert.That(document.RootElement.TryGetProperty(JsonProperties.UaBody, out _), Is.False, options.Name);
+                    Assert.That(decoded.Name, Is.EqualTo("hello"), options.Name);
+                });
+            }
+        }
+
+        [TestCase(/*lang=json,strict*/ """{"UaTypeId":"i=296","UaBody":{"Name":"hello"}}""")]
+        [TestCase(/*lang=json,strict*/ """{"UaTypeId":"i=296","UaEncoding":1,"UaBody":"AAAA"}""")]
+        public void DecodeMessageRejectsBodyOutsideTheExtensionObject(string json)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => JsonDecoder.DecodeMessage<Argument>(System.Text.Encoding.UTF8.GetBytes(json), messageContext));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [TestCase(1)]
+        [TestCase(100_000)]
+        public void EncodeMessageThrowsWhenMaxMessageSizeExceeded(int length)
+        {
+            // Like the BinaryEncoder the JSON message must fit into MaxMessageSize; a
+            // large message is aborted while it is streamed, not after it was buffered.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxMessageSize = 64;
+            var argument = new Argument
+            {
+                Name = new string('a', length),
+                ArrayDimensions = Enumerable.Repeat(1u, length).ToArrayOf()
+            };
+            using var stream = new System.IO.MemoryStream();
+            using var encoder = new JsonEncoder(stream, messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.EncodeMessage(argument, argument.TypeId));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(stream.Length, Is.LessThan(64 * 1024));
+        }
+
+        [Test]
+        public void EncodeMessageWithinMaxMessageSizeSucceeds()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxMessageSize = 64;
+            var argument = new Argument { Name = "a" };
+            using var buffer = new PooledBufferWriter();
+            using (var encoder = new JsonEncoder(buffer, messageContext, JsonEncoderOptions.Compact))
+            {
+                encoder.EncodeMessage(argument, argument.TypeId);
+            }
+
+            Assert.That(buffer.WrittenMemory.Length, Is.LessThanOrEqualTo(64));
+        }
+
         private static string Encode(JsonEncoderOptions options, Action<JsonEncoder> write)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
