@@ -86,6 +86,20 @@ namespace Opc.Ua.Di.Server.Hosting
         T GetRequiredService<T>() where T : notnull;
 
         /// <summary>
+        /// Resolves an optional application service, or returns
+        /// <see langword="null"/> when none is registered. Equivalent to
+        /// <c>IServiceProvider.GetService&lt;T&gt;()</c>, and deliberately as
+        /// narrow as <see cref="GetRequiredService{T}"/>.
+        /// </summary>
+        /// <remarks>
+        /// A companion-specification seam that a server may or may not have
+        /// filled — a job-order provider, a result store — has to be probeable
+        /// without reaching into the exception path of the required lookup.
+        /// </remarks>
+        /// <typeparam name="T">Service contract to resolve.</typeparam>
+        T? GetService<T>() where T : class;
+
+        /// <summary>
         /// Convenience pass-through to
         /// <see cref="DiNodeManager.CreateDeviceAsync(QualifiedName, NodeState?, CancellationToken)"/>.
         /// </summary>

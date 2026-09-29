@@ -180,6 +180,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string BrowseName { get; set; } = string.Empty;
 
         /// <summary>
+        /// Namespace URI qualifying <see cref="BrowseName"/>. Empty when the
+        /// declaring type's own namespace qualifies it. A child re-declared
+        /// from a base type in another namespace keeps the namespace of its
+        /// original declaration here, so a consumer that instantiates the
+        /// derived type on its own still emits <c>0:EngineeringUnits</c>
+        /// rather than re-qualifying it into the declaring model.
+        /// </summary>
+        public string BrowseNameNamespace { get; set; } = string.Empty;
+
+        /// <summary>
         /// Symbolic name (often equal to BrowseName).
         /// </summary>
         public string SymbolicName { get; set; } = string.Empty;
@@ -216,6 +226,18 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Instance kind: 1=Object 2=Variable 3=Property 4=Method.
         /// </summary>
         public byte InstanceKind { get; set; }
+
+        /// <summary>
+        /// Name of the reference type binding the child to its parent. Empty
+        /// when the kind default applies (<c>HasProperty</c> for a property,
+        /// <c>HasComponent</c> otherwise).
+        /// </summary>
+        public string ReferenceTypeName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Namespace URI of <see cref="ReferenceTypeName"/>.
+        /// </summary>
+        public string ReferenceTypeNamespace { get; set; } = string.Empty;
 
         /// <summary>
         /// ModelDesign access level value (variables only).
@@ -385,6 +407,26 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public bool IsEnumeration { get; set; }
 
         /// <summary>
+        /// DataType restriction of a VariableType (null for every other kind).
+        /// A consumer needs it to decide whether a variable typed by this
+        /// VariableType requires a template parameter on its generated state
+        /// class; without it the consumer cannot tell State&lt;T&gt; from the
+        /// non-generic state and dereferences a null DataTypeNode.
+        /// </summary>
+        public string? DataTypeName { get; set; }
+
+        /// <summary>
+        /// Namespace URI of <see cref="DataTypeName"/>.
+        /// </summary>
+        public string? DataTypeNamespace { get; set; }
+
+        /// <summary>
+        /// ValueRank of a VariableType, or null when the VariableType does not
+        /// specify one (ValueRankSpecified = false upstream).
+        /// </summary>
+        public int? ValueRank { get; set; }
+
+        /// <summary>
         /// DataType fields (empty for non-DataType kinds).
         /// </summary>
         public IReadOnlyList<DependencyDataField> Fields { get; set; } = [];
@@ -419,6 +461,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kFluentAccessorsKnown = 0x40;
         private const byte kMethodIdentityTrailer = 0x80;
         private const byte kMethodIdentityTrailerVersion = 1;
+        private const byte kNodeIsAbstract = 0x01;
+        private const byte kNodeIsEnumeration = 0x02;
+        // The declaration trailer carries the DataType restriction of each
+        // VariableType and the BrowseName namespace and ReferenceType of each
+        // child, with a flag byte per node and per child.
+        private const byte kDeclarationTrailer = 0x04;
+        private const byte kDeclarationTrailerVersion = 1;
+        private const byte kDeclarationDataType = 0x01;
+        private const byte kDeclarationBrowseNameNamespace = 0x01;
+        private const byte kDeclarationReferenceType = 0x02;
         private const byte kExtendedIdentifierTrailer = 0x20;
         private const byte kExtendedIdentifierTrailerVersion = 1;
         private const byte kStructureFieldTrailer = 0x10;
@@ -432,6 +484,26 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kRawUserAccessLevel = 0x04;
         private const byte kMinimumSamplingIntervalSpecified = 0x08;
         private const byte kHistorizingSpecified = 0x10;
+
+        /// <summary>
+        /// Namespace URI that qualifies the standard reference types.
+        /// </summary>
+        public const string OpcUaNamespaceUri = "http://opcfoundation.org/UA/";
+
+        /// <summary>
+        /// Reference type a child of the given instance kind is bound with when
+        /// the declaring model does not name one. Mirrors the defaulting the
+        /// validator applies to a locally declared instance, so a child
+        /// materialised from a dependency payload is bound the same way as the
+        /// identical child declared in the consuming model.
+        /// </summary>
+        /// <param name="instanceKind">
+        /// Instance kind: 1=Object 2=Variable 3=Property 4=Method.
+        /// </param>
+        public static string GetDefaultReferenceTypeName(byte instanceKind)
+        {
+            return instanceKind == 3 ? "HasProperty" : "HasComponent";
+        }
 
         /// <summary>
         /// The model URI this dependency payload describes.
@@ -540,11 +612,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 byte flags = 0;
                 if (node.IsAbstract)
                 {
-                    flags |= 0x01;
+                    flags |= kNodeIsAbstract;
                 }
                 if (node.IsEnumeration)
                 {
-                    flags |= 0x02;
+                    flags |= kNodeIsEnumeration;
                 }
                 writer.Write(flags);
                 writer.Write(node.Fields.Count);
@@ -616,16 +688,18 @@ namespace Opc.Ua.SourceGeneration.Dependency
             bool hasMethodIdentityTrailer = HasMethodIdentityTrailer();
             bool hasStructureFieldTrailer = HasStructureFieldTrailer();
             bool hasValueNamespaceTrailer = HasValueNamespaceTrailer();
-            // The structure field and value namespace trailers are written
-            // after the extended identifier trailer, which is always written
-            // with them: a reader that predates them only reads the
-            // capabilities as "trailers present" (honouring the
+            bool hasDeclarationTrailer = HasDeclarationTrailer();
+            // The structure field, value namespace and declaration trailers
+            // are written after the extended identifier trailer, which is
+            // always written with them: a reader that predates them only reads
+            // the capabilities as "trailers present" (honouring the
             // FluentAccessorsKnown bit) when the method identity or the
             // extended identifier bit is set, and it stops reading after the
             // trailers it knows - so it never sees the new ones.
             bool hasExtendedIdentifierTrailer =
                 hasStructureFieldTrailer ||
                 hasValueNamespaceTrailer ||
+                hasDeclarationTrailer ||
                 HasExtendedIdentifierTrailer();
             if (FluentAccessorsEmitted.HasValue ||
                 hasMethodIdentityTrailer ||
@@ -656,6 +730,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     capabilities |= kValueNamespaceTrailer;
                 }
+                if (hasDeclarationTrailer)
+                {
+                    capabilities |= kDeclarationTrailer;
+                }
                 writer.Write(capabilities);
                 if (hasMethodIdentityTrailer)
                 {
@@ -672,6 +750,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (hasValueNamespaceTrailer)
                 {
                     WriteValueNamespaceTrailer(writer);
+                }
+                if (hasDeclarationTrailer)
+                {
+                    WriteDeclarationTrailer(writer);
                 }
             }
         }
@@ -701,8 +783,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     StringId = ReadNullableString(reader)
                 };
                 byte flags = reader.ReadByte();
-                node.IsAbstract = (flags & 0x01) != 0;
-                node.IsEnumeration = (flags & 0x02) != 0;
+                node.IsAbstract = (flags & kNodeIsAbstract) != 0;
+                node.IsEnumeration = (flags & kNodeIsEnumeration) != 0;
                 int fieldCount = reader.ReadInt32();
                 if (fieldCount is < 0 or > 100_000)
                 {
@@ -864,6 +946,147 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     reader.BaseStream.Position < reader.BaseStream.Length)
                 {
                     ReadValueNamespaceTrailer(reader);
+                }
+                if (trailersReadable &&
+                    (capabilities & kDeclarationTrailer) != 0 &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadDeclarationTrailer(reader);
+                }
+            }
+        }
+
+        private bool HasDeclarationTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                if (node.DataTypeName != null)
+                {
+                    return true;
+                }
+                foreach (DependencyChild child in node.Children)
+                {
+                    if (!string.IsNullOrEmpty(child.BrowseNameNamespace) ||
+                        !string.IsNullOrEmpty(child.ReferenceTypeName))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Writes the declaration trailer: per node the DataType and ValueRank
+        /// of a VariableType, and per child of that node the namespace of its
+        /// BrowseName and the ReferenceType that binds it, each behind a flag
+        /// byte. The body is length prefixed so that a reader can skip a
+        /// later version.
+        /// </summary>
+        private void WriteDeclarationTrailer(BinaryWriter writer)
+        {
+            using var body = new MemoryStream();
+            using (var bodyWriter = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                bodyWriter.Write(Nodes.Count);
+                foreach (DependencyNode node in Nodes)
+                {
+                    bool hasDataType = node.DataTypeName != null;
+                    bodyWriter.Write(hasDataType ? kDeclarationDataType : (byte)0);
+                    if (hasDataType)
+                    {
+                        WriteString(bodyWriter, node.DataTypeName ?? string.Empty);
+                        WriteString(bodyWriter, node.DataTypeNamespace ?? string.Empty);
+                        bodyWriter.Write(node.ValueRank.HasValue);
+                        bodyWriter.Write(node.ValueRank ?? 0);
+                    }
+                    bodyWriter.Write(node.Children.Count);
+                    foreach (DependencyChild child in node.Children)
+                    {
+                        bool hasBrowseNameNamespace =
+                            !string.IsNullOrEmpty(child.BrowseNameNamespace);
+                        bool hasReferenceType =
+                            !string.IsNullOrEmpty(child.ReferenceTypeName);
+                        byte childFlags = 0;
+                        if (hasBrowseNameNamespace)
+                        {
+                            childFlags |= kDeclarationBrowseNameNamespace;
+                        }
+                        if (hasReferenceType)
+                        {
+                            childFlags |= kDeclarationReferenceType;
+                        }
+                        bodyWriter.Write(childFlags);
+                        if (hasBrowseNameNamespace)
+                        {
+                            WriteString(bodyWriter, child.BrowseNameNamespace);
+                        }
+                        if (hasReferenceType)
+                        {
+                            WriteString(bodyWriter, child.ReferenceTypeName);
+                            WriteString(bodyWriter, child.ReferenceTypeNamespace);
+                        }
+                    }
+                }
+            }
+            writer.Write(kDeclarationTrailerVersion);
+            writer.Write((int)body.Length);
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        private void ReadDeclarationTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid declaration trailer length " + length);
+            }
+            if (trailerVersion != kDeclarationTrailerVersion)
+            {
+                // Length prefixed: a later version is skipped as a whole.
+                reader.BaseStream.Seek(length, SeekOrigin.Current);
+                return;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid declaration node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                DependencyNode node = Nodes[i];
+                byte nodeFlags = reader.ReadByte();
+                if ((nodeFlags & kDeclarationDataType) != 0)
+                {
+                    node.DataTypeName = ReadString(reader);
+                    node.DataTypeNamespace = ReadString(reader);
+                    bool valueRankSpecified = reader.ReadBoolean();
+                    int valueRank = reader.ReadInt32();
+                    node.ValueRank = valueRankSpecified ? valueRank : null;
+                }
+                int childCount = reader.ReadInt32();
+                if (childCount != node.Children.Count)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid declaration child count " + childCount);
+                }
+                for (int j = 0; j < childCount; j++)
+                {
+                    DependencyChild child = node.Children[j];
+                    byte childFlags = reader.ReadByte();
+                    if ((childFlags & kDeclarationBrowseNameNamespace) != 0)
+                    {
+                        child.BrowseNameNamespace = ReadString(reader);
+                    }
+                    if ((childFlags & kDeclarationReferenceType) != 0)
+                    {
+                        child.ReferenceTypeName = ReadString(reader);
+                        child.ReferenceTypeNamespace = ReadString(reader);
+                    }
                 }
             }
         }

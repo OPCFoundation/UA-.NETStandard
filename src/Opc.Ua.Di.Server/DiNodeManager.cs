@@ -247,10 +247,18 @@ namespace Opc.Ua.Di.Server
             (ushort)Server.NamespaceUris.GetIndex(m_instanceNamespaceUri);
 
         /// <inheritdoc/>
-        public ArrayOf<QualifiedName> ConformanceUnits => BuildConformanceUnits();
+        /// <remarks>
+        /// Virtual so a companion-specification subclass can append the units
+        /// its own model satisfies; an override is expected to include the
+        /// base result rather than replace it.
+        /// </remarks>
+        public virtual ArrayOf<QualifiedName> ConformanceUnits => BuildConformanceUnits();
 
         /// <inheritdoc/>
-        public ArrayOf<string> ServerProfiles => BuildServerProfiles();
+        /// <remarks>
+        /// Virtual for the same reason as <see cref="ConformanceUnits"/>.
+        /// </remarks>
+        public virtual ArrayOf<string> ServerProfiles => BuildServerProfiles();
 
         /// <summary>
         /// References an instance node from the Machinery <c>Machines</c> folder

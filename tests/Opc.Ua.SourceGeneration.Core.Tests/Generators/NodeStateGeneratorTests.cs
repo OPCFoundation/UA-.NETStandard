@@ -710,6 +710,44 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
         }
 
+        /// <summary>
+        /// A method that overrides the supertype's method with another method
+        /// state class is held in a field of the subtype, and the supertype's
+        /// field stays empty. Unless the subtype enumerates that field, the
+        /// method is missing from every instance: it is neither browsed nor
+        /// given a per-instance NodeId.
+        /// </summary>
+        [Test]
+        public void DerivedMethodTypeOverrideIsEnumeratedAsChild()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromModelDesign(
+                "MethodTypeOverride.ModelDesign.xml",
+                telemetry);
+            string nodeStates = files.Single(
+                file => file.Key.EndsWith(".NodeStates.g.cs", StringComparison.Ordinal)).Value;
+            string derivedClass = ExtractClassBody(nodeStates, "StringControllerState");
+            const string fieldDeclaration =
+                "private global::MethodTypeOverride.StringConvertMethodState? ";
+            int field = derivedClass.IndexOf(fieldDeclaration, StringComparison.Ordinal);
+            Assert.That(field, Is.GreaterThanOrEqualTo(0),
+                "The overriding method has no field of its own.");
+            int nameStart = field + fieldDeclaration.Length;
+            string fieldName = derivedClass[nameStart..derivedClass.IndexOf(';', nameStart)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ExtractMemberBody(derivedClass, "public override void GetChildren("),
+                    Does.Contain($"children.Add({fieldName});"));
+                Assert.That(
+                    ExtractMemberBody(
+                        derivedClass,
+                        "protected override void RemoveExplicitlyDefinedChild("),
+                    Does.Contain($"{fieldName} = null;"));
+            });
+        }
+
         [Test]
         public void NodeStateGeneratorCodeGeneratesCorrectMethodSignatures()
         {
@@ -1897,6 +1935,36 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             }
             return code[start..end];
+        }
+
+        /// <summary>
+        /// Extracts a generated top-level class, from its declaration up to
+        /// the closing brace at class indentation.
+        /// </summary>
+        private static string ExtractClassBody(string code, string className)
+        {
+            System.Text.RegularExpressions.Match match = Regex.Match(
+                code,
+                @"partial class " + Regex.Escape(className) + @"\b");
+            Assert.That(match.Success, Is.True,
+                $"Class '{className}' not found in generated code.");
+
+            int end = code.IndexOf("\n    }", match.Index, StringComparison.Ordinal);
+            return end < 0 ? code[match.Index..] : code[match.Index..end];
+        }
+
+        /// <summary>
+        /// Extracts a member of a generated class, from its signature up to
+        /// the closing brace at member indentation.
+        /// </summary>
+        private static string ExtractMemberBody(string classBody, string signature)
+        {
+            int start = classBody.IndexOf(signature, StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0),
+                $"Member '{signature}' not found in generated class.");
+
+            int end = classBody.IndexOf("\n        }", start, StringComparison.Ordinal);
+            return end < 0 ? classBody[start..] : classBody[start..end];
         }
 
         private Mock<IFileSystem> m_mockFileSystem;

@@ -132,39 +132,30 @@ namespace Opc.Ua.Di.Client
             NodeId parentId,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            var description = new BrowseDescription
-            {
-                NodeId = parentId,
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
-                IncludeSubtypes = true,
-                NodeClassMask = (uint)NodeClass.Object,
-                ResultMask = (uint)BrowseResultMask.All
-            };
-
-            BrowseResponse response = await Session
-                .BrowseAsync(
-                    requestHeader: null,
-                    view: null,
-                    requestedMaxReferencesPerNode: 0,
-                    nodesToBrowse: new[] { description }.ToArrayOf(),
-                    ct: ct)
+            // A server that paginates (a large DeviceSet or DeviceTopology)
+            // returns the rest behind continuation points. A bad status for
+            // the parent (e.g. it no longer exists) yields an empty topology:
+            // a client walking a topology tree treats "no children" and "this
+            // node vanished" the same way.
+            List<ReferenceDescription> references = await DiBrowse
+                .BrowseAllAsync(
+                    Session,
+                    new BrowseDescription
+                    {
+                        NodeId = parentId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    },
+                    Telemetry.CreateLogger<DiTopologyClient>(),
+                    ct)
                 .ConfigureAwait(false);
 
-            if (response.Results.Count == 0)
-
+            for (int i = 0; i < references.Count; i++)
             {
-                yield break;
-            }
-            BrowseResult result = response.Results[0];
-            if (StatusCode.IsBad(result.StatusCode))
-            {
-                yield break;
-            }
-
-            for (int i = 0; i < result.References.Count; i++)
-            {
-                ReferenceDescription reference = result.References[i];
+                ReferenceDescription reference = references[i];
                 var targetId = ExpandedNodeId.ToNodeId(
                     reference.NodeId, Session.NamespaceUris);
                 if (targetId.IsNull)
