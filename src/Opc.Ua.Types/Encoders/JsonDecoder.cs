@@ -1623,9 +1623,32 @@ namespace Opc.Ua
                 case JsonValueKind.String when TryGetStringFromElement(
                     element,
                     out string? stringEncoded):
-                    return double.TryParse(stringEncoded, NumberStyles.Any,
-                        CultureInfo.InvariantCulture, out value);
+                    return TryGetSpecialFloatingPoint(stringEncoded, out value);
                 case JsonValueKind.Number when element.TryGetDouble(out value):
+                    return true;
+                default:
+                    value = default;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Part 6 5.4.2.4: normal Float and Double values are JSON numbers, only
+        /// the special values are the JSON strings "Infinity", "-Infinity" and
+        /// "NaN". Numeric strings are not a valid encoding.
+        /// </summary>
+        private static bool TryGetSpecialFloatingPoint(string? text, out double value)
+        {
+            switch (text)
+            {
+                case "Infinity":
+                    value = double.PositiveInfinity;
+                    return true;
+                case "-Infinity":
+                    value = double.NegativeInfinity;
+                    return true;
+                case "NaN":
+                    value = double.NaN;
                     return true;
                 default:
                     value = default;
@@ -2119,8 +2142,9 @@ namespace Opc.Ua
                 case JsonValueKind.String when TryGetStringFromElement(
                     element,
                     out string? stringEncoded):
-                    return float.TryParse(stringEncoded, NumberStyles.Any,
-                        CultureInfo.InvariantCulture, out value);
+                    bool special = TryGetSpecialFloatingPoint(stringEncoded, out double d);
+                    value = (float)d;
+                    return special;
                 case JsonValueKind.Number when element.TryGetSingle(out value):
                     return true;
                 default:
@@ -2361,7 +2385,9 @@ namespace Opc.Ua
                 case JsonValueKind.String
                 when TryGetStringFromElement(element, out string? stringEncoded):
                     // As per 5.4.2.3, formatted as a decimal number encoded as a JSON string
-                    return long.TryParse(stringEncoded, NumberStyles.Any,
+                    // (an optional sign and digits only: no whitespace, parentheses,
+                    // group or currency symbols).
+                    return long.TryParse(stringEncoded, NumberStyles.AllowLeadingSign,
                         CultureInfo.InvariantCulture, out value);
                 case JsonValueKind.Number
                 when !m_options.ParseStrict && element.TryGetInt64(out value):
@@ -3433,7 +3459,8 @@ namespace Opc.Ua
                 case JsonValueKind.String
                 when TryGetStringFromElement(element, out string? stringEncoded):
                     // As per 5.4.2.3, formatted as a decimal number encoded as a JSON string
-                    return ulong.TryParse(stringEncoded, NumberStyles.Any,
+                    // (digits only: no sign, whitespace, group or currency symbols).
+                    return ulong.TryParse(stringEncoded, NumberStyles.None,
                         CultureInfo.InvariantCulture, out value);
                 case JsonValueKind.Number
                 when !m_options.ParseStrict && element.TryGetUInt64(out value):

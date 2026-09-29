@@ -221,6 +221,90 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
+        [TestCase("(5)")]
+        [TestCase("1,000")]
+        [TestCase(" 7 ")]
+        [TestCase("5-")]
+        [TestCase("¤3")]
+        [TestCase("1e3")]
+        [TestCase("0x10")]
+        public void Int64StringMustBeADecimalNumber(string text)
+        {
+            // Part 6 5.4.2.3: Int64/UInt64 are decimal numbers in a JSON string.
+            ServiceMessageContext context = CreateContext();
+            using (JsonDecoder decoder = Field(context, "\"" + text + "\""))
+            {
+                AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadInt64("F"));
+            }
+            using (JsonDecoder decoder = Field(context, "\"" + text + "\""))
+            {
+                AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadUInt64("F"));
+            }
+        }
+
+        [Test]
+        public void Int64StringsInDecimalFormAreAccepted()
+        {
+            ServiceMessageContext context = CreateContext();
+            using var decoder = new JsonDecoder(
+                "{\"A\":\"-9223372036854775808\",\"B\":\"18446744073709551615\"}",
+                context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoder.ReadInt64("A"), Is.EqualTo(long.MinValue));
+                Assert.That(decoder.ReadUInt64("B"), Is.EqualTo(ulong.MaxValue));
+            });
+        }
+
+        [TestCase("-1")]
+        [TestCase("+1")]
+        public void UInt64StringWithSignIsRejected(string text)
+        {
+            ServiceMessageContext context = CreateContext();
+            using JsonDecoder decoder = Field(context, "\"" + text + "\"");
+
+            AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadUInt64("F"));
+        }
+
+        [TestCase("1.5")]
+        [TestCase("1e3")]
+        [TestCase("infinity")]
+        [TestCase("INF")]
+        [TestCase(" NaN")]
+        public void FloatingPointStringOtherThanSpecialValuesIsRejected(string text)
+        {
+            // Part 6 5.4.2.4: normal values are JSON numbers, only "Infinity",
+            // "-Infinity" and "NaN" are JSON strings.
+            ServiceMessageContext context = CreateContext();
+            using (JsonDecoder decoder = Field(context, "\"" + text + "\""))
+            {
+                AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadDouble("F"));
+            }
+            using (JsonDecoder decoder = Field(context, "\"" + text + "\""))
+            {
+                AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadFloat("F"));
+            }
+        }
+
+        [Test]
+        public void FloatingPointSpecialValuesAreAccepted()
+        {
+            ServiceMessageContext context = CreateContext();
+            using var decoder = new JsonDecoder(
+                "{\"A\":\"Infinity\",\"B\":\"-Infinity\",\"C\":\"NaN\",\"D\":\"NaN\",\"E\":1.5}",
+                context);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoder.ReadDouble("A"), Is.EqualTo(double.PositiveInfinity));
+                Assert.That(decoder.ReadFloat("B"), Is.EqualTo(float.NegativeInfinity));
+                Assert.That(double.IsNaN(decoder.ReadDouble("C")), Is.True);
+                Assert.That(float.IsNaN(decoder.ReadFloat("D")), Is.True);
+                Assert.That(decoder.ReadDouble("E"), Is.EqualTo(1.5));
+            });
+        }
+
         [Test]
         public void SameMemberNameInSiblingObjectsIsAccepted()
         {

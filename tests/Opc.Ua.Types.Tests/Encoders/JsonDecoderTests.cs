@@ -595,11 +595,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadDoubleWithDoubleString()
+        public void ReadDoubleWithDoubleStringIsRejected()
         {
+            // Part 6 5.4.2.4: only the special values are JSON strings.
             using JsonDecoder reader = NewDecoder(Body(@"""0.123"""));
             double result = reader.ReadDouble(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(0.123));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
@@ -972,11 +973,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadFloatWithFloatString()
+        public void ReadFloatWithFloatStringIsRejected()
         {
+            // Part 6 5.4.2.4: only the special values are JSON strings.
             using JsonDecoder reader = NewDecoder(Body(@"""0.123"""));
             float result = reader.ReadFloat(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(0.123f));
+            Assert.That(result, Is.Zero);
         }
 
         [Test]
