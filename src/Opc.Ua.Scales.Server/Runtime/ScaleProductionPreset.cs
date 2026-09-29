@@ -373,6 +373,16 @@ namespace Opc.Ua.Scales.Server.Runtime
                         productId);
                     return null!;
                 }
+                if (m_removing.Contains(productId))
+                {
+                    // Its node is still in the address space until the
+                    // removal completes.
+                    result = ServiceResult.Create(
+                        StatusCodes.BadNodeIdExists,
+                        "The product with id '{0}' is still being removed.",
+                        productId);
+                    return null!;
+                }
                 if (productType.IsNull)
                 {
                     productType = m_allowedProductType;
@@ -470,9 +480,26 @@ namespace Opc.Ua.Scales.Server.Runtime
                         "The last product cannot be removed; the Products folder requires at least one.");
                 }
                 m_products.Remove(productId!);
+
+                // The id stays reserved until the node is gone, so AddProduct
+                // cannot publish a second product of that name meanwhile.
+                m_removing.Add(productId!);
             }
-            await m_services.Delete(product.NodeId, cancellationToken).ConfigureAwait(false);
-            Preset.Products?.RemoveChild(product);
+            try
+            {
+                await m_services.Delete(product.NodeId, cancellationToken).ConfigureAwait(false);
+                lock (m_lock)
+                {
+                    Preset.Products?.RemoveChild(product);
+                }
+            }
+            finally
+            {
+                lock (m_lock)
+                {
+                    m_removing.Remove(productId!);
+                }
+            }
             return ServiceResult.Good;
         }
 
@@ -755,9 +782,13 @@ namespace Opc.Ua.Scales.Server.Runtime
                     {
                         return new RemoveZoneMethodStateResult { ServiceResult = access };
                     }
-                    var children = new List<BaseInstanceState>();
-                    product.GetChildren(m_services.Context, children);
-                    ZoneState? zone = children.OfType<ZoneState>().FirstOrDefault(z => z.NodeId == zoneNodeId);
+                    ZoneState? zone;
+                    lock (m_lock)
+                    {
+                        var children = new List<BaseInstanceState>();
+                        product.GetChildren(m_services.Context, children);
+                        zone = children.OfType<ZoneState>().FirstOrDefault(z => z.NodeId == zoneNodeId);
+                    }
                     if (zone == null)
                     {
                         return new RemoveZoneMethodStateResult
@@ -769,7 +800,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                         };
                     }
                     await m_services.Delete(zone.NodeId, ct).ConfigureAwait(false);
-                    product.RemoveChild(zone);
+                    lock (m_lock)
+                    {
+                        product.RemoveChild(zone);
+                    }
                     return new RemoveZoneMethodStateResult { ServiceResult = ServiceResult.Good };
                 };
             }
@@ -805,7 +839,12 @@ namespace Opc.Ua.Scales.Server.Runtime
             ScaleValues.Set(context, zone.UpperLimit, Variant.From(upperLimit));
             ScaleValues.SetUnits(context, zone.LowerLimit, engineeringUnits);
             ScaleValues.SetUnits(context, zone.UpperLimit, engineeringUnits);
-            product.AddChild(zone);
+            lock (m_lock)
+            {
+                product.AddChild(zone);
+            }
+
+            // Registered outside the lock, as products are.
             if (m_registered)
             {
                 m_services.Register(zone);
@@ -824,12 +863,19 @@ namespace Opc.Ua.Scales.Server.Runtime
                     {
                         return access;
                     }
-                    product.AddTargetItemCount(m_services.Context);
-                    if (m_registered && product.TargetItemCount != null)
+                    NodeState? targetItems;
+                    lock (m_lock)
                     {
-                        m_services.Register(product.TargetItemCount);
+                        product.AddTargetItemCount(m_services.Context);
+                        targetItems = product.TargetItemCount;
+                        ScaleValues.Set(m_services.Context, product.TargetItemCount, Variant.From(targetItemCount));
                     }
-                    ScaleValues.Set(m_services.Context, product.TargetItemCount, Variant.From(targetItemCount));
+
+                    // Registered outside the lock, as products are.
+                    if (m_registered && targetItems != null)
+                    {
+                        m_services.Register(targetItems);
+                    }
                     return ServiceResult.Good;
                 };
             }
@@ -843,19 +889,23 @@ namespace Opc.Ua.Scales.Server.Runtime
                         return access;
                     }
                     ISystemContext own = m_services.Context;
-                    product.AddTargetPieceCount(own);
-                    TargetItemState? targetPieces = product.TargetPieceCount;
-                    if (targetPieces != null)
+                    TargetItemState? targetPieces;
+                    lock (m_lock)
                     {
-                        targetPieces.AddPlusTolerance(own);
-                        targetPieces.AddMinusTolerance(own);
-                        if (m_registered)
+                        product.AddTargetPieceCount(own);
+                        targetPieces = product.TargetPieceCount;
+                        if (targetPieces != null)
                         {
-                            m_services.Register(targetPieces);
+                            targetPieces.AddPlusTolerance(own);
+                            targetPieces.AddMinusTolerance(own);
+                            ScaleValues.Set(own, targetPieces, Variant.From(target));
+                            ScaleValues.Set(own, targetPieces.PlusTolerance, Variant.From(plus));
+                            ScaleValues.Set(own, targetPieces.MinusTolerance, Variant.From(minus));
                         }
-                        ScaleValues.Set(own, targetPieces, Variant.From(target));
-                        ScaleValues.Set(own, targetPieces.PlusTolerance, Variant.From(plus));
-                        ScaleValues.Set(own, targetPieces.MinusTolerance, Variant.From(minus));
+                    }
+                    if (m_registered && targetPieces != null)
+                    {
+                        m_services.Register(targetPieces);
                     }
                     return ServiceResult.Good;
                 };
@@ -911,52 +961,59 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
             }
 
-            ScaleValues.Set(context, product.VehicleId, vehicleId);
-            if (info.Tare.HasValue)
+            // Two calls for the same product must not both find a member
+            // missing and add it twice.
+            lock (m_lock)
             {
-                Ensure(product.Tare, () => product.AddTare(context), () => product.Tare);
-                ScaleValues.Set(context, product.Tare, Variant.From(info.Tare.Value));
+                ScaleValues.Set(context, product.VehicleId, vehicleId);
+                if (info.Tare.HasValue)
+                {
+                    Ensure(product.Tare, () => product.AddTare(context), () => product.Tare);
+                    ScaleValues.Set(context, product.Tare, Variant.From(info.Tare.Value));
+                }
+                if (info.TareExpirationDate.HasValue)
+                {
+                    Ensure(product.TareExpirationDate, () => product.AddTareExpirationDate(context), () => product.TareExpirationDate);
+                    ScaleValues.Set(context, product.TareExpirationDate, (DateTimeUtc)info.TareExpirationDate.Value);
+                }
+                if (info.CarrierId != null)
+                {
+                    Ensure(product.CarrierId, () => product.AddCarrierId(context), () => product.CarrierId);
+                    ScaleValues.Set(context, product.CarrierId, info.CarrierId);
+                }
+                if (!info.CarrierDisplayName.IsNullOrEmpty)
+                {
+                    Ensure(product.CarrierDisplayName, () => product.AddCarrierDisplayName(context), () => product.CarrierDisplayName);
+                    ScaleValues.Set(context, product.CarrierDisplayName, info.CarrierDisplayName);
+                }
+                if (info.DriverId != null)
+                {
+                    Ensure(product.DriverId, () => product.AddDriverId(context), () => product.DriverId);
+                    ScaleValues.Set(context, product.DriverId, info.DriverId);
+                }
+                if (!info.DriverDisplayName.IsNullOrEmpty)
+                {
+                    Ensure(product.DriverDisplayName, () => product.AddDriverDisplayName(context), () => product.DriverDisplayName);
+                    ScaleValues.Set(context, product.DriverDisplayName, info.DriverDisplayName);
+                }
+                if (!info.Customer.IsNullOrEmpty)
+                {
+                    Ensure(product.Customer, () => product.AddCustomer(context), () => product.Customer);
+                    ScaleValues.Set(context, product.Customer, info.Customer);
+                }
+                if (!info.Supplier.IsNullOrEmpty)
+                {
+                    Ensure(product.Supplier, () => product.AddSupplier(context), () => product.Supplier);
+                    ScaleValues.Set(context, product.Supplier, info.Supplier);
+                }
+                if (!info.Destination.IsNullOrEmpty)
+                {
+                    Ensure(product.Destination, () => product.AddDestination(context), () => product.Destination);
+                    ScaleValues.Set(context, product.Destination, info.Destination);
+                }
             }
-            if (info.TareExpirationDate.HasValue)
-            {
-                Ensure(product.TareExpirationDate, () => product.AddTareExpirationDate(context), () => product.TareExpirationDate);
-                ScaleValues.Set(context, product.TareExpirationDate, (DateTimeUtc)info.TareExpirationDate.Value);
-            }
-            if (info.CarrierId != null)
-            {
-                Ensure(product.CarrierId, () => product.AddCarrierId(context), () => product.CarrierId);
-                ScaleValues.Set(context, product.CarrierId, info.CarrierId);
-            }
-            if (!info.CarrierDisplayName.IsNullOrEmpty)
-            {
-                Ensure(product.CarrierDisplayName, () => product.AddCarrierDisplayName(context), () => product.CarrierDisplayName);
-                ScaleValues.Set(context, product.CarrierDisplayName, info.CarrierDisplayName);
-            }
-            if (info.DriverId != null)
-            {
-                Ensure(product.DriverId, () => product.AddDriverId(context), () => product.DriverId);
-                ScaleValues.Set(context, product.DriverId, info.DriverId);
-            }
-            if (!info.DriverDisplayName.IsNullOrEmpty)
-            {
-                Ensure(product.DriverDisplayName, () => product.AddDriverDisplayName(context), () => product.DriverDisplayName);
-                ScaleValues.Set(context, product.DriverDisplayName, info.DriverDisplayName);
-            }
-            if (!info.Customer.IsNullOrEmpty)
-            {
-                Ensure(product.Customer, () => product.AddCustomer(context), () => product.Customer);
-                ScaleValues.Set(context, product.Customer, info.Customer);
-            }
-            if (!info.Supplier.IsNullOrEmpty)
-            {
-                Ensure(product.Supplier, () => product.AddSupplier(context), () => product.Supplier);
-                ScaleValues.Set(context, product.Supplier, info.Supplier);
-            }
-            if (!info.Destination.IsNullOrEmpty)
-            {
-                Ensure(product.Destination, () => product.AddDestination(context), () => product.Destination);
-                ScaleValues.Set(context, product.Destination, info.Destination);
-            }
+
+            // Registered outside the lock, as products are.
             if (m_registered)
             {
                 foreach (NodeState node in added)
@@ -1001,6 +1058,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly NodeId m_allowedProductType;
         private readonly Func<ArrayOf<EUInformation>> m_allowedUnits;
         private readonly Dictionary<string, ProductState> m_products = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_removing = new(StringComparer.Ordinal);
         private readonly List<string> m_current = [];
         private readonly Lock m_lock = new();
         private ArrayOf<string> m_currentProducts = [];

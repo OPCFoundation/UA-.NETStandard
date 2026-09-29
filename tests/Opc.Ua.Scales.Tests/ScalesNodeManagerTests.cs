@@ -223,6 +223,89 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task ConcurrentScalesOfTheSameNameAreRejectedAsync()
+        {
+            // Both creations pass the first duplicate check and meet in their
+            // configure callbacks, before either of them is published.
+            using var bothConfigured = new Barrier(2);
+            int met = 0;
+            Task<ScaleHandle> Create()
+            {
+                return Task.Run(() => m_fixture.Manager.CreateScaleAsync(
+                    m_fixture.Name("Twin"),
+                    ScaleKind.Simple,
+                    b =>
+                    {
+                        FullScale(b, "Twin");
+                        if (bothConfigured.SignalAndWait(TimeSpan.FromSeconds(30)))
+                        {
+                            Interlocked.Increment(ref met);
+                        }
+                    }).AsTask());
+            }
+            Task<ScaleHandle>[] creations = [Create(), Create()];
+
+            int created = 0;
+            var rejected = new List<StatusCode>();
+            foreach (Task<ScaleHandle> creation in creations)
+            {
+                try
+                {
+                    await creation.ConfigureAwait(false);
+                    created++;
+                }
+                catch (ServiceResultException ex)
+                {
+                    rejected.Add(ex.StatusCode);
+                }
+            }
+
+            Assert.That(met, Is.EqualTo(2), "both creations were configured at the same time");
+            Assert.That(created, Is.EqualTo(1));
+            Assert.That(rejected, Is.EqualTo(new[] { (StatusCode)StatusCodes.BadBrowseNameDuplicated }));
+            Assert.That(m_fixture.Manager.Scales.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ConcurrentFirstCreationsShareOneRuntimeAsync()
+        {
+            // The runtime services are created by the first creation; several
+            // first creations at once must still create them - and attach the
+            // lock service - only once.
+            const int count = 8;
+            using var start = new Barrier(count);
+            var creations = new Task<ScaleHandle>[count];
+            var threads = new Thread[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                int index = ii;
+                string name = "S" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                // The runtime is resolved before the first await, so on the
+                // thread that starts the creation.
+                threads[ii] = new Thread(() =>
+                {
+                    start.SignalAndWait(TimeSpan.FromSeconds(30));
+                    creations[index] = m_fixture.Manager.CreateScaleAsync(
+                        m_fixture.Name(name),
+                        ScaleKind.Simple,
+                        b => FullScale(b, name)).AsTask();
+                })
+                {
+                    IsBackground = true
+                };
+                threads[ii].Start();
+            }
+            foreach (Thread thread in threads)
+            {
+                Assert.That(thread.Join(TimeSpan.FromSeconds(60)), Is.True);
+            }
+
+            ScaleHandle[] scales = await Task.WhenAll(creations).ConfigureAwait(false);
+            Assert.That(scales.Select(s => s.Services).Distinct().Count(), Is.EqualTo(1));
+        }
+
+        [Test]
         public async Task PublishedLoadReachesEveryWeightPropertyAsync()
         {
             ScaleHandle scale = await CreateAsync(ScaleKind.Simple);
@@ -679,6 +762,93 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(ServiceResult.IsGood(await preset.RemoveAsync("P4")), Is.True);
             Assert.That(ServiceResult.IsGood(await preset.RemoveAsync("P5")), Is.True);
             Assert.That((await preset.RemoveAsync("P1")).StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState), "the last product stays");
+        }
+
+        [Test]
+        public async Task ProductIdStaysReservedWhileItsRemovalIsPendingAsync()
+        {
+            ScaleHandle scale = await CreateAsync(
+                ScaleKind.Simple,
+                extra: b => b.WithProductionPreset(p => p
+                    .AllowManagement()
+                    .AddProduct("P1", new LocalizedText("A"))
+                    .AddProduct("P2", new LocalizedText("B")))).ConfigureAwait(false);
+
+            // A preset over the same node whose node deletion completes only
+            // when the test lets it.
+            ScaleRuntimeServices real = scale.Services;
+            var deletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var services = new ScaleRuntimeServices(
+                real.Context,
+                real.Namespaces,
+                real.Options,
+                real.Register,
+                (nodeId, ct) => new ValueTask<bool>(deletion.Task),
+                real.IsTypeOf,
+                real.LockService,
+                real.Logger);
+            var preset = new ScaleProductionPreset(
+                services,
+                scale.Scale.ProductionPreset!,
+                real.ScalesId(ScalesModel.ProductTypeOf(ScaleKind.Simple)),
+                () => default);
+
+            ValueTask<ServiceResult> removal = preset.RemoveAsync("P2");
+            Assert.That(removal.IsCompleted, Is.False, "the node deletion is pending");
+            ServiceResultException? reserved = Assert.Throws<ServiceResultException>(
+                () => preset.AddProduct("P2", new LocalizedText("B again")));
+            Assert.That(reserved!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNodeIdExists));
+
+            deletion.SetResult(true);
+            Assert.That(ServiceResult.IsGood(await removal.ConfigureAwait(false)), Is.True);
+            Assert.That(preset.AddProduct("P2", new LocalizedText("B again")), Is.Not.Null);
+            var products = new List<BaseInstanceState>();
+            preset.Preset.Products!.GetChildren(m_fixture.Context, products);
+            Assert.That(products.Count(p => p.BrowseName.Name == "P2"), Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task VehicleInformationCallsDoNotInterleaveAsync()
+        {
+            ScaleHandle scale = await CreateAsync(
+                ScaleKind.Vehicle,
+                extra: b => b.WithProductionPreset(p => p.AddProduct(
+                    "TRUCK-1",
+                    new LocalizedText("Truck 1"),
+                    (ctx, product) => ((VehicleProductState)product).AddGetVehicleInformation(ctx)))).ConfigureAwait(false);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            var truck = (VehicleProductState)preset.Find("TRUCK-1")!;
+            GetVehicleInformationMethodState method = truck.GetVehicleInformation!;
+            preset.VehicleInformationProvider = id => new VehicleInformation { Tare = 11800, CarrierId = "C-" + id };
+
+            // The first call parks where it writes the VehicleId and waits for
+            // the second to get there too, which the second can only while
+            // the first has not left the preset's lock.
+            using var firstParked = new ManualResetEventSlim();
+            using var secondArrived = new ManualResetEventSlim();
+            int arrivals = 0;
+            bool interleaved = false;
+            truck.VehicleId!.OnStateChanged = (context, node, changes) =>
+            {
+                if (Interlocked.Increment(ref arrivals) == 1)
+                {
+                    firstParked.Set();
+                    interleaved = secondArrived.Wait(TimeSpan.FromSeconds(2));
+                }
+                else
+                {
+                    secondArrived.Set();
+                }
+            };
+
+            Task<ServiceResult> first = Task.Run(() => method.OnCall!(m_fixture.Context, method, truck.NodeId, "V1"));
+            Assert.That(firstParked.Wait(TimeSpan.FromSeconds(30)), Is.True);
+            Task<ServiceResult> second = Task.Run(() => method.OnCall!(m_fixture.Context, method, truck.NodeId, "V2"));
+            ServiceResult[] results = await Task.WhenAll(first, second).ConfigureAwait(false);
+
+            Assert.That(interleaved, Is.False, "the second call ran while the first was applying its data");
+            Assert.That(results.All(ServiceResult.IsGood), Is.True);
+            Assert.That(truck.CarrierId!.Value, Is.EqualTo("C-V2"));
         }
 
         [Test]

@@ -544,10 +544,17 @@ namespace Opc.Ua.Scales.Server.Runtime
                         StatusCodes.BadNotSupported,
                         "This server has no parser for uploaded recipe files.");
                 }
-                if (ReferenceEquals(ActiveRecipe, recipe))
+                bool active;
+                lock (m_lock)
+                {
+                    active = ReferenceEquals(ActiveRecipe, recipe);
+                }
+                if (active)
                 {
                     return ServiceResult.Create(StatusCodes.BadInvalidState, "The recipe is being processed.");
                 }
+
+                // The parser is application code and runs outside the lock.
                 ServiceResult result = RecipeFileHandler(recipe, ByteString.From(bytes));
                 if (ServiceResult.IsGood(result))
                 {

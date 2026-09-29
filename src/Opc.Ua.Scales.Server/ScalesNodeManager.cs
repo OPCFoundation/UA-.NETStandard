@@ -414,6 +414,7 @@ namespace Opc.Ua.Scales.Server
             if (disposing)
             {
                 m_lockService.Dispose();
+                m_publishGate.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -422,41 +423,66 @@ namespace Opc.Ua.Scales.Server
         {
             get
             {
-                if (m_services != null)
+                ScaleRuntimeServices? services = Volatile.Read(ref m_services);
+                if (services != null)
                 {
-                    return m_services;
+                    return services;
                 }
-                if (!m_lockAttached && Server.SessionManager != null)
+
+                // Concurrent first creations must share one runtime, and the
+                // lock service refuses to be attached twice.
+                lock (m_scaleLock)
                 {
-                    m_lockService.AttachToSessionManager(Server.SessionManager);
-                    m_lockAttached = true;
+                    if (m_services != null)
+                    {
+                        return m_services;
+                    }
+                    if (!m_lockAttached && Server.SessionManager != null)
+                    {
+                        m_lockService.AttachToSessionManager(Server.SessionManager);
+                        m_lockAttached = true;
+                    }
+                    services = new ScaleRuntimeServices(
+                        SystemContext,
+                        NamespaceIndices,
+                        m_options,
+                        AddPredefinedNodeSynchronously,
+                        (nodeId, ct) => DeleteNodeAsync(SystemContext, nodeId, ct),
+                        (type, baseType) => Server.TypeTree.IsTypeOf(type, baseType),
+                        m_lockService,
+                        m_scalesLogger);
+                    Volatile.Write(ref m_services, services);
+                    return services;
                 }
-                return m_services = new ScaleRuntimeServices(
-                    SystemContext,
-                    NamespaceIndices,
-                    m_options,
-                    AddPredefinedNodeSynchronously,
-                    (nodeId, ct) => DeleteNodeAsync(SystemContext, nodeId, ct),
-                    (type, baseType) => Server.TypeTree.IsTypeOf(type, baseType),
-                    m_lockService,
-                    m_scalesLogger);
             }
         }
 
         private async ValueTask PublishAsync(NodeState parent, BaseObjectState node, CancellationToken cancellationToken)
         {
-            parent.AddChild(node);
-
-            // A scale reports scale events and alarms, so it has to be a
-            // notifier before a client can subscribe to it.
-            node.EventNotifier |= EventNotifiers.SubscribeToEvents;
-            WireNestedNotifiers(node, node);
-            await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
-            await AddRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
-
-            if (m_options.OrganizeIntoMachinesFolder && !TryAddToMachinesFolder(node))
+            // Creations are built concurrently, so the duplicate check is
+            // repeated here: the gate makes it and AddChild one step, and two
+            // creations of the same name cannot both publish.
+            await m_publishGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                m_scalesLogger.MachinesFolderUnavailable(node.BrowseName.Name);
+                ThrowIfDuplicate(parent, node.BrowseName);
+                parent.AddChild(node);
+
+                // A scale reports scale events and alarms, so it has to be a
+                // notifier before a client can subscribe to it.
+                node.EventNotifier |= EventNotifiers.SubscribeToEvents;
+                WireNestedNotifiers(node, node);
+                await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+                await AddRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
+
+                if (m_options.OrganizeIntoMachinesFolder && !TryAddToMachinesFolder(node))
+                {
+                    m_scalesLogger.MachinesFolderUnavailable(node.BrowseName.Name);
+                }
+            }
+            finally
+            {
+                m_publishGate.Release();
             }
         }
 
@@ -507,19 +533,28 @@ namespace Opc.Ua.Scales.Server
                     StatusCodes.BadConfigurationError,
                     "The Device Integration DeviceSet is not available.");
 
-            // The duplicate check is by browse name rather than by predicting
-            // the NodeId the factory will mint.
+            // Fails early, before the node is built; PublishAsync checks again.
+            ThrowIfDuplicate(effective, browseName);
+            return (effective, parent == null);
+        }
+
+        /// <summary>
+        /// Rejects a browse name the parent already has a child of. The check
+        /// is by browse name rather than by predicting the NodeId the factory
+        /// will mint.
+        /// </summary>
+        private void ThrowIfDuplicate(NodeState parent, QualifiedName browseName)
+        {
             var existing = new List<BaseInstanceState>();
-            effective.GetChildren(SystemContext, existing);
+            parent.GetChildren(SystemContext, existing);
             if (existing.Any(child => child.BrowseName == browseName))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadBrowseNameDuplicated,
                     "'{0}' already contains a child named '{1}'.",
-                    effective.BrowseName,
+                    parent.BrowseName,
                     browseName);
             }
-            return (effective, parent == null);
         }
 
         private static string ConformanceUnitOf(ScaleKind kind)
@@ -577,6 +612,7 @@ namespace Opc.Ua.Scales.Server
         private readonly ILogger m_scalesLogger;
         private readonly Lock m_scaleLock = new();
         private readonly DefaultLockService m_lockService = new();
+        private readonly SemaphoreSlim m_publishGate = new(1, 1);
         private ArrayOf<ScaleHandle> m_scales = [];
         private ArrayOf<ScaleSystemHandle> m_systems = [];
         private ScaleNamespaceIndices? m_namespaces;
