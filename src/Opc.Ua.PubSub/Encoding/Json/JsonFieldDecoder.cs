@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace Opc.Ua.PubSub.Encoding.Json
@@ -52,6 +53,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// </remarks>
     public static class JsonFieldDecoder
     {
+        private static readonly ConditionalWeakTable<DataSetMetaDataType, FieldIndex> s_fieldIndexes = new();
+
         /// <summary>
         /// Decodes the <c>Payload</c> object into a list of
         /// <see cref="DataSetField"/> values.
@@ -111,11 +114,30 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return false;
             }
+            FieldIndex? fieldIndex = null;
+            if (metaData is not null && metaData.Fields.Count > 0)
+            {
+                // A DataSetMessage never carries more fields than its
+                // DataSetMetaData describes.
+                if (memberCount > metaData.Fields.Count)
+                {
+                    if (tolerant)
+                    {
+                        return false;
+                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Payload has {0} members but the DataSetMetaData describes {1} fields.",
+                        memberCount,
+                        metaData.Fields.Count);
+                }
+                fieldIndex = GetFieldIndex(metaData);
+            }
             var decodedFields = new List<DataSetField>(memberCount);
             int index = 0;
             foreach (JsonProperty property in payload.EnumerateObject())
             {
-                FieldMetaData? fmd = ResolveMetaData(metaData, property.Name, index);
+                FieldMetaData? fmd = fieldIndex?.Resolve(property.Name, index);
                 DataSetField? field = DecodeOne(property, fmd, detectedMode, context, tolerant);
                 if (field is null)
                 {
@@ -238,36 +260,78 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
-        /// Locates the metadata entry that matches the supplied field
-        /// name or, failing that, the entry at the same ordinal.
+        /// Returns the cached name index of the metadata fields, building
+        /// it once per <see cref="DataSetMetaDataType"/> (and again only
+        /// when its <see cref="DataSetMetaDataType.Fields"/> array is
+        /// replaced) so each payload member resolves in O(1).
         /// </summary>
-        /// <param name="metaData">Optional metadata.</param>
-        /// <param name="name">Field name from the payload.</param>
-        /// <param name="index">Ordinal in the payload.</param>
-        /// <returns>Matching field metadata, or
-        /// <see langword="null"/>.</returns>
-        private static FieldMetaData? ResolveMetaData(
-            DataSetMetaDataType? metaData,
-            string name,
-            int index)
+        /// <param name="metaData">Metadata with at least one field.</param>
+        /// <returns>The field index.</returns>
+        private static FieldIndex GetFieldIndex(DataSetMetaDataType metaData)
         {
-            if (metaData is null || metaData.Fields.Count == 0)
+            ReadOnlyMemory<FieldMetaData> fields = metaData.Fields.Memory;
+            if (s_fieldIndexes.TryGetValue(metaData, out FieldIndex? cached) &&
+                cached.Fields.Equals(fields))
             {
-                return null;
+                return cached;
             }
-            for (int i = 0; i < metaData.Fields.Count; i++)
+            var index = new FieldIndex(fields);
+            lock (s_fieldIndexes)
             {
-                FieldMetaData fmd = metaData.Fields[i];
-                if (string.Equals(fmd.Name, name, StringComparison.Ordinal))
+                s_fieldIndexes.Remove(metaData);
+                s_fieldIndexes.Add(metaData, index);
+            }
+            return index;
+        }
+
+        /// <summary>
+        /// Name to <see cref="FieldMetaData"/> lookup for one metadata
+        /// field array.
+        /// </summary>
+        private sealed class FieldIndex
+        {
+            public FieldIndex(ReadOnlyMemory<FieldMetaData> fields)
+            {
+                Fields = fields;
+                m_byName = new Dictionary<string, FieldMetaData>(
+                    fields.Length,
+                    StringComparer.Ordinal);
+                ReadOnlySpan<FieldMetaData> span = fields.Span;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    // The first field wins for duplicate names.
+                    string? name = span[i]?.Name;
+                    if (name is not null && !m_byName.ContainsKey(name))
+                    {
+                        m_byName.Add(name, span[i]);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// The field array the index was built from.
+            /// </summary>
+            public ReadOnlyMemory<FieldMetaData> Fields { get; }
+
+            /// <summary>
+            /// Locates the metadata entry that matches the supplied
+            /// field name or, failing that, the entry at the same
+            /// ordinal.
+            /// </summary>
+            /// <param name="name">Field name from the payload.</param>
+            /// <param name="index">Ordinal in the payload.</param>
+            /// <returns>Matching field metadata, or
+            /// <see langword="null"/>.</returns>
+            public FieldMetaData? Resolve(string name, int index)
+            {
+                if (m_byName.TryGetValue(name, out FieldMetaData? fmd))
                 {
                     return fmd;
                 }
+                return index < Fields.Length ? Fields.Span[index] : null;
             }
-            if (index < metaData.Fields.Count)
-            {
-                return metaData.Fields[index];
-            }
-            return null;
+
+            private readonly Dictionary<string, FieldMetaData> m_byName;
         }
 
         /// <summary>

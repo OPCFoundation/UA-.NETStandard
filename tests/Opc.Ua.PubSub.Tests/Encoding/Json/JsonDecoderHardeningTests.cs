@@ -33,6 +33,7 @@ using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Tests;
 
 namespace OpcUaPubSubJsonTests
@@ -146,6 +147,82 @@ namespace OpcUaPubSubJsonTests
             Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
             Assert.That(result.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant(7)));
             Assert.That(result.DataSetMessages[0].Fields[1].Value, Is.EqualTo(new Variant("x")));
+        }
+
+        [Test]
+        public async Task DecodePayloadWithMoreMembersThanMetaDataFieldsIsRejectedAsync()
+        {
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(
+                JsonTestUtilities.CreateMetaData());
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
+                "\"MetaDataVersion\":{\"MajorVersion\":1,\"MinorVersion\":0},\"Payload\":{" +
+                "\"BoolField\":true,\"IntField\":1,\"StringField\":\"s\",\"x0\":null}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.Zero);
+            Assert.That(JsonTestUtilities.Read(ctx,
+                PubSubDiagnosticsCounterKind.FailedDataSetMessages),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task DecodeRawPayloadResolvesLargeMetaDataByNameAsync()
+        {
+            const int fieldCount = 5000;
+            var fields = new FieldMetaData[fieldCount];
+            var payload = new StringBuilder();
+            for (int i = 0; i < fieldCount; i++)
+            {
+                fields[i] = new FieldMetaData
+                {
+                    Name = "Field" + i,
+                    BuiltInType = (byte)BuiltInType.Int32,
+                    ValueRank = ValueRanks.Scalar
+                };
+            }
+            // Members arrive in reverse order so the ordinal fallback cannot match.
+            for (int i = fieldCount - 1; i >= 0; i--)
+            {
+                payload.Append(i == fieldCount - 1 ? string.Empty : ",")
+                    .Append("\"Field").Append(i).Append("\":").Append(i);
+            }
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(new DataSetMetaDataType
+            {
+                Name = "Large",
+                Fields = fields,
+                ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1 }
+            });
+            string json =
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
+                "\"MetaDataVersion\":{\"MajorVersion\":1,\"MinorVersion\":0},\"Payload\":{" +
+                payload + "}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            ArrayOf<DataSetField> decoded = result.DataSetMessages[0].Fields;
+            Assert.That(decoded, Has.Count.EqualTo(fieldCount));
+            Assert.That(decoded[0].Name, Is.EqualTo("Field4999"));
+            Assert.That(decoded[0].Value, Is.EqualTo(new Variant(4999)));
+            Assert.That(decoded[fieldCount - 1].Value, Is.EqualTo(new Variant(0)));
+        }
+
+        private static PubSubNetworkMessageContext NewContextWithMetaData(
+            DataSetMetaDataType metaData)
+        {
+            var registry = new DataSetMetaDataRegistry();
+            var key = new DataSetMetaDataKey(
+                PublisherId.FromString("P"),
+                0,
+                1,
+                Uuid.Empty,
+                metaData.ConfigurationVersion.MajorVersion);
+            registry.Register(in key, metaData);
+            return JsonTestUtilities.NewContext(registry);
         }
 
         private static async Task<PubSubNetworkMessage?> DecodeAsync(
