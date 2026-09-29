@@ -36,6 +36,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
@@ -441,6 +442,171 @@ namespace Opc.Ua.Pumps.Tests
             }
         }
 
+        [Test]
+        public async Task BrowseOfANodeTheServerReportsBadYieldsNothingAsync()
+        {
+            // The server answers the Browse with a per-node BadNodeIdUnknown:
+            // that is an answer about the node, and absent reads as empty.
+            Mock<Opc.Ua.Client.ISession> session = CreateUnknownNodeSession();
+            session
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((
+                    RequestHeader? _,
+                    ViewDescription? _,
+                    uint _,
+                    ArrayOf<BrowseDescription> nodesToBrowse,
+                    CancellationToken _) => new BrowseResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = ArrayOf.Wrapped(
+                            Enumerable.Range(0, nodesToBrowse.Count)
+                                .Select(_ => new BrowseResult
+                                {
+                                    StatusCode = StatusCodes.BadNodeIdUnknown,
+                                    References = []
+                                })
+                                .ToArray()),
+                        DiagnosticInfos = default
+                    });
+            var pumps = new PumpsClient(session.Object, NUnitTelemetryContext.Create());
+
+            List<PumpEntry> entries = await CollectAsync(
+                pumps.EnumeratePumpsUnderAsync(s_unknownNode)).ConfigureAwait(false);
+            PumpSnapshot snapshot = await pumps.ReadPumpAsync(s_unknownNode)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(entries, Is.Empty);
+                Assert.That(snapshot.TypeDefinitionId.IsNull, Is.True);
+            });
+        }
+
+        [Test]
+        public void EnumeratePumpsPropagatesAFailedBrowseCall()
+        {
+            PumpsClient pumps = CreateClientWhoseBrowseTimesOut();
+
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(pumps.EnumeratePumpsUnderAsync(s_unknownNode))
+                    .ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        [Test]
+        public void ReadPumpPropagatesAFailedBrowseCall()
+        {
+            PumpsClient pumps = CreateClientWhoseBrowseTimesOut();
+
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await pumps.ReadPumpAsync(s_unknownNode).ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        /// <summary>
+        /// A client over a session whose Browse service call itself fails, as
+        /// a lost session or a timed-out request does.
+        /// </summary>
+        private static PumpsClient CreateClientWhoseBrowseTimesOut()
+        {
+            Mock<Opc.Ua.Client.ISession> session = CreateUnknownNodeSession();
+            session
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+            return new PumpsClient(session.Object, NUnitTelemetryContext.Create());
+        }
+
+        /// <summary>
+        /// A session over a server that publishes the DI and Pumps namespaces
+        /// but knows none of the nodes it is asked about: every Read and
+        /// TranslateBrowsePathsToNodeIds result is BadNodeIdUnknown. The
+        /// caller sets up Browse.
+        /// </summary>
+        private static Mock<Opc.Ua.Client.ISession> CreateUnknownNodeSession()
+        {
+            var session = new Mock<Opc.Ua.Client.ISession>();
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
+            namespaceUris.GetIndexOrAppend(Namespaces.Pumps);
+            session.SetupGet(s => s.NamespaceUris).Returns(namespaceUris);
+
+            ServiceMessageContext context = ServiceMessageContext.Create(
+                NUnitTelemetryContext.Create());
+            context.NamespaceUris = namespaceUris;
+            session.SetupGet(s => s.MessageContext).Returns(context);
+
+            // Browser reads these the moment it is attached to a session.
+            session.SetupGet(s => s.OperationLimits).Returns(new OperationLimits());
+            session.SetupGet(s => s.ServerCapabilities).Returns(new ServerCapabilities());
+            session.SetupGet(s => s.ContinuationPointPolicy)
+                .Returns(ContinuationPointPolicy.Default);
+
+            session
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((
+                    RequestHeader? _,
+                    double _,
+                    TimestampsToReturn _,
+                    ArrayOf<ReadValueId> nodesToRead,
+                    CancellationToken _) => new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = ArrayOf.Wrapped(
+                            Enumerable.Range(0, nodesToRead.Count)
+                                .Select(_ => DataValue.FromStatusCode(
+                                    StatusCodes.BadNodeIdUnknown))
+                                .ToArray()),
+                        DiagnosticInfos = default
+                    });
+            session
+                .Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((
+                    RequestHeader? _,
+                    ArrayOf<BrowsePath> paths,
+                    CancellationToken _) => new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = ArrayOf.Wrapped(
+                            Enumerable.Range(0, paths.Count)
+                                .Select(_ => new BrowsePathResult
+                                {
+                                    StatusCode = StatusCodes.BadNodeIdUnknown,
+                                    Targets = []
+                                })
+                                .ToArray()),
+                        DiagnosticInfos = default
+                    });
+            return session;
+        }
+
+        private static async Task<List<T>> CollectAsync<T>(IAsyncEnumerable<T> source)
+        {
+            var items = new List<T>();
+            await foreach (T item in source.ConfigureAwait(false))
+            {
+                items.Add(item);
+            }
+            return items;
+        }
+
         private static MaintenanceLevelEnum FirstMaintenanceLevel()
         {
 #if NET5_0_OR_GREATER
@@ -521,6 +687,11 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         private static string s_endpointUrl = string.Empty;
+
+        /// <summary>
+        /// A node in the Pumps namespace of <see cref="CreateUnknownNodeSession"/>.
+        /// </summary>
+        private static readonly NodeId s_unknownNode = new(4711, 2);
 
         /// <summary>
         /// Marker resolved through <c>IPumpsSetupContext.GetRequiredService</c>

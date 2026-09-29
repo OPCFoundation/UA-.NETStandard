@@ -414,9 +414,11 @@ namespace Opc.Ua.Pumps.Client
         /// <see cref="Browser"/> drains BrowseNext until the continuation
         /// point is exhausted, so a paginating server does not silently
         /// truncate the result - which a single raw <c>Browse</c> would. A bad
-        /// browse (the parent is gone, say) yields nothing rather than
-        /// throwing, matching the "absent means empty" contract of every
-        /// accessor here.
+        /// status for the parent itself (it is gone, say) yields nothing
+        /// rather than throwing, matching the "absent means empty" contract of
+        /// every accessor here. A failed service call - a lost session, a
+        /// timeout, a transport error - says nothing about the parent and
+        /// propagates as a <see cref="ServiceResultException"/>.
         /// </remarks>
         internal async IAsyncEnumerable<ReferenceDescription> BrowseChildrenAsync(
             NodeId parent,
@@ -437,17 +439,18 @@ namespace Opc.Ua.Pumps.Client
                 ResultMask = (uint)BrowseResultMask.All
             });
 
-            ArrayOf<ReferenceDescription> references;
-            try
-            {
-                references = await browser.BrowseAsync(parent, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex) when (StatusCode.IsBad(ex.StatusCode))
+            // The managed overload reports a bad status for the node in
+            // Errors and throws only when the service call itself fails.
+            ResultSet<ArrayOf<ReferenceDescription>> result = await browser
+                .BrowseAsync(new[] { parent }.ToArrayOf(), cancellationToken)
+                .ConfigureAwait(false);
+            if (result.Results.Count == 0 ||
+                (result.Errors.Count > 0 && StatusCode.IsBad(result.Errors[0].StatusCode)))
             {
                 yield break;
             }
 
+            ArrayOf<ReferenceDescription> references = result.Results[0];
             for (int ii = 0; ii < references.Count; ii++)
             {
                 yield return references[ii];

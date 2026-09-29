@@ -123,6 +123,10 @@ namespace Opc.Ua.Pumps.Client
         /// <summary>
         /// Browses the <c>HasTypeDefinition</c> reference of a node.
         /// </summary>
+        /// <remarks>
+        /// A bad status for the node itself yields nothing; a failed service
+        /// call propagates as a <see cref="ServiceResultException"/>.
+        /// </remarks>
         private async System.Collections.Generic.IAsyncEnumerable<ReferenceDescription>
             BrowseTypeDefinitionAsync(
                 NodeId nodeId,
@@ -138,16 +142,15 @@ namespace Opc.Ua.Pumps.Client
                 ResultMask = (uint)BrowseResultMask.All
             });
 
-            ArrayOf<ReferenceDescription> references;
-            try
-            {
-                references = await browser.BrowseAsync(nodeId, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex) when (StatusCode.IsBad(ex.StatusCode))
+            ResultSet<ArrayOf<ReferenceDescription>> result = await browser
+                .BrowseAsync(new[] { nodeId }.ToArrayOf(), cancellationToken)
+                .ConfigureAwait(false);
+            if (result.Results.Count == 0 ||
+                (result.Errors.Count > 0 && StatusCode.IsBad(result.Errors[0].StatusCode)))
             {
                 yield break;
             }
+            ArrayOf<ReferenceDescription> references = result.Results[0];
             for (int ii = 0; ii < references.Count; ii++)
             {
                 yield return references[ii];
