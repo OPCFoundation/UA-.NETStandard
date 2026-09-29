@@ -648,14 +648,7 @@ namespace Opc.Ua
                 string? guidString = ReadString("String");
                 PopNamespace();
 
-                try
-                {
-                    value = Uuid.Parse(guidString ?? string.Empty);
-                }
-                catch (FormatException fe)
-                {
-                    throw CreateBadDecodingError(fieldName, fe, value: guidString);
-                }
+                value = XmlDecoder.ParseGuid(fieldName, guidString);
 
                 EndField(fieldName);
             }

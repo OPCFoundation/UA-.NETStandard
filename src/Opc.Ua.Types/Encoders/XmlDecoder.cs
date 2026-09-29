@@ -773,19 +773,39 @@ namespace Opc.Ua
                 string? guidString = ReadString("String");
                 PopNamespace();
 
-                try
-                {
-                    value = Uuid.Parse(guidString ?? string.Empty);
-                }
-                catch (FormatException fe)
-                {
-                    throw CreateBadDecodingError(fieldName, fe, value: guidString);
-                }
+                value = ParseGuid(fieldName, guidString);
 
                 EndField(fieldName);
             }
 
             return value;
+        }
+
+        /// <summary>
+        /// Parses the String of an XML Guid, which has the form of Part 6 5.1.3
+        /// (the "D" format: 8-4-4-4-12 hex digits, no braces or parentheses).
+        /// Guid.Parse also takes the N, B, P and X formats.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static Uuid ParseGuid(
+            string? fieldName,
+            string? guidString,
+            [CallerMemberName] string? functionName = null)
+        {
+            // the String element keeps layout whitespace (xs:string).
+            if (!Guid.TryParseExact(
+                (guidString ?? string.Empty).Trim(),
+                "D",
+                out Guid guid))
+            {
+                throw CreateBadDecodingError(
+                    fieldName,
+                    new FormatException("The value is not a Guid in the form of Part 6 5.1.3."),
+                    functionName,
+                    guidString);
+            }
+
+            return new Uuid(guid);
         }
 
         /// <inheritdoc/>

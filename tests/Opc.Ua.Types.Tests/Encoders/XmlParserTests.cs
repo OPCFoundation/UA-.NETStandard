@@ -1141,6 +1141,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        [TestCase("c496578a0dfe4b8f870a745238c6aeae")]
+        [TestCase("{c496578a-0dfe-4b8f-870a-745238c6aeae}")]
+        public void ReadGuidRejectsFormatsOtherThanTheSpecStringForm(string text)
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<Guid xmlns=\"{Ns}\"><String>{text}</String></Guid>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadGuid("Guid"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
         [Test]
         public void ReadStringRejectsNestedElements()
         {

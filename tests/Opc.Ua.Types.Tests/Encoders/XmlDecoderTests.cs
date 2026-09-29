@@ -1789,6 +1789,38 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(latest ? DateTimeUtc.MaxValue : DateTimeUtc.MinValue));
         }
 
+        [TestCase("c496578a0dfe4b8f870a745238c6aeae")]
+        [TestCase("{c496578a-0dfe-4b8f-870a-745238c6aeae}")]
+        [TestCase("(c496578a-0dfe-4b8f-870a-745238c6aeae)")]
+        [TestCase("{0xc496578a,0x0dfe,0x4b8f,{0x87,0x0a,0x74,0x52,0x38,0xc6,0xae,0xae}}")]
+        public void ReadGuidRejectsFormatsOtherThanTheSpecStringForm(string text)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = "<Guid xmlns=\"" + Namespaces.OpcUaXsd + "\"><String>" + text + "</String></Guid>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadGuid("Guid"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [TestCase("C496578A-0DFE-4B8F-870A-745238C6AEAE")]
+        [TestCase("\n  c496578a-0dfe-4b8f-870a-745238c6aeae\n")]
+        public void ReadGuidAcceptsTheSpecStringForm(string text)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = "<Guid xmlns=\"" + Namespaces.OpcUaXsd + "\"><String>" + text + "</String></Guid>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            Uuid value = decoder.ReadGuid("Guid");
+
+            Assert.That(value, Is.EqualTo(Uuid.Parse("c496578a-0dfe-4b8f-870a-745238c6aeae")));
+        }
+
         [Test]
         public void ReadFieldRejectsNilElementWithContent()
         {
