@@ -352,9 +352,13 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static object EncodeOnLargeStack(Codec codec, object graph)
         {
             object result = null;
+            ServiceMessageContext context = CreateContext(kUnboundedLimit);
+
+            // the XmlEncoder applies MaxStringLength to XmlElement values.
+            context.MaxStringLength = 0;
             ServiceResultException sre = RunOnThread(
                 kBuilderStack,
-                () => result = Encode(codec, graph, CreateContext(kUnboundedLimit)));
+                () => result = Encode(codec, graph, context));
             Assert.That(sre, Is.Null, sre?.ToString());
             return result;
         }

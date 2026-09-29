@@ -1575,19 +1575,42 @@ namespace Opc.Ua.Export
         /// Variant XML encoding expects, leaving an element that is already a
         /// <c>Value</c> alone.
         /// </summary>
-        private static System.Xml.XmlElement WrapAsVariant(System.Xml.XmlElement source)
+        /// <remarks>
+        /// The element is copied with XmlWriter.WriteNode over an XmlNodeReader,
+        /// which does not recurse, instead of ImportNode(deep) or OuterXml, which
+        /// recurse once per element level. The element depth of the value is then
+        /// bounded by the decoder.
+        /// </remarks>
+        private static XmlReader WrapAsVariant(System.Xml.XmlElement source)
         {
-            if (string.Equals(source.LocalName, "Value", StringComparison.Ordinal) &&
-                string.Equals(source.NamespaceURI, Namespaces.OpcUaXsd, StringComparison.Ordinal))
+            bool wrap =
+                !string.Equals(source.LocalName, "Value", StringComparison.Ordinal) ||
+                !string.Equals(source.NamespaceURI, Namespaces.OpcUaXsd, StringComparison.Ordinal);
+
+            var settings = new XmlWriterSettings
             {
-                return source;
+                OmitXmlDeclaration = true,
+                NewLineHandling = NewLineHandling.Entitize
+            };
+
+            using var text = new StringWriter(CultureInfo.InvariantCulture);
+            using (var writer = XmlWriter.Create(text, settings))
+            using (var reader = new XmlNodeReader(source))
+            {
+                if (wrap)
+                {
+                    writer.WriteStartElement("uax", "Value", Namespaces.OpcUaXsd);
+                }
+                writer.WriteNode(reader, true);
+                if (wrap)
+                {
+                    writer.WriteEndElement();
+                }
             }
-            var document = new System.Xml.XmlDocument { XmlResolver = null };
-            System.Xml.XmlElement wrapper = document.CreateElement(
-                "uax", "Value", Namespaces.OpcUaXsd);
-            document.AppendChild(wrapper);
-            wrapper.AppendChild(document.ImportNode(source, deep: true));
-            return wrapper;
+
+            return XmlReader.Create(
+                new StringReader(text.ToString()),
+                CoreUtils.DefaultXmlReaderSettings());
         }
 
         /// <summary>
