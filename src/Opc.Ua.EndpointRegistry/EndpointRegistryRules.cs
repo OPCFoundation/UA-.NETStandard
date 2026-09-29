@@ -20,6 +20,7 @@ namespace Opc.Ua.EndpointRegistry
 #pragma warning disable CA1859 // Public-style helper signatures are kept readable across target frameworks.
 #pragma warning disable CA1861 // Small constant arrays mirror the Python source at each rule site.
 #pragma warning disable CA1865 // The assembly targets frameworks without every char overload.
+#pragma warning disable CA2249 // IndexOf(char) is used for cross-target compatibility.
 #pragma warning disable RCS0056 // Normative diagnostics and generated regular expressions are intentionally literal.
 #pragma warning disable SYSLIB1045 // The assembly targets frameworks where GeneratedRegex is unavailable.
     /// <summary>
@@ -83,7 +84,7 @@ namespace Opc.Ua.EndpointRegistry
             {
                 GroupIdentity("messages", entry.Key);
                 RegistryObjectValueDataType message = Object(entry.Value, "messages/" + entry.Key);
-                if ((OptionalString(message, "messageid") ?? entry.Key) != entry.Key)
+                if (Has(message, "messageid") && OptionalString(message, "messageid") != entry.Key)
                 {
                     Fail("E_IDENTITY", "messages/" + entry.Key, "Message key and messageid differ");
                 }
@@ -102,7 +103,12 @@ namespace Opc.Ua.EndpointRegistry
         public static void ValidateEndpoint(RegistryObjectValueDataType endpoint, bool media = false)
         {
             Object(endpoint, "endpoint");
-            if (!media)
+            try
+            {
+                s_schemas.Validate(endpoint, "endpoint", media);
+            }
+            catch (RegistryRuleException) when (media &&
+                (OptionalString(endpoint, "protocol") is "RIST-Simple/2020" or "RIST-Main/2024"))
             {
                 s_schemas.Validate(endpoint, "endpoint");
             }
@@ -337,8 +343,8 @@ namespace Opc.Ua.EndpointRegistry
             {
                 GroupIdentity("versions", item.Key);
                 RegistryObjectValueDataType version = Object(item.Value, "versions/" + item.Key);
-                if ((OptionalString(version, "versionid") ?? item.Key) != item.Key ||
-                    (TryString(message, "versionid", out string? currentVersion) && currentVersion != item.Key))
+                if ((Has(version, "versionid") && OptionalString(version, "versionid") != item.Key) ||
+                    (Has(message, "versionid") && OptionalString(message, "versionid") != item.Key))
                 {
                     Fail("E_MESSAGE_VERSION", "versions", "sole-Version identity disagrees");
                 }
@@ -376,6 +382,10 @@ namespace Opc.Ua.EndpointRegistry
                 Fail("E_MESSAGE_PROTOCOL", "protocoloptions", "a protocol requires its Message constraint object");
             }
             ValidateEnvelopeOptions(message);
+            if (TryGet(message, "protocoloptions", out RegistryValueDataType? templateOptions))
+            {
+                ScanMessageTemplates(templateOptions!, string.Empty, false);
+            }
             MessageProtocol(message);
             foreach (string key in new[] { "envelope", "protocol", "dataschemaformat", "datacontenttype" })
             {
@@ -833,6 +843,10 @@ namespace Opc.Ua.EndpointRegistry
             {
                 return;
             }
+            if (protocol.StartsWith("RIST-", StringComparison.Ordinal))
+            {
+                return;
+            }
             if (!definition.Usage.Contains(usage[0]))
             {
                 Fail("E_MEDIA_DIRECTION", "usage", "the selected mapping does not define this media direction");
@@ -856,7 +870,7 @@ namespace Opc.Ua.EndpointRegistry
             {
                 foreach (string key in s_inputOptions)
                 {
-                    NonEmpty(RequireString(effective, key), "protocoloptions/" + key);
+                    NonEmpty(OptionalString(effective, key) ?? string.Empty, "protocoloptions/" + key);
                 }
                 string streamFormat = RequireString(effective, "streamformat");
                 string video = RequireString(effective, "videocodec");
@@ -921,7 +935,7 @@ namespace Opc.Ua.EndpointRegistry
             {
                 foreach (string key in new[] { "application", "streamname" })
                 {
-                    NonEmpty(RequireString(options, key), "protocoloptions/" + key);
+                    NonEmpty(OptionalString(options, key) ?? string.Empty, "protocoloptions/" + key);
                 }
             }
         }
@@ -1116,9 +1130,8 @@ namespace Opc.Ua.EndpointRegistry
                 Fail("E_CONTENT_TYPE", path, "a valid MIME media type and unambiguous parameters are required");
             }
             var parameters = new SortedDictionary<string, string>(StringComparer.Ordinal);
-            foreach (Capture capture in match.Groups[3].Captures)
+            foreach (Match parameter in s_contentTypeParameter.Matches(match.Groups[3].Value))
             {
-                Match parameter = s_contentTypeParameter.Match(capture.Value);
                 string name = parameter.Groups[1].Value.ToLowerInvariant();
                 string text = parameter.Groups[2].Value;
                 if (parameters.ContainsKey(name))
@@ -1194,6 +1207,33 @@ namespace Opc.Ua.EndpointRegistry
                 }
             }
             return TemplateLiteral(text);
+        }
+
+        private static void ScanMessageTemplates(RegistryValueDataType value, string key, bool parentTemplate)
+        {
+            if (value is RegistryStringValueDataType text)
+            {
+                if ((parentTemplate || s_messageTemplateKeys.Contains(key)) &&
+                    (text.Value.IndexOf('{') >= 0 || text.Value.IndexOf('}') >= 0))
+                {
+                    MessageTemplateLiteral(text.Value);
+                }
+            }
+            else if (value is RegistryArrayValueDataType array)
+            {
+                foreach (RegistryValueDataType item in array.Items.ToArray())
+                {
+                    ScanMessageTemplates(item, key, false);
+                }
+            }
+            else if (value is RegistryObjectValueDataType map)
+            {
+                bool isTemplate = OptionalString(map, "type") == "uritemplate";
+                foreach (KeyValuePair<string, RegistryValueDataType> member in Members(map))
+                {
+                    ScanMessageTemplates(member.Value, member.Key, isTemplate && member.Key == "value");
+                }
+            }
         }
 
         private static string TemplateLiteral(string text)
@@ -1723,6 +1763,7 @@ namespace Opc.Ua.EndpointRegistry
         private static readonly HashSet<string> s_audioCodecs = ["AAC", "Opus", "PCMA", "PCMU"];
         private static readonly HashSet<string> s_modelKeys = ["name", "type", "description", "required", "default", "enum", "minimum", "maximum", "item", "attributes", "ifvalues"];
         private static readonly HashSet<string> s_versionIgnored = ["xid", "self", "epoch", "createdat", "modifiedat"];
+        private static readonly HashSet<string> s_messageTemplateKeys = ["correlation_data", "path", "topic"];
         private static readonly string[] s_selectorKinds = ["envelope", "protocol"];
     }
 }

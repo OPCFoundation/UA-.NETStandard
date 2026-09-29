@@ -77,22 +77,6 @@ namespace Opc.Ua.EndpointRegistry
                 ValidateSchema(target, value, path);
                 return;
             }
-            if (schema.TryGetProperty("allOf", out JsonElement allOf))
-            {
-                foreach (JsonElement child in allOf.EnumerateArray())
-                {
-                    ValidateSchema(child, value, path);
-                }
-            }
-            if (schema.TryGetProperty("anyOf", out JsonElement anyOf) && !AnyValid(anyOf, value, path))
-            {
-                throw Schema(path, "value does not match any admitted schema");
-            }
-            if (schema.TryGetProperty("if", out JsonElement condition) && IsValid(condition, value, path) &&
-                schema.TryGetProperty("then", out JsonElement thenSchema))
-            {
-                ValidateSchema(thenSchema, value, path);
-            }
             if (schema.TryGetProperty("type", out JsonElement type))
             {
                 ValidateType(type.GetString()!, value, path);
@@ -119,6 +103,22 @@ namespace Opc.Ua.EndpointRegistry
                 case RegistryNumberValueDataType number when value.Kind == 3:
                     ValidateNumber(schema, number, path);
                     break;
+            }
+            if (schema.TryGetProperty("anyOf", out JsonElement anyOf) && !AnyValid(anyOf, value, path))
+            {
+                throw Schema(path, "value does not match any admitted schema");
+            }
+            if (schema.TryGetProperty("if", out JsonElement condition) && IsValid(condition, value, path) &&
+                schema.TryGetProperty("then", out JsonElement thenSchema))
+            {
+                ValidateSchema(thenSchema, value, path);
+            }
+            if (schema.TryGetProperty("allOf", out JsonElement allOf))
+            {
+                foreach (JsonElement child in allOf.EnumerateArray())
+                {
+                    ValidateSchema(child, value, path);
+                }
             }
         }
 

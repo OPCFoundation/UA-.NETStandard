@@ -120,7 +120,7 @@ namespace Opc.Ua.EndpointRegistry
         {
             if (value is RegistryNumberValueDataType number && IsMathematicalInteger(number))
             {
-                BigInteger scaled = Scale(Coefficient(number), number.Exponent);
+                BigInteger scaled = ScaleToInteger(Coefficient(number), number.Exponent);
                 if (scaled >= long.MinValue && scaled <= long.MaxValue)
                 {
                     result = (long)scaled;
@@ -256,6 +256,19 @@ namespace Opc.Ua.EndpointRegistry
                 throw RegistryRuleException.Fail("E_SCHEMA", "/", "numeric exponent is too large");
             }
             return coefficient * BigInteger.Pow(10, (int)exponent);
+        }
+
+        private static BigInteger ScaleToInteger(BigInteger coefficient, long exponent)
+        {
+            if (exponent >= 0)
+            {
+                return Scale(coefficient, exponent);
+            }
+            if (exponent == long.MinValue || -exponent > int.MaxValue)
+            {
+                throw RegistryRuleException.Fail("E_SCHEMA", "/", "numeric exponent is too large");
+            }
+            return coefficient / BigInteger.Pow(10, (int)-exponent);
         }
     }
 }
