@@ -65,6 +65,15 @@ namespace Opc.Ua.PubSub.Security.Sks
         public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// Minimum interval between two opportunistic refreshes that an
+        /// inbound NetworkMessage with an unknown SecurityTokenId may
+        /// trigger. The SecurityTokenId is read before the signature is
+        /// verified, so forged token ids must not drive SKS calls at
+        /// line rate.
+        /// </summary>
+        public TimeSpan OpportunisticRefreshInterval { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
         /// Maximum number of consecutive failed refresh attempts
         /// tolerated before the provider stops scheduling retries.
         /// The provider keeps serving the last-known keys until a

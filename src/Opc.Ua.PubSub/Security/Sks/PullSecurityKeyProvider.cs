@@ -68,6 +68,8 @@ namespace Opc.Ua.PubSub.Security.Sks
         private readonly SemaphoreSlim m_refreshSemaphore = new(1, 1);
         private readonly Lock m_stateLock = new();
         private Task? m_backgroundTask;
+        private Task? m_opportunisticRefreshTask;
+        private long m_lastOpportunisticRefreshTicks = long.MinValue;
         private int m_consecutiveFailures;
         private uint m_highestKnownTokenId;
         private bool m_started;
@@ -185,36 +187,83 @@ namespace Opc.Ua.PubSub.Security.Sks
         }
 
         /// <inheritdoc/>
-        public async ValueTask<PubSubSecurityKey?> TryGetKeyAsync(
+        /// <remarks>
+        /// Never calls the SKS inline. The SecurityTokenId comes from an
+        /// inbound SecurityHeader before its signature is verified, so an
+        /// unknown token id beyond the known range only schedules a
+        /// background refresh (through the refresh semaphore), at most
+        /// once per
+        /// <see cref="PullSecurityKeyProviderOptions.OpportunisticRefreshInterval"/>.
+        /// The current lookup returns <see langword="null"/>; later
+        /// messages find the key once the refresh has completed.
+        /// </remarks>
+        public ValueTask<PubSubSecurityKey?> TryGetKeyAsync(
             uint tokenId,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
             PubSubSecurityKey? key = Ring.TryGetByTokenId(tokenId);
-            if (key is not null)
+            if (key is null)
             {
-                return key;
+                ScheduleOpportunisticRefresh(tokenId);
             }
-            uint highest;
+            return new ValueTask<PubSubSecurityKey?>(key);
+        }
+
+        /// <summary>
+        /// The in-flight opportunistic refresh, if any. Exposed for tests.
+        /// </summary>
+        internal Task? OpportunisticRefreshTask
+        {
+            get
+            {
+                lock (m_stateLock)
+                {
+                    return m_opportunisticRefreshTask;
+                }
+            }
+        }
+
+        private void ScheduleOpportunisticRefresh(uint tokenId)
+        {
+            long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
             lock (m_stateLock)
             {
-                highest = m_highestKnownTokenId;
+                if (m_disposed ||
+                    tokenId <= m_highestKnownTokenId ||
+                    m_opportunisticRefreshTask is { IsCompleted: false })
+                {
+                    return;
+                }
+                if (m_lastOpportunisticRefreshTicks != long.MinValue &&
+                    nowTicks - m_lastOpportunisticRefreshTicks <
+                        m_options.OpportunisticRefreshInterval.Ticks)
+                {
+                    return;
+                }
+                m_lastOpportunisticRefreshTicks = nowTicks;
+                CancellationToken ct = m_disposeCts.Token;
+                m_opportunisticRefreshTask = Task.Run(
+                    () => RunOpportunisticRefreshAsync(tokenId, ct),
+                    CancellationToken.None);
             }
-            if (tokenId <= highest)
-            {
-                return null;
-            }
+        }
+
+        private async Task RunOpportunisticRefreshAsync(uint tokenId, CancellationToken ct)
+        {
             try
             {
-                await TryRefreshOnceAsync(cancellationToken).ConfigureAwait(false);
+                await RefreshAsync(ct).ConfigureAwait(false);
             }
-            catch (OpcUaSksException ex)
+            catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+            {
+                // Provider disposed while the refresh was pending.
+            }
+            catch (Exception ex)
             {
                 m_logger.OpportunisticSksRefreshFailed(ex, tokenId);
-                return null;
             }
-            return Ring.TryGetByTokenId(tokenId);
         }
 
         /// <inheritdoc/>
@@ -234,6 +283,12 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             catch (ObjectDisposedException)
             {
+            }
+            Task? opportunistic = OpportunisticRefreshTask;
+            if (opportunistic is not null)
+            {
+                // Never faults: RunOpportunisticRefreshAsync handles its errors.
+                await opportunistic.ConfigureAwait(false);
             }
             Task? bg = m_backgroundTask;
             if (bg is not null)
