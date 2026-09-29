@@ -132,33 +132,26 @@ namespace Opc.Ua.Di.Client
             NodeId parentId,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            // A raw single BrowseAsync call silently drops everything past the
-            // first continuation point on a server that paginates (a large
-            // DeviceSet or DeviceTopology). Browser.BrowseAsync(NodeId, ct)
-            // drains BrowseNext until the continuation point is exhausted, and
-            // releases it if the enumeration is cancelled midway.
-            var browser = new Browser(Session, new BrowserOptions
-            {
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
-                IncludeSubtypes = true,
-                NodeClassMask = (int)NodeClass.Object,
-                ResultMask = (uint)BrowseResultMask.All
-            });
-
-            // A bad browse status (e.g. the parent no longer exists) yields
-            // an empty topology rather than an exception - a client walking
-            // a topology tree treats "no children" and "this node vanished"
-            // the same way.
-            ArrayOf<ReferenceDescription> references;
-            try
-            {
-                references = await browser.BrowseAsync(parentId, ct).ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex) when (StatusCode.IsBad(ex.StatusCode))
-            {
-                yield break;
-            }
+            // A server that paginates (a large DeviceSet or DeviceTopology)
+            // returns the rest behind continuation points. A bad status for
+            // the parent (e.g. it no longer exists) yields an empty topology:
+            // a client walking a topology tree treats "no children" and "this
+            // node vanished" the same way.
+            List<ReferenceDescription> references = await DiBrowse
+                .BrowseAllAsync(
+                    Session,
+                    new BrowseDescription
+                    {
+                        NodeId = parentId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    },
+                    Telemetry.CreateLogger<DiTopologyClient>(),
+                    ct)
+                .ConfigureAwait(false);
 
             for (int i = 0; i < references.Count; i++)
             {

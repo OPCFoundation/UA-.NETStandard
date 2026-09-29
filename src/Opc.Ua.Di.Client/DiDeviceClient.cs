@@ -270,42 +270,27 @@ namespace Opc.Ua.Di.Client
                 Opc.Ua.Di.ObjectTypeIds.FunctionalGroupType;
             NodeId refTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
 
-            // A raw single BrowseAsync call silently drops everything past
-            // the first continuation point on a server that paginates (a
-            // device with many functional groups and components in one
-            // HasComponent set). Browser.BrowseAsync(NodeId, ct) drains
-            // BrowseNext until the continuation point is exhausted.
-            var browser = new Browser(Session, new BrowserOptions
-            {
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = refTypeId,
-                IncludeSubtypes = true,
-                NodeClassMask = (int)NodeClass.Object,
-                ResultMask = (uint)BrowseResultMask.All
-            });
+            // A device with many functional groups and components in one
+            // HasComponent set may come back behind continuation points. A bad
+            // status for the device node yields no functional groups rather
+            // than an exception.
+            List<ReferenceDescription> references = await DiBrowse
+                .BrowseAllAsync(
+                    Session,
+                    new BrowseDescription
+                    {
+                        NodeId = DeviceNodeId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = refTypeId,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    },
+                    Telemetry.CreateLogger<DiDeviceClient>(),
+                    ct)
+                .ConfigureAwait(false);
 
-            // A bad browse status yields no functional groups rather than
-            // an exception, matching the enumerator's other empty-result
-            // paths (an unreadable device should not crash a client walking
-            // its topology).
-            ArrayOf<ReferenceDescription> references;
-            try
-            {
-                references = await browser.BrowseAsync(DeviceNodeId, ct).ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex) when (StatusCode.IsBad(ex.StatusCode))
-            {
-                yield break;
-            }
-
-            var snapshot =
-                new ReferenceDescription[references.Count];
-            for (int i = 0; i < references.Count; i++)
-            {
-                snapshot[i] = references[i];
-            }
-
-            foreach (ReferenceDescription reference in snapshot)
+            foreach (ReferenceDescription reference in references)
             {
                 ct.ThrowIfCancellationRequested();
 
