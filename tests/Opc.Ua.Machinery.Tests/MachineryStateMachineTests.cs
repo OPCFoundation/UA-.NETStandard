@@ -192,6 +192,60 @@ namespace Opc.Ua.Machinery.Tests
                 "A vetoed transition must leave the state alone.");
         }
 
+        [Test]
+        public async Task ATransitionCommittedWhileAGuardRunsIsNotOverwritten()
+        {
+            await using var fixture = new MachineryServerFixture(MachineryParts.BuildingBlocks);
+            await fixture.StartAsync().ConfigureAwait(false);
+            IMachineHandle<BaseObjectState> machine = await BuildAsync(fixture).ConfigureAwait(false);
+
+            var stateMachine = (MachineryItemState_StateMachineState)
+                fixture.Manager.FindPredefinedNode(machine.ItemState!.NodeId)!;
+            var guarded = new List<uint>();
+            bool interleaved = false;
+            stateMachine.OnBeforeTransition = (_, _, transitionId, _, _, _) =>
+            {
+                guarded.Add(transitionId);
+                if (!interleaved)
+                {
+                    // Another caller commits while this guard runs outside the
+                    // driver's lock.
+                    interleaved = true;
+                    _ = machine.ItemState
+                        .SetStateAsync(MachineryItemStateValue.OutOfService)
+                        .AsTask()
+                        .GetAwaiter()
+                        .GetResult();
+                }
+                return ServiceResult.Good;
+            };
+
+            Assert.That(
+                await machine.ItemState.SetStateAsync(MachineryItemStateValue.Executing).ConfigureAwait(false),
+                Is.True);
+
+            NodeId lastTransition = stateMachine.LastTransition!.Id!.Value;
+            Assert.That(
+                machine.ItemState.CurrentState,
+                Is.EqualTo(MachineryItemStateValue.Executing));
+            Assert.That(
+                lastTransition,
+                Is.EqualTo(new NodeId(
+                    ItemIds.TransitionIds.FromOutOfServiceToExecuting,
+                    lastTransition.NamespaceIndex)),
+                "The stale NotExecuting to Executing transition must not be committed.");
+            Assert.That(
+                guarded,
+                Is.EqualTo(
+                    new[]
+                    {
+                        ItemIds.TransitionIds.FromNotExecutingToExecuting,
+                        ItemIds.TransitionIds.FromNotExecutingToOutOfService,
+                        ItemIds.TransitionIds.FromOutOfServiceToExecuting
+                    }),
+                "The transition from the new current state is guarded again.");
+        }
+
         private static ValueTask<IMachineHandle<BaseObjectState>> BuildAsync(
             MachineryServerFixture fixture)
         {

@@ -112,40 +112,62 @@ namespace Opc.Ua.Machinery.Server.StateMachines
         /// <see langword="false"/> when a pre-transition guard vetoed the move.
         /// </returns>
         /// <remarks>
+        /// <para>
         /// Completes synchronously; the <see cref="ValueTask{TResult}"/> shape
         /// is that of the public state controller interfaces this backs.
+        /// </para>
+        /// <para>
+        /// The guard runs outside the lock, so a concurrent transition can
+        /// commit in the meantime. The commit therefore only happens while the
+        /// machine is still in the source state of the transition the guard
+        /// vetted; otherwise the transition from the new current state is
+        /// selected and guarded again. The after-transition handlers of two
+        /// concurrent transitions may run in either order.
+        /// </para>
         /// </remarks>
         public ValueTask<bool> TransitionToAsync(
             uint targetStateId,
             CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             StateDefinition target = FindState(targetStateId);
-            TransitionDefinition transition;
-            lock (m_lock)
+            while (true)
             {
-                transition = FindTransition(m_currentStateId, target.Id);
-            }
+                cancellationToken.ThrowIfCancellationRequested();
 
-            ServiceResult guard = Invoke(
-                m_stateMachine.OnBeforeTransition,
-                transition.Id);
-            if (ServiceResult.IsBad(guard))
-            {
-                return new ValueTask<bool>(false);
-            }
+                TransitionDefinition transition;
+                lock (m_lock)
+                {
+                    transition = FindTransition(m_currentStateId, target.Id);
+                }
 
-            lock (m_lock)
-            {
-                WriteStateLocked(target);
-                WriteTransitionLocked(transition);
-                m_currentStateId = target.Id;
-            }
-            m_stateMachine.ClearChangeMasks(m_context, true);
+                ServiceResult guard = Invoke(
+                    m_stateMachine.OnBeforeTransition,
+                    transition.Id);
+                if (ServiceResult.IsBad(guard))
+                {
+                    return new ValueTask<bool>(false);
+                }
 
-            Invoke(m_stateMachine.OnAfterTransition, transition.Id);
-            return new ValueTask<bool>(true);
+                bool committed = false;
+                lock (m_lock)
+                {
+                    if (m_currentStateId == transition.FromStateId)
+                    {
+                        WriteStateLocked(target);
+                        WriteTransitionLocked(transition);
+                        m_currentStateId = target.Id;
+                        committed = true;
+                    }
+                }
+                if (!committed)
+                {
+                    continue;
+                }
+                m_stateMachine.ClearChangeMasks(m_context, true);
+
+                Invoke(m_stateMachine.OnAfterTransition, transition.Id);
+                return new ValueTask<bool>(true);
+            }
         }
 
         private ServiceResult Invoke(
