@@ -298,6 +298,71 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
         }
 
+        [Test]
+        public void EncodingLimitBreachInBinaryBodyIsNotRecovered()
+        {
+            // A vendor type body that exceeds MaxArrayLength used to be kept
+            // as a raw ByteString when MaxDecoderRecoveries > 0.
+            const string uri = "urn:test:xmlsample";
+            ServiceMessageContext context = CreateContext();
+            ushort ns = context.NamespaceUris.GetIndexOrAppend(uri);
+            context.Factory.AddEncodeableType(typeof(ArraySample));
+            context.MaxDecoderRecoveries = 10;
+            context.MaxArrayLength = 2;
+
+            byte[] bytes;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteNodeId(null, new NodeId(88912u, ns));
+                encoder.WriteByte(null, 0x01);
+                encoder.WriteInt32(null, 4 + (3 * 4));
+                encoder.WriteInt32(null, 3);
+                encoder.WriteInt32(null, 1);
+                encoder.WriteInt32(null, 2);
+                encoder.WriteInt32(null, 3);
+                bytes = encoder.CloseAndReturnBuffer()!;
+            }
+
+            using var decoder = new BinaryDecoder(bytes, context);
+            AssertStatus(
+                () => decoder.ReadExtensionObject(null),
+                StatusCodes.BadEncodingLimitsExceeded);
+        }
+
+        /// <summary>
+        /// A vendor namespace encodeable with an Int32 array field.
+        /// </summary>
+        public sealed class ArraySample : IEncodeable
+        {
+            private const string kUri = "urn:test:xmlsample";
+
+            public ArrayOf<int> Values { get; set; }
+
+            public ExpandedNodeId TypeId => new(88911u, kUri);
+            public ExpandedNodeId BinaryEncodingId => new(88912u, kUri);
+            public ExpandedNodeId XmlEncodingId => new(88913u, kUri);
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32Array("Values", Values);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Values = decoder.ReadInt32Array("Values");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return ReferenceEquals(this, encodeable);
+            }
+
+            public object Clone()
+            {
+                return new ArraySample { Values = Values };
+            }
+        }
+
         /// <summary>
         /// A minimal ns=0 encodeable with an XML encoding id.
         /// </summary>

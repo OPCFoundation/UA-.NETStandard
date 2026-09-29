@@ -944,9 +944,12 @@ namespace Opc.Ua
                     exception = eofStream;
                 }
                 catch (ServiceResultException sre) when (
-                    sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
                     sre.StatusCode == StatusCodes.BadDecodingError)
                 {
+                    // BadEncodingLimitsExceeded is not caught: like in the XML
+                    // branch a limit breach must not be downgraded into keeping
+                    // the over limit body, which a consumer later decodes with a
+                    // fresh decoder whose nesting level starts at 0.
                     errorMessage = sre.Message;
                     exception = sre;
                 }
