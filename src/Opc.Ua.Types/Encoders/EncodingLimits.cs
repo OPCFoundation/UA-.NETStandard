@@ -102,6 +102,45 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Throws if the bytes a base64 text decodes to do not fit into
+        /// MaxByteStringLength, before the text is decoded.
+        /// </summary>
+        /// <remarks>
+        /// Every four significant characters (whitespace and padding are not)
+        /// decode to three bytes, so the count is exact for valid base64.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the decoded
+        /// value would be over the limit.</exception>
+        public static void CheckBase64Length(int maxByteStringLength, string base64)
+        {
+            // no base64 text of this length can decode to more than the limit.
+            if (maxByteStringLength <= 0 || base64.Length * 3L / 4 <= maxByteStringLength)
+            {
+                return;
+            }
+
+            long significant = 0;
+            foreach (char c in base64)
+            {
+                if (c != '=' && !char.IsWhiteSpace(c))
+                {
+                    significant++;
+                }
+            }
+
+            long byteLength = significant * 3 / 4;
+            if (byteLength > maxByteStringLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    maxByteStringLength,
+                    byteLength);
+            }
+        }
+
+        /// <summary>
         /// Returns the deepest element nesting accepted inside XML content that
         /// the codecs keep as raw XML (XmlElement values and ExtensionObject
         /// bodies of unknown types).

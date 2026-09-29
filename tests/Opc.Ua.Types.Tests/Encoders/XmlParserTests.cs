@@ -1173,6 +1173,21 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadByteStringChecksMaxByteStringLengthBeforeDecoding()
+        {
+            // not valid base64: the limit is reported before decoding.
+            ServiceMessageContext ctx = CreateContext();
+            ctx.MaxByteStringLength = 3;
+            string xml = $"<ByteString xmlns=\"{Ns}\">AQIDBA==!</ByteString>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadByteString("ByteString"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
         public void ReadStringRejectsNestedElements()
         {
             // InnerText flattened the markup (and recursed once per level).

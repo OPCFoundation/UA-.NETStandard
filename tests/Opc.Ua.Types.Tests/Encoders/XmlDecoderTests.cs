@@ -1884,6 +1884,39 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decoder.ReadInt32Array("ListOfInt32").Count, Is.EqualTo(2));
         }
 
+        [TestCase("AQID", 3)]
+        [TestCase("AQ\n  ID", 3)]
+        [TestCase("AQI=", 2)]
+        public void ReadByteStringAcceptsValuesWithinMaxByteStringLength(string text, int length)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            messageContext.MaxByteStringLength = 3;
+            string xml = "<ByteString xmlns=\"urn:test\">" + text + "</ByteString>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+
+            Assert.That(decoder.ReadByteString("ByteString").Length, Is.EqualTo(length));
+        }
+
+        [TestCase("AQIDBA==")]
+        [TestCase("AQID BA==")]
+        [TestCase("AQIDBA==!")]
+        public void ReadByteStringChecksMaxByteStringLengthBeforeDecoding(string text)
+        {
+            // the last case is not valid base64: the limit is reported first.
+            ServiceMessageContext messageContext = CreateMockContext();
+            messageContext.MaxByteStringLength = 3;
+            string xml = "<ByteString xmlns=\"urn:test\">" + text + "</ByteString>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadByteString("ByteString"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
         [Test]
         public void ReadFieldRejectsNilElementWithContent()
         {

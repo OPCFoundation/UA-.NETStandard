@@ -667,24 +667,20 @@ namespace Opc.Ua
             {
                 // The base64 text is not a String on the wire - gating it by
                 // MaxStringLength would reject blobs that are well within
-                // MaxByteStringLength, which is checked below.
+                // MaxByteStringLength, which is checked before decoding.
                 string? xml = ReadInnerText();
 
                 ByteString value;
 
                 if (!string.IsNullOrEmpty(xml))
                 {
+                    // check the length before the bytes are allocated.
+                    EncodingLimits.CheckBase64Length(Context.MaxByteStringLength, xml!);
                     value = ByteString.From(SafeConvertFromBase64String(xml!));
                 }
                 else
                 {
                     value = ByteString.Empty;
-                }
-
-                // check the length.
-                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 EndField(fieldName);

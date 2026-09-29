@@ -821,6 +821,8 @@ namespace Opc.Ua
 
                     if (!string.IsNullOrEmpty(xml))
                     {
+                        // check the length before the bytes are allocated.
+                        EncodingLimits.CheckBase64Length(Context.MaxByteStringLength, xml);
                         value = ByteString.From(SafeConvertFromBase64String(xml));
                     }
                     else
@@ -835,12 +837,6 @@ namespace Opc.Ua
                 catch (InvalidOperationException ioe)
                 {
                     throw CreateBadDecodingError(fieldName, ioe);
-                }
-
-                // check the length.
-                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 EndField(fieldName);
