@@ -500,10 +500,9 @@ namespace Opc.Ua.Machinery.Client
 
             // A raw single BrowseAsync call silently drops everything past the
             // first continuation point on a server that paginates (a large or
-            // busy address space). Browser.BrowseAsync(NodeId, ct) already
-            // drains BrowseNext until the continuation point is exhausted, and
-            // releases it if the enumeration is cancelled midway, so this
-            // enumerator never returns a truncated child list.
+            // busy address space). The managed Browser.BrowseAsync follows the
+            // continuation points, so this enumerator never returns a
+            // truncated child list.
             var browser = new Browser(Session, new BrowserOptions
             {
                 BrowseDirection = BrowseDirection.Forward,
@@ -513,19 +512,20 @@ namespace Opc.Ua.Machinery.Client
                 ResultMask = (uint)BrowseResultMask.All
             });
 
-            // A bad browse status (e.g. the parent no longer exists) yields
-            // an empty enumeration rather than an exception, matching every
-            // other accessor's "return null/empty when the block is absent"
-            // contract.
-            ArrayOf<ReferenceDescription> references;
-            try
-            {
-                references = await browser.BrowseAsync(parent, cancellationToken).ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex) when (StatusCode.IsBad(ex.StatusCode))
+            // It reports the status of the parent itself separately: a bad one
+            // (e.g. the parent no longer exists) yields an empty enumeration,
+            // matching every other accessor's "return null/empty when the
+            // block is absent" contract, while a failed service call - a lost
+            // session, a timeout - propagates.
+            ResultSet<ArrayOf<ReferenceDescription>> result = await browser
+                .BrowseAsync(new[] { parent }.ToArrayOf(), cancellationToken)
+                .ConfigureAwait(false);
+            if (result.Errors.Count > 0 && StatusCode.IsBad(result.Errors[0].StatusCode))
             {
                 yield break;
             }
+            ArrayOf<ReferenceDescription> references =
+                result.Results.Count > 0 ? result.Results[0] : default;
 
             for (int ii = 0; ii < references.Count; ii++)
             {

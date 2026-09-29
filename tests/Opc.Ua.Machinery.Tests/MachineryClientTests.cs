@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -297,6 +298,45 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(await client.ResultManagementAsync(bare.NodeId).ConfigureAwait(false), Is.Null);
             Assert.That((await client.ReadJobOrdersAsync(bare.NodeId).ConfigureAwait(false)).Count, Is.Zero);
             Assert.That((await client.ReadJobResponsesAsync(bare.NodeId).ConfigureAwait(false)).Count, Is.Zero);
+        }
+
+        [Test]
+        public async Task EnumeratingAnUnknownNodeYieldsNothingAsync()
+        {
+            var components = new List<MachineEntry>();
+            await foreach (MachineEntry entry in m_client!
+                .EnumerateComponentsAsync(new NodeId("does-not-exist", 42))
+                .ConfigureAwait(false))
+            {
+                components.Add(entry);
+            }
+
+            Assert.That(components, Is.Empty);
+        }
+
+        [Test]
+        public void EnumeratingPropagatesAFailedBrowseCall()
+        {
+            // A lost session or a timeout is not the same as a machine without
+            // components and must not read as one.
+            m_session!
+                .Setup(session => session.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                await foreach (MachineEntry _ in m_client!
+                    .EnumerateComponentsAsync(m_machine!.NodeId)
+                    .ConfigureAwait(false))
+                {
+                }
+            })!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
         }
 
         [Test]
