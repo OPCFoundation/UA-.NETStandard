@@ -31,9 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
@@ -336,13 +334,11 @@ namespace Opc.Ua
                         encodeable,
                         messageContext.NamespaceUris);
             }
-            catch (Exception ex) when (
-                ex is ServiceResultException or
-                    FormatException or
-                    InvalidOperationException or
-                    EndOfStreamException or
-                    JsonException)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                // A retained body is one the eager decoder did not decode (an
+                // unknown type then, or a recovered failure), so it can make an
+                // encodeable's Decode throw anything; a Try API answers false.
                 encodeable = default;
                 return false;
             }
@@ -361,6 +357,14 @@ namespace Opc.Ua
                 ? new BinaryDecoder(segment, messageContext)
                 : new BinaryDecoder(memory.ToArray(), messageContext);
             encodeable.Decode(decoder);
+
+            // The body is the whole encodeable (OPC 10000-6 5.2.2.15), as the
+            // eager decoder enforces with its Length check; trailing bytes mean
+            // the body is not a value of this type.
+            if (decoder.Position != binary.Length)
+            {
+                return default;
+            }
             return encodeable;
         }
 
