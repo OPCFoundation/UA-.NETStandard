@@ -244,6 +244,46 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        [Order(101)]
+        public async Task ReadServerConfigurationIdentityAsync()
+        {
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
+            ISession session = m_pushClient.PushClient.Session;
+            ReadValueIdCollection nodesToRead =
+            [
+                new ReadValueId
+                {
+                    NodeId = OpcUa.VariableIds.ServerConfiguration_ApplicationUri,
+                    AttributeId = Attributes.Value
+                },
+                new ReadValueId
+                {
+                    NodeId = OpcUa.VariableIds.ServerConfiguration_ProductUri,
+                    AttributeId = Attributes.Value
+                }
+            ];
+
+            ReadResponse response = await session.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.AreEqual(nodesToRead.Count, response.Results.Count);
+            ApplicationDescription description = session.ConfiguredEndpoint.Description.Server;
+            string[] expectedUris = [description.ApplicationUri, description.ProductUri];
+            for (int i = 0; i < nodesToRead.Count; i++)
+            {
+                DataValue result = response.Results[i];
+                Assert.AreEqual(StatusCodes.Good, result.StatusCode.Code, $"{nodesToRead[i].NodeId}");
+                Assert.IsInstanceOf<string>(result.Value, $"{nodesToRead[i].NodeId}");
+                Assert.IsNotEmpty((string)result.Value, $"{nodesToRead[i].NodeId}");
+                Assert.AreEqual(expectedUris[i], result.Value, $"{nodesToRead[i].NodeId}");
+            }
+        }
+
+        [Test]
         [Order(200)]
         public async Task ReadTrustListAsync()
         {
