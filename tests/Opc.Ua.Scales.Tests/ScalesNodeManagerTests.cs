@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PackML;
@@ -484,6 +485,59 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
             Assert.That(ServiceResult.IsGood(packMl.Execute(PackMLCommand.Reset)), Is.True);
             Assert.That(packMl.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+        }
+
+        [Test]
+        public async Task PackMLStateChangedIsRaisedOutsideTheControllerLockAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Simple).ConfigureAwait(false);
+            PackMLStateMachineController packMl = scale.PackML!;
+            PackMLMachineStateMachineState machine = scale.Scale.State!.MachineState!;
+            var reported = new List<uint>();
+            var observed = new List<uint>();
+            bool blocked = false;
+            packMl.StateChanged += (_, e) =>
+            {
+                if (blocked)
+                {
+                    return;
+                }
+                // Another thread reads the controller while the handler runs.
+                // Were the event raised under the controller's lock, the read
+                // would wait for the handler and the join would time out.
+                uint seen = 0;
+                var probe = new Thread(() => seen = packMl.CurrentState) { IsBackground = true };
+                probe.Start();
+                blocked = !probe.Join(TimeSpan.FromSeconds(10));
+                reported.Add(e.CurrentState);
+                observed.Add(seen);
+            };
+
+            // Every path that changes the state: a command, a bound method,
+            // the machine state machine's Reset, a completed acting state and
+            // Initialize.
+            ArrayOf<PackMLDescriptorDataType> parameters = new[] { new PackMLDescriptorDataType { ID = 7 } }.ToArrayOf();
+            Assert.That(ServiceResult.IsGood(packMl.Execute(PackMLCommand.Start, parameters)), Is.True);
+            Assert.That(ServiceResult.IsGood(Call(machine.Stop, machine.NodeId)), Is.True);
+            packMl.AutoCompleteActingStates = false;
+            Assert.That(ServiceResult.IsGood(Call(machine.Reset, machine.NodeId)), Is.True);
+            Assert.That(ServiceResult.IsGood(packMl.CompleteActingState()), Is.True);
+            packMl.Initialize(PackMLInitialState.Aborted);
+
+            Assert.That(blocked, Is.False, "a reader on another thread waited for the StateChanged handler");
+            Assert.That(
+                reported,
+                Is.EqualTo(new[]
+                {
+                    PackMLStateNumbers.Execute,
+                    PackMLStateNumbers.Stopped,
+                    PackMLStateNumbers.Resetting,
+                    PackMLStateNumbers.Idle,
+                    PackMLStateNumbers.Aborted
+                }));
+            Assert.That(observed, Is.EqualTo(reported));
+            Assert.That(packMl.StartParameters.Count, Is.EqualTo(1));
+            Assert.That(packMl.StartParameters[0].ID, Is.EqualTo(7));
         }
 
         [Test]

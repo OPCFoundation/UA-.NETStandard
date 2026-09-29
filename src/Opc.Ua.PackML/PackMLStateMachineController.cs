@@ -194,11 +194,27 @@ namespace Opc.Ua.PackML
         /// <summary>
         /// Gets the parameters passed with the last accepted Start command.
         /// </summary>
-        public ArrayOf<PackMLDescriptorDataType> StartParameters { get; private set; }
+        public ArrayOf<PackMLDescriptorDataType> StartParameters
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_startParameters;
+                }
+            }
+        }
 
         /// <summary>
         /// Raised after the innermost active state changed.
         /// </summary>
+        /// <remarks>
+        /// The event is raised after the controller's lock is released, so a
+        /// handler may call back into the controller from any thread. Changes
+        /// are reported in the order they happened; one that happens while a
+        /// handler runs - also one the handler causes - is reported after the
+        /// handler returns.
+        /// </remarks>
         public event EventHandler<PackMLStateChangedEventArgs>? StateChanged;
 
         /// <summary>
@@ -248,8 +264,9 @@ namespace Opc.Ua.PackML
                 }
                 UpdateExecutable();
                 StateMachine.ClearChangeMasks(m_context, includeChildren: true);
-                RaiseChanged(previous);
+                QueueChanged(previous);
             }
+            RaisePendingChanges();
         }
 
         /// <summary>
@@ -291,8 +308,9 @@ namespace Opc.Ua.PackML
                         "The PackML state machine is not in an acting state.");
                 }
                 Settle(previous);
-                return ServiceResult.Good;
             }
+            RaisePendingChanges();
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -322,10 +340,13 @@ namespace Opc.Ua.PackML
             {
                 return guard;
             }
+            ServiceResult result;
             lock (m_lock)
             {
-                return ExecuteCore(command, causeMethod, startParameters);
+                result = ExecuteCore(command, causeMethod, startParameters);
             }
+            RaisePendingChanges();
+            return result;
         }
 
         private ServiceResult Guard(PackMLCommand command)
@@ -363,7 +384,7 @@ namespace Opc.Ua.PackML
             }
             if (command == PackMLCommand.Start)
             {
-                StartParameters = startParameters;
+                m_startParameters = startParameters;
             }
             OnEntered(machine);
             Settle(previous);
@@ -441,7 +462,7 @@ namespace Opc.Ua.PackML
 
         /// <summary>
         /// Leaves acting states when configured to, then refreshes the method
-        /// executability and reports the change.
+        /// executability and queues the change for reporting.
         /// </summary>
         private void Settle(uint previous)
         {
@@ -457,7 +478,7 @@ namespace Opc.Ua.PackML
             }
             UpdateExecutable();
             StateMachine.ClearChangeMasks(m_context, includeChildren: true);
-            RaiseChanged(previous);
+            QueueChanged(previous);
         }
 
         /// <summary>
@@ -599,8 +620,9 @@ namespace Opc.Ua.PackML
                     }
                     OnEntered(machine);
                     Settle(previous);
-                    return ServiceResult.Good;
                 }
+                RaisePendingChanges();
+                return ServiceResult.Good;
             };
         }
 
@@ -770,12 +792,65 @@ namespace Opc.Ua.PackML
             return 0;
         }
 
-        private void RaiseChanged(uint previous)
+        /// <summary>
+        /// Queues a change of the innermost active state for
+        /// <see cref="RaisePendingChanges"/>. Called under the lock.
+        /// </summary>
+        private void QueueChanged(uint previous)
         {
             uint current = CurrentStateCore();
             if (current != previous)
             {
-                StateChanged?.Invoke(this, new PackMLStateChangedEventArgs(previous, current));
+                m_pendingChanges.Enqueue(new PackMLStateChangedEventArgs(previous, current));
+            }
+        }
+
+        /// <summary>
+        /// Raises the queued <see cref="StateChanged"/> events once the lock
+        /// is released. One caller at a time drains the queue, so the events
+        /// keep the order of the changes even when several threads - or a
+        /// handler - change the state meanwhile.
+        /// </summary>
+        private void RaisePendingChanges()
+        {
+            lock (m_lock)
+            {
+                if (m_raisingChanges || m_pendingChanges.Count == 0)
+                {
+                    return;
+                }
+                m_raisingChanges = true;
+            }
+
+            bool drained = false;
+            try
+            {
+                while (true)
+                {
+                    PackMLStateChangedEventArgs change;
+                    lock (m_lock)
+                    {
+                        if (m_pendingChanges.Count == 0)
+                        {
+                            m_raisingChanges = false;
+                            drained = true;
+                            return;
+                        }
+                        change = m_pendingChanges.Dequeue();
+                    }
+                    StateChanged?.Invoke(this, change);
+                }
+            }
+            finally
+            {
+                if (!drained)
+                {
+                    // A handler threw; the next change raises what is left.
+                    lock (m_lock)
+                    {
+                        m_raisingChanges = false;
+                    }
+                }
             }
         }
 
@@ -784,5 +859,8 @@ namespace Opc.Ua.PackML
         private readonly PackMLExecuteStateMachineState m_execute;
         private readonly ushort m_namespaceIndex;
         private readonly Lock m_lock = new();
+        private readonly Queue<PackMLStateChangedEventArgs> m_pendingChanges = new();
+        private ArrayOf<PackMLDescriptorDataType> m_startParameters;
+        private bool m_raisingChanges;
     }
 }
