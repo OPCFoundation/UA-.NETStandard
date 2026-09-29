@@ -461,7 +461,9 @@ namespace Opc.Ua.Scales.Client
 
         /// <summary>
         /// Browses the hierarchical children of <paramref name="parent"/>,
-        /// draining continuation points. A bad browse yields nothing.
+        /// draining continuation points. A bad status for the node yields
+        /// nothing; a failed Browse call - a lost session, a timeout -
+        /// propagates.
         /// </summary>
         internal async IAsyncEnumerable<ReferenceDescription> BrowseChildrenAsync(
             NodeId parent,
@@ -480,15 +482,14 @@ namespace Opc.Ua.Scales.Client
                 NodeClassMask = (int)nodeClassMask,
                 ResultMask = (uint)BrowseResultMask.All
             });
-            ArrayOf<ReferenceDescription> references;
-            try
-            {
-                references = await browser.BrowseAsync(parent, cancellationToken).ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex) when (StatusCode.IsBad(ex.StatusCode))
+            ResultSet<ArrayOf<ReferenceDescription>> result = await browser
+                .BrowseAsync(new[] { parent }.ToArrayOf(), cancellationToken)
+                .ConfigureAwait(false);
+            if (result.Errors.Count > 0 && StatusCode.IsBad(result.Errors[0].StatusCode))
             {
                 yield break;
             }
+            ArrayOf<ReferenceDescription> references = result.Results.Count > 0 ? result.Results[0] : default;
             for (int ii = 0; ii < references.Count; ii++)
             {
                 yield return references[ii];
