@@ -362,6 +362,33 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(bodyLength, Is.EqualTo(harness.Peer.LastOpenBodyLength));
         }
 
+        /// <summary>
+        /// The TokenId in a symmetric chunk header is not authenticated, so a chunk naming the pending renewed
+        /// token only activates it once its signature has been verified with that token.
+        /// </summary>
+        [Test]
+        public async Task UnverifiedChunkNamingTheRenewedTokenDoesNotActivateItAsync()
+        {
+            using var harness = new HandoffHarness(SecurityPolicies.Basic256Sha256);
+            await harness.OpenAsync().ConfigureAwait(false);
+            uint currentTokenId = harness.Target.Token.TokenId;
+            uint renewedTokenId = harness.Target.SetRenewedTokenForTest();
+            int activations = 0;
+            harness.Target.TokenActivatedCallback = (token, _) =>
+            {
+                if (token != null)
+                {
+                    activations++;
+                }
+            };
+
+            await harness.Target.FeedAsync(harness.Target.CreateUnsignedChunk(renewedTokenId)).ConfigureAwait(false);
+
+            Assert.That(activations, Is.Zero);
+            Assert.That(harness.Target.CurrentTokenId, Is.Null.Or.EqualTo(currentTokenId));
+            Assert.That(harness.Target.CurrentState, Is.Not.EqualTo(TcpChannelState.Open));
+        }
+
         private static Certificate CreatePaddedCertificate(string subject, int paddingSize)
         {
             using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -652,6 +679,36 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     sender?.Dispose();
                 }
+            }
+
+            public uint? CurrentTokenId => CurrentToken?.TokenId;
+
+            /// <summary>
+            /// Makes a renewed token pending, as a renew OpenSecureChannel does, and returns its token id.
+            /// </summary>
+            public uint SetRenewedTokenForTest()
+            {
+                ChannelToken token = CreateToken();
+                token.TokenId = CurrentToken!.TokenId + 1;
+                token.ClientNonce = new byte[32];
+                token.ServerNonce = new byte[32];
+                SetRenewedToken(token);
+                return token.TokenId;
+            }
+
+            /// <summary>
+            /// Creates a MSG chunk that names the token but carries no valid signature.
+            /// </summary>
+            public ArraySegment<byte> CreateUnsignedChunk(uint tokenId)
+            {
+                const int length = 96;
+                byte[] buffer = BufferManager.TakeBuffer(length, nameof(CreateUnsignedChunk));
+                Array.Clear(buffer, 0, length);
+                BitConverter.GetBytes(TcpMessageType.Message | TcpMessageType.Final).CopyTo(buffer, 0);
+                BitConverter.GetBytes(length).CopyTo(buffer, 4);
+                BitConverter.GetBytes(ChannelId).CopyTo(buffer, 8);
+                BitConverter.GetBytes(tokenId).CopyTo(buffer, 12);
+                return new ArraySegment<byte>(buffer, 0, length);
             }
 
             public bool FailReceiveStart { get; set; }
