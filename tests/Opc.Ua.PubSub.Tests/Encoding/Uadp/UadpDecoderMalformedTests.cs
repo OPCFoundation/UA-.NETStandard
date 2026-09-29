@@ -347,6 +347,41 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         }
 
         [Test]
+        public void InvalidDataSetMessageIsSkippedWhenSizeIsKnown()
+        {
+            byte[] frame =
+            [
+                0x41,
+                0x02,
+                0x01, 0x00,
+                0x02, 0x00,
+                0x02, 0x00,
+                0x02, 0x00,
+                0x80, 0x03, // DataSetFlags1 bit 0 (valid) clear
+                0x81, 0x03
+            ];
+
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(decoded.DataSetMessages[0].DataSetWriterId, Is.EqualTo((ushort)2));
+        }
+
+        [Test]
+        public void InvalidSingleDataSetMessageIsNotDecoded()
+        {
+            // No PayloadHeader, one DataSetMessage whose valid bit is clear,
+            // followed by bytes that are not a valid field payload.
+            byte[] frame = [0x01, 0x80, 0x00, 0xFF, 0xFF];
+
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages, Is.Empty);
+        }
+
+        [Test]
         public void DiscoveryRequestRejectsWriterIdCountBeyondRemainingBytes()
         {
             // UADPFlags 0x91, ExtFlags1 0x80, ExtFlags2 0x04 (probe),

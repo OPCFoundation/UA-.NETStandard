@@ -372,6 +372,22 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ushort writerId = payloadWriterIds?[i] ?? 0;
                 int expected = payloadSizes?[i] ?? 0;
 
+                // DataSetFlags1 bit 0 clear: the rest of the DataSetMessage
+                // is invalid and shall not be processed (Part 14 §7.2.4.5.4).
+                if (reader.Remaining > 0 &&
+                    (reader.Buffer[reader.Origin + reader.Position] &
+                        (byte)DataSetFlags1EncodingMask.MessageIsValid) == 0)
+                {
+                    if (payloadSizes is null || expected == 0 || expected > reader.Remaining)
+                    {
+                        // Without a size the following DataSetMessages
+                        // cannot be located either.
+                        break;
+                    }
+                    reader.Advance(expected);
+                    continue;
+                }
+
                 UadpDataSetMessage? dsm = payloadSizes is not null && expected > 0
                     ? DecodeSizedDataSetMessage(
                         ref reader,
