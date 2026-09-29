@@ -70,6 +70,7 @@ namespace Opc.Ua.Pumps.Server
         private readonly PumpsServerOptions m_options;
         private readonly List<PumpState> m_pumps = [];
         private readonly Lock m_pumpLock = new();
+        private readonly SemaphoreSlim m_createPumpGate = new(1, 1);
         private PumpNamespaceIndices? m_namespaces;
 
         /// <summary>
@@ -152,8 +153,16 @@ namespace Opc.Ua.Pumps.Server
         /// Resolved once, after the address space is created - the namespace
         /// table is not complete before that.
         /// </remarks>
-        public PumpNamespaceIndices NamespaceIndices =>
-            m_namespaces ??= PumpNamespaceIndices.Resolve(Server.NamespaceUris);
+        public PumpNamespaceIndices NamespaceIndices
+        {
+            get
+            {
+                lock (m_pumpLock)
+                {
+                    return m_namespaces ??= PumpNamespaceIndices.Resolve(Server.NamespaceUris);
+                }
+            }
+        }
 
         /// <summary>
         /// Creates a pump below the Device Integration <c>DeviceSet</c> and
@@ -197,6 +206,9 @@ namespace Opc.Ua.Pumps.Server
         /// the Device Integration <c>DeviceSet</c>.
         /// </param>
         /// <param name="cancellationToken">Cancels the operation.</param>
+        /// <exception cref="ServiceResultException">
+        /// The DeviceSet is unavailable, or the name is already taken.
+        /// </exception>
         public async ValueTask<IPumpBuilder> CreatePumpAsync(
             QualifiedName browseName,
             NodeState? parent,
@@ -211,45 +223,59 @@ namespace Opc.Ua.Pumps.Server
 
             NodeState deviceSet = parent ?? ResolveDeviceSet();
 
-            // The duplicate check is by browse name rather than by predicting
-            // the NodeId the factory will mint: under counter-based minting a
-            // prediction always looks free, so the second pump of the same
-            // name would go straight through.
-            var existing = new List<BaseInstanceState>();
-            deviceSet.GetChildren(SystemContext, existing);
-            if (existing.Any(child => child.BrowseName == browseName))
+            // Creations are serialized from the duplicate check to the
+            // registration: two concurrent calls with the same name would
+            // otherwise both find the name free and both add a pump. The span
+            // awaits, so a Lock cannot be held across it.
+            await m_createPumpGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            PumpState pump;
+            try
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadBrowseNameDuplicated,
-                    "'{0}' already contains a child named '{1}'.",
-                    deviceSet.BrowseName,
-                    browseName);
+                // The duplicate check is by browse name rather than by
+                // predicting the NodeId the factory will mint: under
+                // counter-based minting a prediction always looks free, so the
+                // second pump of the same name would go straight through.
+                var existing = new List<BaseInstanceState>();
+                deviceSet.GetChildren(SystemContext, existing);
+                if (existing.Any(child => child.BrowseName == browseName))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadBrowseNameDuplicated,
+                        "'{0}' already contains a child named '{1}'.",
+                        deviceSet.BrowseName,
+                        browseName);
+                }
+
+                // The parent is passed so the factory can derive the
+                // per-instance NodeIds it stamps on the pump and its mandatory
+                // children from the parent chain rather than reusing the
+                // type-level ones.
+                pump = SystemContext.CreateInstanceOfPumpType(deviceSet, browseName);
+                pump.DisplayName = new LocalizedText(browseName.Name);
+                pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
+                deviceSet.AddChild(pump);
+
+                // A pump reports supervision events, so it has to be a notifier
+                // before a client can subscribe to it.
+                pump.EventNotifier |= EventNotifiers.SubscribeToEvents;
+
+                await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
+                    .ConfigureAwait(false);
+                await AddRootNotifierAsync(pump, cancellationToken).ConfigureAwait(false);
+
+                if (m_options.OrganizeIntoMachinesFolder && !TryAddToMachinesFolder(pump))
+                {
+                    m_logger.MachinesFolderUnavailable(browseName.Name);
+                }
+
+                lock (m_pumpLock)
+                {
+                    m_pumps.Add(pump);
+                }
             }
-
-            // The parent is passed so the factory can derive the per-instance
-            // NodeIds it stamps on the pump and its mandatory children from
-            // the parent chain rather than reusing the type-level ones.
-            PumpState pump = SystemContext.CreateInstanceOfPumpType(deviceSet, browseName);
-            pump.DisplayName = new LocalizedText(browseName.Name);
-            pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
-            deviceSet.AddChild(pump);
-
-            // A pump reports supervision events, so it has to be a notifier
-            // before a client can subscribe to it.
-            pump.EventNotifier |= EventNotifiers.SubscribeToEvents;
-
-            await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
-                .ConfigureAwait(false);
-            await AddRootNotifierAsync(pump, cancellationToken).ConfigureAwait(false);
-
-            if (m_options.OrganizeIntoMachinesFolder && !TryAddToMachinesFolder(pump))
+            finally
             {
-                m_logger.MachinesFolderUnavailable(browseName.Name);
-            }
-
-            lock (m_pumpLock)
-            {
-                m_pumps.Add(pump);
+                m_createPumpGate.Release();
             }
 
             m_logger.PumpMaterialised(browseName.Name, pump.NodeId);
@@ -303,6 +329,23 @@ namespace Opc.Ua.Pumps.Server
             nodes.AddOpcUaMachinery(context);
             nodes.AddOpcUaPumps(context);
             return new ValueTask<NodeStateCollection>(nodes);
+        }
+
+        /// <summary>
+        /// Releases the pump-creation gate once a creation still in flight
+        /// has left it, before the manager itself.
+        /// </summary>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            try
+            {
+                await m_createPumpGate.WaitAsync().ConfigureAwait(false);
+                m_createPumpGate.Dispose();
+            }
+            finally
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
         }
 
         /// <summary>

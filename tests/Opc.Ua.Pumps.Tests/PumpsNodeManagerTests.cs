@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Pumps.Server;
@@ -173,6 +175,59 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         [Test]
+        public async Task ConcurrentCreationsOfTheSameNameAdmitExactlyOneAsync()
+        {
+            // Both calls of a round are released onto the thread pool
+            // together, so each runs its duplicate check while the other may
+            // still be building its pump. Only serialized creation lets
+            // exactly one through; a few rounds make an unguarded race show.
+            const int rounds = 5;
+            await using var fixture = new PumpsServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+
+            for (int round = 1; round <= rounds; round++)
+            {
+                string name = "Pump_" + round.ToString(CultureInfo.InvariantCulture);
+                var start = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                Task<IPumpBuilder>[] attempts =
+                [
+                    CreateWhenReleasedAsync(fixture, start.Task, name),
+                    CreateWhenReleasedAsync(fixture, start.Task, name)
+                ];
+                start.SetResult(true);
+                try
+                {
+                    await Task.WhenAll(attempts).ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                    // Each attempt's outcome is inspected below.
+                }
+
+                int succeeded = attempts.Count(
+                    attempt => attempt.Status == TaskStatus.RanToCompletion);
+                ServiceResultException[] rejected =
+                [
+                    .. attempts
+                        .Where(attempt => attempt.IsFaulted)
+                        .Select(attempt => attempt.Exception!.InnerException)
+                        .OfType<ServiceResultException>()
+                ];
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(succeeded, Is.EqualTo(1), name + ": one creation succeeds");
+                    Assert.That(rejected, Has.Length.EqualTo(1), name + ": the other is rejected");
+                    Assert.That(
+                        rejected.Select(error => error.StatusCode),
+                        Is.All.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+                });
+            }
+            Assert.That(fixture.Manager.Pumps.Count, Is.EqualTo(rounds));
+        }
+
+        [Test]
         public async Task EveryPumpGetsItsOwnInstanceNodeIdsAsync()
         {
             // Two pumps that shared the type-level NodeIds of their children
@@ -211,6 +266,16 @@ namespace Opc.Ua.Pumps.Tests
                 Assert.That(found!.NodeId, Is.EqualTo(created.NodeId));
                 Assert.That(fixture.Manager.Pump(new NodeId(999999, 99)), Is.Null);
             });
+        }
+
+        private static async Task<IPumpBuilder> CreateWhenReleasedAsync(
+            PumpsServerFixture fixture,
+            Task start,
+            string name)
+        {
+            await start.ConfigureAwait(false);
+            return await fixture.Manager.CreatePumpAsync(fixture.PumpName(name))
+                .ConfigureAwait(false);
         }
 
         private static bool Organizes(
