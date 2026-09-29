@@ -614,37 +614,62 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteVariantValueOmissionFollowsIgnoreOptions()
+        public void WriteVariantValueOmissionFollowsTable41()
         {
-            // Like every other field: NULLs are omitted when nulls or defaults are ignored,
-            // defaults of non-nullable types only when defaults are ignored.
-            var nullValue = new Variant(NodeId.Null);
-            var defaultValue = new Variant((ushort)0);
+            // The Value is not encoded exactly when it is a NULL of a nullable built-in type
+            // (Part 6 5.4.2.17 Table 41), whatever the encoding; the default omission of the
+            // CompactEncoding applies to structure fields only (Part 6 5.4.2.1).
             JsonEncoderOptions ignoreNullsOnly = JsonEncoderOptions.Verbose with
             {
                 IgnoreNullValues = true
             };
+            (Variant Value, string Json)[] cases =
+            [
+                (new Variant(NodeId.Null), """{"Value":{"UaType":17}}"""),
+                (new Variant((string)null), """{"Value":{"UaType":12}}"""),
+                (new Variant((ushort)0), """{"Value":{"UaType":5,"Value":0}}"""),
+                (new Variant(false), """{"Value":{"UaType":1,"Value":false}}"""),
+                (new Variant(0.0), """{"Value":{"UaType":11,"Value":0}}"""),
+                (new Variant(StatusCodes.Good), """{"Value":{"UaType":19,"Value":{}}}""")
+            ];
 
             Assert.Multiple(() =>
             {
-                Assert.That(
-                    Encode(JsonEncoderOptions.Verbose, w => w.WriteVariant(JsonProperties.Value, nullValue)),
-                    Is.EqualTo("""{"Value":{"UaType":17,"Value":null}}"""));
-                Assert.That(
-                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, nullValue)),
-                    Is.EqualTo("""{"Value":{"UaType":17}}"""));
-                Assert.That(
-                    Encode(ignoreNullsOnly, w => w.WriteVariant(JsonProperties.Value, nullValue)),
-                    Is.EqualTo("""{"Value":{"UaType":17}}"""));
-                Assert.That(
-                    Encode(JsonEncoderOptions.Verbose, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
-                    Is.EqualTo("""{"Value":{"UaType":5,"Value":0}}"""));
-                Assert.That(
-                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
-                    Is.EqualTo("""{"Value":{"UaType":5}}"""));
-                Assert.That(
-                    Encode(ignoreNullsOnly, w => w.WriteVariant(JsonProperties.Value, defaultValue)),
-                    Is.EqualTo("""{"Value":{"UaType":5,"Value":0}}"""));
+                foreach ((Variant value, string json) in cases)
+                {
+                    foreach (JsonEncoderOptions options in new[]
+                    {
+                        JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact, ignoreNullsOnly
+                    })
+                    {
+                        Assert.That(
+                            Encode(options, w => w.WriteVariant(JsonProperties.Value, value)),
+                            Is.EqualTo(json),
+                            options.Name);
+                    }
+                }
+            });
+        }
+
+        [Test]
+        public void WriteDataValueValueOmissionFollowsTable41()
+        {
+            var nullValue = new DataValue(new Variant(NodeId.Null));
+            var defaultValue = new DataValue(new Variant(0));
+
+            Assert.Multiple(() =>
+            {
+                foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+                {
+                    Assert.That(
+                        Encode(options, w => w.WriteDataValue(JsonProperties.Value, nullValue)),
+                        Is.EqualTo("""{"Value":{"UaType":17}}"""),
+                        options.Name);
+                    Assert.That(
+                        Encode(options, w => w.WriteDataValue(JsonProperties.Value, defaultValue)),
+                        Is.EqualTo("""{"Value":{"UaType":6,"Value":0}}"""),
+                        options.Name);
+                }
             });
         }
 

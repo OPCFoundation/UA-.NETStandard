@@ -921,9 +921,10 @@ namespace Opc.Ua
             // No UaType is written here, so the decoder takes the value rank from the
             // metadata and a null array can be omitted like any other null array field.
             bool isNullArray = !value.TypeInfo.IsScalar && value.ValueIsDefaultOrNull;
+            // This is a structure field, not the Value of a Variant, so the omission
+            // follows the options like every other field (Part 6 5.4.2.1).
             if ((m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull) ||
-                (m_options.IgnoreNullValues && isNullArray) ||
-                CanOmitVariantValue(value))
+                (m_options.IgnoreNullValues && (isNullArray || IsNullVariantValue(value))))
             {
                 return;
             }
@@ -1077,7 +1078,7 @@ namespace Opc.Ua
                 {
                     WriteVariantUaTypeByte(value.WrappedValue);
                 }
-                if (!CanOmitVariantValue(value.WrappedValue))
+                if (!IsNullVariantValue(value.WrappedValue))
                 {
                     m_writer.WritePropertyName(JsonProperties.Value);
                     WriteVariantContents(value.WrappedValue, false, m_options.SuppressArtifacts);
@@ -1945,7 +1946,7 @@ namespace Opc.Ua
             {
                 WriteVariantUaTypeByte(value);
             }
-            if (!CanOmitVariantValue(value))
+            if (!IsNullVariantValue(value))
             {
                 m_writer.WritePropertyName(JsonProperties.Value);
                 WriteVariantContents(in value, false, suppressUaType);
@@ -1954,24 +1955,25 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Whether the Value field of a Variant can be left out. The options apply as they
-        /// do to every other field: a NULL of a nullable built-in type (Part 6 Table 1) is
-        /// omitted like any null when nulls or defaults are ignored, and the default of a
-        /// non-nullable type only when defaults are ignored. A decoder reconstructs a missing
-        /// Value as a scalar of the UaType, so an array Value is never omitted; a null array
-        /// is written as the semantically equal empty array instead (Part 6 5.1.11).
+        /// Whether the Value field of a Variant or DataValue is left out. It is not
+        /// encoded exactly when the value is a NULL of a nullable built-in type (Part 6
+        /// 5.4.2.17 Table 41, Table 1), in every encoding: the default omission of the
+        /// CompactEncoding covers the fields of a Structure (Part 6 5.4.2.1), not the
+        /// Value, and a missing Value of a non-nullable type would read as NULL. A decoder
+        /// reconstructs a missing Value as a scalar of the UaType, so an array Value is
+        /// never omitted; a null array is written as the semantically equal empty array
+        /// instead (Part 6 5.1.11).
         /// </summary>
-        private bool CanOmitVariantValue(in Variant value)
+        private static bool IsNullVariantValue(in Variant value)
         {
             if (!value.TypeInfo.IsScalar)
             {
                 return false;
             }
-            bool ignoreNulls = m_options.IgnoreNullValues || m_options.IgnoreDefaultValues;
             switch (value.TypeInfo.BuiltInType)
             {
                 case BuiltInType.LocalizedText:
-                    return ignoreNulls && IsJsonNull(value.GetLocalizedText());
+                    return IsJsonNull(value.GetLocalizedText());
                 case BuiltInType.String:
                 case BuiltInType.DateTime:
                 case BuiltInType.Guid:
@@ -1982,24 +1984,11 @@ namespace Opc.Ua
                 case BuiltInType.QualifiedName:
                 case BuiltInType.ExtensionObject:
                 case BuiltInType.DataValue:
-                    return ignoreNulls && value.ValueIsDefaultOrNull;
-                case BuiltInType.Boolean:
-                case BuiltInType.SByte:
-                case BuiltInType.Byte:
-                case BuiltInType.Int16:
-                case BuiltInType.UInt16:
-                case BuiltInType.Int32:
-                case BuiltInType.UInt32:
-                case BuiltInType.Int64:
-                case BuiltInType.UInt64:
-                case BuiltInType.Float:
-                case BuiltInType.Double:
-                case BuiltInType.StatusCode:
-                case BuiltInType.Enumeration:
-                    return m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull;
+                    return value.ValueIsDefaultOrNull;
                 default:
-                    // Includes Variant and DiagnosticInfo, which are not valid Variant
-                    // contents and must still reach the writer to be rejected.
+                    // Non-nullable types are always encoded. Also Variant and
+                    // DiagnosticInfo, which are not valid Variant contents and must
+                    // still reach the writer to be rejected.
                     return false;
             }
         }
