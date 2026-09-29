@@ -1787,7 +1787,9 @@ namespace Opc.Ua
             if (!value.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 WriteUInt32(JsonProperties.Code, value.Code);
-                if (!m_options.OmitStatusCodeSymbol && !m_options.SuppressArtifacts)
+                // Only the CompactEncoding omits the Symbol (5.4.2.12); RawData is a
+                // VerboseEncoding that omits type artifacts only (5.4.1).
+                if (!m_options.OmitStatusCodeSymbol)
                 {
                     string? symbolicId = value.SymbolicId;
                     if (!string.IsNullOrEmpty(symbolicId))

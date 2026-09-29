@@ -184,8 +184,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteStatusCodeRawDataOmitsSymbol()
+        public void WriteStatusCodeRawDataWritesSymbol()
         {
+            // RawData omits only UaType/UaTypeId (Part 6 5.4.1); the Symbol is omitted
+            // in the CompactEncoding only (5.4.2.12).
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var buffer = new PooledBufferWriter();
@@ -200,7 +202,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(status.TryGetProperty(JsonProperties.Code, out _), Is.True);
-                Assert.That(status.TryGetProperty(JsonProperties.Symbol, out _), Is.False);
+                Assert.That(status.GetProperty(JsonProperties.Symbol).GetString(), Is.EqualTo("BadNotWritable"));
             });
         }
 

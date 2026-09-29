@@ -373,10 +373,11 @@ namespace Opc.Ua.Fuzzing
             Assert.That(value.GetProperty("Value").GetString(), Is.EqualTo("status payload"));
             Assert.That(status.ValueKind, Is.EqualTo(JsonValueKind.Object));
             Assert.That(status.GetProperty("Code").GetUInt32(), Is.EqualTo(StatusCodes.BadDataLost));
+            // RawData omits type artifacts only; the Symbol follows OmitStatusCodeSymbol.
             Assert.That(
                 status.TryGetProperty("Symbol", out JsonElement symbol),
-                Is.EqualTo(!options.OmitStatusCodeSymbol && !options.SuppressArtifacts));
-            if (!options.OmitStatusCodeSymbol && !options.SuppressArtifacts)
+                Is.EqualTo(!options.OmitStatusCodeSymbol));
+            if (!options.OmitStatusCodeSymbol)
             {
                 Assert.That(symbol.GetString(), Is.EqualTo("BadDataLost"));
             }
