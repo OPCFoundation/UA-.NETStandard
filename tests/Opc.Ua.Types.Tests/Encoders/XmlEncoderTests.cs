@@ -1560,6 +1560,83 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decoder.ReadString("String"), Is.EqualTo(value));
         }
 
+        [TestCase("<!DOCTYPE a><a/>")]
+        [TestCase("<a/><b/>")]
+        [TestCase("<a/>text")]
+        [TestCase("<a")]
+        [TestCase("text")]
+        public void WriteExtensionObjectRejectsXmlBodyThatIsNotASingleElement(string body)
+        {
+            // the body of an unknown type is not validated when it is received.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var encoder = new XmlEncoder(messageContext);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+            var value = new ExtensionObject(new ExpandedNodeId(999), XmlElement.From(body));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteExtensionObject("EO", value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteExtensionObjectDropsTheXmlDeclarationOfAnXmlBody()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            string xml;
+            using (var encoder = new XmlEncoder(messageContext))
+            {
+                encoder.PushNamespace(Namespaces.OpcUaXsd);
+                encoder.WriteExtensionObject(
+                    "EO",
+                    new ExtensionObject(
+                        new ExpandedNodeId(999),
+                        XmlElement.From("<?xml version=\"1.0\"?><a xmlns=\"urn:a\"> <b/> </a>")));
+                xml = encoder.CloseAndReturnText();
+            }
+
+            Assert.That(xml, Does.Not.Contain("<?xml version=\"1.0\"?><a"));
+            Assert.That(xml, Does.Contain("<a xmlns=\"urn:a\"> <b /> </a>"));
+        }
+
+        [Test]
+        public void WriteXmlElementKeepsWhitespace()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            string xml;
+            using (var encoder = new XmlEncoder(messageContext))
+            {
+                encoder.PushNamespace(Namespaces.OpcUaXsd);
+                encoder.WriteXmlElement("Xml", XmlElement.From("<a><b> </b>\n <c>x</c></a>"));
+                xml = encoder.CloseAndReturnText();
+            }
+
+            // the body is in no namespace, not in the default namespace in scope.
+            Assert.That(
+                xml.Replace("\r\n", "\n"),
+                Does.Contain("<a xmlns=\"\"><b> </b>\n <c>x</c></a>"));
+        }
+
+        [Test]
+        public void WriteXmlElementRejectsDeeplyNestedContent()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxEncodingNestingLevels = 5;
+            using var encoder = new XmlEncoder(messageContext);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+            string nested = new StringBuilder()
+                .Insert(0, "<a>", 7)
+                .Append(new StringBuilder().Insert(0, "</a>", 7))
+                .ToString();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteXmlElement("Xml", XmlElement.From(nested)));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
         [Test]
         public void WriteDateTimeWithFieldNameWritesValue()
         {

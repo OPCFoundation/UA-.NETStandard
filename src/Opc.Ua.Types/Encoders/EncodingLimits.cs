@@ -177,7 +177,8 @@ namespace Opc.Ua
         public static string ReadXmlElementContent(
             XmlReader reader,
             int maxDepth,
-            int maxStringLength)
+            int maxStringLength,
+            bool declareNoNamespace = false)
         {
             var settings = new XmlWriterSettings
             {
@@ -189,61 +190,109 @@ namespace Opc.Ua
             using var text = new StringWriter(CultureInfo.InvariantCulture);
             using (var writer = XmlWriter.Create(text, settings))
             {
-                int startDepth = reader.Depth;
-                do
-                {
-                    switch (reader.NodeType)
-                    {
-                        case XmlNodeType.Element:
-                            if (reader.Depth - startDepth > maxDepth)
-                            {
-                                throw ServiceResultException.Create(
-                                    StatusCodes.BadEncodingLimitsExceeded,
-                                    "XML element nesting exceeds the maximum depth of {0}.",
-                                    maxDepth);
-                            }
-                            writer.WriteStartElement(
-                                reader.Prefix,
-                                reader.LocalName,
-                                reader.NamespaceURI);
-                            writer.WriteAttributes(reader, true);
-                            if (reader.IsEmptyElement)
-                            {
-                                writer.WriteEndElement();
-                            }
-                            break;
-                        case XmlNodeType.Text:
-                            writer.WriteString(reader.Value);
-                            break;
-                        case XmlNodeType.Whitespace:
-                        case XmlNodeType.SignificantWhitespace:
-                            writer.WriteWhitespace(reader.Value);
-                            break;
-                        case XmlNodeType.CDATA:
-                            writer.WriteCData(reader.Value);
-                            break;
-                        case XmlNodeType.EntityReference:
-                            writer.WriteEntityRef(reader.Name);
-                            break;
-                        case XmlNodeType.ProcessingInstruction:
-                            writer.WriteProcessingInstruction(reader.Name, reader.Value);
-                            break;
-                        case XmlNodeType.Comment:
-                            writer.WriteComment(reader.Value);
-                            break;
-                        case XmlNodeType.EndElement:
-                            writer.WriteFullEndElement();
-                            break;
-                    }
-                } while (reader.Read() &&
-                    (startDepth < reader.Depth ||
-                        (startDepth == reader.Depth &&
-                            reader.NodeType == XmlNodeType.EndElement)));
+                CopyXmlElement(reader, writer, maxDepth, declareNoNamespace);
             }
 
             string result = text.ToString();
             CheckStringLength(maxStringLength, result);
             return result;
+        }
+
+        /// <summary>
+        /// Copies the element the reader is positioned on, with its content, to
+        /// a writer node by node and leaves the reader on the node that follows
+        /// it. Fails as soon as an element is nested deeper than
+        /// <paramref name="maxDepth"/> below the copied element. With
+        /// <paramref name="declareNoNamespace"/> a root element in no namespace
+        /// declares xmlns="", so the copy keeps its namespace when it is later
+        /// written raw inside an element with a default namespace.
+        /// </summary>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the content
+        /// is nested too deep.</exception>
+        /// <exception cref="XmlException">Thrown when the content is not
+        /// well-formed.</exception>
+        public static void CopyXmlElement(
+            XmlReader reader,
+            XmlWriter writer,
+            int maxDepth,
+            bool declareNoNamespace = false)
+        {
+            int startDepth = reader.Depth;
+            do
+            {
+                switch (reader.NodeType)
+                {
+                    case XmlNodeType.Element:
+                        if (reader.Depth - startDepth > maxDepth)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingLimitsExceeded,
+                                "XML element nesting exceeds the maximum depth of {0}.",
+                                maxDepth);
+                        }
+                        writer.WriteStartElement(
+                            reader.Prefix,
+                            reader.LocalName,
+                            reader.NamespaceURI);
+                        bool isRoot = reader.Depth == startDepth;
+                        if (declareNoNamespace && isRoot && reader.NamespaceURI.Length == 0)
+                        {
+                            writer.WriteAttributeString("xmlns", string.Empty);
+                        }
+                        if (reader.MoveToFirstAttribute())
+                        {
+                            do
+                            {
+                                // xmlns="" on the root is redundant in a copy
+                                // that stands alone (or is declared above).
+                                if (isRoot &&
+                                    reader.Prefix.Length == 0 &&
+                                    reader.LocalName == "xmlns" &&
+                                    reader.Value.Length == 0)
+                                {
+                                    continue;
+                                }
+                                writer.WriteAttributeString(
+                                    reader.Prefix,
+                                    reader.LocalName,
+                                    reader.NamespaceURI,
+                                    reader.Value);
+                            } while (reader.MoveToNextAttribute());
+                            reader.MoveToElement();
+                        }
+                        if (reader.IsEmptyElement)
+                        {
+                            writer.WriteEndElement();
+                        }
+                        break;
+                    case XmlNodeType.Text:
+                        writer.WriteString(reader.Value);
+                        break;
+                    case XmlNodeType.Whitespace:
+                    case XmlNodeType.SignificantWhitespace:
+                        writer.WriteWhitespace(reader.Value);
+                        break;
+                    case XmlNodeType.CDATA:
+                        writer.WriteCData(reader.Value);
+                        break;
+                    case XmlNodeType.EntityReference:
+                        writer.WriteEntityRef(reader.Name);
+                        break;
+                    case XmlNodeType.ProcessingInstruction:
+                        writer.WriteProcessingInstruction(reader.Name, reader.Value);
+                        break;
+                    case XmlNodeType.Comment:
+                        writer.WriteComment(reader.Value);
+                        break;
+                    case XmlNodeType.EndElement:
+                        writer.WriteFullEndElement();
+                        break;
+                }
+            } while (reader.Read() &&
+                (startDepth < reader.Depth ||
+                    (startDepth == reader.Depth &&
+                        reader.NodeType == XmlNodeType.EndElement)));
         }
     }
 }

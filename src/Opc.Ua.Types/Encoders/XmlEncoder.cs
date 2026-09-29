@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
-using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
 
@@ -589,23 +588,61 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, value.IsEmpty, true, isArrayElement))
             {
-                // WriteRaw bypasses every check the writer would otherwise make,
-                // so parse the body first. Writing unparsable (or injected)
-                // markup would produce a document no decoder can read, and an
-                // XML declaration - which parses fine but may only appear at the
-                // start of a document - would be injected into the middle of
-                // this one. Writing the parsed element back drops the prolog and
-                // guarantees a single well formed root.
-                XElement? body = value.AsXElement();
-                if (body == null)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingError,
-                        "XmlElement body is not well formed XML.");
-                }
-                m_writer.WriteRaw(body.ToString(SaveOptions.DisableFormatting));
+                WriteXmlBody(value);
                 EndField(fieldName);
             }
+        }
+
+        /// <summary>
+        /// Writes XML that is kept as raw XML: an XmlElement value or the body
+        /// of an ExtensionObject of an unknown type.
+        /// </summary>
+        /// <remarks>
+        /// The XML is parsed first: writing unparsable (or injected) markup
+        /// would produce a document no decoder can read, and an XML
+        /// declaration or DOCTYPE - which may only appear at the start of a
+        /// document - would be injected into the middle of this one. The
+        /// element is copied without its prolog, as a single root
+        /// (Part 6 5.3.1.9, 5.3.1.16), keeping its whitespace, and bounded by
+        /// MaxStringLength and the XML element depth limit.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteXmlBody(XmlElement value)
+        {
+            string body;
+            try
+            {
+                using var reader = XmlReader.Create(
+                    new StringReader(value.OuterXml ?? string.Empty),
+                    CoreUtils.DefaultXmlReaderSettings());
+                if (reader.MoveToContent() != XmlNodeType.Element)
+                {
+                    throw new XmlException("The XML has no root element.");
+                }
+
+                // an element in no namespace declares it, so it is not taken
+                // into the default namespace in scope where it is written.
+                body = EncodingLimits.ReadXmlElementContent(
+                    reader,
+                    EncodingLimits.GetMaxXmlElementDepth(Context),
+                    Context.MaxStringLength,
+                    declareNoNamespace: true);
+
+                // the reader rejects a second root element or trailing text.
+                while (reader.Read())
+                {
+                }
+            }
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "XML body is not a single well formed element: {0}",
+                    xe.Message);
+            }
+
+            // written raw: the indenting writer would add whitespace inside it.
+            m_writer.WriteRaw(body);
         }
 
         /// <inheritdoc/>
@@ -2062,10 +2099,9 @@ namespace Opc.Ua
                 // encode xml body.
                 else if (extensionObject.TryGetAsXml(out XmlElement xml))
                 {
-                    using var reader = XmlReader.Create(
-                        new StringReader(xml.OuterXml ?? string.Empty),
-                        CoreUtils.DefaultXmlReaderSettings());
-                    m_writer.WriteNode(reader, false);
+                    // the body is not validated when it is received (e.g. an
+                    // XML body of an unknown type in a binary message).
+                    WriteXmlBody(xml);
                 }
                 else if (extensionObject.TryGetValue(out IEncodeable? encodeable))
                 {
