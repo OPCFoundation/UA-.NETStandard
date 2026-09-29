@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -128,7 +129,7 @@ namespace Opc.Ua.WotCon.Tests
                         Assert.That(versions, Is.Not.Null);
                         var browser = new Browser(remoteSession, new BrowserOptions
                         {
-                            ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent
+                            ReferenceTypeId = Ua.ReferenceTypeIds.Organizes
                         });
                         ArrayOf<ReferenceDescription> versionNodes = await browser.BrowseAsync(versions!.ObjectId, ct)
                             .ConfigureAwait(false);
@@ -379,18 +380,20 @@ namespace Opc.Ua.WotCon.Tests
                         });
                         ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(group.GroupNodeId, ct)
                             .ConfigureAwait(false);
-                        int matchingNames = 0;
+                        var matchingNodes = new HashSet<NodeId>();
                         foreach (ReferenceDescription reference in references)
                         {
                             if (reference.BrowseName == logical.BrowseName)
                             {
-                                matchingNames++;
+                                matchingNodes.Add(ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris));
                             }
                         }
                         Assert.Multiple(() =>
                         {
                             Assert.That(ambiguousResource.NodeId, Is.Not.EqualTo(logical.NodeId));
-                            Assert.That(matchingNames, Is.EqualTo(2));
+                            Assert.That(matchingNodes, Has.Count.EqualTo(2));
+                            Assert.That(matchingNodes, Does.Contain(logical.NodeId));
+                            Assert.That(matchingNodes, Does.Contain(ambiguousResource.NodeId));
                         });
                     }
                     await Assert.ThatAsync(async () => await client.VerifyLogicalResourceAsync(
@@ -838,25 +841,43 @@ namespace Opc.Ua.WotCon.Tests
             ReferenceServer? server = null;
             WotMaterializationCoordinator? coordinator = null;
             WotRegistryService? restoredRegistry = null;
+            FileWotRegistryStore? relocatedStore = null;
             try
             {
                 server = await fixture.StartAsync(Path.Combine(m_root, "fb")).ConfigureAwait(false);
                 Assert.That(fixture.Config.ApplicationUri, Is.EqualTo(target.ServerUri));
                 server.CurrentInstance.NamespaceUris.Append("urn:federation:before-registry");
-                restoredRegistry = new WotRegistryService(m_store, m_options.Bounds, m_options.IdentityBindings);
+                relocatedStore = new FileWotRegistryStore(Path.Combine(m_root, "relocated-registry"));
+                await relocatedStore.LoadAsync(ct).ConfigureAwait(false);
+                WotRegistrySnapshot snapshot = await m_store.LoadAsync(ct).ConfigureAwait(false);
+                foreach (WotResource resource in snapshot.AllResources())
+                {
+                    foreach (WotResourceVersion version in resource.Versions)
+                    {
+                        if (version.HasContent)
+                        {
+                            ByteString content = await m_registry.ReadContentAsync(version, ct).ConfigureAwait(false);
+                            await relocatedStore.ResourceStore.WriteAsync(version.DigestHex, 0, content, ct)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                }
+                await relocatedStore.CommitAsync(snapshot, ct).ConfigureAwait(false);
+                restoredRegistry = new WotRegistryService(
+                    relocatedStore, m_options.Bounds, m_options.IdentityBindings);
                 await restoredRegistry.InitializeAsync(ct).ConfigureAwait(false);
                 WotResource? restored = restoredRegistry.Current.FindResource(groupId, resourceId);
                 Assert.That(restored, Is.Not.Null);
                 Assert.That(restored!.Xid, Is.EqualTo(target.ResourceXid));
-                // Projection registration is separate from the native registry and federation behavior under test.
-                var projectionHost = new FakeWotProjectionHost();
+                var projectionHost = new PausableWotProjectionHost(
+                    new LifecycleWotProjectionHost(server.NodeManagerLifecycle));
                 coordinator = new WotMaterializationCoordinator(
                     restoredRegistry, projectionHost,
                     documentConverter: new FakeWotDocumentConverter());
                 await server.NodeManagerLifecycle.AddAsync(
                     new WotRegistryNodeManagerFactory(m_options, restoredRegistry, coordinator), null, ct)
                     .ConfigureAwait(false);
-                Assert.That(projectionHost.AddCount, Is.EqualTo(1));
+                Assert.That(projectionHost.Documents, Has.Count.EqualTo(1));
                 await using var connection = new ClientFixture(m_telemetry);
                 await connection.LoadClientConfigurationAsync(Path.Combine(m_root, "fbc"), "FederationRebasedClient")
                     .ConfigureAwait(false);
@@ -881,6 +902,7 @@ namespace Opc.Ua.WotCon.Tests
                 await fixture.StopAsync().ConfigureAwait(false);
                 coordinator?.Dispose();
                 restoredRegistry?.Dispose();
+                relocatedStore?.Dispose();
                 server?.Dispose();
             }
         }
