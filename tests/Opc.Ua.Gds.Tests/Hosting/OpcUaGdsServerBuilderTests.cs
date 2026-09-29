@@ -340,6 +340,33 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(options.EnableGdsApplicationSelfAdminProvider, Is.False);
         }
 
+        [Test]
+        public void GdsHostingRegistrationsRejectNullArguments()
+        {
+            Assert.That(
+                () => new GdsDefaultIdentityAuthenticatorsRegistration(null),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new GdsServerStartupTaskRegistration(null),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new GdsServerPreStartupTaskRegistration(null, typeof(NoOpPreStartupTask)),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new GdsServerPreStartupTaskRegistration(_ => new NoOpPreStartupTask(), null),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new DelegateGdsServerStartupTask(null, (_, _, _) => default),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new DelegateGdsServerStartupTask(new ServiceCollection().BuildServiceProvider(), null),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new ServiceCollection().AddOpcUa().AddGdsServer(o => o.ApplicationName = "Gds")
+                    .AddStartupTask(null),
+                Throws.ArgumentNullException);
+        }
+
         public sealed class NoOpStartupTask : Opc.Ua.Server.Hosting.IServerStartupTask
         {
             public System.Threading.Tasks.ValueTask OnServerStartedAsync(
