@@ -858,7 +858,28 @@ namespace Opc.Ua
                     {
                         // An encoding limit breach must not be downgraded into a
                         // successful decode that keeps the over limit raw body.
-                        Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message, element.OuterXml);
+                        // Otherwise the policy of a binary body applies: a known
+                        // type in ns=0 must decode, other types are kept raw only
+                        // up to MaxDecoderRecoveries times and logged once, so a
+                        // message cannot flood the log with its own content.
+                        if (typeId.NamespaceIndex == 0 ||
+                            m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                        {
+                            throw e as ServiceResultException ??
+                                ServiceResultException.Create(
+                                    StatusCodes.BadDecodingError,
+                                    e,
+                                    "Failed to decode encodeable type '{0}' encoded as Xml, NodeId='{1}'.",
+                                    activator.XmlName,
+                                    extension.TypeId);
+                        }
+
+                        if (m_encodeablesRecovered == 0)
+                        {
+                            Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message);
+                        }
+
+                        m_encodeablesRecovered++;
                     }
                 }
 

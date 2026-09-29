@@ -62,13 +62,13 @@ namespace Opc.Ua
             Message = "Failed to retrieve activator for extension object.")]
         public static partial void ActivatorNotFound(this ILogger logger);
 
-        [LoggerMessage(EventId = TypesEventIds.Encoding + 5, Level = LogLevel.Error,
-            Message = "Could not decode known type {Name} encoded as Xml. Error={Message}, Value={OuterXml}")]
+        [LoggerMessage(EventId = TypesEventIds.Encoding + 5, Level = LogLevel.Warning,
+            Message = "Could not decode known type {Name} encoded as Xml. Error={Message}. " +
+                "BinaryDecoder recovered.")]
         public static partial void CouldNotDecodeKnownTypeXml(
             this ILogger logger,
             XmlQualifiedName name,
-            string message,
-            string? outerXml);
+            string message);
 
         [LoggerMessage(EventId = TypesEventIds.Encoding + 6, Level = LogLevel.Warning,
             Message = "{Message}, failed to decode encodeable type '{Name}', NodeId='{NodeId}'. " +

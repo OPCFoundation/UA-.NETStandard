@@ -237,6 +237,135 @@ namespace Opc.Ua.Types.Tests.Encoders
             AssertStatus(() => decoder.ReadString(null), StatusCodes.BadDecodingError);
         }
 
+        private static byte[] BuildXmlBodyExtensionObjects(
+            IServiceMessageContext context,
+            NodeId xmlEncodingId,
+            int count)
+        {
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteInt32(null, count);
+            for (int ii = 0; ii < count; ii++)
+            {
+                encoder.WriteNodeId(null, xmlEncodingId);
+                encoder.WriteByte(null, 0x02);
+                encoder.WriteByteString(null, ByteString.From([(byte)'x']));
+            }
+            return encoder.CloseAndReturnBuffer()!;
+        }
+
+        [Test]
+        public void MalformedXmlBodyOfKnownNamespaceZeroTypeIsDecodingError()
+        {
+            // The XML body branch logged every failure at Error level with the
+            // attacker XML and kept the raw body even for ns=0 types.
+            ServiceMessageContext context = CreateContext();
+            context.Factory.AddEncodeableType(typeof(XmlSample));
+            byte[] bytes = BuildXmlBodyExtensionObjects(
+                context,
+                new NodeId(XmlSample.XmlId, 0),
+                1);
+
+            using var decoder = new BinaryDecoder(bytes, context);
+            AssertStatus(
+                () => decoder.ReadExtensionObjectArray(null),
+                StatusCodes.BadDecodingError);
+        }
+
+        [Test]
+        public void MalformedXmlBodyIsRecoveredOnlyUpToMaxDecoderRecoveries()
+        {
+            const string uri = "urn:test:xmlsample";
+            ServiceMessageContext context = CreateContext();
+            ushort ns = context.NamespaceUris.GetIndexOrAppend(uri);
+            context.Factory.AddEncodeableType(typeof(XmlSampleNs1));
+            context.MaxDecoderRecoveries = 2;
+            var xmlEncodingId = new NodeId(XmlSample.XmlId, ns);
+
+            byte[] twoBodies = BuildXmlBodyExtensionObjects(context, xmlEncodingId, 2);
+            using (var decoder = new BinaryDecoder(twoBodies, context))
+            {
+                ArrayOf<ExtensionObject> values = decoder.ReadExtensionObjectArray(null);
+                Assert.That(values.Count, Is.EqualTo(2));
+                Assert.That(values[0].TryGetAsXml(out _), Is.True);
+            }
+
+            byte[] threeBodies = BuildXmlBodyExtensionObjects(context, xmlEncodingId, 3);
+            using (var decoder = new BinaryDecoder(threeBodies, context))
+            {
+                AssertStatus(
+                    () => decoder.ReadExtensionObjectArray(null),
+                    StatusCodes.BadDecodingError);
+            }
+        }
+
+        /// <summary>
+        /// A minimal ns=0 encodeable with an XML encoding id.
+        /// </summary>
+        public sealed class XmlSample : IEncodeable
+        {
+            public const uint XmlId = 88903;
+
+            public int Value { get; set; }
+
+            public ExpandedNodeId TypeId => new(88901, 0);
+            public ExpandedNodeId BinaryEncodingId => new(88902, 0);
+            public ExpandedNodeId XmlEncodingId => new(XmlId, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32("Value", Value);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Value = decoder.ReadInt32("Value");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is XmlSample other && other.Value == Value;
+            }
+
+            public object Clone()
+            {
+                return new XmlSample { Value = Value };
+            }
+        }
+
+        /// <summary>
+        /// The same encodeable in a vendor namespace.
+        /// </summary>
+        public sealed class XmlSampleNs1 : IEncodeable
+        {
+            private const string kUri = "urn:test:xmlsample";
+
+            public int Value { get; set; }
+
+            public ExpandedNodeId TypeId => new(88901u, kUri);
+            public ExpandedNodeId BinaryEncodingId => new(88902u, kUri);
+            public ExpandedNodeId XmlEncodingId => new(XmlSample.XmlId, kUri);
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteInt32("Value", Value);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Value = decoder.ReadInt32("Value");
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is XmlSampleNs1 other && other.Value == Value;
+            }
+
+            public object Clone()
+            {
+                return new XmlSampleNs1 { Value = Value };
+            }
+        }
+
         [Test]
         public void DataValuePicosecondsOfAtLeast10000AreTreatedAs9999()
         {
