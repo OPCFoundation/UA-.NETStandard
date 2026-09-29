@@ -415,6 +415,22 @@ namespace OpcUaPubSubJsonTests
                 Is.EqualTo(1));
         }
 
+        [Test]
+        [TestSpec("7.2.4.4.2")]
+        public async Task GuidShapedStringPublisherIdStaysStringAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            const string publisherId = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"" + publisherId + "\",\"Messages\":[" +
+                "{\"DataSetWriterId\":1,\"Payload\":{\"a\":{\"UaType\":6,\"Value\":7}}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.PublisherId, Is.EqualTo(PublisherId.FromString(publisherId)));
+        }
+
         private static PubSubNetworkMessageContext NewContextWithMetaData(
             DataSetMetaDataType metaData)
         {

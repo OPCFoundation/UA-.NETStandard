@@ -1333,11 +1333,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     }
                     return PublisherId.Null;
                 case JsonValueKind.String:
+                    // JSON PublisherId is a String (Part 14 §7.2.5.4.1 Table 185);
+                    // valid PublisherId DataTypes are UInteger and String
+                    // (§7.2.4.4.2), so a GUID-shaped value stays a String.
                     string raw = CheckStringLength(value.GetString() ?? string.Empty, context);
-                    if (Guid.TryParseExact(raw, "D", out Guid g))
-                    {
-                        return PublisherId.From(new Variant(new Uuid(g)));
-                    }
                     return PublisherId.From(new Variant(raw));
                 default:
                     return PublisherId.Null;
