@@ -2172,21 +2172,11 @@ namespace Opc.Ua.Gds.Server
 
                 // verify the CSR integrity for the application and, per
                 // OPC 10000-12 §7.9.3, that its key fits the requested type
-                if (certificateGroup is CertificateGroup typedGroup)
-                {
-                    await typedGroup.VerifySigningRequestAsync(
-                        application,
-                        resolvedTypeId,
-                        certificateRequest,
-                        cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await certificateGroup.VerifySigningRequestAsync(
-                        application,
-                        certificateRequest,
-                        cancellationToken).ConfigureAwait(false);
-                }
+                await certificateGroup.VerifySigningRequestAsync(
+                    application,
+                    resolvedTypeId,
+                    certificateRequest,
+                    cancellationToken).ConfigureAwait(false);
 
                 // store request in the queue for approval
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;

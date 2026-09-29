@@ -371,22 +371,12 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        /// <summary>
-        /// Verifies a signing request as
-        /// <see cref="VerifySigningRequestAsync(ApplicationRecordDataType, ByteString, CancellationToken)"/>
-        /// does, and additionally checks that the public key of the CSR
-        /// can be issued as a certificate of <paramref name="certificateType"/>.
-        /// </summary>
+        /// <inheritdoc/>
         /// <remarks>
-        /// OPC 10000-12 §7.9.3 requires <c>StartSigningRequest</c> to reject
-        /// such a request: Bad_InvalidArgument when the CSR does not fit the
-        /// CertificateTypeId, Bad_NotSupported when the key algorithm or size
-        /// is not supported. Without this check the mismatch only surfaced in
-        /// <c>FinishRequest</c>.
+        /// Runs the checks of
+        /// <see cref="VerifySigningRequestAsync(ApplicationRecordDataType, ByteString, CancellationToken)"/>
+        /// and then <see cref="VerifySigningRequestKey"/>.
         /// </remarks>
-        /// <exception cref="ServiceResultException">
-        /// The CSR is invalid or its key does not match the certificate type.
-        /// </exception>
         public virtual async Task VerifySigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
