@@ -412,6 +412,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(harness.Target.ServerCertificateThumbprint, Is.EqualTo(thumbprint));
         }
 
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.5.1: asymmetrically encrypted data is a whole number of cipher blocks. A misaligned
+        /// OpenSecureChannel is rejected with Bad_SecurityChecksFailed instead of decrypting past the chunk.
+        /// </summary>
+        [Test]
+        public async Task OpenSecureChannelWithMisalignedCipherTextIsRejectedAsync()
+        {
+            using var harness = new HandoffHarness(SecurityPolicies.Basic256Sha256);
+            ArraySegment<byte> chunk = await harness.Peer.CreateOpenAsync(false).ConfigureAwait(false);
+            var truncated = new ArraySegment<byte>(chunk.Array!, chunk.Offset, chunk.Count - 1);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.Target.ReadOpenBodyLengthAsync(truncated).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
         private static Certificate CreatePaddedCertificate(string subject, int paddingSize)
         {
             using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);

@@ -1948,6 +1948,14 @@ namespace Opc.Ua.Bindings
             // extract signature.
             int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
 
+            // the plain text has to hold the sequence header and the signature.
+            if (plainText.Count - headerSize - TcpMessageLimits.SequenceHeaderSize < signatureSize)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The message is too short to hold the sequence header and the signature.");
+            }
+
             signature = new byte[signatureSize];
 
             for (int ii = 0; ii < signatureSize; ii++)
