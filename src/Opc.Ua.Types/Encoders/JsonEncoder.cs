@@ -1284,7 +1284,11 @@ namespace Opc.Ua
             }
             // Without a literal for the value (undefined or combined flags) only the
             // numeric value is encoded as a JSON string (5.4.4.2).
+#if NET5_0_OR_GREATER
+            if (!Enum.IsDefined(value))
+#else
             if (!Enum.IsDefined(typeof(T), value))
+#endif
             {
                 m_writer.WriteStringValue(numeric.ToString(CultureInfo.InvariantCulture));
                 return;
