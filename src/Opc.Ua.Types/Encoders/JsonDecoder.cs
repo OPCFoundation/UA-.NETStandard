@@ -1846,6 +1846,8 @@ namespace Opc.Ua
                         out value,
                         out NodeIdParseError error))
                     {
+                        CheckNodeIdLength(value.InnerNodeId);
+                        CheckStringLength(value.NamespaceUri);
                         return true;
                     }
 
@@ -1855,6 +1857,7 @@ namespace Opc.Ua
                         // ServerIndex decodes as a String NodeId (NamespaceIndex 0,
                         // ServerIndex 0) holding the JSON string. An unmapped
                         // NamespaceUri is kept in the NamespaceUri field instead.
+                        CheckStringLength(text);
                         value = new ExpandedNodeId(new NodeId(text, 0));
                         return true;
                     }
@@ -2507,6 +2510,7 @@ namespace Opc.Ua
                             // mapped to a NamespaceIndex decodes as a String
                             // NodeId in namespace 0 holding the JSON string.
                             value = new NodeId(text, 0);
+                            CheckNodeIdLength(value);
                             return true;
                         }
 
@@ -2514,6 +2518,7 @@ namespace Opc.Ua
                             expandedNodeId,
                             Context.NamespaceUris,
                             m_options.UpdateNamespaceTable);
+                        CheckNodeIdLength(value);
                         return true;
                     }
                     value = default;
@@ -2570,24 +2575,87 @@ namespace Opc.Ua
                     value = QualifiedName.Null;
                     return true;
                 case JsonValueKind.String:
-                    try
-                    {
-                        value = QualifiedName.Parse(
-                            Context,
-                            element.GetString()!,
-                            m_options.UpdateNamespaceTable);
-                        return true;
-                    }
-                    catch (ServiceResultException sre)
-                        when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
-                    {
-                        value = QualifiedName.Null;
-                        return false;
-                    }
+                    return TryParseQualifiedName(element.GetString()!, out value);
                 default:
                     value = QualifiedName.Null;
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Parses the JSON string form of a QualifiedName (Part 6 5.4.2.14
+        /// with the forms of 5.1.12 Table 7). A leading digit run followed by
+        /// ':' is a NamespaceIndex, mapped like the index of a NodeId; any
+        /// other text is a name in namespace 0, also when it contains ':'.
+        /// A NamespaceUri that cannot be mapped keeps the raw JSON string as
+        /// the name in namespace 0.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryParseQualifiedName(string text, out QualifiedName value)
+        {
+            value = QualifiedName.Null;
+            if (text.Length == 0)
+            {
+                return true;
+            }
+
+            int nameStart = 0;
+            ushort namespaceIndex = 0;
+            if (text.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+                if (index < 0)
+                {
+                    // The ';' separating the NamespaceUri from the name is
+                    // mandatory (Table 7).
+                    return false;
+                }
+                if (CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) &&
+                    !string.IsNullOrWhiteSpace(namespaceUri))
+                {
+                    CheckStringLength(namespaceUri);
+                    int ns = m_options.UpdateNamespaceTable
+                        ? Context.NamespaceUris.GetIndexOrAppend(namespaceUri)
+                        : Context.NamespaceUris.GetIndex(namespaceUri);
+                    if (ns >= 0)
+                    {
+                        namespaceIndex = (ushort)ns;
+                        nameStart = index + 1;
+                    }
+                }
+            }
+            else
+            {
+                int digits = 0;
+                while (digits < text.Length && text[digits] is >= '0' and <= '9')
+                {
+                    digits++;
+                }
+                if (digits > 0 && digits < text.Length && text[digits] == ':')
+                {
+                    if (!ushort.TryParse(
+                        text[..digits],
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out ushort ns))
+                    {
+                        // A digit run followed by ':' is never a name in
+                        // namespace 0, so an out of range index is invalid.
+                        return false;
+                    }
+                    namespaceIndex = m_namespaceMappings != null && ns < m_namespaceMappings.Length
+                        ? m_namespaceMappings[ns]
+                        : ns;
+                    nameStart = digits + 1;
+                }
+            }
+
+            // The name is kept verbatim (for an unmapped NamespaceUri the whole
+            // text), so it is bounded by MaxStringLength like in UA Binary.
+            string name = nameStart == 0 ? text : text[nameStart..];
+            CheckStringLength(name);
+            value = new QualifiedName(name, namespaceIndex);
+            return true;
         }
 
         /// <summary>
@@ -4441,6 +4509,24 @@ namespace Opc.Ua
         private void CheckStringLength(string? value)
         {
             EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
+        }
+
+        /// <summary>
+        /// Checks the identifier of a NodeId decoded from its string form
+        /// against the limits UA Binary applies to it: MaxStringLength for a
+        /// String identifier and MaxByteStringLength for an Opaque one.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckNodeIdLength(NodeId nodeId)
+        {
+            if (nodeId.TryGetValue(out string identifier))
+            {
+                CheckStringLength(identifier);
+            }
+            else if (nodeId.TryGetValue(out ByteString opaque))
+            {
+                CheckByteStringLength(opaque.Length);
+            }
         }
 
         /// <summary>
