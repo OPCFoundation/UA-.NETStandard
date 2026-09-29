@@ -178,11 +178,36 @@ namespace Opc.Ua.Gds.Server.Hosting
         public string DefaultSubjectNameContext { get; set; } = string.Empty;
 
         /// <summary>
-        /// Optional escape hatch invoked after the standard
-        /// configuration steps (transport quotas, server policies,
-        /// security configuration, GDS extension) but before
-        /// <c>CreateAsync</c>. Use it to add bespoke security policies,
-        /// override quotas, or add custom security stores.
+        /// User-token policies to advertise on every endpoint. Each entry
+        /// is appended via
+        /// <c>IApplicationConfigurationBuilderServerSelected.AddUserTokenPolicy</c>.
+        /// Bindable from configuration, e.g.
+        /// <c>OpcUa:Gds:Server:UserTokenPolicies:0:TokenType</c>.
+        /// </summary>
+        /// <remarks>
+        /// When this list is empty the GDS advertises
+        /// <see cref="UserTokenType.Anonymous"/> and
+        /// <see cref="UserTokenType.UserName"/>, leaving out a type the GDS
+        /// builder's <c>AddDefaultIdentityAuthenticators</c> options disable.
+        /// Anonymous is enough for a registered application to pull its
+        /// certificates (OPC 10000-12 §7.6), but registering an application
+        /// needs the DiscoveryAdmin Role or the ApplicationAdmin Privilege
+        /// (§6.5.6), so an administrator logs in with a user name.
+        /// </remarks>
+        public IList<OpcUaUserTokenPolicy> UserTokenPolicies { get; } = [];
+
+        /// <summary>
+        /// Optional escape hatch invoked with the server builder after the
+        /// transport quotas, security policies, user-token policies,
+        /// diagnostics and reverse-connect settings are applied, and before
+        /// the security configuration and the
+        /// <see cref="GlobalDiscoveryServerConfiguration"/> extension are
+        /// added. Use it to add bespoke security policies or other server
+        /// settings. User-token policies added here come in addition to
+        /// <see cref="UserTokenPolicies"/> (or its default); set that list
+        /// instead to choose the advertised token types. The security
+        /// configuration and the GDS extension added afterwards replace what
+        /// the callback sets for them.
         /// </summary>
         public Action<IApplicationConfigurationBuilderServerSelected>? ConfigureBuilder { get; set; }
     }

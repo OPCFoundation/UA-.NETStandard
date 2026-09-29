@@ -58,6 +58,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
     [Parallelizable]
     public sealed class OpcUaGdsServerBuilderTests
     {
+        private static readonly UserTokenType[] s_anonymousAndUserName =
+            [UserTokenType.Anonymous, UserTokenType.UserName];
+
         [Test]
         public void AddGdsServerThrowsForNullArgs()
         {
@@ -251,6 +254,30 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(options.ApplicationName, Is.EqualTo("BoundGds"));
             Assert.That(options.ApplicationUri, Is.EqualTo("urn:test:bound:gds"));
             Assert.That(options.AutoApprove, Is.False);
+        }
+
+        [Test]
+        public void AddGdsServerWithConfigurationSectionBindsUserTokenPolicies()
+        {
+            var configData = new Dictionary<string, string>
+            {
+                ["OpcUa:Gds:Server:UserTokenPolicies:0:TokenType"] = "Anonymous",
+                ["OpcUa:Gds:Server:UserTokenPolicies:1:TokenType"] = "UserName"
+            };
+
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(configData)
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddGdsServer(configuration);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            GdsServerOptions options = sp.GetRequiredService<IOptions<GdsServerOptions>>().Value;
+
+            Assert.That(
+                options.UserTokenPolicies.Select(policy => policy.TokenType).ToArray(),
+                Is.EqualTo(s_anonymousAndUserName));
         }
 
         [Test]
