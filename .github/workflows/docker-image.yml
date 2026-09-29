@@ -3,9 +3,10 @@ name: Images CI
 on:
   push:
     branches: [ master, release/*, docker* ]
-    paths-ignore:
-    - 'docs/**'
-    - 'tests/**'
+    # No paths-ignore here either: every push to master or release/* must
+    # report `images summary`, which the Release ruleset requires before a
+    # release branch can be cut from that commit. The discover job skips the
+    # image builds for documentation- or test-only pushes instead.
   pull_request:
     branches: [ master, main, master378, develop/*, release/* ]
     # NOTE: deliberately no `paths-ignore` filter, and the same branch list as
@@ -21,9 +22,16 @@ on:
   # image security update that changes nothing in this repository.
   workflow_dispatch:
 
+# Pull requests and feature branches cancel a superseded run: only the newest
+# commit's result matters there. A push to a protected line (master, main,
+# master378, release/*) never cancels, and each commit gets its own group,
+# because a queued run in a shared group is replaced as well as a running one
+# being cancelled. Every protected commit therefore finishes its required
+# checks ('build-and-test summary', 'images summary'), which the Release
+# ruleset demands before a release/<major>.<minor> branch can be cut from it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) && github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) }}
 
 env:
   REGISTRY: ghcr.io
@@ -49,22 +57,38 @@ jobs:
       env:
         EVENT_NAME: ${{ github.event_name }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        BEFORE_SHA: ${{ github.event.before }}
       run: |
-        # Reproduces the `paths-ignore` allow-list that used to sit on the
-        # pull_request trigger: an image is rebuilt for any change that is not
-        # purely documentation or test code. Filtering the whole workflow out
-        # would stop `images summary` from ever reporting, which would block
-        # every documentation-only pull request once it becomes required.
+        # Reproduces the `paths-ignore` allow-list that used to sit on both
+        # triggers: an image is rebuilt for any change that is not purely
+        # documentation or test code. Filtering the whole workflow out would
+        # stop `images summary` from ever reporting, which would block every
+        # documentation-only pull request, and every documentation-only push
+        # as a release-branch cut point, since the check is required.
         $relevantChanges = $true
+        $range = $null
         if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
             # Triple-dot: diff from the merge base, not from the current base
             # branch head, so a change that landed on the base branch after
             # this one was cut is not misread as an image-relevant change.
-            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            $range = "$($env:BASE_SHA)...HEAD"
+        }
+        elseif ($env:EVENT_NAME -eq 'push' -and $env:BEFORE_SHA -match '^[0-9a-f]{40}$' -and
+            $env:BEFORE_SHA -notmatch '^0+$') {
+            # A new branch has an all-zero 'before', and a force push can name
+            # a commit this clone does not have: build everything in both cases
+            # rather than guess what changed.
+            & git cat-file -e "$($env:BEFORE_SHA)^{commit}" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $range = "$($env:BEFORE_SHA)..HEAD"
+            }
+        }
+        if ($range) {
+            $changed = @(& git diff --name-only $range)
             if ($LASTEXITCODE -ne 0) {
                 throw (
-                    "Could not diff pull-request base '$($env:BASE_SHA)' against HEAD " +
-                    "(git exit code $LASTEXITCODE). Refusing to skip required image builds.")
+                    "Could not diff '$range' (git exit code $LASTEXITCODE). " +
+                    'Refusing to skip required image builds.')
             }
             $relevantChanges = $false
             foreach ($file in $changed) {
