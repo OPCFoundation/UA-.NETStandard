@@ -1914,7 +1914,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpMessageTypeInvalid,
-                    "Expected message type {0:X8} instead of {0:X8}.",
+                    "Expected message type {0:X8} instead of {1:X8}.",
                     expectedMessageType,
                     messageType);
             }

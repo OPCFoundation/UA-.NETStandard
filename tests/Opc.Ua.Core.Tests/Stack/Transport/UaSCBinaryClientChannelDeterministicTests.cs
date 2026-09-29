@@ -423,6 +423,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 () => TestClientChannel.CallVerifyMessageTypeAndSize(
                     decoder, TcpMessageType.Acknowledge, header.Length))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
+            Assert.That(
+                ex.Message,
+                Does.Contain(Utils.Format("{0:X8} instead of {1:X8}", TcpMessageType.Acknowledge, TcpMessageType.Error)));
         }
 
         [Test]
