@@ -49,10 +49,10 @@ namespace OpcUaPubSubJsonTests
     /// </summary>
     /// <remarks>
     /// Documented STJ vs Newtonsoft divergences:
-    /// 1. Verbose-Variant key names: STJ emits Part 14 §7.2.5 wire form
-    ///    <c>{ "Type": N, "Body": ... }</c>; Stack's Newtonsoft path
-    ///    historically used <c>{ "UaType": N, "Value": ... }</c>. This
-    ///    fixture canonicalises both sides before comparison.
+    /// 1. Verbose-Variant shape: both paths use the Part 6 §5.4.2.17
+    ///    <c>{ "UaType": N, "Value": ... }</c> Variant; STJ additionally
+    ///    collapses top-level Variants whose FieldMetaData supplies a
+    ///    concrete DataType to the bare value (Part 14 §7.2.5.4.2).
     /// 2. Double formatting: STJ uses shortest-round-trip; Newtonsoft
     ///    uses the <c>R</c> format specifier. Both round-trip equal
     ///    under <c>double.Parse</c>.
@@ -80,14 +80,19 @@ namespace OpcUaPubSubJsonTests
     {
         private static readonly int[] s_intArray = [1, 2, 3];
 
-        [Test]
-        public async Task NewEncoder_ProducesCanonicalVerboseVariantEnvelopeAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        [TestSpec("7.2.5.4.2")]
+        public async Task NewEncoderProducesSpecVerboseVariantAsync(bool withMetaData)
         {
             DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
             var registry = new DataSetMetaDataRegistry();
-            registry.Register(
-                new DataSetMetaDataKey(PublisherId.FromUInt16(300), 0, 1, Uuid.Empty, 1),
-                meta);
+            if (withMetaData)
+            {
+                registry.Register(
+                    new DataSetMetaDataKey(PublisherId.FromUInt16(300), 0, 1, Uuid.Empty, 1),
+                    meta);
+            }
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext(registry);
             var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
             {
@@ -115,15 +120,22 @@ namespace OpcUaPubSubJsonTests
             JsonElement messages = root.GetProperty("Messages");
             JsonElement payload = messages[0].GetProperty("Payload");
             JsonElement boolField = payload.GetProperty("BoolField");
-            // Part 14 §7.2.5 Verbose Variant uses Type/Body — verify
-            // the STJ path produces exactly this shape (not the
-            // Stack-default UaType/Value pair).
-            Assert.That(boolField.TryGetProperty("Type", out JsonElement t), Is.True,
-                "Verbose Variant must use 'Type' on the wire");
+            if (withMetaData)
+            {
+                // Part 14 §7.2.5.4.2: a concrete FieldMetaData DataType
+                // collapses the top-level Variant to the bare value.
+                Assert.That(boolField.ValueKind, Is.EqualTo(JsonValueKind.True));
+                return;
+            }
+            // Part 6 §5.4.2.17 Variant members are UaType and Value.
+            Assert.That(boolField.TryGetProperty("UaType", out JsonElement t), Is.True,
+                "Verbose Variant must use 'UaType' on the wire");
             Assert.That(t.GetInt32(), Is.EqualTo((int)BuiltInType.Boolean));
-            Assert.That(boolField.TryGetProperty("Body", out JsonElement b), Is.True,
-                "Verbose Variant must use 'Body' on the wire");
+            Assert.That(boolField.TryGetProperty("Value", out JsonElement b), Is.True,
+                "Verbose Variant must use 'Value' on the wire");
             Assert.That(b.GetBoolean(), Is.True);
+            Assert.That(boolField.TryGetProperty("Type", out _), Is.False);
+            Assert.That(boolField.TryGetProperty("Body", out _), Is.False);
         }
 
         [Test]

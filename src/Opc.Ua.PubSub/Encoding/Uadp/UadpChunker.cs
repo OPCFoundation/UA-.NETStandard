@@ -29,46 +29,50 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Encoding.Uadp
 {
     /// <summary>
-    /// Splits an encoded UADP NetworkMessage into wire-bounded chunks
-    /// and re-emits them as self-contained chunk frames.
+    /// Splits a UADP payload into the chunk payload fields of Part 14
+    /// Table 159 and builds / parses UADP chunk NetworkMessages.
     /// </summary>
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.4">
-    /// Part 14 §7.2.4.4.4 ChunkedNetworkMessage</see>. Each emitted
-    /// chunk frame carries a 10-byte chunk header
-    /// <code>(MessageSequenceNumber UInt16 + ChunkOffset UInt32 +
-    /// TotalSize UInt32)</code> followed by the chunk payload.
+    /// Part 14 §7.2.4.4.4 UADP Chunk NetworkMessage</see>. A chunk
+    /// NetworkMessage carries the regular NetworkMessage header with the
+    /// ExtendedFlags2 chunk bit, a PayloadHeader holding only the
+    /// DataSetWriterId (Table 158) and the payload
+    /// <code>(MessageSequenceNumber UInt16, ChunkOffset UInt32,
+    /// TotalSize UInt32, ChunkData ByteString)</code> (Table 159). Each
+    /// chunk carries a piece of exactly one DataSetMessage and is secured
+    /// on its own; all chunks except the last one have the same size.
     /// </remarks>
     public sealed class UadpChunker
     {
         /// <summary>
-        /// Size of the chunk header that prefixes each chunk
-        /// payload.
+        /// Size of the chunk payload fields that precede the ChunkData
+        /// bytes: MessageSequenceNumber, ChunkOffset, TotalSize and the
+        /// Int32 length of the ChunkData ByteString.
         /// </summary>
-        public const int ChunkHeaderSize = 10;
+        public const int ChunkHeaderSize = 14;
 
         /// <summary>
-        /// Splits the supplied encoded NetworkMessage into chunks. The
-        /// caller is expected to send each returned <c>byte[]</c> as a
-        /// single transport frame.
+        /// Splits the supplied payload (a DataSetMessage or a discovery
+        /// announcement payload) into chunk payloads. The caller places
+        /// each returned <c>byte[]</c> behind a chunk NetworkMessage header.
         /// </summary>
-        /// <param name="encodedMessage">The complete encoded
-        /// NetworkMessage bytes to split.</param>
-        /// <param name="messageSequenceNumber">The sequence number of
-        /// the source NetworkMessage carried in each chunk header.
-        /// </param>
-        /// <param name="maxFrameSize">Maximum size (in bytes) of one
-        /// transport frame including the chunk header.</param>
-        /// <returns>An ordered, non-empty list of chunk frames covering
-        /// the full message. When the message fits within
-        /// <paramref name="maxFrameSize"/> minus the chunk header the
-        /// list contains exactly one element.</returns>
+        /// <param name="encodedMessage">The complete payload bytes to
+        /// split.</param>
+        /// <param name="messageSequenceNumber">The MessageSequenceNumber
+        /// carried in each chunk.</param>
+        /// <param name="maxFrameSize">Maximum size (in bytes) of one chunk
+        /// payload including the <see cref="ChunkHeaderSize"/> fields.</param>
+        /// <returns>An ordered, non-empty list of chunk payloads covering
+        /// the full payload. All chunks except the last one have the same
+        /// size.</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public IReadOnlyList<byte[]> Split(
@@ -108,6 +112,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 writer.WriteUInt16Le(messageSequenceNumber);
                 writer.WriteUInt32Le((uint)offset);
                 writer.WriteUInt32Le((uint)totalSize);
+                writer.WriteUInt32Le((uint)payloadSize);
                 writer.WriteBytes(source.Slice(offset, payloadSize));
                 chunks.Add(chunk);
             }
@@ -116,22 +121,21 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         /// <summary>
-        /// Reads the chunk header from the supplied frame.
+        /// Reads the chunk payload fields (Part 14 Table 159).
         /// </summary>
-        /// <param name="frame">A single chunk frame produced by
+        /// <param name="frame">A chunk payload as produced by
         /// <see cref="Split"/>.</param>
         /// <param name="messageSequenceNumber">The decoded
         /// MessageSequenceNumber when this method returns
         /// <c>true</c>.</param>
         /// <param name="chunkOffset">The decoded byte offset of the
-        /// chunk payload inside the original message.</param>
+        /// chunk inside the complete payload.</param>
         /// <param name="totalSize">The decoded total size of the
-        /// original message.</param>
-        /// <param name="payload">The chunk payload bytes (the slice of
-        /// <paramref name="frame"/> following the 10-byte header).
-        /// </param>
-        /// <returns><c>true</c> when the chunk header could be parsed;
-        /// <c>false</c> when the frame is too short.</returns>
+        /// complete payload.</param>
+        /// <param name="payload">The ChunkData bytes.</param>
+        /// <returns><c>true</c> when the chunk fields could be parsed;
+        /// <c>false</c> when the frame is truncated, the ChunkData length
+        /// is negative or does not match the remaining bytes.</returns>
         public static bool TryParseChunk(
             ReadOnlyMemory<byte> frame,
             out ushort messageSequenceNumber,
@@ -150,17 +154,270 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
 
             ReadOnlySpan<byte> span = frame.Span;
-            messageSequenceNumber = (ushort)(span[0] | (span[1] << 8));
-            chunkOffset = (uint)(span[2] |
-                (span[3] << 8) |
-                (span[4] << 16) |
-                (span[5] << 24));
-            totalSize = (uint)(span[6] |
-                (span[7] << 8) |
-                (span[8] << 16) |
-                (span[9] << 24));
-            payload = frame[ChunkHeaderSize..];
+            int dataLength = BinaryPrimitives.ReadInt32LittleEndian(span[10..]);
+            if (dataLength < 0 || dataLength != frame.Length - ChunkHeaderSize)
+            {
+                return false;
+            }
+            messageSequenceNumber = BinaryPrimitives.ReadUInt16LittleEndian(span);
+            chunkOffset = BinaryPrimitives.ReadUInt32LittleEndian(span[2..]);
+            totalSize = BinaryPrimitives.ReadUInt32LittleEndian(span[6..]);
+            payload = frame.Slice(ChunkHeaderSize, dataLength);
+            return true;
+        }
+
+        /// <summary>
+        /// Splits an encoded, unsecured DataSetMessage NetworkMessage into
+        /// chunk NetworkMessages, one chunk series per DataSetMessage.
+        /// </summary>
+        /// <param name="frame">Encoded NetworkMessage whose payload is in
+        /// cleartext (no SecurityHeader).</param>
+        /// <param name="maxNetworkMessageSize">Maximum size of one chunk
+        /// NetworkMessage on the wire.</param>
+        /// <param name="securityOverhead">Bytes reserved per chunk for the
+        /// SecurityHeader and signature added when the chunk is secured.</param>
+        /// <param name="securityEnabled">Set the ExtendedFlags1
+        /// SecurityHeader bit in each chunk header; the caller secures each
+        /// chunk at <see cref="UadpChunkFrame.PayloadOffset"/>.</param>
+        /// <param name="fallbackSequenceNumber">MessageSequenceNumber used
+        /// for DataSetMessages that carry no sequence number.</param>
+        /// <returns>The chunk NetworkMessages, or <c>null</c> when the frame
+        /// is not an unsecured DataSetMessage NetworkMessage that can be
+        /// split.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="maxNetworkMessageSize"/> leaves no room for chunk
+        /// data.</exception>
+        internal static IReadOnlyList<UadpChunkFrame>? TrySplitNetworkMessage(
+            ReadOnlyMemory<byte> frame,
+            int maxNetworkMessageSize,
+            int securityOverhead,
+            bool securityEnabled,
+            ushort fallbackSequenceNumber)
+        {
+            if (!UadpDecoder.TryReadPrefix(frame, out UadpPrefixInfo info) ||
+                info.ChunkMessage ||
+                info.SecurityEnabled ||
+                !info.IsDataSetMessage)
+            {
+                return null;
+            }
+
+            ReadOnlySpan<byte> span = frame.Span;
+            bool hasPayloadHeader =
+                (info.UadpFlags & UadpFlagsEncodingMask.PayloadHeaderEnabled) != 0;
+            int count = hasPayloadHeader ? info.PayloadCount : 1;
+            int position = info.PrefixLength;
+            int[] sizes = new int[count];
+            if (count > 1)
+            {
+                if (span.Length - position < 2 * count)
+                {
+                    return null;
+                }
+                int total = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    sizes[i] = BinaryPrimitives.ReadUInt16LittleEndian(span[(position + (2 * i))..]);
+                    total += sizes[i];
+                    if (sizes[i] == 0)
+                    {
+                        return null;
+                    }
+                }
+                position += 2 * count;
+                if (total > span.Length - position)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                sizes[0] = span.Length - position;
+                if (sizes[0] == 0)
+                {
+                    return null;
+                }
+            }
+
+            var chunker = new UadpChunker();
+            var result = new List<UadpChunkFrame>();
+            for (int i = 0; i < count; i++)
+            {
+                ushort? writerId = hasPayloadHeader
+                    ? BinaryPrimitives.ReadUInt16LittleEndian(
+                        span[(info.PayloadHeaderOffset + 1 + (2 * i))..])
+                    : null;
+                ReadOnlyMemory<byte> dataSetMessage = frame.Slice(position, sizes[i]);
+                position += sizes[i];
+
+                byte[] prefix = BuildChunkPrefix(span, info, writerId, securityEnabled);
+                ushort sequenceNumber = TryReadDataSetMessageSequenceNumber(
+                    dataSetMessage.Span, out ushort dsmSequence)
+                    ? dsmSequence
+                    : fallbackSequenceNumber;
+                IReadOnlyList<byte[]> pieces = chunker.Split(
+                    dataSetMessage,
+                    sequenceNumber,
+                    maxNetworkMessageSize - prefix.Length - securityOverhead);
+                foreach (byte[] piece in pieces)
+                {
+                    byte[] chunkFrame = new byte[prefix.Length + piece.Length];
+                    Buffer.BlockCopy(prefix, 0, chunkFrame, 0, prefix.Length);
+                    Buffer.BlockCopy(piece, 0, chunkFrame, prefix.Length, piece.Length);
+                    result.Add(new UadpChunkFrame(chunkFrame, prefix.Length));
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Builds the cleartext, non-chunk NetworkMessage for a payload
+        /// reassembled from chunk NetworkMessages: the header of the
+        /// completing chunk without the chunk and security bits, a
+        /// PayloadHeader with Count 1 and the chunk's DataSetWriterId,
+        /// followed by the reassembled payload.
+        /// </summary>
+        /// <param name="chunkFrame">The completing chunk NetworkMessage
+        /// (at least its prefix).</param>
+        /// <param name="info">The parsed prefix of
+        /// <paramref name="chunkFrame"/>.</param>
+        /// <param name="payload">The reassembled DataSetMessage or discovery
+        /// announcement payload.</param>
+        internal static byte[] ComposeReassembledNetworkMessage(
+            ReadOnlySpan<byte> chunkFrame,
+            in UadpPrefixInfo info,
+            ReadOnlySpan<byte> payload)
+        {
+            UadpFlagsEncodingMask uadpFlags = info.UadpFlags;
+            ExtendedFlags1EncodingMask ext1 = info.ExtendedFlags1 &
+                ~ExtendedFlags1EncodingMask.SecurityEnabled;
+            ExtendedFlags2EncodingMask ext2 = info.ExtendedFlags2 &
+                ~ExtendedFlags2EncodingMask.ChunkMessage;
+
+            int headerEnd = info.PayloadHeaderOffset >= 0
+                ? info.PayloadHeaderOffset
+                : info.PrefixLength;
+            ReadOnlySpan<byte> head = chunkFrame[info.FlagsLength..headerEnd];
+            ReadOnlySpan<byte> tail = info.PayloadHeaderOffset >= 0
+                ? chunkFrame[(info.PayloadHeaderOffset + info.PayloadHeaderLength)..info.PrefixLength]
+                : [];
+            int payloadHeaderLength = info.ChunkDataSetWriterId.HasValue ? 3 : 0;
+
+            var flags = new List<byte>(3);
+            WriteFlags(flags, uadpFlags, ext1, ext2);
+            byte[] result = new byte[
+                flags.Count + head.Length + payloadHeaderLength + tail.Length + payload.Length];
+            int position = 0;
+            foreach (byte flag in flags)
+            {
+                result[position++] = flag;
+            }
+            head.CopyTo(result.AsSpan(position));
+            position += head.Length;
+            if (info.ChunkDataSetWriterId is ushort writerId)
+            {
+                result[position++] = 1;
+                BinaryPrimitives.WriteUInt16LittleEndian(result.AsSpan(position), writerId);
+                position += 2;
+            }
+            tail.CopyTo(result.AsSpan(position));
+            position += tail.Length;
+            payload.CopyTo(result.AsSpan(position));
+            return result;
+        }
+
+        private static byte[] BuildChunkPrefix(
+            ReadOnlySpan<byte> frame,
+            in UadpPrefixInfo info,
+            ushort? writerId,
+            bool securityEnabled)
+        {
+            UadpFlagsEncodingMask uadpFlags = info.UadpFlags |
+                UadpFlagsEncodingMask.ExtendedFlags1Enabled;
+            ExtendedFlags1EncodingMask ext1 = info.ExtendedFlags1 |
+                ExtendedFlags1EncodingMask.ExtendedFlags2Enabled;
+            if (securityEnabled)
+            {
+                ext1 |= ExtendedFlags1EncodingMask.SecurityEnabled;
+            }
+            ExtendedFlags2EncodingMask ext2 = info.ExtendedFlags2 |
+                ExtendedFlags2EncodingMask.ChunkMessage;
+
+            ReadOnlySpan<byte> head = frame[info.FlagsLength..info.PayloadHeaderOffset];
+            ReadOnlySpan<byte> tail =
+                frame[(info.PayloadHeaderOffset + info.PayloadHeaderLength)..info.PrefixLength];
+            int payloadHeaderLength = writerId.HasValue ? 2 : 0;
+            byte[] prefix = new byte[3 + head.Length + payloadHeaderLength + tail.Length];
+            prefix[0] = ((byte)1).Combine(uadpFlags);
+            prefix[1] = (byte)ext1;
+            prefix[2] = (byte)ext2;
+            int position = 3;
+            head.CopyTo(prefix.AsSpan(position));
+            position += head.Length;
+            if (writerId is ushort id)
+            {
+                // Table 158: the chunk PayloadHeader is the DataSetWriterId.
+                BinaryPrimitives.WriteUInt16LittleEndian(prefix.AsSpan(position), id);
+                position += 2;
+            }
+            tail.CopyTo(prefix.AsSpan(position));
+            return prefix;
+        }
+
+        private static void WriteFlags(
+            List<byte> flags,
+            UadpFlagsEncodingMask uadpFlags,
+            ExtendedFlags1EncodingMask ext1,
+            ExtendedFlags2EncodingMask ext2)
+        {
+            // Omit extended flag bytes that became zero (Table 154).
+            if (ext2 == 0)
+            {
+                ext1 &= ~ExtendedFlags1EncodingMask.ExtendedFlags2Enabled;
+            }
+            if (ext1 == 0)
+            {
+                uadpFlags &= ~UadpFlagsEncodingMask.ExtendedFlags1Enabled;
+            }
+            flags.Add(((byte)1).Combine(uadpFlags));
+            if ((uadpFlags & UadpFlagsEncodingMask.ExtendedFlags1Enabled) != 0)
+            {
+                flags.Add((byte)ext1);
+                if ((ext1 & ExtendedFlags1EncodingMask.ExtendedFlags2Enabled) != 0)
+                {
+                    flags.Add((byte)ext2);
+                }
+            }
+        }
+
+        private static bool TryReadDataSetMessageSequenceNumber(
+            ReadOnlySpan<byte> dataSetMessage,
+            out ushort sequenceNumber)
+        {
+            sequenceNumber = 0;
+            if (dataSetMessage.IsEmpty)
+            {
+                return false;
+            }
+            var flags1 = (DataSetFlags1EncodingMask)dataSetMessage[0];
+            if ((flags1 & DataSetFlags1EncodingMask.SequenceNumberEnabled) == 0)
+            {
+                return false;
+            }
+            int offset = (flags1 & DataSetFlags1EncodingMask.DataSetFlags2Enabled) != 0 ? 2 : 1;
+            if (dataSetMessage.Length < offset + 2)
+            {
+                return false;
+            }
+            sequenceNumber = BinaryPrimitives.ReadUInt16LittleEndian(dataSetMessage[offset..]);
             return true;
         }
     }
+
+    /// <summary>
+    /// One encoded chunk NetworkMessage and the offset at which its
+    /// payload (Part 14 Table 159) starts, i.e. where the SecurityHeader
+    /// is inserted when the chunk is secured.
+    /// </summary>
+    internal readonly record struct UadpChunkFrame(ReadOnlyMemory<byte> Frame, int PayloadOffset);
 }

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Text.Json;
 
 namespace Opc.Ua.PubSub.Encoding.Json
@@ -44,12 +45,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.4">
     /// Part 14 §7.2.5.4</see>. The Stack <see cref="Ua.JsonDecoder"/>
     /// expects the top of its element stack to be a JSON object, so the
-    /// helper wraps the supplied element in a synthetic
-    /// <c>{ "v": &lt;element&gt; }</c> envelope before reading.
+    /// helper copies the UTF-8 bytes of the supplied element into a
+    /// pooled synthetic <c>{ "v": &lt;element&gt; }</c> envelope before
+    /// reading. The copy is written straight from the parsed document,
+    /// so no intermediate UTF-16 text is materialised.
     /// </remarks>
     internal static class JsonVariantDecoder
     {
-        private const string SpliceFieldName = "v";
+        /// <summary>
+        /// Property name of the synthetic splice envelope.
+        /// </summary>
+        internal const string SpliceFieldName = "v";
 
         /// <summary>
         /// Decodes a single Variant payload from the supplied element.
@@ -57,13 +63,15 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="element">JSON element holding the value.</param>
         /// <param name="mode">
         /// Detected encoding mode. <see cref="JsonEncodingMode.Verbose"/>
-        /// expects the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> envelope;
+        /// expects the Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c>
+        /// envelope, or the bare value of a field whose FieldMetaData
+        /// supplies a concrete type (Part 14 §7.2.5.4.2);
         /// <see cref="JsonEncodingMode.Compact"/> and
         /// <see cref="JsonEncodingMode.RawData"/> expect bare values.
         /// </param>
         /// <param name="typeInfo">
-        /// Required for Compact / RawData decoding when the metadata
-        /// declares the field's type.
+        /// Required for Compact / RawData decoding and for collapsed
+        /// Verbose fields when the metadata declares the field's type.
         /// </param>
         /// <param name="context">Stack message context.</param>
         /// <returns>Decoded variant.</returns>
@@ -82,20 +90,25 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return Variant.Null;
             }
-            bool wrapsEnvelope = JsonVariantEncoder.WrapsInVariantEnvelope(mode);
-            string wrapped = wrapsEnvelope
-                ? WrapAndRenameVariant(element)
-                : WrapAsObject(element);
-            using Ua.JsonDecoder decoder = new(wrapped, context);
-            if (wrapsEnvelope)
+            if (JsonVariantEncoder.WrapsInVariantEnvelope(mode) &&
+                (typeInfo is not { } concrete ||
+                    !JsonVariantEncoder.IsCollapsedField(concrete.BuiltInType, concrete.ValueRank) ||
+                    IsVariantEnvelope(element)))
             {
-                return decoder.ReadVariant(SpliceFieldName);
+                return DecodeSpliced(
+                    element,
+                    context,
+                    static decoder => decoder.ReadVariant(SpliceFieldName));
             }
             if (typeInfo is null)
             {
                 return Variant.Null;
             }
-            return decoder.ReadVariantValue(SpliceFieldName, typeInfo.Value);
+            TypeInfo resolved = typeInfo.Value;
+            return DecodeSpliced(
+                element,
+                context,
+                decoder => decoder.ReadVariantValue(SpliceFieldName, resolved));
         }
 
         /// <summary>
@@ -118,42 +131,33 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return DataValue.Null;
             }
-            string wrapped = WrapAsObject(element);
-            using Ua.JsonDecoder decoder = new(wrapped, context);
-            return decoder.ReadDataValue(SpliceFieldName);
+            return DecodeSpliced(
+                element,
+                context,
+                static decoder => decoder.ReadDataValue(SpliceFieldName));
         }
 
         /// <summary>
-        /// Wraps the supplied element in the synthetic
-        /// <c>{ "v": &lt;raw&gt; }</c> envelope required by the Stack
-        /// <see cref="Ua.JsonDecoder"/>.
+        /// Copies <paramref name="element"/> into the synthetic
+        /// <c>{ "v": &lt;element&gt; }</c> envelope and runs
+        /// <paramref name="read"/> against a Stack
+        /// <see cref="Ua.JsonDecoder"/> positioned on it.
         /// </summary>
+        /// <typeparam name="T">Decoded value type.</typeparam>
         /// <param name="element">Source element.</param>
-        /// <returns>JSON text suitable for a string-based decoder
-        /// constructor.</returns>
-        private static string WrapAsObject(JsonElement element)
+        /// <param name="context">Stack message context.</param>
+        /// <param name="read">Reads the <see cref="SpliceFieldName"/>
+        /// property.</param>
+        /// <param name="excludedProperty">Optional member of an object
+        /// <paramref name="element"/> that is not copied.</param>
+        /// <returns>The decoded value.</returns>
+        internal static T DecodeSpliced<T>(
+            JsonElement element,
+            IServiceMessageContext context,
+            Func<Ua.JsonDecoder, T> read,
+            string? excludedProperty = null)
         {
-            string raw = element.GetRawText();
-            return string.Concat("{\"", SpliceFieldName, "\":", raw, "}");
-        }
-
-        /// <summary>
-        /// Wraps the supplied Verbose Variant element in the
-        /// synthetic <c>{ "v": &lt;raw&gt; }</c> envelope while
-        /// re-mapping the Part 14 §7.2.5 wire key names
-        /// (<c>Type</c>/<c>Body</c>) back to the Stack JSON encoder's
-        /// Variant key names (<c>UaType</c>/<c>Value</c>) so the
-        /// Stack <see cref="Ua.JsonDecoder"/> can rehydrate it.
-        /// </summary>
-        /// <param name="element">Source variant element.</param>
-        /// <returns>JSON text suitable for the Stack decoder.</returns>
-        private static string WrapAndRenameVariant(JsonElement element)
-        {
-            if (element.ValueKind != JsonValueKind.Object)
-            {
-                return WrapAsObject(element);
-            }
-            using var buffer = new System.IO.MemoryStream();
+            using JsonBufferWriter buffer = new(256);
             using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
             {
                 SkipValidation = true,
@@ -162,24 +166,40 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 writer.WriteStartObject();
                 writer.WritePropertyName(SpliceFieldName);
-                writer.WriteStartObject();
-                foreach (JsonProperty member in element.EnumerateObject())
+                if (excludedProperty is not null && element.ValueKind == JsonValueKind.Object)
                 {
-                    string mapped = member.Name switch
+                    writer.WriteStartObject();
+                    foreach (JsonProperty member in element.EnumerateObject())
                     {
-                        "Type" => "UaType",
-                        "Body" => "Value",
-                        _ => member.Name
-                    };
-                    writer.WritePropertyName(mapped);
-                    writer.WriteRawValue(
-                        member.Value.GetRawText(),
-                        skipInputValidation: true);
+                        if (!member.NameEquals(excludedProperty))
+                        {
+                            member.WriteTo(writer);
+                        }
+                    }
+                    writer.WriteEndObject();
+                }
+                else
+                {
+                    element.WriteTo(writer);
                 }
                 writer.WriteEndObject();
-                writer.WriteEndObject();
             }
-            return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+            using Ua.JsonDecoder decoder = new(
+                new ReadOnlySequence<byte>(buffer.WrittenMemory),
+                context);
+            return read(decoder);
+        }
+
+        /// <summary>
+        /// Whether <paramref name="element"/> is a Part 6 §5.4.2.17
+        /// Variant object (it carries <c>UaType</c>).
+        /// </summary>
+        /// <param name="element">Candidate element.</param>
+        /// <returns><see langword="true"/> for a Variant envelope.</returns>
+        internal static bool IsVariantEnvelope(JsonElement element)
+        {
+            return element.ValueKind == JsonValueKind.Object &&
+                element.TryGetProperty("UaType", out _);
         }
     }
 }

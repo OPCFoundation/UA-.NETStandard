@@ -95,10 +95,13 @@ namespace Opc.Ua.Fuzzing
                 writer.WriteNumber("MajorVersion", 1);
                 writer.WriteNumber("MinorVersion", 2);
                 writer.WriteEndObject();
+                // Verbose fields with a concrete FieldMetaData type are collapsed to
+                // bare values (Part 14 §7.2.5.4.2); encode the Verbose seed without
+                // metadata so it keeps exercising the UaType/Value Variant envelope.
                 JsonFieldEncoder.EncodeFields(
                     writer,
                     CreateFields(fieldEncoding),
-                    FuzzableCode.CreateMetaData(),
+                    mode == JsonEncodingMode.Verbose ? null : FuzzableCode.CreateMetaData(),
                     mode,
                     FuzzableCode.NewContext().MessageContext);
                 writer.WriteEndObject();

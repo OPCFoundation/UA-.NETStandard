@@ -3102,7 +3102,7 @@ namespace Opc.Ua
             {
                 return EncodingLimits.ReadXmlElementContent(
                     m_reader,
-                    EncodingLimits.GetMaxXmlElementDepth(Context),
+                    EncodingLimits.GetMaxXmlElementDepth(Context, m_nestingLevel),
                     Context.MaxStringLength);
             }
             catch (XmlException xe)
@@ -3374,6 +3374,7 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels,
                     functionName ?? string.Empty);
             }
+            EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
         }
 

@@ -46,24 +46,26 @@ namespace Opc.Ua.Fuzzing
     public sealed class PubSubChunkTests
     {
         [TestCase(1)]
-        [TestCase(245)]
-        [TestCase(246)]
-        [TestCase(247)]
-        [TestCase(492)]
-        [TestCase(493)]
+        [TestCase(241)]
+        [TestCase(242)]
+        [TestCase(243)]
+        [TestCase(484)]
+        [TestCase(485)]
         [TestCase(4096)]
         [TestCase(65535)]
         public void SharedChunkCorePreservesEveryByteInBothOrdersAtFrameBoundaries(int length)
         {
+            // 256 byte chunk payloads carry 14 bytes of Table 159 fields
+            // (MessageSequenceNumber, ChunkOffset, TotalSize, ByteString length).
             byte[] payload = CreatePayload(length);
             IReadOnlyList<byte[]> frames = new UadpChunker().Split(payload, 42, 256);
-            int expectedCount = (length + 245) / 246;
+            int expectedCount = (length + 241) / 242;
             Assert.That(frames, Has.Count.EqualTo(expectedCount));
             for (int i = 0; i < frames.Count; i++)
             {
-                int offset = i * 246;
-                int payloadLength = Math.Min(246, length - offset);
-                Assert.That(frames[i], Has.Length.EqualTo(payloadLength + 10));
+                int offset = i * 242;
+                int payloadLength = Math.Min(242, length - offset);
+                Assert.That(frames[i], Has.Length.EqualTo(payloadLength + UadpChunker.ChunkHeaderSize));
                 Assert.That(
                     UadpChunker.TryParseChunk(
                         frames[i], out ushort sequence, out uint chunkOffset, out uint totalSize,
@@ -96,7 +98,7 @@ namespace Opc.Ua.Fuzzing
                 var clock = new ObservedTimeProvider(new FakeTimeProvider(PubSubSeedAssertions.SeedTime));
 
                 ReadOnlyMemory<byte> result = FuzzableCode.ReassembleUadpPayload(
-                    payload, clock, reverse, maxFrameSize: 11);
+                    payload, clock, reverse, maxFrameSize: UadpChunker.ChunkHeaderSize + 1);
 
                 Assert.That(result.ToArray(), Is.EqualTo(payload));
                 Assert.That(clock.UtcNowReads, Is.EqualTo(5), "Four one-byte fragments plus the first duplicate.");
@@ -200,10 +202,10 @@ namespace Opc.Ua.Fuzzing
                         out ReadOnlyMemory<byte> fragment),
                     Is.True);
                 Assert.That(sequence, Is.EqualTo(42));
-                Assert.That(offset, Is.EqualTo(i * 32));
+                Assert.That(offset, Is.EqualTo(i * 28));
                 Assert.That(totalSize, Is.EqualTo(79));
-                Assert.That(fragment.Length, Is.EqualTo(i < 2 ? 32 : 15));
-                Assert.That(fragment.ToArray(), Is.EqualTo(rawSeed.AsSpan(i * 32, fragment.Length).ToArray()));
+                Assert.That(fragment.Length, Is.EqualTo(i < 2 ? 28 : 23));
+                Assert.That(fragment.ToArray(), Is.EqualTo(rawSeed.AsSpan(i * 28, fragment.Length).ToArray()));
 
                 var clock = new ObservedTimeProvider(new FakeTimeProvider(PubSubSeedAssertions.SeedTime));
                 PubSubNetworkMessageContext probeContext = FuzzableCode.NewContext(clock);
@@ -272,22 +274,23 @@ namespace Opc.Ua.Fuzzing
 
         [TestCase(7u)]
         [TestCase(9u)]
-        public void TotalSizeConflictDropsStateAndReleasesItsReservation(uint conflictingSize)
+        public void TotalSizeConflictIsDroppedWithoutEvictingPendingState(uint conflictingSize)
         {
             var clock = new FakeTimeProvider(PubSubSeedAssertions.SeedTime);
             using var reassembler = new UadpReassembler(SmallBudget(), clock);
             AssertPending(reassembler, CreateChunk(42, 0, 8, 1, 2, 3, 4));
 
+            // An unauthenticated chunk with a conflicting TotalSize must not
+            // evict the pending reassembly of the same key.
             Assert.That(
                 reassembler.TryAddChunk(
                     PublisherId.FromUInt16(300), 1, CreateChunk(42, 4, conflictingSize, 5), out var rejected),
                 Is.False);
             Assert.That(rejected, Is.Null);
-            Assert.That(reassembler.PendingCount, Is.Zero);
+            Assert.That(reassembler.PendingCount, Is.EqualTo(1));
 
-            // The eight-byte budget would prevent a restart if only the dictionary entry were cleared.
-            AssertPending(reassembler, CreateChunk(42, 0, 8, 11, 12, 13, 14));
-            AssertComplete(reassembler, CreateChunk(42, 4, 8, 15, 16, 17, 18), [11, 12, 13, 14, 15, 16, 17, 18]);
+            AssertComplete(reassembler, CreateChunk(42, 4, 8, 5, 6, 7, 8), [1, 2, 3, 4, 5, 6, 7, 8]);
+            // Completion released the budget for the next message.
             AssertPending(reassembler, CreateChunk(43, 0, 8, 21, 22, 23, 24));
             AssertComplete(reassembler, CreateChunk(43, 4, 8, 25, 26, 27, 28), [21, 22, 23, 24, 25, 26, 27, 28]);
         }
@@ -349,9 +352,9 @@ namespace Opc.Ua.Fuzzing
             Assert.That(UadpReassemblerOptions.DefaultMaxReassembledMessageSize, Is.EqualTo(8 * 1024 * 1024));
             foreach (uint advertisedTotal in new[] { 8388609u, uint.MaxValue })
             {
-                // Eleven input bytes exercise the allocation guard without storing a huge fixture.
+                // Fifteen input bytes exercise the allocation guard without storing a huge fixture.
                 byte[] frame = CreateChunk(42, 0, advertisedTotal, 1);
-                Assert.That(frame, Has.Length.EqualTo(11));
+                Assert.That(frame, Has.Length.EqualTo(15));
                 Assert.That(
                     reassembler.TryAddChunk(PublisherId.FromUInt16(300), 1, frame, out var rejected),
                     Is.False);
@@ -397,7 +400,8 @@ namespace Opc.Ua.Fuzzing
             {
                 MaxReassembledMessageSize = 16,
                 MaxConcurrentReassemblies = 1,
-                MaxAggregatePendingBytes = 8,
+                // Two stored 4-byte chunks including their bookkeeping charge.
+                MaxAggregatePendingBytes = 2 * (4 + 64),
                 ChunkTimeout = TimeSpan.FromSeconds(5)
             };
         }
@@ -414,11 +418,12 @@ namespace Opc.Ua.Fuzzing
 
         private static byte[] CreateChunk(ushort sequence, uint offset, uint totalSize, params byte[] payload)
         {
-            byte[] frame = new byte[10 + payload.Length];
+            byte[] frame = new byte[UadpChunker.ChunkHeaderSize + payload.Length];
             BinaryPrimitives.WriteUInt16LittleEndian(frame, sequence);
             BinaryPrimitives.WriteUInt32LittleEndian(frame.AsSpan(2), offset);
             BinaryPrimitives.WriteUInt32LittleEndian(frame.AsSpan(6), totalSize);
-            payload.CopyTo(frame.AsSpan(10));
+            BinaryPrimitives.WriteInt32LittleEndian(frame.AsSpan(10), payload.Length);
+            payload.CopyTo(frame.AsSpan(UadpChunker.ChunkHeaderSize));
             return frame;
         }
 

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -607,6 +608,35 @@ namespace Opc.Ua.Bindings
             Certificate? receiverCertificate,
             out int senderCertificateSize)
         {
+            WriteAsymmetricMessageHeader(
+                encoder,
+                messageType,
+                secureChannelId,
+                securityPolicyUri,
+                senderCertificate,
+                senderCertificateChain,
+                receiverCertificate,
+                TcpMessageLimits.MinBodySize,
+                out senderCertificateSize);
+        }
+
+        /// <summary>
+        /// Writes the asymmetric security header to the buffer, appending as
+        /// much of the sender certificate chain as fits into a single chunk next
+        /// to a message body of the specified size.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteAsymmetricMessageHeader(
+            BinaryEncoder encoder,
+            uint messageType,
+            uint secureChannelId,
+            string securityPolicyUri,
+            Certificate? senderCertificate,
+            CertificateCollection? senderCertificateChain,
+            Certificate? receiverCertificate,
+            int messageBodySize,
+            out int senderCertificateSize)
+        {
             int start = encoder.Position;
             senderCertificateSize = 0;
 
@@ -622,7 +652,9 @@ namespace Opc.Ua.Bindings
                     Certificate currentCertificate = senderCertificateChain[0];
                     int maxSenderCertificateSize = GetMaxSenderCertificateSize(
                         currentCertificate,
-                        securityPolicyUri);
+                        securityPolicyUri,
+                        receiverCertificate,
+                        messageBodySize);
                     var senderCertificateList = new List<byte>(currentCertificate.RawData);
                     senderCertificateSize = currentCertificate.RawData.Length;
 
@@ -631,7 +663,7 @@ namespace Opc.Ua.Bindings
                         currentCertificate = senderCertificateChain[i];
                         senderCertificateSize += currentCertificate.RawData.Length;
 
-                        if (senderCertificateSize < maxSenderCertificateSize)
+                        if (senderCertificateSize <= maxSenderCertificateSize)
                         {
                             senderCertificateList.AddRange(currentCertificate.RawData);
                         }
@@ -667,9 +699,22 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Returns the space the sender certificate chain may take in an
+        /// OpenSecureChannel chunk this channel sends.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 §6.7.2.3 derives MaxSenderCertificateSize from the
+        /// MessageChunkSize minus the fixed security header, sequence header,
+        /// padding and signature. An OpenSecureChannel message is always a
+        /// single final chunk (§6.7.2.2), so the space the encrypted body takes
+        /// is reserved as well.
+        /// </remarks>
         private int GetMaxSenderCertificateSize(
             Certificate senderCertificate,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            Certificate? receiverCertificate,
+            int messageBodySize)
         {
             int occupiedSize =
                 TcpMessageLimits.BaseHeaderSize //base header size
@@ -685,12 +730,75 @@ namespace Opc.Ua.Bindings
 
             occupiedSize += TcpMessageLimits.CertificateThumbprintSize; //ReceiverCertificateThumbprint
 
-            occupiedSize += TcpMessageLimits.SequenceHeaderSize; //SequenceHeader size
-            occupiedSize += TcpMessageLimits.MinBodySize; //Minimum body size
-
-            occupiedSize += GetAsymmetricSignatureSize(senderCertificate);
+            // sequence header, body, padding and signature, as encrypted.
+            int plainTextSize =
+                TcpMessageLimits.SequenceHeaderSize +
+                Math.Max(messageBodySize, TcpMessageLimits.MinBodySize) +
+                GetAsymmetricPaddingOverhead(receiverCertificate) +
+                GetAsymmetricSignatureSize(senderCertificate);
+            int plainTextBlockSize = GetPlainTextBlockSize(receiverCertificate);
+            int cipherTextBlockSize = GetCipherTextBlockSize(receiverCertificate);
+            occupiedSize +=
+                (plainTextSize + plainTextBlockSize - 1) / plainTextBlockSize * cipherTextBlockSize;
 
             return SendBufferSize - occupiedSize;
+        }
+
+        /// <summary>
+        /// Returns the largest sender certificate chain accepted in an
+        /// OpenSecureChannel chunk this channel receives.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 §6.7.2.3: the chain may fill the chunk up to
+        /// MaxSenderCertificateSize, which is derived from the MessageChunkSize.
+        /// The padding and the signature are not known before the header is
+        /// parsed, so only the fixed part of the formula is subtracted; the
+        /// chain has to lie within the received chunk in any case.
+        /// </remarks>
+        private int GetMaxReceivedSenderCertificateSize(string securityPolicyUri)
+        {
+            int occupiedSize =
+                TcpMessageLimits.BaseHeaderSize +
+                TcpMessageLimits.StringLengthSize +
+                Encoding.UTF8.GetByteCount(securityPolicyUri) +
+                TcpMessageLimits.StringLengthSize +
+                TcpMessageLimits.StringLengthSize +
+                TcpMessageLimits.CertificateThumbprintSize +
+                TcpMessageLimits.SequenceHeaderSize +
+                1 + // PaddingSize
+                1; // ExtraPaddingSize
+
+            return Math.Max(
+                TcpMessageLimits.MaxCertificateSize,
+                ReceiveBufferSize - occupiedSize);
+        }
+
+        /// <summary>
+        /// Returns the number of padding size bytes (PaddingSize and, for keys
+        /// larger than 2048 bits, ExtraPaddingSize) an asymmetrically encrypted
+        /// chunk carries for the receiver certificate.
+        /// </summary>
+        private int GetAsymmetricPaddingOverhead(Certificate? receiverCertificate)
+        {
+            if (SecurityMode == MessageSecurityMode.None ||
+                receiverCertificate == null ||
+                SecurityPolicy is not { EphemeralKeyAlgorithm: CertificateKeyAlgorithm.None })
+            {
+                return 0;
+            }
+
+            using (System.Security.Cryptography.RSA? rsa = receiverCertificate.GetRSAPublicKey())
+            {
+                if (rsa == null)
+                {
+                    return 0;
+                }
+            }
+
+            return X509Utils.GetRSAPublicKeySize(receiverCertificate) <=
+                TcpMessageLimits.KeySizeExtraPadding
+                ? 1
+                : 2;
         }
 
         /// <summary>
@@ -746,6 +854,7 @@ namespace Opc.Ua.Bindings
                         senderCertificate,
                         senderCertificateChain,
                         receiverCertificate,
+                        messageBody.Count,
                         out int senderCertificateSize);
 
                     headerSize = GetAsymmetricHeaderSize(
@@ -779,8 +888,19 @@ namespace Opc.Ua.Bindings
                 int maxPlainTextSize = maxCipherBlocks * plainTextBlockSize;
                 int maxPayloadSize = maxPlainTextSize -
                     signatureSize -
-                    1 -
+                    GetAsymmetricPaddingOverhead(receiverCertificate) -
                     TcpMessageLimits.SequenceHeaderSize;
+
+                // OPC 10000-6 §6.7.2.2: an OpenSecureChannel message is always
+                // sent as a single final chunk.
+                if (messageBody.Count > maxPayloadSize)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "The {0} byte asymmetric message body does not fit into a single chunk of {1} bytes.",
+                        messageBody.Count,
+                        SendBufferSize);
+                }
 
                 int bytesToWrite = messageBody.Count;
                 int startOfBytes = messageBody.Offset;
@@ -1011,6 +1131,7 @@ namespace Opc.Ua.Bindings
                         senderCertificate,
                         senderCertificateChain,
                         receiverCertificate,
+                        messageBody.Count,
                         out int senderCertificateSize);
 
                     headerSize = GetAsymmetricHeaderSize(
@@ -1044,8 +1165,19 @@ namespace Opc.Ua.Bindings
                 int maxPlainTextSize = maxCipherBlocks * plainTextBlockSize;
                 int maxPayloadSize = maxPlainTextSize -
                     signatureSize -
-                    1 -
+                    GetAsymmetricPaddingOverhead(receiverCertificate) -
                     TcpMessageLimits.SequenceHeaderSize;
+
+                // OPC 10000-6 §6.7.2.2: an OpenSecureChannel message is always
+                // sent as a single final chunk.
+                if (messageBody.Count > maxPayloadSize)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "The {0} byte asymmetric message body does not fit into a single chunk of {1} bytes.",
+                        messageBody.Count,
+                        SendBufferSize);
+                }
 
                 int bytesToWrite = messageBody.Count;
                 int startOfBytes = messageBody.Offset;
@@ -1263,7 +1395,7 @@ namespace Opc.Ua.Bindings
                     TcpMessageLimits.MaxSecurityPolicyUriSize) ??
                     SecurityPolicies.None;
                 certificateData = decoder.ReadByteString(
-                    TcpMessageLimits.MaxCertificateSize);
+                    GetMaxReceivedSenderCertificateSize(securityPolicyUri));
                 thumbprintData = decoder.ReadByteString(
                     TcpMessageLimits.CertificateThumbprintSize);
             }
@@ -1273,6 +1405,16 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadSecurityChecksFailed,
                     e,
                     "The asymmetric security header could not be parsed.");
+            }
+
+            // OPC 10000-6 §6.7.2.3: the SenderCertificate and the
+            // ReceiverCertificateThumbprint are null when the message is not
+            // signed. A certificate sent anyway was never proven to belong to
+            // the peer, so it is discarded rather than parsed and exposed as
+            // the channel's peer certificate.
+            if (securityPolicyUri == SecurityPolicies.None)
+            {
+                return;
             }
 
             // Once the sender chain is parsed below it owns freshly allocated
@@ -1318,36 +1460,36 @@ namespace Opc.Ua.Bindings
                     // TODO: client should use the provider too!
                     if (m_serverCertificates != null)
                     {
+                        // A renewal cannot change the security policy. Checked
+                        // here as well as when the endpoint is selected, so a
+                        // renewal naming another policy never replaces the
+                        // certificate of the channel.
+                        if (!m_uninitialized && securityPolicyUri != SecurityPolicyUri)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadSecurityPolicyRejected,
+                                "Cannot change the security policy after creating the channnel.");
+                        }
+
                         // Replace the channel-owned instance certificate (and its
                         // issuer chain) with independent handles on the registry's
-                        // current entry.
+                        // current entry, once it is known to be the one the
+                        // sender encrypted for.
                         using (CertificateEntry? receiverEntry =
                             m_serverCertificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri))
                         {
+                            VerifyReceiverThumbprint(receiverEntry?.Certificate, thumbprintData);
+
                             ServerCertificate?.Dispose();
-                            ServerCertificate = receiverEntry?.Certificate.AddRef();
+                            ServerCertificate = receiverEntry!.Certificate.AddRef();
                             ServerCertificateChain?.Dispose();
-                            ServerCertificateChain = receiverEntry == null
-                                ? null
-                                : BuildServerCertificateChain(receiverEntry);
+                            ServerCertificateChain = BuildServerCertificateChain(receiverEntry);
                         }
                         receiverCertificate = ServerCertificate;
                     }
-
-                    if (receiverCertificate == null)
+                    else
                     {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadCertificateInvalid,
-                            "The receiver has no matching certificate for the selected profile.");
-                    }
-
-                    if (!receiverCertificate.Thumbprint.Equals(
-                            GetThumbprintString(thumbprintData),
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadCertificateInvalid,
-                            "The receiver's certificate thumbprint is not valid.");
+                        VerifyReceiverThumbprint(receiverCertificate, thumbprintData);
                     }
                 }
                 else if (securityPolicyUri != SecurityPolicies.None)
@@ -1362,6 +1504,32 @@ namespace Opc.Ua.Bindings
                 senderCertificateChain?.Dispose();
                 senderCertificateChain = null;
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the receiver certificate is the one the sender named
+        /// by its thumbprint.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void VerifyReceiverThumbprint(
+            [NotNull] Certificate? receiverCertificate,
+            ByteString thumbprintData)
+        {
+            if (receiverCertificate == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadCertificateInvalid,
+                    "The receiver has no matching certificate for the selected profile.");
+            }
+
+            if (!receiverCertificate.Thumbprint.Equals(
+                    GetThumbprintString(thumbprintData),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadCertificateInvalid,
+                    "The receiver's certificate thumbprint is not valid.");
             }
         }
 
@@ -1780,6 +1948,14 @@ namespace Opc.Ua.Bindings
             // extract signature.
             int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
 
+            // the plain text has to hold the sequence header and the signature.
+            if (plainText.Count - headerSize - TcpMessageLimits.SequenceHeaderSize < signatureSize)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The message is too short to hold the sequence header and the signature.");
+            }
+
             signature = new byte[signatureSize];
 
             for (int ii = 0; ii < signatureSize; ii++)
@@ -1838,43 +2014,50 @@ namespace Opc.Ua.Bindings
                 SecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None &&
                 receiverCertificate!.GetRSAPublicKey() != null)
             {
-                int paddingEnd;
+                // OPC 10000-6 §6.7.2.5.1 Table 61: [PaddingSize][Padding x N]
+                // [ExtraPaddingSize, keys > 2048 bits only][Signature]; every
+                // padding byte and the PaddingSize byte hold the low byte of N,
+                // the ExtraPaddingSize byte its high byte.
                 byte[] plainTextArray = plainText.GetArray();
+                int paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
+                int paddingValueIndex;
+                int paddingSizeFields;
                 if (X509Utils.GetRSAPublicKeySize(receiverCertificate!) > TcpMessageLimits
                     .KeySizeExtraPadding)
                 {
-                    paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
-                    paddingCount = plainTextArray[paddingEnd - 1] +
+                    paddingValueIndex = paddingEnd - 1;
+                    paddingCount = plainTextArray[paddingValueIndex] +
                         (plainTextArray[paddingEnd] * 256);
-
-                    //parse until paddingStart-1; the last one is actually the extrapaddingsize
-                    for (int ii = paddingEnd - paddingCount; ii < paddingEnd; ii++)
-                    {
-                        if (plainTextArray[ii] != plainTextArray[paddingEnd - 1])
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "Could not verify the padding in the message.");
-                        }
-                    }
+                    paddingSizeFields = 2;
                 }
                 else
                 {
-                    paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
-                    paddingCount = plainTextArray[paddingEnd];
+                    paddingValueIndex = paddingEnd;
+                    paddingCount = plainTextArray[paddingValueIndex];
+                    paddingSizeFields = 1;
+                }
 
-                    for (int ii = paddingEnd - paddingCount; ii < paddingEnd; ii++)
+                // the padding, including the PaddingSize byte, has to lie after
+                // the headers and the sequence header.
+                int paddingStart = paddingValueIndex - paddingCount;
+                if (paddingStart < plainText.Offset + headerSize + TcpMessageLimits.SequenceHeaderSize)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Could not verify the padding in the message.");
+                }
+
+                for (int ii = paddingStart; ii < paddingValueIndex; ii++)
+                {
+                    if (plainTextArray[ii] != plainTextArray[paddingValueIndex])
                     {
-                        if (plainTextArray[ii] != plainTextArray[paddingEnd])
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "Could not verify the padding in the message.");
-                        }
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "Could not verify the padding in the message.");
                     }
                 }
 
-                paddingCount++;
+                paddingCount += paddingSizeFields;
             }
 
             // decode message.

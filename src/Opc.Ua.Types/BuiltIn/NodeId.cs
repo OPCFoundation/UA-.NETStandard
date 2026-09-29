@@ -381,10 +381,9 @@ namespace Opc.Ua
                     return false;
                 }
 
-                string namespaceUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
-
                 // "nsu=;" has no namespace uri (Part 6 5.1.12).
-                if (string.IsNullOrEmpty(namespaceUri))
+                if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) ||
+                    string.IsNullOrWhiteSpace(namespaceUri))
                 {
                     error = NodeIdParseError.InvalidNamespaceFormat;
                     return false;
@@ -416,7 +415,13 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (!ushort.TryParse(text[3..index], out ushort ns))
+                // <short-index> is 1*DIGIT (Part 6 5.1.12): no sign, no
+                // whitespace and no dependency on the current culture.
+                if (!ushort.TryParse(
+                    text[3..index],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out ushort ns))
                 {
                     // An unparsable or out of range index must not be silently
                     // dropped - that would land the node id in namespace zero.
@@ -451,7 +456,11 @@ namespace Opc.Ua
                 switch (idType)
                 {
                     case 'i':
-                        if (uint.TryParse(idText, out uint number))
+                        if (uint.TryParse(
+                            idText,
+                            NumberStyles.None,
+                            CultureInfo.InvariantCulture,
+                            out uint number))
                         {
                             value = new NodeId(number, (ushort)namespaceIndex);
                             return true;
@@ -483,7 +492,9 @@ namespace Opc.Ua
 
                         break;
                     case 'g':
-                        if (Guid.TryParse(idText, out Guid guid))
+                        // Only the 5.1.3 form ("D") names a Guid, braces or
+                        // a plain digit run would alias the same identifier.
+                        if (Guid.TryParseExact(idText, "D", out Guid guid))
                         {
                             value = new NodeId(guid, (ushort)namespaceIndex);
                             return true;
@@ -1017,7 +1028,7 @@ namespace Opc.Ua
                 // parse guid node identifier.
                 if (text.StartsWith("g=", StringComparison.Ordinal))
                 {
-                    if (Guid.TryParse(text[2..], out Guid guidId))
+                    if (Guid.TryParseExact(text[2..], "D", out Guid guidId))
                     {
                         value = new NodeId(guidId, namespaceIndex);
                         return true;

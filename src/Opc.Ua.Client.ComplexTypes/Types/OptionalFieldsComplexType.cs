@@ -310,11 +310,20 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // build optional field mask attribute
             uint optionalFieldMask = 1;
+            int optionalFields = 0;
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 property.OptionalFieldMask = 0;
                 if (property.IsOptional)
                 {
+                    // OPC 10000-6 5.2.7: one bit of the 32-bit EncodingMask per
+                    // optional field; ComplexTypeBuilder rejects larger types.
+                    if (++optionalFields > Encoders.StructureWithOptionalFields.MaxOptionalFields)
+                    {
+                        throw new InvalidOperationException(
+                            $"The structure has more than " +
+                            $"{Encoders.StructureWithOptionalFields.MaxOptionalFields} optional fields.");
+                    }
                     property.OptionalFieldMask = optionalFieldMask;
                     optionalFieldMask <<= 1;
                 }

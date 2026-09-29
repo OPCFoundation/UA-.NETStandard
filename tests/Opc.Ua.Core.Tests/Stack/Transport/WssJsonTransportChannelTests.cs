@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -340,6 +341,116 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await channel.OpenAsync(url, settings, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(channel.OperationTimeout, Is.EqualTo(12345));
+        }
+
+        /// <summary>
+        /// A response that never ends its WebSocket message must be rejected
+        /// once it exceeds MaxMessageSize, not buffered until the timeout.
+        /// </summary>
+        [Test]
+        public void ReceiveMessageAsyncStopsAtMaxMessageSize()
+        {
+            using var ws = new StreamingWebSocket(endAfter: int.MaxValue);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await WssJsonTransportChannel
+                    .ReceiveMessageAsync(ws, 64 * 1024, CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(ws.Receives, Is.LessThanOrEqualTo(9));
+                Assert.That(ws.State, Is.EqualTo(WebSocketState.Aborted));
+            });
+        }
+
+        /// <summary>
+        /// A message within the limit, or with no limit, is returned whole.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(3 * 8192)]
+        public async Task ReceiveMessageAsyncReturnsTheWholeMessageAsync(int maxMessageSize)
+        {
+            using var ws = new StreamingWebSocket(endAfter: 3);
+
+            byte[] message = await WssJsonTransportChannel
+                .ReceiveMessageAsync(ws, maxMessageSize, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(message, Has.Length.EqualTo(3 * 8192));
+        }
+
+        /// <summary>
+        /// WebSocket that returns full text frames and ends the message after
+        /// a given number of receives.
+        /// </summary>
+        private sealed class StreamingWebSocket : WebSocket
+        {
+            private readonly int m_endAfter;
+            private bool m_aborted;
+
+            internal StreamingWebSocket(int endAfter)
+            {
+                m_endAfter = endAfter;
+            }
+
+            public int Receives { get; private set; }
+
+            public override WebSocketCloseStatus? CloseStatus => null;
+
+            public override string? CloseStatusDescription => null;
+
+            public override WebSocketState State => m_aborted
+                ? WebSocketState.Aborted
+                : WebSocketState.Open;
+
+            public override string? SubProtocol => null;
+
+            public override void Abort()
+            {
+                m_aborted = true;
+            }
+
+            public override Task CloseAsync(
+                WebSocketCloseStatus closeStatus,
+                string? statusDescription,
+                CancellationToken cancellationToken)
+            {
+                return Task.CompletedTask;
+            }
+
+            public override Task CloseOutputAsync(
+                WebSocketCloseStatus closeStatus,
+                string? statusDescription,
+                CancellationToken cancellationToken)
+            {
+                return Task.CompletedTask;
+            }
+
+            public override void Dispose()
+            {
+            }
+
+            public override Task<WebSocketReceiveResult> ReceiveAsync(
+                ArraySegment<byte> buffer,
+                CancellationToken cancellationToken)
+            {
+                Receives++;
+                return Task.FromResult(new WebSocketReceiveResult(
+                    buffer.Count,
+                    WebSocketMessageType.Text,
+                    Receives >= m_endAfter));
+            }
+
+            public override Task SendAsync(
+                ArraySegment<byte> buffer,
+                WebSocketMessageType messageType,
+                bool endOfMessage,
+                CancellationToken cancellationToken)
+            {
+                return Task.CompletedTask;
+            }
         }
 
         /// <summary>

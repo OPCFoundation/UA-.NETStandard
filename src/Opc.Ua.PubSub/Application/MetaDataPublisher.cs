@@ -518,6 +518,8 @@ namespace Opc.Ua.PubSub.Application
                     PublisherId = connection.PublisherId,
                     WriterGroupId = writerGroup.WriterGroupId,
                     DataSetWriterId = writer.DataSetWriterId,
+                    WriterGroupName = writerGroup.Name,
+                    DataSetWriterName = writer.Name,
                     DataSetClassId = classId,
                     //
                     // The payload is documented as available on both accessors,

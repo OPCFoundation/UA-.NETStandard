@@ -219,16 +219,16 @@ namespace Opc.Ua.Fuzzing
             {
                 JsonElement wrapped = verbosePayload.GetProperty(names[i]);
                 Assert.That(wrapped.ValueKind, Is.EqualTo(JsonValueKind.Object), names[i]);
-                Assert.That(wrapped.GetProperty("Type").GetInt32(), Is.EqualTo(typeCodes[i]), names[i]);
-                Assert.That(wrapped.GetProperty("Body").ValueKind, Is.EqualTo(bareKinds[i]), names[i]);
+                Assert.That(wrapped.GetProperty("UaType").GetInt32(), Is.EqualTo(typeCodes[i]), names[i]);
+                Assert.That(wrapped.GetProperty("Value").ValueKind, Is.EqualTo(bareKinds[i]), names[i]);
                 Assert.That(compactPayload.GetProperty(names[i]).ValueKind, Is.EqualTo(bareKinds[i]), names[i]);
                 Assert.That(rawPayload.GetProperty(names[i]).ValueKind, Is.EqualTo(bareKinds[i]), names[i]);
                 Assert.That(
                     compactPayload.GetProperty(names[i]).GetRawText(),
-                    Is.EqualTo(wrapped.GetProperty("Body").GetRawText()), names[i]);
+                    Is.EqualTo(wrapped.GetProperty("Value").GetRawText()), names[i]);
                 Assert.That(
                     rawPayload.GetProperty(names[i]).GetRawText(),
-                    Is.EqualTo(wrapped.GetProperty("Body").GetRawText()), names[i]);
+                    Is.EqualTo(wrapped.GetProperty("Value").GetRawText()), names[i]);
             }
             Assert.That(compactPayload.GetProperty("Running").GetBoolean(), Is.True);
             Assert.That(compactPayload.GetProperty("Count").GetInt32(), Is.EqualTo(42));

@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using Opc.Ua.Types;
@@ -150,14 +152,19 @@ namespace Opc.Ua
         /// System.Xml and LINQ to XML operations that are later applied to such
         /// content (XmlNode.InnerXml/InnerText, ImportNode, XNode.DeepEquals,
         /// XElement.Value) recurse once per level and would exhaust the stack.
-        /// The limit is MaxEncodingNestingLevels, or its default when the
-        /// context sets none.
+        /// The limit is the nesting levels left below
+        /// <paramref name="nestingLevel"/>, the level the XML is read or
+        /// written at, out of MaxEncodingNestingLevels (or its default when
+        /// the context sets none).
         /// </remarks>
-        public static int GetMaxXmlElementDepth(IServiceMessageContext context)
+        public static int GetMaxXmlElementDepth(
+            IServiceMessageContext context,
+            uint nestingLevel = 0)
         {
-            return context.MaxEncodingNestingLevels > 0
+            long max = context.MaxEncodingNestingLevels > 0
                 ? context.MaxEncodingNestingLevels
                 : DefaultEncodingLimits.MaxEncodingNestingLevels;
+            return (int)Math.Max(0, max - nestingLevel);
         }
 
         /// <summary>
@@ -293,6 +300,34 @@ namespace Opc.Ua
                 (startDepth < reader.Depth ||
                     (startDepth == reader.Depth &&
                         reader.NodeType == XmlNodeType.EndElement)));
+        }
+
+        /// <summary>
+        /// Throws if the current thread is running out of stack.
+        /// </summary>
+        /// <remarks>
+        /// MaxEncodingNestingLevels bounds the recursion of the codecs, but the
+        /// stack a nesting level costs depends on the shape of the value, the
+        /// runtime and whether the code is jitted optimized, and the thread may
+        /// be one with a small stack. A stack overflow terminates the process
+        /// and cannot be caught, so every recursive entry point of a codec also
+        /// checks that enough stack is left and fails the message instead.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the
+        /// remaining stack is too small to continue safely.</exception>
+        public static void EnsureSufficientStack()
+        {
+            try
+            {
+                RuntimeHelpers.EnsureSufficientExecutionStack();
+            }
+            catch (InsufficientExecutionStackException)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Insufficient stack to encode or decode a nested value.");
+            }
         }
     }
 }
