@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class GdsServerHostedServiceTests
+    public sealed partial class GdsServerHostedServiceTests
     {
         [Test]
         public async Task AddIdentityAuthenticatorRegistersWithRunningGdsIdentityRegistry()
