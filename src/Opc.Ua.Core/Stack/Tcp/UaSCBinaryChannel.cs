@@ -1556,18 +1556,77 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
         {
-            string? reason = error.LocalizedText.Text;
+            WriteErrorMessageBody(encoder, error, TcpMessageLimits.MaxErrorReasonLength);
+        }
 
-            // check that length is not exceeded.
-            if (reason != null &&
-                Encoding.UTF8.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
-            {
-                reason = reason[
-                    ..(TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1))];
-            }
+        /// <summary>
+        /// Writes an error to a stream, truncating the reason to at most
+        /// <paramref name="maxReasonLength"/> UTF-8 bytes.
+        /// </summary>
+        internal static void WriteErrorMessageBody(
+            BinaryEncoder encoder,
+            ServiceResult error,
+            int maxReasonLength)
+        {
+            // OPC 10000-6 §7.1.2.5: the Reason shall not be more than 4096 bytes.
+            string? reason = TruncateUtf8(
+                error.LocalizedText.Text,
+                Math.Min(maxReasonLength, TcpMessageLimits.MaxErrorReasonLength));
 
             encoder.WriteStatusCode(null, error.StatusCode);
             encoder.WriteString(null, reason);
+        }
+
+        /// <summary>
+        /// Truncates a string so that its UTF-8 form is at most
+        /// <paramref name="maxByteCount"/> bytes, without splitting a
+        /// surrogate pair.
+        /// </summary>
+        internal static string? TruncateUtf8(string? text, int maxByteCount)
+        {
+            if (text == null || Encoding.UTF8.GetByteCount(text) <= maxByteCount)
+            {
+                return text;
+            }
+
+            int byteCount = 0;
+            int length = 0;
+            while (length < text.Length)
+            {
+                char current = text[length];
+                int charCount = 1;
+                int scalarByteCount;
+                if (char.IsHighSurrogate(current) &&
+                    length + 1 < text.Length &&
+                    char.IsLowSurrogate(text[length + 1]))
+                {
+                    charCount = 2;
+                    scalarByteCount = 4;
+                }
+                else if (current < 0x80)
+                {
+                    scalarByteCount = 1;
+                }
+                else if (current < 0x800)
+                {
+                    scalarByteCount = 2;
+                }
+                else
+                {
+                    // includes a lone surrogate, encoded as U+FFFD.
+                    scalarByteCount = 3;
+                }
+
+                if (byteCount + scalarByteCount > maxByteCount)
+                {
+                    break;
+                }
+
+                byteCount += scalarByteCount;
+                length += charCount;
+            }
+
+            return text[..length];
         }
 
         /// <summary>
@@ -1583,7 +1642,7 @@ namespace Opc.Ua.Bindings
             // ensure the reason does not exceed the limits in the protocol.
             int reasonLength = decoder.ReadInt32(null);
 
-            if (reasonLength is > 0 and < TcpMessageLimits.MaxErrorReasonLength)
+            if (reasonLength is > 0 and <= TcpMessageLimits.MaxErrorReasonLength)
             {
                 byte[] reasonBytes = new byte[reasonLength];
 
