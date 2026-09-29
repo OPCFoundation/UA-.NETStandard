@@ -501,6 +501,50 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void EncoderAndDecoderAgreeOnVariantNestingLimit()
+        {
+            // The encoder did not count a scalar leaf Variant, the decoder
+            // did: the encoder could emit a message one level deeper than the
+            // decoder accepts.
+            ServiceMessageContext context = CreateContext();
+            context.MaxEncodingNestingLevels = 5;
+            bool encoderRejected = false;
+
+            for (int depth = 1; depth <= 10; depth++)
+            {
+                Variant value = Variant.From(42);
+                for (int ii = 1; ii < depth; ii++)
+                {
+                    value = Variant.From(new DataValue(value));
+                }
+
+                byte[] bytes;
+                using (var encoder = new BinaryEncoder(context))
+                {
+                    try
+                    {
+                        encoder.WriteVariant(null, value);
+                    }
+                    catch (ServiceResultException sre) when (
+                        sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                    {
+                        encoderRejected = true;
+                        break;
+                    }
+                    bytes = encoder.CloseAndReturnBuffer()!;
+                }
+
+                using var decoder = new BinaryDecoder(bytes, context);
+                Assert.That(
+                    () => decoder.ReadVariant(null),
+                    Throws.Nothing,
+                    $"The decoder rejects depth {depth} that the encoder wrote.");
+            }
+
+            Assert.That(encoderRejected, Is.True);
+        }
+
+        [Test]
         public void DataValuePicosecondsOfAtLeast10000AreTreatedAs9999()
         {
             // SourceTimestamp | SourcePicoseconds | ServerTimestamp | ServerPicoseconds
