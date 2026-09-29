@@ -84,6 +84,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly List<PubSubDiscoveryCollector> m_discoveryCollectors = [];
         private readonly Dictionary<ActionCorrelationKey, PendingActionRequest> m_pendingActions = [];
         private readonly Dictionary<ActionHandlerKey, ActionResponder> m_actionHandlers = [];
+        private readonly HashSet<InboundMetaDataIdentity> m_inboundMetaDataIdentities = [];
         private int m_chunkSequenceNumber;
         private int m_discoverySequenceNumber;
         private int m_actionRequestId;
@@ -1015,6 +1016,8 @@ namespace Opc.Ua.PubSub.Connections
                         continue;
                     }
 
+                    // Only a frame whose security wrapper was verified above is authenticated.
+                    bool frameAuthenticated = frameSecured && m_securityWrapper is not null;
                     PubSubNetworkMessage? message;
                     try
                     {
@@ -1043,7 +1046,7 @@ namespace Opc.Ua.PubSub.Connections
                     if (message is UadpDiscoveryResponseMessage discoveryResponse)
                     {
                         RouteInboundDiscoveryResponse(discoveryResponse);
-                        _ = TryRouteInboundMetaData(message);
+                        _ = TryRouteInboundMetaData(message, frameAuthenticated);
                         continue;
                     }
                     if (message is UadpActionRequestMessage actionRequest)
@@ -1062,7 +1065,7 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
-                    if (TryRouteInboundMetaData(message))
+                    if (TryRouteInboundMetaData(message, frameAuthenticated))
                     {
                         continue;
                     }
@@ -1110,28 +1113,132 @@ namespace Opc.Ua.PubSub.Connections
         /// §7.3.4.8</see>.
         /// </summary>
         /// <param name="message">Decoded inbound NetworkMessage.</param>
+        /// <param name="authenticated"><see langword="true"/> when the
+        /// frame carried verified message security.</param>
         /// <returns><see langword="true"/> when the message was a
-        /// metadata frame and was registered (so callers should skip
-        /// the data-side dispatch).</returns>
-        internal bool TryRouteInboundMetaData(PubSubNetworkMessage message)
+        /// metadata frame (so callers should skip the data-side
+        /// dispatch).</returns>
+        /// <remarks>
+        /// Metadata frames are not trusted blindly. Only identities that
+        /// a configured DataSetReader of this connection would accept
+        /// are registered (a reader with a wildcard PublisherId or
+        /// DataSetWriterId accepts any value for that part), and at most
+        /// <see cref="MaxInboundMetaDataIdentities"/> distinct identities
+        /// are registered per connection, so a flood of fabricated
+        /// identities cannot grow the registry without bound.
+        /// </remarks>
+        internal bool TryRouteInboundMetaData(
+            PubSubNetworkMessage message,
+            bool authenticated = false)
         {
-            return TryRouteInboundMetaData(m_metaDataRegistry, message, m_logger);
+            return TryRouteInboundMetaData(
+                m_metaDataRegistry,
+                message,
+                m_logger,
+                authenticated,
+                AdmitInboundMetaDataIdentity);
         }
 
         /// <summary>
-        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage)"/>
+        /// Maximum number of distinct (PublisherId, WriterGroupId,
+        /// DataSetWriterId) identities one connection registers from
+        /// inbound metadata frames.
+        /// </summary>
+        internal const int MaxInboundMetaDataIdentities = 1024;
+
+        /// <summary>
+        /// Admits an inbound metadata identity when a configured
+        /// DataSetReader would accept it and the per-connection identity
+        /// budget is not exhausted.
+        /// </summary>
+        private bool AdmitInboundMetaDataIdentity(in DataSetMetaDataKey key)
+        {
+            if (!IsExpectedMetaDataSource(key.PublisherId, key.DataSetWriterId))
+            {
+                return false;
+            }
+            var identity = new InboundMetaDataIdentity(
+                key.PublisherId,
+                key.WriterGroupId,
+                key.DataSetWriterId);
+            lock (m_gate)
+            {
+                if (m_inboundMetaDataIdentities.Contains(identity))
+                {
+                    return true;
+                }
+                if (m_inboundMetaDataIdentities.Count >= MaxInboundMetaDataIdentities)
+                {
+                    return false;
+                }
+                m_inboundMetaDataIdentities.Add(identity);
+                return true;
+            }
+        }
+
+        private bool IsExpectedMetaDataSource(PublisherId publisherId, ushort dataSetWriterId)
+        {
+            for (int i = 0; i < m_readerGroups.Count; i++)
+            {
+                ArrayOf<IDataSetReader> readers = m_readerGroups[i].DataSetReaders;
+                for (int j = 0; j < readers.Count; j++)
+                {
+                    if (readers[j] is not DataSetReader reader)
+                    {
+                        continue;
+                    }
+                    if (reader.DataSetWriterId != 0 && reader.DataSetWriterId != dataSetWriterId)
+                    {
+                        continue;
+                    }
+                    PublisherId expected = reader.ExpectedPublisherId;
+                    if (expected.IsNull ||
+                        expected.Equals(publisherId) ||
+                        (expected.Type is PublisherIdType.Byte or PublisherIdType.UInt16 or
+                            PublisherIdType.UInt32 or PublisherIdType.UInt64 &&
+                        !publisherId.IsNull &&
+                        string.Equals(expected.ToString(), publisherId.ToString(), StringComparison.Ordinal)))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Decides whether an inbound metadata identity may be registered.
+        /// </summary>
+        /// <param name="key">Identity of the inbound metadata.</param>
+        /// <returns><see langword="true"/> to register it.</returns>
+        internal delegate bool InboundMetaDataAdmission(in DataSetMetaDataKey key);
+
+        /// <summary>
+        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage, bool)"/>
         /// used by tests and by the receive loop. Dispatches the
         /// JSON / UADP metadata variants into the supplied registry.
         /// </summary>
         /// <param name="registry">Target registry.</param>
         /// <param name="message">Decoded NetworkMessage.</param>
         /// <param name="logger">Logger for diagnostic events.</param>
+        /// <param name="authenticated">
+        /// <see langword="true"/> when the frame carried verified message
+        /// security. Only then is an older MajorVersion discarded as
+        /// stale; for unauthenticated frames the latest announcement
+        /// replaces the entry, so a forged announcement with a far-future
+        /// MajorVersion cannot pin the registry and shadow the real
+        /// publisher's metadata.
+        /// </param>
+        /// <param name="admit">Optional admission check; identities it
+        /// rejects are not registered.</param>
         /// <returns>Whether the message was recognised as metadata.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         internal static bool TryRouteInboundMetaData(
             IDataSetMetaDataRegistry registry,
             PubSubNetworkMessage message,
-            ILogger logger)
+            ILogger logger,
+            bool authenticated = false,
+            InboundMetaDataAdmission? admit = null)
         {
             if (registry is null)
             {
@@ -1177,8 +1284,15 @@ namespace Opc.Ua.PubSub.Connections
                 classId,
                 meta.ConfigurationVersion?.MajorVersion ?? 0);
 
+            if (admit is not null && !admit(in key))
+            {
+                logger?.IgnoringUnexpectedInboundMetadata(writerId);
+                return true;
+            }
+
             MetaDataMatchResult existing = registry.TryGet(in key, out DataSetMetaDataType? current);
-            if (existing == MetaDataMatchResult.MajorVersionMismatch &&
+            if (authenticated &&
+                existing == MetaDataMatchResult.MajorVersionMismatch &&
                 current?.ConfigurationVersion is { } currentVersion &&
                 currentVersion.MajorVersion > key.MajorVersion)
             {
@@ -2678,6 +2792,11 @@ namespace Opc.Ua.PubSub.Connections
             }
         }
 
+        private readonly record struct InboundMetaDataIdentity(
+            PublisherId PublisherId,
+            ushort WriterGroupId,
+            ushort DataSetWriterId);
+
         private readonly record struct DiscoveryThrottleKey(
             UadpDiscoveryType DiscoveryType,
             ushort Id);
@@ -3047,6 +3166,11 @@ namespace Opc.Ua.PubSub.Connections
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 12, Level = LogLevel.Debug,
             Message = "Registered inbound metadata for writer {WriterId} (major {Major}).")]
         public static partial void RegisteredInboundMetadata(this ILogger logger, ushort writerId, uint major);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 21, Level = LogLevel.Debug,
+            Message = "Ignoring inbound metadata for writer {WriterId}: no configured DataSetReader " +
+                "expects it or the connection's metadata identity budget is exhausted.")]
+        public static partial void IgnoringUnexpectedInboundMetadata(this ILogger logger, ushort writerId);
 
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 13, Level = LogLevel.Error,
             Message = "Inbound metadata registration failed for writer {WriterId}.")]

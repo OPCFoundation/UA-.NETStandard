@@ -384,8 +384,8 @@ namespace OpcUaPubSubJsonTests
             const string json = """
                 {
                     "field": {
-                        "Value": { "Type": 6, "Body": 42 },
-                        "Status": 0,
+                        "UaType": 6,
+                        "Value": 42,
                         "SourceTimestamp": "2026-01-01T00:00:00Z"
                     }
                 }
@@ -398,6 +398,7 @@ namespace OpcUaPubSubJsonTests
             Assert.That(fields.Count, Is.EqualTo(1));
             Assert.That(fields[0].Encoding,
                 Is.EqualTo(PubSubFieldEncoding.DataValue));
+            Assert.That(fields[0].Value, Is.EqualTo(new Variant(42)));
         }
 
         [Test]
@@ -406,7 +407,7 @@ namespace OpcUaPubSubJsonTests
         {
             const string nonDataValueObject = """
                 {
-                    "field": { "Type": 6, "Body": 42 }
+                    "field": { "UaType": 6, "Value": 42 }
                 }
                 """;
             using var document = JsonDocument.Parse(nonDataValueObject);
@@ -417,6 +418,7 @@ namespace OpcUaPubSubJsonTests
             Assert.That(fields.Count, Is.EqualTo(1));
             Assert.That(fields[0].Encoding,
                 Is.EqualTo(PubSubFieldEncoding.Variant));
+            Assert.That(fields[0].Value, Is.EqualTo(new Variant(42)));
         }
 
         [Test]
