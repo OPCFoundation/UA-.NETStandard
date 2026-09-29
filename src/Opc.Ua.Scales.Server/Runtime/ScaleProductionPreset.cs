@@ -478,6 +478,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private ServiceResult SelectCore(ISystemContext callContext, string productId, bool checkLock)
         {
+            bool changed;
             lock (m_lock)
             {
                 if (!m_products.TryGetValue(productId ?? string.Empty, out ProductState? product))
@@ -492,19 +493,24 @@ namespace Opc.Ua.Scales.Server.Runtime
                         return access;
                     }
                 }
-                if (!m_current.Contains(productId!))
+                changed = !m_current.Contains(productId!);
+                if (changed)
                 {
                     m_current.Add(productId!);
                     SetMode(product, processing: true);
                     PublishCurrentProducts();
                 }
             }
-            CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+            if (changed)
+            {
+                CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+            }
             return ServiceResult.Good;
         }
 
         private ServiceResult DeselectCore(ISystemContext callContext, string productId, bool checkLock)
         {
+            bool changed;
             lock (m_lock)
             {
                 if (!m_products.TryGetValue(productId ?? string.Empty, out ProductState? product))
@@ -519,18 +525,23 @@ namespace Opc.Ua.Scales.Server.Runtime
                         return access;
                     }
                 }
-                if (m_current.Remove(productId!))
+                changed = m_current.Remove(productId!);
+                if (changed)
                 {
                     SetMode(product, processing: false);
                     PublishCurrentProducts();
                 }
             }
-            CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+            if (changed)
+            {
+                CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+            }
             return ServiceResult.Good;
         }
 
         private ServiceResult SwitchCore(ISystemContext callContext, string productId, bool checkLock)
         {
+            bool changed;
             lock (m_lock)
             {
                 if (!m_products.TryGetValue(productId ?? string.Empty, out ProductState? next))
@@ -552,19 +563,26 @@ namespace Opc.Ua.Scales.Server.Runtime
                         return access;
                     }
                 }
-                foreach (string current in m_current)
+                changed = m_current.Count != 1 || !m_current.Contains(productId!);
+                if (changed)
                 {
-                    if (m_products.TryGetValue(current, out ProductState? previous))
+                    foreach (string current in m_current)
                     {
-                        SetMode(previous, processing: false);
+                        if (m_products.TryGetValue(current, out ProductState? previous))
+                        {
+                            SetMode(previous, processing: false);
+                        }
                     }
+                    m_current.Clear();
+                    m_current.Add(productId!);
+                    SetMode(next, processing: true);
+                    PublishCurrentProducts();
                 }
-                m_current.Clear();
-                m_current.Add(productId!);
-                SetMode(next, processing: true);
-                PublishCurrentProducts();
             }
-            CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+            if (changed)
+            {
+                CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
+            }
             return ServiceResult.Good;
         }
 

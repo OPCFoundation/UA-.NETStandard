@@ -520,6 +520,32 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task CurrentProductsChangedFiresOnlyWhenTheSetChangesAsync()
+        {
+            ScaleHandle scale = await CreateAsync(
+                ScaleKind.Simple,
+                extra: b => b.WithProductionPreset(p => p
+                    .AllowSelection()
+                    .AddProduct("P1", new LocalizedText("Apples"))
+                    .AddProduct("P2", new LocalizedText("Pears"))
+                    .Select("P1"))).ConfigureAwait(false);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            int changes = 0;
+            preset.CurrentProductsChanged += (_, _) => changes++;
+
+            // Idempotent calls leave the set alone and report nothing.
+            Assert.That(ServiceResult.IsGood(preset.Select("P1")), Is.True);
+            Assert.That(ServiceResult.IsGood(preset.Switch("P1")), Is.True);
+            Assert.That(ServiceResult.IsGood(preset.Deselect("P2")), Is.True);
+            Assert.That(changes, Is.Zero);
+
+            Assert.That(ServiceResult.IsGood(preset.Switch("P2")), Is.True);
+            Assert.That(ServiceResult.IsGood(preset.Select("P1")), Is.True);
+            Assert.That(ServiceResult.IsGood(preset.Deselect("P1")), Is.True);
+            Assert.That(changes, Is.EqualTo(3));
+        }
+
+        [Test]
         public async Task ProductionPresetAddsAndRemovesProductsAsync()
         {
             ScaleHandle scale = await CreateAsync(
