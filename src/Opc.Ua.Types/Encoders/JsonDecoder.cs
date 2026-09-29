@@ -69,6 +69,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     utf8Json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
             catch (Exception ex)
@@ -93,6 +94,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     stream,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
             catch (Exception ex)
@@ -117,6 +119,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
             catch (Exception ex)
@@ -4538,8 +4541,58 @@ namespace Opc.Ua
             {
                 CommentHandling = JsonCommentHandling.Skip,
                 AllowTrailingCommas = true,
+#if !NET || NET10_0_OR_GREATER
+                // Part 6 5.4.2.16: decoders shall report a decoding error if a
+                // JSON object has multiple fields with the same name.
+                AllowDuplicateProperties = false,
+#endif
                 MaxDepth = maxDepth
             };
+        }
+
+        /// <summary>
+        /// Rejects a JSON object with multiple fields of the same name (Part 6
+        /// 5.4.2.16). The System.Text.Json of net8.0 and net9.0 has no parser
+        /// option for it, so the parsed document is walked once instead;
+        /// elsewhere the parser rejects duplicates itself.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void CheckDuplicateProperties(JsonDocument document)
+        {
+#if NET && !NET10_0_OR_GREATER
+            var pending = new Stack<JsonElement>();
+            pending.Push(document.RootElement);
+            HashSet<string>? names = null;
+            while (pending.Count > 0)
+            {
+                JsonElement element = pending.Pop();
+                if (element.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement item in element.EnumerateArray())
+                    {
+                        pending.Push(item);
+                    }
+                }
+                else if (element.ValueKind == JsonValueKind.Object)
+                {
+                    names ??= new HashSet<string>(StringComparer.Ordinal);
+                    names.Clear();
+                    foreach (JsonProperty property in element.EnumerateObject())
+                    {
+                        if (!names.Add(property.Name))
+                        {
+                            document.Dispose();
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Duplicate property in JSON object.");
+                        }
+                        pending.Push(property.Value);
+                    }
+                }
+            }
+#else
+            _ = document;
+#endif
         }
 
         /// <summary>

@@ -157,6 +157,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadQualifiedName("F"));
         }
 
+        [TestCase("{\"UaTypeId\":\"i=631\",\"UaTypeId\":\"i=527\",\"UaBody\":{}}")]
+        [TestCase("{\"UaTypeId\":\"i=631\",\"UaBody\":{\"MaxAge\":1,\"MaxAge\":2}}")]
+        [TestCase("{\"A\":[{\"B\":1},{\"C\":1,\"C\":2}]}")]
+        public void DuplicateMemberNamesAreRejected(string json)
+        {
+            // Part 6 5.4.2.16: decoders shall report a decoding error if a
+            // JSON object has multiple fields with the same name.
+            ServiceMessageContext context = CreateContext();
+
+            AssertStatus(StatusCodes.BadDecodingError, () => _ = new JsonDecoder(json, context));
+            AssertStatus(
+                StatusCodes.BadDecodingError,
+                () => JsonDecoder.DecodeMessage<IEncodeable>(
+                    System.Text.Encoding.UTF8.GetBytes(json),
+                    context));
+        }
+
+        [Test]
+        public void SameMemberNameInSiblingObjectsIsAccepted()
+        {
+            ServiceMessageContext context = CreateContext();
+            using var decoder = new JsonDecoder("{\"A\":{\"X\":1},\"B\":{\"X\":2}}", context);
+
+            Assert.That(decoder.Root.GetProperty("B").GetProperty("X").GetInt32(), Is.EqualTo(2));
+        }
+
         [Test]
         public void QualifiedNameIndexIsMappedLikeTheNodeIdIndex()
         {
