@@ -3928,6 +3928,13 @@ namespace Opc.Ua
                     // If reading raw value, then the eleemnt we are reading is encoded
                     // using array encoding with both Array and Dimensions properties
                     // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
+                    // Anything but an object is rejected before the push, the
+                    // pop in the finally below is not reached from here.
+                    if (element.ValueKind != JsonValueKind.Object)
+                    {
+                        value = default;
+                        return false;
+                    }
                     m_stack.Push(element);
                     element = GetPropertyElement(JsonProperties.Array);
                     dimensionElement = GetPropertyElement(JsonProperties.Dimensions);

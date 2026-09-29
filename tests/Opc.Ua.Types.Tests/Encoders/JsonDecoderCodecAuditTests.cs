@@ -471,6 +471,32 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void InlineMatrixGivenAsNonObjectKeepsTheElementStackBalanced()
+        {
+            // The matrix object was pushed before the try, so a non-object
+            // value threw with the element left on the stack; lenient decoding
+            // then read the following fields from the wrong JSON object.
+            ServiceMessageContext context = CreateContext();
+            using var decoder = new JsonDecoder(
+                "{\"Matrix\":[1,2,3],\"After\":7}",
+                context,
+                new JsonDecoderOptions { ParseStrict = false });
+
+            Variant matrix = decoder.ReadVariantValue("Matrix", TypeInfo.Create(BuiltInType.Int32, 2));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(matrix.IsNull, Is.True);
+                Assert.That(decoder.ReadInt32("After"), Is.EqualTo(7));
+            });
+
+            using var strict = new JsonDecoder("{\"Matrix\":[1,2,3]}", context);
+            AssertStatus(
+                StatusCodes.BadDecodingError,
+                () => strict.ReadVariantValue("Matrix", TypeInfo.Create(BuiltInType.Int32, 2)));
+        }
+
+        [Test]
         public void SameMemberNameInSiblingObjectsIsAccepted()
         {
             ServiceMessageContext context = CreateContext();
