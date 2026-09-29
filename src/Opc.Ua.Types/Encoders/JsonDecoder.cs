@@ -1924,6 +1924,15 @@ namespace Opc.Ua
                         bool artifactsSuppressed = !TryGetExpandedNodeIdFromElement(
                             GetPropertyElement(JsonProperties.UaTypeId),
                             out ExpandedNodeId typeId);
+                        if (!artifactsSuppressed &&
+                            typeId.IsNull &&
+                            IsBodylessExtensionObject(element))
+                        {
+                            // Part 6 5.4.2.16: the VerboseEncoding writes the
+                            // default ExtensionObject as an empty JSON object.
+                            value = ExtensionObject.Null;
+                            return true;
+                        }
                         ExpandedNodeId absoluteId = typeId.IsAbsolute
                             ? typeId
                             : NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
@@ -2896,6 +2905,15 @@ namespace Opc.Ua
                         bool artifactsSuppressed = !TryGetExpandedNodeIdFromElement(
                             GetPropertyElement(JsonProperties.UaTypeId),
                             out ExpandedNodeId typeId);
+                        if (!artifactsSuppressed &&
+                            typeId.IsNull &&
+                            IsBodylessExtensionObject(element))
+                        {
+                            // Part 6 5.4.2.16: the VerboseEncoding writes the
+                            // default ExtensionObject as an empty JSON object.
+                            value = default!;
+                            return true;
+                        }
                         ExpandedNodeId absoluteId = typeId.IsAbsolute
                             ? typeId
                             : NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);

@@ -174,6 +174,30 @@ namespace Opc.Ua.Types.Tests.Encoders
                     context));
         }
 
+        [TestCase("{}")]
+        [TestCase("{\"UaTypeId\":null}")]
+        public void EmptyObjectDecodesAsTheDefaultExtensionObject(string json)
+        {
+            // Part 6 5.4.2.16: the VerboseEncoding writes the default
+            // ExtensionObject as an empty JSON object. It decoded as a
+            // present body of unknown type holding the string "{}".
+            ServiceMessageContext context = CreateContext();
+
+            using (JsonDecoder decoder = Field(context, json))
+            {
+                Assert.That(decoder.ReadExtensionObject("F").IsNull, Is.True);
+            }
+            using (JsonDecoder decoder = Field(context, "{\"UaType\":22,\"Value\":" + json + "}"))
+            {
+                Variant variant = decoder.ReadVariant("F");
+                Assert.That(variant.TryGetValue(out ExtensionObject eo) && eo.IsNull, Is.True);
+            }
+            using (JsonDecoder decoder = Field(context, json))
+            {
+                Assert.That(decoder.ReadEncodeableAsExtensionObject<Argument>("F"), Is.Null);
+            }
+        }
+
         [Test]
         public void SameMemberNameInSiblingObjectsIsAccepted()
         {
