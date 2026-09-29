@@ -343,6 +343,27 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value.TypeInfo.ValueRank, Is.EqualTo(2));
         }
 
+        [TestCase("[\"urn:x\"]", "[]")]
+        [TestCase("[null]", "[]")]
+        [TestCase("[\"http://opcfoundation.org/UA/\",\"\"]", "[]")]
+        [TestCase("[]", "[\"urn:server\",null]")]
+        public void InvalidMessageUriTablesFailWithBadDecodingError(string namespaces, string servers)
+        {
+            // The table constructors threw ArgumentException / ArgumentNullException /
+            // ArgumentOutOfRangeException out of the client decoders.
+            ServiceMessageContext context = CreateContext();
+            string json =
+                "{\"NamespaceUris\":" + namespaces + ",\"ServerUris\":" + servers +
+                ",\"UaTypeId\":\"i=634\",\"UaBody\":{}}";
+            using var decoder = new JsonDecoder(
+                json,
+                context,
+                new JsonDecoderOptions { UpdateNamespaceTable = true });
+
+            AssertStatus(StatusCodes.BadDecodingError, () => decoder.DecodeMessage<IEncodeable>());
+            Assert.That(context.NamespaceUris.Count, Is.EqualTo(3));
+        }
+
         [Test]
         public void SameMemberNameInSiblingObjectsIsAccepted()
         {

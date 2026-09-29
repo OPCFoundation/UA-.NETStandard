@@ -4372,6 +4372,7 @@ namespace Opc.Ua
                             out ArrayOf<string?> serverUris);
                         if (namespaceUris.Count > 0 || serverUris.Count > 0)
                         {
+                            CheckMessageUriTables(namespaceUris, serverUris);
                             NamespaceTable namespaces =
                                 namespaceUris.Count == 0
                                     ? Context.NamespaceUris
@@ -4399,6 +4400,45 @@ namespace Opc.Ua
                 default:
                     value = default!;
                     return false;
+            }
+        }
+
+        /// <summary>
+        /// Validates the NamespaceUris and ServerUris a peer sent with a
+        /// message before they become mapping tables. An empty or null entry,
+        /// or a namespace table that does not start with the OPC UA namespace,
+        /// made the table constructors throw exceptions other than
+        /// ServiceResultException out of the decoder.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void CheckMessageUriTables(
+            ArrayOf<string?> namespaceUris,
+            ArrayOf<string?> serverUris)
+        {
+            if (namespaceUris.Count > 0 &&
+                namespaceUris[0] != Types.Namespaces.OpcUa)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "The first NamespaceUri of the message must be the OPC UA namespace.");
+            }
+            for (int ii = 0; ii < namespaceUris.Count; ii++)
+            {
+                if (string.IsNullOrEmpty(namespaceUris[ii]))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "NamespaceUris contains an empty URI.");
+                }
+            }
+            for (int ii = 0; ii < serverUris.Count; ii++)
+            {
+                if (string.IsNullOrEmpty(serverUris[ii]))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "ServerUris contains an empty URI.");
+                }
             }
         }
 
