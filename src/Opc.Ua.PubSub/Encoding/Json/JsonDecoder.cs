@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -155,8 +154,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         _ => DecodeUnknown(context, messageType)
                     };
                 }
-                catch (InvalidOperationException ex) when (IsInvalidUtf8JsonText(ex))
+                catch (Exception ex) when (IsMalformedInput(ex))
                 {
+                    // Malformed or hostile input surfaces as an invalid
+                    // NetworkMessage, never as an exception.
                     context.Diagnostics.Increment(
                         PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                     return null;
@@ -164,9 +165,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
         }
 
-        private static bool IsInvalidUtf8JsonText(InvalidOperationException exception)
+        private static bool IsMalformedInput(Exception exception)
         {
-            return exception.InnerException is DecoderFallbackException;
+            return exception is ServiceResultException
+                or InvalidOperationException
+                or FormatException
+                or ArgumentException
+                or JsonException;
         }
 
         private static JsonNetworkMessage? DecodeDataWithoutNetworkHeader(
@@ -524,7 +529,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             var list = new List<ushort>();
             foreach (JsonElement entry in array.EnumerateArray())
             {
-                if (entry.TryGetUInt16(out ushort v))
+                if (entry.ValueKind == JsonValueKind.Number &&
+                    entry.TryGetUInt16(out ushort v))
                 {
                     list.Add(v);
                 }
@@ -955,6 +961,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 }
                 if (value.ValueKind == JsonValueKind.Object &&
                     value.TryGetProperty("Code", out JsonElement codeElement) &&
+                    codeElement.ValueKind == JsonValueKind.Number &&
                     codeElement.TryGetUInt32(out uint codeValue))
                 {
                     return new StatusCode(codeValue);
@@ -977,11 +984,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             uint major = 0;
             uint minor = 0;
-            if (value.TryGetProperty("MajorVersion", out JsonElement majorElement))
+            if (value.TryGetProperty("MajorVersion", out JsonElement majorElement) &&
+                majorElement.ValueKind == JsonValueKind.Number)
             {
                 majorElement.TryGetUInt32(out major);
             }
-            if (value.TryGetProperty("MinorVersion", out JsonElement minorElement))
+            if (value.TryGetProperty("MinorVersion", out JsonElement minorElement) &&
+                minorElement.ValueKind == JsonValueKind.Number)
             {
                 minorElement.TryGetUInt32(out minor);
             }

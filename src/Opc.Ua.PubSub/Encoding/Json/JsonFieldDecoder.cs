@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     context);
                 return true;
             }
-            catch (ServiceResultException ex) when (tolerant && ex.StatusCode == StatusCodes.BadDecodingError)
+            catch (ServiceResultException) when (tolerant)
             {
                 variant = Variant.Null;
                 return false;
@@ -216,7 +216,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 dataValue = JsonVariantDecoder.DecodeDataValue(value, context);
                 return true;
             }
-            catch (ServiceResultException ex) when (tolerant && ex.StatusCode == StatusCodes.BadDecodingError)
+            catch (ServiceResultException) when (tolerant)
             {
                 dataValue = DataValue.Null;
                 return false;
