@@ -47,8 +47,10 @@ namespace Opc.Ua.Machinery.Server.Builders
     /// </typeparam>
     /// <remarks>
     /// Nothing reaches the address space until
-    /// <see cref="BuildAsync(CancellationToken)"/> runs; a failure anywhere in
-    /// the chain leaves the server exactly as it was.
+    /// <see cref="BuildAsync(CancellationToken)"/> runs. The machine is added
+    /// before its building blocks are bound, so a client browsing during the
+    /// build can see it half configured; if the build fails, the machine is
+    /// removed again and the resources it acquired are released.
     /// </remarks>
     public interface IMachineBuilder<TState> : IMachineryNodeBuilder<TState>
         where TState : BaseObjectState

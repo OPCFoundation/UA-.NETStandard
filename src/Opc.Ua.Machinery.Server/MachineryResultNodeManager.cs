@@ -357,7 +357,12 @@ namespace Opc.Ua.Machinery.Server
         private readonly ILogger m_resultLogger;
         private MachineryResultTransferManager? m_transfer;
         private uint m_lastUsedNodeId;
-        private bool m_raisedResultEvent;
+
+        /// <summary>
+        /// Set by the publishing thread and read by whichever thread asks for
+        /// the conformance units, so the latch has to be visible across them.
+        /// </summary>
+        private volatile bool m_raisedResultEvent;
 
         private sealed class StandaloneResultPublisher : IMachineryResultPublisher
         {

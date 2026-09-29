@@ -308,6 +308,10 @@ namespace Opc.Ua.Machinery.Server.Builders
             {
                 m_logger = m_scope.BuildContext.Manager.Server.Telemetry
                     .CreateLogger<JobManagementBuilder>();
+
+                // Only created when a pump runs, so a machine without change
+                // streams leaves nothing to dispose.
+                m_changeStreamCts = new CancellationTokenSource();
                 m_changeStreamTask = ObserveExternalChangesAsync(
                     catalogChanges, statusSource, responseChanges, m_changeStreamCts.Token);
 
@@ -434,11 +438,16 @@ namespace Opc.Ua.Machinery.Server.Builders
         }
 
         /// <summary>
-        /// Stops the external-change pumps. Only reached on build rollback —
-        /// see the comment where this is added to <c>RegisteredResources</c>.
+        /// Stops the external-change pumps. Reached on build rollback, or once
+        /// the machine is registered when its node manager is disposed — see
+        /// the comment where this is added to <c>RegisteredResources</c>.
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            if (m_changeStreamCts == null)
+            {
+                return;
+            }
             try
             {
                 m_changeStreamCts.Cancel();
@@ -543,7 +552,7 @@ namespace Opc.Ua.Machinery.Server.Builders
         private readonly MachineryBuildScope m_scope;
         private readonly Isa95JobControlV2Binder m_binder;
         private readonly Lock m_refreshLock = new();
-        private readonly CancellationTokenSource m_changeStreamCts = new();
+        private CancellationTokenSource? m_changeStreamCts;
         private IIsa95JobOrderReceiverV2? m_receiver;
         private IIsa95JobResponseProviderV2? m_responseProvider;
         private IIsa95JobOrderCatalog? m_catalog;
