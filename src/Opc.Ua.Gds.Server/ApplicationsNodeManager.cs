@@ -2235,6 +2235,36 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        /// <summary>
+        /// Builds the FinishRequest result for a certificate the group failed
+        /// to issue.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-12 §7.9.5 has no Bad_ConfigurationError: the status of a
+        /// <see cref="ServiceResultException"/> is kept (e.g.
+        /// Bad_InvalidArgument for a CSR the group cannot sign), any other
+        /// failure maps to Bad_RequestNotAllowed, and the text indicates the
+        /// exact reason. The exception stays attached to the result.
+        /// </remarks>
+        internal static ServiceResult CreateIssueFailureResult(
+            Exception exception,
+            string what,
+            NodeId applicationId,
+            ApplicationRecordDataType application)
+        {
+            return ServiceResult.Create(
+                exception,
+                StatusCodes.BadRequestNotAllowed,
+                "Error Generating {0}={1}\nApplicationId={2}\nApplicationUri={3}\nApplicationName={4}",
+                what,
+                exception.Message,
+                applicationId.ToString(),
+                application.ApplicationUri ?? string.Empty,
+                application.ApplicationNames.IsEmpty
+                    ? string.Empty
+                    : application.ApplicationNames[0].Text ?? string.Empty);
+        }
+
         internal async ValueTask<FinishRequestMethodStateResult> OnFinishRequestAsync(
             ISystemContext context,
             MethodState method,
@@ -2354,22 +2384,12 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        // OPC 10000-12 §7.9.5 has no Bad_ConfigurationError:
-                        // keep the status of a ServiceResultException (e.g.
-                        // Bad_InvalidArgument for a CSR the group cannot
-                        // sign) and fall back to Bad_RequestNotAllowed, whose
-                        // text indicates the exact reason.
                         m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
-                        result.ServiceResult = ServiceResult.Create(
+                        result.ServiceResult = CreateIssueFailureResult(
                             e,
-                            StatusCodes.BadRequestNotAllowed,
-                            "Error Generating Certificate={0}\nApplicationId={1}\nApplicationUri={2}\nApplicationName={3}",
-                            e.Message,
-                            applicationId.ToString(),
-                            application.ApplicationUri!,
-                            application.ApplicationNames.IsEmpty
-                                ? string.Empty
-                                : application.ApplicationNames[0].Text!);
+                            "Certificate",
+                            applicationId,
+                            application);
                         return result;
                     }
                 }
@@ -2389,15 +2409,12 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        // Same result mapping as the signing request path.
                         m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
-                        result.ServiceResult = ServiceResult.Create(
+                        result.ServiceResult = CreateIssueFailureResult(
                             e,
-                            StatusCodes.BadRequestNotAllowed,
-                            "Error Generating New Key Pair Certificate={0}\nApplicationId={1}\nApplicationUri={2}",
-                            e.Message,
-                            applicationId.ToString(),
-                            application.ApplicationUri!);
+                            "New Key Pair Certificate",
+                            applicationId,
+                            application);
                         return result;
                     }
 

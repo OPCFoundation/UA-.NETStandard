@@ -373,18 +373,20 @@ namespace Opc.Ua.Gds.Server
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Runs the checks of
-        /// <see cref="VerifySigningRequestAsync(ApplicationRecordDataType, ByteString, CancellationToken)"/>
-        /// and then <see cref="VerifySigningRequestKey"/>.
+        /// Runs <see cref="VerifySigningRequestKey"/> first, so a key the GDS
+        /// cannot verify or issue reports Bad_NotSupported rather than the
+        /// Bad_InvalidArgument signature verification would raise for it,
+        /// and then the checks of
+        /// <see cref="VerifySigningRequestAsync(ApplicationRecordDataType, ByteString, CancellationToken)"/>.
         /// </remarks>
-        public virtual async Task VerifySigningRequestAsync(
+        public virtual Task VerifySigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
             ByteString certificateRequest,
             CancellationToken ct = default)
         {
-            await VerifySigningRequestAsync(application, certificateRequest, ct).ConfigureAwait(false);
             VerifySigningRequestKey(certificateType, certificateRequest);
+            return VerifySigningRequestAsync(application, certificateRequest, ct);
         }
 
         /// <summary>
@@ -415,6 +417,17 @@ namespace Opc.Ua.Gds.Server
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidArgument,
                     "The CertificateRequest public key cannot be decoded: " + ex.Message);
+            }
+
+            // OPC 10000-12 §7.9.3: Bad_NotSupported for a public key
+            // algorithm the GDS does not support.
+            if (keyAlgorithm is not RsaEncryptionOid and not EcPublicKeyOid)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    CoreUtils.Format(
+                        "The CertificateRequest public key algorithm {0} is not supported.",
+                        keyAlgorithm));
             }
 
             if (IsRsaCertificateType(certificateType))
@@ -490,6 +503,11 @@ namespace Opc.Ua.Gds.Server
         {
             try
             {
+                // a request queued before the key check existed, or one a
+                // custom group verified without it, still fails here with the
+                // exact reason rather than a public key decoding error.
+                VerifySigningRequestKey(certificateType, certificateRequest);
+
                 var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest.ToArray());
 
                 if (!pkcs10CertificationRequest.Verify())
@@ -535,11 +553,6 @@ namespace Opc.Ua.Gds.Server
                         domainNames = [.. domainNameList];
                     }
                 }
-
-                // a request queued before the key check existed, or one a
-                // custom group verified without it, still fails here with the
-                // exact reason rather than a public key decoding error.
-                VerifySigningRequestKey(certificateType, certificateRequest);
 
                 DateTime yesterday = DateTime.Today.AddDays(-1);
                 using Certificate signingKey = await LoadSigningKeyAsync(
