@@ -461,13 +461,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kFluentAccessorsKnown = 0x40;
         private const byte kMethodIdentityTrailer = 0x80;
         private const byte kMethodIdentityTrailerVersion = 1;
-        // Node-entry flags. 0x01 / 0x02 are IsAbstract / IsEnumeration; 0x04
-        // marks the optional VariableType DataType trailer, which older
-        // payloads simply never set, so a new reader stays compatible with
-        // them.
         private const byte kNodeIsAbstract = 0x01;
         private const byte kNodeIsEnumeration = 0x02;
-        private const byte kNodeVariableTypeDataType = 0x04;
+        // The declaration trailer carries the DataType restriction of each
+        // VariableType and the BrowseName namespace and ReferenceType of each
+        // child, with a flag byte per node and per child.
+        private const byte kDeclarationTrailer = 0x04;
+        private const byte kDeclarationTrailerVersion = 1;
+        private const byte kDeclarationDataType = 0x01;
+        private const byte kDeclarationBrowseNameNamespace = 0x01;
+        private const byte kDeclarationReferenceType = 0x02;
         private const byte kExtendedIdentifierTrailer = 0x20;
         private const byte kExtendedIdentifierTrailerVersion = 1;
         private const byte kStructureFieldTrailer = 0x10;
@@ -481,12 +484,6 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kRawUserAccessLevel = 0x04;
         private const byte kMinimumSamplingIntervalSpecified = 0x08;
         private const byte kHistorizingSpecified = 0x10;
-        // 0x20 / 0x40 share the per-child flag byte and mark the optional
-        // BrowseName-namespace and ReferenceType trailers at the end of a child
-        // record. Older payloads never set them, so a new reader stays
-        // compatible with a payload produced before they existed.
-        private const byte kChildBrowseNameNamespace = 0x20;
-        private const byte kChildReferenceType = 0x40;
 
         /// <summary>
         /// Namespace URI that qualifies the standard reference types.
@@ -621,19 +618,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     flags |= kNodeIsEnumeration;
                 }
-                bool hasVariableTypeDataType = node.DataTypeName != null;
-                if (hasVariableTypeDataType)
-                {
-                    flags |= kNodeVariableTypeDataType;
-                }
                 writer.Write(flags);
-                if (hasVariableTypeDataType)
-                {
-                    WriteString(writer, node.DataTypeName ?? string.Empty);
-                    WriteString(writer, node.DataTypeNamespace ?? string.Empty);
-                    writer.Write(node.ValueRank.HasValue);
-                    writer.Write(node.ValueRank ?? 0);
-                }
                 writer.Write(node.Fields.Count);
                 foreach (DependencyDataField field in node.Fields)
                 {
@@ -675,18 +660,6 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     {
                         variableFlags |= kHistorizingSpecified;
                     }
-                    bool hasBrowseNameNamespace =
-                        !string.IsNullOrEmpty(child.BrowseNameNamespace);
-                    if (hasBrowseNameNamespace)
-                    {
-                        variableFlags |= kChildBrowseNameNamespace;
-                    }
-                    bool hasReferenceType =
-                        !string.IsNullOrEmpty(child.ReferenceTypeName);
-                    if (hasReferenceType)
-                    {
-                        variableFlags |= kChildReferenceType;
-                    }
                     writer.Write(variableFlags);
                     writer.Write(child.AccessLevel);
                     writer.Write(child.RawAccessLevel.GetValueOrDefault());
@@ -710,30 +683,23 @@ namespace Opc.Ua.SourceGeneration.Dependency
                         WriteString(writer, a.DataTypeNamespace);
                         writer.Write(a.ValueRank);
                     }
-                    if (hasBrowseNameNamespace)
-                    {
-                        WriteString(writer, child.BrowseNameNamespace);
-                    }
-                    if (hasReferenceType)
-                    {
-                        WriteString(writer, child.ReferenceTypeName);
-                        WriteString(writer, child.ReferenceTypeNamespace);
-                    }
                 }
             }
             bool hasMethodIdentityTrailer = HasMethodIdentityTrailer();
             bool hasStructureFieldTrailer = HasStructureFieldTrailer();
             bool hasValueNamespaceTrailer = HasValueNamespaceTrailer();
-            // The structure field and value namespace trailers are written
-            // after the extended identifier trailer, which is always written
-            // with them: a reader that predates them only reads the
-            // capabilities as "trailers present" (honouring the
+            bool hasDeclarationTrailer = HasDeclarationTrailer();
+            // The structure field, value namespace and declaration trailers
+            // are written after the extended identifier trailer, which is
+            // always written with them: a reader that predates them only reads
+            // the capabilities as "trailers present" (honouring the
             // FluentAccessorsKnown bit) when the method identity or the
             // extended identifier bit is set, and it stops reading after the
             // trailers it knows - so it never sees the new ones.
             bool hasExtendedIdentifierTrailer =
                 hasStructureFieldTrailer ||
                 hasValueNamespaceTrailer ||
+                hasDeclarationTrailer ||
                 HasExtendedIdentifierTrailer();
             if (FluentAccessorsEmitted.HasValue ||
                 hasMethodIdentityTrailer ||
@@ -764,6 +730,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     capabilities |= kValueNamespaceTrailer;
                 }
+                if (hasDeclarationTrailer)
+                {
+                    capabilities |= kDeclarationTrailer;
+                }
                 writer.Write(capabilities);
                 if (hasMethodIdentityTrailer)
                 {
@@ -780,6 +750,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (hasValueNamespaceTrailer)
                 {
                     WriteValueNamespaceTrailer(writer);
+                }
+                if (hasDeclarationTrailer)
+                {
+                    WriteDeclarationTrailer(writer);
                 }
             }
         }
@@ -811,14 +785,6 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 byte flags = reader.ReadByte();
                 node.IsAbstract = (flags & kNodeIsAbstract) != 0;
                 node.IsEnumeration = (flags & kNodeIsEnumeration) != 0;
-                if ((flags & kNodeVariableTypeDataType) != 0)
-                {
-                    node.DataTypeName = ReadString(reader);
-                    node.DataTypeNamespace = ReadString(reader);
-                    bool valueRankSpecified = reader.ReadBoolean();
-                    int valueRank = reader.ReadInt32();
-                    node.ValueRank = valueRankSpecified ? valueRank : null;
-                }
                 int fieldCount = reader.ReadInt32();
                 if (fieldCount is < 0 or > 100_000)
                 {
@@ -924,15 +890,6 @@ namespace Opc.Ua.SourceGeneration.Dependency
                             }
                             c.OutputArguments = args;
                         }
-                        if ((variableFlags & kChildBrowseNameNamespace) != 0)
-                        {
-                            c.BrowseNameNamespace = ReadString(reader);
-                        }
-                        if ((variableFlags & kChildReferenceType) != 0)
-                        {
-                            c.ReferenceTypeName = ReadString(reader);
-                            c.ReferenceTypeNamespace = ReadString(reader);
-                        }
                         children[j] = c;
                     }
                     node.Children = children;
@@ -989,6 +946,147 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     reader.BaseStream.Position < reader.BaseStream.Length)
                 {
                     ReadValueNamespaceTrailer(reader);
+                }
+                if (trailersReadable &&
+                    (capabilities & kDeclarationTrailer) != 0 &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadDeclarationTrailer(reader);
+                }
+            }
+        }
+
+        private bool HasDeclarationTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                if (node.DataTypeName != null)
+                {
+                    return true;
+                }
+                foreach (DependencyChild child in node.Children)
+                {
+                    if (!string.IsNullOrEmpty(child.BrowseNameNamespace) ||
+                        !string.IsNullOrEmpty(child.ReferenceTypeName))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Writes the declaration trailer: per node the DataType and ValueRank
+        /// of a VariableType, and per child of that node the namespace of its
+        /// BrowseName and the ReferenceType that binds it, each behind a flag
+        /// byte. The body is length prefixed so that a reader can skip a
+        /// later version.
+        /// </summary>
+        private void WriteDeclarationTrailer(BinaryWriter writer)
+        {
+            using var body = new MemoryStream();
+            using (var bodyWriter = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                bodyWriter.Write(Nodes.Count);
+                foreach (DependencyNode node in Nodes)
+                {
+                    bool hasDataType = node.DataTypeName != null;
+                    bodyWriter.Write(hasDataType ? kDeclarationDataType : (byte)0);
+                    if (hasDataType)
+                    {
+                        WriteString(bodyWriter, node.DataTypeName ?? string.Empty);
+                        WriteString(bodyWriter, node.DataTypeNamespace ?? string.Empty);
+                        bodyWriter.Write(node.ValueRank.HasValue);
+                        bodyWriter.Write(node.ValueRank ?? 0);
+                    }
+                    bodyWriter.Write(node.Children.Count);
+                    foreach (DependencyChild child in node.Children)
+                    {
+                        bool hasBrowseNameNamespace =
+                            !string.IsNullOrEmpty(child.BrowseNameNamespace);
+                        bool hasReferenceType =
+                            !string.IsNullOrEmpty(child.ReferenceTypeName);
+                        byte childFlags = 0;
+                        if (hasBrowseNameNamespace)
+                        {
+                            childFlags |= kDeclarationBrowseNameNamespace;
+                        }
+                        if (hasReferenceType)
+                        {
+                            childFlags |= kDeclarationReferenceType;
+                        }
+                        bodyWriter.Write(childFlags);
+                        if (hasBrowseNameNamespace)
+                        {
+                            WriteString(bodyWriter, child.BrowseNameNamespace);
+                        }
+                        if (hasReferenceType)
+                        {
+                            WriteString(bodyWriter, child.ReferenceTypeName);
+                            WriteString(bodyWriter, child.ReferenceTypeNamespace);
+                        }
+                    }
+                }
+            }
+            writer.Write(kDeclarationTrailerVersion);
+            writer.Write((int)body.Length);
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        private void ReadDeclarationTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid declaration trailer length " + length);
+            }
+            if (trailerVersion != kDeclarationTrailerVersion)
+            {
+                // Length prefixed: a later version is skipped as a whole.
+                reader.BaseStream.Seek(length, SeekOrigin.Current);
+                return;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid declaration node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                DependencyNode node = Nodes[i];
+                byte nodeFlags = reader.ReadByte();
+                if ((nodeFlags & kDeclarationDataType) != 0)
+                {
+                    node.DataTypeName = ReadString(reader);
+                    node.DataTypeNamespace = ReadString(reader);
+                    bool valueRankSpecified = reader.ReadBoolean();
+                    int valueRank = reader.ReadInt32();
+                    node.ValueRank = valueRankSpecified ? valueRank : null;
+                }
+                int childCount = reader.ReadInt32();
+                if (childCount != node.Children.Count)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid declaration child count " + childCount);
+                }
+                for (int j = 0; j < childCount; j++)
+                {
+                    DependencyChild child = node.Children[j];
+                    byte childFlags = reader.ReadByte();
+                    if ((childFlags & kDeclarationBrowseNameNamespace) != 0)
+                    {
+                        child.BrowseNameNamespace = ReadString(reader);
+                    }
+                    if ((childFlags & kDeclarationReferenceType) != 0)
+                    {
+                        child.ReferenceTypeName = ReadString(reader);
+                        child.ReferenceTypeNamespace = ReadString(reader);
+                    }
                 }
             }
         }
