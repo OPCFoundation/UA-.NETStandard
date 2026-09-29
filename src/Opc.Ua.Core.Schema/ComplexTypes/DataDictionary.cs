@@ -156,7 +156,11 @@ namespace Opc.Ua
                     logger.CouldNotValidateXmlSchema(e);
                 }
 
-                m_validator = validator;
+                // a dictionary that could not be parsed has no schema to return.
+                if (validator.TargetSchema != null)
+                {
+                    m_validator = validator;
+                }
             }
 
             if (TypeSystemId == Objects.OPCBinarySchema_TypeSystem)
@@ -176,7 +180,12 @@ namespace Opc.Ua
                     logger.CouldNotValidateBinarySchema(e);
                 }
 
-                m_validator = validator;
+                // a dictionary that could not be parsed has no schema to return.
+                if (validator.Dictionary != null)
+                {
+                    m_validator = validator;
+                }
+
                 TypeDictionary = validator.Dictionary;
             }
         }

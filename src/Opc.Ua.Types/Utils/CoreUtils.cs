@@ -575,6 +575,14 @@ namespace Opc.Ua
             {
                 return IsEqual(timeu1, (DateTimeUtc)value2);
             }
+
+            // strings are equal only if ordinally equal; string.CompareTo is a
+            // culture-sensitive comparison that skips ignorable characters.
+            if (value1 is string string1)
+            {
+                return string.Equals(string1, (string)value2, StringComparison.Ordinal);
+            }
+
             // check for compareable objects.
             if (value1 is IComparable comparable1)
             {

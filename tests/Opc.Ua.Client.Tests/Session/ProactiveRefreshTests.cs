@@ -117,6 +117,73 @@ namespace Opc.Ua.Client.Tests.Identity
             }
         }
 
+        /// <summary>
+        /// L2-2: a token that expires more than ~49.7 days out made the
+        /// refresh timer throw (due time above the timer limit), so the loop
+        /// failed and "refreshed" every backoff interval. The loop must wait
+        /// in chunks and refresh only shortly before the real expiry.
+        /// </summary>
+        [Test]
+        public async Task ProactiveRefreshWaitsForExpiryBeyondTimerLimit()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var provider = new RefreshingUserNameProvider(timeProvider, TimeSpan.FromDays(100));
+            ManagedSessionClass session = await CreateManagedSessionAsync(provider, timeProvider)
+                .ConfigureAwait(false);
+            await using (session.ConfigureAwait(false))
+            {
+                Assert.That(provider.CallCount, Is.EqualTo(1));
+
+                // Past the first timer chunk (~49.7 days) and a whole
+                // backoff window: nothing may be refreshed yet.
+                timeProvider.Advance(TimeSpan.FromDays(50));
+                await Task.Delay(200).ConfigureAwait(false);
+                timeProvider.Advance(TimeSpan.FromMinutes(2));
+                await Task.Delay(200).ConfigureAwait(false);
+                Assert.That(provider.CallCount, Is.EqualTo(1));
+
+                // Past the second chunk; the remaining (short) delay timer is
+                // created asynchronously, so keep nudging the clock.
+                timeProvider.Advance(TimeSpan.FromDays(50));
+                for (int ii = 0; ii < 100 && provider.CallCount < 2; ii++)
+                {
+                    await Task.Delay(20).ConfigureAwait(false);
+                    timeProvider.Advance(TimeSpan.FromSeconds(1));
+                }
+                Assert.That(provider.CallCount, Is.EqualTo(2));
+                await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// L2-7: an explicit UpdateSessionAsync(identity) on a provider-backed
+        /// session was silently reverted by the next proactive refresh, which
+        /// re-activated the provider's identity.
+        /// </summary>
+        [Test]
+        public async Task ExplicitIdentityUpdateStopsProactiveRefresh()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var provider = new RefreshingUserNameProvider(timeProvider);
+            ManagedSessionClass session = await CreateManagedSessionAsync(provider, timeProvider)
+                .ConfigureAwait(false);
+            await using (session.ConfigureAwait(false))
+            {
+                Assert.That(provider.CallCount, Is.EqualTo(1));
+
+                var explicitIdentity = new UserIdentity("user1", "password"u8);
+                await session.UpdateSessionAsync(explicitIdentity, default).ConfigureAwait(false);
+
+                timeProvider.Advance(TimeSpan.FromMinutes(3));
+                await Task.Delay(300).ConfigureAwait(false);
+
+                Assert.That(provider.CallCount, Is.EqualTo(1),
+                    "the refresh loop must not re-activate the provider identity");
+                Assert.That(session.Connected, Is.True);
+                await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
         private async Task<ManagedSessionClass> CreateManagedSessionAsync(
             IClientIdentityProvider provider,
             TimeProvider timeProvider)
@@ -167,11 +234,18 @@ namespace Opc.Ua.Client.Tests.Identity
         private sealed class RefreshingUserNameProvider : IClientIdentityProvider
         {
             private readonly TimeProvider m_timeProvider;
+            private readonly TimeSpan m_lifetime;
 
             public RefreshingUserNameProvider(TimeProvider timeProvider)
+                : this(timeProvider, TimeSpan.FromMinutes(2))
+            {
+            }
+
+            public RefreshingUserNameProvider(TimeProvider timeProvider, TimeSpan lifetime)
             {
                 m_timeProvider = timeProvider;
-                ExpiresAt = m_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(2);
+                m_lifetime = lifetime;
+                ExpiresAt = m_timeProvider.GetUtcNow().UtcDateTime + m_lifetime;
             }
 
             public int CallCount { get; private set; }
@@ -209,7 +283,7 @@ namespace Opc.Ua.Client.Tests.Identity
                         "Synthetic refresh failure.");
                 }
 
-                ExpiresAt = m_timeProvider.GetUtcNow().UtcDateTime.AddMinutes(2);
+                ExpiresAt = m_timeProvider.GetUtcNow().UtcDateTime + m_lifetime;
                 var identity = new UserIdentity("user1", "password"u8)
                 {
                     PolicyId = policy.PolicyId
@@ -256,6 +330,11 @@ namespace Opc.Ua.Client.Tests.Identity
                 TimeSpan dueTime,
                 TimeSpan period)
             {
+                // Mirror the system timer limit (dueTime <= 0xFFFFFFFE ms).
+                if (dueTime > TimeSpan.FromMilliseconds(uint.MaxValue - 1))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(dueTime));
+                }
                 var timer = new FakeTimer(this, callback, state, dueTime, period);
                 lock (m_timers)
                 {

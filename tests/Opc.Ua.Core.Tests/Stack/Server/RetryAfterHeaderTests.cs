@@ -119,5 +119,29 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
             Assert.That(count, Is.EqualTo(2));
         }
+
+        [TestCase(long.MaxValue)]
+        [TestCase(1_000_000_000_000_000L)]
+        public void ReadClampsOversizedPeerValue(long milliseconds)
+        {
+            // An unbounded peer value overflowed TimeSpan.FromMilliseconds.
+            var header = new ResponseHeader
+            {
+                AdditionalHeader = new ExtensionObject(
+                    new AdditionalParametersType
+                    {
+                        Parameters =
+                        [
+                            new KeyValuePair
+                            {
+                                Key = QualifiedName.From(AdditionalParameterNames.RetryAfterMs),
+                                Value = Variant.From(milliseconds)
+                            }
+                        ]
+                    })
+            };
+
+            Assert.That(RetryAfterHeader.Read(header), Is.EqualTo(RetryAfterHint.MaxRetryAfter));
+        }
     }
 }

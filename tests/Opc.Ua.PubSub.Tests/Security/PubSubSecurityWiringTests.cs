@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             PubSubAes256CtrPolicy policy = PubSubAes256CtrPolicy.Instance;
             byte[] signing = new byte[policy.SigningKeyLength];
             byte[] encrypting = new byte[policy.EncryptingKeyLength];
-            byte[] nonce = new byte[policy.NonceLength];
+            byte[] nonce = new byte[AesCtrNonceLayout.KeyNonceLength];
             for (int i = 0; i < signing.Length; i++)
             {
                 signing[i] = (byte)(i + 1);

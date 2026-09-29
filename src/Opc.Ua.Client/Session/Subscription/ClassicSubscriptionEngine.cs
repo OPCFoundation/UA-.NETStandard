@@ -652,12 +652,22 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Processes the response from a publish request.
         /// </summary>
+        /// <param name="responseHeader">The response header.</param>
+        /// <param name="subscriptionId">The subscription the message belongs to.</param>
+        /// <param name="availableSequenceNumbers">The sequence numbers the
+        /// server still holds for the subscription.</param>
+        /// <param name="moreNotifications">Whether more notifications are pending.</param>
+        /// <param name="notificationMessage">The notification message.</param>
+        /// <param name="republished">The message came from a Republish
+        /// response, which carries no available sequence numbers: the empty
+        /// list then does not mean the server holds nothing.</param>
         internal void ProcessPublishResponse(
             ResponseHeader responseHeader,
             uint subscriptionId,
             ArrayOf<uint> availableSequenceNumbers,
             bool moreNotifications,
-            NotificationMessage notificationMessage)
+            NotificationMessage notificationMessage,
+            bool republished = false)
         {
             Subscription? subscription = null;
             var availableSequenceNumberList = availableSequenceNumbers.ToList();
@@ -702,6 +712,12 @@ namespace Opc.Ua.Client
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
+                    else if (republished)
+                    {
+                        // a republish response cannot tell which messages the
+                        // server still holds, so keep every pending ack.
+                        acknowledgementsToSend.Add(acknowledgement);
+                    }
                     else if (availableSequenceNumberList.Remove(acknowledgement.SequenceNumber))
                     {
                         acknowledgementsToSend.Add(acknowledgement);
@@ -712,8 +728,11 @@ namespace Opc.Ua.Client
                     // a publish response may be processed out of
                     // order, allow for a tolerance until the
                     // sequence number is removed.
-                    else if (Math.Abs((int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend)) <
-                        kPublishRequestSequenceNumberOutOfOrderThreshold)
+                    // The distance is compared without Math.Abs, which throws
+                    // an OverflowException for int.MinValue (a distance of 2^31).
+                    else if (IsWithinOutOfOrderThreshold(
+                        acknowledgement.SequenceNumber,
+                        latestSequenceNumberToSend))
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
@@ -815,7 +834,14 @@ namespace Opc.Ua.Client
                 notificationMessage.StringTable = responseHeader.StringTable;
 
                 // update subscription cache.
-                subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
+                if (republished)
+                {
+                    subscription.SaveRepublishedMessageInCache(notificationMessage);
+                }
+                else
+                {
+                    subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
+                }
 
                 // raise the notification.
                 var args = new NotificationEventArgs(
@@ -1154,6 +1180,17 @@ namespace Opc.Ua.Client
                 error, subscriptionId, sequenceNumber);
 
             return (result, error);
+        }
+
+        /// <summary>
+        /// Returns true if the wrap-aware distance between two sequence
+        /// numbers is below the out-of-order tolerance in either direction.
+        /// </summary>
+        internal static bool IsWithinOutOfOrderThreshold(uint sequenceNumber, uint latestSequenceNumber)
+        {
+            int delta = unchecked((int)(sequenceNumber - latestSequenceNumber));
+            return delta > -kPublishRequestSequenceNumberOutOfOrderThreshold &&
+                delta < kPublishRequestSequenceNumberOutOfOrderThreshold;
         }
 
         private const int kMinPublishRequestCountMax = 100;

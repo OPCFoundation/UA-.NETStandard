@@ -368,7 +368,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 tokenId,
                 policy.SigningKeyLength,
                 policy.EncryptingKeyLength,
-                policy.NonceLength);
+                AesCtrNonceLayout.KeyNonceLength);
 
             var publisherRing = new PubSubSecurityKeyRing("receive-group");
             publisherRing.SetCurrent(key);

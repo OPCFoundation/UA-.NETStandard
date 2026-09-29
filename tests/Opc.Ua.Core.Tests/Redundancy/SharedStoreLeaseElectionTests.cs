@@ -623,6 +623,25 @@ namespace Opc.Ua.Core.Tests.Redundancy
         }
 
         [Test]
+        public async Task AcquireTakesOverWhenStoredLeaseOwnerLengthOverflowsAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var store = new InMemorySharedKeyValueStore();
+            // An owner length near int.MaxValue must be rejected as unparseable
+            // rather than overflowing the length check and throwing.
+            await store.SetAsync(
+                LeaseKey,
+                new ByteString(new byte[] { 0xF8, 0xFF, 0xFF, 0x7F, 0, 0, 0, 0, 0, 0, 0, 0 }))
+                .ConfigureAwait(false);
+            await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
+
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
+
+            Assert.That(acquired, Is.True);
+            Assert.That(election.IsLeader, Is.True);
+        }
+
+        [Test]
         public async Task ReleaseOnDisposeAllowsImmediateTakeoverAsync()
         {
             var time = new FakeTimeProvider();

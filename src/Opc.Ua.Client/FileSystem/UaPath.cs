@@ -50,6 +50,15 @@ namespace Opc.Ua.Client.FileSystem
     /// into a single one and an empty middle segment is rejected.
     /// </para>
     /// <para>
+    /// A <c>'/'</c> or <c>':'</c> that is part of a name is escaped with
+    /// <c>'&amp;'</c> (<c>"&amp;/"</c>, <c>"&amp;:"</c>, and <c>"&amp;&amp;"</c>
+    /// for a literal <c>'&amp;'</c> in front of one of these or at the end of
+    /// a name), in the manner
+    /// of the Part 4 Annex A.2 RelativePath text format, so
+    /// <see cref="Format"/> output always parses back to the same segments.
+    /// An <c>'&amp;'</c> followed by any other character is literal.
+    /// </para>
+    /// <para>
     /// Path comparisons are <em>namespace aware</em>: siblings
     /// <c>"1:foo"</c> and <c>"2:foo"</c> are different paths and produce
     /// different cache keys, even though their <see cref="QualifiedName.Name"/>
@@ -97,7 +106,9 @@ namespace Opc.Ua.Client.FileSystem
             {
                 remaining = remaining[1..];
             }
-            if (remaining.Length > 0 && remaining[^1] == Separator)
+            // An escaped final '/' ("a&/") belongs to the last name.
+            if (remaining.Length > 0 && remaining[^1] == Separator &&
+                !IsEscaped(remaining, remaining.Length - 1))
             {
                 remaining = remaining[..^1];
             }
@@ -111,6 +122,13 @@ namespace Opc.Ua.Client.FileSystem
             int start = 0;
             for (int i = 0; i <= remaining.Length; i++)
             {
+                if (i < remaining.Length - 1 && remaining[i] == Escape)
+                {
+                    // Skip the escaped character (an escaped '/' does not
+                    // separate segments).
+                    i++;
+                    continue;
+                }
                 if (i == remaining.Length || remaining[i] == Separator)
                 {
                     if (i == start)
@@ -170,12 +188,102 @@ namespace Opc.Ua.Client.FileSystem
                     "Path segment must have a non-empty Name.",
                     nameof(segment));
             }
+            string name = EscapeName(segment.Name!);
             if (segment.NamespaceIndex == 0)
             {
-                return segment.Name!;
+                return name;
             }
-            return $"{segment.NamespaceIndex}:{segment.Name}";
+            return $"{segment.NamespaceIndex}:{name}";
         }
+
+        private static string EscapeName(string name)
+        {
+            if (name.IndexOfAny(kReserved) < 0)
+            {
+                return name;
+            }
+            var sb = new StringBuilder(name.Length + 4);
+            for (int i = 0; i < name.Length; i++)
+            {
+                char c = name[i];
+                // A '&' is only ambiguous in front of a reserved character
+                // (or another '&') and at the end of the name, where the
+                // separator that follows in a path would otherwise read as
+                // escaped; elsewhere it stays literal so existing paths keep
+                // their form.
+                if (c is Separator or NamespaceDelimiter ||
+                    (c == Escape && (i + 1 == name.Length || IsReserved(name[i + 1]))))
+                {
+                    sb.Append(Escape);
+                }
+                sb.Append(c);
+            }
+            return sb.ToString();
+        }
+
+        private static string UnescapeName(string name)
+        {
+            if (name.IndexOf(Escape, StringComparison.Ordinal) < 0)
+            {
+                return name;
+            }
+            var sb = new StringBuilder(name.Length);
+            for (int i = 0; i < name.Length; i++)
+            {
+                char c = name[i];
+                if (c == Escape && i + 1 < name.Length && IsReserved(name[i + 1]))
+                {
+                    i++;
+                    c = name[i];
+                }
+                sb.Append(c);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Whether the character at <paramref name="index"/> is escaped, i.e.
+        /// preceded by an odd-length run of <c>'&amp;'</c> (each pair is an
+        /// escaped <c>'&amp;'</c>, a remaining one escapes the character).
+        /// </summary>
+        private static bool IsEscaped(ReadOnlySpan<char> text, int index)
+        {
+            int run = 0;
+            for (int i = index - 1; i >= 0 && text[i] == Escape; i--)
+            {
+                run++;
+            }
+            return (run & 1) == 1;
+        }
+
+        private static bool IsReserved(char c)
+        {
+            return c is Separator or NamespaceDelimiter or Escape;
+        }
+
+        /// <summary>
+        /// Index of the first <c>':'</c> that is not escaped, or -1.
+        /// </summary>
+        private static int IndexOfUnescapedColon(string segment)
+        {
+            for (int i = 0; i < segment.Length; i++)
+            {
+                if (segment[i] == Escape && i + 1 < segment.Length)
+                {
+                    i++;
+                    continue;
+                }
+                if (segment[i] == NamespaceDelimiter)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private const char Escape = '&';
+        private const char NamespaceDelimiter = ':';
+        private static readonly char[] kReserved = [Separator, NamespaceDelimiter, Escape];
 
         /// <summary>
         /// Combines two paths in the manner of
@@ -269,10 +377,10 @@ namespace Opc.Ua.Client.FileSystem
 
         private static QualifiedName ParseSegment(string segment, string fullPath)
         {
-            int colon = segment.IndexOf(':', StringComparison.Ordinal);
+            int colon = IndexOfUnescapedColon(segment);
             if (colon < 0)
             {
-                return new QualifiedName(segment);
+                return new QualifiedName(UnescapeName(segment));
             }
             if (colon == 0 || colon == segment.Length - 1)
             {
@@ -287,7 +395,7 @@ namespace Opc.Ua.Client.FileSystem
                     $"Invalid path '{fullPath}': segment '{segment}' has a non-numeric namespace prefix.",
                     nameof(fullPath));
             }
-            return new QualifiedName(segment[(colon + 1)..], ns);
+            return new QualifiedName(UnescapeName(segment[(colon + 1)..]), ns);
         }
     }
 }

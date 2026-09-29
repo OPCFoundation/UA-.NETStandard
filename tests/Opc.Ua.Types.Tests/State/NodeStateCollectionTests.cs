@@ -397,6 +397,53 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void LoadFromResourceFileClosesTheFile()
+        {
+            var collection = new NodeStateCollection
+            {
+                new ViewState
+                {
+                    NodeId = new NodeId(6040),
+                    SymbolicName = "FileView",
+                    BrowseName = new QualifiedName("FileView"),
+                    DisplayName = new LocalizedText("File View")
+                }
+            };
+            string path = Path.Combine(Path.GetTempPath(), $"NodeStates_{Guid.NewGuid():N}.xml");
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.CreateNew))
+                {
+                    collection.SaveAsXml(m_context, stream, keepStreamOpen: true);
+                }
+
+                var restored = new NodeStateCollection();
+                restored.LoadFromResource(m_context, path, typeof(NodeStateCollectionTests).Assembly, false);
+                Assert.That(restored, Has.Count.EqualTo(1));
+
+                // the loader must not keep the file open.
+                using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                }
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Test]
+        public void LoadFromResourceMissingFileThrowsDecodingError()
+        {
+            var restored = new NodeStateCollection();
+            string path = Path.Combine(Path.GetTempPath(), $"Missing_{Guid.NewGuid():N}.xml");
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
+                restored.LoadFromResource(m_context, path, typeof(NodeStateCollectionTests).Assembly, false));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
         public void SaveAsXmlWithoutKeepStreamOpen()
         {
             var collection = new NodeStateCollection();

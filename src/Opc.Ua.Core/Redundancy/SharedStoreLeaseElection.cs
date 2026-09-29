@@ -350,7 +350,8 @@ namespace Opc.Ua.Redundancy
                         ? GetRemainingLeaseTime(confirmedTimestamp, expiryTicks)
                         : TimeSpan.Zero;
                     confirmed = acquired && remaining > TimeSpan.Zero;
-                    if (m_isLeader != confirmed)
+                    bool wasLeader = m_isLeader;
+                    if (wasLeader != confirmed)
                     {
                         m_pendingNotifications.Enqueue(confirmed);
                     }
@@ -364,7 +365,12 @@ namespace Opc.Ua.Redundancy
                     }
                     else
                     {
-                        ++m_attempt;
+                        // A follower has no authority to revoke, so a failed reply must not
+                        // discard a concurrent attempt that may still take over the lease.
+                        if (wasLeader)
+                        {
+                            ++m_attempt;
+                        }
                         m_expiryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                     }
                 }
@@ -506,12 +512,13 @@ namespace Opc.Ua.Redundancy
             owner = string.Empty;
             expiryUtcTicks = 0;
             byte[] bytes = raw.ToArray();
-            if (bytes.Length < 4)
+            if (bytes.Length < 4 + 8)
             {
                 return false;
             }
             int ownerLength = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(0, 4));
-            if (ownerLength < 0 || bytes.Length < 4 + ownerLength + 8)
+            // Compare without adding to ownerLength so a corrupt length cannot overflow the bound.
+            if (ownerLength < 0 || ownerLength > bytes.Length - 4 - 8)
             {
                 return false;
             }

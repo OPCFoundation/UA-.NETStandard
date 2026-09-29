@@ -121,6 +121,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public void ThrowingObserverDoesNotStopDeliveryToLaterObservers()
+        {
+            var subject = new CertificateChangeSubject();
+            var received = new List<CertificateChangeKind>();
+            int completed = 0;
+            using IDisposable first = subject.Subscribe(new DelegateObserver(
+                _ => throw new InvalidOperationException("observer failure"),
+                () => throw new InvalidOperationException("observer failure")));
+            using IDisposable second = subject.Subscribe(new DelegateObserver(
+                evt => received.Add(evt.Kind),
+                () => completed++));
+
+            Assert.DoesNotThrow(() => subject.Notify(Event(CertificateChangeKind.TrustListUpdated)));
+            Assert.DoesNotThrow(() => subject.Notify(Event(CertificateChangeKind.CrlUpdated)));
+            Assert.DoesNotThrow(subject.Complete);
+
+            Assert.That(received, Is.EqualTo(new[]
+            {
+                CertificateChangeKind.TrustListUpdated,
+                CertificateChangeKind.CrlUpdated
+            }));
+            Assert.That(completed, Is.EqualTo(1));
+        }
+
+        private sealed class DelegateObserver(
+            Action<CertificateChangeEvent> onNext,
+            Action onCompleted) : IObserver<CertificateChangeEvent>
+        {
+            public void OnCompleted()
+            {
+                onCompleted();
+            }
+
+            public void OnError(Exception error)
+            {
+            }
+
+            public void OnNext(CertificateChangeEvent value)
+            {
+                onNext(value);
+            }
+        }
+
+        [Test]
         public async Task FilteredEventsAreDroppedWithoutProcessingAsync()
         {
             var subject = new CertificateChangeSubject();

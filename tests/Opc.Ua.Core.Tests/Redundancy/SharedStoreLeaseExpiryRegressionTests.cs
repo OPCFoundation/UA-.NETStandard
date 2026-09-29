@@ -348,6 +348,83 @@ namespace Opc.Ua.Core.Tests.Redundancy
         }
 
         /// <summary>
+        /// Verifies a follower's read that still saw the old leader's unexpired lease cannot invalidate a
+        /// concurrent attempt that takes over once that lease has expired.
+        /// </summary>
+        [Test]
+        public async Task StaleForeignLeaseReadCannotDiscardConcurrentTakeoverAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var backend = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection other = CreateElection(backend, "B", time);
+            Assert.That(await other.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+
+            Mock<ISharedKeyValueStore> store = CreateStore(backend);
+            await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time);
+            var transitions = new ConcurrentQueue<bool>();
+            election.LeadershipChanged += transitions.Enqueue;
+
+            int reads = 0;
+            var entered = new[]
+            {
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            var complete = new[]
+            {
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            store
+                .Setup(s => s.TryGetAsync(kLeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(async (string key, CancellationToken ct) =>
+                {
+                    int read = Interlocked.Increment(ref reads) - 1;
+                    (bool found, ByteString value) = await backend.TryGetAsync(key, ct).ConfigureAwait(false);
+                    if (read < entered.Length)
+                    {
+                        entered[read].TrySetResult(true);
+                        await complete[read].Task.ConfigureAwait(false);
+                    }
+                    return (found, value);
+                });
+
+            time.Advance(s_leaseDuration - s_renewInterval);
+            Task<bool> stale = election.TryAcquireOrRenewAsync().AsTask();
+            Task<bool> takeover = null;
+            try
+            {
+                await entered[0].Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                takeover = election.TryAcquireOrRenewAsync().AsTask();
+                await entered[1].Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+                // The first reply still sees the other replica's valid lease.
+                complete[0].TrySetResult(true);
+                Assert.That(await stale.WaitAsync(s_timeout).ConfigureAwait(false), Is.False);
+
+                // The second reply arrives after that lease expired and takes it over.
+                time.Advance(s_renewInterval);
+                complete[1].TrySetResult(true);
+                Assert.That(await takeover.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
+                    "A follower's failed read revokes nothing and must not discard the takeover.");
+                Assert.That(election.IsLeader, Is.True);
+                Assert.That(transitions, Is.EqualTo(s_acquired));
+                Assert.That(await other.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            }
+            finally
+            {
+                complete[0].TrySetResult(true);
+                complete[1].TrySetResult(true);
+                await stale.WaitAsync(s_timeout).ConfigureAwait(false);
+                if (takeover != null)
+                {
+                    await takeover.WaitAsync(s_timeout).ConfigureAwait(false);
+                }
+                ConfigureStore(store, backend);
+            }
+        }
+
+        /// <summary>
         /// Creates an election with shared test lease timing and the supplied replica identity and clock.
         /// </summary>
         private static SharedStoreLeaseElection CreateElection(

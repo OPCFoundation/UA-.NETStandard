@@ -189,10 +189,13 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
+            // Equals compares the contents of the arrays, so the hash must not
+            // use the array references. Only the shape is hashed because the
+            // element comparison is deep (e.g. byte[] elements).
             var hash = new HashCode();
             if (Elements != null)
             {
-                hash.Add(Elements);
+                hash.Add(Elements.Length);
             }
             if (!TypeInfo.IsUnknown)
             {
@@ -200,7 +203,10 @@ namespace Opc.Ua
             }
             if (Dimensions != null)
             {
-                hash.Add(Dimensions);
+                foreach (int dimension in Dimensions)
+                {
+                    hash.Add(dimension);
+                }
             }
             return hash.ToHashCode();
         }

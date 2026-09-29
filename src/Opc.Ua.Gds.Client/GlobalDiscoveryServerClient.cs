@@ -467,11 +467,14 @@ namespace Opc.Ua.Gds.Client
                             endpointUrl,
                             true,
                             MessageContext.Telemetry,
-                            ct).ConfigureAwait(false);
+                            ct).ConfigureAwait(false) ??
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "The server offers no secure endpoint the client supports.");
                     var endpointConfiguration = EndpointConfiguration.Create(Configuration);
                     var endpoint = new ConfiguredEndpoint(
                         null,
-                        endpointDescription!,
+                        endpointDescription,
                         endpointConfiguration);
 
                     await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);

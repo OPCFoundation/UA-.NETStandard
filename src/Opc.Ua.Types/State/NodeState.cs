@@ -3266,42 +3266,96 @@ namespace Opc.Ua
                 }
             }
 
-            NodeStateChangeMasks changeMasks = m_changeMasks;
+            // take the reported bits before dispatching, so a change made while the
+            // handlers run (by another writer or by a handler) keeps its bit and is
+            // reported by the next call instead of being wiped afterwards.
+            NodeStateChangeMasks changeMasks = TakeChangeMasks();
 
             if (changeMasks != NodeStateChangeMasks.None)
             {
-                OnStateChanged?.Invoke(context, this, changeMasks);
-                StateChanged?.Invoke(context, this, changeMasks);
-
-                // Drive any asynchronous sinks too, so a node whose only state-changed sink is
-                // asynchronous (for example a monitored-item manager) is still notified when the
-                // synchronous API is used. Completes inline in the common case; a genuinely
-                // asynchronous sink blocks here - only synchronous callers pay that cost.
-                if (OnStateChangedAsync != null || StateChangedAsync != null)
+                try
                 {
-                    if (SynchronizationContext.Current == null)
-                    {
-                        // No ambient synchronization context (the normal server case): drive inline
-                        // and block only on the rare genuinely-asynchronous sink.
-                        ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
-                        if (!raise.IsCompletedSuccessfully)
-                        {
-                            raise.AsTask().GetAwaiter().GetResult();
-                        }
-                    }
-                    else
-                    {
-                        // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
-                        // run the sinks on the thread pool so a context-capturing continuation
-                        // cannot deadlock the blocking wait below.
-                        Task.Run(() =>
-                            RaiseStateChangedAsync(context, changeMasks, CancellationToken.None)
-                                .AsTask())
-                            .GetAwaiter().GetResult();
-                    }
+                    RaiseStateChanged(context, changeMasks);
+                }
+                catch
+                {
+                    // not reported: keep the bits for the next call.
+                    RestoreChangeMasks(changeMasks);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Atomically takes (reads and clears) the pending change masks. A bit set by a
+        /// concurrent setter is either taken here or stays set for the next call; it is
+        /// never lost as with a plain read followed by <c>&amp;=</c>.
+        /// </summary>
+        private NodeStateChangeMasks TakeChangeMasks()
+        {
+            ref int bits = ref Unsafe.As<NodeStateChangeMasks, int>(ref m_changeMasks);
+            return (NodeStateChangeMasks)Interlocked.Exchange(ref bits, 0);
+        }
+
+        /// <summary>
+        /// Atomically sets the change masks that were taken but could not be reported.
+        /// </summary>
+        private void RestoreChangeMasks(NodeStateChangeMasks changeMasks)
+        {
+            ref int bits = ref Unsafe.As<NodeStateChangeMasks, int>(ref m_changeMasks);
+            int current = Volatile.Read(ref bits);
+
+            while (true)
+            {
+                int previous = Interlocked.CompareExchange(
+                    ref bits,
+                    current | (int)changeMasks,
+                    current);
+
+                if (previous == current)
+                {
+                    return;
                 }
 
-                m_changeMasks = NodeStateChangeMasks.None;
+                current = previous;
+            }
+        }
+
+        /// <summary>
+        /// Invokes the synchronous and asynchronous state-changed sinks for
+        /// <see cref="ClearChangeMasks"/>.
+        /// </summary>
+        private void RaiseStateChanged(ISystemContext context, NodeStateChangeMasks changeMasks)
+        {
+            OnStateChanged?.Invoke(context, this, changeMasks);
+            StateChanged?.Invoke(context, this, changeMasks);
+
+            // Drive any asynchronous sinks too, so a node whose only state-changed sink is
+            // asynchronous (for example a monitored-item manager) is still notified when the
+            // synchronous API is used. Completes inline in the common case; a genuinely
+            // asynchronous sink blocks here - only synchronous callers pay that cost.
+            if (OnStateChangedAsync != null || StateChangedAsync != null)
+            {
+                if (SynchronizationContext.Current == null)
+                {
+                    // No ambient synchronization context (the normal server case): drive inline
+                    // and block only on the rare genuinely-asynchronous sink.
+                    ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
+                    if (!raise.IsCompletedSuccessfully)
+                    {
+                        raise.AsTask().GetAwaiter().GetResult();
+                    }
+                }
+                else
+                {
+                    // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
+                    // run the sinks on the thread pool so a context-capturing continuation
+                    // cannot deadlock the blocking wait below.
+                    Task.Run(() =>
+                        RaiseStateChangedAsync(context, changeMasks, CancellationToken.None)
+                            .AsTask())
+                        .GetAwaiter().GetResult();
+                }
             }
         }
 
@@ -3331,15 +3385,24 @@ namespace Opc.Ua
                 }
             }
 
-            NodeStateChangeMasks changeMasks = m_changeMasks;
+            // take the reported bits before dispatching (see ClearChangeMasks).
+            NodeStateChangeMasks changeMasks = TakeChangeMasks();
 
             if (changeMasks != NodeStateChangeMasks.None)
             {
-                OnStateChanged?.Invoke(context, this, changeMasks);
-                StateChanged?.Invoke(context, this, changeMasks);
-                await RaiseStateChangedAsync(context, changeMasks, cancellationToken)
-                    .ConfigureAwait(false);
-                m_changeMasks = NodeStateChangeMasks.None;
+                try
+                {
+                    OnStateChanged?.Invoke(context, this, changeMasks);
+                    StateChanged?.Invoke(context, this, changeMasks);
+                    await RaiseStateChangedAsync(context, changeMasks, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // not reported: keep the bits for the next call.
+                    RestoreChangeMasks(changeMasks);
+                    throw;
+                }
             }
         }
 
@@ -4620,6 +4683,27 @@ namespace Opc.Ua
                             return result;
                         }
                     }
+                    else if (userWriteMask == AttributeWriteMask.None)
+                    {
+                        // a UserWriteMask that is neither set nor computed per user is
+                        // not configured, and writes then only check the WriteMask (see
+                        // CheckUserWriteMask). Report the WriteMask so the attribute
+                        // describes what the current user can actually write (Part 3
+                        // 8.60: a clear bit means not writeable). A node cannot be made
+                        // read-only for all users with a UserWriteMask of 0; clear the
+                        // WriteMask or use OnReadUserWriteMask for that.
+                        userWriteMask = m_writeMask;
+                        NodeAttributeEventHandler<AttributeWriteMask>? onReadEffectiveWriteMask =
+                            OnReadWriteMask;
+                        if (onReadEffectiveWriteMask != null)
+                        {
+                            result = onReadEffectiveWriteMask(context, this, ref userWriteMask);
+                            if (!ServiceResult.IsGood(result))
+                            {
+                                return result;
+                            }
+                        }
+                    }
                     value = (uint)userWriteMask;
                     return result;
                 case Attributes.RolePermissions:
@@ -4771,6 +4855,20 @@ namespace Opc.Ua
                         "Cannot write to server timestamp");
                 }
 
+                // the Value of a VariableType is guarded by the ValueForVariableType bit of the
+                // UserWriteMask (Part 3 5.2.8); Variables use the UserAccessLevel instead.
+                if (NodeClass == NodeClass.VariableType)
+                {
+                    ServiceResult? valueWriteMaskResult = CheckUserWriteMask(
+                        context,
+                        AttributeWriteMask.ValueForVariableType);
+
+                    if (valueWriteMaskResult != null)
+                    {
+                        return valueWriteMaskResult;
+                    }
+                }
+
                 // call implementation.
                 try
                 {
@@ -4808,6 +4906,18 @@ namespace Opc.Ua
                     "Index range can only be specified for value attribute");
             }
 
+            // the UserWriteMask restricts which of the writable attributes the current user
+            // may write (Part 3 5.2.8), mirroring the UserAccessLevel check of the value path.
+            // Attributes the WriteMask does not allow are rejected by the handlers below.
+            ServiceResult? userWriteMaskResult = CheckUserWriteMask(
+                context,
+                GetAttributeWriteMask(attributeId));
+
+            if (userWriteMaskResult != null)
+            {
+                return userWriteMaskResult;
+            }
+
             // call implementation.
             try
             {
@@ -4819,6 +4929,97 @@ namespace Opc.Ua
                     StatusCodes.BadUnexpectedError,
                     "Failed to write non value attribute");
             }
+        }
+
+        /// <summary>
+        /// Checks the <see cref="UserWriteMask"/> for an attribute the
+        /// <see cref="WriteMask"/> allows to be written.
+        /// </summary>
+        /// <returns><c>null</c> if the write may proceed, otherwise the error.</returns>
+        private ServiceResult? CheckUserWriteMask(
+            ISystemContext context,
+            AttributeWriteMask attributeMask)
+        {
+            if (attributeMask == AttributeWriteMask.None || (WriteMask & attributeMask) == 0)
+            {
+                return null;
+            }
+
+            AttributeWriteMask userWriteMask = UserWriteMask;
+            NodeAttributeEventHandler<AttributeWriteMask>? onReadUserWriteMask =
+                OnReadUserWriteMask;
+
+            // a UserWriteMask that is neither set nor computed per user is treated as
+            // not configured (nodes built in code and NodeSets frequently leave it 0);
+            // a read of the attribute then reports the WriteMask, consistent with this.
+            bool userWriteMaskConfigured = onReadUserWriteMask != null ||
+                userWriteMask != AttributeWriteMask.None;
+
+            if (onReadUserWriteMask != null)
+            {
+                // a failing handler fails only this attribute, like the read path.
+                ServiceResult maskResult;
+
+                try
+                {
+                    maskResult = onReadUserWriteMask(context, this, ref userWriteMask);
+                }
+                catch (Exception e)
+                {
+                    return ServiceResult.Create(e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read UserWriteMask.");
+                }
+
+                if (ServiceResult.IsBad(maskResult))
+                {
+                    return maskResult;
+                }
+            }
+
+            if (userWriteMaskConfigured && (userWriteMask & attributeMask) == 0)
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the <see cref="AttributeWriteMask"/> bit that controls writing a
+        /// non-value attribute, or <see cref="AttributeWriteMask.None"/> if there is none.
+        /// </summary>
+        private static AttributeWriteMask GetAttributeWriteMask(uint attributeId)
+        {
+            return attributeId switch
+            {
+                Attributes.NodeId => AttributeWriteMask.NodeId,
+                Attributes.NodeClass => AttributeWriteMask.NodeClass,
+                Attributes.BrowseName => AttributeWriteMask.BrowseName,
+                Attributes.DisplayName => AttributeWriteMask.DisplayName,
+                Attributes.Description => AttributeWriteMask.Description,
+                Attributes.WriteMask => AttributeWriteMask.WriteMask,
+                Attributes.UserWriteMask => AttributeWriteMask.UserWriteMask,
+                Attributes.DataType => AttributeWriteMask.DataType,
+                Attributes.ValueRank => AttributeWriteMask.ValueRank,
+                Attributes.ArrayDimensions => AttributeWriteMask.ArrayDimensions,
+                Attributes.IsAbstract => AttributeWriteMask.IsAbstract,
+                Attributes.Symmetric => AttributeWriteMask.Symmetric,
+                Attributes.InverseName => AttributeWriteMask.InverseName,
+                Attributes.ContainsNoLoops => AttributeWriteMask.ContainsNoLoops,
+                Attributes.EventNotifier => AttributeWriteMask.EventNotifier,
+                Attributes.AccessLevel => AttributeWriteMask.AccessLevel,
+                Attributes.UserAccessLevel => AttributeWriteMask.UserAccessLevel,
+                Attributes.MinimumSamplingInterval => AttributeWriteMask.MinimumSamplingInterval,
+                Attributes.Historizing => AttributeWriteMask.Historizing,
+                Attributes.Executable => AttributeWriteMask.Executable,
+                Attributes.UserExecutable => AttributeWriteMask.UserExecutable,
+                Attributes.DataTypeDefinition => AttributeWriteMask.DataTypeDefinition,
+                Attributes.RolePermissions => AttributeWriteMask.RolePermissions,
+                Attributes.AccessRestrictions => AttributeWriteMask.AccessRestrictions,
+                Attributes.AccessLevelEx => AttributeWriteMask.AccessLevelEx,
+                _ => AttributeWriteMask.None
+            };
         }
 
         /// <summary>
@@ -5855,36 +6056,22 @@ namespace Opc.Ua
                 return WriteAttribute(context, attributeId, default, value);
             }
 
-            List<BaseInstanceState>? children = null;
+            // find the child at the current level. FindChild also reaches the children
+            // generated types keep in fields, which are not stored in m_children.
+            BaseInstanceState? child = FindChild(context, componentPath[index], false, null);
 
-            lock (m_childrenLock)
+            if (child == null)
             {
-                if (m_children != null)
-                {
-                    children = [.. m_children];
-                }
+                return StatusCodes.BadNodeIdUnknown;
             }
 
             // recursively update children.
-            if (children != null)
-            {
-                for (int ii = 0; ii < children.Count; ii++)
-                {
-                    if (componentPath[index] != children[ii].BrowseName)
-                    {
-                        continue;
-                    }
-
-                    return children[ii].WriteChildAttribute(
-                        context,
-                        componentPath,
-                        index + 1,
-                        attributeId,
-                        value);
-                }
-            }
-
-            return StatusCodes.BadNodeIdUnknown;
+            return child.WriteChildAttribute(
+                context,
+                componentPath,
+                index + 1,
+                attributeId,
+                value);
         }
 
         /// <summary>

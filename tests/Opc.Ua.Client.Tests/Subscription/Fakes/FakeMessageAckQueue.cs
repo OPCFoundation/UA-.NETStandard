@@ -141,11 +141,20 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return operation(ct);
         }
 
+        /// <summary>
+        /// Optional override for <see cref="RunWithSessionAvailableAsync"/>,
+        /// e.g. to simulate a session that is not available. If null, runs
+        /// the operation.
+        /// </summary>
+        public Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>?
+            OnRunWithSessionAvailableAsync
+        { get; set; }
+
         public ValueTask RunWithSessionAvailableAsync(
             Func<CancellationToken, ValueTask> operation,
             CancellationToken ct = default)
         {
-            return operation(ct);
+            return OnRunWithSessionAvailableAsync?.Invoke(operation, ct) ?? operation(ct);
         }
 
         /// <summary>

@@ -502,6 +502,165 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             });
         }
 
+        /// <summary>
+        /// OPC 10000-6 6.8.3: the receiver shall validate the signing certificate.
+        /// A validator result that is not valid must reject the secret instead of
+        /// being discarded, and the untrusted certificate must not replace the
+        /// expected sender certificate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("EncryptedSecretCoverage")]
+        public void DecryptEccRejectsSenderCertificateTheValidatorRejects(bool asynchronous)
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            EncryptedSecret encryptor = CreateEccEncryptor(
+                policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
+            byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
+
+            var untrusted = new CertificateValidationResult(
+                isValid: false,
+                statusCode: StatusCodes.BadCertificateUntrusted,
+                errors: [new ServiceResult(StatusCodes.BadCertificateUntrusted)],
+                isSuppressible: true);
+            var validator = new Moq.Mock<ICertificateValidatorEx>();
+            validator
+                .Setup(v => v.ValidateAsync(
+                    Moq.It.IsAny<CertificateCollection>(),
+                    Moq.It.IsAny<TrustListIdentifier>(),
+                    Moq.It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                    Moq.It.IsAny<System.Threading.CancellationToken>()))
+                .Returns(Task.FromResult(untrusted));
+            using var decryptor = EncryptedSecret.CreateForEcc(
+                m_context,
+                policyUri,
+                [],
+                receiverCertificate,
+                receiverEphemeralKey,
+                null!,
+                null!,
+                validator: validator.Object);
+
+            ServiceResultException ex = asynchronous
+                ? Assert.ThrowsAsync<ServiceResultException>(async () => await decryptor.DecryptAsync(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
+                    decryptor.Context.Telemetry).ConfigureAwait(false))
+                : Assert.Throws<ServiceResultException>(() => decryptor.Decrypt(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
+                    decryptor.Context.Telemetry));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(decryptor.SenderCertificate, Is.Null);
+        }
+
+        /// <summary>
+        /// Without a validator the embedded sender certificate must be the one the
+        /// caller expects (the server passes the secure channel's client
+        /// certificate, OPC 10000-4 7.40.2.5); a self-generated certificate that
+        /// signs the secret must not be accepted.
+        /// </summary>
+        [Test]
+        [Category("EncryptedSecretCoverage")]
+        public void DecryptEccRejectsUnexpectedSenderCertificateWithoutValidator()
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate channelCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            EncryptedSecret encryptor = CreateEccEncryptor(
+                policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
+            byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
+
+            using EncryptedSecret mismatched = CreateEccDecryptor(
+                policyUri, receiverCertificate, receiverEphemeralKey, channelCertificate);
+            Assert.That(
+                () => mismatched.Decrypt(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length, mismatched.Context.Telemetry),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadCertificateInvalid));
+            Assert.That(mismatched.SenderCertificate, Is.SameAs(channelCertificate));
+
+            using EncryptedSecret matching = CreateEccDecryptor(
+                policyUri, receiverCertificate, receiverEphemeralKey, senderCertificate);
+            byte[] decrypted = matching.Decrypt(
+                EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length, matching.Context.Telemetry);
+            Assert.That(decrypted, Is.EqualTo(SecretBytes()));
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.40.2.5 allows a SigningCertificate other than the client
+        /// certificate and OPC 10000-6 6.8.3 requires it to be validated. With a
+        /// validator (the server passes its peer certificate validator) a
+        /// differing embedded certificate the validator trusts is accepted and
+        /// replaces the expected one, rather than being rejected outright.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("EncryptedSecretCoverage")]
+        public async Task DecryptEccAcceptsDifferentSenderCertificateTheValidatorTrustsAsync(bool asynchronous)
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate channelCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            EncryptedSecret encryptor = CreateEccEncryptor(
+                policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
+            byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
+
+            var trusted = new CertificateValidationResult(
+                isValid: true,
+                statusCode: StatusCodes.Good,
+                errors: [],
+                isSuppressible: false);
+            var validator = new Moq.Mock<ICertificateValidatorEx>();
+            validator
+                .Setup(v => v.ValidateAsync(
+                    Moq.It.IsAny<CertificateCollection>(),
+                    Moq.It.IsAny<TrustListIdentifier>(),
+                    Moq.It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                    Moq.It.IsAny<System.Threading.CancellationToken>()))
+                .Returns(Task.FromResult(trusted));
+            using var decryptor = EncryptedSecret.CreateForEcc(
+                m_context,
+                policyUri,
+                [],
+                receiverCertificate,
+                receiverEphemeralKey,
+                channelCertificate,
+                null!,
+                validator: validator.Object);
+
+            byte[] decrypted = asynchronous
+                ? await decryptor.DecryptAsync(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
+                    decryptor.Context.Telemetry).ConfigureAwait(false)
+                : decryptor.Decrypt(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
+                    decryptor.Context.Telemetry);
+
+            Assert.That(decrypted, Is.EqualTo(SecretBytes()));
+            Assert.That(decryptor.SenderCertificate!.RawData, Is.EqualTo(senderCertificate.RawData));
+            validator.Verify(v => v.ValidateAsync(
+                Moq.It.IsAny<CertificateCollection>(),
+                Moq.It.IsAny<TrustListIdentifier>(),
+                Moq.It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                Moq.It.IsAny<System.Threading.CancellationToken>()), Moq.Times.Once);
+        }
+
         [Test]
         [Category("EncryptedSecretCoverage")]
         public void DecryptEccThrowsBadNonceInvalidWhenNonceMismatched()

@@ -53,6 +53,7 @@ namespace Opc.Ua.Schema.Tests
             UaTypeDescription outer = SchemaTestData.Structure(
                 3101,
                 "Outer",
+                StructureType.StructureWithOptionalFields,
                 SchemaTestData.Field("Id", SchemaTestData.BuiltIn(BuiltInType.Int32)),
                 SchemaTestData.Field("Name", SchemaTestData.BuiltIn(BuiltInType.String), optional: true),
                 SchemaTestData.Field("Values", SchemaTestData.BuiltIn(BuiltInType.Double), ValueRanks.OneDimension),
@@ -129,6 +130,7 @@ namespace Opc.Ua.Schema.Tests
             UaTypeDescription outer = SchemaTestData.Structure(
                 3101,
                 "Outer",
+                StructureType.StructureWithOptionalFields,
                 SchemaTestData.Field("Child", new NodeId(3102, SchemaTestData.TestNamespaceIndex)));
             ISchemaProvider provider = CreateProvider(inner, outer);
 

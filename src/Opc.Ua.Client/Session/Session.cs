@@ -418,6 +418,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns the security policy of the selected user token policy, which
+        /// defines how a UserTokenSignature is calculated (OPC 10000-4 6.1.8), or
+        /// the channel policy when the token policy is not available.
+        /// </summary>
+        private SecurityPolicyInfo GetUserTokenPolicyInfo(
+            string tokenSecurityPolicyUri,
+            SecurityPolicyInfo channelSecurityPolicy)
+        {
+            return m_securityPolicies.GetInfo(tokenSecurityPolicyUri) ?? channelSecurityPolicy;
+        }
+
+        /// <summary>
         /// Validates the server nonce and security parameters of user identity.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -522,7 +534,18 @@ namespace Opc.Ua.Client
 
                 // Before the keep-alive timer and the channel go away: a publish
                 // notification already dispatched still reads session state.
-                await BackgroundWork.DisposeAsync().ConfigureAwait(false);
+                if (IsDisposeBlockingBackgroundWork)
+                {
+                    // Disposed from a handler running on this background work
+                    // (e.g. Notification), directly or through a wrapper the
+                    // handler waits for: the drain would wait for the caller
+                    // itself until it times out. Stop and cancel without waiting.
+                    BackgroundWork.Dispose();
+                }
+                else
+                {
+                    await BackgroundWork.DisposeAsync().ConfigureAwait(false);
+                }
 
                 try
                 {
@@ -1134,11 +1157,21 @@ namespace Opc.Ua.Client
         {
             ByteString serverCertificate = m_endpoint.Description?.ServerCertificate ?? default;
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
+
+            // The endpoint may carry the full server certificate chain
+            // (leaf + issuers); only the leaf is the server certificate.
+            Certificate? restoredServerCertificate = null;
+            if (!serverCertificate.IsEmpty)
+            {
+                using CertificateCollection serverCertificateChain =
+                    Utils.ParseCertificateChainBlob(serverCertificate, m_telemetry);
+                if (serverCertificateChain.Count > 0)
+                {
+                    restoredServerCertificate = serverCertificateChain[0].AddRef();
+                }
+            }
             m_serverCertificate?.Dispose();
-            m_serverCertificate =
-                !serverCertificate.IsEmpty
-                    ? Certificate.FromRawData(serverCertificate)
-                    : null;
+            m_serverCertificate = restoredServerCertificate;
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce;
@@ -1626,15 +1659,17 @@ namespace Opc.Ua.Client
 
                 if (identityToken.Token is X509IdentityToken)
                 {
-                    // sign data with user token.
-                    dataToSign = securityPolicy.GetUserTokenSignatureData(
-                        TransportChannel.ChannelThumbprint,
-                        serverNonce.ToArray(),
-                        serverCertificate?.RawData,
-                        TransportChannel.ServerChannelCertificate,
-                        m_instanceCertificateEntry?.Certificate.RawData,
-                        TransportChannel.ClientChannelCertificate,
-                        m_clientNonce ?? []);
+                    // sign data with user token, using the user token policy (OPC 10000-4 6.1.8).
+                    dataToSign = GetUserTokenPolicyInfo(tokenSecurityPolicyUri, securityPolicy)
+                        .GetUserTokenSignatureData(
+                            TransportChannel.ChannelThumbprint,
+                            serverNonce.ToArray(),
+                            serverCertificate?.RawData,
+                            TransportChannel.ServerChannelCertificate,
+                            m_instanceCertificateEntry?.Certificate.RawData,
+                            TransportChannel.ClientChannelCertificate,
+                            m_clientNonce ?? [],
+                            m_endpoint.Description.SecurityMode);
 
                     userTokenSignature = await identityToken.SignAsync(
                         dataToSign,
@@ -1798,6 +1833,8 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
 
             await AcquireIdentityUpdateLockAsync(ct).ConfigureAwait(false);
+            CancellationTokenSource lockHolder = EnterReconnectLockHolder(ct);
+            CancellationToken operationCt = lockHolder.Token;
             try
             {
                 IdentitySelectionContext context;
@@ -1839,9 +1876,9 @@ namespace Opc.Ua.Client
                     bool hasOverride = !string.IsNullOrEmpty(overrideUserTokenPolicyUri);
                     // Pin only when there's actually a bound ephemeral
                     // key; an override request bypasses pinning (the
-                    // caller is explicitly asking for a new policy and
-                    // the ephemeral key will be renewed on the next
-                    // service call AFTER UpdateSessionAsync succeeds).
+                    // caller is explicitly asking for a new policy; a key
+                    // for it is requested before the new identity is
+                    // activated when the token must be encrypted with it).
                     string? boundEphemeralUri =
                         !hasOverride && m_eccServerEphemeralKey != null
                             ? m_userTokenSecurityPolicyUri
@@ -1857,14 +1894,65 @@ namespace Opc.Ua.Client
                         boundEphemeralUri);
                 }
 
-                IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
+                IUserIdentity identity = await provider.AcquireIdentityAsync(context, operationCt)
                     .ConfigureAwait(false);
 
                 string? previousPolicyUri = null;
                 Nonce? previousEphemeralKey = null;
                 bool overrideCommitted = false;
+                bool keyBoundToOverride = false;
+                bool fetchEphemeralKey = false;
                 if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
                 {
+                    string? originalPolicyUri;
+                    lock (m_lock)
+                    {
+                        originalPolicyUri = m_userTokenSecurityPolicyUri;
+                        keyBoundToOverride = m_eccServerEphemeralKey != null &&
+                            string.Equals(
+                                m_userTokenSecurityPolicyUri,
+                                overrideUserTokenPolicyUri,
+                                StringComparison.Ordinal);
+                    }
+
+                    // Part 6 6.8.2: a token encrypted for an ECC policy needs
+                    // the EphemeralKey the server returned for exactly that
+                    // policy, and the server only returns it in an activation
+                    // response that asked for it (ECDHPolicyUri). Obtain the
+                    // key first by reactivating the current identity, then
+                    // activate the new identity with it below.
+                    fetchEphemeralKey = !keyBoundToOverride &&
+                        RequiresEphemeralKey(overrideUserTokenPolicyUri!, identity);
+                    if (fetchEphemeralKey)
+                    {
+                        // The fetch replaces (and disposes) the key of the
+                        // current identity: park a copy so a failed activation
+                        // of the new identity can fall back to it below.
+#pragma warning disable CA2000 // disposed on success, restored into the session on failure
+                        previousEphemeralKey = CopyEphemeralKey(originalPolicyUri);
+#pragma warning restore CA2000
+                        try
+                        {
+                            await RequestEphemeralKeyAsync(
+                                overrideUserTokenPolicyUri!,
+                                originalPolicyUri,
+                                operationCt).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            lock (m_lock)
+                            {
+                                if (m_eccServerEphemeralKey == null)
+                                {
+                                    m_eccServerEphemeralKey = previousEphemeralKey;
+                                    previousEphemeralKey = null;
+                                }
+                            }
+                            previousEphemeralKey?.Dispose();
+                            throw;
+                        }
+                    }
+
                     // Commit override state ONLY after the new identity
                     // has been materialised — if AcquireIdentityAsync
                     // threw (cert load failure, policy mismatch, etc.)
@@ -1874,11 +1962,20 @@ namespace Opc.Ua.Client
                     // ever renewed by a successful activation response, so
                     // a failed override would otherwise leave the previous
                     // identity without the key its next encryption needs.
+                    // A key that was just fetched for (or already belongs
+                    // to) the override policy stays in place: the new
+                    // identity is encrypted with it. The previous key was
+                    // parked as a copy before the fetch replaced it.
                     lock (m_lock)
                     {
-                        previousPolicyUri = m_userTokenSecurityPolicyUri;
-                        previousEphemeralKey = m_eccServerEphemeralKey;
-                        m_eccServerEphemeralKey = null;
+                        previousPolicyUri = fetchEphemeralKey
+                            ? originalPolicyUri
+                            : m_userTokenSecurityPolicyUri;
+                        if (!fetchEphemeralKey && !keyBoundToOverride)
+                        {
+                            previousEphemeralKey = m_eccServerEphemeralKey;
+                            m_eccServerEphemeralKey = null;
+                        }
                         m_userTokenSecurityPolicyUri = overrideUserTokenPolicyUri;
                     }
                     overrideCommitted = true;
@@ -1894,7 +1991,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
+                    await UpdateSessionAsync(identity, default, operationCt).ConfigureAwait(false);
                     previousEphemeralKey?.Dispose();
                 }
                 catch when (overrideCommitted)
@@ -1902,12 +1999,34 @@ namespace Opc.Ua.Client
                     // The server did not accept the new identity, so the old
                     // one stays active. Put the token policy and the ephemeral
                     // key back so reconnects keep encrypting it with the policy
-                    // and key it was issued for.
+                    // and key it was issued for. A key that already belonged to
+                    // the override policy is still the server's current one.
+                    // So is a key fetched for the override: the server only
+                    // accepts the key of its latest activation response, so it
+                    // is kept (with its policy) when the old identity can be
+                    // encrypted under that policy. Otherwise the parked key is
+                    // the best that is left.
                     lock (m_lock)
                     {
-                        m_userTokenSecurityPolicyUri = previousPolicyUri;
-                        m_eccServerEphemeralKey?.Dispose();
-                        m_eccServerEphemeralKey = previousEphemeralKey;
+                        if (fetchEphemeralKey &&
+                            m_eccServerEphemeralKey != null &&
+                            m_identity != null &&
+                            m_endpoint.Description.FindUserTokenPolicy(
+                                m_identity.TokenType,
+                                m_identity.IssuedTokenType,
+                                overrideUserTokenPolicyUri!) != null)
+                        {
+                            previousEphemeralKey?.Dispose();
+                        }
+                        else
+                        {
+                            m_userTokenSecurityPolicyUri = previousPolicyUri;
+                            if (!keyBoundToOverride)
+                            {
+                                m_eccServerEphemeralKey?.Dispose();
+                                m_eccServerEphemeralKey = previousEphemeralKey;
+                            }
+                        }
                     }
                     throw;
                 }
@@ -1920,11 +2039,92 @@ namespace Opc.Ua.Client
                     SessionId);
                 throw;
             }
+            catch (OperationCanceledException) when (IsInterruptedByChannelRecovery(lockHolder, ct))
+            {
+                throw InterruptedByChannelRecovery();
+            }
             finally
             {
+                ExitReconnectLockHolder(lockHolder);
                 Reconnecting = false;
                 m_reconnectLock.Release();
             }
+        }
+
+        /// <summary>
+        /// Registers the caller as holder of <see cref="m_reconnectLock"/> for an
+        /// operation that sends requests while holding it. A channel-manager
+        /// reconnect of this session waits for that lock, and the managed
+        /// channel only becomes Ready again once the reconnect returned, so a
+        /// holder waiting for Ready would deadlock with it. The reconnect
+        /// therefore cancels the holder (see <see cref="BeginReconnectLockInterruption"/>).
+        /// </summary>
+        private CancellationTokenSource EnterReconnectLockHolder(CancellationToken ct)
+        {
+            var holder = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            Interlocked.Exchange(ref m_reconnectLockHolder, holder);
+
+            // An operation that was queued on the lock behind the interrupted
+            // holder takes it while the channel recovery still waits for it:
+            // interrupt it right away instead of deadlocking again.
+            if (Volatile.Read(ref m_reconnectLockInterrupts) != 0)
+            {
+                holder.Cancel();
+            }
+            return holder;
+        }
+
+        private void ExitReconnectLockHolder(CancellationTokenSource holder)
+        {
+            Interlocked.CompareExchange(ref m_reconnectLockHolder, null, holder);
+            holder.Dispose();
+        }
+
+        /// <summary>
+        /// Interrupts the operation currently holding <see cref="m_reconnectLock"/>
+        /// across network I/O, and every operation that takes the lock until
+        /// <see cref="EndReconnectLockInterruption"/>, so a channel-manager
+        /// reconnect can take the lock.
+        /// </summary>
+        private void BeginReconnectLockInterruption()
+        {
+            Interlocked.Increment(ref m_reconnectLockInterrupts);
+            CancellationTokenSource? holder = Volatile.Read(ref m_reconnectLockHolder);
+            if (holder == null)
+            {
+                return;
+            }
+            try
+            {
+                holder.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The holder finished in the meantime.
+            }
+        }
+
+        /// <summary>
+        /// Ends an interruption started by <see cref="BeginReconnectLockInterruption"/>
+        /// once the channel-manager reconnect no longer needs the lock.
+        /// </summary>
+        private void EndReconnectLockInterruption()
+        {
+            Interlocked.Decrement(ref m_reconnectLockInterrupts);
+        }
+
+        private static bool IsInterruptedByChannelRecovery(
+            CancellationTokenSource holder,
+            CancellationToken ct)
+        {
+            return holder.IsCancellationRequested && !ct.IsCancellationRequested;
+        }
+
+        private static ServiceResultException InterruptedByChannelRecovery()
+        {
+            return ServiceResultException.Create(
+                StatusCodes.BadSecureChannelClosed,
+                "The operation was interrupted because the channel is being recovered.");
         }
 
         private async Task AcquireIdentityUpdateLockAsync(CancellationToken ct)
@@ -1940,6 +2140,89 @@ namespace Opc.Ua.Client
 
                 m_reconnectLock.Release();
                 await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Whether activating <paramref name="identity"/> under the user-token
+        /// policy <paramref name="policyUri"/> encrypts the token with a server
+        /// ephemeral key (ECC policies, UserName and IssuedToken tokens).
+        /// </summary>
+        private bool RequiresEphemeralKey(string policyUri, IUserIdentity identity)
+        {
+            if (identity.TokenType is not (UserTokenType.UserName or UserTokenType.IssuedToken))
+            {
+                return false;
+            }
+            SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri);
+            return policy != null && policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
+        }
+
+        /// <summary>
+        /// Copies the current server ephemeral key, which belongs to the
+        /// user-token policy <paramref name="policyUri"/>, or returns
+        /// <c>null</c> when there is none.
+        /// </summary>
+        private Nonce? CopyEphemeralKey(string? policyUri)
+        {
+            byte[]? data;
+            lock (m_lock)
+            {
+                data = m_eccServerEphemeralKey?.Data;
+            }
+            if (data == null || string.IsNullOrEmpty(policyUri))
+            {
+                return null;
+            }
+            SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri!);
+            return policy == null ? null : Nonce.CreateNonce(policy, [.. data]);
+        }
+
+        /// <summary>
+        /// Reactivates the session with the currently active identity and asks
+        /// the server for an ephemeral key for <paramref name="policyUri"/>
+        /// (Part 6 6.8.2), so a following activation can encrypt a new
+        /// identity for that policy. The caller holds the reconnect lock.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The server did not return an ephemeral key for the policy.
+        /// </exception>
+        private async Task RequestEphemeralKeyAsync(
+            string policyUri,
+            string? currentPolicyUri,
+            CancellationToken ct)
+        {
+            ByteString serverNonce;
+            ArrayOf<string> preferredLocales;
+            IUserIdentity? currentIdentity;
+            Nonce? currentKey;
+            lock (m_lock)
+            {
+                serverNonce = m_serverNonce;
+                preferredLocales = m_preferredLocales;
+                currentIdentity = m_identity;
+                currentKey = m_eccServerEphemeralKey;
+            }
+
+            await ReactivateExistingSessionAsync(
+                currentIdentity,
+                preferredLocales,
+                serverNonce,
+                ct,
+                ephemeralKeyPolicyUri: policyUri).ConfigureAwait(false);
+
+            lock (m_lock)
+            {
+                if (m_eccServerEphemeralKey == null ||
+                    ReferenceEquals(m_eccServerEphemeralKey, currentKey))
+                {
+                    // Keep the current identity's policy with its key.
+                    m_userTokenSecurityPolicyUri = currentPolicyUri;
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "The server did not provide an ephemeral key for user token policy '{0}'.",
+                        policyUri);
+                }
             }
         }
 
@@ -2012,13 +2295,19 @@ namespace Opc.Ua.Client
         /// </param>
         /// <param name="ct">A cancellation token.</param>
         /// <param name="recoveryClient">An optional client bound to this recovery callback's send channel.</param>
+        /// <param name="ephemeralKeyPolicyUri">
+        /// When set, the ephemeral key is requested for this user-token policy
+        /// instead of the policy the identity is encrypted with, and that
+        /// policy stays in effect afterwards (it owns the returned key).
+        /// </param>
         /// <exception cref="ServiceResultException"></exception>
         private async Task ReactivateExistingSessionAsync(
             IUserIdentity? identity,
             ArrayOf<string> preferredLocales,
             ByteString serverNonce,
             CancellationToken ct,
-            SessionClient? recoveryClient = null)
+            SessionClient? recoveryClient = null,
+            string? ephemeralKeyPolicyUri = null)
         {
             // get the identity token.
             string securityPolicyUri =
@@ -2094,14 +2383,16 @@ namespace Opc.Ua.Client
 
             if (identityToken.Token is X509IdentityToken)
             {
-                dataToSign = securityPolicy.GetUserTokenSignatureData(
-                    TransportChannel.ChannelThumbprint,
-                    serverNonce.ToArray(),
-                    m_serverCertificate?.RawData,
-                    TransportChannel.ServerChannelCertificate,
-                    m_instanceCertificateEntry?.Certificate.RawData,
-                    TransportChannel.ClientChannelCertificate,
-                    m_clientNonce ?? []);
+                dataToSign = GetUserTokenPolicyInfo(tokenSecurityPolicyUri, securityPolicy)
+                    .GetUserTokenSignatureData(
+                        TransportChannel.ChannelThumbprint,
+                        serverNonce.ToArray(),
+                        m_serverCertificate?.RawData,
+                        TransportChannel.ServerChannelCertificate,
+                        m_instanceCertificateEntry?.Certificate.RawData,
+                        TransportChannel.ClientChannelCertificate,
+                        m_clientNonce ?? [],
+                        m_endpoint.Description.SecurityMode);
 
                 userTokenSignature = await identityToken.SignAsync(
                     dataToSign,
@@ -2128,14 +2419,15 @@ namespace Opc.Ua.Client
             // it must not outlive a failed activation: the previously active
             // identity is still the one the server accepts in that case.
             string? previousUserTokenSecurityPolicyUri = m_userTokenSecurityPolicyUri;
-            m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
+            string keyPolicyUri = ephemeralKeyPolicyUri ?? tokenSecurityPolicyUri;
+            m_userTokenSecurityPolicyUri = keyPolicyUri;
 
             ActivateSessionResponse response;
             ByteString activationRequestNonce = serverNonce;
             try
             {
                 RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
-                    tokenSecurityPolicyUri!);
+                    keyPolicyUri);
 
                 response = await (recoveryClient ?? this).ActivateSessionAsync(
                     requestHeader,
@@ -2257,6 +2549,8 @@ namespace Opc.Ua.Client
             {
                 bool reconnecting = false;
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                CancellationTokenSource lockHolder = EnterReconnectLockHolder(ct);
+                CancellationToken operationCt = lockHolder.Token;
                 try
                 {
                     reconnecting = Reconnecting;
@@ -2265,7 +2559,7 @@ namespace Opc.Ua.Client
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
                         if (!await subscriptions[ii]
-                                .TransferAsync(this, subscriptionIds[ii], [], ct)
+                                .TransferAsync(this, subscriptionIds[ii], [], operationCt)
                                 .ConfigureAwait(false))
                         {
                             m_logger.SubscriptionIdSubscriptionIdFailedReactivate(
@@ -2281,7 +2575,7 @@ namespace Opc.Ua.Client
                         {
                             ArrayOf<ServiceResult> resendResults = await this.ResendDataAsync(
                                 subscriptions.Select(s => s.Id).ToArrayOf(),
-                                ct).ConfigureAwait(false);
+                                operationCt).ConfigureAwait(false);
                             for (int ii = 0; ii < resendResults.Count; ii++)
                             {
                                 // no need to try for subscriptions which do not exist
@@ -2304,8 +2598,13 @@ namespace Opc.Ua.Client
                         failedSubscriptions,
                         SessionId);
                 }
+                catch (OperationCanceledException) when (IsInterruptedByChannelRecovery(lockHolder, ct))
+                {
+                    throw InterruptedByChannelRecovery();
+                }
                 finally
                 {
+                    ExitReconnectLockHolder(lockHolder);
                     Reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
@@ -2370,6 +2669,17 @@ namespace Opc.Ua.Client
             {
                 bool reconnecting = false;
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                CancellationTokenSource lockHolder = EnterReconnectLockHolder(ct);
+                CancellationToken operationCt = lockHolder.Token;
+
+                // The server reports the transfer to the old session with a
+                // Good_SubscriptionTransferred, which the subscription must
+                // not take for an unsolicited transfer (Reconnecting is only
+                // set on this session, not on the old one).
+                foreach (Subscription subscription in subscriptions)
+                {
+                    subscription.OnTransferStarting();
+                }
                 try
                 {
                     reconnecting = Reconnecting;
@@ -2379,7 +2689,7 @@ namespace Opc.Ua.Client
                             null,
                             subscriptionIds,
                             sendInitialValues,
-                            ct)
+                            operationCt)
                         .ConfigureAwait(false);
                     ArrayOf<TransferResult> results = response.Results;
                     ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
@@ -2406,7 +2716,8 @@ namespace Opc.Ua.Client
                                     this,
                                     subscriptionIds[ii],
                                     results[ii].AvailableSequenceNumbers,
-                                    ct)
+                                    true,
+                                    operationCt)
                                 .ConfigureAwait(false);
                             if (transferredSubscription)
                             {
@@ -2475,6 +2786,11 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
+                    ExitReconnectLockHolder(lockHolder);
+                    foreach (Subscription subscription in subscriptions)
+                    {
+                        subscription.OnTransferFinished();
+                    }
                     Reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
@@ -3093,6 +3409,22 @@ namespace Opc.Ua.Client
                 networkRecovery: true);
         }
 
+        /// <summary>
+        /// Forgets the server session this client is bound to without closing it
+        /// on the server. Afterwards the client is no longer connected, so a later
+        /// close or dispose only tears down the local state and the channel and
+        /// never sends CloseSession. Used when another client (a promoted replica)
+        /// takes the same server session over by reactivating it.
+        /// </summary>
+        internal void AbandonServerSession()
+        {
+            DeleteSubscriptionsOnClose = false;
+            lock (m_lock)
+            {
+                SessionCreated(default, default);
+            }
+        }
+
         internal Task ReactivateMirroredSessionAsync(
             ConfiguredEndpoint endpoint,
             CancellationToken ct = default)
@@ -3518,6 +3850,27 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException">The subscription recovery deadline expires.</exception>
         internal async Task CompleteSessionRecoveryAsync(CancellationToken ct)
+        {
+            if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0 ||
+                m_pendingSubscriptionRecovery == null)
+            {
+                return;
+            }
+
+            // Single flight: a second caller waits for the running recovery and
+            // then only acts if that one left the recovery pending (failed).
+            await m_subscriptionRecoveryGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await CompleteSessionRecoveryCoreAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_subscriptionRecoveryGate.Release();
+            }
+        }
+
+        private async Task CompleteSessionRecoveryCoreAsync(CancellationToken ct)
         {
             if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0)
             {
@@ -4032,14 +4385,16 @@ namespace Opc.Ua.Client
                     m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
 
-                dataToSign = securityPolicy.GetUserTokenSignatureData(
-                    channelThumbprint,
-                    m_serverNonce.ToArray(),
-                    m_serverCertificate?.RawData,
-                    serverChannelCertificate,
-                    m_instanceCertificateEntry?.Certificate.RawData,
-                    clientChannelCertificate,
-                    m_clientNonce ?? []);
+                dataToSign = GetUserTokenPolicyInfo(tokenSecurityPolicyUri, securityPolicy)
+                    .GetUserTokenSignatureData(
+                        channelThumbprint,
+                        m_serverNonce.ToArray(),
+                        m_serverCertificate?.RawData,
+                        serverChannelCertificate,
+                        m_instanceCertificateEntry?.Certificate.RawData,
+                        clientChannelCertificate,
+                        m_clientNonce ?? [],
+                        endpoint.SecurityMode);
 
                 SignatureData? userTokenSignature = null;
 
@@ -4204,7 +4559,8 @@ namespace Opc.Ua.Client
                     subscriptionId,
                     default,
                     false,
-                    notificationMessage);
+                    notificationMessage,
+                    republished: true);
 
                 return (true, ServiceResult.Good);
             }
@@ -4853,19 +5209,41 @@ namespace Opc.Ua.Client
                         continue;
                     }
 
+                    long timeoutHint = Math.Min(2L * KeepAliveInterval, int.MaxValue);
                     var requestHeader = new RequestHeader
                     {
                         RequestHandle = NewRequestHandle(),
-                        TimeoutHint = (uint)(KeepAliveInterval * 2),
+                        TimeoutHint = (uint)timeoutHint,
                         ReturnDiagnostics = 0
                     };
 
-                    ReadResponse result = await ReadAsync(
-                        requestHeader,
-                        0,
-                        TimestampsToReturn.Neither,
-                        nodesToRead,
-                        ct).ConfigureAwait(false);
+                    // Part 4 7.32: the client applies timeoutHint to the call
+                    // itself. Without it the read waits for the transport's
+                    // OperationTimeout (minutes) on a silent server, and no
+                    // keep-alive error - hence no reconnect - is raised until then.
+                    using CancellationTokenSource readTimeout =
+                        m_timeProvider.CreateCancellationTokenSource(
+                            TimeSpan.FromMilliseconds(timeoutHint));
+                    using var readCancellation =
+                        CancellationTokenSource.CreateLinkedTokenSource(ct, readTimeout.Token);
+                    ReadResponse result;
+                    try
+                    {
+                        result = await ReadAsync(
+                            requestHeader,
+                            0,
+                            TimestampsToReturn.Neither,
+                            nodesToRead,
+                            readCancellation.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception) when (
+                        readTimeout.IsCancellationRequested && !ct.IsCancellationRequested)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNoCommunication,
+                            "Keep alive read timed out after {0} ms.",
+                            timeoutHint);
+                    }
 
                     // read the server status.
                     ArrayOf<DataValue> values = result.Results;
@@ -6260,6 +6638,95 @@ namespace Opc.Ua.Client
         /// </summary>
         internal BackgroundTaskScope BackgroundWork { get; } =
             new(nameof(Session), AmbientMessageContext.Telemetry);
+
+        /// <summary>
+        /// Runs <paramref name="work"/> on <see cref="BackgroundWork"/> and marks
+        /// the flow as owned by this session's background work, so a handler
+        /// that closes or disposes the session from inside it does not wait for
+        /// the drain of the very operation it runs in.
+        /// </summary>
+        internal bool RunBackgroundWork(string operation, Action work)
+        {
+            return BackgroundWork.Run(operation, _ =>
+            {
+                var scope = new BackgroundWorkScope(this);
+                s_backgroundWorkOwner.Value = scope;
+                try
+                {
+                    work();
+                }
+                finally
+                {
+                    // Tasks and continuations the work spawned captured the
+                    // scope with the execution context: deactivate it so they
+                    // do not pass as this work item once it has returned.
+                    scope.Active = false;
+                    s_backgroundWorkOwner.Value = null;
+                }
+                return default;
+            });
+        }
+
+        /// <summary>
+        /// Called by a wrapper (the managed session) that is asked to close or
+        /// dispose from a flow that may be one of this session's background
+        /// work items, before it hands the close to another flow. A dispose
+        /// running on that other flow then does not wait for the drain of the
+        /// work item, which is blocked on the wrapper until the close is done.
+        /// </summary>
+        internal void NoteCloseFromBackgroundWork()
+        {
+            BackgroundWorkScope? scope = CurrentBackgroundWorkScope;
+            if (scope != null)
+            {
+                Volatile.Write(ref m_closingBackgroundWork, scope);
+            }
+        }
+
+        /// <summary>
+        /// The background work item of this session the current flow runs in,
+        /// or <c>null</c>.
+        /// </summary>
+        private BackgroundWorkScope? CurrentBackgroundWorkScope =>
+            s_backgroundWorkOwner.Value is { Active: true } scope &&
+            ReferenceEquals(scope.Owner, this)
+                ? scope
+                : null;
+
+        /// <summary>
+        /// Whether the dispose must not wait for the background work drain,
+        /// because the caller is (or waits for) a work item that is still
+        /// running and the drain would wait for it until it times out.
+        /// </summary>
+        private bool IsDisposeBlockingBackgroundWork =>
+            CurrentBackgroundWorkScope != null ||
+            Volatile.Read(ref m_closingBackgroundWork) is { Active: true };
+
+        /// <summary>
+        /// Marks one work item run by <see cref="RunBackgroundWork"/>.
+        /// </summary>
+        private sealed class BackgroundWorkScope
+        {
+            public BackgroundWorkScope(Session owner)
+            {
+                Owner = owner;
+            }
+
+            public Session Owner { get; }
+
+            public volatile bool Active = true;
+        }
+
+        /// <summary>
+        /// The background work item that runs the current flow.
+        /// </summary>
+        private static readonly AsyncLocal<BackgroundWorkScope?> s_backgroundWorkOwner = new();
+
+        /// <summary>
+        /// A background work item that asked a wrapper to close this session
+        /// and waits for it, see <see cref="NoteCloseFromBackgroundWork"/>.
+        /// </summary>
+        private BackgroundWorkScope? m_closingBackgroundWork;
 
         /// <summary>
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.

@@ -402,6 +402,26 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.Elements[0].TargetName.Name, Is.EqualTo(expectedName));
         }
 
+        [TestCase("/Node&#A")]
+        [TestCase("<My&#Ref>Node&#1")]
+        public void FormatEscapesHashSoThePathRoundTrips(string text)
+        {
+            // '#' is a reserved character (Part 4 A.2) and was written unescaped.
+            var result = RelativePathFormatter.Parse(text);
+
+            Assert.That(result.ToString(), Is.EqualTo(text));
+            Assert.That(RelativePathFormatter.Parse(result.ToString()).ToString(), Is.EqualTo(text));
+        }
+
+        [Test]
+        public void UpdateNamespaceTableWithSingleEntryTableDoesNotThrow()
+        {
+            var formatter = RelativePathFormatter.Parse("/NodeA");
+            var target = new NamespaceTable();
+
+            Assert.DoesNotThrow(() => formatter.UpdateNamespaceTable(new NamespaceTable(), target));
+        }
+
         [Test]
         public void ParseEscapeSequenceInReferenceName()
         {
