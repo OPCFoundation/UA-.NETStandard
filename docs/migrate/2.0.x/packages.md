@@ -71,10 +71,16 @@ Up to `1.5.378` and through `2.0.0-preview.5`, every package also had a
 Debug-configuration build on nuget.org under a `.Debug` suffix, for example
 `OPCFoundation.NetStandard.Opc.Ua.Core.Debug`. From `2.0.0-preview.6` on,
 nuget.org receives only the Release packages and their symbol packages
-(`.snupkg`). This includes the `OPCFoundation.NetStandard.Opc.Ua` meta-package
-and `OPCFoundation.NetStandard.Opc.Ua.Symbols`. The `.Debug` packages are still
-built for every release, but they are published only to the
+(`.snupkg`), including the `OPCFoundation.NetStandard.Opc.Ua` meta-package. The
+`.Debug` packages are still built for every release, but they are published
+only to the
 [GitHub Packages feed](https://github.com/orgs/OPCFoundation/packages?repo_name=UA-.NETStandard).
+
+`OPCFoundation.NetStandard.Opc.Ua.Symbols` is discontinued; `2.0.0-preview.5`
+is its last version. It was the Debug counterpart of the meta-package: it
+depended on the `.Debug` package IDs, so it could no longer be restored from
+nuget.org. Reference the individual `.Debug` packages you need instead, as
+described below, or use the `OPCFoundation.NetStandard.Opc.Ua` meta-package.
 
 If you reference a `.Debug` package, do one of the following:
 
@@ -111,9 +117,19 @@ If you reference a `.Debug` package, do one of the following:
   ```
 
   The feed also carries in-development builds from `master`
-  (`2.0.0-preview.<N>.g<commit>`), which sort above the published previews.
-  Pin an exact version, or use [package source mapping](https://learn.microsoft.com/nuget/consume-packages/package-source-mapping)
-  to take only the `.Debug` IDs from this feed.
+  (`2.0.0-preview.<N>.g<commit>`), which sort above the published previews,
+  so a floating version such as `2.0.0-preview.*` resolves to a `master` build.
+  **Pin an exact version** of each `.Debug` package, matching the Release
+  version you use:
+
+  ```xml
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" Version="2.0.0-preview.6" />
+  ```
+
+  Optionally, add [package source mapping](https://learn.microsoft.com/nuget/consume-packages/package-source-mapping)
+  so that only the `.Debug` IDs can come from this feed. Source mapping
+  controls which source provides a package ID, not which versions of it are
+  chosen, so it does not replace pinning.
 
 ## Target Frameworks (only Opc.Ua.Types changes)
 
