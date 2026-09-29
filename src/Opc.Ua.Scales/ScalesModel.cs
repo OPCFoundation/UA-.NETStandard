@@ -275,7 +275,7 @@ namespace Opc.Ua.Scales
         /// <summary>
         /// Gets every concrete scale kind.
         /// </summary>
-        public static ScaleKind[] AllKinds { get; } =
+        public static ArrayOf<ScaleKind> AllKinds { get; } =
         [
             ScaleKind.Simple,
             ScaleKind.Laboratory,

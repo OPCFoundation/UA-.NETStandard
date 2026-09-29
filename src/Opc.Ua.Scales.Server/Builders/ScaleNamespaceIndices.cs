@@ -74,7 +74,7 @@ namespace Opc.Ua.Scales.Server.Builders
         /// OPC 40200 first, then the base models, then the OPC UA namespace
         /// for properties such as <c>EngineeringUnits</c>.
         /// </summary>
-        public ushort[] SearchOrder => [Scales, Di, Machinery, IA, PackML, 0];
+        public ArrayOf<ushort> SearchOrder => [Scales, Di, Machinery, IA, PackML, 0];
 
         private static ushort IndexOf(NamespaceTable namespaceUris, string namespaceUri)
         {

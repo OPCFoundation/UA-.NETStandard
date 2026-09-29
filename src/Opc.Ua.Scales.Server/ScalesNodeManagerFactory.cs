@@ -85,7 +85,10 @@ namespace Opc.Ua.Scales.Server
                     Opc.Ua.IA.Namespaces.IA,
                     Opc.Ua.Di.Namespaces.OpcUaDi
                 };
-                uris.AddRange(options.AdditionalNamespaceUris ?? []);
+                foreach (string uri in options.AdditionalNamespaceUris)
+                {
+                    uris.Add(uri);
+                }
                 return uris.ToArray().ToArrayOf();
             }
         }

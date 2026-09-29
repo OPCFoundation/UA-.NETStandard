@@ -77,11 +77,10 @@ namespace Opc.Ua.Scales.Server
         /// Gets or sets extra namespace URIs the node manager registers, for a
         /// subclass that composes further models into the same address space.
         /// </summary>
-        public string[] AdditionalNamespaceUris { get; set; } = [];
+        public ArrayOf<string> AdditionalNamespaceUris { get; set; }
 
         internal ScalesServerOptions Validate()
         {
-            AdditionalNamespaceUris ??= [];
             foreach (string uri in AdditionalNamespaceUris)
             {
                 if (string.IsNullOrEmpty(uri))

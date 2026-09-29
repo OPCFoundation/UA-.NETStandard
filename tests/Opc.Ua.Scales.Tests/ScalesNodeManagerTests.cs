@@ -122,7 +122,12 @@ namespace Opc.Ua.Scales.Tests
             return method.OnCallMethod2!(m_fixture.Context, method, objectId, inputs.ToArrayOf(), []);
         }
 
-        [TestCaseSource(typeof(ScalesModel), nameof(ScalesModel.AllKinds))]
+        private static ScaleKind[] AllKinds()
+        {
+            return ScalesModel.AllKinds.ToArray() ?? [];
+        }
+
+        [TestCaseSource(nameof(AllKinds))]
         public async Task EveryKindIsPublishedWithItsMandatoryMembersAsync(ScaleKind kind)
         {
             ScaleHandle scale = await CreateAsync(kind, kind.ToString());

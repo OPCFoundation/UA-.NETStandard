@@ -270,7 +270,7 @@ namespace Opc.Ua.Scales.Tests
         [Test]
         public void EveryKindMapsToAConcreteTypeAndBack()
         {
-            Assert.That(ScalesModel.AllKinds, Has.Length.EqualTo(14));
+            Assert.That(ScalesModel.AllKinds.Count, Is.EqualTo(14));
             foreach (ScaleKind kind in ScalesModel.AllKinds)
             {
                 uint typeId = ScalesModel.ObjectTypeOf(kind);

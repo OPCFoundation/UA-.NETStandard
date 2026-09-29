@@ -559,14 +559,17 @@ namespace Opc.Ua.Scales.Server
         private static string[] ManagerNamespaceUris(ScalesServerOptions? options)
         {
             options ??= new ScalesServerOptions();
-            var uris = new List<string>(4 + options.AdditionalNamespaceUris.Length)
+            var uris = new List<string>(4 + options.AdditionalNamespaceUris.Count)
             {
                 Namespaces.Scales,
                 Opc.Ua.PackML.Namespaces.PackML,
                 Opc.Ua.Machinery.Namespaces.Machinery,
                 Opc.Ua.IA.Namespaces.IA
             };
-            uris.AddRange(options.AdditionalNamespaceUris);
+            foreach (string uri in options.AdditionalNamespaceUris)
+            {
+                uris.Add(uri);
+            }
             return [.. uris];
         }
 
