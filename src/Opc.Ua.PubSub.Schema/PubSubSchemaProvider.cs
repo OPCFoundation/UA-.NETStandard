@@ -212,7 +212,9 @@ namespace Opc.Ua.PubSub.Schema
                 ["MessageType"] = Const(JsonNetworkMessageTypeMetaData),
                 ["PublisherId"] = PublisherIdSchema(),
                 ["DataSetWriterId"] = Integer(ushort.MinValue, ushort.MaxValue),
-                ["DataSetClassId"] = new JsonObject { ["type"] = "string", ["format"] = "uuid" },
+                ["WriterGroupName"] = new JsonObject { ["type"] = "string" },
+                ["DataSetWriterName"] = new JsonObject { ["type"] = "string" },
+                ["Timestamp"] = DateTimeSchema(),
                 ["MetaData"] = new JsonObject
                 {
                     ["type"] = "object",
@@ -756,7 +758,12 @@ namespace Opc.Ua.PubSub.Schema
         private const string JsonNetworkMessageTypeMetaData = "ua-metadata";
 
         private static readonly string[] s_dataSetMessageRequired = ["MessageType", "Payload"];
-        private static readonly string[] s_metaDataMessageRequired = ["MessageType", "MetaData"];
+        // Part 14 §7.2.5.5.2 Table 188: every ua-metadata field is mandatory.
+        private static readonly string[] s_metaDataMessageRequired =
+        [
+            "MessageId", "MessageType", "PublisherId", "DataSetWriterId", "WriterGroupName",
+            "DataSetWriterName", "Timestamp", "MetaData"
+        ];
         private static readonly string[] s_networkMessageRequired = ["MessageType", "Messages"];
 
         private readonly ISchemaProvider? m_schemaProvider;

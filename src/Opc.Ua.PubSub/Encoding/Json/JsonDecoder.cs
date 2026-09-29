@@ -149,13 +149,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         JsonNetworkMessage.MessageTypeMetaData
                             => DecodeMetaData(root, context),
                         JsonDiscoveryMessage.MessageTypeApplication
-                            => DecodeDiscovery(root, context, UadpDiscoveryType.ApplicationInformation),
+                            => DecodeApplicationDiscovery(root, context),
                         JsonDiscoveryMessage.MessageTypeEndpoints
-                            => DecodeDiscovery(root, context, UadpDiscoveryType.PublisherEndpoints),
+                            => DecodeEndpointsDiscovery(root, context),
                         JsonDiscoveryMessage.MessageTypeStatus
-                            => DecodeDiscovery(root, context, UadpDiscoveryType.None),
+                            => DecodeStatusDiscovery(root, context),
                         JsonDiscoveryMessage.MessageTypeConnection
-                            => DecodeDiscovery(root, context, UadpDiscoveryType.PubSubConnection),
+                            => DecodeConnectionDiscovery(root, context),
                         JsonActionNetworkMessage.MessageTypeActionRequest
                             => DecodeAction(root, context),
                         JsonActionNetworkMessage.MessageTypeActionResponse
@@ -350,8 +350,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
-        /// Decodes a <c>ua-metadata</c> envelope into a
-        /// <see cref="JsonMetaDataMessage"/>.
+        /// Decodes a <c>ua-metadata</c> envelope (Part 14 §7.2.5.5.2
+        /// Table 188) into a <see cref="JsonMetaDataMessage"/>.
         /// </summary>
         /// <param name="root">Root element.</param>
         /// <param name="context">Decoder context.</param>
@@ -364,7 +364,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             string messageId = ReadOptionalString(root, "MessageId", context);
             PublisherId publisherId = ReadPublisherId(root, context);
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
-            Uuid dataSetClassId = ReadUuid(root, "DataSetClassId");
+            string writerGroupName = ReadOptionalString(root, "WriterGroupName", context);
+            string writerName = ReadOptionalString(root, "DataSetWriterName", context);
+            DateTimeUtc timestamp = ReadOptionalTimestamp(root, "Timestamp");
             if (!root.TryGetProperty("MetaData", out JsonElement metaElement) ||
                 metaElement.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
             {
@@ -382,108 +384,142 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 MessageId = messageId,
                 PublisherId = publisherId,
                 DataSetWriterId = writerId,
-                DataSetClassId = dataSetClassId,
+                WriterGroupName = writerGroupName,
+                DataSetWriterName = writerName,
+                Timestamp = timestamp,
                 MetaDataPayload = metaData,
                 MetaData = metaData
             };
         }
 
         /// <summary>
-        /// Decodes a <c>ua-discovery</c> envelope into a
-        /// <see cref="JsonDiscoveryMessage"/> per
-        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.5">
-        /// Part 14 §7.2.5.5</see>.
+        /// Decodes a <c>ua-application</c> message (Part 14 §7.2.5.5.3
+        /// Table 189).
         /// </summary>
         /// <param name="root">Root element.</param>
         /// <param name="context">Decoder context.</param>
-        /// <param name="forcedType">Discovery type implied by the JSON
-        /// MessageType, when the spec-specific envelope is used.</param>
         /// <returns>Decoded discovery message or
         /// <see langword="null"/>.</returns>
-        private static JsonDiscoveryMessage? DecodeDiscovery(
+        private static JsonDiscoveryMessage? DecodeApplicationDiscovery(
             JsonElement root,
-            PubSubNetworkMessageContext context,
-            UadpDiscoveryType? forcedType = null)
+            PubSubNetworkMessageContext context)
         {
-            string messageId = ReadOptionalString(root, "MessageId", context);
-            PublisherId publisherId = ReadPublisherId(root, context);
-            uint typeCode = ReadOptionalUInt32(root, "DiscoveryType");
-            ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
-            uint statusCode = ReadOptionalUInt32(root, "Status");
-            UadpDiscoveryType discoveryType = forcedType ?? (UadpDiscoveryType)typeCode;
-            if (discoveryType == UadpDiscoveryType.None &&
-                root.TryGetProperty("WriterConfiguration", out _))
+            ApplicationDescription? description = null;
+            if (root.TryGetProperty("Description", out JsonElement descriptionElement) &&
+                descriptionElement.ValueKind == JsonValueKind.Object)
             {
-                discoveryType = UadpDiscoveryType.DataSetWriterConfiguration;
+                description = DecodeEncodeable<ApplicationDescription>(descriptionElement, context);
+                if (description is null)
+                {
+                    return null;
+                }
             }
-            var msg = new JsonDiscoveryMessage
+            description ??= new ApplicationDescription();
+            return new JsonDiscoveryMessage
             {
-                MessageId = messageId,
-                PublisherId = publisherId,
-                DiscoveryType = discoveryType,
-                DataSetWriterId = writerId,
-                Status = new StatusCode(statusCode)
+                MessageId = ReadOptionalString(root, "MessageId", context),
+                PublisherId = ReadPublisherId(root, context),
+                Timestamp = ReadOptionalTimestamp(root, "Timestamp"),
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                Description = description,
+                ApplicationInformation = new UadpApplicationInformation
+                {
+                    ApplicationName = description.ApplicationName,
+                    ApplicationUri = description.ApplicationUri ?? string.Empty,
+                    ProductUri = description.ProductUri ?? string.Empty,
+                    ApplicationType = description.ApplicationType,
+                    Capabilities = ReadStringArray(root, "ServerCapabilities", context)
+                }
             };
-            switch (discoveryType)
+        }
+
+        /// <summary>
+        /// Decodes a <c>ua-endpoints</c> message (Part 14 §7.2.5.5.4
+        /// Table 190).
+        /// </summary>
+        /// <param name="root">Root element.</param>
+        /// <param name="context">Decoder context.</param>
+        /// <returns>Decoded discovery message.</returns>
+        private static JsonDiscoveryMessage DecodeEndpointsDiscovery(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            EndpointDescription[] endpoints = [];
+            if (root.TryGetProperty("Endpoints", out JsonElement endpointsElement) &&
+                endpointsElement.ValueKind == JsonValueKind.Array)
             {
-                case UadpDiscoveryType.ApplicationInformation:
-                    if (root.TryGetProperty("ApplicationInformation",
-                            out JsonElement appElement) &&
-                        appElement.ValueKind == JsonValueKind.Object)
-                    {
-                        msg = msg with
-                        {
-                            ApplicationInformation = ReadApplicationInformation(appElement, context)
-                        };
-                    }
-                    break;
-                case UadpDiscoveryType.PubSubConnection:
-                    if (root.TryGetProperty("Connection", out JsonElement connElement) &&
-                        connElement.ValueKind == JsonValueKind.Object)
-                    {
-                        msg = msg with
-                        {
-                            Connection = DecodeEncodeable<PubSubConnectionDataType>(connElement, context)
-                        };
-                    }
-                    break;
-                case UadpDiscoveryType.DataSetMetaData:
-                    if (root.TryGetProperty("MetaData", out JsonElement metaElement) &&
-                        metaElement.ValueKind == JsonValueKind.Object)
-                    {
-                        DataSetMetaDataType? meta = DecodeMetaDataPayload(
-                            metaElement, context);
-                        msg = msg with { MetaData = meta };
-                    }
-                    break;
-                case UadpDiscoveryType.DataSetWriterConfiguration:
-                    msg = msg with
-                    {
-                        DataSetWriterIds = ReadUInt16Array(root, "DataSetWriterIds", context)
-                    };
-                    if (root.TryGetProperty("WriterConfiguration",
-                            out JsonElement cfgElement) &&
-                        cfgElement.ValueKind == JsonValueKind.Object)
-                    {
-                        msg = msg with
-                        {
-                            WriterConfiguration = DecodeEncodeable<WriterGroupDataType>(cfgElement, context)
-                        };
-                    }
-                    break;
-                case UadpDiscoveryType.PublisherEndpoints:
-                    if (root.TryGetProperty("PublisherEndpoints",
-                            out JsonElement epsElement) &&
-                        epsElement.ValueKind == JsonValueKind.Array)
-                    {
-                        msg = msg with
-                        {
-                            PublisherEndpoints = ReadEndpointArray(epsElement, context)
-                        };
-                    }
-                    break;
+                endpoints = ReadEndpointArray(endpointsElement, context);
             }
-            return msg;
+            return new JsonDiscoveryMessage
+            {
+                MessageId = ReadOptionalString(root, "MessageId", context),
+                PublisherId = ReadPublisherId(root, context),
+                Timestamp = ReadOptionalTimestamp(root, "Timestamp"),
+                DiscoveryType = UadpDiscoveryType.PublisherEndpoints,
+                PublisherEndpoints = endpoints
+            };
+        }
+
+        /// <summary>
+        /// Decodes a <c>ua-status</c> message (Part 14 §7.2.5.5.5
+        /// Table 191) into an application status discovery message.
+        /// </summary>
+        /// <param name="root">Root element.</param>
+        /// <param name="context">Decoder context.</param>
+        /// <returns>Decoded discovery message.</returns>
+        private static JsonDiscoveryMessage DecodeStatusDiscovery(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            bool isCyclic = root.TryGetProperty("IsCyclic", out JsonElement cyclicElement) &&
+                cyclicElement.ValueKind == JsonValueKind.True;
+            DateTimeUtc timestamp = ReadOptionalTimestamp(root, "Timestamp");
+            return new JsonDiscoveryMessage
+            {
+                MessageId = ReadOptionalString(root, "MessageId", context),
+                PublisherId = ReadPublisherId(root, context),
+                Timestamp = timestamp,
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationStatus = new UadpApplicationStatus
+                {
+                    IsCyclic = isCyclic,
+                    Status = (PubSubState)ReadOptionalUInt32(root, "Status"),
+                    Timestamp = timestamp,
+                    NextReportTime = ReadOptionalTimestamp(root, "NextReportTime")
+                }
+            };
+        }
+
+        /// <summary>
+        /// Decodes a <c>ua-connection</c> message (Part 14 §7.2.5.5.6
+        /// Table 192).
+        /// </summary>
+        /// <param name="root">Root element.</param>
+        /// <param name="context">Decoder context.</param>
+        /// <returns>Decoded discovery message or
+        /// <see langword="null"/>.</returns>
+        private static JsonDiscoveryMessage? DecodeConnectionDiscovery(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            PubSubConnectionDataType? connection = null;
+            if (root.TryGetProperty("Connection", out JsonElement connElement) &&
+                connElement.ValueKind == JsonValueKind.Object)
+            {
+                connection = DecodeEncodeable<PubSubConnectionDataType>(connElement, context);
+                if (connection is null)
+                {
+                    return null;
+                }
+            }
+            return new JsonDiscoveryMessage
+            {
+                MessageId = ReadOptionalString(root, "MessageId", context),
+                PublisherId = ReadPublisherId(root, context),
+                Timestamp = ReadOptionalTimestamp(root, "Timestamp"),
+                DiscoveryType = UadpDiscoveryType.PubSubConnection,
+                Connection = connection
+            };
         }
 
         private static T? DecodeEncodeable<T>(
@@ -531,59 +567,6 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 }
             }
             return [.. list];
-        }
-
-        private static ushort[] ReadUInt16Array(
-            JsonElement root,
-            string name,
-            PubSubNetworkMessageContext context)
-        {
-            if (!root.TryGetProperty(name, out JsonElement array) ||
-                array.ValueKind != JsonValueKind.Array)
-            {
-                return [];
-            }
-            var list = new List<ushort>(CheckArrayLength(array, context));
-            foreach (JsonElement entry in array.EnumerateArray())
-            {
-                if (entry.ValueKind == JsonValueKind.Number &&
-                    entry.TryGetUInt16(out ushort v))
-                {
-                    list.Add(v);
-                }
-            }
-            return [.. list];
-        }
-
-        private static UadpApplicationInformation ReadApplicationInformation(
-            JsonElement element,
-            PubSubNetworkMessageContext context)
-        {
-            string text = ReadOptionalString(element, "ApplicationName", context);
-            string locale = ReadOptionalString(element, "ApplicationLocale", context);
-            string appUri = ReadOptionalString(element, "ApplicationUri", context);
-            string productUri = ReadOptionalString(element, "ProductUri", context);
-            uint appType = ReadOptionalUInt32(element, "ApplicationType");
-            return new UadpApplicationInformation
-            {
-                ApplicationName = new LocalizedText(locale, text),
-                ApplicationUri = appUri,
-                ProductUri = productUri,
-                ApplicationType = (ApplicationType)appType,
-                Capabilities = ReadStringList(element, "Capabilities", context),
-                SupportedTransportProfiles =
-                    ReadStringList(element, "SupportedTransportProfiles", context),
-                SupportedSecurityPolicies =
-                    ReadStringList(element, "SupportedSecurityPolicies", context)
-            };
-        }
-
-        private static string[] ReadStringList(
-            JsonElement root,
-            string name,
-            PubSubNetworkMessageContext context)
-        {
-            return ReadStringArray(root, name, context);
         }
 
         /// <summary>
