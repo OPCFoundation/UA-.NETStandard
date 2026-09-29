@@ -47,6 +47,63 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [NonParallelizable]
     public sealed class CertificateChainParsingTests
     {
+        /// <summary>
+        /// Verifies the documented chain bound is inclusive and excess certificates are rejected before loading.
+        /// </summary>
+        [TestCase(false, 16)]
+        [TestCase(false, 17)]
+        [TestCase(true, 16)]
+        [TestCase(true, 17)]
+        public void ParseCertificateChainEnforcesElementLimit(bool useAsnParser, int count)
+        {
+            byte[] blob = [.. Enumerable.Repeat(m_certificates[0], count).SelectMany(certificate => certificate)];
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+            if (count <= 16)
+            {
+                using CertificateCollection chain = Utils.ParseCertificateChainBlob(
+                    blob, telemetry: null, useAsnParser: useAsnParser);
+                Assert.That(chain, Has.Count.EqualTo(16));
+                Assert.That(chain[15].RawData, Is.EqualTo(m_certificates[0]));
+            }
+            else
+            {
+                Assert.That(
+                    () =>
+                    {
+                        using CertificateCollection chain = Utils.ParseCertificateChainBlob(
+                            blob, telemetry: null, useAsnParser: useAsnParser);
+                    },
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadCertificateInvalid));
+            }
+            Assert.That(Certificate.InstancesCreated - createdBefore, Is.EqualTo(16));
+            Assert.That(Certificate.InstancesDisposed - disposedBefore, Is.EqualTo(16));
+        }
+
+        /// <summary>
+        /// Verifies the injectable default factory also bounds chains and disposes partially parsed input.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DefaultCertificateFactoryReleasesPrefixOnRejectedChain(bool excessive)
+        {
+            byte[] blob = excessive
+                ? [.. Enumerable.Repeat(m_certificates[0], 17).SelectMany(certificate => certificate)]
+                : [.. m_certificates[0], 0x30, 0x82, 0xFF];
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+            Assert.That(
+                () =>
+                {
+                    using CertificateCollection chain = DefaultCertificateFactory.Instance.ParseChainBlob(blob);
+                },
+                Throws.TypeOf<CryptographicException>());
+            Assert.That(Certificate.InstancesCreated - createdBefore, Is.EqualTo(excessive ? 16 : 1));
+            Assert.That(Certificate.InstancesDisposed - disposedBefore, Is.EqualTo(excessive ? 16 : 1));
+        }
+
         [OneTimeSetUp]
         public void CreateRuntimeChain()
         {

@@ -124,7 +124,9 @@ namespace Opc.Ua.Server
                     filterToUse,
                     euRange,
                     samplingInterval,
-                    createDurable);
+                    createDurable,
+                    sourceSamplingInterval: Math.Max(1, SubscriptionManager.CalculateRevisedSamplingInterval(
+                        0, 1, handle.Node, itemToCreate.ItemToMonitor.AttributeId, 0)));
 
             // save the monitored item.
             MonitoredItems.AddOrUpdate(
@@ -297,7 +299,8 @@ namespace Opc.Ua.Server
                 monitoredItem,
                 itemToModify,
                 filterToUse,
-                euRange);
+                euRange,
+                revisedSamplingInterval: samplingInterval);
         }
 
         /// <inheritdoc/>
@@ -413,12 +416,20 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredNode.Remove(monitoredItem);
-                MonitoredItems.TryRemove(monitoredItem.Id, out _);
+
+                // an all-events item can stay linked to other root notifiers; any
+                // other event item is only linked to its own node.
+                if (!monitoredItem.MonitoringAllEvents ||
+                    !IsEventMonitoredItemLinked(monitoredItem.Id))
+                {
+                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
+                }
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(source.NodeId);
+                    monitoredNode.Dispose();
                 }
 
                 return (monitoredNode, ServiceResult.Good);
@@ -652,6 +663,19 @@ namespace Opc.Ua.Server
                     lifecycle.Detach(m_server);
                 }
             }
+        }
+
+        private bool IsEventMonitoredItemLinked(uint monitoredItemId)
+        {
+            foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
+            {
+                if (monitoredNode.EventMonitoredItems.ContainsKey(monitoredItemId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool IsMultiConsumerNode(NodeId nodeId)

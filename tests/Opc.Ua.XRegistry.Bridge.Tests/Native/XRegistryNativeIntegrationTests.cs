@@ -86,8 +86,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
-                AutoAccept = true,
-                MaxChannelCount = 64
+                AutoAccept = true
             };
             await m_serverFixture.LoadConfigurationAsync(Path.Combine(m_root, "server")).ConfigureAwait(false);
             m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies =

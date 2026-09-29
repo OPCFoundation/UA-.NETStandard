@@ -3347,6 +3347,26 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void IsEmptyArrayIsTrueForNullAndEmptyArraysAndMatrices()
+        {
+            Assert.That(new Variant(ArrayOf<int>.Empty).IsEmptyArray, Is.True);
+            Assert.That(new Variant(ArrayOf<int>.Null).IsEmptyArray, Is.True);
+            Assert.That(new Variant(MatrixOf<int>.Empty).IsEmptyArray, Is.True);
+        }
+
+        [Test]
+        public void IsEmptyArrayIsFalseForArraysWithElementsScalarsAndNull()
+        {
+            ArrayOf<int> one = [1];
+            int[,] cells = { { 1, 2 }, { 3, 4 } };
+            Assert.That(new Variant(one).IsEmptyArray, Is.False);
+            Assert.That(new Variant(cells.ToMatrixOf()).IsEmptyArray, Is.False);
+            Assert.That(new Variant(0).IsEmptyArray, Is.False);
+            Assert.That(new Variant(string.Empty).IsEmptyArray, Is.False);
+            Assert.That(default(Variant).IsEmptyArray, Is.False);
+        }
+
+        [Test]
         public void ValueIsDefaultOrNullForDefaultBool()
         {
             var v = new Variant(false);

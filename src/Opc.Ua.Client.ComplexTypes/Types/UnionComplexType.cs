@@ -110,9 +110,18 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // unionProperty is non-null when m_switchField is within the property range,
                 // which the IL emitted by ComplexTypeFieldBuilder guarantees for set values.
-                fieldName ??= unionProperty!.Name;
+                // Encoders shall report an error otherwise (OPC 10000-6 5.2.8).
+                if (unionProperty == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "Union SwitchField {0} is greater than the number of fields {1}.",
+                        m_switchField,
+                        m_propertyList.Count);
+                }
+                fieldName ??= unionProperty.Name;
 
-                EncodeProperty(encoder, fieldName, unionProperty!);
+                EncodeProperty(encoder, fieldName, unionProperty);
             }
 
             encoder.PopNamespace();
@@ -139,6 +148,18 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
 
                 unionSelector = decoder.ReadSwitchField(fields, out _);
+            }
+
+            // Decoders shall report an error for a SwitchField greater than
+            // the number of union fields (OPC 10000-6 5.2.8, 5.3.7, 5.4.8).
+            int fieldCount = m_propertyList.Count;
+            if (unionSelector > (uint)fieldCount)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Union SwitchField {0} is greater than the number of fields {1}.",
+                    unionSelector,
+                    fieldCount);
             }
 
             m_switchField = unionSelector;

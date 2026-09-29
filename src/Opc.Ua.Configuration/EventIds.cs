@@ -44,5 +44,6 @@ namespace Opc.Ua
     internal static class ConfigurationEventIds
     {
         public const int ApplicationInstance = 0;
+        public const int DefaultPkiRoot = 40;
     }
 }

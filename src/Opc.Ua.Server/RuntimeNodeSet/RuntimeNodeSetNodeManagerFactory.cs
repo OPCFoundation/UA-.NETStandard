@@ -410,6 +410,13 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                             continue;
                         }
 
+                        // A model requiring another model of the same document
+                        // imposes no ordering between documents.
+                        if (depIndex == i)
+                        {
+                            continue;
+                        }
+
                         // Edge: depIndex (dependency) must come before i.
                         if (edges.Add((depIndex, i)))
                         {

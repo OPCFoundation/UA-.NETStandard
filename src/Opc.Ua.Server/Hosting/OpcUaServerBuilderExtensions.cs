@@ -405,6 +405,9 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddOptions<OpcUaServerOptions>()
                 .Configure(options => BindOpcUaServerOptions(options, section));
+            builder.Services.AddOptions<OpcUaServerOptions>()
+                .Configure(options => BindResourceIsolationOptions(options.ResourceIsolation,
+                    section.GetSection(nameof(OpcUaServerOptions.ResourceIsolation))));
 
             IConfigurationSection rolesSection = section.GetSection("Roles");
             if (rolesSection.Exists())
@@ -1525,7 +1528,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 (sp, certificateValidator) => CreateDefaultIdentityAuthenticators(
                     sp,
                     certificateValidator,
-                    options)));
+                    options))
+            {
+                ConfiguresDefaultAuthenticators = true
+            });
         }
 
         private static IEnumerable<IUserTokenAuthenticator> CreateDefaultIdentityAuthenticators(
@@ -1673,7 +1679,10 @@ namespace Microsoft.Extensions.DependencyInjection
                             sp,
                             certificateValidator,
                             options.Identity.Defaults);
-                    }));
+                    })
+                {
+                    ConfiguresDefaultAuthenticators = true
+                });
             }
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();

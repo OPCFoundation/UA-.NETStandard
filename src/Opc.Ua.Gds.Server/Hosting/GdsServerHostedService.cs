@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -185,12 +186,10 @@ namespace Opc.Ua.Gds.Server.Hosting
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            string appName = string.IsNullOrEmpty(m_options.ApplicationName)
-                ? "GlobalDiscoveryServer"
-                : m_options.ApplicationName;
+            string appName = ResolveApplicationName(m_options);
 
             string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
-                ? Path.Combine(Path.GetTempPath(), "OPC Foundation", appName, "pki")
+                ? DefaultPkiRoot.Get(appName, m_logger)
                 : m_options.PkiRoot;
 
             string subject = string.IsNullOrEmpty(m_options.SubjectName)
@@ -244,7 +243,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                     new XmlQualifiedName(
                         nameof(GlobalDiscoveryServerConfiguration),
                         Namespaces.OpcUaGds + "Configuration.xsd"),
-                    BuildGdsConfiguration(pkiRoot))
+                    BuildGdsConfiguration(m_options, pkiRoot))
                 .CreateAsync(stoppingToken)
                 .ConfigureAwait(false);
 
@@ -259,6 +258,11 @@ namespace Opc.Ua.Gds.Server.Hosting
             }
 
             m_authorizationServiceManager?.Initialize(m_application.ApplicationConfiguration!);
+
+            if (m_options.AutoApprove)
+            {
+                m_logger.CertificateRequestAutoApprovalEnabled();
+            }
 
             m_server = new GdsHostedServer(
                 m_database,
@@ -362,26 +366,54 @@ namespace Opc.Ua.Gds.Server.Hosting
             base.Dispose();
         }
 
-        private GlobalDiscoveryServerConfiguration BuildGdsConfiguration(string pkiRoot)
+        /// <summary>
+        /// The application name the GDS runs as: <see cref="GdsServerOptions.ApplicationName"/>
+        /// or <c>GlobalDiscoveryServer</c> when it is empty.
+        /// </summary>
+        internal static string ResolveApplicationName(GdsServerOptions options)
         {
-            string authoritiesStorePath = string.IsNullOrEmpty(m_options.AuthoritiesStorePath)
+            return string.IsNullOrEmpty(options.ApplicationName)
+                ? "GlobalDiscoveryServer"
+                : options.ApplicationName;
+        }
+
+        internal static GlobalDiscoveryServerConfiguration BuildGdsConfiguration(
+            GdsServerOptions options,
+            string pkiRoot)
+        {
+            string authoritiesStorePath = string.IsNullOrEmpty(options.AuthoritiesStorePath)
                 ? Path.Combine(pkiRoot, "CA", "authorities")
-                : m_options.AuthoritiesStorePath;
+                : options.AuthoritiesStorePath;
 
             string applicationCertificatesStorePath = string.IsNullOrEmpty(
-                m_options.ApplicationCertificatesStorePath)
+                options.ApplicationCertificatesStorePath)
                 ? Path.Combine(pkiRoot, "applications")
-                : m_options.ApplicationCertificatesStorePath;
+                : options.ApplicationCertificatesStorePath;
 
             string baseCertificateGroupStorePath = string.IsNullOrEmpty(
-                m_options.BaseCertificateGroupStorePath)
+                options.BaseCertificateGroupStorePath)
                 ? Path.Combine(pkiRoot, "CA")
-                : m_options.BaseCertificateGroupStorePath;
+                : options.BaseCertificateGroupStorePath;
 
             string defaultSubjectNameContext = string.IsNullOrEmpty(
-                m_options.DefaultSubjectNameContext)
+                options.DefaultSubjectNameContext)
                 ? ",O=OPC Foundation,DC=localhost"
-                : m_options.DefaultSubjectNameContext;
+                : options.DefaultSubjectNameContext;
+
+            // OPC 10000-12 §7.8.3.3: the DefaultApplicationGroup is mandatory,
+            // without a certificate group the GDS cannot issue certificates.
+            // Configured groups that do not include it get it appended, so the
+            // mandatory group is always backed by a CA.
+            var groups = options.CertificateGroups
+                .Select(group => ToCertificateGroupConfiguration(group, baseCertificateGroupStorePath))
+                .ToList();
+            if (!groups.Any(group => IsDefaultApplicationGroupId(group.Id)))
+            {
+                groups.Add(CreateDefaultApplicationGroup(
+                    ResolveApplicationName(options),
+                    baseCertificateGroupStorePath));
+            }
+            ArrayOf<CertificateGroupConfiguration> certificateGroups = groups.ToArrayOf();
 
             return new GlobalDiscoveryServerConfiguration
             {
@@ -389,8 +421,52 @@ namespace Opc.Ua.Gds.Server.Hosting
                 ApplicationCertificatesStorePath = applicationCertificatesStorePath,
                 BaseCertificateGroupStorePath = baseCertificateGroupStorePath,
                 DefaultSubjectNameContext = defaultSubjectNameContext,
-                CertificateGroups = [],
+                CertificateGroups = certificateGroups,
                 KnownHostNames = []
+            };
+        }
+
+        /// <summary>
+        /// Whether <paramref name="groupId"/> selects the DefaultApplicationGroup
+        /// (the ids ApplicationsNodeManager maps onto that standard node).
+        /// </summary>
+        private static bool IsDefaultApplicationGroupId(string? groupId)
+        {
+            return string.Equals(groupId, "Default", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static CertificateGroupConfiguration CreateDefaultApplicationGroup(
+            string applicationName,
+            string baseCertificateGroupStorePath)
+        {
+            return new CertificateGroupConfiguration
+            {
+                Id = "Default",
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)],
+                SubjectName = $"CN={applicationName} CA, O=OPC Foundation",
+                BaseStorePath = Path.Combine(baseCertificateGroupStorePath, "default")
+            };
+        }
+
+        private static CertificateGroupConfiguration ToCertificateGroupConfiguration(
+            GdsCertificateGroupOptions group,
+            string baseCertificateGroupStorePath)
+        {
+            return new CertificateGroupConfiguration
+            {
+                Id = group.Id,
+                CertificateTypes = group.CertificateTypes.ToArrayOf(),
+                SubjectName = group.SubjectName,
+                BaseStorePath = string.IsNullOrEmpty(group.BaseStorePath)
+                    ? Path.Combine(baseCertificateGroupStorePath, group.Id)
+                    : group.BaseStorePath,
+                DefaultCertificateLifetime = group.DefaultCertificateLifetime,
+                DefaultCertificateKeySize = group.DefaultCertificateKeySize,
+                DefaultCertificateHashSize = group.DefaultCertificateHashSize,
+                CACertificateLifetime = group.CACertificateLifetime,
+                CACertificateKeySize = group.CACertificateKeySize,
+                CACertificateHashSize = group.CACertificateHashSize
             };
         }
 
@@ -520,5 +596,9 @@ namespace Opc.Ua.Gds.Server.Hosting
         [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 2, Level = LogLevel.Warning,
             Message = "Error while stopping GDS server.")]
         public static partial void ErrorWhileStoppingGdsServer(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 3, Level = LogLevel.Warning,
+            Message = "GDS certificate requests are approved automatically (AutoApprove); do not enable in production.")]
+        public static partial void CertificateRequestAutoApprovalEnabled(this ILogger logger);
     }
 }

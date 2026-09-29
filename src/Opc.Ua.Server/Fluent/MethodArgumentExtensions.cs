@@ -53,7 +53,16 @@ namespace Opc.Ua.Server.Fluent
             params Argument[] arguments)
         {
             INodeBuilder<MethodState> methodState = method.As<MethodState>();
+            bool created = methodState.Node.InputArguments == null;
             methodState.Node.AddInputArguments(method.Builder.Context, arguments);
+            if (created)
+            {
+                // the method is usually indexed already; index the new
+                // property too so a client can read the argument list.
+                FluentNodeRegistration.RegisterCreatedNode(
+                    method.Builder,
+                    methodState.Node.InputArguments!);
+            }
             return methodState;
         }
 
@@ -171,7 +180,16 @@ namespace Opc.Ua.Server.Fluent
             params Argument[] arguments)
         {
             INodeBuilder<MethodState> methodState = method.As<MethodState>();
+            bool created = methodState.Node.OutputArguments == null;
             methodState.Node.AddOutputArguments(method.Builder.Context, arguments);
+            if (created)
+            {
+                // the method is usually indexed already; index the new
+                // property too so a client can read the argument list.
+                FluentNodeRegistration.RegisterCreatedNode(
+                    method.Builder,
+                    methodState.Node.OutputArguments!);
+            }
             return methodState;
         }
 

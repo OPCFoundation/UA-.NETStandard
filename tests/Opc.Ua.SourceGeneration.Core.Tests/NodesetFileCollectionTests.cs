@@ -129,11 +129,29 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Regression: the NodeSet's own &lt;Model Version="..."&gt; was never read -
-        /// Info.Version came from the item metadata or fell straight through to
-        /// the publication date. Two ordinary AdditionalFiles declaring 1.05.9
-        /// and 1.05.10 were therefore selected by publication date instead of by
-        /// version.
+        /// B-7: a NodeSet2 input that is not well formed is skipped but still
+        /// recorded as a NodeSet input, so it is not handed to the ModelDesign
+        /// pass (whose load failure aborted every model).
+        /// </summary>
+        [Test]
+        public void AllFilePathsIncludesMalformedNodeSet()
+        {
+            const string valid = "memory://valid.NodeSet2.xml";
+            const string malformed = "memory://malformed.NodeSet2.xml";
+
+            m_fileSystem.Add(valid, Encoding.UTF8.GetBytes(NodeSet("1.0.0")));
+            m_fileSystem.Add(malformed, Encoding.UTF8.GetBytes("\r\n" + NodeSet("2.0.0")));
+
+            NodesetFileCollection collection = Create((valid, null), (malformed, null));
+
+            Assert.That(collection.Files.Values, Is.EquivalentTo(new[] { valid }));
+            Assert.That(collection.AllFilePaths, Is.EquivalentTo(new[] { valid, malformed }));
+        }
+
+        /// <summary>
+        /// Regression: the NodeSet's own &lt;Model ModelVersion="..."&gt; was never
+        /// read. OPC 10000-6 F.2 Table F.1 orders editions by the SemVer
+        /// ModelVersion, so 1.5.10 is newer than 1.5.9 whatever the dates say.
         /// </summary>
         [Test]
         public void DeclaredModelVersionIsUsedWhenTheItemMetadataHasNone()
@@ -141,14 +159,14 @@ namespace Opc.Ua.SourceGeneration
             const string older = "memory://a-older.NodeSet2.xml";
             const string newer = "memory://b-newer.NodeSet2.xml";
 
-            // The 1.05.9 file is published later, so a date comparison would
-            // pick it; the declared versions say otherwise.
+            // The 1.5.9 file is published later, so a date comparison would
+            // pick it; the declared ModelVersions say otherwise.
             m_fileSystem.Add(
                 older,
-                Encoding.UTF8.GetBytes(NodeSet("1.05.9", "2026-09-01T00:00:00Z")));
+                Encoding.UTF8.GetBytes(NodeSet("1.05.9", "2026-09-01T00:00:00Z", "1.5.9")));
             m_fileSystem.Add(
                 newer,
-                Encoding.UTF8.GetBytes(NodeSet("1.05.10", "2026-01-01T00:00:00Z")));
+                Encoding.UTF8.GetBytes(NodeSet("1.05.10", "2026-01-01T00:00:00Z", "1.5.10")));
 
             // No options.Version - the version has to come from <Models>.
             NodesetFileCollection collection = Create((older, null), (newer, null));
@@ -156,7 +174,66 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(
                 collection.Files[ModelUri],
                 Is.EqualTo(newer),
-                "1.05.10 is newer than 1.05.9 regardless of publication date");
+                "1.5.10 is newer than 1.5.9 regardless of publication date");
+        }
+
+        /// <summary>
+        /// Regression (N4): the Version attribute was compared although OPC
+        /// 10000-6 F.2 says it is "not intended for programmatic comparisons",
+        /// and ModelVersion was ignored. Here the Version text says "Draft"
+        /// on the newer model, which is newer by ModelVersion.
+        /// </summary>
+        [Test]
+        public void ModelVersionWinsOverTheVersionAttribute()
+        {
+            const string a = "memory://a.NodeSet2.xml";
+            const string b = "memory://b.NodeSet2.xml";
+
+            m_fileSystem.Add(
+                a, Encoding.UTF8.GetBytes(NodeSet("1.05.04", "2024-01-01T00:00:00Z", "1.5.4")));
+            m_fileSystem.Add(
+                b, Encoding.UTF8.GetBytes(NodeSet("Draft", "2025-01-01T00:00:00Z", "1.5.5")));
+
+            Assert.That(Create((a, null), (b, null)).Files[ModelUri], Is.EqualTo(b));
+        }
+
+        /// <summary>
+        /// Regression (N4): without a ModelVersion the PublicationDate decides
+        /// (OPC 10000-6 F.2); the Version attribute used to outrank it.
+        /// </summary>
+        [Test]
+        public void PublicationDateDecidesWhenNoModelVersionIsDeclared()
+        {
+            const string a = "memory://a.NodeSet2.xml";
+            const string b = "memory://b.NodeSet2.xml";
+
+            m_fileSystem.Add(a, Encoding.UTF8.GetBytes(NodeSet("2.0.0", "2024-01-01T00:00:00Z")));
+            m_fileSystem.Add(b, Encoding.UTF8.GetBytes(NodeSet("1.0.0", "2025-01-01T00:00:00Z")));
+
+            Assert.That(Create((a, null), (b, null)).Files[ModelUri], Is.EqualTo(b));
+        }
+
+        /// <summary>
+        /// Regression (N4): a model that declares a ModelVersion is newer than
+        /// one that does not, and the PublicationDate is then ignored.
+        /// </summary>
+        [Test]
+        public void OnlyModelWithModelVersionWins()
+        {
+            const string a = "memory://a.NodeSet2.xml";
+            const string b = "memory://b.NodeSet2.xml";
+
+            m_fileSystem.Add(a, Encoding.UTF8.GetBytes(NodeSet("9.0.0", "2026-01-01T00:00:00Z")));
+            m_fileSystem.Add(
+                b, Encoding.UTF8.GetBytes(NodeSet("1.0.0", "2020-01-01T00:00:00Z", "1.0.0")));
+
+            Assert.That(Create((a, null), (b, null)).Files[ModelUri], Is.EqualTo(b));
+            m_fileSystem.Dispose();
+            m_fileSystem = new VirtualFileSystem();
+            m_fileSystem.Add(a, Encoding.UTF8.GetBytes(NodeSet("9.0.0", "2026-01-01T00:00:00Z")));
+            m_fileSystem.Add(
+                b, Encoding.UTF8.GetBytes(NodeSet("1.0.0", "2020-01-01T00:00:00Z", "1.0.0")));
+            Assert.That(Create((b, null), (a, null)).Files[ModelUri], Is.EqualTo(b));
         }
 
         /// <summary>
@@ -228,6 +305,176 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(collection.Files[ModelUri], Is.EqualTo(newer));
         }
 
+        /// <summary>
+        /// Regression: the pairwise "keep the newer one" selection used a
+        /// comparison that was not transitive (a version against a date compared
+        /// equal and was then settled by publication date), so which NodeSet won
+        /// depended on the order of the AdditionalFiles.
+        /// </summary>
+        [TestCase(0, 1, 2)]
+        [TestCase(0, 2, 1)]
+        [TestCase(1, 0, 2)]
+        [TestCase(1, 2, 0)]
+        [TestCase(2, 0, 1)]
+        [TestCase(2, 1, 0)]
+        public void NewestSelectionDoesNotDependOnInputOrder(int first, int second, int third)
+        {
+            (string Path, string Version, string Published)[] candidates =
+            [
+                ("memory://a.NodeSet2.xml", "1.0.2", "2024-01-01T00:00:00Z"),
+                ("memory://b.NodeSet2.xml", null, "2023-01-01T00:00:00Z"),
+                ("memory://c.NodeSet2.xml", "1.0.3", "2022-01-01T00:00:00Z")
+            ];
+            foreach ((string path, string version, string published) in candidates)
+            {
+                m_fileSystem.Add(
+                    path, Encoding.UTF8.GetBytes(NodeSet(version, published, version)));
+            }
+
+            NodesetFileCollection collection = Create(
+                (candidates[first].Path, null),
+                (candidates[second].Path, null),
+                (candidates[third].Path, null));
+
+            Assert.That(
+                collection.Files[ModelUri],
+                Is.EqualTo("memory://c.NodeSet2.xml"),
+                "the highest declared version wins whatever the order");
+        }
+
+        /// <summary>
+        /// Regression: a ModelUri item metadata that differs from the model URI
+        /// the NodeSet declares was used as the model's key for lookups while the
+        /// collection was keyed by the declared URI, so the model was silently
+        /// never generated.
+        /// </summary>
+        [Test]
+        public void ModelUriMetadataThatDiffersFromTheNodeSetDoesNotLoseTheModel()
+        {
+            const string path = "memory://override.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(NodeSet("1.0.0")));
+
+            var collection = new NodesetFileCollection(
+                [(path, new NodesetFileOptions { ModelUri = ModelUri + "Other/" })],
+                [],
+                m_fileSystem,
+                NUnitTelemetryContext.Create(logLevel: LogLevel.Error));
+
+            Assert.That(collection.ModelUris, Is.EqualTo(new[] { ModelUri }));
+            Assert.That(
+                collection.GetDesignFileListForModel(ModelUri, out NodesetFile nodeset),
+                Is.Not.Null);
+            Assert.That(nodeset.Info.ModelUri, Is.EqualTo(ModelUri));
+        }
+
+        /// <summary>
+        /// Regression: a dependency that lists the root model among its own
+        /// namespaces added the root to the design file list a second time.
+        /// </summary>
+        [Test]
+        public void MutuallyReferencingNodeSetsListTheRootOnce()
+        {
+            const string rootUri = "http://test.org/UA/Root/";
+            const string otherUri = "http://test.org/UA/Other/";
+            const string root = "memory://root.NodeSet2.xml";
+            const string other = "memory://other.NodeSet2.xml";
+            m_fileSystem.Add(root, Encoding.UTF8.GetBytes(NodeSetFor(rootUri, otherUri)));
+            m_fileSystem.Add(other, Encoding.UTF8.GetBytes(NodeSetFor(otherUri, rootUri)));
+
+            var collection = new NodesetFileCollection(
+                [(root, new NodesetFileOptions()), (other, new NodesetFileOptions())],
+                [],
+                m_fileSystem,
+                NUnitTelemetryContext.Create(logLevel: LogLevel.Error));
+
+            List<string> files = collection.GetDesignFileListForModel(rootUri, out _);
+
+            Assert.That(
+                files.Select(f => f.Split(',')[0]),
+                Is.EqualTo(new[] { root, other }));
+        }
+
+        /// <summary>
+        /// Default Name/Prefix derived from the model URI. Names that already are
+        /// valid identifiers must not change (existing consumers depend on them);
+        /// the others - leading digit, '.', characters an identifier cannot hold,
+        /// an empty path - are repaired, the same way on every OS.
+        /// </summary>
+        [TestCase("http://opcfoundation.org/UA/DI/", "DI", "DI")]
+        [TestCase("http://opcfoundation.org/UA/Robotics-Intent/", "Robotics_Intent", "Robotics_Intent")]
+        [TestCase("http://test.org/UA/Versioned/", "Versioned", "Versioned")]
+        [TestCase("http://opcfoundation.org/UA/Machinery/Result/", "MachineryResult", "MachineryResult")]
+        [TestCase("urn:opcfoundation.org:2026-09:NodeSetImport", "NodeSetImport", "NodeSetImport")]
+        [TestCase("http://www.OPCFoundation.org/UA/2013/01/ISA95", "_201301ISA95", "_201301ISA95")]
+        [TestCase("http://example.com/Models/v1.2/", "Modelsv1_2", "Modelsv1._2")]
+        [TestCase("http://example.com/", "example_com", "example.com")]
+        [TestCase("http://test.org/UA/a*b%3Fc/", "a_b_c", "a_b_c")]
+        [TestCase("http://test.org/UA/class/", "class_", "class_")]
+        [TestCase("http://test.org/UA/My.class/", "My_class", "My.class_")]
+        [TestCase("http://test.org/UA/Class/", "Class", "Class")]
+        public void DefaultNameAndPrefixAreValidIdentifiers(
+            string modelUri,
+            string expectedName,
+            string expectedPrefix)
+        {
+            Assert.That(NodesetFileCollection.GetDefaultNameFromUri(modelUri), Is.EqualTo(expectedName));
+            Assert.That(NodesetFileCollection.GetDefaultPrefixFromUri(modelUri), Is.EqualTo(expectedPrefix));
+        }
+
+        /// <summary>
+        /// Identifier sidecar resolution: relative paths are normalized, and the
+        /// suffix fallback only matches on a directory boundary.
+        /// </summary>
+        [TestCase("/p/Models/Model.NodeSet2.xml", "./ids.csv", "/p/Models/ids.csv")]
+        [TestCase("/p/Models/Model.NodeSet2.xml", "../Shared/ids.csv", "/p/Shared/ids.csv")]
+        [TestCase("/p/Models/Model.NodeSet2.xml", "ids.csv", "/p/Models/ids.csv")]
+        [TestCase("/p/Other/Model.NodeSet2.xml", "Di.NodeIds.csv", "/p/Models/Di.NodeIds.csv")]
+        [TestCase("/p/Other/Model.NodeSet2.xml", "NodeIds.csv", null)]
+        public void IdentifierSidecarPathIsNormalizedAndMatchedOnWholeSegments(
+            string nodeSetPath,
+            string identifierFile,
+            string expected)
+        {
+            string[] csvFiles =
+            [
+                "/p/Models/ids.csv",
+                "/q/Models/ids.csv",
+                "/p/Shared/ids.csv",
+                "/q/Shared/ids.csv",
+                "/p/Models/Di.NodeIds.csv",
+                "/p/Robotics/Opc.Ua.Di.NodeIds.csv"
+            ];
+
+            Assert.That(
+                NodesetIdentifierFileValidator.ResolvePath(nodeSetPath, identifierFile, csvFiles),
+                Is.EqualTo(expected));
+        }
+
+        private static string NodeSetFor(string modelUri, string otherUri)
+        {
+            return $"""
+                <?xml version="1.0" encoding="utf-8"?>
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                    <NamespaceUris>
+                        <Uri>{modelUri}</Uri>
+                        <Uri>{otherUri}</Uri>
+                    </NamespaceUris>
+                    <Models>
+                        <Model ModelUri="{modelUri}" PublicationDate="2026-08-12T00:00:00Z" Version="1.0.0" />
+                    </Models>
+                    <Aliases>
+                        <Alias Alias="HasSubtype">i=45</Alias>
+                    </Aliases>
+                    <UAObjectType NodeId="ns=1;i=1000" BrowseName="1:SomeType">
+                        <DisplayName>SomeType</DisplayName>
+                        <References>
+                            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                        </References>
+                    </UAObjectType>
+                </UANodeSet>
+                """;
+        }
+
         private NodesetFileCollection Create(params (string Path, string Version)[] inputs)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -244,11 +491,16 @@ namespace Opc.Ua.SourceGeneration
 
         private static string NodeSet(
             string version,
-            string publicationDate = "2026-08-12T00:00:00Z")
+            string publicationDate = "2026-08-12T00:00:00Z",
+            string modelVersion = null)
         {
             string versionAttribute = version == null
                 ? string.Empty
                 : $" Version=\"{version}\"";
+            if (modelVersion != null)
+            {
+                versionAttribute += $" ModelVersion=\"{modelVersion}\"";
+            }
 
             return $"""
                 <?xml version="1.0" encoding="utf-8"?>

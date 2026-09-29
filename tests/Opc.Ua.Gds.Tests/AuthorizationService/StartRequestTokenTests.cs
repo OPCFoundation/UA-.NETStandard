@@ -210,6 +210,50 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 "not to the client-supplied request token.");
         }
 
+        /// <summary>
+        /// The GDS method handlers pass the session identity to every provider that
+        /// accepts one, including an InMemoryAccessTokenProvider registered directly.
+        /// </summary>
+        [Test]
+        public async Task InMemoryProviderStartRequestTokenBindsSubjectToCallerIdentity()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            Assert.That(provider, Is.InstanceOf<ICallerIdentityAccessTokenProvider>());
+            Assert.That(
+                new AuthorizationServiceManager(provider, issuer, options),
+                Is.InstanceOf<ICallerIdentityAccessTokenProvider>());
+
+            (_, Guid requestId) = await ((ICallerIdentityAccessTokenProvider)provider)
+                .StartRequestTokenAsync(
+                    Audience,
+                    "jwt",
+                    ByteString.From(Encoding.UTF8.GetBytes("read")),
+                    new UserIdentity("authenticated-user", []))
+                .ConfigureAwait(false);
+            AccessTokenResult tokenResult = await provider
+                .FinishRequestTokenAsync(
+                    requestId,
+                    Array.Empty<string>().ToArrayOf(),
+                    new UserNameIdentityToken { UserName = "admin" },
+                    new SignatureData())
+                .ConfigureAwait(false);
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, tokenResult.AccessToken)
+                .ConfigureAwait(false);
+            Assert.That(claims.Subject, Is.EqualTo("authenticated-user"));
+        }
+
         [Test]
         public async Task LegacyRequestAccessTokenIssuesAnonymousUnprivilegedToken()
         {
@@ -238,6 +282,99 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 "token for the subject.");
             Assert.That(claims.Roles, Is.Empty,
                 "The obsolete single-call RequestAccessToken must not grant roles.");
+        }
+
+        [Test]
+        public async Task LegacyRequestAccessTokenHonorsAccessControl()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint },
+                AccessControl = (identity, audience, scopes) => identity?.DisplayName == "operator"
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            var manager = new AuthorizationServiceManager(provider, issuer, options);
+
+#pragma warning disable CS0618 // exercising the obsolete single-call wire method on purpose
+            Assert.That(
+                async () => await manager
+                    .RequestAccessTokenAsync(new UserNameIdentityToken { UserName = "admin" }, Audience)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                async () => await manager
+                    .RequestAccessTokenAsync(
+                        new UserNameIdentityToken { UserName = "admin" },
+                        Audience,
+                        new UserIdentity("intruder", []))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied));
+            string jwt = await manager
+                .RequestAccessTokenAsync(
+                    new UserNameIdentityToken { UserName = "admin" },
+                    Audience,
+                    new UserIdentity("operator", []))
+                .ConfigureAwait(false);
+#pragma warning restore CS0618
+
+            IIdentityClaims claims = await AuthenticateAsync(certificate, jwt).ConfigureAwait(false);
+            Assert.That(claims.Subject, Is.EqualTo("operator"));
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §9.6.5 - §9.6.8: a ResourceId the Server does not know
+        /// is reported with Bad_NotFound, not Bad_UserAccessDenied.
+        /// </summary>
+        [Test]
+        public void UnknownResourceIdReturnsBadNotFound()
+        {
+            using Certificate certificate = CreateSigningCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            var options = new AuthorizationServiceOptions
+            {
+                IssuerUri = Issuer,
+                SigningCertificate = new CertificateIdentifier { Thumbprint = certificate.Thumbprint }
+            };
+            options.AllowedAudiences.Add(Audience);
+            options.DefaultScopes.Add("read");
+
+            var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
+            var provider = new InMemoryAccessTokenProvider(issuer, options);
+            var manager = new AuthorizationServiceManager(provider, issuer, options);
+            const string unknownResourceId = "urn:unknown:resource";
+
+            Assert.That(
+                async () => await manager
+                    .StartRequestTokenAsync(
+                        unknownResourceId,
+                        "jwt",
+                        ByteString.From(Encoding.UTF8.GetBytes("read")),
+                        new UserIdentity("operator", []))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
+            Assert.That(
+                async () => await provider
+                    .StartRequestTokenAsync(
+                        unknownResourceId,
+                        "jwt",
+                        ByteString.From(Encoding.UTF8.GetBytes("read")))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]

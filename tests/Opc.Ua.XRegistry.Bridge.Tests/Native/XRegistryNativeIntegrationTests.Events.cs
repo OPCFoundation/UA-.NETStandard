@@ -81,12 +81,20 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 null, 20, 1000, 10, 0, true, 0, CancellationToken.None).ConfigureAwait(false);
             try
             {
-                ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await anonymous.CreateMonitoredItemsAsync(
+                StatusCode status;
+                try
+                {
+                    CreateMonitoredItemsResponse created = await anonymous.CreateMonitoredItemsAsync(
                         null, subscription.SubscriptionId, TimestampsToReturn.Neither,
-                        [EventRequest(m_manager.RegistryNodeId, filter)], CancellationToken.None).ConfigureAwait(
-                            false));
-                Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                        [EventRequest(m_manager.RegistryNodeId, filter)], CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(created.Results, Has.Count.EqualTo(1));
+                    status = created.Results[0].StatusCode;
+                }
+                catch (ServiceResultException exception)
+                {
+                    status = exception.StatusCode;
+                }
+                Assert.That(status, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             finally
             {

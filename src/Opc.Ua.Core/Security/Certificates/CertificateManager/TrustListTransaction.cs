@@ -110,6 +110,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
+            m_addTrusted.RemoveAll(candidate =>
+                string.Equals(candidate.Thumbprint, certificate.Thumbprint, StringComparison.OrdinalIgnoreCase));
             m_addTrusted.Add(certificate);
             return Task.CompletedTask;
         }
@@ -125,7 +127,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(thumbprint));
             }
 
-            m_removeTrusted.Add(thumbprint);
+            m_addTrusted.RemoveAll(certificate =>
+                string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase));
+            m_removeTrusted.Add(thumbprint.ToUpperInvariant());
             return Task.CompletedTask;
         }
 
@@ -140,6 +144,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
+            m_addIssuer.RemoveAll(candidate =>
+                string.Equals(candidate.Thumbprint, certificate.Thumbprint, StringComparison.OrdinalIgnoreCase));
             m_addIssuer.Add(certificate);
             return Task.CompletedTask;
         }
@@ -155,7 +161,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(thumbprint));
             }
 
-            m_removeIssuer.Add(thumbprint);
+            m_addIssuer.RemoveAll(certificate =>
+                string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase));
+            m_removeIssuer.Add(thumbprint.ToUpperInvariant());
             return Task.CompletedTask;
         }
 
@@ -168,6 +176,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
+            m_addCrls.RemoveAll(candidate => candidate.RawData.AsSpan().SequenceEqual(crl.RawData));
             m_addCrls.Add(crl);
             return Task.CompletedTask;
         }
@@ -181,6 +190,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
+            m_addCrls.RemoveAll(candidate => candidate.RawData.AsSpan().SequenceEqual(crl.RawData));
             m_removeCrls.Add(crl);
             return Task.CompletedTask;
         }
@@ -193,60 +203,70 @@ namespace Opc.Ua
             bool trustChanged = false;
             bool crlChanged = false;
 
-            // Apply trusted-store operations.
-            using (ICertificateStore trustedStore = m_manager.OpenTrustedStore(TrustList))
+            using ICertificateStore? issuerStore = m_manager.OpenIssuerStore(TrustList);
+            if (issuerStore == null && (m_removeIssuer.Count > 0 || m_addIssuer.Count > 0))
             {
-                foreach (Certificate cert in m_addTrusted)
-                {
-                    await trustedStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
-                    trustChanged = true;
-                }
-
-                foreach (string thumbprint in m_removeTrusted)
-                {
-                    await trustedStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
-                    trustChanged = true;
-                }
-
-                // CRLs are stored alongside trusted certificates.
-                foreach (X509CRL crl in m_addCrls)
-                {
-                    await trustedStore.AddCRLAsync(crl, ct).ConfigureAwait(false);
-                    crlChanged = true;
-                }
-
-                foreach (X509CRL crl in m_removeCrls)
-                {
-                    await trustedStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
-                    crlChanged = true;
-                }
+                throw ServiceResultException.ConfigurationError(
+                    "The trust list has no issuer store for the staged issuer changes.");
             }
 
-            // Apply issuer-store operations if an issuer store is configured.
-            ICertificateStore? issuerStore = m_manager.OpenIssuerStore(TrustList);
-            if (issuerStore != null)
+            try
             {
-                using (issuerStore)
+                using (ICertificateStore trustedStore = m_manager.OpenTrustedStore(TrustList))
                 {
-                    foreach (Certificate cert in m_addIssuer)
+                    foreach (string thumbprint in m_removeTrusted)
                     {
-                        await issuerStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
                         trustChanged = true;
+                        await trustedStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
                     }
 
+                    foreach (Certificate cert in m_addTrusted)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        trustChanged = true;
+                        await AddCertificateIfMissingAsync(trustedStore, cert, ct).ConfigureAwait(false);
+                    }
+
+                    foreach (X509CRL crl in m_removeCrls)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        crlChanged = true;
+                        await trustedStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
+                    }
+
+                    foreach (X509CRL crl in m_addCrls)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        crlChanged = true;
+                        await trustedStore.AddCRLAsync(crl, ct).ConfigureAwait(false);
+                    }
+                }
+
+                if (issuerStore != null)
+                {
                     foreach (string thumbprint in m_removeIssuer)
                     {
-                        await issuerStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
                         trustChanged = true;
+                        await issuerStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                    }
+
+                    foreach (Certificate cert in m_addIssuer)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        trustChanged = true;
+                        await AddCertificateIfMissingAsync(issuerStore, cert, ct).ConfigureAwait(false);
                     }
                 }
+
+                m_committed = true;
             }
-
-            m_committed = true;
-
-            // Notify observers AFTER the atomic apply, so the
-            // CertificateChanges stream reflects the final state.
-            m_changeNotifier?.NotifyTrustListChanged(TrustList, trustChanged, crlChanged);
+            finally
+            {
+                // A store can mutate before failing. Retire cached trust even when a later write fails.
+                m_changeNotifier?.NotifyTrustListChanged(TrustList, trustChanged, crlChanged);
+            }
         }
 
         /// <inheritdoc/>
@@ -264,6 +284,38 @@ namespace Opc.Ua
             }
 
             return default;
+        }
+
+        /// <summary>
+        /// Adds a certificate unless it already exists, including a concurrent addition by another writer.
+        /// </summary>
+        private static async Task AddCertificateIfMissingAsync(
+            ICertificateStore store,
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            using (CertificateCollection existing = await store.FindByThumbprintAsync(
+                certificate.Thumbprint, ct).ConfigureAwait(false))
+            {
+                if (existing.Count > 0)
+                {
+                    return;
+                }
+            }
+
+            try
+            {
+                await store.AddAsync(certificate, ct: ct).ConfigureAwait(false);
+            }
+            catch (ArgumentException)
+            {
+                using CertificateCollection existing = await store.FindByThumbprintAsync(
+                    certificate.Thumbprint, ct).ConfigureAwait(false);
+                if (existing.Count == 0)
+                {
+                    throw;
+                }
+            }
         }
 
         private void ThrowIfDisposedOrCommitted()

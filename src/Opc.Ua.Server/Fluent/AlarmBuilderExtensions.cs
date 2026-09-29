@@ -179,9 +179,11 @@ namespace Opc.Ua.Server.Fluent
             double lowLow = double.NaN);
 
         /// <summary>
-        /// Sets the alarm's <c>SourceNode</c> reference and
-        /// <c>SourceName</c> to the supplied target. Equivalent to
-        /// setting the alarm's "InputNode" semantics from the spec.
+        /// Sets the alarm's <c>SourceNode</c> and <c>SourceName</c> to the
+        /// supplied target. A Variable target also becomes the alarm's
+        /// <c>InputNode</c> (Part 9 5.8.2) and a ConditionSource: it gets a
+        /// HasCondition reference to the alarm and the Object the alarm was
+        /// created on gets a HasEventSource reference to it (Part 9 5.5.2).
         /// </summary>
         /// <param name="source">The source node monitored by the alarm.</param>
         /// <returns>This builder for further alarm configuration.</returns>
@@ -419,12 +421,9 @@ namespace Opc.Ua.Server.Fluent
                 alarm.ConditionName.Value = alarm.BrowseName.Name ?? string.Empty;
             }
 
-            if (alarm is AlarmConditionState alarmCondition &&
-                alarmCondition.InputNode != null &&
-                alarmCondition.InputNode.Value.IsNull)
-            {
-                alarmCondition.InputNode.Value = source.NodeId;
-            }
+            // The source is always an Object here (AttachAlarm rejects any
+            // other parent), so InputNode stays NULL until MonitorVariable
+            // supplies the Variable (Part 9 5.8.2).
         }
     }
 
@@ -506,6 +505,34 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(source));
             }
+
+            if (source is BaseVariableState)
+            {
+                // Part 9 5.8.2: a monitored Variable is the alarm's InputNode.
+                if (Alarm is AlarmConditionState alarmCondition &&
+                    alarmCondition.InputNode != null)
+                {
+                    alarmCondition.InputNode.Value = source.NodeId;
+                }
+
+                // Part 9 5.5.2: SourceNode names the ConditionSource. Make the Variable
+                // one: HasCondition to the alarm, and HasEventSource from the Object
+                // that owns the notifier chain, so the source the events name leads to
+                // the condition. Deleting the alarm removes these references again.
+                if (!source.ReferenceExists(ReferenceTypeIds.HasCondition, false, Alarm.NodeId))
+                {
+                    source.AddReference(ReferenceTypeIds.HasCondition, false, Alarm.NodeId);
+                    Alarm.AddReference(ReferenceTypeIds.HasCondition, true, source.NodeId);
+                }
+                NodeState? owner = Alarm.Parent;
+                if (owner != null &&
+                    !owner.ReferenceExists(ReferenceTypeIds.HasEventSource, false, source.NodeId))
+                {
+                    owner.AddReference(ReferenceTypeIds.HasEventSource, false, source.NodeId);
+                    source.AddReference(ReferenceTypeIds.HasEventSource, true, owner.NodeId);
+                }
+            }
+
             Alarm.SourceNode!.Value = source.NodeId;
             QualifiedName srcName = source.BrowseName;
             Alarm.SourceName!.Value = srcName.IsNull ? string.Empty : (srcName.Name ?? string.Empty);

@@ -2,15 +2,15 @@
 
 Test cases of CTT 1.05.06 (scripts 1.05.513) that fail, warn or skip against the OPC Foundation .NET
 reference server (`ConsoleReferenceServer --ctt`) because of a CTT defect, with a short abstract and the
-Mantis issue that tracks it. The details are in Mantis. Defects that are not filed yet, open questions,
-open server findings and CTT project configuration notes follow the tables. The procedure for running the
-CTT is in [ctt-testing.md](ctt-testing.md).
+Mantis issue that tracks it. The details are in Mantis. Defects that are not filed yet, open questions and
+CTT project configuration notes follow the tables. The procedure for running the CTT is in
+[ctt-testing.md](ctt-testing.md).
 
 - "Resolved / fixed" in Mantis means the fix is in the CTT script repository. It ships with a script
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
-- The ids (1–19, C1–C50, U1–U4) are stable references for notes and commit messages; missing ids were
+- The ids (1–19, C1–C53, U1–U4) are stable references for notes and commit messages; missing ids were
   withdrawn or no longer fail against the reference server.
-- Mantis states were last checked on 2026-09-24.
+- Mantis states were last checked on 2026-09-25.
 
 ## Filed in Mantis
 
@@ -28,6 +28,7 @@ CTT is in [ctt-testing.md](ctt-testing.md).
 | C6 | Aggregate – DurationGood, PercentGood | The oracle ignores the raw value before the interval for the status of the first region. | [11425](https://mantis.opcfoundation.org/view.php?id=11425) |
 | C48 | Aggregate – Minimum, Maximum, MinimumActualTime, MaximumActualTime `001-02.js`… | The oracle ignores Uncertain values beyond the Good extremum and expects Good instead of UncertainDataSubNormal. | [11426](https://mantis.opcfoundation.org/view.php?id=11426) |
 | C49 | Aggregate – Minimum, MinimumActualTime, MaximumActualTime | The oracle does not set the Calculated bit when non-Good values make the status Uncertain. | [11427](https://mantis.opcfoundation.org/view.php?id=11427) |
+| U2 | Aggregate – Minimum2 (reverse reads) | The oracle clears the Calculated bit when the minimum is the End bound at the early end of a reverse interval (Part 11 §6.5.4.2). | [11461](https://mantis.opcfoundation.org/view.php?id=11461) |
 
 ### Historical Access
 
@@ -96,6 +97,7 @@ CTT is in [ctt-testing.md](ctt-testing.md).
 | C29 | Application Directory `005.js` | The random ApplicationUri is cut at its first NUL, so both calls are identical. | [11406](https://mantis.opcfoundation.org/view.php?id=11406) |
 | C30 | Query Applications `036.js` | Expects `rcp+` DiscoveryUrls the test never registered. | [11412](https://mantis.opcfoundation.org/view.php?id=11412) |
 | C31 | Query Applications `038.js` | Treats applicationType 3 as invalid. | [11413](https://mantis.opcfoundation.org/view.php?id=11413) |
+| C51 | Application Directory `066.js`, `079.js`; Query Applications `039.js` (pass only because the server returns NA records) | Register the reference Servers with ServerCapabilities `NA` and expect them in query results, which OPC 10000-12 §6.5.10/§6.5.11 excludes; with the exclusion 40 test cases fail. | [11458](https://mantis.opcfoundation.org/view.php?id=11458) |
 
 ### Alarms and Conditions
 
@@ -110,6 +112,8 @@ CTT is in [ctt-testing.md](ctt-testing.md).
 | C41 | A & C Alarm `Test_002.js` (runs to the maximum test time) | AcknowledgeableConditionType never gets a result. | [11449](https://mantis.opcfoundation.org/view.php?id=11449) |
 | C42 | A & C Enable `Test_003.js` (runs to the maximum test time) | Depends on all alarm types going active within one tenth of the Alarm Cycle Time. | [11450](https://mantis.opcfoundation.org/view.php?id=11450) |
 | C44 | A & C CertificateExpiration (a `--close --hidden` run never exits) | `initialize.js` opens a modal dialog. | [11453](https://mantis.opcfoundation.org/view.php?id=11453) |
+| C52 | A & C Refresh, Refresh2, Shelving (`BadSubscriptionIdInvalid` when the CPU is saturated) | Refresh `Err_004.js` and Refresh2 `Err_003.js` leave 10 subscriptions each on the shared alarm session, and `ShutdownItem()` leaves one per Refresh test case. | [11459](https://mantis.opcfoundation.org/view.php?id=11459) |
+| C53 | A & C (alarm thread) | `StartThreadPublish.js` lines 28–29 default misspelled properties, so MaximumPublishCalls/MaximumOutstandingCalls are sent undefined. | [11460](https://mantis.opcfoundation.org/view.php?id=11460) |
 
 ## Not filed
 
@@ -135,90 +139,44 @@ CTT is in [ctt-testing.md](ctt-testing.md).
 
 ## Needs clarification
 
-### U1. NumberOfTransitions with TreatUncertainAsBad=true
-
-For 24 monotonic samples (two Bad, two Uncertain), the server counts 22 transitions and the
-oracle 20 (Uncertain values excluded). §5.4.3.24 excludes Bad values. §4.2.1.2 says
-TreatUncertainAsBad=True makes Uncertain *"equivalent to Bad"*, which supports the oracle. The
-server currently ignores TreatUncertainAsBad for this aggregate. Needs a decision before either
-side changes.
-
-### U2. Minimum2 Calculated bit on reverse reads
-
-When the minimum is the chronologically first raw value of a reverse interval, the server sets
-Calculated and the oracle does not. §5.4.3.15 sets Calculated *"unless the StartBound is the
-Minimum"*. Part 11 §6.5.4.2 makes the later timestamp the start of a reverse interval, which
-supports the server. Part 13 §5.4.2.2 says a reverse calculation equals the forward one, which
-supports the oracle.
-
-### U3. DurationInStateZero/NonZero with an Uncertain end bound
-
-In an interval whose raw data is all Good but whose simple end bound is Uncertain, the server
-returns Good and the oracle Uncertain, with equal values. §5.4.3.22 does not say whether an end
-bound colors the region before it. The oracle is inconsistent: TimeAverage2 and Total2 over the
-same interval match the server.
-
-### U4. DeltaBounds: which bounds count as Bad and which as Uncertain
+### U4. DeltaBounds: does TreatUncertainAsBad make an Uncertain bound Bad?
 
 §5.4.3.30: *"If one or both values are Bad the return status will be Bad_NoData. If one or both values are
-Uncertain the status will be Uncertain_DataSubNormal."* #4503 changed `StartEndAggregateCalculator` to return
-`BadNoData` only for Bad bounds (it used to do so for every non-Good bound), so the server now computes the
-difference for Uncertain bounds. In the run of 2026-09-22 that raised the Aggregates group from 4,498 to 4,562
-error messages, all in Aggregate – DeltaBounds `003-01.js`…`008-01.js` on the Double and Float nodes.
+Uncertain the status will be Uncertain_DataSubNormal."* A logged run (AGGDIAG project copy) of Aggregate –
+DeltaBounds `003-01.js`…`008-01.js` on the Double and Float nodes differs in 200 readings; the timestamps always
+agree:
 
-A logged run (AGGDIAG project copy) classifies all 200 differing readings; the timestamps always agree:
+| Readings | Server | Oracle | Cause |
+| --- | --- | --- | --- |
+| 80 | value 24, Good | value 23, Good | Int32 rounding (see *Aggregate oracle differences*) |
+| 72 | `BadNoData` | value, `UncertainDataSubNormal` | TreatUncertainAsBad=false requested, but C1 makes the server use its default true; the Uncertain raw value before the bound then counts as Bad and no bound exists |
+| 48 | value, `UncertainDataSubNormal` | `BadNoData` | TreatUncertainAsBad=true; the raw value after the bound is Bad, so §3.1.9 makes the bound Uncertain, and the oracle then treats the Uncertain bound as Bad |
 
-| Readings | Server | Oracle |
-| --- | --- | --- |
-| 80 | value 24, Good | value 23, Good |
-| 72 | `BadNoData` | value, `UncertainDataSubNormal` |
-| 48 | value, `UncertainDataSubNormal` | `BadNoData` |
-
-The first group is the known Int32 rounding difference (see *Aggregate oracle differences* under *Not filed*). The other two
-are the same question in both directions: the two sides disagree about whether a given interval bound is Bad or
-Uncertain, so one computes a value while the other reports no data. Needs a decision on how a bound derived from
-a Bad raw value is classified (§5.4.2.3 simple bounding) before either side changes.
-
-## Open server findings
-
-- **Idle SecureChannels are closed after `ChannelLifetime` although their token is still valid.** Security None
-  `007.js` and Security Basic 256 Sha256 `005.js` keep channels without a Session idle for about 51 s and expect
-  the newest one to close with Good; with the default `ChannelLifetime` of 30 s the server has already closed it
-  (`BadInvalidState`). Part 4 §5.6.2.1 lets a SecureChannel live until its last token expires. A server change was
-  withdrawn because it lets an unauthenticated client hold a channel for up to the `SecurityTokenLifetime`;
-  `Ctt.ReferenceServer.Config.xml` sets `ChannelLifetime` to 120000 instead.
-- **AddNodes after a child rename returns `BadNodeIdExists`.** AddNodes without a RequestedNewNodeId derives the
-  NodeId from the parent and the BrowseName; after a rename the renamed node still owns that id
-  (`AsyncCustomNodeManagerNodeManagementTests.AddNodeAsync_DuplicateBrowseNameUnderParentWithManyChildren_ReturnsBadBrowseNameDuplicatedAsync`).
-  The server should allocate another NodeId. No CTT test case renames nodes.
-- **A & C Refresh / Refresh2 / Shelving `BadSubscriptionIdInvalid`.** Seen once on 2026-09-14 (Refresh `Err_004.js`)
-  and in three runs on 2026-09-24 (Refresh2 `Err_003.js`/`Err_004.js`, Shelving `initialize.js`) while other builds
-  kept the machine at up to 99% CPU, with `ChannelLifetime` 30000 and 120000 alike: the alarm thread's subscriptions
-  were gone, which is what an expiry after stopped Publish requests looks like. Not reproduced on an idle machine.
-  If it recurs, start the server with `-c -l` and look for `Subscription ... EXPIRED`.
-- **GDS.** QueryApplications/QueryServers *"shall not return records with a ServerCapabilities that includes NA"*
-  (OPC 10000-12 §6.5.10/§6.5.11), but the CTT registers its reference Servers with `NA` and expects them in the
-  results (Application Directory `066.js`, `079.js` step 1); the server is unchanged. The
-  `Bad_EncodingLimitsExceeded` ServiceFault for an oversized request carries RequestHandle 0 (Part 4 §7.33: the
-  handle *should* be echoed).
-- **Aggregate calculators, not exercised by the CTT yet.** AnnotationCount never returns `BadNoData` or sets
-  `Partial` (`CountAggregateCalculator`, §5.4.3.20); the value-based status ignores TreatUncertainAsBad=false
-  (`AggregateCalculator.GetValueBasedStatusCode`). Both only show once the CTT sends explicit aggregate
-  configurations (C1).
+§3.1.9 (Simple Bounding Values) and Table 78 never mention TreatUncertainAsBad, §4.2.1.2 applies it to every
+aggregate calculation *"unless the Aggregate definition says otherwise"*, and its note (*"still treated as
+Uncertain when the StatusCode for the result is calculated"*) contradicts §5.4.3.2.1. Whether TreatUncertainAsBad
+applies to the raw values that form a bound (server), to the resulting bound (oracle) or not at all is open. A
+spec clarification request is filed as [11462](https://mantis.opcfoundation.org/view.php?id=11462); neither side changes
+before the answer.
 
 ## CTT project configuration notes
 
 Tests skipped because of reference server sample-data gaps or missing CTT project settings are
 tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479).
 
-- **Aggregate ProcessingInterval.** Set `/Server Test/NodeIds/Static/HA Profile/Aggregates/ProcessingInterval`
-  to a positive value (see issue 4).
+- **Aggregate ProcessingInterval.** `samples/UAReferenceServer.ctt.xml` sets
+  `/Server Test/NodeIds/Static/HA Profile/Aggregates/ProcessingInterval` to 1; keep it positive (see issue 4).
 - **Bad data entries for aggregates.** `005-05.js`/`005-06.js` need an explicit Bad data entry. Without
   it, `HAAggregateHelper.GetRequestEntry` falls back to the start entry (*"Bad Data Entry no found,
   using start data"*) or throws (*"GetRequestEntry failed due to incorrect test configuration"*). The
   reference server seeds a deterministic pattern on every history node: index mod 10 = 7 is
-  `BadDataUnavailable`, index mod 10 = 9 is `UncertainSubstituteValue`, the rest Good.
-- **Reference server settings for #4479.** `samples/UAReferenceServer.ctt.xml` sets:
+  `BadDataUnavailable`, index mod 10 = 9 is `UncertainSubstituteValue`, the rest Good. No project setting
+  can supply the entry: `GetStartBadDataTime` (`HAAggregateHelper.js` line 1023) reads
+  `.../Aggregates/StartOfBadData<Name>` as an absolute time, the server seeds its history relative to its
+  start time, and the pattern never has the two consecutive non-Good values the helper looks for. It needs a
+  history seed anchored to a fixed date with a longer Bad block, plus that date in the template.
+- **Reference server settings for #4479.** `samples/UAReferenceServer.ctt.xml` sets the following; a project
+  created from an older template keeps the old values, so copy them over:
   - `/Server Test/NodeIds/Static/All Profiles/Scalar/Bool` = `ns=2;s=Scalar_Static_NonHistorizing_Boolean`.
     Historical Access Read Raw `Err-025.js` and Delete Value `dat-Err-001.js`/`Err-004.js` take the first
     Static Scalar node as the non-historizing node. The HA Profile and Aggregate Boolean settings stay on
@@ -253,8 +211,6 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   by design. Deselect it.
 - **Discovery.** Find Servers Filter `002.js` needs at least two servers known to FindServers (an LDS);
   Find Servers Self `010.js` and Get Endpoints `009.js` need a multi-homed host or several hostnames.
-  Find Servers Filter `003.js`/`006.js` and Get Endpoints `002.js` warn that `de-DE` was requested
-  but `en-US` returned, because the server has no `de-DE` ApplicationName.
 - **Auditing.** Auditing Connections `002.js`, `003.js`, `008.js`, `010.js`, `014.js` skip when no other
   test case in the same run produces the audit event they look for. Run the Auditing group together
   with the service groups whose actions it audits.
@@ -289,6 +245,12 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   Node Management Add Ref and Delete Ref.
 - **Security groups need the CTT PKI, not `-a`.** See [ctt-testing.md](ctt-testing.md#9-security-groups).
   With `-a` every negative certificate test fails spuriously.
+- **SecureChannels without a Session.** Security None `007.js` and Security Basic 256 Sha256 `005.js` keep
+  channels without a Session idle for about 51 s and expect the newest one to close with Good. The server closes
+  such channels after `ChannelLifetime` (default 30 s), although Part 4 §5.6.2.1 lets a SecureChannel live until
+  its last token expires; keeping them open would let an unauthenticated client hold a channel for up to the
+  `SecurityTokenLifetime`. `Ctt.ReferenceServer.Config.xml` sets `ChannelLifetime` to 120000 instead, and both
+  test cases pass (`005.js` keeps the C50 warning).
 - **Security General coverage.** In scripts 1.05.513, 50 of the 53 CUs contain only *Not Implemented* test
   cases (Push/Pull Model, No Application Authentication, Security Administration, Certificate Administration, Default ApplicationInstance
   Certificate, all Role and User Management CUs, TLS, Time Sync, KeyCredential, broker authentication,
@@ -299,7 +261,10 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   client certificate. `049.js`/`050.js` need a Basic128Rsa15 endpoint for their SHA-1 certificates; the
   reference server does not offer that deprecated policy (not applicable).
 - **Security User Token coverage.** Security User Anonymous `003.js` needs a secure endpoint without the
-  Anonymous token; the CTT configuration offers Anonymous on every endpoint. Security User Name Password 2
+  Anonymous token; the CTT configuration offers Anonymous on every endpoint. UserTokenPolicies are server-wide
+  in the configuration, so this needs another SignAndEncrypt endpoint (for example `Aes128_Sha256_RsaOaep`) whose
+  policies `ReferenceServer.GetUserTokenPolicies` filters; not done, because every CU that iterates the endpoints
+  would then see it. Security User Name Password 2
   `002.js` needs a UserName token policy with SecurityPolicy `#None` on an encrypted endpoint (password sent
   unencrypted inside the channel); the reference server always encrypts passwords (not applicable).
   `012.js` passes only because `/Server Test/Session/LoginNameAccessDenied` (`username`) is not a known user
@@ -314,17 +279,14 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   `UseChatteringAlarms` sets IgnoreSkip on every type and `Test_003.js`–`Test_005.js`,
   `Test_007.js`–`Test_010.js` and `Err_001.js`–`Err_003.js` finish immediately without testing
   anything. The reference server has no alarm that stays active across transitions, so there is no
-  condition to configure there yet.
+  condition to configure there yet. It would need an alarm source in the sample `AlarmNodeManager` that oscillates
+  inside the alarm band (for example between 75 and 95 around a HighHigh limit of 90), with its ConditionId in that
+  setting; the other A & C CUs would then see a condition that never clears.
 - **A & C Alarm Cycle Time and session timeout.** `/Server Test/Alarms and Conditions/Alarm Cycle Time`
   sets the initial event capture (1 ×), the maximum time of every collector test case (3 ×) and the
   Enable `Test_003.js` refresh delay (1/10). Keep it below
   `/Server Test/Session/RequestedSessionTimeout` (ms) when a Limit/Level CU can be the first A&C CU of a
-  run (C40).
-- **Subscription Publish Min 05 `003.js`** creates 5 subscriptions in each of half the
-  `/Server Test/Capabilities/Max Supported Sessions` sessions (75 → 38 sessions, 190 subscriptions). With
-  `/Server Test/Capabilities/Max Supported Subscriptions` = 100 (the server's `MaxSubscriptionCount` in
-  `Ctt.ReferenceServer.Config.xml`) it warns *"Not enough subscriptions for all sessions. Reducing session
-  amount to 20"* and still passes. The warning is informational; raising both limits to 200 removes it.
+  run (C40). The template sets 30 s against a 60 s session timeout.
 - **Session and Subscription coverage.** Manual (*Not Implemented*) test cases: Subscription Basic `072.js`,
   `073.js`; Subscription Multiple `001.js`–`003.js`; Subscription Publish Basic `005.js`–`007.js`, `Err-001.js`;
   Subscription PublishRequest Queue Overflow `001.js`, `002.js`; Subscription Durable `013.js`. Subscription

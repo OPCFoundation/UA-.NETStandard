@@ -273,6 +273,19 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EqualEmptyMatricesWithDifferentDimensionsHashAlike()
+        {
+            MatrixOf<int> empty = MatrixOf<int>.Empty;
+            MatrixOf<int> empty2D = new int[0, 0].ToMatrixOf();
+            MatrixOf<int> empty0x3 = new int[0, 3].ToMatrixOf();
+
+            Assert.That(empty2D, Is.EqualTo(empty));
+            Assert.That(empty0x3, Is.EqualTo(empty));
+            Assert.That(empty2D.GetHashCode(), Is.EqualTo(empty.GetHashCode()));
+            Assert.That(empty0x3.GetHashCode(), Is.EqualTo(empty.GetHashCode()));
+        }
+
+        [Test]
         public void ToStringTest()
         {
             var matrix = MatrixOf<int>.CreateFromArray(

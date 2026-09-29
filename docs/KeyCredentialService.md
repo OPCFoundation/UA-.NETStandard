@@ -1,19 +1,38 @@
 # KeyCredentialService Developer Guide
 
-OPC 10000-12 §8 defines the **KeyCredentialService** — a mechanism for
-a GDS to issue and manage credentials (e.g. username/password, API keys,
-tokens) on behalf of applications that need to authenticate to
-non-OPC UA services such as MQTT brokers or REST APIs.
+OPC 10000-12 §8 defines the **KeyCredentialService**. A Global Discovery
+Server (GDS) uses it to issue and manage credentials, such as usernames and
+passwords, API keys, or tokens, for applications that authenticate to
+services outside OPC UA. Examples include Message Queuing Telemetry
+Transport (MQTT) brokers and REST APIs.
 
-> **Scope note**: this service is for credentials targeting **non-OPC
-> UA** resources (MQTT brokers, REST APIs, etc. — see `ResourceUri`
-> + `ProfileUris` on `KeyCredentialServiceType`). The optional bridge
+> **Scope note:** This service issues credentials for resources outside
+> **OPC UA**, such as MQTT brokers and REST APIs. See `ResourceUri`
+> and `ProfileUris` on `KeyCredentialServiceType`. The optional bridge
 > authenticator described below is **EXPERIMENTAL** under the vendor URI
 > `urn:opcfoundation:netstandard:profile:authentication:keycredential`;
 > it is **not** an OPC UA Part 6 §6.5.3 conformance claim. For
 > standards-conformant OPC UA session authentication, use
-> [AuthorizationService](AuthorizationService.md) (JWT) and the
-> [Identity Providers](IdentityProviders.md) infrastructure.
+> [AuthorizationService](AuthorizationService.md) with JSON Web Tokens
+> (JWT) and the [Identity Providers](IdentityProviders.md) infrastructure.
+
+## Contents
+
+- [Architecture](#architecture)
+- [Client API](#client-api)
+  - [`KeyCredentialServiceClient`](#keycredentialserviceclient)
+  - [Discovering the Service NodeId](#discovering-the-service-nodeid)
+- [Server-Side: Implementing a Provider](#server-side-implementing-a-provider)
+  - [`IKeyCredentialRequestStore`](#ikeycredentialrequeststore)
+  - [Built-in Implementation](#built-in-implementation)
+  - [Writing a Custom Implementation](#writing-a-custom-implementation)
+  - [Wiring into the GDS Server](#wiring-into-the-gds-server)
+- [Decision matrix: Push vs Pull vs Bridge](#decision-matrix-push-vs-pull-vs-bridge)
+  - [Hybrid (Push + Pull)](#hybrid-push--pull)
+- [Resource Server Push Binding](#resource-server-push-binding)
+- [Experimental KeyCredential Issued-Token Bridge](#experimental-keycredential-issued-token-bridge)
+- [Audit Events](#audit-events)
+- [End-to-End Example](#end-to-end-example)
 
 ## Architecture
 
@@ -235,6 +254,17 @@ services.AddOpcUa()
 
 Production deployments should register an `IKeyCredentialStore` backed by
 a durable secret store before calling `WithKeyCredentialPush()`.
+
+The standard folder remains in namespace 0. Created and restored credential
+instances use a nonstandard namespace owned by the binding node manager
+(the diagnostics namespace for `ConfigurationNodeManager`), so their
+properties and methods are addressable through Read, Browse, and Call.
+Descendant NodeIds are allocated per instance through the configured factory,
+so creating another credential does not alias an existing credential's properties.
+Use the returned `CredentialNodeId` and browse its children rather than
+assuming a namespace index. A custom folder keeps its own namespace;
+standalone bindings using `KeyCredentialPushSubject.NamespaceUri` must
+register that namespace with their hosting node manager.
 
 `GetEncryptingKey` returns an application certificate from the server's active
 certificate registry. `UpdateCredential` decrypts a UA Binary

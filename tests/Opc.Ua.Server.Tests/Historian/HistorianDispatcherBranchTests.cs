@@ -204,6 +204,88 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that raw deletion rejects an unspecified or reversed time
+        /// range (Part 11 6.9.5.1) without touching the archive.
+        /// </summary>
+        [TestCase(0, -1)]
+        [TestCase(-1, 3)]
+        [TestCase(4, 1)]
+        public async Task DispatchDeleteRawRejectsInvalidRangeAsync(int startSeconds, int endSeconds)
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(5);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            var details = new DeleteRawModifiedDetails
+            {
+                NodeId = nodeId,
+                StartTime = startSeconds < 0 ? DateTimeUtc.MinValue : HarnessFixture.BaseTime.AddSeconds(startSeconds),
+                EndTime = endSeconds < 0 ? DateTimeUtc.MinValue : HarnessFixture.BaseTime.AddSeconds(endSeconds),
+                IsDeleteModified = false
+            };
+
+            var result = new HistoryUpdateResult();
+            ServiceResult error = await HistorianDispatcher.DispatchDeleteRawAsync(
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidTimestampArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidTimestampArgument));
+            Assert.That(await ReadRawCountAsync(h, node, nodeId).ConfigureAwait(false), Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// Verifies that raw deletion with StartTime == EndTime deletes the
+        /// value at StartTime (Part 11 6.9.5.1).
+        /// </summary>
+        [Test]
+        public async Task DispatchDeleteRawEqualTimesDeletesValueAtStartAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            NodeId nodeId = h.SeedSamples(5);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            var details = new DeleteRawModifiedDetails
+            {
+                NodeId = nodeId,
+                StartTime = HarnessFixture.BaseTime.AddSeconds(2),
+                EndTime = HarnessFixture.BaseTime.AddSeconds(2),
+                IsDeleteModified = false
+            };
+
+            var result = new HistoryUpdateResult();
+            ServiceResult error = await HistorianDispatcher.DispatchDeleteRawAsync(
+                h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(await ReadRawCountAsync(h, node, nodeId).ConfigureAwait(false), Is.EqualTo(4));
+        }
+
+        private static async Task<int> ReadRawCountAsync(
+            HarnessFixture h,
+            BaseDataVariableState node,
+            NodeId nodeId)
+        {
+            var readDetails = new ReadRawModifiedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddSeconds(10),
+                IsReadModified = false
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+            var readResult = new HistoryReadResult();
+            ServiceResult readError = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext, h.Provider, node, nodeToRead, readDetails,
+                TimestampsToReturn.Source, readResult, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(readError), Is.True);
+            return readResult.HistoryData.TryGetValue(out HistoryData? hd) ? hd.DataValues.Count : 0;
+        }
+
+        /// <summary>
         /// Verifies that at-time deletion without a data-provider interface returns BadHistoryOperationUnsupported.
         /// </summary>
         [Test]
@@ -303,6 +385,39 @@ namespace Opc.Ua.Server.Tests.Historian
                 bogusAggregateId, TimestampsToReturn.Source, result, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
+        }
+
+        /// <summary>
+        /// Verifies that a positive ProcessingInterval shorter than one tick is
+        /// rejected instead of producing zero-width slices up to the output cap.
+        /// </summary>
+        [Test]
+        public async Task DispatchProcessedReadSubTickIntervalReturnsBadAggregateInvalidInputsAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            NodeId nodeId = h.SeedSamples(5);
+            BaseDataVariableState node = CreateVariable(nodeId);
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddMinutes(1),
+                ProcessingInterval = 0.00001
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, h.Provider, node, nodeToRead, details,
+                ObjectIds.AggregateFunction_Average, TimestampsToReturn.Source, result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateInvalidInputs));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadAggregateInvalidInputs));
         }
 
         /// <summary>
@@ -706,7 +821,144 @@ namespace Opc.Ua.Server.Tests.Historian
                     values[i].SourceTimestamp.ToDateTime(),
                     Is.EqualTo(HarnessFixture.BaseTime.AddSeconds(i * 10)));
                 Assert.That(StatusCode.IsGood(values[i].StatusCode), Is.True);
-                Assert.That(values[i].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+
+                // §5.3.3.2: the last interval overlaps the end of data (29 s), so it is Partial.
+                Assert.That(
+                    values[i].StatusCode.AggregateBits,
+                    Is.EqualTo(i == 2
+                        ? AggregateBits.Calculated | AggregateBits.Partial
+                        : AggregateBits.Calculated));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that AnnotationCount returns Bad_NoData for intervals entirely before the start or
+        /// after the end of data and sets the Partial bit on the interval that overlaps the end of
+        /// data (Part 13 §5.4.3.20, §5.3.3.2).
+        /// </summary>
+        [Test]
+        public async Task DispatchProcessedReadAnnotationCountReportsIntervalsOutsideDataAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
+            var nodeId = new NodeId($"anncount-edges-{Guid.NewGuid():N}", 1);
+            h.Provider.Register(nodeId);
+
+            HistorianOperationContext context = HarnessFixture.CreateContext(h.SystemContext);
+
+            // Raw data from 10 s to 29 s.
+            var samples = new List<DataValue>();
+            for (int i = 10; i < 30; i++)
+            {
+                DateTime ts = HarnessFixture.BaseTime.AddSeconds(i);
+                samples.Add(new DataValue(new Variant((double)i), StatusCodes.Good, ts, ts));
+            }
+            await h.Provider.InsertAsync(context, nodeId, samples, CancellationToken.None).ConfigureAwait(false);
+
+            var annotations = new List<Annotation>
+            {
+                new() { Message = "a", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(12) },
+                new() { Message = "b", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(15) },
+                new() { Message = "c", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(25) }
+            };
+            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None).ConfigureAwait(false);
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime,
+                EndTime = HarnessFixture.BaseTime.AddSeconds(40),
+                ProcessingInterval = 10000
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+
+            var result = new HistoryReadResult();
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, h.Provider, CreateVariable(nodeId), nodeToRead, details,
+                ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
+                result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
+            DataValue[] values = hd!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(4));
+
+            // [0,10) is before the start of data and [30,40) after the end of data.
+            Assert.That(values[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNoData));
+            Assert.That(values[3].StatusCode.Code, Is.EqualTo(StatusCodes.BadNoData));
+
+            // [10,20) starts at the start of data; [20,30) overlaps the end of data (29 s).
+            Assert.That(values[1].WrappedValue.TryGetValue(out int first), Is.True);
+            Assert.That(first, Is.EqualTo(2));
+            Assert.That(values[1].StatusCode.CodeBits, Is.EqualTo(StatusCodes.Good));
+            Assert.That(values[1].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+            Assert.That(values[2].WrappedValue.TryGetValue(out int second), Is.True);
+            Assert.That(second, Is.EqualTo(1));
+            Assert.That(values[2].StatusCode.CodeBits, Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                values[2].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Calculated | AggregateBits.Partial));
+            for (int i = 0; i < values.Length; i++)
+            {
+                Assert.That(
+                    values[i].SourceTimestamp.ToDateTime(),
+                    Is.EqualTo(HarnessFixture.BaseTime.AddSeconds(i * 10)));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that annotations outside the requested window count as data, so a window between
+        /// two annotations returns calculated zeros instead of Bad_NoData (Part 13 §5.4.3.20).
+        /// </summary>
+        [Test]
+        public async Task DispatchProcessedReadAnnotationCountBetweenAnnotationsReturnsZerosAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
+            var nodeId = new NodeId($"anncount-between-{Guid.NewGuid():N}", 1);
+            h.Provider.Register(nodeId);
+
+            HistorianOperationContext context = HarnessFixture.CreateContext(h.SystemContext);
+            var annotations = new List<Annotation>
+            {
+                new() { Message = "a", UserName = "t", AnnotationTime = HarnessFixture.BaseTime },
+                new() { Message = "b", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(100) }
+            };
+            await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None).ConfigureAwait(false);
+
+            var details = new ReadProcessedDetails
+            {
+                StartTime = HarnessFixture.BaseTime.AddSeconds(40),
+                EndTime = HarnessFixture.BaseTime.AddSeconds(60),
+                ProcessingInterval = 10000
+            };
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.Empty
+            };
+
+            var result = new HistoryReadResult();
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext, h.Provider, CreateVariable(nodeId), nodeToRead, details,
+                ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
+                result, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
+            DataValue[] values = hd!.DataValues.ToArray()!;
+            Assert.That(values, Has.Length.EqualTo(2));
+            foreach (DataValue value in values)
+            {
+                Assert.That(value.StatusCode.CodeBits, Is.EqualTo(StatusCodes.Good));
+                Assert.That(value.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+                Assert.That(value.WrappedValue.TryGetValue(out int count), Is.True);
+                Assert.That(count, Is.Zero);
             }
         }
 
@@ -797,9 +1049,12 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(1));
             Assert.That(values![0].WrappedValue.TryGetValue(out int count), Is.True);
             Assert.That(count, Is.EqualTo(3));
+
+            // §5.3.3.2: the only data (the annotations at 1-3 s) starts and ends inside the
+            // interval, so it is Partial.
             Assert.That(
                 values[0].StatusCode.AggregateBits,
-                Is.EqualTo(AggregateBits.Calculated));
+                Is.EqualTo(AggregateBits.Calculated | AggregateBits.Partial));
         }
 
         /// <summary>
@@ -993,10 +1248,11 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that AnnotationCount returns zero-valued buckets when no annotations exist.
+        /// Verifies that AnnotationCount returns Bad_NoData buckets when the node has neither raw
+        /// data nor annotations, because every interval is outside the (empty) data.
         /// </summary>
         [Test]
-        public async Task DispatchProcessedReadAnnotationCountWithNoAnnotationsReturnsZerosAsync()
+        public async Task DispatchProcessedReadAnnotationCountWithoutDataReturnsBadNoDataAsync()
         {
             HarnessFixture h = CreateHarnessWithAggregateManager();
             await h.RegisterAggregateAsync(
@@ -1023,19 +1279,15 @@ namespace Opc.Ua.Server.Tests.Historian
                 ObjectIds.AggregateFunction_AnnotationCount, TimestampsToReturn.Source,
                 result, CancellationToken.None).ConfigureAwait(false);
 
-            // §5.4.3.20: empty interval count is 0 with Good/Calculated status (never Bad_NoData).
+            // §5.4.3.20: Bad_NoData before the start of data and after the end of data.
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(2));
             foreach (DataValue v in values!)
             {
-                Assert.That(v.WrappedValue.TryGetValue(out int count), Is.True);
-                Assert.That(count, Is.Zero);
-                Assert.That(StatusCode.IsGood(v.StatusCode), Is.True);
-                Assert.That(
-                    v.StatusCode.AggregateBits,
-                    Is.EqualTo(AggregateBits.Calculated));
+                Assert.That(v.WrappedValue.IsNull, Is.True);
+                Assert.That(v.StatusCode.Code, Is.EqualTo(StatusCodes.BadNoData));
             }
         }
 

@@ -12,6 +12,27 @@ everything else. The PubSub Schema Registry and WoT Connectivity registry are co
 specializations: PubSub resources are schema documents, while WoT resources are Thing Description /
 Thing Model documents.
 
+## Contents
+
+- [Packages](#packages)
+- [Core concepts](#core-concepts)
+  - [Structural identity and content lookup](#structural-identity-and-content-lookup)
+  - [Opaque-NodeId fast path](#opaque-nodeid-fast-path)
+  - [Registration lifecycle and auto-bootstrap](#registration-lifecycle-and-auto-bootstrap)
+  - [File open modes](#file-open-modes)
+  - [Resource storage](#resource-storage)
+  - [Transport security](#transport-security)
+  - [Federation](#federation)
+  - [Labels](#labels)
+  - [Native xRegistry events](#native-xregistry-events)
+- [Server-side usage](#server-side-usage)
+  - [Async lifecycle](#async-lifecycle)
+  - [Resource-exhaustion bounds](#resource-exhaustion-bounds)
+- [Client-side usage](#client-side-usage)
+  - [Extending for a domain registry](#extending-for-a-domain-registry)
+- [Well-known identifiers](#well-known-identifiers)
+- [Related documentation](#related-documentation)
+
 The [xRegistry OPC UA / HTTP bridge](XRegistryBridge.md) builds on this substrate
 to provide write-through gateways and durable bidirectional reconciliation.
 Its experimental transaction extension is opt-in; existing native registration
@@ -172,62 +193,22 @@ model on top of the base one, mirroring how a domain client derives from `XRegis
 
 #### Implementing a store
 
-A store has four operations. The example below is a complete, if naive, implementation that keeps each
-document in a dictionary — enough to show what each contract clause means:
+Use the in-box `InMemoryResourceStore` or `FileSystemResourceStore` unless the
+application requires another persistence backend. A custom `IXRegistryResourceStore`
+must implement four operations:
 
-```csharp
-public sealed class MyResourceStore : IXRegistryResourceStore
-{
-    public ValueTask<ByteString> ReadAsync(
-        string resourceKey, long offset, int count, CancellationToken ct = default)
-    {
-        // Argument faults throw; an unknown key is a *null* ByteString so the caller can tell
-        // "no such resource" from "resource is empty".
-        if (!m_documents.TryGetValue(resourceKey, out byte[]? document))
-        {
-            return new ValueTask<ByteString>(default(ByteString));
-        }
+| Operation | Contract |
+| --- | --- |
+| `ReadAsync` | Read from the requested offset, returning fewer bytes at the end. Return a null `ByteString` for an unknown key, and an empty non-null value for an empty read of an existing resource. |
+| `WriteAsync` | Replace the addressed byte range without truncating the remainder. Extend the document and zero-fill any gap when writing beyond its end. |
+| `GetLengthAsync` | Return the byte length, or `-1` for an unknown key. |
+| `DeleteAsync` | Return whether a resource was deleted; an absent key returns `false`. |
 
-        // Return fewer bytes than asked for at the end of the document; never throw for that.
-        if (offset >= document.Length || count == 0)
-        {
-            return new ValueTask<ByteString>(ByteString.From([]));
-        }
-        int take = (int)Math.Min(count, document.Length - offset);
-        return new ValueTask<ByteString>(
-            ByteString.From(document.AsSpan((int)offset, take).ToArray()));
-    }
-
-    public ValueTask WriteAsync(
-        string resourceKey, long offset, ByteString data, CancellationToken ct = default)
-    {
-        // Random access: the chunk may land anywhere. Writing past the end grows the document and
-        // the gap reads back as zeros; writing at 0 does *not* truncate what follows.
-        m_documents.TryGetValue(resourceKey, out byte[]? existing);
-        existing ??= [];
-        var merged = new byte[Math.Max(existing.Length, offset + data.Length)];
-        existing.CopyTo(merged.AsSpan());
-        data.Span.CopyTo(merged.AsSpan((int)offset));
-        m_documents[resourceKey] = merged;
-        return default;
-    }
-
-    public ValueTask<long> GetLengthAsync(string resourceKey, CancellationToken ct = default)
-    {
-        // -1 signals an unknown key rather than throwing.
-        return new ValueTask<long>(
-            m_documents.TryGetValue(resourceKey, out byte[]? d) ? d.Length : -1);
-    }
-
-    public ValueTask<bool> DeleteAsync(string resourceKey, CancellationToken ct = default)
-    {
-        // Deleting an absent key is a no-op, not a fault.
-        return new ValueTask<bool>(m_documents.Remove(resourceKey));
-    }
-
-    private readonly Dictionary<string, byte[]> m_documents = [];
-}
-```
+For implementation examples, see
+[`InMemoryResourceStore`](../src/Opc.Ua.XRegistry.Server/InMemoryResourceStore.cs)
+and [`FileSystemResourceStore`](../src/Opc.Ua.XRegistry.Server/FileSystemResourceStore.cs).
+Concurrent writes must preserve non-overlapping updates. A concurrent dictionary
+alone does not make a read-modify-write sequence atomic.
 
 Two rules make a store substitutable:
 

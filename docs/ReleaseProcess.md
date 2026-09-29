@@ -11,6 +11,25 @@ without any other context.
 > release branch, backporting a fix, running `release.yml`, or recovering
 > from a failed release.
 
+## Contents
+
+- [Terms](#terms)
+- [Common preflight](#common-preflight)
+- [Which procedure do I need?](#which-procedure-do-i-need)
+- [Branch and channel model](#branch-and-channel-model)
+- [First stable release](#first-stable-release)
+- [Patch release](#patch-release)
+- [Minor release](#minor-release)
+- [Routine backport](#routine-backport)
+- [Emergency hotfix](#emergency-hotfix)
+- [Candidate and dry run](#candidate-and-dry-run)
+- [Approved promotion](#approved-promotion)
+- [Failed or partial release](#failed-or-partial-release)
+- [Post-release verification](#post-release-verification)
+- [Release handoff template](#release-handoff-template)
+- [Historical `release/2.0.0` branch](#historical-release200-branch)
+- [Maintaining this document](#maintaining-this-document)
+
 ## Terms
 
 - **Root version** - the package version computed from the committed
@@ -126,6 +145,7 @@ Every procedure below starts here.
 | A production-only bug needs a fix that did not start on `master` | [Emergency hotfix](#emergency-hotfix) |
 | You have a `nuget-publish.yml` run and want to inspect it before/without publishing | [Candidate and dry run](#candidate-and-dry-run) |
 | A maintainer has approved a stable candidate for publication | [Approved promotion](#approved-promotion) |
+| Publishing a numbered preview (e.g. `2.0.0-preview.6`) to nuget.org | [Preview release](#preview-release) |
 | A release or promotion attempt errored, or you are unsure what published | [Failed or partial release](#failed-or-partial-release) |
 | You just promoted a release and want to confirm everything is consistent | [Post-release verification](#post-release-verification) |
 
@@ -140,7 +160,10 @@ Every procedure below starts here.
   (`release/2.0`, `release/2.1`, ...). While stabilizing, its root version is
   also `-preview.{height}` (e.g. `2.0.1-preview.{height}` between the `2.0.0`
   and `2.0.1` releases) and publishes automatically to GitHub Packages, same
-  as `master`. At the exact commit approved for release, its root version is
+  as `master`. Such a release-line preview (`M.m.p-preview.N`, no commit id)
+  reaches nuget.org only through the explicitly dispatched
+  [Preview release](#preview-release) procedure; `master` previews carry a
+  commit id and never can. At the exact commit approved for release, its root version is
   set to the plain `<major>.<minor>.<patch>` (e.g. `2.0.0`, `2.0.1`, `2.1.0`)
   - `channel: stable` - and that specific package set is only ever published
   by the [Approved promotion](#approved-promotion) procedure, never
@@ -156,8 +179,9 @@ Every procedure below starts here.
   `publicReleaseRefSpec` (so only that ref shape ever computes
   `NBGV_PublicRelease == 'True'`), the `Aggregate and validate packages` step
   in `nuget-publish.yml` (refuses to build a stable set from a non-canonical
-  ref), `release.yml` (refuses to promote from a non-canonical ref or a
-  non-stable candidate), and the `release` GitHub Environment's
+  ref), `release.yml` (refuses to promote from a non-canonical ref, and
+  refuses any candidate whose version does not match the dispatched `channel`
+  input, which defaults to `stable`), and the `release` GitHub Environment's
   `deployment_branch_policy` (restricts which branch may even execute the
   `release.yml` job).
 - The branch and stable package version must agree: `release/2.0` may
@@ -165,11 +189,6 @@ Every procedure below starts here.
   `Test-CanonicalReleaseBranchForPackageVersion` enforces this in both the
   candidate and promotion workflows, so a valid-looking `2.1.0` package set
   cannot be released from `release/2.0`.
-- Azure Pipelines validates the same signed package-set policy as GitHub
-  Actions. Its internal preview-feed upload runs only when the manifest
-  channel is `preview`; a manually queued stable release-line build remains
-  artifact-only and must go through the same approved `release.yml`
-  promotion procedure.
 - Container image tags follow the same line model, enforced by the
   `Determine release line precedence` step in
   `.github/workflows/docker-image.yml`. Every build gets its exact version
@@ -440,8 +459,9 @@ maintainer can subsequently approve [Approved promotion](#approved-promotion).
    exact stable `major.minor.patch`, or the two disagree; print `$manifest.ref`
    and `$manifest.basePackageVersion` to see which. For a **preview**
    candidate this predicate returns `False` by design, because a preview
-   version is not a stable release version - check the shape alone with
-   `Test-CanonicalReleaseBranchRef -Ref $manifest.ref` in that case.
+   version is not a stable release version. For a preview you intend to
+   publish with [Preview release](#preview-release), pass `-AllowPreview`,
+   exactly as `release.yml` does for a `channel: preview` dispatch.
 
    For a stable candidate, also prove that the preview-only families in the
    set still sort strictly above everything already published, using the same
@@ -577,6 +597,77 @@ fails the promotion instead of being silently skipped.
 6. Return to the calling procedure ([First stable release](#first-stable-release),
    [Patch release](#patch-release), or [Minor release](#minor-release)) to
    complete its final "advance to the next preview version" step.
+
+## Preview release
+
+Publishes a numbered preview of a release line (e.g. `2.0.0-preview.6`) to
+nuget.org. `nuget-publish.yml` only ever pushes previews to GitHub Packages,
+so this is the only way a preview reaches nuget.org. It reuses the
+[Approved promotion](#approved-promotion) machinery, dispatched with
+`channel=preview`.
+
+**Owner**: a repository maintainer with `release` GitHub Environment
+reviewer access.
+
+**Preconditions**: the [common preflight](#common-preflight) is complete; the
+canonical `release/<major>.<minor>` branch exists; nothing on nuget.org or
+GitHub Packages already holds the preview number you intend to publish.
+
+What stays the same for the GitHub Packages preview feed:
+
+- `master` keeps publishing `<base>-preview.<height>.g<commit>` to GitHub
+  Packages automatically. Those versions carry a commit id, so they can never
+  collide with a bare release-line `<base>-preview.N`, and `release.yml`
+  rejects them for `channel=preview`.
+- Every build of the release branch already pushed its own
+  `<base>-preview.N` to GitHub Packages. `release.yml`'s GitHub Packages step
+  is therefore a verified no-op for a preview: the identity preflight and the
+  post-push check prove the feed holds this candidate's exact bytes.
+
+1. **Choose the preview number.** A canonical release branch is a public
+   release for Nerdbank.GitVersioning, so its previews are
+   `<base>-preview.<height + versionHeightOffset>`, and a branch freshly cut
+   from `master` inherits `master`'s height. To make the next build carry a
+   specific number (for example to continue after `2.0.0-preview.5`), commit
+   a `versionHeightOffset` change on the release branch through a normal PR,
+   and check the result on that commit before merging:
+   ```powershell
+   nbgv get-version -v NuGetPackageVersion
+   ```
+   *Completion evidence*: it prints exactly the intended version, e.g.
+   `2.0.0-preview.6`. The offset is negative when `master`'s height is already
+   past the target. Each later commit on the branch increases the number by
+   one, so publish the build of the exact commit you verified.
+
+2. Find that commit's successful `nuget-publish.yml` run and inspect it as
+   in [Candidate and dry run](#candidate-and-dry-run) steps 1-2.
+   *Completion evidence*: `channel` is `preview`, `basePackageVersion` is the
+   intended version with no `.g<commit>` suffix, and `ref` is the release
+   branch.
+
+3. Dry-run, then publish, from the same release branch:
+   ```powershell
+   gh workflow run release.yml --ref release/<major>.<minor> `
+     -f release_run_id=<run-id> -f channel=preview -f dry_run=true
+   gh workflow run release.yml --ref release/<major>.<minor> `
+     -f release_run_id=<run-id> -f channel=preview -f dry_run=false
+   ```
+   Approve the `release` environment deployment when prompted.
+   *Completion evidence*: the run passes "Validate promotion manifest and
+   package bytes", reports its nuget.org publication byte-identical to the
+   candidate, and the summary shows `Channel: preview`. A candidate whose
+   version does not match the dispatched channel fails in the validation
+   step, before anything is published.
+
+4. Confirm the preview is live on nuget.org:
+   ```powershell
+   Invoke-RestMethod 'https://api.nuget.org/v3-flatcontainer/opcfoundation.netstandard.opc.ua.core/index.json' |
+       Select-Object -ExpandProperty versions | Select-Object -Last 3
+   ```
+   *Completion evidence*: the intended preview version appears. Recover a
+   partial preview publication exactly as in
+   [Failed or partial release](#failed-or-partial-release), keeping
+   `channel=preview` on the re-run.
 
 ## Failed or partial release
 

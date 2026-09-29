@@ -110,7 +110,7 @@ namespace Opc.Ua.Bindings
         : ITransportListener,
             ITcpChannelListener,
             ITransportListenerCertificateRotation,
-            ITransportListenerPeerCertificateRotation
+            ITransportListenerPeerCertificateChainRotation
     {
         /// <summary>
         /// Create a new listener.
@@ -189,7 +189,9 @@ namespace Opc.Ua.Bindings
             m_quotas = new ChannelQuotas(messageContext)
             {
                 SecurityPolicyRegistry = settings.SecurityPolicyRegistry,
-                SessionBindingProvider = settings.SessionBindingProvider
+                SessionBindingProvider = settings.SessionBindingProvider,
+                ResourceIsolationProvider = settings.ResourceIsolationProvider,
+                HandshakeTimeout = settings.HandshakeTimeout
             };
             if (configuration != null)
             {
@@ -217,7 +219,12 @@ namespace Opc.Ua.Bindings
             m_channels = new ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>();
             m_callback = callback;
             m_reverseConnectListener = settings.ReverseConnectListener;
-            m_admission = new UaScConnectionAdmission(settings.MaxChannelCount, settings.ConnectionRateLimiter);
+            m_admission = new UaScConnectionAdmission(
+                settings.MaxChannelCount,
+                settings.ConnectionRateLimiter,
+                settings.ResourceIsolationProvider,
+                m_quotas.HandshakeTimeout,
+                telemetry: Telemetry);
 
             m_host = BuildHost(baseAddress);
             await m_host.StartAsync(ct).ConfigureAwait(false);
@@ -363,7 +370,21 @@ namespace Opc.Ua.Bindings
         public TrustListIdentifier PeerCertificateTrustListScope => TrustListIdentifier.Peers;
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersAsync(
+        public ValueTask<ArrayOf<string>> CloseChannelsForUntrustedPeerChainsAsync(
+            Func<CertificateCollection, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            CancellationToken ct = default)
+        {
+            if (isPeerTrustedAsync == null)
+            {
+                throw new ArgumentNullException(nameof(isPeerTrustedAsync));
+            }
+            (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries =
+                m_channels?.Values.ToArray() ?? [];
+            return CloseChannelsForUntrustedPeersCoreAsync(entries, isPeerTrustedAsync, ct);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersAsync(
             Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
             CancellationToken ct = default)
         {
@@ -372,35 +393,25 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(isPeerTrustedAsync));
             }
 
-            // Snapshot the channel map so we can iterate without racing
-            // channel registration/unregistration while re-validating peer
-            // certificates and invoking per-channel close paths (each channel
-            // acquires its own DataLock internally).
-            (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries =
-                m_channels?.Values.ToArray()
-                ?? [];
-
-            if (entries.Length == 0)
-            {
-                return new ValueTask<IReadOnlyList<string>>([]);
-            }
-
-            return CloseChannelsForUntrustedPeersCoreAsync(entries, isPeerTrustedAsync, ct);
+            ArrayOf<string> closed = await CloseChannelsForUntrustedPeerChainsAsync(
+                (chain, token) => isPeerTrustedAsync(chain[0], token), ct).ConfigureAwait(false);
+            return closed.ToArray() ?? [];
         }
 
-        private async ValueTask<IReadOnlyList<string>> CloseChannelsForUntrustedPeersCoreAsync(
+        private async ValueTask<ArrayOf<string>> CloseChannelsForUntrustedPeersCoreAsync(
             (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)[] entries,
-            Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            Func<CertificateCollection, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
             CancellationToken ct)
         {
             var closed = new List<string>(entries.Length);
             foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> Done) in entries)
             {
                 TcpListenerChannel channel = Channel;
-                Certificate? peerCertificate = null;
+                ct.ThrowIfCancellationRequested();
+                CertificateCollection? peerCertificate = null;
                 try
                 {
-                    peerCertificate = channel.SnapshotClientCertificateForRevalidation();
+                    peerCertificate = channel.SnapshotClientCertificateChainForRevalidation();
                     if (peerCertificate == null)
                     {
                         // No client certificate (e.g. SecurityPolicy.None) —
@@ -412,6 +423,10 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         trusted = await isPeerTrustedAsync(peerCertificate, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -433,6 +448,10 @@ namespace Opc.Ua.Bindings
                         closed.Add(globalChannelId!);
                     }
                 }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     // Best-effort: log and continue closing remaining
@@ -448,7 +467,7 @@ namespace Opc.Ua.Bindings
 
             Logger.KestrelClosedUntrustedPeerSecureChannels(closed.Count);
 
-            return closed;
+            return closed.ToArrayOf();
         }
 
         /// <inheritdoc cref="ITcpChannelListener.ReconnectToExistingChannel"/>
@@ -604,7 +623,14 @@ namespace Opc.Ua.Bindings
                             transport);
                         await handler(this, args).ConfigureAwait(false);
                         accepted = args.Accepted;
-                        if (!accepted)
+                        if (accepted)
+                        {
+                            if (transport is IUaSCHandshakeCompletionSource completion)
+                            {
+                                completion.CompleteHandshake();
+                            }
+                        }
+                        else
                         {
                             // Caller rejected the handoff: re-attach the
                             // transport so the existing channel can keep

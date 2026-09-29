@@ -93,6 +93,7 @@ namespace Opc.Ua.Robotics.Client
             var motors = new List<MotorSnapshot>();
             var gears = new List<GearSnapshot>();
             var drives = new List<DriveSnapshot>();
+            var seenDrives = new HashSet<NodeId>();
             var safetyStates = new List<SafetyStateSnapshot>();
             var taskControls = new List<TaskControlSnapshot>();
             var taskModules = new List<TaskModuleSnapshot>();
@@ -143,13 +144,16 @@ namespace Opc.Ua.Robotics.Client
                         MotorSnapshot motor = await ReadMotorAsync(
                             powerTrain.MotorIds[kk], cancellationToken).ConfigureAwait(false);
                         motors.Add(motor);
-                        NodeId driveId = await ResolveChildAsync(
-                            motor.Identification.NodeId,
-                            RoboticsBrowseNames.DriveIdentifier_Placeholder,
-                            cancellationToken).ConfigureAwait(false);
-                        if (!driveId.IsNull)
+                        ArrayOf<NodeId> driveIds = await ReadDriveIdsAsync(
+                            powerTrain.MotorIds[kk], cancellationToken).ConfigureAwait(false);
+                        for (int dd = 0; dd < driveIds.Count; dd++)
                         {
-                            drives.Add(await ReadDriveAsync(driveId, cancellationToken).ConfigureAwait(false));
+                            // One drive can drive several motors; report it once.
+                            if (seenDrives.Add(driveIds[dd]))
+                            {
+                                drives.Add(await ReadDriveAsync(driveIds[dd], cancellationToken)
+                                    .ConfigureAwait(false));
+                            }
                         }
                     }
                     for (int kk = 0; kk < powerTrain.GearIds.Count; kk++)
@@ -368,17 +372,80 @@ namespace Opc.Ua.Robotics.Client
             NodeId powerTrain,
             CancellationToken cancellationToken)
         {
-            PowerTrainTypeClient proxy = new(Session, powerTrain, Telemetry);
-            MotorTypeClient? motor = await proxy.GetMotorIdentifier_PlaceholderAsync(Telemetry, cancellationToken)
-                .ConfigureAwait(false);
-            GearTypeClient? gear = await proxy.GetGearIdentifier_PlaceholderAsync(Telemetry, cancellationToken)
-                .ConfigureAwait(false);
+            // PowerTrainType declares its motors and gears as <MotorIdentifier> and
+            // <GearIdentifier> placeholders: a server exposes any number of them
+            // under their own browse names ("Motor1", ...), so they are found by
+            // their TypeDefinition rather than by a browse name.
+            ArrayOf<ReferenceDescription> components = await BrowseObjectsAsync(
+                powerTrain, Opc.Ua.ReferenceTypeIds.HasComponent, cancellationToken).ConfigureAwait(false);
             return new PowerTrainSnapshot
             {
                 Identification = await ReadIdentificationAsync(powerTrain, cancellationToken).ConfigureAwait(false),
-                MotorIds = motor == null ? [] : [motor.ObjectId],
-                GearIds = gear == null ? [] : [gear.ObjectId]
+                MotorIds = await FilterByTypeAsync(components, ObjectTypes.MotorType, cancellationToken)
+                    .ConfigureAwait(false),
+                GearIds = await FilterByTypeAsync(components, ObjectTypes.GearType, cancellationToken)
+                    .ConfigureAwait(false)
             };
+        }
+
+        /// <summary>
+        /// Returns the targets of <paramref name="references"/> whose TypeDefinition is,
+        /// or derives from, the Robotics ObjectType <paramref name="typeIdentifier"/>.
+        /// </summary>
+        private async Task<ArrayOf<NodeId>> FilterByTypeAsync(
+            ArrayOf<ReferenceDescription> references,
+            uint typeIdentifier,
+            CancellationToken cancellationToken)
+        {
+            int ns = Session.NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
+            if (ns < 0)
+            {
+                return [];
+            }
+            var wantedType = new NodeId(typeIdentifier, (ushort)ns);
+            var nodes = new List<NodeId>();
+            for (int ii = 0; ii < references.Count; ii++)
+            {
+                NodeId typeDefinition = ExpandedNodeId.ToNodeId(
+                    references[ii].TypeDefinition, Session.NamespaceUris);
+                NodeId nodeId = ExpandedNodeId.ToNodeId(references[ii].NodeId, Session.NamespaceUris);
+                if (!nodeId.IsNull && !typeDefinition.IsNull &&
+                    await Session.NodeCache.IsTypeOfAsync(typeDefinition, wantedType, cancellationToken)
+                        .ConfigureAwait(false))
+                {
+                    nodes.Add(nodeId);
+                }
+            }
+            return nodes.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Returns the drives of a motor. MotorType declares them as the
+        /// <c>&lt;DriveIdentifier&gt;</c> placeholder behind the <c>IsDrivenBy</c>
+        /// reference (a HierarchicalReferences subtype, OPC 40010-1 8.5), so they
+        /// are the forward IsDrivenBy targets.
+        /// </summary>
+        private async Task<ArrayOf<NodeId>> ReadDriveIdsAsync(
+            NodeId motor,
+            CancellationToken cancellationToken)
+        {
+            int ns = Session.NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
+            if (ns < 0)
+            {
+                return [];
+            }
+            ArrayOf<ReferenceDescription> references = await BrowseObjectsAsync(
+                motor, new NodeId(ReferenceTypes.IsDrivenBy, (ushort)ns), cancellationToken).ConfigureAwait(false);
+            var nodes = new List<NodeId>(references.Count);
+            for (int ii = 0; ii < references.Count; ii++)
+            {
+                NodeId nodeId = ExpandedNodeId.ToNodeId(references[ii].NodeId, Session.NamespaceUris);
+                if (!nodeId.IsNull)
+                {
+                    nodes.Add(nodeId);
+                }
+            }
+            return nodes.ToArrayOf();
         }
 
         private async Task<MotorSnapshot> ReadMotorAsync(NodeId motor, CancellationToken cancellationToken)

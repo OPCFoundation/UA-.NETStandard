@@ -127,6 +127,34 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task LoadComplexTypesUsesAddressSpaceMetadataForImportedDefinitions()
+        {
+            var node = (DataTypeState)m_nodesById[m_structTypeId];
+            Assert.That(node.DataTypeDefinition.TryGetValue(out StructureDefinition definition), Is.True);
+            var importedDefinition = new StructureDefinition
+            {
+                StructureType = definition.StructureType,
+                Fields = definition.Fields
+            };
+            node.DataTypeDefinition = new ExtensionObject(importedDefinition);
+
+            await m_mockServer.Object.LoadComplexTypesAsync(m_telemetry,
+                new ServerComplexTypeOptions { ThrowOnError = true }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_factory.TryGetEncodeableType(
+                    NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris), out _), Is.True);
+                Assert.That(m_factory.TryGetEncodeableType(
+                    NodeId.ToExpandedNodeId(m_structEncodingId, m_namespaceUris), out _), Is.True);
+                Assert.That(node.DataTypeDefinition.TryGetValue(out StructureDefinition retainedDefinition), Is.True);
+                Assert.That(retainedDefinition, Is.SameAs(importedDefinition));
+                Assert.That(importedDefinition.BaseDataType.IsNull, Is.True);
+                Assert.That(importedDefinition.DefaultEncodingId.IsNull, Is.True);
+            });
+        }
+
+        [Test]
         public async Task LoadComplexTypesSkipsAlreadyKnownTypes()
         {
             var options = new ServerComplexTypeOptions { ThrowOnError = true };

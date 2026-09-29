@@ -255,16 +255,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return "string.Empty";
             }
-            value = value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal)
-                .Replace("\n", "\\n", StringComparison.Ordinal)
-                .Replace("\r", "\\r", StringComparison.Ordinal)
-                .Replace("\t", "\\t", StringComparison.Ordinal)
-                .Replace("\u0085", "\\u0085", StringComparison.Ordinal)
-                .Replace("\u2028", "\\u2028", StringComparison.Ordinal)
-                .Replace("\u2029", "\\u2029", StringComparison.Ordinal);
-            return $"\"{value}\"";
+            return $"\"{Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value)}\"";
         }
 
         /// <summary>
@@ -330,13 +321,9 @@ namespace Opc.Ua.SourceGeneration
         /// <returns></returns>
         internal static string Escape(this string value)
         {
-            if (value == null)
-            {
-                return string.Empty;
-            }
-            return value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            // Line-terminator characters (CR, LF, NEL, LS, PS) end a regular
+            // string literal (CS1010), so escape with the shared rule.
+            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         /// <summary>

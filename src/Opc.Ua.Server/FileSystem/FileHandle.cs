@@ -279,10 +279,21 @@ namespace Opc.Ua.Server.FileSystem
                     "FileType.Open mode must include read or write.");
                 return false;
             }
-            if (wantsRead && wantsWrite)
+            // Part 20 4.2.2: bits 4:7 shall be zero and EraseExisting can only
+            // be set when the file is opened for writing.
+            if ((mode & 0xF0) != 0 || ((mode & 0x4) != 0 && !wantsWrite))
             {
                 error = ServiceResult.Create(
                     StatusCodes.BadInvalidArgument,
+                    "FileType.Open mode setting is invalid.");
+                return false;
+            }
+            if (wantsRead && wantsWrite)
+            {
+                // Read and Write are independent mode bits, so the mode is valid (Part 20
+                // 4.2.2); IFileSystemProvider only hands out read-only or write-only streams.
+                error = ServiceResult.Create(
+                    StatusCodes.BadNotSupported,
                     "Simultaneous read + write open not supported.");
                 return false;
             }
@@ -301,8 +312,29 @@ namespace Opc.Ua.Server.FileSystem
                     error = StatusCodes.BadShutdown;
                     return false;
                 }
+                if (m_openBlocks != 0)
+                {
+                    // A Delete or MoveOrCopy of this file or an ancestor directory is running,
+                    // so the file is locked. Part 20 4.2.2 result table: Bad_NotReadable "File
+                    // might be locked and thus not readable" for a read open, Bad_InvalidState
+                    // "The file is locked and thus not writable" for a write open.
+                    error = wantsWrite
+                        ? ServiceResult.Create(StatusCodes.BadInvalidState,
+                            "The file is being deleted or moved and thus not writable.")
+                        : ServiceResult.Create(StatusCodes.BadNotReadable,
+                            "The file is being deleted or moved and thus not readable.");
+                    return false;
+                }
+                if (m_write != null && !wantsWrite)
+                {
+                    // Part 20 4.2.2: a file open for writing cannot be opened for reading.
+                    error = ServiceResult.Create(StatusCodes.BadNotReadable,
+                        "The file is locked for writing and thus not readable.");
+                    return false;
+                }
                 if (m_write != null || (wantsWrite && m_reads.Count != 0))
                 {
+                    // Part 20 4.2.2 result table: the file is locked and thus not writable.
                     error = ServiceResult.Create(StatusCodes.BadInvalidState,
                         "File already open with incompatible access.");
                     return false;
@@ -474,6 +506,51 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Blocks new opens for a Delete or MoveOrCopy of this file or an ancestor
+        /// directory. Fails, without blocking, while the file is open, including an
+        /// open whose provider stream is still pending, so that the lock check and
+        /// the mutation cannot interleave with an open.
+        /// </summary>
+        internal bool TryBlockOpens()
+        {
+            lock (m_lock)
+            {
+                if (m_write != null || m_reads.Count != 0)
+                {
+                    return false;
+                }
+                m_openBlocks++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Blocks new opens of a handle created while a mutation of its path or an
+        /// ancestor directory is running.
+        /// </summary>
+        internal void BlockOpens()
+        {
+            lock (m_lock)
+            {
+                m_openBlocks++;
+            }
+        }
+
+        /// <summary>
+        /// Releases one block taken by <see cref="TryBlockOpens"/> or <see cref="BlockOpens"/>.
+        /// </summary>
+        internal void UnblockOpens()
+        {
+            lock (m_lock)
+            {
+                if (m_openBlocks > 0)
+                {
+                    m_openBlocks--;
+                }
+            }
+        }
+
         private uint CreateFileHandle()
         {
             uint fileHandle;
@@ -507,6 +584,11 @@ namespace Opc.Ua.Server.FileSystem
         /// Prevents new open reservations after the handle bag has been disposed.
         /// </summary>
         private bool m_disposed;
+
+        /// <summary>
+        /// Number of running Delete or MoveOrCopy mutations that currently refuse new opens.
+        /// </summary>
+        private int m_openBlocks;
 
         /// <summary>
         /// Retains a session-owned open reservation and its eventual provider stream.

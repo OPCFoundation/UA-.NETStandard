@@ -2188,9 +2188,13 @@ namespace Opc.Ua.Server
         {
             double samplingInterval = requestedSamplingInterval;
 
-            if (samplingInterval < 0)
+            if (double.IsNaN(samplingInterval) || samplingInterval < 0)
             {
                 samplingInterval = defaultSamplingInterval;
+            }
+            if (double.IsNaN(samplingInterval) || samplingInterval < 0)
+            {
+                samplingInterval = 0;
             }
 
             // items that report by exception are not bound by a sampling interval.
@@ -2206,13 +2210,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // put a large upper limit on sampling.
-            if (samplingInterval == double.MaxValue)
-            {
-                samplingInterval = 365 * 24 * 3600 * 1000.0;
-            }
-
-            return samplingInterval;
+            return Math.Min(samplingInterval, int.MaxValue);
         }
 
         /// <summary>

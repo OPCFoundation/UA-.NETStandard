@@ -131,6 +131,44 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void SubscriptionContextReportsRevisedSessionTimeout()
+        {
+            m_mockContext
+                .Setup(c => c.OperationTimeout)
+                .Returns(120000);
+            m_mockContext
+                .Setup(c => c.SessionTimeout)
+                .Returns(60000);
+
+            var context =
+                new DefaultSubscriptionEngine.SubscriptionContextAdapter(
+                    m_mockContext.Object);
+
+            Assert.That(
+                context.SessionTimeout,
+                Is.EqualTo(TimeSpan.FromSeconds(60)));
+        }
+
+        [TestCase(0.0)]
+        [TestCase(-1.0)]
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(1e300)]
+        public void SubscriptionContextReportsZeroForUnusableSessionTimeout(
+            double sessionTimeout)
+        {
+            m_mockContext
+                .Setup(c => c.SessionTimeout)
+                .Returns(sessionTimeout);
+
+            var context =
+                new DefaultSubscriptionEngine.SubscriptionContextAdapter(
+                    m_mockContext.Object);
+
+            Assert.That(context.SessionTimeout, Is.EqualTo(TimeSpan.Zero));
+        }
+
+        [Test]
         public void StartPublishingDoesNotThrow()
         {
             using var engine =

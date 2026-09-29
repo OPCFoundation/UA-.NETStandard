@@ -332,8 +332,7 @@ namespace Opc.Ua.Client
                 TimeoutHint = timeoutHint,
                 ReturnDiagnostics =
                     (uint)(int)m_context.ReturnDiagnostics,
-                RequestHandle =
-                    Utils.IncrementIdentifier(ref PublishCounter)
+                RequestHandle = ClientBase.NewSharedRequestHandle()
             };
 
             m_eventLogger.ClientEventPublishStart(
@@ -1169,7 +1168,6 @@ namespace Opc.Ua.Client
         private readonly BackgroundTaskScope m_backgroundWork;
         private readonly Lock m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
-        internal uint PublishCounter;
         private int m_unrecordedPublishRequests;
         private int m_tooManyPublishRequests;
         private int m_minPublishRequestCount;
