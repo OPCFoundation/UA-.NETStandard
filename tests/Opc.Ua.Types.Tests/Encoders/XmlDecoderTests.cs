@@ -1853,6 +1853,38 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadArrayStopsAtMaxArrayLengthBeforeReadingMoreElements()
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            messageContext.MaxArrayLength = 2;
+
+            // the third element is malformed: the limit must trip before it is read.
+            string xml = "<ListOfInt32 xmlns=\"" + Namespaces.OpcUaXsd + "\">" +
+                "<Int32>1</Int32><Int32>2</Int32><Int32>x</Int32></ListOfInt32>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadInt32Array("ListOfInt32"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadArrayAcceptsMaxArrayLengthElements()
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            messageContext.MaxArrayLength = 2;
+            string xml = "<ListOfInt32 xmlns=\"" + Namespaces.OpcUaXsd + "\">" +
+                "<Int32>1</Int32><Int32>2</Int32></ListOfInt32>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            Assert.That(decoder.ReadInt32Array("ListOfInt32").Count, Is.EqualTo(2));
+        }
+
+        [Test]
         public void ReadFieldRejectsNilElementWithContent()
         {
             ServiceMessageContext messageContext = CreateMockContext();

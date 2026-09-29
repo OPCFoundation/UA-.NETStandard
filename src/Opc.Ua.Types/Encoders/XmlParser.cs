@@ -1168,13 +1168,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Boolean"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadBoolean("Boolean"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1196,13 +1191,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("SByte"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadSByte("SByte"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1224,13 +1214,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Byte"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadByte("Byte"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1252,13 +1237,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int16"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt16("Int16"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1280,13 +1260,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt16"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt16("UInt16"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1308,13 +1283,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int32"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt32("Int32"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1336,13 +1306,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt32"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt32("UInt32"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1364,13 +1329,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int64"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt64("Int64"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1392,13 +1352,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt64"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt64("UInt64"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1420,13 +1375,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Float"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadFloat("Float"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1448,13 +1398,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Double"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDouble("Double"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1476,13 +1421,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("String"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadString("String"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1504,13 +1444,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DateTime"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDateTime("DateTime"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1532,13 +1467,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Guid"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadGuid("Guid"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1560,13 +1490,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ByteString"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadByteString("ByteString"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1588,13 +1513,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("XmlElement"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadXmlElement("XmlElement"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1616,13 +1536,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("NodeId"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadNodeId("NodeId"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1644,13 +1559,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExpandedNodeId"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadExpandedNodeId("ExpandedNodeId"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1672,13 +1582,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("StatusCode"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadStatusCode("StatusCode"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1700,13 +1605,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DiagnosticInfo"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDiagnosticInfo("DiagnosticInfo"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1728,13 +1628,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("QualifiedName"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadQualifiedName("QualifiedName"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1756,13 +1651,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("LocalizedText"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadLocalizedText("LocalizedText"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1784,13 +1674,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Variant"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadVariant("Variant"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1812,13 +1697,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DataValue"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDataValue("DataValue"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1840,13 +1720,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExtensionObject"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadExtensionObject("ExtensionObject"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1869,13 +1744,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExtensionObject"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadEncodeableAsExtensionObject<T>("ExtensionObject"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1899,13 +1769,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(encodeables.Count);
                     encodeables.Add(ReadEncodeable<T>(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1934,13 +1799,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(encodeables.Count);
                     encodeables.Add(ReadEncodeable<T>(xmlName.Name, encodeableTypeId));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -2079,13 +1939,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(enums.Count);
                     enums.Add(ReadEnumerated<T>(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -2117,13 +1972,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(enums.Count);
                     enums.Add(ReadEnumerated(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -3097,6 +2947,23 @@ namespace Opc.Ua
             }
 
             return -1;
+        }
+
+        /// <summary>
+        /// Checks MaxArrayLength before one more element is added to an array
+        /// holding <paramref name="count"/> elements, so the list never grows
+        /// beyond the limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckArrayLength(int count)
+        {
+            if (Context.MaxArrayLength > 0 && count >= Context.MaxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} exceeded.",
+                    Context.MaxArrayLength);
+            }
         }
 
         /// <summary>

@@ -1156,6 +1156,23 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadArrayStopsAtMaxArrayLengthBeforeReadingMoreElements()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            ctx.MaxArrayLength = 2;
+
+            // the third element is malformed: the limit must trip before it is read.
+            string xml = $"<ListOfInt32 xmlns=\"{Ns}\">" +
+                "<Int32>1</Int32><Int32>2</Int32><Int32>x</Int32></ListOfInt32>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadInt32Array("ListOfInt32"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
         public void ReadStringRejectsNestedElements()
         {
             // InnerText flattened the markup (and recursed once per level).
