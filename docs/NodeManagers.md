@@ -1,35 +1,16 @@
 # Node Managers
 
-Event delivery for a node follows enqueue order. The Server node and
-nodes opting into parallel event consumers deliver each event concurrently
-to independent monitored items, then complete that event before advancing
-the shared queue. A slow permission check cannot let a later event overtake
-an earlier one; the bounded queue still applies backpressure.
-
-Monitored-item deletion and mode changes isolate failures by owner.
-Already completed results are retained, remaining items for a failed
-owner receive an explicit error, and other owners still run. Event
-unsubscribe failures likewise do not skip later owners or monitored items.
-Request cancellation continues to stop the operation rather than being
-converted into an ordinary per-item failure.
-
-Fluent node builders reject new handler registration once graph authoring
-is sealed, including callbacks wired directly to node slots. History,
-removal, condition-refresh, and monitored-item callbacks on ad-hoc child
-and instance builders use the same dispatcher as regular node builders.
-A manager without that dispatcher rejects those registrations explicitly.
-
-Monitored-source lifecycle ownership is rechecked after a worker stops.
-A superseded deactivate/reactivate cycle keeps its live source rather than
-reacquiring it and releasing the replacement. Callback invocation is
-coordinated without holding a gate across its asynchronous completion, so
-first-subscriber callbacks can still reenter monitoring operations.
-Virtual monitored sources register the same shutdown behavior as concrete
-sources; every live materialized instance is released at teardown.
+A node manager exposes part of a server's address space: variables, methods,
+events, and their behavior. Start with the [overview](#overview) and
+[first model](#start-with-a-model), then use the architecture and lifecycle
+sections when you need custom or dynamically loaded models. If you have not run
+a server yet, start with [Getting started](GettingStarted.md).
 
 ## Table of contents
 
 - [Overview](#overview)
+- [Start with a model](#start-with-a-model)
+  - [Single-file `Program.cs` — what it looks like](#single-file-programcs--what-it-looks-like)
 - [Built-in node managers](#built-in-node-managers)
   - [Master node manager](#master-node-manager)
   - [Core node manager](#core-node-manager)
@@ -42,16 +23,20 @@ sources; every live materialized instance is released at teardown.
   - [Operational behaviour](#operational-behaviour)
     - [Reading & Writing](#reading--writing)
     - [Method Calls](#method-calls)
-    - [Runtime subtype replacement (IPredefinedNodeSubtypeReplacer)](#runtime-subtype-replacement-ipredefinednodesubtypereplacer)
+    - [Browsing and path translation](#browsing-and-path-translation)
+    - [Runtime subtype replacement (`IPredefinedNodeSubtypeReplacer`)](#runtime-subtype-replacement-ipredefinednodesubtypereplacer)
   - [Monitoring and subscriptions](#monitoring-and-subscriptions)
     - [Sampling interval revision](#sampling-interval-revision)
   - [History](#history)
   - [Security](#security)
   - [Threading contract for nodes and browsers](#threading-contract-for-nodes-and-browsers)
+  - [Delivery and callback lifecycle](#delivery-and-callback-lifecycle)
 - [Registering node managers](#registering-node-managers)
   - [Startup registration](#startup-registration)
+  - [Registration generations](#registration-generations)
   - [Runtime registration](#runtime-registration)
   - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
+    - [Reload modes](#reload-modes)
     - [MonitoredItems](#monitoreditems)
     - [Continuation points](#continuation-points)
     - [Namespaces](#namespaces)
@@ -66,27 +51,26 @@ sources; every live materialized instance is released at teardown.
   - [See also](#see-also)
 - [Source-generated node managers](#source-generated-node-managers)
   - [What the generator produces](#what-the-generator-produces)
+    - [The generated activation pipeline](#the-generated-activation-pipeline)
   - [Opting in](#opting-in)
-    - [Per-class opt-in via [NodeManager] (recommended)](#per-class-opt-in-via-nodemanager-recommended)
+    - [Per-class opt-in via `[NodeManager]` (recommended)](#per-class-opt-in-via-nodemanager-recommended)
       - [Taking over the constructor and the namespace order](#taking-over-the-constructor-and-the-namespace-order)
-      - [Asynchronous startup before Configure](#asynchronous-startup-before-configure)
       - [Binding to a model a referenced assembly supplies](#binding-to-a-model-a-referenced-assembly-supplies)
     - [Project-wide opt-in via MSBuild property (legacy)](#project-wide-opt-in-via-msbuild-property-legacy)
-  - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
+  - [Wiring callbacks: the `Configure` partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
     - [On-demand virtual node families](#on-demand-virtual-node-families)
     - [Monitored-item creation and lifecycle](#monitored-item-creation-and-lifecycle)
     - [Creating nodes under other managers' nodes (Objects folder)](#creating-nodes-under-other-managers-nodes-objects-folder)
-    - [Creating nodes from scratch — the Add* surface](#creating-nodes-from-scratch--the-add-surface)
-  - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
+    - [Creating nodes from scratch — the `Add*` surface](#creating-nodes-from-scratch--the-add-surface)
+  - [Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
-    - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
-  - [Event sources — typed Publish&lt;TEvent&gt; on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
+    - [Methods with arguments — typed `OnCall` overloads](#methods-with-arguments--typed-oncall-overloads)
+  - [Event sources — typed `Publish<TEvent>` on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
     - [Where the typed overload appears](#where-the-typed-overload-appears)
     - [Two registration shapes](#two-registration-shapes)
-    - [Tuning lifecycle with EventPublishOptions](#tuning-lifecycle-with-eventpublishoptions)
+    - [Tuning lifecycle with `EventPublishOptions`](#tuning-lifecycle-with-eventpublishoptions)
     - [Hand-written node managers](#hand-written-node-managers)
-  - [Single-file Program.cs — what it looks like](#single-file-programcs--what-it-looks-like)
   - [Multi-namespace and manager-swap subclassing](#multi-namespace-and-manager-swap-subclassing)
   - [NativeAOT publishing](#nativeaot-publishing)
   - [Runtime NodeSet alternative](#runtime-nodeset-alternative)
@@ -105,6 +89,7 @@ sources; every live materialized instance is released at teardown.
     - [Importing a NodeSet2 overlay at runtime — `builder.Import`](#importing-a-nodeset2-overlay-at-runtime--builderimport)
     - [NodeSet2 access-level bitmasks](#nodeset2-access-level-bitmasks)
   - [Materialising instances at runtime — NodeId assignment](#materialising-instances-at-runtime--nodeid-assignment)
+    - [Custom node types and assignment control](#custom-node-types-and-assignment-control)
   - [Current limitations](#current-limitations)
   - [Sample](#sample)
 
@@ -117,6 +102,71 @@ A node manager is the server-side component that owns a portion of the server ad
 Developers need to care about node managers when they expose application data, methods, events, alarms, file-system objects, alias names, runtime NodeSets, or companion-spec models from a server. A node manager is also where model-specific behavior is attached: read and write callbacks, method callbacks, historian providers, event notifiers, permissions, model-change notifications, and cross-manager references to nodes owned elsewhere. For simple generated models, the source generator and fluent builder hide much of the plumbing; for dynamic or backed-by-service models, a custom manager is the boundary between the OPC UA services and the application's data source.
 
 The server builds the initial set of node managers before accepting connections. Additional managers can be registered by hosting extensions such as `AddNodeManager` and `AddRuntimeNodeSet`, and the lifecycle API can add, reload, or remove lifecycle-managed managers while the server is running. Regardless of how a manager is supplied, it must cooperate with the master node manager's routing and reference-merging rules so clients can browse, monitor, and call nodes consistently across namespace and manager boundaries.
+
+## Start with a model
+
+For a first server, use the
+[MinimalBoilerServer sample](../samples/MinimalApi/MinimalBoilerServer).
+It supplies a model and a generated node-manager factory, so you can start
+with variables and callbacks rather than implementing service dispatch.
+To write a model of your own and use it from a client, follow the
+[Your first information model](FirstModel.md) tutorial.
+
+1. Follow [source-generated node managers](#source-generated-node-managers)
+   to include your model and generate its factory.
+2. Register the factory with `AddOpcUa().AddServer(...).AddNodeManager<TFactory>()`;
+   the [single-file host example](#single-file-programcs--what-it-looks-like)
+   shows the complete hosting shape.
+3. Attach value and method handlers in the generated `Configure` partial, then
+   connect a client and browse the model.
+
+If models change independently of the binary, start with
+[runtime NodeSets](RuntimeNodeSets.md#quick-start-examples) instead.
+Both paths use the same routing, permissions, and lifecycle contracts below.
+
+### Single-file `Program.cs` — what it looks like
+
+The shipping `services.AddOpcUa().AddServer(...)` extension wires the
+server into the .NET Generic Host: configuration, certificate check,
+`ApplicationInstance` lifetime and Ctrl+C/SIGTERM handling are all owned
+by the host. User code stays at ~12 lines.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+builder.Logging.AddConsole();
+
+builder.Services
+    .AddOpcUa()
+    .AddServer(o =>
+    {
+        o.ApplicationName = "MyServer";
+        o.ApplicationUri  = "urn:localhost:MyServer";
+        o.ProductUri      = "uri:opcfoundation.org:MyServer";
+        o.AutoAcceptUntrustedCertificates = true;
+        o.EndpointUrls.Add("opc.tcp://localhost:51210/MyServer");
+    })
+    .AddNodeManager<MyModel.MyModelNodeManagerFactory>();
+
+await builder.Build().RunAsync();
+```
+
+`AddOpcUa()` registers a `ServiceProviderTelemetryContext` that adapts
+the host's `ILoggerFactory` to `ITelemetryContext` — no separate logging
+pipeline is required. `IOpcUaServerBuilder.AddNodeManager<T>()` registers
+an `IAsyncNodeManagerFactory`; use `AddSyncNodeManager<T>()` for the
+legacy `INodeManagerFactory`. For advanced configuration (custom security
+policies, additional builder calls), set `OpcUaServerOptions.ConfigureBuilder`.
+
+That's the whole server. The Boiler version is in
+`samples/MinimalApi/MinimalBoilerServer/Program.cs`.
+
+> `AutoAcceptUntrustedCertificates` is enabled here only for a local sample.
+> Configure trusted certificates and disable automatic acceptance in production;
+> see [Certificates](Certificates.md).
 
 ## Built-in node managers
 
@@ -218,41 +268,43 @@ The default server does not create file-system, alias-name, or runtime-NodeSet m
 
 ## Core vs custom node managers
 
-This document outlines the key differences in behavior and implementation between `CoreNodeManager` and `CustomNodeManager2` within the OPC UA .NET Standard Stack.
-
-`CoreNodeManager` is typically used for managing the internal nodes of the Server (Namespace 0) or simple static node sets. `CustomNodeManager2` is designed as a base class for developers implementing custom node managers with specific business logic, dynamic behavior, or backing stores.
+`CoreNodeManager` is the built-in owner of core server nodes. It derives from
+`AsyncCustomNodeManager` and therefore shares its NodeState-based service,
+monitoring, and synchronization infrastructure. For application models, prefer
+source-generated managers or an application-owned `AsyncCustomNodeManager`;
+`CustomNodeManager2` remains the synchronous compatibility base.
 
 ### Storage and data structures
 
-| Feature | CoreNodeManager | CustomNodeManager2 |
+| Concern | CoreNodeManager / AsyncCustomNodeManager | CustomNodeManager2 |
 | :--- | :--- | :--- |
-| **Node Storage** | Uses a `NodeTable` (`m_nodes`) internally. | Uses a `NodeIdDictionary<NodeState>` (`PredefinedNodes`). |
-| **Node Type** | Manages `ILocalNode` interface objects. | Manages `NodeState` objects (and subclasses). |
-| **Handle Type** | `GetManagerHandle` returns the `ILocalNode` instance directly. | `GetManagerHandle` returns a `NodeHandle` wrapper containing the `NodeState` and validation status. |
-| **Locking** | Uses `DataLock` (object). | Uses `Lock` (object). |
-| **Namespace** | Typically manages dynamic nodes in specific indexes or internal server nodes. | Designed to manage specific namespaces passed in the constructor. Uses `IsNodeIdInNamespace` checks. |
+| Nodes | `NodeState` instances indexed by `PredefinedNodes` | `NodeState` instances indexed by `PredefinedNodes` |
+| Service handles | Validated `NodeHandle` objects | Validated `NodeHandle` objects |
+| Namespace ownership | Core owns built-in routes; application managers declare their namespaces | Application managers declare their namespaces |
+| Synchronization | Awaitable manager operations and privately synchronized node state | Synchronous manager operations and privately synchronized node state |
+
+Neither design exposes a node's internal lock. Follow the
+[threading contract](#threading-contract-for-nodes-and-browsers), not an external
+`lock (node)`.
 
 ### Extensibility
 
-| Feature | CoreNodeManager | CustomNodeManager2 |
-| :--- | :--- | :--- |
-| **Design Intent** | Sealed-like behavior. Not primarily designed for inheritance or overriding behavior. | Highly extensible. Most methods (`Read`, `Write`, `Browse`, `Call`) are `virtual` to allow custom overrides. |
-| **Node Factory** | Does not implement `INodeIdFactory`. | Implements `INodeIdFactory` to generate new NodeIds for the system context. |
-| **Address Space** | `CreateAddressSpace` is often empty (`ImportNodes` is used instead). | `CreateAddressSpace` invokes `LoadPredefinedNodes` to load nodes from resources/assemblies. |
+Use the generated `Configure` partial and fluent callbacks for model behavior.
+For specialized services, use `AsyncCustomNodeManager`'s asynchronous extension
+points. The core manager is server infrastructure, not the preferred home for
+application business logic. Its `ImportNodesAsync` adds predefined nodes and
+updates diagnostics where required.
 
 ### Operational behaviour
 
 #### Reading & Writing
 
-* **CoreNodeManager**:
-  * **Read**: Directly invokes `ILocalNode.Read`.
-  * **Write**: Performs basic type checking (expected data type/value rank) and invokes `ILocalNode.Write`.
-* **CustomNodeManager2**:
-  * **Read**: Validates the node handle, supports operation caching, and invokes `NodeState.ReadAttribute`. Handles timestamp synchronization (e.g., matching ServerTimestamp to SourceTimestamp for Value attributes).
-  * **Write**:
-    * Performs **Range Checks** for `AnalogItemState` (InstrumentRange).
-    * Generates **Audit Events** (`Server.ReportAuditWriteUpdateEvent`).
-    * Detects **Semantic Changes** (e.g., changes to `EURange`, `EnumStrings`) and updates monitored items accordingly.
+The async manager validates ownership and delegates attribute access to
+`NodeState.ReadAttributeAsync` / `WriteAttributeAsync`. Core inherits that path.
+The synchronous compatibility manager uses the corresponding synchronous
+attribute operations. Type/rank checks, access checks, audit reporting, and
+semantic-change notifications remain part of the manager service path; directly
+mutating a node value is not a replacement for a client Write service call.
 
 #### Method Calls
 
@@ -267,12 +319,12 @@ The awaitable path completes only after that work finishes. Both paths
 share node ownership, method resolution, role-permission checks, and
 argument-result handling.
 
-* **CoreNodeManager**:
-  * **Browse**: Iterates over references stored in `ILocalNode`. Basic masking and filtering.
-  * **Translate**: Basic search through internal references.
-* **CustomNodeManager2**:
-  * **Browse**: Uses `NodeState.CreateBrowser`. Explicitly validates `PermissionType.Browse`. Supports Views (`IsNodeInView`).
-  * **Translate**: Uses `CreateBrowser` to navigate path. Supports resolving targets in other node managers via `unresolvedTargetIds`.
+#### Browsing and path translation
+
+Both manager bases browse through `NodeState.CreateBrowser`, validate browse
+permissions, and participate in cross-manager path resolution. The async manager
+uses `INodeBrowser.NextAsync` for iteration; see the
+[browser contract](#threading-contract-for-nodes-and-browsers).
 
 Browse continuation ownership transfers explicitly between the dispatcher,
 node manager, and session store. Permission rejection, metadata/fetch
@@ -327,11 +379,12 @@ The operation is deliberately exposed as a capability interface method rather th
 
 ### Monitoring and subscriptions
 
-| Feature | CoreNodeManager | CustomNodeManager2 |
-| :--- | :--- | :--- |
-| **Manager** | Uses `SamplingGroupManager` directly. | Uses `IMonitoredItemManager` abstraction (defaults to `SamplingGroupMonitoredItemManager` or `MonitoredNodeMonitoredItemManager`). |
-| **Filter Validation** | Validates `DataChangeFilter` specifically (deadband, EU Range). | Delegates validation to `ValidateMonitoringFilter`, supports `AggregateFilter` (if supported by server) and `DataChangeFilter`. |
-| **Events** | Basic event subscription support (`SubscribeToEvents` checks `EventNotifier` bit). | **Full Event Support**: <br/>- Manages `RootNotifiers`. <br/>- Propagates events via `SubscribeToAllEvents`. <br/>- Implements `ConditionRefresh`. <br/>- Validates `PermissionType.ReceiveEvents`. |
+Core uses the async manager's `IMonitoredItemManager` infrastructure with
+sampling groups enabled. Application `AsyncCustomNodeManager` instances can use
+change-triggered monitoring or opt into sampling groups. Both manager bases
+support filter validation, event subscriptions, condition refresh, and role checks.
+See [monitoring selection](AsyncServerSupport.md#monitored-item-manager-selection)
+for the tradeoff between periodic sampling and change notifications.
 
 #### Sampling interval revision
 
@@ -394,21 +447,18 @@ managers that implement `INodeManager` directly can call
 
 ### History
 
-* **CoreNodeManager**:
-  * `HistoryRead` / `HistoryUpdate`: Iterates nodes and returns `BadNotReadable` / `BadNotWritable` (or `BadHistoryOperationUnsupported` implicit). No infrastructure for history.
-* **CustomNodeManager2**:
-  * Provides scaffold methods (`HistoryReadRawModified`, `HistoryReadProcessed`, `HistoryUpdateData`, etc.).
-  * Checks `AccessLevels.HistoryRead/Write` and `EventNotifier.HistoryRead/Write`.
-  * Default implementation returns `BadHistoryOperationUnsupported`, but is structured for easy overriding in derived classes.
+Core inherits the async manager's history dispatch rather than maintaining a
+separate `ILocalNode` history path. Advertising history access does not itself
+provide storage: configure the appropriate historian provider and node handlers.
+See [Historical Access](HistoricalAccess.md) for provider contracts, read/update
+operations, and capability advertisement.
 
 ### Security
 
-* **CoreNodeManager**:
-  * Checks `AccessLevel`, `UserAccessLevel`, `WriteMask` in `Write`.
-  * Loads Role Permissions into metadata.
-* **CustomNodeManager2**:
-  * Explicitly calls `MasterNodeManager.ValidateRolePermissions` during `Browse`, `Call`, and Event processing.
-  * Reads and caches validation attributes (`AccessRestrictions`, `RolePermissions`) for optimized access.
+Both manager bases participate in access-level, attribute-write, and role-permission
+checks. Core uses the async base's implementation. Application callbacks must
+preserve those service checks and enforce any additional data-source permissions.
+See [role-based user management](RoleBasedUserManagement.md).
 
 ### Threading contract for nodes and browsers
 
@@ -494,6 +544,35 @@ Three rules follow for node types that customise browsing:
   `base.CreateBrowser` must fill it through `PopulateBrowserSynchronized`. Calling
   `PopulateBrowser` directly leaves construction unserialized against other browses of the same
   node and skips `OnPopulateBrowser` altogether.
+
+### Delivery and callback lifecycle
+
+Event delivery for a node follows enqueue order. The Server node and
+nodes opting into parallel event consumers deliver each event concurrently
+to independent monitored items, then complete that event before advancing
+the shared queue. A slow permission check cannot let a later event overtake
+an earlier one; the bounded queue still applies backpressure.
+
+Monitored-item deletion and mode changes isolate failures by owner.
+Already completed results are retained, remaining items for a failed
+owner receive an explicit error, and other owners still run. Event
+unsubscribe failures likewise do not skip later owners or monitored items.
+Request cancellation continues to stop the operation rather than being
+converted into an ordinary per-item failure.
+
+Fluent node builders reject new handler registration once graph authoring
+is sealed, including callbacks wired directly to node slots. History,
+removal, condition-refresh, and monitored-item callbacks on ad-hoc child
+and instance builders use the same dispatcher as regular node builders.
+A manager without that dispatcher rejects those registrations explicitly.
+
+Monitored-source lifecycle ownership is rechecked after a worker stops.
+A superseded deactivate/reactivate cycle keeps its live source rather than
+reacquiring it and releasing the replacement. Callback invocation is
+coordinated without holding a gate across its asynchronous completion, so
+first-subscriber callbacks can still reenter monitoring operations.
+Virtual monitored sources register the same shutdown behavior as concrete
+sources; every live materialized instance is released at teardown.
 
 ## Registering node managers
 
@@ -666,7 +745,8 @@ preserves old subscriptions without migration, and immediate reload fails old su
 
 #### MonitoredItems
 
-Active MonitoredItems survive reload and removal. A compatible NodeId in a replacement generation
+For normal reload, active MonitoredItems are migrated; removal leaves them detached.
+A compatible NodeId in a replacement generation
 keeps the same MonitoredItem and Subscription without a transient bad status. A removed or
 incompatible NodeId is detached and publishes one `BadNodeIdUnknown` data-change notification, as
 required by OPC UA Part 4 §5.8.4.1; adding a compatible Node with the same NodeId later revalidates
@@ -702,9 +782,11 @@ custom Subscription implementation needs the equivalent snapshots from
 
 #### Continuation points
 
-Reload and removal invalidate saved Browse continuation points owned by the retired NodeManager. A
-later `BrowseNext` with one of those tokens returns `BadContinuationPointInvalid` instead of
-invoking a disposed generation.
+Normal reload, immediate reload, and removal invalidate retired-generation Browse
+continuation points after captured requests drain. Shadow reload retains them while
+the old generation remains active for its monitored items, then invalidates them at
+cleanup. A later `BrowseNext` on an invalidated token returns
+`BadContinuationPointInvalid` rather than invoking a disposed generation.
 
 #### Namespaces
 
@@ -1741,6 +1823,12 @@ This means **instance methods imported from a NodeSet2** (whose
 `InputArguments`/`OutputArguments` live on the referenced declaration) get
 the same typed `OnCall` overloads as methods authored in a ModelDesign.
 
+A typed `{Name}MethodState` class is generated only for a method type, such
+as `AddMethodType` in the calculator sample's model. A ModelDesign method that
+declares its arguments directly, without a method type, is a plain
+`MethodState` node: its `InputArguments` and `OutputArguments` properties and
+its typed `OnCall` overloads are generated in the same way.
+
 ```csharp
 [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
 public partial class CalcNodeManager
@@ -1953,46 +2041,6 @@ round-trip test in
 real client `MonitoredItem` with an `EventFilter` and asserts the
 heartbeats arrive end-to-end under NativeAOT constraints (no JIT, no
 reflection).
-
-### Single-file `Program.cs` — what it looks like
-
-The shipping `services.AddOpcUa().AddServer(...)` extension wires the
-server into the .NET Generic Host: configuration, certificate check,
-`ApplicationInstance` lifetime and Ctrl+C/SIGTERM handling are all owned
-by the host. User code stays at ~12 lines.
-
-```csharp
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-builder.Logging.AddConsole();
-
-builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
-    {
-        o.ApplicationName = "MyServer";
-        o.ApplicationUri  = "urn:localhost:MyServer";
-        o.ProductUri      = "uri:opcfoundation.org:MyServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        o.EndpointUrls.Add("opc.tcp://localhost:51210/MyServer");
-    })
-    .AddNodeManager<MyModel.MyModelNodeManagerFactory>();
-
-await builder.Build().RunAsync();
-```
-
-`AddOpcUa()` registers a `ServiceProviderTelemetryContext` that adapts
-the host's `ILoggerFactory` to `ITelemetryContext` — no separate logging
-pipeline is required. `IOpcUaServerBuilder.AddNodeManager<T>()` registers
-an `IAsyncNodeManagerFactory`; use `AddSyncNodeManager<T>()` for the
-legacy `INodeManagerFactory`. For advanced configuration (custom security
-policies, additional builder calls), set `OpcUaServerOptions.ConfigureBuilder`.
-
-That's the whole server. The Boiler version is in
-`samples/MinimalApi/MinimalBoilerServer/Program.cs`.
 
 ### Multi-namespace and manager-swap subclassing
 
@@ -2240,11 +2288,14 @@ builder.CreateInstance(
 `.CreateOffNormalAlarm` attach a fresh alarm condition under the
 current node and return an `IAlarmBuilder<TState>` for further
 configuration. The helpers register the condition, add the
-`HasCondition` reference, initialise `SourceNode`, `SourceName`,
-`ConditionName`, and `InputNode`, and promote the source object and its
+`HasCondition` reference, initialise `SourceNode`, `SourceName`, and
+`ConditionName` from the source object, and promote the source object and its
 ancestors with `EventNotifiers.SubscribeToEvents`. The source is also
 registered as a root notifier so clients subscribing to the `Server`
-object receive condition events:
+object receive condition events. `.MonitorVariable(variable)` sets the
+alarm's `SourceNode`, `SourceName` and `InputNode` to the variable and makes
+it the condition source: the variable gets a `HasCondition` reference to the
+alarm and the object gets a `HasEventSource` reference to the variable:
 
 ```csharp
 builder.Node("Pumps/Pump #1/Events")
@@ -2467,9 +2518,8 @@ points at those NodeSet2 types:
     <AdditionalFiles Include="Model\EquipmentTypes.NodeSet2.xml">
       <ModelSourceGeneratorModelUri>http://example.org/EquipmentTypes</ModelSourceGeneratorModelUri>
     </AdditionalFiles>
-    <AdditionalFiles Include="Model\Instances.ModelDesign.xml">
-      <ModelSourceGeneratorModelUri>http://example.org/EquipmentInstances</ModelSourceGeneratorModelUri>
-    </AdditionalFiles>
+    <!-- A ModelDesign declares its own model URI (TargetNamespace). -->
+    <AdditionalFiles Include="Model\Instances.ModelDesign.xml" />
   </ItemGroup>
 </Project>
 ```
@@ -2715,7 +2765,7 @@ the state NodeId; migrating an override written against 1.5.378 is covered by th
 
 - `samples/MinimalApi/MinimalBoilerServer/` — a fully self-contained,
   NativeAOT single-file Boiler server. Read it top-to-bottom in
-  &lt;200 lines.
+  under 200 lines.
 - `samples/MinimalApi/MinimalCalcServer/` — a calculator server that
   exercises the typed
   [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)

@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    Makes the stack generator's MSBuild properties visible to the compiler.
+    Shipped in the package as build\<PackageId>.props so NuGet imports it into
+    every consuming project; in-repo projects import it directly.
+  -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="StackSourceGeneratorMode" />
+    <CompilerVisibleProperty Include="StackSourceGeneratorExclude" />
+  </ItemGroup>
+</Project>

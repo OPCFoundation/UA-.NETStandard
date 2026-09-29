@@ -79,7 +79,8 @@ namespace Opc.Ua.Server.Hosting
 
         /// <summary>
         /// Filesystem root used for the certificate stores. When empty, defaults
-        /// to <c>%TEMP%/OPC Foundation/{ApplicationName}/pki</c>.
+        /// to the per-user <c>LocalApplicationData/OPC Foundation/{ApplicationName}/pki</c>
+        /// directory (e.g. <c>%LOCALAPPDATA%</c> on Windows, <c>~/.local/share</c> on Linux).
         /// </summary>
         public string PkiRoot { get; set; } = string.Empty;
 

@@ -137,7 +137,17 @@ namespace Opc.Ua.Server.Tests
                     await monitored.DisposeAsync().ConfigureAwait(false);
                 }
                 Assert.That(calls, Is.EqualTo(2));
-                item.Verify(value => value.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()), Times.Never);
+                // The revoked grant is never used: only the access denied status is queued.
+                item.Verify(
+                    value => value.QueueValue(
+                        It.Ref<DataValue>.IsAny,
+                        It.Is<ServiceResult>(r => r.StatusCode != StatusCodes.BadUserAccessDenied)),
+                    Times.Never);
+                item.Verify(
+                    value => value.QueueValue(
+                        It.Ref<DataValue>.IsAny,
+                        It.Is<ServiceResult>(r => r.StatusCode == StatusCodes.BadUserAccessDenied)),
+                    Times.AtLeastOnce);
             }
         }
 
@@ -399,10 +409,11 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that when ValidateRolePermissions returns a bad result, the value is not
-        /// queued and the result is cached (so validation is not repeated on every change).
+        /// queued but the access denied status is (Part 4 5.13.2.1), and the result is cached
+        /// (so validation is not repeated on every change).
         /// </summary>
         [Test]
-        public async Task OnMonitoredNodeChangedPermissionDeniedValueNotQueuedAndResultCachedAsync()
+        public async Task OnMonitoredNodeChangedPermissionDeniedQueuesStatusAndResultCachedAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -439,10 +450,8 @@ namespace Opc.Ua.Server.Tests
             // Asynchronous disposal is the delivery barrier.
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
-            // Assert – QueueValue should never have been called (permission denied)
-            monitoredItemMock.Verify(
-                m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()),
-                Times.Never);
+            // Assert – only the access denied status is queued (Part 4 5.13.2.1), once per change
+            AssertOnlyStatusQueued(monitoredItemMock, StatusCodes.BadUserAccessDenied, 2);
 
             // And validate was only called once (cached bad result)
             nodeManagerMock.Verify(
@@ -890,11 +899,10 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that non-value attribute changes (e.g. DisplayName) are delivered to the
-        /// monitored item without invoking permission validation, because role-permission checks
-        /// only apply to the Value attribute.
+        /// monitored item after the Browse permission the Read service requires for them.
         /// </summary>
         [Test]
-        public async Task NonValueAttributeChangeDeliveredWithoutPermissionValidationAsync()
+        public async Task NonValueAttributeChangeDeliveredAfterBrowsePermissionValidationAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -907,6 +915,13 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    PermissionType.Browse,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
@@ -933,14 +948,136 @@ namespace Opc.Ua.Server.Tests
                 .Count(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue));
             Assert.That(queueCount, Is.EqualTo(3));
 
-            // No permission validation should have been performed for non-value attributes
             nodeManagerMock.Verify(
                 m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
+                    nodeId,
+                    PermissionType.Browse,
+                    It.IsAny<CancellationToken>()),
+                Times.AtLeastOnce);
+        }
+
+        /// <summary>
+        /// Verifies that a RolePermissions change is not delivered to an item whose owner
+        /// lacks the ReadRolePermissions permission; the item reports the access denied status.
+        /// </summary>
+        [Test]
+        public async Task RolePermissionsChangeReportsAccessDeniedWithoutReadRolePermissionsAsync()
+        {
+            var nodeId = new NodeId("testNode", 1);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadUserAccessDenied)));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock =
+                CreateDataChangeMonitoredItemMock(1u, Attributes.RolePermissions);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                context,
+                node,
+                NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions).ConfigureAwait(false);
+
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            // Only the access denied status is reported (Part 4 5.13.2.1), never the attribute value.
+            AssertOnlyStatusQueued(monitoredItemMock, StatusCodes.BadUserAccessDenied, 1);
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    nodeId,
+                    PermissionType.ReadRolePermissions,
                     It.IsAny<CancellationToken>()),
-                Times.Never);
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a failed re-read of a User* attribute in the item owner's context is
+        /// reported with its error status instead of a Good null value.
+        /// </summary>
+        [Test]
+        public async Task UserAttributeReReadErrorIsQueuedAsync()
+        {
+            var nodeId = new NodeId("testNode", 1);
+            int reads = 0;
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            // First read builds the snapshot, the second is the owner-context re-read.
+            node.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte _) =>
+                Interlocked.Increment(ref reads) == 1
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadUserAccessDenied);
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    PermissionType.Browse,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock =
+                CreateDataChangeMonitoredItemMock(1u, Attributes.UserAccessLevel);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                context, node, NodeStateChangeMasks.NonValue).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(reads, Is.EqualTo(2));
+            AssertOnlyStatusQueued(monitoredItemMock, StatusCodes.BadUserAccessDenied, 1);
+        }
+
+        private static void AssertOnlyStatusQueued(
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock,
+            StatusCode expected,
+            int expectedCount)
+        {
+            var queued = monitoredItemMock.Invocations
+                .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
+                .Select(i => ((DataValue)i.Arguments[0], (ServiceResult)i.Arguments[1]))
+                .ToList();
+            Assert.That(queued, Has.Count.EqualTo(expectedCount));
+            foreach ((DataValue value, ServiceResult error) in queued)
+            {
+                Assert.That(value.StatusCode, Is.EqualTo(expected));
+                Assert.That(value.WrappedValue.IsNull, Is.True);
+                Assert.That(error.StatusCode, Is.EqualTo(expected));
+            }
         }
 
         /// <summary>

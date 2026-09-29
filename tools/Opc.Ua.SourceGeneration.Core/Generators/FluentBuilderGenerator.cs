@@ -144,35 +144,55 @@ namespace Opc.Ua.SourceGeneration
             // child accessors can resolve their target wrapper by id.
             m_wrappers = [];
             m_methodWrappers = [];
-            foreach (InstanceDesign root in roots)
+            // The wrappers are only emitted with the manager; a model that
+            // just gets the per-type accessors must not fail generation over
+            // names that nothing will use.
+            if (GenerateManagerWrappers)
             {
-                CollectInstanceWrappers(root);
+                foreach (InstanceDesign root in roots)
+                {
+                    CollectInstanceWrappers(root);
+                }
+
+                // Detect naming collisions per containing wrapper. Fail with a
+                // diagnostic (mirrored as an InvalidOperationException since we
+                // are running outside the Roslyn diagnostic pipeline here).
+                ValidateNoCollisions();
+                ValidateNoRootCollisions(roots, typedBuilderClassName);
+
+                // Wire each wrapper to its direct child object/method
+                // wrappers so the recursive emitter can walk the tree
+                // depth-first and emit nested type declarations.
+                LinkChildWrappers();
             }
-
-            // Detect naming collisions per containing wrapper. Fail with a
-            // diagnostic (mirrored as an InvalidOperationException since we
-            // are running outside the Roslyn diagnostic pipeline here).
-            ValidateNoCollisions();
-
-            // Wire each wrapper to its direct child object/method
-            // wrappers so the recursive emitter can walk the tree
-            // depth-first and emit nested type declarations.
-            LinkChildWrappers();
 
             string fileName = Path.Combine(
                 m_context.OutputFolder,
                 CoreUtils.Format("{0}.FluentBuilders.g.cs",
                     string.IsNullOrEmpty(OverrideManagerClassName)
                         ? nsPrefix
-                        : OverrideManagerClassName));
+                        // Namespace-qualified, like the node manager files, so
+                        // two bound managers sharing a class name do not
+                        // overwrite each other's output.
+                        : outputNamespace + "." + OverrideManagerClassName));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, FluentBuilderTemplates.File);
 
+            // Advertise the accessors only when they are emitted, keyed by the
+            // model's C# prefix: that is what a downstream accessors-only build
+            // compares against to avoid emitting a second, ambiguous set
+            // (CS0121). The manager namespace the accessors are placed in when
+            // a [NodeManager] binding overrides it is not that prefix.
             template.AddReplacement(
-                Tokens.ModelUri,
-                EscapeStringLiteral(m_context.ModelDesign.TargetNamespace.Value));
+                Tokens.AssemblyAttributes,
+                EmitFluentAccessors
+                    ? CoreUtils.Format(
+                        "[assembly: global::Opc.Ua.ModelFluentAccessorProviderAttribute(\"{0}\", \"{1}\")]",
+                        SourceGenerationUtils.Escape(m_context.ModelDesign.TargetNamespace.Value),
+                        SourceGenerationUtils.Escape(nsPrefix))
+                    : null);
             template.AddReplacement(Tokens.NamespacePrefix, outputNamespace);
 
             // Render the typed manager interface, the typed manager
@@ -548,13 +568,23 @@ namespace Opc.Ua.SourceGeneration
         {
             foreach (InstanceWrapper wrapper in m_wrappers.Values)
             {
+                // The wrapper itself declares Builder and Node (and Publish when
+                // it is an event notifier); a child named after one of those
+                // would not compile.
+                var reserved = new HashSet<string>(s_reservedWrapperMembers, StringComparer.Ordinal);
+                if (wrapper.SupportsPublish)
+                {
+                    reserved.Add("Publish");
+                }
+
+                // Every name declared in the wrapper's body: the child accessor
+                // properties and the nested wrapper types of object and method
+                // children share one member namespace (CS0102), and none of them
+                // may carry the name of the enclosing wrapper class (CS0542).
                 var seen = new Dictionary<string, ChildAccessor>(StringComparer.Ordinal);
                 foreach (ChildAccessor child in wrapper.Children)
                 {
-                    // The wrapper itself declares Builder and Node, and a member
-                    // may not carry the name of its enclosing class. A child
-                    // sanitizing to one of those would not compile.
-                    if (s_reservedWrapperMembers.Contains(child.AccessorName) ||
+                    if (reserved.Contains(child.AccessorName) ||
                         string.Equals(
                             child.AccessorName,
                             wrapper.ClassName,
@@ -581,6 +611,84 @@ namespace Opc.Ua.SourceGeneration
                     }
                     seen[child.AccessorName] = child;
                 }
+
+                foreach (ChildAccessor child in wrapper.Children)
+                {
+                    if (child.Kind is not (ChildKind.Object or ChildKind.Method) ||
+                        string.IsNullOrEmpty(child.WrapperClassName))
+                    {
+                        continue;
+                    }
+                    string nestedType = child.WrapperClassName;
+                    if (reserved.Contains(nestedType) ||
+                        string.Equals(nestedType, wrapper.ClassName, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(CoreUtils.Format(
+                            "Fluent builder generation: child '{0}' on '{1}' " +
+                            "gets the nested wrapper type '{2}', which the " +
+                            "generated wrapper already declares. Rename the " +
+                            "child in the design.",
+                            child.BrowseName,
+                            wrapper.ClassName,
+                            nestedType));
+                    }
+                    if (seen.TryGetValue(nestedType, out ChildAccessor existing))
+                    {
+                        throw new InvalidOperationException(CoreUtils.Format(
+                            "Fluent builder generation: the nested wrapper type '{0}' " +
+                            "of child '{1}' on '{2}' collides with the member of " +
+                            "child '{3}'. Rename one of the children in the design.",
+                            nestedType,
+                            child.BrowseName,
+                            wrapper.ClassName,
+                            existing.BrowseName));
+                    }
+                    seen[nestedType] = child;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the typed top-level accessors of the manager builder
+        /// neither collide with each other nor with the members the typed
+        /// builder forwards from <c>INodeManagerBuilder</c> (for example a root
+        /// instance named <c>Context</c>), nor with the builder class itself.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">A root accessor collides.</exception>
+        private void ValidateNoRootCollisions(
+            IReadOnlyList<InstanceDesign> roots,
+            string typedBuilderClassName)
+        {
+            var seen = new Dictionary<string, InstanceDesign>(StringComparer.Ordinal);
+            foreach (InstanceDesign root in roots)
+            {
+                if (!m_wrappers.ContainsKey(ComposeKey(root, string.Empty)))
+                {
+                    continue;
+                }
+                string accessor = GetAccessorName(root);
+                if (s_typedBuilderMembers.Contains(accessor) ||
+                    string.Equals(accessor, typedBuilderClassName, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(CoreUtils.Format(
+                        "Fluent builder generation: the predefined instance '{0}' " +
+                        "sanitizes to the C# accessor '{1}', which the generated " +
+                        "'{2}' already declares. Rename the instance in the design.",
+                        GetBrowseName(root),
+                        accessor,
+                        typedBuilderClassName));
+                }
+                if (seen.TryGetValue(accessor, out InstanceDesign existing))
+                {
+                    throw new InvalidOperationException(CoreUtils.Format(
+                        "Fluent builder generation: the predefined instances '{0}' " +
+                        "and '{1}' both sanitize to the C# accessor '{2}'. Rename " +
+                        "one of them in the design.",
+                        GetBrowseName(existing),
+                        GetBrowseName(root),
+                        accessor));
+                }
+                seen[accessor] = root;
             }
         }
 
@@ -791,7 +899,10 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 _ = GetBrowseName(root);
-                string nsUri = ResolveNodeBrowseNamespace(root);
+                // The NodeId lives in the node's own namespace (SymbolicId),
+                // which differs from the BrowseName namespace (SymbolicName)
+                // for a NodeSet instance named in a companion namespace.
+                string nsUri = ResolveNodeIdNamespace(root);
                 writer.WriteLine();
                 writer.WriteLine("    /// <inheritdoc/>");
                 writer.WriteLine("    public {0} {1}", wrapper.ClassName, accessor);
@@ -799,7 +910,7 @@ namespace Opc.Ua.SourceGeneration
                 writer.WriteLine("        get");
                 writer.WriteLine("        {");
                 writer.WriteLine("            ushort __ns = __inner.Context.NamespaceUris.GetIndexOrAppend(\"{0}\");",
-                    EscapeStringLiteral(nsUri));
+                    SourceGenerationUtils.Escape(nsUri));
                 writer.WriteLine("            return new {0}(__inner.Node<{1}>(new global::Opc.Ua.NodeId({2}, __ns)));",
                     wrapper.ClassName,
                     wrapper.NodeStateType,
@@ -1025,6 +1136,23 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
+                    // Placeholders (<Name>) are never instantiated under that
+                    // browse name, so an accessor walking to "<Name>" could
+                    // never resolve a child.
+                    if (child.ModellingRule is
+                        ModellingRule.OptionalPlaceholder or
+                        ModellingRule.MandatoryPlaceholder)
+                    {
+                        continue;
+                    }
+                    // No state class is emitted for an excluded type, so an
+                    // accessor typed on it would not compile (CS0246).
+                    if (child is ObjectDesign &&
+                        child.TypeDefinitionNode is ObjectTypeDesign childType &&
+                        m_context.ModelDesign.IsExcluded(childType))
+                    {
+                        continue;
+                    }
                     if (child is PropertyDesign)
                     {
                         properties.Add(child);
@@ -1118,7 +1246,7 @@ namespace Opc.Ua.SourceGeneration
                     indent, parentClr, valueType);
                 writer.WriteLine(
                     "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
-                    indent, EscapeStringLiteral(browseName));
+                    indent, SourceGenerationUtils.Escape(browseName));
                 return;
             }
             if (child is VariableDesign variable)
@@ -1139,7 +1267,7 @@ namespace Opc.Ua.SourceGeneration
                     indent, parentClr, valueType);
                 writer.WriteLine(
                     "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
-                    indent, EscapeStringLiteral(browseName));
+                    indent, SourceGenerationUtils.Escape(browseName));
                 return;
             }
             // ObjectDesign / MethodDesign — both are HasComponent.
@@ -1159,17 +1287,28 @@ namespace Opc.Ua.SourceGeneration
                 indent, parentClr, childStateClr);
             writer.WriteLine(
                 "{0}        new global::Opc.Ua.QualifiedName(\"{1}\"));",
-                indent, EscapeStringLiteral(browseName));
+                indent, SourceGenerationUtils.Escape(browseName));
         }
 
         /// <summary>
         /// Resolves the C# state class for an ObjectType design. Uses
         /// the model's namespace prefix table to find the C# namespace
         /// the type lives in; strips the conventional <c>Type</c>
-        /// suffix and appends <c>State</c>.
+        /// suffix and appends <c>State</c>. No state class is emitted for
+        /// an excluded type, so it resolves to the state class of the
+        /// nearest emitted ancestor (the rule the proxy generator uses for
+        /// base types), falling back to <c>BaseObjectState</c>.
         /// </summary>
         private string ResolveObjectTypeStateClr(ObjectTypeDesign type)
         {
+            while (type != null && m_context.ModelDesign.IsExcluded(type))
+            {
+                type = type.BaseTypeNode as ObjectTypeDesign;
+                if (type == null)
+                {
+                    return "global::Opc.Ua.BaseObjectState";
+                }
+            }
             string typeName = type?.SymbolicName?.Name;
             if (string.IsNullOrEmpty(typeName))
             {
@@ -1288,11 +1427,11 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine("{0}get", bodyIndent);
                     writer.WriteLine("{0}{{", bodyIndent);
                     writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
-                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                        innerIndent, SourceGenerationUtils.Escape(child.BrowseNamespaceUri));
                     writer.WriteLine("{0}return __node.Variable<{1}>(new global::Opc.Ua.QualifiedName(\"{2}\", __ns));",
                         innerIndent,
                         child.ValueClrType,
-                        EscapeStringLiteral(child.BrowseName));
+                        SourceGenerationUtils.Escape(child.BrowseName));
                     writer.WriteLine("{0}}}", bodyIndent);
                     writer.WriteLine("{0}}}", indent);
                     break;
@@ -1304,11 +1443,11 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine("{0}get", bodyIndent);
                     writer.WriteLine("{0}{{", bodyIndent);
                     writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
-                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                        innerIndent, SourceGenerationUtils.Escape(child.BrowseNamespaceUri));
                     writer.WriteLine("{0}return new {1}(__node.Child<global::Opc.Ua.MethodState>(new global::Opc.Ua.QualifiedName(\"{2}\", __ns)));",
                         innerIndent,
                         child.WrapperClassName,
-                        EscapeStringLiteral(child.BrowseName));
+                        SourceGenerationUtils.Escape(child.BrowseName));
                     writer.WriteLine("{0}}}", bodyIndent);
                     writer.WriteLine("{0}}}", indent);
                     break;
@@ -1320,12 +1459,12 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine("{0}get", bodyIndent);
                     writer.WriteLine("{0}{{", bodyIndent);
                     writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
-                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                        innerIndent, SourceGenerationUtils.Escape(child.BrowseNamespaceUri));
                     writer.WriteLine("{0}return new {1}(__node.Child<{2}>(new global::Opc.Ua.QualifiedName(\"{3}\", __ns)));",
                         innerIndent,
                         child.WrapperClassName,
                         child.ChildStateType,
-                        EscapeStringLiteral(child.BrowseName));
+                        SourceGenerationUtils.Escape(child.BrowseName));
                     writer.WriteLine("{0}}}", bodyIndent);
                     writer.WriteLine("{0}}}", indent);
                     break;
@@ -1862,6 +2001,33 @@ namespace Opc.Ua.SourceGeneration
         private static readonly HashSet<string> s_reservedWrapperMembers =
             new(StringComparer.Ordinal) { "Builder", "Node" };
 
+        /// <summary>
+        /// Members the generated typed manager builder forwards from
+        /// <c>INodeManagerBuilder</c> (see <see cref="EmitTypedManagerImpl"/>),
+        /// which a top-level accessor therefore cannot be named after.
+        /// </summary>
+        private static readonly HashSet<string> s_typedBuilderMembers =
+            new(StringComparer.Ordinal)
+            {
+                "Context",
+                "NodeManager",
+                "Dispatcher",
+                "DefaultNamespaceIndex",
+                "Import",
+                "Node",
+                "NodeFromTypeId",
+                "Variable",
+                "VariableFromTypeId",
+                "VariableFromDataTypeId",
+                "Add",
+                "AddRoot",
+                "TryGetNode",
+                "AddFolder",
+                "AddObject",
+                "AddVariable",
+                "AddMethod"
+            };
+
         private static string GetAccessorName(NodeDesign node)
         {
             string name = node?.SymbolicName?.Name;
@@ -1888,6 +2054,16 @@ namespace Opc.Ua.SourceGeneration
         private string ResolveNodeBrowseNamespace(NodeDesign node)
         {
             string ns = node?.SymbolicName?.Namespace;
+            if (!string.IsNullOrEmpty(ns))
+            {
+                return ns;
+            }
+            return m_context.ModelDesign.TargetNamespace?.Value ?? string.Empty;
+        }
+
+        private string ResolveNodeIdNamespace(NodeDesign node)
+        {
+            string ns = node?.SymbolicId?.Namespace;
             if (!string.IsNullOrEmpty(ns))
             {
                 return ns;
@@ -1975,7 +2151,7 @@ namespace Opc.Ua.SourceGeneration
             }
             if (!string.IsNullOrEmpty(node.StringId))
             {
-                return CoreUtils.Format("\"{0}\"", EscapeStringLiteral(node.StringId));
+                return CoreUtils.Format("\"{0}\"", SourceGenerationUtils.Escape(node.StringId));
             }
             if (node.HasNonConstantIdentifier())
             {
@@ -1983,18 +2159,7 @@ namespace Opc.Ua.SourceGeneration
             }
             // No id assigned — fall back to the SymbolicId.Name as a string id.
             return CoreUtils.Format("\"{0}\"",
-                EscapeStringLiteral(node.SymbolicId?.Name ?? string.Empty));
-        }
-
-        private static string EscapeStringLiteral(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return string.Empty;
-            }
-            return value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+                SourceGenerationUtils.Escape(node.SymbolicId?.Name ?? string.Empty));
         }
 
         /// <summary>

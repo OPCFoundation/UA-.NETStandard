@@ -409,7 +409,8 @@ namespace Opc.Ua.Server
                     });
                     continue;
                 }
-                if (handle == null)
+                bool isIntermediateNode = handle == null;
+                if (isIntermediateNode)
                 {
                     try
                     {
@@ -430,6 +431,26 @@ namespace Opc.Ua.Server
                     nextIndex >= relativePath.Elements.Count)
                 {
                     continue;
+                }
+
+                // the references of an intermediate node may only be followed when
+                // the user is allowed to browse it (Part 3 8.55); the starting node
+                // was validated by the caller.
+                if (isIntermediateNode)
+                {
+                    ServiceResult browseResult = await ValidatePermissionsAsync(
+                            context,
+                            manager,
+                            handle,
+                            PermissionType.Browse,
+                            null,
+                            true,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(browseResult))
+                    {
+                        continue;
+                    }
                 }
 
                 RelativePathElement element = relativePath.Elements[nextIndex];
@@ -499,11 +520,19 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         if (targetHandle != null && targetNodeManager != null)
                         {
-                            NodeMetadata nodeMetadata = await targetNodeManager.GetNodeMetadataAsync(
-                                context, targetHandle, BrowseResultMask.All, cancellationToken)
+                            // role permissions and access restrictions (Part 3 8.56). The
+                            // metadata is always read, so a target whose metadata cannot be
+                            // resolved is dropped even for requests without a session.
+                            (ServiceResult serviceResult, _) = await ValidatePermissionsAndGetMetadataAsync(
+                                    context,
+                                    targetNodeManager,
+                                    targetHandle,
+                                    PermissionType.Browse,
+                                    null,
+                                    true,
+                                    metadataRequired: true,
+                                    cancellationToken)
                                 .ConfigureAwait(false);
-                            ServiceResult serviceResult = MasterNodeManager.ValidateRolePermissions(
-                                context, nodeMetadata, PermissionType.Browse, m_logger);
                             if (ServiceResult.IsBad(serviceResult))
                             {
                                 continue;
@@ -886,7 +915,8 @@ namespace Opc.Ua.Server
             }
 
             if (!nodeToBrowse.ReferenceTypeId.IsNull &&
-                !Server.TypeTree.IsKnown(nodeToBrowse.ReferenceTypeId))
+                (!Server.TypeTree.IsKnown(nodeToBrowse.ReferenceTypeId) ||
+                    !Server.TypeTree.IsTypeOf(nodeToBrowse.ReferenceTypeId, ReferenceTypeIds.References)))
             {
                 return StatusCodes.BadReferenceTypeIdInvalid;
             }

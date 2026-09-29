@@ -2,14 +2,30 @@
 
 ## Overview
 
-The .NET Standard stack implements **OPC UA Part 13 (OPC 10000-13) v1.05.07 Aggregates** on the server
-side, computed over historical data retrieved through [Historical Access](HistoricalAccess.md) (Part 11).
-All **37 standard aggregate functions** are supported and advertised through the address space.
+The .NET Standard stack implements **OPC UA Part 13 (OPC 10000-13) v1.05.07 Aggregates** on the
+server. The server computes aggregates from historical data retrieved through [Historical Access](HistoricalAccess.md)
+(Part 11) and advertises support for all **37 standard aggregate functions** through the address space.
 
-Aggregates are requested with the `HistoryRead` service using `ReadProcessedDetails` (a `startTime`,
-`endTime`, `ProcessingInterval`, one or more `AggregateType` NodeIds, and an optional
-`AggregateConfiguration`). The server divides the time range into intervals of `ProcessingInterval`
-milliseconds and produces one aggregate value per interval.
+Clients request aggregates with the `HistoryRead` service and `ReadProcessedDetails`. A request includes:
+
+- `startTime` and `endTime`
+- `ProcessingInterval` in milliseconds
+- One or more `AggregateType` NodeIds
+- An optional `AggregateConfiguration`
+
+The server divides the time range into intervals of `ProcessingInterval` milliseconds and produces one
+aggregate value per interval.
+
+## Contents
+
+- [Overview](#overview)
+- [Supported aggregate functions](#supported-aggregate-functions)
+- [Architecture](#architecture)
+  - [`AnnotationCount`](#annotationcount)
+- [Server configuration](#server-configuration)
+- [Client usage](#client-usage)
+- [Notes and limitations](#notes-and-limitations)
+- [References](#references)
 
 ## Supported aggregate functions
 
@@ -23,8 +39,8 @@ milliseconds and produces one aggregate value per interval.
 | Quality / time-in-state | `DurationGood`, `DurationBad`, `PercentGood`, `PercentBad`, `WorstQuality`, `WorstQuality2` |
 | Statistics | `StandardDeviationSample`, `VarianceSample`, `StandardDeviationPopulation`, `VariancePopulation` |
 
-The exact per-aggregate semantics (type, bounding behaviour, timestamp, status-code rules, special cases)
-follow Part 13 §5.4.3.4–§5.4.3.40.
+Part 13 §§5.4.3.4–5.4.3.40 defines each aggregate's result type, bounding behaviour, timestamp,
+status-code rules, and special cases.
 
 ## Architecture
 
@@ -40,23 +56,23 @@ AsyncCustomNodeManager / CustomNodeManager2  → HistorianDispatcher.DispatchPro
 ```
 
 - **`AggregateManager`** (`Opc.Ua.Server`) owns the registered aggregate factories, the server default
-  `AggregateConfiguration`, and the `MinimumProcessingInterval`. The standard functions are registered via
-  `Aggregators` and advertised into `Server.ServerCapabilities.AggregateFunctions` and
+  `AggregateConfiguration`, and the `MinimumProcessingInterval`. `Aggregators` registers the standard
+  functions. The server advertises them in `Server.ServerCapabilities.AggregateFunctions` and
   `HistoryServerCapabilities.AggregateFunctions`.
 - **`IAggregateCalculator`** implementations (`AggregateCalculator` and the specialized
   `Average`/`MinMax`/`Count`/`StartEnd`/`Status`/`StdDev` calculators) compute the aggregates from a stream
   of raw `DataValue`s.
 - A historian provider may compute aggregates itself by implementing `IHistorianProcessedProvider`
   (native push-down). When it does not, the framework streams raw values through the calculator,
-  using the node's `Stepped` capability. Completed intervals are drained after each raw sample;
-  the fallback stops with `Bad_TooManyOperations` if its 100,000-output buffer limit is exceeded.
+  using the node's `Stepped` capability. After each raw sample, the framework collects results for completed intervals.
+  The fallback returns `Bad_TooManyOperations` if it exceeds the 100,000-output buffer limit.
 
 ### AnnotationCount
 
 `AnnotationCount` (Part 13 §5.4.3.20) counts **Annotations** in each interval, not raw data values.
-It is therefore computed from the node's annotation history via `IHistorianAnnotationProvider`, not from
-the raw-value calculator. If the resolved provider does not expose annotation history, an `AnnotationCount`
-request returns `Bad_AggregateNotSupported`.
+It uses the node's annotation history through `IHistorianAnnotationProvider`, not the raw-value calculator.
+If the resolved provider does not expose annotation history, an `AnnotationCount` request returns
+`Bad_AggregateNotSupported`.
 
 ## Server configuration
 
@@ -64,7 +80,7 @@ request returns `Bad_AggregateNotSupported`.
 
 | Property | Default | Meaning |
 |---|---|---|
-| `TreatUncertainAsBad` | **`true`** | Whether Uncertain samples are treated as Bad when computing the aggregate `StatusCode` (Part 13 §4.2.1.2). |
+| `TreatUncertainAsBad` | **`true`** | Treat Uncertain samples as Bad when computing the aggregate `StatusCode` (Part 13 §4.2.1.2). |
 | `PercentDataBad` | `100` | Minimum % of Bad data in an interval for the interval `StatusCode` to be Bad. |
 | `PercentDataGood` | `100` | Minimum % of Good data in an interval for the interval `StatusCode` to be Good. |
 | `UseSlopedExtrapolation` | `false` | Stepped (hold-last) vs sloped extrapolation past the last value. Ignored for Simple Bounds. |
@@ -130,8 +146,8 @@ await foreach (DataValue value in session.Historian().ReadProcessedAsync(
 }
 ```
 
-Discover the aggregates a server supports with `session.Historian().GetServerCapabilitiesAsync(...)` or by
-browsing `Server.ServerCapabilities.AggregateFunctions`.
+Call `session.Historian().GetServerCapabilitiesAsync(...)` to discover supported aggregates, or browse
+`Server.ServerCapabilities.AggregateFunctions`.
 
 ## Notes and limitations
 

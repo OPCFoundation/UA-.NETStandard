@@ -188,7 +188,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string ResolveBaseClassName(ObjectTypeDesign objectType)
         {
-            if (objectType.BaseTypeNode is not ObjectTypeDesign parent)
+            if (GetEmittedBaseType(objectType) is not ObjectTypeDesign parent)
             {
                 return kRootBaseClass;
             }
@@ -203,6 +203,63 @@ namespace Opc.Ua.SourceGeneration
                 "global::{0}.{1}Client",
                 parentNamespace,
                 parentName);
+        }
+
+        /// <summary>
+        /// Returns the nearest supertype of <paramref name="objectType"/> that
+        /// has a generated proxy, skipping excluded ObjectTypes (no proxy is
+        /// emitted for those, see <see cref="GetEmittedObjectTypes"/>), or
+        /// <c>null</c> when the chain ends at a non-ObjectType.
+        /// </summary>
+        private ObjectTypeDesign GetEmittedBaseType(ObjectTypeDesign objectType)
+        {
+            TypeDesign current = objectType.BaseTypeNode;
+            while (current is ObjectTypeDesign parent)
+            {
+                if (HasProxy(parent))
+                {
+                    return parent;
+                }
+                current = parent.BaseTypeNode;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Returns true when a proxy class exists (or is emitted here) for
+        /// <paramref name="type"/>. This model's exclusions only decide that
+        /// for types of models generated with them: the target model, and
+        /// other inputs of this run. A type supplied by a referenced assembly
+        /// was emitted under that assembly's own exclusions, which its
+        /// dependency payload records by omitting the excluded types.
+        /// </summary>
+        private bool HasProxy(ObjectTypeDesign type)
+        {
+            string typeUri = type.SymbolicId?.Namespace ?? type.SymbolicName?.Namespace;
+            if (!string.IsNullOrEmpty(typeUri) &&
+                !string.Equals(typeUri, m_context.ModelDesign.TargetNamespace?.Value, StringComparison.Ordinal) &&
+                m_context.ReferencedModels != null &&
+                m_context.ReferencedModels.TryGetValue(typeUri, out ModelDependencyReference reference))
+            {
+                Dependency.ModelDependencyV1 payload = reference.GetDependency();
+                if (payload == null)
+                {
+                    // No record of what the reference excluded: take the
+                    // type as emitted.
+                    return true;
+                }
+                string name = type.SymbolicId?.Name ?? type.SymbolicName?.Name;
+                foreach (Dependency.DependencyNode node in payload.Nodes)
+                {
+                    if (node.Kind == Dependency.DependencyNodeKind.ObjectType &&
+                        string.Equals(node.SymbolicName, name, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return !m_context.ModelDesign.IsExcluded(type);
         }
 
         /// <summary>
@@ -270,8 +327,8 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<string> CollectInheritedMethodNames(ObjectTypeDesign objectType)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
-            TypeDesign current = objectType.BaseTypeNode;
-            while (current is ObjectTypeDesign parent)
+            ObjectTypeDesign parent = GetEmittedBaseType(objectType);
+            while (parent != null)
             {
                 foreach (MethodDesign method in GetDeclaredMethods(parent))
                 {
@@ -281,7 +338,7 @@ namespace Opc.Ua.SourceGeneration
                         names.Add(name + "Async");
                     }
                 }
-                current = parent.BaseTypeNode;
+                parent = GetEmittedBaseType(parent);
             }
             return names;
         }
@@ -297,8 +354,8 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<string> CollectInheritedObjectChildNames(ObjectTypeDesign objectType)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
-            TypeDesign current = objectType.BaseTypeNode;
-            while (current is ObjectTypeDesign parent)
+            ObjectTypeDesign parent = GetEmittedBaseType(objectType);
+            while (parent != null)
             {
                 foreach (ObjectDesign child in GetDeclaredObjectChildren(parent))
                 {
@@ -308,7 +365,7 @@ namespace Opc.Ua.SourceGeneration
                         names.Add("Get" + name + "Async");
                     }
                 }
-                current = parent.BaseTypeNode;
+                parent = GetEmittedBaseType(parent);
             }
             return names;
         }
@@ -392,11 +449,27 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (objectChild.TypeDefinitionNode is not ObjectTypeDesign)
+                if (objectChild.TypeDefinitionNode is not ObjectTypeDesign childType)
+                {
+                    continue;
+                }
+                // No proxy is emitted for an excluded type, so an accessor
+                // returning one would not compile (CS0246).
+                if (!HasProxy(childType))
                 {
                     continue;
                 }
                 if (string.IsNullOrEmpty(objectChild.SymbolicName?.Name))
+                {
+                    continue;
+                }
+                // A placeholder (<Name>) only declares that instances can
+                // carry any number of children of that type under their own
+                // browse names; no instance has a child named "<Name>", so
+                // a single-child accessor could never resolve anything.
+                if (objectChild.ModellingRule is
+                    ModellingRule.OptionalPlaceholder or
+                    ModellingRule.MandatoryPlaceholder)
                 {
                     continue;
                 }
@@ -483,17 +556,36 @@ namespace Opc.Ua.SourceGeneration
                 (m_inheritedMethodNames != null &&
                     m_inheritedMethodNames.Contains(emittedName));
 
+            // The accessor is named after the symbolic name (a C# identifier),
+            // but the server is asked for the child's real BrowseName, which
+            // differs whenever the design or NodeSet sets one explicitly
+            // (e.g. BrowseName "Axis 1", SymbolicName "Axis1").
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
-                childBrowseName,
+                GetBrowseName(objectChild),
                 m_logger);
+            context.Template.AddReplacement(Tokens.BrowseName, childBrowseName);
             context.Template.AddReplacement(Tokens.TypeName, typeName);
             context.Template.AddReplacement(Tokens.ClassName, clientType);
             context.Template.AddReplacement(Tokens.AccessModifier, isShadow ? "new " : string.Empty);
-            context.Template.AddReplacement(Tokens.BrowseNameNamespaceUri, browseNameNamespaceUri ?? string.Empty);
+            context.Template.AddReplacement(
+                Tokens.BrowseNameNamespaceUri,
+                StringLiteralEscaper.AsCSharpStringLiteralContent(browseNameNamespaceUri));
             context.Template.AddReplacement(Tokens.FieldName, fieldName);
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// The on-the-wire browse name of a child: the explicit BrowseName
+        /// when the design sets one, otherwise the symbolic name (the design
+        /// schema default).
+        /// </summary>
+        private static string GetBrowseName(NodeDesign node)
+        {
+            return string.IsNullOrEmpty(node.BrowseName)
+                ? node.SymbolicName?.Name ?? string.Empty
+                : node.BrowseName;
         }
 
         private static string LowerFirst(string s)
@@ -552,7 +644,7 @@ namespace Opc.Ua.SourceGeneration
             string methodBrowseNamespaceLiteral =
                 StringLiteralEscaper.AsCSharpStringLiteralContent(methodBrowseNamespaceUri);
             string methodBrowseNameLiteral =
-                StringLiteralEscaper.AsCSharpStringLiteralContent(methodName);
+                StringLiteralEscaper.AsCSharpStringLiteralContent(GetBrowseName(method));
 
             // Compute the strongly typed return signature.
             string returnTypeAnnotation = GetReturnTypeAnnotation(

@@ -668,8 +668,8 @@ namespace Opc.Ua.Gds.Client
             string? applicationUri,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_directory!.FindApplicationsAsync(
+            DirectoryTypeClient directory = await GetDirectoryAsync(ct).ConfigureAwait(false);
+            return await directory.FindApplicationsAsync(
                 applicationUri ?? string.Empty,
                 ct).ConfigureAwait(false);
         }
@@ -703,8 +703,8 @@ namespace Opc.Ua.Gds.Client
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            (DateTimeUtc lastCounterResetTime, ArrayOf<ServerOnNetwork> servers) = await m_directory!.QueryServersAsync(
+            DirectoryTypeClient directory = await GetDirectoryAsync(ct).ConfigureAwait(false);
+            (DateTimeUtc lastCounterResetTime, ArrayOf<ServerOnNetwork> servers) = await directory.QueryServersAsync(
                 startingRecordId,
                 maxRecordsToReturn,
                 applicationName ?? string.Empty,
@@ -742,9 +742,9 @@ namespace Opc.Ua.Gds.Client
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            DirectoryTypeClient directory = await GetDirectoryAsync(ct).ConfigureAwait(false);
             (DateTimeUtc lastCounterResetTime, uint nextRecordId, ArrayOf<ApplicationDescription> applications) =
-                await m_directory!.QueryApplicationsAsync(
+                await directory.QueryApplicationsAsync(
                     startingRecordId,
                     maxRecordsToReturn,
                     applicationName ?? string.Empty,
@@ -761,8 +761,8 @@ namespace Opc.Ua.Gds.Client
             NodeId applicationId,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_directory!.GetApplicationAsync(applicationId, ct).ConfigureAwait(false);
+            DirectoryTypeClient directory = await GetDirectoryAsync(ct).ConfigureAwait(false);
+            return await directory.GetApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -770,8 +770,8 @@ namespace Opc.Ua.Gds.Client
             ApplicationRecordDataType application,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_directory!.RegisterApplicationAsync(application, ct).ConfigureAwait(false);
+            DirectoryTypeClient directory = await GetDirectoryAsync(ct).ConfigureAwait(false);
+            return await directory.RegisterApplicationAsync(application, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -790,8 +790,8 @@ namespace Opc.Ua.Gds.Client
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory!.GetCertificatesAsync(
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
+            return await certificateDirectory.GetCertificatesAsync(
                 applicationId,
                 certificateGroupId,
                 ct).ConfigureAwait(false);
@@ -802,29 +802,29 @@ namespace Opc.Ua.Gds.Client
             ByteString certificate,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory!.CheckRevocationStatusAsync(certificate, ct).ConfigureAwait(false);
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
+            return await certificateDirectory.CheckRevocationStatusAsync(certificate, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async ValueTask UpdateApplicationAsync(ApplicationRecordDataType application, CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            await m_directory!.UpdateApplicationAsync(application, ct).ConfigureAwait(false);
+            DirectoryTypeClient directory = await GetDirectoryAsync(ct).ConfigureAwait(false);
+            await directory.UpdateApplicationAsync(application, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async ValueTask UnregisterApplicationAsync(NodeId applicationId, CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            await m_directory!.UnregisterApplicationAsync(applicationId, ct).ConfigureAwait(false);
+            DirectoryTypeClient directory = await GetDirectoryAsync(ct).ConfigureAwait(false);
+            await directory.UnregisterApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async ValueTask RevokeCertificateAsync(NodeId applicationId, ByteString certificate, CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            await m_certificateDirectory!.RevokeCertificateAsync(applicationId, certificate, ct).ConfigureAwait(false);
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
+            await certificateDirectory.RevokeCertificateAsync(applicationId, certificate, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -838,8 +838,8 @@ namespace Opc.Ua.Gds.Client
             char[] privateKeyPassword,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory!.StartNewKeyPairRequestAsync(
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
+            return await certificateDirectory.StartNewKeyPairRequestAsync(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -858,8 +858,8 @@ namespace Opc.Ua.Gds.Client
             ByteString certificateRequest,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory!.StartSigningRequestAsync(
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
+            return await certificateDirectory.StartSigningRequestAsync(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -879,24 +879,24 @@ namespace Opc.Ua.Gds.Client
             NodeId requestId,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
             (ByteString certificate, ByteString privateKey, ArrayOf<ByteString> issuerCertificates) =
-                await m_certificateDirectory!.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(false);
+                await certificateDirectory.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(false);
             return (certificate, privateKey, issuerCertificates);
         }
 
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<NodeId>> GetCertificateGroupsAsync(NodeId applicationId, CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory!.GetCertificateGroupsAsync(applicationId, ct).ConfigureAwait(false);
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
+            return await certificateDirectory.GetCertificateGroupsAsync(applicationId, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async ValueTask<NodeId> GetTrustListAsync(NodeId applicationId, NodeId certificateGroupId, CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory!.GetTrustListAsync(
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
+            return await certificateDirectory.GetTrustListAsync(
                 applicationId,
                 certificateGroupId,
                 ct).ConfigureAwait(false);
@@ -909,8 +909,8 @@ namespace Opc.Ua.Gds.Client
             NodeId certificateTypeId,
             CancellationToken ct = default)
         {
-            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory!.GetCertificateStatusAsync(
+            CertificateDirectoryTypeClient certificateDirectory = await GetCertificateDirectoryAsync(ct).ConfigureAwait(false);
+            return await certificateDirectory.GetCertificateStatusAsync(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -1042,6 +1042,33 @@ namespace Opc.Ua.Gds.Client
                 }
                 await ConnectAsync(ct).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Connects if needed and returns the directory proxy. The field is read
+        /// once, because a failed keep-alive or a disconnect can clear it as soon
+        /// as <see cref="ConnectIfNeededAsync"/> has released the lock.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async Task<DirectoryTypeClient> GetDirectoryAsync(CancellationToken ct)
+        {
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return m_directory ?? throw ServiceResultException.Create(
+                StatusCodes.BadServerNotConnected,
+                "The GDS client was disconnected before the call could be made.");
+        }
+
+        /// <summary>
+        /// Connects if needed and returns the certificate directory proxy.
+        /// See <see cref="GetDirectoryAsync"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async Task<CertificateDirectoryTypeClient> GetCertificateDirectoryAsync(CancellationToken ct)
+        {
+            _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            return m_certificateDirectory ?? throw ServiceResultException.Create(
+                StatusCodes.BadServerNotConnected,
+                "The GDS client was disconnected before the call could be made.");
         }
 
         private readonly SemaphoreSlim m_lock = new(1, 1);

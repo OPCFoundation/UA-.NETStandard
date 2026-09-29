@@ -108,18 +108,17 @@ namespace Opc.Ua.Client.ComplexTypes
                     unionSelector++;
                 }
 
-                // Part 6 §5.2.8: an encoder shall also report an out-of-range
-                // SwitchField rather than fail with a NullReferenceException.
+                // unionProperty is non-null when m_switchField is within the property range,
+                // which the IL emitted by ComplexTypeFieldBuilder guarantees for set values.
+                // Encoders shall report an error otherwise (OPC 10000-6 5.2.8).
                 if (unionProperty == null)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,
-                        "Union SwitchField {0} exceeds the {1} fields of {2}.",
+                        "Union SwitchField {0} is greater than the number of fields {1}.",
                         m_switchField,
-                        m_propertyList.Count,
-                        GetType().Name);
+                        m_propertyList.Count);
                 }
-
                 fieldName ??= unionProperty.Name;
 
                 EncodeProperty(encoder, fieldName, unionProperty);
@@ -153,17 +152,16 @@ namespace Opc.Ua.Client.ComplexTypes
                 unionSelector = decoder.ReadSwitchField(fields, out _);
             }
 
-            // Part 6 §5.2.8: decoders shall report an error for a SwitchField
-            // greater than the number of defined union fields. Accepting it
-            // would leave an object that throws on Encode/Value/indexers.
-            if (unionSelector > (uint)m_propertyList.Count)
+            // Decoders shall report an error for a SwitchField greater than
+            // the number of union fields (OPC 10000-6 5.2.8, 5.3.7, 5.4.8).
+            int fieldCount = m_propertyList.Count;
+            if (unionSelector > (uint)fieldCount)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Union SwitchField {0} exceeds the {1} fields of {2}.",
+                    "Union SwitchField {0} is greater than the number of fields {1}.",
                     unionSelector,
-                    m_propertyList.Count,
-                    GetType().Name);
+                    fieldCount);
             }
 
             m_switchField = unionSelector;

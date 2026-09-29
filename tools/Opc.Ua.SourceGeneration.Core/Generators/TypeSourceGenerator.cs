@@ -64,7 +64,17 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                if (resolvedType != null && s_scalarTypeMap.ContainsKey(resolvedType))
+                if (field.IsMatrix)
+                {
+                    // A matrix is carried in a Variant, which only exists for
+                    // the element types the Variant has matrix accessors for.
+                    if (resolvedType != null && s_matrixGetterMap.ContainsKey(resolvedType))
+                    {
+                        valid.Add(field);
+                        continue;
+                    }
+                }
+                else if (resolvedType != null && s_scalarTypeMap.ContainsKey(resolvedType))
                 {
                     valid.Add(field);
                     continue;
@@ -206,6 +216,13 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            // A nested type is emitted inside partial declarations of its
+            // containing types, one wrapper per level, outermost first.
+            if (ctx.ContainingTypeDeclarations is { Count: > 0 })
+            {
+                return TypeSourceTemplates.ContainingType;
+            }
+
             if (ctx.IsRecord)
             {
                 if (ctx.IsDerived)
@@ -234,8 +251,24 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
+            if (model.ContainingTypeDeclarations is { Count: > 0 })
+            {
+                context.Template.AddReplacement(
+                    Tokens.TypeName,
+                    model.ContainingTypeDeclarations[0]);
+                context.Template.AddReplacement(
+                    Tokens.ListOfTypes,
+                    [model with
+                    {
+                        ContainingTypeDeclarations = [.. model.ContainingTypeDeclarations.Skip(1)]
+                    }],
+                    LoadTemplate_ListOfPartialClasses,
+                    WriteTemplate_ListOfPartialClasses);
+                return context.Template.Render();
+            }
+
             string typeIdExpr = FormatExpandedNodeIdExpression(
-                model.DataTypeId, model.ClassName, model.NamespaceUri);
+                model.DataTypeId, GetDataTypeName(model), model.NamespaceUri);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.BinaryEncodingId, model.NamespaceUri);
             string xmlIdExpr = FormatOptionalExpandedNodeIdExpression(
@@ -245,14 +278,14 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
-                model.ClassName);
+                GetDataTypeName(model));
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
             context.Template.AddReplacement(Tokens.XmlNamespaceUri,
                 $"\"{model.NamespaceUri.Escape()}\"");
             context.Template.AddReplacement(Tokens.AccessModifier,
-                model.IsInternal ? "internal" : "public");
+                model.AccessModifier ?? (model.IsInternal ? "internal" : "public"));
 
             context.Template.AddReplacement(
                 Tokens.ListOfEncodedFields,
@@ -328,7 +361,37 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string encodeLine;
-            if (field.IsEncodeable)
+            if (field.IsMatrix)
+            {
+                // A matrix field is an inline matrix (OPC 10000-6 5.2.5):
+                // matrices of structures use the typed inline matrix call,
+                // every other element type the raw Variant value, normalized
+                // to an inline matrix by WriteInlineMatrixValue - the calls
+                // the model driven generator and the DataTypeDefinition
+                // driven codec (Structure.EncodeProperty) make.
+                // A matrix of a structure that allows subtypes is a matrix of
+                // extension objects, like the scalar and array forms: the
+                // inline form decodes every element as the declared type.
+                // FromStructure turns a null matrix into a null Variant, which
+                // carries no shape; keep a null matrix.
+                encodeLine = field.IsEncodeable && ShouldUseExtensionObject(field)
+                    ? CoreUtils.Format(
+                        "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, \"{0}\", {1}.IsNull ? " +
+                        "global::Opc.Ua.Variant.From(default(global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject>)) : " +
+                        "global::Opc.Ua.Variant.FromStructure({1}));",
+                        field.FieldName.Escape(),
+                        field.PropertyName)
+                    : field.IsEncodeable
+                    ? CoreUtils.Format(
+                        "encoder.WriteEncodeableMatrix(\"{0}\", {1});",
+                        field.FieldName.Escape(),
+                        field.PropertyName)
+                    : CoreUtils.Format(
+                        "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, \"{0}\", global::Opc.Ua.Variant.From({1}));",
+                        field.FieldName.Escape(),
+                        field.PropertyName);
+            }
+            else if (field.IsEncodeable)
             {
                 bool useExtObj = ShouldUseExtensionObject(field);
                 if (field.IsArray)
@@ -380,7 +443,23 @@ namespace Opc.Ua.SourceGeneration
                     field.PropertyName);
             }
 
-            if ((field.DefaultValueHandling & 1) == 0)
+            // OPC 10000-6 5.4.1/5.4.2.1 (and 5.3.5 for XML): a Compact encoder
+            // may only omit a field whose value is the default of its type
+            // (Table 1: 0, false, null, ...), because a conformant decoder
+            // reads a missing field as that type default. The field is
+            // therefore only omitted when its value is the type default and
+            // a missing field also decodes to the type default here: in JSON
+            // and for a SetIfMissing field it always does; an Exclude field
+            // missing from XML keeps its declared default, so only when that
+            // is the type default too (no initializer, or a default literal).
+            // A field with any other or an unknown declared default is always
+            // written (the Compact JsonEncoder still drops a type default by
+            // itself, which JSON decodes back to the type default), and
+            // nothing is omitted when the encoder cannot omit fields (binary,
+            // Verbose).
+            if ((field.DefaultValueHandling & 1) == 0 &&
+                (IsSetIfMissing(field) ||
+                    (!field.HasNonConstantInitializer && field.DefaultValueLiteral == null)))
             {
                 encodeLine = CoreUtils.Format(
                     "if (!encoder.CanOmitFields || {0}) {1}",
@@ -411,7 +490,46 @@ namespace Opc.Ua.SourceGeneration
             string target = field.BackingFieldName ?? field.PropertyName;
 
             string decodeLine;
-            if (field.IsEncodeable)
+            if (field.IsMatrix)
+            {
+                if (field.IsEncodeable && ShouldUseExtensionObject(field))
+                {
+                    decodeLine = CoreUtils.Format(
+                        "{0} = decoder.ReadVariantValue(\"{1}\", global::Opc.Ua.TypeInfo.Create(" +
+                        "global::Opc.Ua.BuiltInType.ExtensionObject, global::Opc.Ua.ValueRanks.TwoDimensions))" +
+                        ".GetStructureMatrix<{2}>();",
+                        target,
+                        field.FieldName.Escape(),
+                        field.ElementTypeName);
+                }
+                else if (field.IsEncodeable)
+                {
+                    decodeLine = CoreUtils.Format(
+                        "{0} = decoder.ReadEncodeableMatrix<{1}>(\"{2}\");",
+                        target,
+                        field.ElementTypeName,
+                        field.FieldName.Escape());
+                }
+                else
+                {
+                    // The inline matrix is read with the field's type info;
+                    // the decoders take the actual rank from the encoded
+                    // dimensions.
+                    string builtInType = field.IsEnum
+                        ? "Enumeration"
+                        : s_matrixGetterMap[field.ElementShortTypeName];
+                    decodeLine = CoreUtils.Format(
+                        "{0} = decoder.ReadVariantValue(\"{1}\", global::Opc.Ua.TypeInfo.Create(" +
+                        "global::Opc.Ua.BuiltInType.{2}, global::Opc.Ua.ValueRanks.TwoDimensions)).{3};",
+                        target,
+                        field.FieldName.Escape(),
+                        builtInType,
+                        field.IsEnum
+                            ? $"GetEnumerationMatrix<{field.ElementTypeName}>()"
+                            : $"Get{builtInType}Matrix()");
+                }
+            }
+            else if (field.IsEncodeable)
             {
                 bool useExtObj = ShouldUseExtensionObject(field);
                 if (field.IsArray)
@@ -472,10 +590,20 @@ namespace Opc.Ua.SourceGeneration
                     field.FieldName.Escape());
             }
 
+            // OPC 10000-6 5.4.1/5.4.2.1/5.4.7: a field missing from JSON is
+            // the type default (Table 1), so JSON (and binary) always read
+            // the field; the JSON decoder returns the type default for a
+            // missing field. Only XML keeps the declared default of a
+            // missing field (unless SetIfMissing): a deliberate leniency so
+            // configuration files that predate a field still load. The
+            // encoder never omits a field in XML whose declared default
+            // differs from the type default, so values this SDK writes
+            // still round trip with conformant peers.
             if ((field.DefaultValueHandling & 2) == 0)
             {
                 decodeLine = CoreUtils.Format(
-                    "if (decoder.HasField(\"{0}\")) {1}",
+                    "if (decoder.EncodingType != global::Opc.Ua.EncodingType.Xml || " +
+                    "decoder.HasField(\"{0}\")) {1}",
                     field.FieldName.Escape(),
                     decodeLine);
             }
@@ -546,18 +674,19 @@ namespace Opc.Ua.SourceGeneration
             }
             return null;
 
+            // An array or matrix is cloned element-wise when its elements
+            // have reference semantics, like the model driven generator does.
             static bool NeedsCloning(TypeFieldModel field)
             {
-                switch (field.ShortTypeName)
+                string typeName = field.IsArray || field.IsMatrix
+                    ? field.ElementShortTypeName
+                    : field.ShortTypeName;
+                switch (typeName)
                 {
                     case "DataValue":
                     case "Variant":
                     case "ExtensionObject":
                         return true;
-                }
-                if (field.IsArray || field.IsMatrix)
-                {
-                    return false;
                 }
                 return field.IsEncodeable;
             }
@@ -667,7 +796,7 @@ namespace Opc.Ua.SourceGeneration
 
             string typeIdExpr = FormatExpandedNodeIdExpression(
                 model.DataTypeId,
-                model.ClassName,
+                GetDataTypeName(model),
                 model.NamespaceUri);
             string binaryIdExpr = FormatOptionalExpandedNodeIdExpression(
                 model.BinaryEncodingId,
@@ -676,11 +805,18 @@ namespace Opc.Ua.SourceGeneration
                 model.XmlEncodingId,
                 model.NamespaceUri);
 
-            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            // The activator lives at namespace level: it is named after the
+            // symbol name and refers to a nested type by its qualified name.
+            context.Template.AddReplacement(Tokens.ClassName, model.SymbolName ?? model.ClassName);
+            context.Template.AddReplacement(Tokens.TypeName, model.TypeReference ?? model.ClassName);
+            // EncodeableType<T> / EnumeratedType<T> is only as accessible as
+            // T, so a public activator of a non-public type is CS0060.
+            context.Template.AddReplacement(Tokens.AccessModifier,
+                model.IsEffectivelyPublic ? "public" : "internal");
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
-                model.ClassName);
+                GetDataTypeName(model));
             context.Template.AddReplacement(Tokens.DataTypeIdConstant, typeIdExpr);
             context.Template.AddReplacement(Tokens.BinaryEncodingId, binaryIdExpr);
             context.Template.AddReplacement(Tokens.XmlEncodingId, xmlIdExpr);
@@ -700,8 +836,12 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            return model.IsEnum
-                ? DataTypeTemplates.EnumDefinition
+            if (model.IsEnum)
+            {
+                return DataTypeTemplates.EnumDefinition;
+            }
+            return model.IsDerived && model.BaseDefinitionActivator != null
+                ? TypeSourceTemplates.DerivedStructureDefinition
                 : DataTypeTemplates.StructureDefinition;
         }
 
@@ -712,18 +852,23 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            context.Template.AddReplacement(Tokens.ClassName, model.ClassName);
+            context.Template.AddReplacement(Tokens.ClassName, model.SymbolName ?? model.ClassName);
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
                 Tokens.BrowseNameLiteral,
-                model.ClassName);
+                GetDataTypeName(model));
 
             if (model.IsEnum)
             {
-                // The attribute model does not distinguish an OptionSet from a
-                // plain enumeration beyond the [Flags] attribute, so flags
-                // enums are emitted as option sets.
-                context.Template.AddReplacement(Tokens.IsOptionSet, model.IsFlags);
+                // Every enum, [Flags] included, is registered as an
+                // EnumeratedType and encoded as an Enumeration (Int32). An
+                // OptionSet of up to 64 bits is a UInteger subtype encoded as
+                // that integer (OPC 10000-3 5.8.2, 8.40), so publishing a
+                // [Flags] enum as an OptionSet would describe a different wire
+                // format (the width for byte/short/long backing, the text form
+                // in XML and JSON). It is published as the enumeration it is
+                // encoded as: all members with their values.
+                context.Template.AddReplacement(Tokens.IsOptionSet, false);
                 context.Template.AddReplacement(
                     Tokens.ListOfFields,
                     DataTypeTemplates.EnumField,
@@ -733,26 +878,20 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // The attribute model only carries this type's own (explicit)
-            // fields, never inherited ones, so the base data type is always
-            // emitted as DataTypeIds.Structure and the explicit field index is
-            // zero. This is a best-effort fallback; the definition is always
-            // non-null which is the hard contract.
-            bool hasOptional = false;
-            foreach (TypeFieldModel field in model.Fields)
-            {
-                if (field.IsOptional)
-                {
-                    hasOptional = true;
-                    break;
-                }
-            }
+            // fields. A derived type whose base exposes a definition through
+            // its activator prepends the base fields at runtime (see
+            // DerivedStructureDefinition); otherwise the base data type is
+            // emitted as Structure and the explicit field index is zero.
+            // Encode() never writes an encoding mask - a nullable property is
+            // always encoded - so the definition never declares optional
+            // fields.
             context.Template.AddReplacement(
                 Tokens.BaseType,
-                "new global::Opc.Ua.NodeId(22u)");
+                model.IsDerived && model.BaseDefinitionActivator != null
+                    ? model.BaseDefinitionActivator
+                    : "new global::Opc.Ua.NodeId(22u)");
             context.Template.AddReplacement(Tokens.FirstExplicitFieldIndex, 0);
-            context.Template.AddReplacement(
-                Tokens.StructureType,
-                hasOptional ? "StructureWithOptionalFields" : "Structure");
+            context.Template.AddReplacement(Tokens.StructureType, "Structure");
             context.Template.AddReplacement(
                 Tokens.ListOfFields,
                 DataTypeTemplates.StructureField,
@@ -789,24 +928,44 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
+            // A StructureField ValueRank is -1 or >= 1, never 0 (OPC 10000-3
+            // 8.51), and a matrix field has at least two dimensions (OPC
+            // 10000-6 5.2.5). MatrixOf<T> does not tell the rank: publish a
+            // two dimensional matrix of unknown lengths. A value of another
+            // rank is still encoded with all its dimensions, but a consumer
+            // checking the published rank may reject it; a field of a fixed
+            // rank above two is declared in a model design instead.
             string valueRank = field.IsMatrix
-                ? "global::Opc.Ua.ValueRanks.OneOrMoreDimensions"
+                ? "global::Opc.Ua.ValueRanks.TwoDimensions"
                 : field.IsArray
                     ? "global::Opc.Ua.ValueRanks.OneDimension"
                     : "global::Opc.Ua.ValueRanks.Scalar";
-            string arrayDimensions = field.IsArray
-                ? "new uint[] { 0 }"
-                : "default";
+            string arrayDimensions = field.IsMatrix
+                ? "new uint[] { 0, 0 }"
+                : field.IsArray
+                    ? "new uint[] { 0 }"
+                    : "default";
 
             context.Template.AddReplacement(
                 Tokens.FieldName,
                 $"\"{field.FieldName.Escape()}\"");
-            context.Template.AddReplacement(
-                Tokens.DataType,
-                field.DataTypeNodeId ?? "global::Opc.Ua.DataTypeIds.BaseDataType");
+            string dataType = field.DataTypeNodeId ?? "global::Opc.Ua.DataTypeIds.BaseDataType";
+            if (field.IsEncodeable && !ShouldUseExtensionObject(field))
+            {
+                // Written inline with WriteEncodeable(Matrix): the field's DataType
+                // must be the concrete structure. The abstract Structure
+                // (i=22) would tell a definition driven decoder to expect an
+                // ExtensionObject (OPC 10000-6 5.2.6).
+                dataType = CoreUtils.Format(
+                    "global::Opc.Ua.ExpandedNodeId.ToNodeId(new {0}().TypeId, namespaceUris)",
+                    (field.IsArray || field.IsMatrix ? field.ElementTypeName : field.TypeName)
+                        .TrimEnd('?'));
+            }
+            context.Template.AddReplacement(Tokens.DataType, dataType);
             context.Template.AddReplacement(Tokens.ValueRank, valueRank);
             context.Template.AddReplacement(Tokens.ArrayDimensions, arrayDimensions);
-            context.Template.AddReplacement(Tokens.IsOptional, field.IsOptional);
+            // Encode() always writes the field, there is no encoding mask.
+            context.Template.AddReplacement(Tokens.IsOptional, false);
             context.Template.AddReplacement(
                 Tokens.Description,
                 "global::Opc.Ua.LocalizedText.Null");
@@ -832,9 +991,23 @@ namespace Opc.Ua.SourceGeneration
         private static string FormatEnumMemberValue(string value)
         {
             if (!string.IsNullOrEmpty(value) &&
-                long.TryParse(value, out long parsed))
+                long.TryParse(
+                    value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out long parsed))
             {
                 return parsed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            if (!string.IsNullOrEmpty(value) &&
+                ulong.TryParse(
+                    value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out ulong unsignedValue))
+            {
+                // A ulong backed enum member above long.MaxValue keeps its bits.
+                return CoreUtils.Format("unchecked((long){0}UL)", unsignedValue);
             }
             return "0";
         }
@@ -880,7 +1053,23 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return ("WriteEncodeableArray", "ReadEncodeableArray");
                 }
+                if (field.IsMatrix)
+                {
+                    return ("WriteEncodeableMatrix", "ReadEncodeableMatrix");
+                }
                 return ("WriteEncodeable", "ReadEncodeable");
+            }
+
+            if (field.IsMatrix)
+            {
+                // IEncoder/IDecoder have no typed matrix calls for built-in
+                // or enumerated elements: the inline matrix is the raw value
+                // of a Variant.
+                return field.IsEnum ||
+                    (field.ElementShortTypeName != null &&
+                        s_matrixGetterMap.ContainsKey(field.ElementShortTypeName))
+                    ? ("WriteVariantValue", "ReadVariantValue")
+                    : (null, null);
             }
 
             if (field.IsEnum)
@@ -892,7 +1081,7 @@ namespace Opc.Ua.SourceGeneration
                 return ("WriteEnumerated", "ReadEnumerated");
             }
 
-            string lookupType = field.IsArray || field.IsMatrix
+            string lookupType = field.IsArray
                 ? field.ElementShortTypeName
                 : field.ShortTypeName;
 
@@ -904,15 +1093,46 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return (methods.write + "Array", methods.read + "Array");
                 }
-                if (field.IsMatrix)
-                {
-                    return (methods.write + "Matrix", methods.read + "Matrix");
-                }
                 return methods;
             }
 
             return (null, null);
         }
+
+        /// <summary>
+        /// Maps the element type short name of a <c>MatrixOf&lt;T&gt;</c>
+        /// property to the name of the Variant matrix getter
+        /// (<c>Get{Name}Matrix()</c>) that returns exactly
+        /// <c>MatrixOf&lt;T&gt;</c>.
+        /// </summary>
+        internal static readonly Dictionary<string, string> s_matrixGetterMap =
+            new(StringComparer.Ordinal)
+            {
+                ["Boolean"] = "Boolean",
+                ["SByte"] = "SByte",
+                ["Byte"] = "Byte",
+                ["Int16"] = "Int16",
+                ["UInt16"] = "UInt16",
+                ["Int32"] = "Int32",
+                ["UInt32"] = "UInt32",
+                ["Int64"] = "Int64",
+                ["UInt64"] = "UInt64",
+                ["Single"] = "Float",
+                ["Double"] = "Double",
+                ["String"] = "String",
+                ["DateTimeUtc"] = "DateTime",
+                ["Uuid"] = "Guid",
+                ["ByteString"] = "ByteString",
+                ["XmlElement"] = "XmlElement",
+                ["NodeId"] = "NodeId",
+                ["ExpandedNodeId"] = "ExpandedNodeId",
+                ["StatusCode"] = "StatusCode",
+                ["QualifiedName"] = "QualifiedName",
+                ["LocalizedText"] = "LocalizedText",
+                ["ExtensionObject"] = "ExtensionObject",
+                ["DataValue"] = "DataValue",
+                ["Variant"] = "Variant"
+            };
 
         /// <summary>
         /// Maps scalar C# type short names to IEncoder/IDecoder method name pairs.
@@ -980,7 +1200,9 @@ namespace Opc.Ua.SourceGeneration
                 ["Single"] = "{0} != 0f",
                 ["float"] = "{0} != 0f",
                 ["Double"] = "{0} != 0.0",
-                ["String"] = "!string.IsNullOrEmpty({0})",
+                // The String default is null (OPC 10000-6 Table 1); an empty
+                // string is a value and is written.
+                ["String"] = "{0} != null",
                 ["DateTime"] = "{0} != global::System.DateTime.MinValue",
                 ["DateTimeUtc"] = "!{0}.IsNull",
                 ["Guid"] = "{0} != global::System.Guid.Empty",
@@ -997,6 +1219,26 @@ namespace Opc.Ua.SourceGeneration
                 ["DiagnosticInfo"] = "!({0} is null)",
                 ["XmlElement"] = "!{0}.IsNull"
             };
+
+        /// <summary>
+        /// The name the default DataTypeId, the XML name and the browse name
+        /// of the data type are derived from: the nesting-qualified name of a
+        /// nested type (so same-named nested types do not share an identity),
+        /// the class name otherwise.
+        /// </summary>
+        private static string GetDataTypeName(TypeSourceModel model)
+        {
+            return model.QualifiedName ?? model.ClassName;
+        }
+
+        /// <summary>
+        /// True for DefaultValueHandling.SetIfMissing (2): the field is always
+        /// decoded, so a missing field yields the CLR default.
+        /// </summary>
+        private static bool IsSetIfMissing(TypeFieldModel field)
+        {
+            return (field.DefaultValueHandling & 2) != 0;
+        }
 
         private static string GetNotDefaultCheck(TypeFieldModel field)
         {

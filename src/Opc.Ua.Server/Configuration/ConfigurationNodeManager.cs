@@ -710,8 +710,8 @@ namespace Opc.Ua.Server
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
             {
                 certGroup.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
-                certGroup.Node!.TrustList!.Handle = new TrustList(
-                    certGroup.Node.TrustList,
+                var trustList = new TrustList(
+                    certGroup.Node.TrustList!,
                     certGroup.TrustedStore,
                     certGroup.IssuerStore,
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
@@ -721,6 +721,14 @@ namespace Opc.Ua.Server
                     m_configuration.ServerConfiguration!.MaxTrustListSize,
                     m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
                     m_configuration.CertificateManager as ICertificateStoreResolver);
+                if (IsApplicationCertificateGroup(certGroup))
+                {
+                    // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
+                    // an ApplicationCertificateType TrustList are validated
+                    // with the OPC 10000-4 process.
+                    trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+                }
+                certGroup.Node.TrustList!.Handle = trustList;
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 

@@ -43,7 +43,7 @@ namespace Opc.Ua.Gds.Server
     /// AuthorizationService coordinator used by the GDS node manager and
     /// hosted-service wiring.
     /// </summary>
-    public sealed class AuthorizationServiceManager : IAccessTokenProvider
+    public sealed class AuthorizationServiceManager : IAccessTokenProvider, ICallerIdentityAccessTokenProvider
     {
         private static readonly char[] s_scopeSeparators = [' ', ',', ';', '\r', '\n', '\t'];
 
@@ -107,8 +107,29 @@ namespace Opc.Ua.Gds.Server
             string resourceId,
             CancellationToken ct = default)
         {
+            return RequestAccessTokenAsync(identityToken, resourceId, null, ct);
+        }
+
+        /// <summary>
+        /// Handles the legacy <c>RequestAccessToken</c> method for the calling
+        /// session's identity. The request is subject to the same
+        /// <see cref="AuthorizationServiceOptions.AccessControl"/> and audience
+        /// checks as <c>StartRequestToken</c>.
+        /// </summary>
+        [Obsolete("Use StartRequestTokenAsync + FinishRequestTokenAsync for Part 12 v1.05 compliance.")]
+        public ValueTask<string> RequestAccessTokenAsync(
+            UserIdentityToken identityToken,
+            string resourceId,
+            IUserIdentity? callerIdentity,
+            CancellationToken ct = default)
+        {
+            string[] scopes = [.. m_options.DefaultScopes
+                .Where(scope => !string.IsNullOrWhiteSpace(scope))
+                .Distinct(StringComparer.Ordinal)];
+
+            ValidateAccess(callerIdentity, resourceId, scopes);
 #pragma warning disable CS0618 // Legacy Part 12 method remains functional for compatibility.
-            return m_provider.RequestAccessTokenAsync(identityToken, resourceId, ct);
+            return m_provider.RequestAccessTokenAsync(identityToken, resourceId, callerIdentity, ct);
 #pragma warning restore CS0618
         }
 
@@ -183,9 +204,11 @@ namespace Opc.Ua.Gds.Server
             if (m_options.AllowedAudiences.Count != 0 &&
                 !m_options.AllowedAudiences.Contains(audience, StringComparer.Ordinal))
             {
+                // OPC 10000-12 §9.6.5 - §9.6.8: Bad_NotFound when the
+                // ResourceId is not known to the Server.
                 throw ServiceResultException.Create(
-                    StatusCodes.BadUserAccessDenied,
-                    "AuthorizationService audience is not allowed.");
+                    StatusCodes.BadNotFound,
+                    "AuthorizationService resource id is not known.");
             }
 
             if (m_options.AccessControl != null &&

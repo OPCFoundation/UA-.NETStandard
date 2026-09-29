@@ -122,9 +122,12 @@ namespace Opc.Ua.SourceGeneration
             string factoryClass = string.IsNullOrEmpty(OverrideClassName)
                 ? typeStem + "NodeManagerFactory"
                 : OverrideClassName + "Factory";
+            // The namespace is part of the stem: two bound managers may share a
+            // class name in different namespaces, and the output file system
+            // silently overwrites an existing file of the same name.
             string fileStem = string.IsNullOrEmpty(OverrideClassName)
                 ? nsPrefix
-                : OverrideClassName;
+                : targetNamespace + "." + OverrideClassName;
 
             var resources = new List<Resource>(2)
             {

@@ -4,6 +4,21 @@
 
 Provisioning mode is a special server startup mode designed to facilitate secure certificate provisioning and initial server configuration. When enabled, the server starts with a limited default namespace and enhanced security settings to allow administrators to safely configure the server before exposing the full application functionality.
 
+## Contents
+
+- [Overview](#overview)
+- [Purpose](#purpose)
+- [How to Enable Provisioning Mode](#how-to-enable-provisioning-mode)
+  - [ConsoleReferenceServer](#consolereferenceserver)
+  - [Command Line Options](#command-line-options)
+- [Behavior in Provisioning Mode](#behavior-in-provisioning-mode)
+  - [Limited Namespace](#1-limited-namespace)
+  - [Authentication Requirements](#2-authentication-requirements)
+  - [Certificate Handling](#3-certificate-handling)
+  - [Reduced Attack Surface](#4-reduced-attack-surface)
+- [Use Cases](#use-cases)
+  - [Initial Server Setup](#initial-server-setup)
+
 ## Purpose
 
 The provisioning mode addresses the need for secure server initialization by:

@@ -145,7 +145,11 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
-        public bool CanOmitFields => true;
+        /// <remarks>
+        /// Only the CompactEncoding omits fields with a default value; the
+        /// VerboseEncoding includes all fields (OPC 10000-6 5.4.1, 5.4.2.1).
+        /// </remarks>
+        public bool CanOmitFields => m_options.IgnoreDefaultValues;
 
         /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
@@ -779,9 +783,15 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
+            // The inline matrix has at least two dimensions (5.4.5, 5.2.5)
+            // and a shape the decoder accepts (limits also for empty ones).
+            int[] dimensions = MatrixOf.GetValidatedInlineMatrixDimensions(
+                values.Dimensions,
+                values.Count,
+                Context.MaxArrayLength);
             m_writer.WritePropertyName(fieldName!);
             StartObject();
-            WriteInt32Array(JsonProperties.Dimensions, values.Dimensions);
+            WriteInt32Array(JsonProperties.Dimensions, dimensions);
             m_writer.WritePropertyName(JsonProperties.Array);
             StartArray(values.Count);
             for (int i = 0; i < values.Count; i++)
@@ -904,8 +914,13 @@ namespace Opc.Ua
             {
                 return;
             }
-            if (value.IsNull)
+            if (value.IsNull ||
+                (!value.TypeInfo.IsScalar &&
+                    value.IsInlineMatrix(out bool isNullMatrix) &&
+                    isNullMatrix))
             {
+                // A null matrix field is encoded like a null array, the way
+                // WriteEncodeableMatrix encodes it (OPC 10000-6 5.4.5).
                 WriteNull(fieldName);
                 return;
             }
@@ -2038,6 +2053,15 @@ namespace Opc.Ua
             bool writeRawValue,
             bool suppressUaType)
         {
+            // An empty matrix Variant has no valid Dimensions (all must be
+            // > 0) and is written as an empty array (OPC 10000-6 5.2.2.16,
+            // 5.4.2.17).
+            if (!writeRawValue && value.IsEmptyMatrix)
+            {
+                WriteVariantContents(value.ToEmptyArray(), false, suppressUaType);
+                return;
+            }
+
             // write scalar.
             if (value.TypeInfo.IsScalar)
             {
@@ -2134,8 +2158,10 @@ namespace Opc.Ua
                             $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
                 }
             }
-            // write array
-            else if (value.TypeInfo.IsArray)
+            // write array (a raw matrix field value is always an inline
+            // matrix, also when the Variant lost the matrix type info)
+            else if (value.TypeInfo.IsArray &&
+                !(writeRawValue && value.IsInlineMatrix(out _)))
             {
                 switch (value.TypeInfo.BuiltInType)
                 {
@@ -2346,8 +2372,25 @@ namespace Opc.Ua
                 // element count (Part 6 5.2.2.16 / 5.4.5). Refuse to emit
                 // inconsistent dimensions (e.g. a zero dimension produced by an
                 // empty matrix) instead of writing wire data a conforming peer
-                // must reject with BadDecodingError.
-                if (!MatrixOf.IsValidMatrix(dim))
+                // must reject with BadDecodingError. The inline matrix of a
+                // structure field (raw value) may be empty but has at least
+                // two dimensions (5.2.5 Table 28, 5.4.5 Table 44): an empty
+                // MatrixOf (single zero dimension) is written as 0 x 0.
+                if (writeRawValue)
+                {
+                    // The shape also bounds an empty matrix: a decoder
+                    // rejects [100000, 100000, 0] beyond MaxArrayLength.
+                    int elementCount = dim.Length == 1
+                        ? dim[0]
+                        : MatrixOf.TryGetInlineMatrixElementCount(dim, out int count, out _)
+                            ? count
+                            : -1;
+                    dim = MatrixOf.GetValidatedInlineMatrixDimensions(
+                        dim,
+                        elementCount,
+                        Context.MaxArrayLength);
+                }
+                else if (!MatrixOf.IsValidMatrix(dim))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,

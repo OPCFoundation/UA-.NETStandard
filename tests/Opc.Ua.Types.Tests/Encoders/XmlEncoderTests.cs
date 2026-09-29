@@ -5512,7 +5512,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain(expectedTypeName));
+            // The field is written like the typed field of its type (OPC
+            // 10000-6 5.3.5), not wrapped as a Variant body.
+            Assert.That(result, Does.Not.Contain("<" + expectedTypeName + ">"));
+            Assert.That(result, Does.Not.Contain("<" + expectedTypeName + " "));
             Assert.That(result, Does.Contain(expectedContent));
         }
 
@@ -5523,8 +5526,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             string result = WriteVariantValueToString(variant);
 
+            // An array field contains its elements (OPC 10000-6 5.3.4), not
+            // a ListOf Variant body.
             Assert.That(result, Does.Contain("TestValue"));
-            Assert.That(result, Does.Contain(expectedListName));
+            Assert.That(result, Does.Not.Contain(expectedListName));
         }
 
         [Test]
@@ -5535,7 +5540,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -5548,7 +5553,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -5561,7 +5566,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -5574,7 +5579,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -5591,7 +5596,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             string result = WriteVariantValueToString(variant);
 
-            Assert.That(result, Does.Contain("Matrix"));
+            Assert.That(result, Does.Not.Contain("Matrix"), "a matrix field is of the Matrix type (OPC 10000-6 5.3.4)");
             Assert.That(result, Does.Contain("Dimensions"));
             Assert.That(result, Does.Contain("Elements"));
         }
@@ -6816,7 +6821,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             string xml = sb.ToString();
             using var reader = XmlReader.Create(new StringReader(xml));
             using var decoder = new XmlDecoder(null, reader, messageContext);
-            return decoder.ReadVariantValue("TestValue", TypeInfo.Unknown);
+            // A structure field is written like the typed field of its type
+            // (OPC 10000-6 5.3.5), which is read with the field type.
+            return decoder.ReadVariantValue("TestValue", variant.TypeInfo);
         }
 
         private static Variant CreateVariantWithTypeInfo(object value, BuiltInType builtInType, int valueRank)

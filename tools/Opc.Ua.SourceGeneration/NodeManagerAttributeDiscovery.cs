@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -42,6 +41,12 @@ namespace Opc.Ua.SourceGeneration
     /// the source location of the attribute, used to report friendly
     /// diagnostics back at the user's class.
     /// </summary>
+    /// <remarks>
+    /// This is the output of a <c>ForAttributeWithMetadataName</c> transform,
+    /// which runs again on every compilation change. Every member therefore
+    /// compares by value (no arrays, no <see cref="Microsoft.CodeAnalysis.Location"/>)
+    /// so an unchanged attribute leaves the model generation cached.
+    /// </remarks>
     internal sealed record class NodeManagerAttributeDiscovery
     {
         /// <summary>
@@ -51,9 +56,9 @@ namespace Opc.Ua.SourceGeneration
         public NodeManagerAttributeBinding Binding { get; init; }
 
         /// <summary>
-        /// Location of the attribute application, used for diagnostics.
+        /// Location of the annotated class, used for diagnostics.
         /// </summary>
-        public Location Location { get; init; }
+        public LocationInfo Location { get; init; }
 
         /// <summary>
         /// <c>true</c> when the user-authored target class is declared
@@ -62,9 +67,89 @@ namespace Opc.Ua.SourceGeneration
         public bool IsPartial { get; init; }
 
         /// <summary>
+        /// Why the annotated class cannot host a generated node manager
+        /// (nested, generic, file-local or in the global namespace), or
+        /// <c>null</c> when it can.
+        /// </summary>
+        public string UnsupportedReason { get; init; }
+
+        /// <summary>
         /// Attribute expressions that Roslyn could not bind to constants.
         /// </summary>
-        public ImmutableArray<NodeManagerAttributeExpressionError> InvalidExpressions { get; init; }
+        public EquatableArray<NodeManagerAttributeExpressionError> InvalidExpressions { get; init; }
+            = EquatableArray<NodeManagerAttributeExpressionError>.Empty;
+
+        /// <summary>
+        /// True if the discovery cannot be bound: an unresolved expression,
+        /// an unsupported target or a class that is not partial. Such a
+        /// discovery is reported by <see cref="ReportDiagnostics"/> and
+        /// skipped by the model compilation.
+        /// </summary>
+        public bool IsInvalid =>
+            InvalidExpressions.Count > 0 ||
+            UnsupportedReason != null ||
+            !IsPartial;
+
+        /// <summary>
+        /// Reports why discoveries cannot be bound, at locations re-created
+        /// in the syntax trees of <paramref name="compilation"/> so that
+        /// <c>#pragma warning</c>, per-file severity configuration and
+        /// <c>#line</c> mapping apply.
+        /// </summary>
+        public static void ReportDiagnostics(
+            SourceProductionContext context,
+            IEnumerable<NodeManagerAttributeDiscovery> discoveries,
+            Compilation compilation)
+        {
+            foreach (NodeManagerAttributeDiscovery discovery in discoveries)
+            {
+                if (discovery == null)
+                {
+                    continue;
+                }
+                if (discovery.InvalidExpressions.Count > 0)
+                {
+                    string targetType = GetTargetTypeName(discovery.Binding);
+                    foreach (NodeManagerAttributeExpressionError error in
+                        discovery.InvalidExpressions)
+                    {
+                        context.ReportDiagnostic(
+                            Diagnostic.Create(
+                                SourceGenerator.NodeManagerArgumentUnresolved,
+                                error.Location.ToLocation(compilation),
+                                error.ArgumentName,
+                                error.Expression,
+                                targetType));
+                    }
+                    continue;
+                }
+                if (discovery.UnsupportedReason != null)
+                {
+                    context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.NodeManagerUnsupportedTarget,
+                            discovery.Location.ToLocation(compilation),
+                            GetTargetTypeName(discovery.Binding),
+                            discovery.UnsupportedReason));
+                    continue;
+                }
+                if (!discovery.IsPartial)
+                {
+                    context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.NodeManagerNotPartial,
+                            discovery.Location.ToLocation(compilation),
+                            GetTargetTypeName(discovery.Binding)));
+                }
+            }
+        }
+
+        private static string GetTargetTypeName(NodeManagerAttributeBinding binding)
+        {
+            return string.IsNullOrEmpty(binding.TargetNamespace)
+                ? binding.TargetClassName
+                : binding.TargetNamespace + "." + binding.TargetClassName;
+        }
 
         /// <summary>
         /// Predicate used by <see cref="SyntaxProvider.ForAttributeWithMetadataName"/>.
@@ -89,7 +174,7 @@ namespace Opc.Ua.SourceGeneration
             string design = attr.GetValue(nameof(NodeManagerAttributeBinding.Design));
             string[] additionalNamespaceUris = attr.GetStringArray(
                 nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris));
-            ImmutableArray<NodeManagerAttributeExpressionError> invalidExpressions =
+            EquatableArray<NodeManagerAttributeExpressionError> invalidExpressions =
                 GetInvalidExpressions(attr, context.SemanticModel, cancellationToken);
             bool generateFactory = IsNotDisabled(
                 attr,
@@ -106,7 +191,23 @@ namespace Opc.Ua.SourceGeneration
                     is TypeDeclarationSyntax tds &&
                     tds.Modifiers.Any(SyntaxKind.PartialKeyword));
 
-            Location location = symbol.Locations.FirstOrDefault() ?? Location.None;
+            LocationInfo location = LocationInfo.From(symbol.Locations.FirstOrDefault());
+
+            // The generated manager and factory are emitted as top-level
+            // types of the class's namespace, so a nested or generic class
+            // would get an unrelated companion type instead of its members.
+            // An empty namespace means "the model's namespace" to the
+            // generators, and a file-local class cannot be completed from
+            // another file, so those would get a companion type as well.
+            string unsupportedReason = symbol.ContainingType != null
+                ? "it is nested in '" + symbol.ContainingType.ToDisplayString() + "'"
+                : symbol.IsGenericType
+                    ? "it is generic"
+                    : symbol.ContainingNamespace?.IsGlobalNamespace != false
+                        ? "it is declared in the global namespace"
+                        : symbol.IsFileLocal
+                            ? "it is file-local"
+                            : null;
 
             return new NodeManagerAttributeDiscovery
             {
@@ -118,10 +219,15 @@ namespace Opc.Ua.SourceGeneration
                     Design = design,
                     GenerateFactory = generateFactory,
                     GenerateDefaultConstructor = generateDefaultConstructor,
-                    AdditionalNamespaceUris = additionalNamespaceUris
+                    // Equatable by content: a fresh array would make every
+                    // run's binding unequal to the previous one.
+                    AdditionalNamespaceUris = additionalNamespaceUris == null
+                        ? null
+                        : new EquatableArray<string>(additionalNamespaceUris)
                 },
                 Location = location,
                 IsPartial = isPartial,
+                UnsupportedReason = unsupportedReason,
                 InvalidExpressions = invalidExpressions
             };
         }
@@ -138,7 +244,7 @@ namespace Opc.Ua.SourceGeneration
                     .Any(p => p.Key == name && p.Value.Value is bool b && !b);
         }
 
-        private static ImmutableArray<NodeManagerAttributeExpressionError> GetInvalidExpressions(
+        private static EquatableArray<NodeManagerAttributeExpressionError> GetInvalidExpressions(
             AttributeData attribute,
             SemanticModel semanticModel,
             CancellationToken cancellationToken)
@@ -146,10 +252,10 @@ namespace Opc.Ua.SourceGeneration
             if (attribute?.ApplicationSyntaxReference?.GetSyntax(cancellationToken) is not
                 AttributeSyntax attributeSyntax)
             {
-                return [];
+                return EquatableArray<NodeManagerAttributeExpressionError>.Empty;
             }
 
-            var errors = ImmutableArray.CreateBuilder<NodeManagerAttributeExpressionError>();
+            var errors = new List<NodeManagerAttributeExpressionError>();
             AddInvalidExpression(
                 errors,
                 attribute,
@@ -166,11 +272,11 @@ namespace Opc.Ua.SourceGeneration
                 nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris),
                 isArray: true,
                 cancellationToken);
-            return errors.ToImmutable();
+            return EquatableArray<NodeManagerAttributeExpressionError>.From(errors);
         }
 
         private static void AddInvalidExpression(
-            ImmutableArray<NodeManagerAttributeExpressionError>.Builder errors,
+            List<NodeManagerAttributeExpressionError> errors,
             AttributeData attribute,
             AttributeSyntax attributeSyntax,
             SemanticModel semanticModel,
@@ -224,7 +330,7 @@ namespace Opc.Ua.SourceGeneration
                             errors.Add(new NodeManagerAttributeExpressionError(
                                 argumentName,
                                 elementExpression.ToString(),
-                                elementExpression.GetLocation()));
+                                LocationInfo.From(elementExpression.GetLocation())));
                         }
                     }
                     if (errors.Count > initialCount)
@@ -237,7 +343,7 @@ namespace Opc.Ua.SourceGeneration
             errors.Add(new NodeManagerAttributeExpressionError(
                 argumentName,
                 argumentSyntax.Expression.ToString(),
-                argumentSyntax.Expression.GetLocation()));
+                LocationInfo.From(argumentSyntax.Expression.GetLocation())));
         }
 
         private static ExpressionSyntax[] GetArrayElementExpressions(ExpressionSyntax expression)
@@ -258,5 +364,5 @@ namespace Opc.Ua.SourceGeneration
     internal sealed record class NodeManagerAttributeExpressionError(
         string ArgumentName,
         string Expression,
-        Location Location);
+        LocationInfo Location);
 }

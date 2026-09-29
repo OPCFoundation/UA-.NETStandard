@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
+using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -496,13 +497,32 @@ namespace Opc.Ua.Gds.Server
                 m_logger.CreatedCustomCertificateGroupNode(groupId, certificateGroup.Id);
             }
 
-            certificateGroup.DefaultTrustList?.Handle = new TrustList(
-                    certificateGroup.DefaultTrustList,
-                    new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
-                    new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
-                    new TrustList.SecureAccess(HasTrustListAccess),
-                    new TrustList.SecureAccess(HasTrustListAccess),
-                    Server.Telemetry);
+            if (certificateGroup.DefaultTrustList == null)
+            {
+                return;
+            }
+
+            var trustList = new TrustList(
+                certificateGroup.DefaultTrustList,
+                new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
+                new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
+                new TrustList.SecureAccess(HasTrustListAccess),
+                // the group trust list is shared by all applications of
+                // the group: SelfAdmin / ApplicationAdmin may only read it.
+                new TrustList.SecureAccess(
+                    (context, _) => AuthorizationHelper.HasTrustListWriteAccess(context)),
+                Server.Telemetry);
+            if (!string.Equals(groupId, "DefaultHttpsGroup", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
+            {
+                // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to an
+                // ApplicationCertificateType TrustList are validated with the
+                // OPC 10000-4 process. Issuers and CRLs come from the group's
+                // own TrustList content; the GDS security configuration only
+                // supplies the validation rules.
+                trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+            }
+            certificateGroup.DefaultTrustList.Handle = trustList;
         }
 
         /// <summary>
@@ -1439,109 +1459,222 @@ namespace Opc.Ua.Gds.Server
             // re-check immediately.
             DateTime computedValidityTime = DateTime.MinValue;
 
+            Certificate x509;
             try
             {
-                //create chain to validate Certificate against it
-                using var chain = new X509Chain();
-                chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
-                chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+                x509 = Certificate.FromRawData(certificate);
+            }
+            catch (Exception ex) when (ex is CryptographicException or ArgumentException)
+            {
+                // OPC 10000-12 §7.9.11: a Certificate that cannot be parsed
+                // (and so its signature not checked) is invalid, not revoked.
+                result.CertificateStatus = StatusCodes.BadCertificateInvalid;
+                return result;
+            }
 
+            // Caller-owned X509Certificate2 copies of the issuer store for the
+            // chains' ExtraStore; X509Chain does not dispose them.
+            X509Certificate2Collection? extraCerts = null;
+            try
+            {
                 //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
                 using ICertificateStore store = m_configuration.SecurityConfiguration
                     .TrustedIssuerCertificates
                     .OpenStore(Server.Telemetry);
+                using CertificateCollection issuerCerts = await EnumerateCertificatesAsync(
+                    store,
+                    cancellationToken).ConfigureAwait(false);
                 if (store != null)
                 {
-                    try
+                    X509CRLCollection crls = await store
+                        .EnumerateCRLsAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    DateTime nextUpdate = DateTime.MaxValue;
+                    foreach (X509CRL crl in crls)
                     {
-                        using CertificateCollection issuerCerts = await store
-                            .EnumerateAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        chain.ChainPolicy.ExtraStore
-                            .AddRange(issuerCerts.AsX509Certificate2Collection());
-
-                        X509CRLCollection crls = await store
-                            .EnumerateCRLsAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        DateTime nextUpdate = DateTime.MaxValue;
-                        foreach (X509CRL crl in crls)
+                        if (crl.NextUpdate != DateTime.MinValue &&
+                            crl.NextUpdate < nextUpdate)
                         {
-                            if (crl.NextUpdate != DateTime.MinValue &&
-                                crl.NextUpdate < nextUpdate)
-                            {
-                                nextUpdate = crl.NextUpdate;
-                            }
-                        }
-                        if (nextUpdate != DateTime.MaxValue)
-                        {
-                            computedValidityTime = nextUpdate;
+                            nextUpdate = crl.NextUpdate;
                         }
                     }
-                    finally
+                    if (nextUpdate != DateTime.MaxValue)
                     {
-                        store.Close();
+                        computedValidityTime = nextUpdate;
                     }
                 }
 
-                using var x509 = Certificate.FromRawData(certificate);
                 using X509Certificate2 x509Cert = x509.AsX509Certificate2();
-                if (chain.Build(x509Cert))
+                extraCerts = issuerCerts.AsX509Certificate2Collection();
+
+                // A certificate issued by a CA of this GDS is checked offline
+                // against the CRLs the GDS publishes in its issuer store: the
+                // GDS CA is normally not in the OS root store, so a platform
+                // chain reports UntrustedRoot for a good certificate and does
+                // not know the GDS CRLs.
+                using var chain = new X509Chain();
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+                chain.ChainPolicy.ExtraStore.AddRange(extraCerts);
+                chain.Build(x509Cert);
+
+                if (store != null &&
+                    chain.ChainElements.Count > 1 &&
+                    IsKnownIssuer(issuerCerts, chain.ChainElements[chain.ChainElements.Count - 1].Certificate))
+                {
+                    StatusCode chainStatus = GetFirstChainError(chain, ignoreUntrustedRoot: true);
+                    if (StatusCode.IsBad(chainStatus))
+                    {
+                        result.CertificateStatus = chainStatus;
+                        return result;
+                    }
+
+                    result.CertificateStatus = await CheckRevocationWithGdsCrlsAsync(
+                        store,
+                        chain,
+                        cancellationToken).ConfigureAwait(false);
+                    if (StatusCode.IsGood(result.CertificateStatus))
+                    {
+                        result.ValidityTime = computedValidityTime;
+                    }
+                    return result;
+                }
+
+                // A certificate of another CA: validate against the platform
+                // trust with online revocation (CRL distribution point / OCSP).
+                using var onlineChain = new X509Chain();
+                onlineChain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+                onlineChain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+                onlineChain.ChainPolicy.ExtraStore.AddRange(extraCerts);
+                if (onlineChain.Build(x509Cert))
                 {
                     result.CertificateStatus = StatusCodes.Good;
                     result.ValidityTime = computedValidityTime;
                     return result;
                 }
 
-                // Assessing certificateStatus for invalid chain
-                X509ChainStatusFlags status = chain.ChainStatus.FirstOrDefault().Status;
-                if ((status & X509ChainStatusFlags.NotTimeValid) ==
-                    X509ChainStatusFlags.NotTimeValid)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateTimeInvalid;
-                }
-                else if ((status & X509ChainStatusFlags.Revoked) ==
-                    X509ChainStatusFlags.Revoked)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateRevoked;
-                }
-                else if ((status & X509ChainStatusFlags.NotSignatureValid) ==
-                    X509ChainStatusFlags.NotSignatureValid)
+                // CertificateStatus is the first error encountered.
+                result.CertificateStatus = GetFirstChainError(onlineChain, ignoreUntrustedRoot: false);
+                if (StatusCode.IsGood(result.CertificateStatus))
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateInvalid;
-                }
-                else if ((status & X509ChainStatusFlags.NotValidForUsage) ==
-                    X509ChainStatusFlags.NotValidForUsage)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateUseNotAllowed;
-                }
-                else if ((status & X509ChainStatusFlags.RevocationStatusUnknown) ==
-                    X509ChainStatusFlags.RevocationStatusUnknown)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateRevocationUnknown;
-                }
-                else if ((status & X509ChainStatusFlags.PartialChain) ==
-                    X509ChainStatusFlags.PartialChain)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateChainIncomplete;
-                }
-                else if ((status & X509ChainStatusFlags.ExplicitDistrust) ==
-                    X509ChainStatusFlags.ExplicitDistrust)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateUntrusted;
-                }
-                else
-                {
-                    // If no matching found use StatusCodes.BadCertificateRevoked
-                    // Even though this is a no error = 0 case, the chain is invalid
-                    result.CertificateStatus = StatusCodes.BadCertificateRevoked;
                 }
             }
             catch (CryptographicException)
             {
-                result.CertificateStatus = StatusCodes.BadCertificateRevoked;
+                result.CertificateStatus = StatusCodes.BadCertificateInvalid;
+            }
+            finally
+            {
+                if (extraCerts != null)
+                {
+                    foreach (X509Certificate2 extraCert in extraCerts)
+                    {
+                        extraCert.Dispose();
+                    }
+                }
+                x509.Dispose();
             }
 
             return result;
+        }
+
+        private static async Task<CertificateCollection> EnumerateCertificatesAsync(
+            ICertificateStore? store,
+            CancellationToken cancellationToken)
+        {
+            if (store == null)
+            {
+                return new CertificateCollection();
+            }
+            return await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private static bool IsKnownIssuer(CertificateCollection issuerCerts, X509Certificate2 root)
+        {
+            foreach (Certificate issuer in issuerCerts)
+            {
+                if (string.Equals(issuer.Thumbprint, root.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks every certificate of the chain against the CRL of its issuer
+        /// in the GDS issuer store.
+        /// </summary>
+        private static async Task<StatusCode> CheckRevocationWithGdsCrlsAsync(
+            ICertificateStore store,
+            X509Chain chain,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = 0; ii < chain.ChainElements.Count - 1; ii++)
+            {
+                using var subject = Certificate.FromRawData(chain.ChainElements[ii].Certificate.RawData);
+                using var issuer = Certificate.FromRawData(chain.ChainElements[ii + 1].Certificate.RawData);
+                StatusCode status = await store
+                    .IsRevokedAsync(issuer, subject, cancellationToken)
+                    .ConfigureAwait(false);
+                if (status == StatusCodes.BadCertificateRevoked)
+                {
+                    return ii == 0 ? StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked;
+                }
+                if (StatusCode.IsBad(status))
+                {
+                    return ii == 0
+                        ? StatusCodes.BadCertificateRevocationUnknown
+                        : StatusCodes.BadCertificateIssuerRevocationUnknown;
+                }
+            }
+            return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Maps the first chain error to a StatusCode, or returns Good.
+        /// </summary>
+        private static StatusCode GetFirstChainError(X509Chain chain, bool ignoreUntrustedRoot)
+        {
+            foreach (X509ChainStatus chainStatus in chain.ChainStatus)
+            {
+                X509ChainStatusFlags status = chainStatus.Status;
+                if (status == X509ChainStatusFlags.NoError ||
+                    (ignoreUntrustedRoot && status == X509ChainStatusFlags.UntrustedRoot))
+                {
+                    continue;
+                }
+
+                if ((status & X509ChainStatusFlags.NotTimeValid) != 0)
+                {
+                    return StatusCodes.BadCertificateTimeInvalid;
+                }
+                if ((status & X509ChainStatusFlags.Revoked) != 0)
+                {
+                    return StatusCodes.BadCertificateRevoked;
+                }
+                if ((status & X509ChainStatusFlags.NotValidForUsage) != 0)
+                {
+                    return StatusCodes.BadCertificateUseNotAllowed;
+                }
+                if ((status & (X509ChainStatusFlags.RevocationStatusUnknown |
+                    X509ChainStatusFlags.OfflineRevocation)) != 0)
+                {
+                    return StatusCodes.BadCertificateRevocationUnknown;
+                }
+                if ((status & X509ChainStatusFlags.PartialChain) != 0)
+                {
+                    return StatusCodes.BadCertificateChainIncomplete;
+                }
+                if ((status & (X509ChainStatusFlags.ExplicitDistrust |
+                    X509ChainStatusFlags.UntrustedRoot)) != 0)
+                {
+                    return StatusCodes.BadCertificateUntrusted;
+                }
+                return StatusCodes.BadCertificateInvalid;
+            }
+            return StatusCodes.Good;
         }
 
         private ServiceResult OnGetCertificates(
@@ -1761,7 +1894,7 @@ namespace Opc.Ua.Gds.Server
             return [.. names];
         }
 
-        private ServiceResult OnStartNewKeyPairRequest(
+        internal ServiceResult OnStartNewKeyPairRequest(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1785,6 +1918,9 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // OPC 10000-12 §7.9.4: the private key password is an input
+                // and the private key an output, so the channel must be encrypted.
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
@@ -1817,8 +1953,10 @@ namespace Opc.Ua.Gds.Server
 
                 if (!resolvedTypeId.IsNull)
                 {
+                    // Only a concrete type of the group can be issued; an abstract
+                    // supertype (e.g. ApplicationCertificateType) is not valid.
                     if (!certificateGroup.CertificateTypes.Contains(certificateType =>
-                            Server.TypeTree.IsTypeOf(certificateType, resolvedTypeId)))
+                            certificateType == resolvedTypeId))
                     {
                         return result = new ServiceResult(
                             StatusCodes.BadInvalidArgument,
@@ -1948,7 +2086,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private async ValueTask<StartSigningRequestMethodStateResult> OnStartSigningRequestAsync(
+        internal async ValueTask<StartSigningRequestMethodStateResult> OnStartSigningRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1968,6 +2106,8 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // OPC 10000-12 §7.9.3: shall be called from an encrypted SecureChannel.
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
@@ -2002,8 +2142,10 @@ namespace Opc.Ua.Gds.Server
 
                 if (!resolvedTypeId.IsNull)
                 {
+                    // Only a concrete type of the group can be issued; an abstract
+                    // supertype (e.g. ApplicationCertificateType) is not valid.
                     if (!certificateGroup.CertificateTypes.Contains(certificateType =>
-                            Server.TypeTree.IsTypeOf(certificateType, resolvedTypeId)))
+                            certificateType == resolvedTypeId))
                     {
                         result.ServiceResult = new ServiceResult(
                             StatusCodes.BadInvalidArgument,
@@ -2084,7 +2226,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private async ValueTask<FinishRequestMethodStateResult> OnFinishRequestAsync(
+        internal async ValueTask<FinishRequestMethodStateResult> OnFinishRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -2092,6 +2234,9 @@ namespace Opc.Ua.Gds.Server
             NodeId requestId,
             CancellationToken cancellationToken)
         {
+            // OPC 10000-12 §7.9.5: the private key is returned, so the
+            // channel must be encrypted (Bad_SecurityModeInsufficient).
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
@@ -2524,7 +2669,11 @@ namespace Opc.Ua.Gds.Server
 
             var result = new RequestAccessTokenMethodStateResult();
 
-            ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+            ArrayOf<Variant> auditInputs =
+            [
+                Diagnostics.AuditEvents.RedactUserIdentityToken(identityToken),
+                resourceId
+            ];
             IAccessTokenProvider provider = GetAccessTokenProvider(
                 context,
                 objectId,
@@ -2534,9 +2683,15 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // Bind the request to the session identity so the configured
+                // access control applies and the token subject is the caller.
+                IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 #pragma warning disable CS0618 // Legacy wire method is intentionally kept functional.
-                result.AccessToken = await provider.RequestAccessTokenAsync(
-                    identityToken, resourceId, cancellationToken).ConfigureAwait(false);
+                result.AccessToken = provider is ICallerIdentityAccessTokenProvider callerAware
+                    ? await callerAware.RequestAccessTokenAsync(
+                        identityToken, resourceId, callerIdentity, cancellationToken).ConfigureAwait(false)
+                    : await provider.RequestAccessTokenAsync(
+                        identityToken, resourceId, cancellationToken).ConfigureAwait(false);
 #pragma warning restore CS0618
             }
             catch (Exception ex)
@@ -2578,8 +2733,8 @@ namespace Opc.Ua.Gds.Server
             {
                 IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 
-                (ByteString serviceData, Guid requestId) = provider is AuthorizationServiceManager manager
-                    ? await manager.StartRequestTokenAsync(
+                (ByteString serviceData, Guid requestId) = provider is ICallerIdentityAccessTokenProvider callerAware
+                    ? await callerAware.StartRequestTokenAsync(
                         resourceId,
                         policyId,
                         requestorData,
@@ -2625,8 +2780,10 @@ namespace Opc.Ua.Gds.Server
             [
                 requestId,
                 requestedRoles,
-                Variant.FromStructure(userIdentityToken),
-                Variant.FromStructure(userTokenSignature)
+                // The token secret and the proof-of-possession signature must
+                // not be published to audit subscribers.
+                Diagnostics.AuditEvents.RedactUserIdentityToken(userIdentityToken),
+                Variant.Null
             ];
 
             IAccessTokenProvider provider = GetAccessTokenProvider(
@@ -2739,6 +2896,32 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+                if (!string.IsNullOrEmpty(securityPolicyUri) && publicKey.IsEmpty)
+                {
+                    // OPC 10000-12 §8.5.5: if the SecurityPolicyUri is provided
+                    // the PublicKey shall be provided.
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "A PublicKey is required when a SecurityPolicyUri is provided.");
+                }
+                if (!publicKey.IsEmpty && string.IsNullOrEmpty(securityPolicyUri))
+                {
+                    // OPC 10000-12 §8.5.5: if the PublicKey is provided the
+                    // SecurityPolicyUri shall be provided.
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "A SecurityPolicyUri is required when a PublicKey is provided.");
+                }
+                if (!publicKey.IsEmpty)
+                {
+                    // OPC 10000-12 §8.5.5 / §8.5.6: a PublicKey asks for the secret
+                    // encrypted with it (RsaEncryptedSecret/EccEncryptedSecret).
+                    // Encrypting the secret is not implemented, so reject the
+                    // request instead of returning the secret in plain text.
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Encrypting the KeyCredential secret with a PublicKey is not supported.");
+                }
                 ByteString clientCertificateFingerprint =
                     AuthorizationHelper.GetClientCertificateFingerprint(context);
                 NodeId applicationId = ResolveKeyCredentialApplicationId(m_database, applicationUri);

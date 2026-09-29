@@ -16,6 +16,44 @@ target version `1.02.0`, publication 2025-12-05.
 
 For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
 
+## Contents
+
+- [1. Hosting a WoT Connectivity server](#1-hosting-a-wot-connectivity-server)
+  - [Lifecycle](#lifecycle)
+  - [Mirroring assets into the WoT xRegistry](#mirroring-assets-into-the-wot-xregistry)
+- [2. Writing a custom `IWotAssetProvider`](#2-writing-a-custom-iwotassetprovider)
+  - [Event affordances](#event-affordances)
+- [3. Using the client](#3-using-the-client)
+  - [FileSystem extensions](#filesystem-extensions)
+  - [Method invocation and server interoperability](#method-invocation-and-server-interoperability)
+- [4. Persistence limits](#4-persistence-limits)
+- [5. Name validation](#5-name-validation)
+- [6. Endpoint policy](#6-endpoint-policy)
+  - [The generated Thing Description is untrusted too](#the-generated-thing-description-is-untrusted-too)
+- [7. Error reporting](#7-error-reporting)
+- [8. Security: management access policy](#8-security-management-access-policy)
+- [9. Limitations and known issues](#9-limitations-and-known-issues)
+- [10. References](#10-references)
+- [11. WoT Connectivity 1.1 registry and materialization (preview)](#11-wot-connectivity-11-registry-and-materialization-preview)
+  - [11.1 Architecture](#111-architecture)
+  - [11.2 Registry service and persistence](#112-registry-service-and-persistence)
+  - [11.3 Materialization coordinator](#113-materialization-coordinator)
+  - [11.4 Binder integration seam](#114-binder-integration-seam)
+  - [11.5 Legacy 1.02 compatibility](#115-legacy-102-compatibility)
+  - [11.6 Protocol and projection scope](#116-protocol-and-projection-scope)
+  - [11.7 Browseable registry projection and management Methods](#117-browseable-registry-projection-and-management-methods)
+  - [11.8 Binding-vocabulary alignment (NodeSet2 ↔ WoT)](#118-binding-vocabulary-alignment-nodeset2--wot)
+  - [11.9 Registry client](#119-registry-client)
+- [12. Conformance to WoT Connectivity 1.1](#12-conformance-to-wot-connectivity-11)
+  - [12.1 Model identity](#121-model-identity)
+  - [12.2 Conformance units and profiles](#122-conformance-units-and-profiles)
+  - [12.3 Grouping](#123-grouping)
+  - [12.4 Projection documents and the View NodeClass](#124-projection-documents-and-the-view-nodeclass)
+  - [12.4.1 Parent placement through `uav:componentOf`](#1241-parent-placement-through-uavcomponentof)
+  - [12.4.2 Event notifier behaviour in projection Views](#1242-event-notifier-behaviour-in-projection-views)
+  - [12.5 Portable identifiers](#125-portable-identifiers)
+  - [12.6 The 1.02 asset surface](#126-the-102-asset-surface)
+
 ---
 
 ## 1. Hosting a WoT Connectivity server

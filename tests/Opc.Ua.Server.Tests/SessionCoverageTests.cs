@@ -225,6 +225,39 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void UpdateLocaleIdsDropsNullLocaleIds()
+        {
+            using ServerSession session = CreateSession(CreateEndpoint());
+
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(new string[] { null!, "de-DE" })), Is.True);
+            Assert.That(session.PreferredLocales, Has.Length.EqualTo(1));
+            Assert.That(session.PreferredLocales[0], Is.EqualTo("de-DE"));
+        }
+
+        /// <summary>
+        /// SessionDiagnostics.LocaleIds reports the LocaleIds as specified by the client,
+        /// null entries included (Part 5 12.11); only PreferredLocales is filtered.
+        /// </summary>
+        [Test]
+        public void UpdateLocaleIdsKeepsClientLocaleIdsInDiagnostics()
+        {
+            using ServerSession session = CreateSession(CreateEndpoint());
+
+            string[] first = [null!, "de-DE"];
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(first)), Is.True);
+            string[] diagnostics = [.. session.SessionDiagnostics.LocaleIds];
+            Assert.That(diagnostics, Is.EqualTo(first));
+
+            // a change of the null entries alone still reaches the diagnostics.
+            string[] second = ["de-DE", null!];
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(second)), Is.False);
+            diagnostics = [.. session.SessionDiagnostics.LocaleIds];
+            Assert.That(diagnostics, Is.EqualTo(second));
+            Assert.That(session.PreferredLocales, Has.Length.EqualTo(1));
+            Assert.That(session.PreferredLocales[0], Is.EqualTo("de-DE"));
+        }
+
+        [Test]
         public void ValidateRequestWithNullHeaderThrows()
         {
             using ServerSession session = CreateSession(CreateEndpoint());

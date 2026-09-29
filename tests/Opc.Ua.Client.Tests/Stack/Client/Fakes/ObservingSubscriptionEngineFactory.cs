@@ -130,6 +130,9 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             public int OperationTimeout => context.OperationTimeout;
 
             /// <inheritdoc/>
+            public double SessionTimeout => context.SessionTimeout;
+
+            /// <inheritdoc/>
             public ServerState ServerState => context.ServerState;
 
             /// <inheritdoc/>

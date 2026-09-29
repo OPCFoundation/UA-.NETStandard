@@ -16,9 +16,8 @@
 # would win. Flip `informational` to false only if you also retire the
 # in-pipeline patch gate.
 #
-# The upload itself is optional on both CI systems and is skipped when the
-# CODECOV_TOKEN secret is absent (as it is on fork pull requests). See
-# `enableCodecov` in azure-pipelines.yml and `ENABLE_CODECOV` in
+# The upload itself is optional and is skipped when the CODECOV_TOKEN secret
+# is absent (as it is on fork pull requests). See `ENABLE_CODECOV` in
 # .github/workflows/buildandtest.yml.
 coverage:
   precision: 2
@@ -46,10 +45,8 @@ ignore:
   - "**/bin/**"
   - "**/*.g.cs"
 
-# Each CI system uploads the report it merged, under its own flag. The two
-# matrices are deliberately different - Azure runs the Windows fast-PR legs,
-# Actions runs the full ubuntu matrix - so carrying the flags keeps the two
-# uploads from being mistaken for a coverage swing.
+# Each upload carries a flag (`actions`), and flags carry forward so a run that
+# uploads fewer legs is not mistaken for a coverage swing.
 flag_management:
   default_rules:
     carryforward: true

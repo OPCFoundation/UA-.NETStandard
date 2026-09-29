@@ -3382,8 +3382,8 @@ namespace Opc.Ua.Server.Tests
                     await Task.Delay(300).ConfigureAwait(false);
 
                     // Publish from session B. Because the anonymous identity cannot read the
-                    // restricted node, no DataChangeNotification for client handle 1 should
-                    // appear in the response.
+                    // restricted node, session B must not receive the value; the denied access
+                    // is reported as a bad status instead (Part 4 5.13.2.1).
                     headerB.Timestamp = DateTimeUtc.Now;
                     PublishResponse publishB2 = await servicesB.PublishAsync(
                         headerB,
@@ -3394,11 +3394,18 @@ namespace Opc.Ua.Server.Tests
                         }]).ConfigureAwait(false);
                     ServerFixtureUtils.ValidateResponse(publishB2.ResponseHeader);
 
-                    Assert.That(
-                        HasDataChangeNotificationForClientHandle(publishB2.NotificationMessage, 1),
-                        Is.False,
-                        "After re-activation as anonymous, session B must NOT receive notifications " +
-                        "for the AuthenticatedUser-restricted node.");
+                    foreach (DataValue value in GetDataChangeValuesForClientHandle(
+                        publishB2.NotificationMessage, 1))
+                    {
+                        Assert.That(
+                            value.StatusCode == StatusCodes.BadUserAccessDenied ||
+                                value.StatusCode == StatusCodes.BadNotReadable,
+                            Is.True,
+                            "After re-activation as anonymous, session B must only receive an access " +
+                            $"error for the AuthenticatedUser-restricted node, got {value.StatusCode}.");
+                        Assert.That(value.WrappedValue.IsNull, Is.True,
+                            "The restricted value must not be delivered to the anonymous session.");
+                    }
 
                     // Clean up.
                     headerB.Timestamp = DateTimeUtc.Now;
@@ -3456,6 +3463,32 @@ namespace Opc.Ua.Server.Tests
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns the values of all <see cref="MonitoredItemNotification"/>s with the specified
+        /// <paramref name="clientHandle"/> in the given <paramref name="message"/>.
+        /// </summary>
+        private static List<DataValue> GetDataChangeValuesForClientHandle(
+            NotificationMessage message,
+            uint clientHandle)
+        {
+            var values = new List<DataValue>();
+            foreach (ExtensionObject extObj in message.NotificationData)
+            {
+                if (extObj.TryGetValue(out DataChangeNotification dcn))
+                {
+                    foreach (MonitoredItemNotification item in dcn.MonitoredItems)
+                    {
+                        if (item.ClientHandle == clientHandle)
+                        {
+                            values.Add(item.Value);
+                        }
+                    }
+                }
+            }
+
+            return values;
         }
     }
 }

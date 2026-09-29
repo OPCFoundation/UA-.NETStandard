@@ -17,8 +17,7 @@
     `UA.slnx` and - if it's not a test/fuzz - it automatically flows
     into the preview build.
 
-    Both `.azurepipelines/preview.yml` and
-    `.github/workflows/nuget-publish.yml` invoke this script before
+    `.github/workflows/nuget-publish.yml` invokes this script before
     `dotnet restore` / `build` / `pack`.
 
 .PARAMETER OutputPath

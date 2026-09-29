@@ -513,6 +513,128 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
         }
 
+        /// <summary>
+        /// A known type that is not a ReferenceType (ObjectType, DataType) is not a valid
+        /// ReferenceTypeId (Part 4 7.38.2 Bad_ReferenceTypeIdInvalid).
+        /// </summary>
+        [TestCase(ObjectTypes.BaseObjectType)]
+        [TestCase(DataTypes.BaseDataType)]
+        public async Task NodeManagementWithNonReferenceTypeIdReturnsBadReferenceTypeIdInvalidAsync(
+            uint typeId)
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext();
+            var referenceTypeId = new NodeId(typeId);
+
+            (ArrayOf<StatusCode> addResults, _) = await sut.AddReferencesAsync(
+                ctx,
+                new AddReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server,
+                        TargetNodeClass = NodeClass.Object
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<StatusCode> deleteResults, _) = await sut.DeleteReferencesAsync(
+                ctx,
+                new DeleteReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<AddNodesResult> addNodesResults, _) = await sut.AddNodesAsync(
+                ctx,
+                new AddNodesItem[]
+                {
+                    new()
+                    {
+                        ParentNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        BrowseName = new QualifiedName("Test", 2),
+                        NodeClass = NodeClass.Object
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(addResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(deleteResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(addNodesResults[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+        }
+
+        /// <summary>
+        /// No Reference of an abstract ReferenceType shall exist (Part 3 5.3.1), so AddNodes,
+        /// AddReferences and DeleteReferences reject abstract ReferenceTypeIds with
+        /// Bad_ReferenceTypeIdInvalid.
+        /// </summary>
+        [TestCase(ReferenceTypes.References)]
+        [TestCase(ReferenceTypes.HierarchicalReferences)]
+        [TestCase(ReferenceTypes.NonHierarchicalReferences)]
+        [TestCase(ReferenceTypes.HasChild)]
+        [TestCase(ReferenceTypes.Aggregates)]
+        public async Task NodeManagementWithAbstractReferenceTypeIdReturnsBadReferenceTypeIdInvalidAsync(
+            uint typeId)
+        {
+            IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
+            OperationContext ctx = CreateContext();
+            var referenceTypeId = new NodeId(typeId);
+
+            (ArrayOf<StatusCode> addResults, _) = await sut.AddReferencesAsync(
+                ctx,
+                new AddReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server,
+                        TargetNodeClass = NodeClass.Object
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<AddNodesResult> addNodesResults, _) = await sut.AddNodesAsync(
+                ctx,
+                new AddNodesItem[]
+                {
+                    new()
+                    {
+                        ParentNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        BrowseName = new QualifiedName("AbstractReferenceTest", 2),
+                        NodeClass = NodeClass.Object
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<StatusCode> deleteResults, _) = await sut.DeleteReferencesAsync(
+                ctx,
+                new DeleteReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(addResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(addNodesResults[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(deleteResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+        }
+
         [Test]
         public async Task DeleteReferencesAsync_NullItem_ReturnsBadNothingToDoAsync()
         {

@@ -355,7 +355,7 @@ namespace Opc.Ua.SourceGeneration
               <xs:complexType name="Matrix">
                 <xs:sequence>
                   <xs:element name="Dimensions" type="tns:ListOfInt32" minOccurs="0" nillable="true" />
-                  <xs:element name="Value" minOccurs="0" nillable="true">
+                  <xs:element name="Elements" minOccurs="0" nillable="true">
                     <xs:complexType mixed="false">
                       <xs:choice maxOccurs="unbounded">
                         <xs:element name="Boolean" type="xs:boolean" minOccurs="0" />
@@ -387,6 +387,7 @@ namespace Opc.Ua.SourceGeneration
                         <xs:element name="LocalizedText" type="tns:LocalizedText" minOccurs="0" />
                         <xs:element name="ExtensionObject" type="tns:ExtensionObject" minOccurs="0" />
                         <xs:element name="Variant" type="tns:Variant" minOccurs="0" />
+                        <xs:any namespace="##other" minOccurs="0" processContents="lax" />
                       </xs:choice>
                     </xs:complexType>
                   </xs:element>
@@ -535,7 +536,7 @@ namespace Opc.Ua.SourceGeneration
               {{Tokens.Documentation}}
               <xs:sequence>
                 <xs:element name="SwitchField" type="xs:unsignedInt" minOccurs="0" />
-                <xs:choice>
+                <xs:choice minOccurs="0">
                   {{Tokens.ListOfFields}}
                 </xs:choice>
               </xs:sequence>

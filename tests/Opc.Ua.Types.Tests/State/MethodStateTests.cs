@@ -315,6 +315,35 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public async Task CallAsyncPassesObjectIdToSyncOnCallMethod2HandlerAsync()
+        {
+            var method = new MethodState(null)
+            {
+                Executable = true,
+                UserExecutable = true
+            };
+
+            NodeId receivedObjectId = NodeId.Null;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                receivedObjectId = objectId;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+            var expectedObjectId = new NodeId(4711, 2);
+
+            ServiceResult result = await method.CallAsync(
+                m_context, expectedObjectId, inputArgs, argumentErrors, outputArgs)
+                .ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            Assert.That(receivedObjectId, Is.EqualTo(expectedObjectId));
+        }
+
+        [Test]
         public void CallMethodWhenNotExecutableReturnsBadNotExecutable()
         {
             var method = new MethodState(null)
