@@ -677,9 +677,20 @@ namespace Opc.Ua
             try
             {
                 byte encodingByte = SafeReadByte();
+                int typeId = encodingByte & (byte)VariantArrayEncodingBits.TypeMask;
+
+                // The built-in type ids 26 through 31 are reserved: decoders
+                // shall accept them and assume the value is a ByteString
+                // (OPC 10000-6 5.2.2.16). The ids 26-29 the SDK assigns to its
+                // pseudo types (Number, Integer, UInteger, Enumeration) are
+                // never written to the wire (Enumeration is sent as Int32).
+                if (typeId is >= kFirstReservedVariantTypeId and <= kLastReservedVariantTypeId)
+                {
+                    typeId = (int)BuiltInType.ByteString;
+                }
+
                 var typeInfo = TypeInfo.Create(
-                    (BuiltInType)
-                        (encodingByte & (byte)VariantArrayEncodingBits.TypeMask),
+                    (BuiltInType)typeId,
                     (encodingByte & (byte)VariantArrayEncodingBits.Array) == 0 ?
                         ValueRanks.Scalar :
                     (encodingByte & (byte)VariantArrayEncodingBits.ArrayDimensions) == 0 ?
@@ -2837,6 +2848,10 @@ namespace Opc.Ua
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.
         private const int kMaxPreallocatedArrayBytes = 16 * 1024;
+
+        // The reserved Variant built-in type ids, OPC 10000-6 5.2.2.16.
+        private const int kFirstReservedVariantTypeId = 26;
+        private const int kLastReservedVariantTypeId = 31;
         private readonly bool m_hasBuffer;
         private bool m_baseStreamExposed;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryDecoder>();

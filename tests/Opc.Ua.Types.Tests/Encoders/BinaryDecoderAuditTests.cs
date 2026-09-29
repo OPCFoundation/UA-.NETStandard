@@ -238,6 +238,57 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        [TestCase(26)]
+        [TestCase(27)]
+        [TestCase(28)]
+        [TestCase(29)]
+        [TestCase(30)]
+        [TestCase(31)]
+        public void ReservedVariantTypeIdScalarIsDecodedAsByteString(int typeId)
+        {
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)typeId);
+                w.Write(3);
+                w.Write(new byte[] { 1, 2, 3 });
+                w.Write((byte)0x2A);
+            });
+
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            Variant value = decoder.ReadVariant(null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ByteString));
+                Assert.That(value.GetByteString().ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+                // The rest of the message is not desynchronized.
+                Assert.That(decoder.ReadByte(null), Is.EqualTo(0x2A));
+            });
+        }
+
+        [Test]
+        [TestCase(26)]
+        [TestCase(29)]
+        [TestCase(31)]
+        public void ReservedVariantTypeIdArrayIsDecodedAsByteStringArray(int typeId)
+        {
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)(typeId | 0x80));
+                w.Write(1);
+                w.Write(3);
+                w.Write(new byte[] { 1, 2, 3 });
+            });
+
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            Variant value = decoder.ReadVariant(null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ByteString));
+                Assert.That(value.GetByteStringArray().Count, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
         public void VariantMatrixWithMoreThan32DimensionsIsRejected()
         {
             // Int32 | Array | ArrayDimensions, one value, 33 dimensions of 1:
