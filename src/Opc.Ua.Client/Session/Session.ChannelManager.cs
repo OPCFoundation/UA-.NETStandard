@@ -348,7 +348,7 @@ namespace Opc.Ua.Client
                             channel,
                             configuration,
                             endpoint,
-                            probeContext,
+                            channel.MessageContext,
                             engineFactory,
                             timeProvider,
                             securityPolicies);
