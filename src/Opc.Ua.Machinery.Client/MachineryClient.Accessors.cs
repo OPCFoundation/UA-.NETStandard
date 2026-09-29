@@ -63,8 +63,12 @@ namespace Opc.Ua.Machinery.Client
             NodeId machine,
             CancellationToken cancellationToken = default)
         {
-            ushort jobsNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Jobs.Namespaces.MachineryJobs);
+            if (!TryGetNamespaceIndex(
+                Opc.Ua.Machinery.Jobs.Namespaces.MachineryJobs,
+                out ushort jobsNamespaceIndex))
+            {
+                return null;
+            }
             NodeId control = await ResolvePathAsync(
                 machine,
                 cancellationToken,
@@ -104,8 +108,12 @@ namespace Opc.Ua.Machinery.Client
             NodeId machine,
             CancellationToken cancellationToken = default)
         {
-            ushort resultNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Result.Namespaces.MachineryResult);
+            if (!TryGetNamespaceIndex(
+                Opc.Ua.Machinery.Result.Namespaces.MachineryResult,
+                out ushort resultNamespaceIndex))
+            {
+                return new ValueTask<NodeId>(NodeId.Null);
+            }
             return ResolveChildAsync(
                 machine,
                 new QualifiedName(ResultBrowseNames.ResultManagement, resultNamespaceIndex),

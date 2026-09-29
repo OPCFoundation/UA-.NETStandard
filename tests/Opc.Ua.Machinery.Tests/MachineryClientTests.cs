@@ -272,6 +272,34 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public async Task OptionalPartsTheServerDoesNotLoadAreReportedAsAbsentAsync()
+        {
+            await using var fixture = new MachineryServerFixture(MachineryParts.BuildingBlocks);
+            await fixture.StartAsync().ConfigureAwait(false);
+            IMachineHandle<BaseObjectState> bare = await fixture.CreateBuildContext()
+                .AddMachine(new QualifiedName("BuildingBlocksOnly"))
+                .BuildAsync()
+                .ConfigureAwait(false);
+            Mock<ISession> session = MachineryInProcessSessionBridge.Build(fixture);
+            var client = new MachineryClient(session.Object, NUnitTelemetryContext.Create());
+
+            NamespaceTable namespaceUris = fixture.Manager.Server.NamespaceUris;
+            Assert.That(
+                namespaceUris.GetIndex(Opc.Ua.Machinery.Jobs.Namespaces.MachineryJobs),
+                Is.LessThan(0),
+                "The server must not publish the Jobs model for this test to mean anything.");
+            Assert.That(
+                namespaceUris.GetIndex(Opc.Ua.Machinery.Result.Namespaces.MachineryResult),
+                Is.LessThan(0));
+
+            Assert.That(await client.JobManagementAsync(bare.NodeId).ConfigureAwait(false), Is.Null);
+            Assert.That((await client.ResolveResultManagementAsync(bare.NodeId).ConfigureAwait(false)).IsNull, Is.True);
+            Assert.That(await client.ResultManagementAsync(bare.NodeId).ConfigureAwait(false), Is.Null);
+            Assert.That((await client.ReadJobOrdersAsync(bare.NodeId).ConfigureAwait(false)).Count, Is.Zero);
+            Assert.That((await client.ReadJobResponsesAsync(bare.NodeId).ConfigureAwait(false)).Count, Is.Zero);
+        }
+
+        [Test]
         public void DownloadResultRequiresAResultId()
         {
             Assert.ThrowsAsync<ArgumentException>(

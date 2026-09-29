@@ -277,6 +277,18 @@ namespace Opc.Ua.Machinery.Client
         }
 
         /// <summary>
+        /// Looks up the index of a namespace the server may legitimately not
+        /// publish, such as an optional part of the Machinery series, so a
+        /// caller can report "not published" instead of failing.
+        /// </summary>
+        internal bool TryGetNamespaceIndex(string namespaceUri, out ushort namespaceIndex)
+        {
+            int index = Session.NamespaceUris.GetIndex(namespaceUri);
+            namespaceIndex = index < 0 ? (ushort)0 : (ushort)index;
+            return index >= 0;
+        }
+
+        /// <summary>
         /// Resolves the OPC 40001-1 <c>MachineryBuildingBlocks</c> organizer
         /// of a machinery item, or <see cref="NodeId.Null"/> when the item
         /// publishes none.

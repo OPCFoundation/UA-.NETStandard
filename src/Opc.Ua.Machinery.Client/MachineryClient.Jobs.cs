@@ -159,8 +159,15 @@ namespace Opc.Ua.Machinery.Client
             string listBrowseName,
             CancellationToken cancellationToken)
         {
-            ushort jobsNamespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Jobs.Namespaces.MachineryJobs);
+            if (!TryGetNamespaceIndex(
+                Opc.Ua.Machinery.Jobs.Namespaces.MachineryJobs,
+                out ushort jobsNamespaceIndex))
+            {
+                return Variant.Null;
+            }
+
+            // OPC 40001-3 composes the ISA-95 Job Control V2 model, so a
+            // server that publishes the Jobs model without it is broken.
             ushort isa95NamespaceIndex = NamespaceIndexOf(V2.Namespaces.ISA95JobControlV2);
             NodeId list = await ResolvePathAsync(
                 machine,
