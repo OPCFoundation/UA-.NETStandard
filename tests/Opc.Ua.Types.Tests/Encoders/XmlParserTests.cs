@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
@@ -1051,6 +1052,120 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadExtensionObjectBodyUnknownTypeRejectsDeeplyNestedBody()
+        {
+            var mockFactory = new Mock<IEncodeableFactory>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
+            IEncodeableType type = null;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+                .Returns(false);
+
+            string xml = "<CustomElement xmlns=\"http://test.namespace\">" +
+                CreateNestedXml(100_000) +
+                "</CustomElement>";
+            using var decoder = new XmlParser(xml, messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadExtensionObjectBody(new ExpandedNodeId(999)));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadXmlElementRejectsDeeplyNestedContent()
+        {
+            // ImportNode(deep) recursed once per level and exhausted the stack.
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<XmlElement xmlns=\"{Ns}\">" + CreateNestedXml(100_000) + "</XmlElement>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadXmlElement("XmlElement"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadXmlElementEnforcesMaxEncodingNestingLevelsAsElementDepth()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            ctx.MaxEncodingNestingLevels = 5;
+            string xml = $"<ListOfXmlElement xmlns=\"{Ns}\">" +
+                "<XmlElement>" + CreateNestedXml(6) + "</XmlElement>" +
+                "<XmlElement>" + CreateNestedXml(7) + "</XmlElement>" +
+                "</ListOfXmlElement>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            decoder.ReadStartElement();
+
+            XmlElement value = decoder.ReadXmlElement("XmlElement");
+            Assert.That(value.ToXElement().Descendants().Count(), Is.EqualTo(5));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadXmlElement("XmlElement"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadXmlElementKeepsNamespaceOfPrefixedAttributes()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<XmlElement xmlns=\"{Ns}\">" +
+                "<v xmlns:p=\"urn:p\" p:a=\"1\" b=\"2\"><p:c>text</p:c></v>" +
+                "</XmlElement>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            System.Xml.Linq.XElement element = decoder.ReadXmlElement("XmlElement").ToXElement();
+
+            Assert.That(
+                element.Attribute(System.Xml.Linq.XName.Get("a", "urn:p"))?.Value,
+                Is.EqualTo("1"));
+            Assert.That(element.Attribute("b")?.Value, Is.EqualTo("2"));
+            Assert.That(
+                element.Element(System.Xml.Linq.XName.Get("c", "urn:p"))?.Value,
+                Is.EqualTo("text"));
+        }
+
+        [Test]
+        public void ReadStringRejectsNestedElements()
+        {
+            // InnerText flattened the markup (and recursed once per level).
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<String xmlns=\"{Ns}\">a" + CreateNestedXml(100_000) + "b</String>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadString("String"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadInt32RejectsNestedElements()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<Int32 xmlns=\"{Ns}\">1<b>2</b></Int32>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadInt32("Int32"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadStringJoinsTextAndCDataNodes()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<String xmlns=\"{Ns}\">a<!-- c --><![CDATA[<b>]]> c</String>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            Assert.That(decoder.ReadString("String"), Is.EqualTo("a<b> c"));
+        }
+
+        [Test]
         public void ReadExtensionObjectWhenFieldMissingReturnsNull()
         {
             // Arrange
@@ -1972,6 +2087,20 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             return ServiceMessageContext.CreateEmpty(telemetryContext);
+        }
+
+        private static string CreateNestedXml(int depth)
+        {
+            var builder = new StringBuilder(depth * 7);
+            for (int ii = 0; ii < depth; ii++)
+            {
+                builder.Append("<a>");
+            }
+            for (int ii = 0; ii < depth; ii++)
+            {
+                builder.Append("</a>");
+            }
+            return builder.ToString();
         }
 
         private static string CreateDiagnosticInfoWithDepth(int depth)

@@ -728,12 +728,10 @@ namespace Opc.Ua
                     context.Consumed.Add(childIdx);
                     context.Cursor = childIdx + 1;
 
-                    var document = new XmlDocument();
-                    var imported = (System.Xml.XmlElement)document.ImportNode(found, true);
-                    document.AppendChild(imported);
+                    string outerXml = ReadXmlElementContent(fieldName, found);
 
                     EndField(fieldName);
-                    return (XmlElement)imported;
+                    return XmlElement.From(outerXml);
                 }
 
                 EndField(fieldName);
@@ -2499,27 +2497,51 @@ namespace Opc.Ua
             }
 
             // Unknown type: consume the child element and return as XML.
-            try
-            {
-                context.Consumed.Add(bodyChildIdx);
-                context.Cursor = bodyChildIdx + 1;
+            context.Consumed.Add(bodyChildIdx);
+            context.Cursor = bodyChildIdx + 1;
 
-                var xmlElement = XmlElement.From(bodyChild.OuterXml);
-                if (!xmlElement.IsValid)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Invalid xml in extension object body: {0}",
-                        xmlElement);
-                }
-                return new ExtensionObject(typeId, xmlElement);
-            }
-            catch (Exception ae) when (ae is not ServiceResultException)
+            var xmlElement = XmlElement.From(ReadXmlElementContent(null, bodyChild));
+            if (!xmlElement.IsValid)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Failed to decode xml extension object body: {0}",
-                    ae.Message);
+                    "Invalid xml in extension object body: {0}",
+                    xmlElement);
+            }
+            return new ExtensionObject(typeId, xmlElement);
+        }
+
+        /// <summary>
+        /// Returns an element as raw XML, bounded by MaxStringLength and by the
+        /// XML element depth limit. The element is copied through a reader
+        /// because ImportNode(deep) and OuterXml recurse once per element level.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private string ReadXmlElementContent(
+            string? fieldName,
+            System.Xml.XmlElement element,
+            [CallerMemberName] string? functionName = null)
+        {
+            try
+            {
+                using var reader = new XmlNodeReader(element);
+                reader.MoveToContent();
+                return EncodingLimits.ReadXmlElementContent(
+                    reader,
+                    EncodingLimits.GetMaxXmlElementDepth(Context),
+                    Context.MaxStringLength);
+            }
+            catch (XmlException xe)
+            {
+                throw CreateBadDecodingError(fieldName, xe, functionName);
+            }
+            catch (InvalidOperationException ioe)
+            {
+                throw CreateBadDecodingError(fieldName, ioe, functionName);
+            }
+            catch (ArgumentException ae)
+            {
+                throw CreateBadDecodingError(fieldName, ae, functionName);
             }
         }
 
@@ -2827,7 +2849,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private string? SafeReadString([CallerMemberName] string? functionName = null)
         {
-            string? value = ReadInnerText();
+            string? value = ReadInnerText(functionName);
 
             // check the length.
             if (EncodingLimits.StringExceedsLimit(
@@ -2850,11 +2872,52 @@ namespace Opc.Ua
         /// Reads the InnerText of the current context element without applying
         /// MaxStringLength. Used for payloads whose text is not a String on the
         /// wire (base64 byte strings), which are bounded by their own limit.
+        /// A scalar field holds text only: nested elements are rejected rather
+        /// than flattened into their joined text, as the streaming XmlDecoder
+        /// does. The text nodes are read directly because XmlNode.InnerText
+        /// recurses once per element level.
         /// </summary>
-        private string? ReadInnerText()
+        /// <exception cref="ServiceResultException"></exception>
+        private string? ReadInnerText([CallerMemberName] string? functionName = null)
         {
             ElementContext context = m_contextStack.Peek();
-            return context.Element?.InnerText;
+            System.Xml.XmlElement? element = context.Element;
+            if (element == null)
+            {
+                return null;
+            }
+
+            string? single = null;
+            System.Text.StringBuilder? builder = null;
+            for (XmlNode? child = element.FirstChild; child != null; child = child.NextSibling)
+            {
+                switch (child.NodeType)
+                {
+                    case XmlNodeType.Text:
+                    case XmlNodeType.CDATA:
+                    case XmlNodeType.Whitespace:
+                    case XmlNodeType.SignificantWhitespace:
+                        if (single == null)
+                        {
+                            single = child.Value;
+                        }
+                        else
+                        {
+                            builder ??= new System.Text.StringBuilder(single);
+                            builder.Append(child.Value);
+                        }
+                        break;
+                    case XmlNodeType.Element:
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Element '{0}' is not allowed in the text of field '{1}' in {2}.",
+                            child.Name,
+                            element.Name,
+                            functionName ?? string.Empty);
+                }
+            }
+
+            return builder?.ToString() ?? single ?? string.Empty;
         }
 
         private static byte[] SafeConvertFromBase64String(string s)

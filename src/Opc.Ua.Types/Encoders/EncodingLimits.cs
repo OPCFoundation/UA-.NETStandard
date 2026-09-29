@@ -27,7 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Globalization;
+using System.IO;
 using System.Text;
+using System.Xml;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -96,6 +99,112 @@ namespace Opc.Ua
                     maxStringLength,
                     byteLength);
             }
+        }
+
+        /// <summary>
+        /// Returns the deepest element nesting accepted inside XML content that
+        /// the codecs keep as raw XML (XmlElement values and ExtensionObject
+        /// bodies of unknown types).
+        /// </summary>
+        /// <remarks>
+        /// XML element depth is not counted by the decoder nesting level, but
+        /// System.Xml and LINQ to XML operations that are later applied to such
+        /// content (XmlNode.InnerXml/InnerText, ImportNode, XNode.DeepEquals,
+        /// XElement.Value) recurse once per level and would exhaust the stack.
+        /// The limit is MaxEncodingNestingLevels, or its default when the
+        /// context sets none.
+        /// </remarks>
+        public static int GetMaxXmlElementDepth(IServiceMessageContext context)
+        {
+            return context.MaxEncodingNestingLevels > 0
+                ? context.MaxEncodingNestingLevels
+                : DefaultEncodingLimits.MaxEncodingNestingLevels;
+        }
+
+        /// <summary>
+        /// Copies the element the reader is positioned on, with its content, to
+        /// a string and leaves the reader on the node that follows it.
+        /// </summary>
+        /// <remarks>
+        /// The copy is made node by node, so it never recurses, and fails as
+        /// soon as an element is nested deeper than <paramref name="maxDepth"/>
+        /// below the copied element. Attributes keep their prefix and namespace.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the content
+        /// is nested too deep or exceeds <paramref name="maxStringLength"/>.</exception>
+        /// <exception cref="XmlException">Thrown when the content is not
+        /// well-formed.</exception>
+        public static string ReadXmlElementContent(
+            XmlReader reader,
+            int maxDepth,
+            int maxStringLength)
+        {
+            var settings = new XmlWriterSettings
+            {
+                OmitXmlDeclaration = true,
+                ConformanceLevel = ConformanceLevel.Fragment,
+                NewLineHandling = NewLineHandling.Entitize
+            };
+
+            using var text = new StringWriter(CultureInfo.InvariantCulture);
+            using (var writer = XmlWriter.Create(text, settings))
+            {
+                int startDepth = reader.Depth;
+                do
+                {
+                    switch (reader.NodeType)
+                    {
+                        case XmlNodeType.Element:
+                            if (reader.Depth - startDepth > maxDepth)
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadEncodingLimitsExceeded,
+                                    "XML element nesting exceeds the maximum depth of {0}.",
+                                    maxDepth);
+                            }
+                            writer.WriteStartElement(
+                                reader.Prefix,
+                                reader.LocalName,
+                                reader.NamespaceURI);
+                            writer.WriteAttributes(reader, true);
+                            if (reader.IsEmptyElement)
+                            {
+                                writer.WriteEndElement();
+                            }
+                            break;
+                        case XmlNodeType.Text:
+                            writer.WriteString(reader.Value);
+                            break;
+                        case XmlNodeType.Whitespace:
+                        case XmlNodeType.SignificantWhitespace:
+                            writer.WriteWhitespace(reader.Value);
+                            break;
+                        case XmlNodeType.CDATA:
+                            writer.WriteCData(reader.Value);
+                            break;
+                        case XmlNodeType.EntityReference:
+                            writer.WriteEntityRef(reader.Name);
+                            break;
+                        case XmlNodeType.ProcessingInstruction:
+                            writer.WriteProcessingInstruction(reader.Name, reader.Value);
+                            break;
+                        case XmlNodeType.Comment:
+                            writer.WriteComment(reader.Value);
+                            break;
+                        case XmlNodeType.EndElement:
+                            writer.WriteFullEndElement();
+                            break;
+                    }
+                } while (reader.Read() &&
+                    (startDepth < reader.Depth ||
+                        (startDepth == reader.Depth &&
+                            reader.NodeType == XmlNodeType.EndElement)));
+            }
+
+            string result = text.ToString();
+            CheckStringLength(maxStringLength, result);
+            return result;
         }
     }
 }

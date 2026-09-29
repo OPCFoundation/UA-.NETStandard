@@ -188,7 +188,9 @@ namespace Opc.Ua
             {
                 return false;
             }
-            XElement? ours = AsXElement();
+            // DeepEquals descends only while both trees match, so bounding
+            // ours bounds the recursion.
+            XElement? ours = AsComparableXElement();
             return ours != null && XNode.DeepEquals(other, ours);
         }
 
@@ -233,12 +235,12 @@ namespace Opc.Ua
             {
                 return false;
             }
-            XElement? ours = AsXElement();
-            XElement? theirs = other.AsXElement();
+            XElement? ours = AsComparableXElement();
+            XElement? theirs = other.AsComparableXElement();
             if (ours == null || theirs == null)
             {
-                // At least one document is malformed and cannot be compared
-                // structurally. Compare the raw text instead - two different
+                // At least one document is malformed, or nested too deep, and
+                // cannot be compared structurally. Compare the raw text instead - two different
                 // malformed documents must not report equality while hashing
                 // differently.
                 return string.Equals(m_outerXml, other.m_outerXml, StringComparison.Ordinal);
@@ -272,11 +274,11 @@ namespace Opc.Ua
                 return 0;
             }
 
-            XElement? element = AsXElement();
+            XElement? element = AsComparableXElement();
             if (element == null)
             {
-                // A malformed document is compared by its raw text, so hash it
-                // the same way.
+                // A malformed or too deeply nested document is compared by its
+                // raw text, so hash it the same way.
                 return m_outerXml!.GetHashCode(StringComparison.Ordinal);
             }
 
@@ -383,6 +385,48 @@ namespace Opc.Ua
             using var reader = XmlReader.Create(stream, settings);
             return XElement.Load(reader, LoadOptions.SetBaseUri);
         }
+
+        /// <summary>
+        /// Returns the element for a structural comparison, or null when it is
+        /// malformed or nested deeper than <see cref="kMaxComparisonDepth"/>.
+        /// XNode.DeepEquals and XElement.Value recurse once per element level,
+        /// so a deeply nested value would otherwise exhaust the stack.
+        /// </summary>
+        private XElement? AsComparableXElement()
+        {
+            // measure the depth with a streaming pass first: loading a deep
+            // tree into LINQ to XML is itself slow (the base URI of every
+            // element is resolved through its ancestors).
+            try
+            {
+                using var stream = new MemoryStream(
+                    Encoding.UTF8.GetBytes(OuterXml ?? string.Empty));
+                XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
+                settings.DtdProcessing = DtdProcessing.Ignore;
+                using var reader = XmlReader.Create(stream, settings);
+                while (reader.Read())
+                {
+                    if (reader.NodeType == XmlNodeType.Element &&
+                        reader.Depth > kMaxComparisonDepth)
+                    {
+                        return null;
+                    }
+                }
+            }
+            catch (XmlException)
+            {
+                return null;
+            }
+
+            return AsXElement();
+        }
+
+        /// <summary>
+        /// The deepest element nesting that is compared structurally. It covers
+        /// the XML element depth the decoders accept by default
+        /// (<see cref="DefaultEncodingLimits.MaxEncodingNestingLevels"/>).
+        /// </summary>
+        private const int kMaxComparisonDepth = 256;
 
 #pragma warning disable IDE0032 // Use auto property
         private readonly string? m_outerXml;

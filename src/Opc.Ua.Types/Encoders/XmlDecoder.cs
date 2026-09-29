@@ -726,29 +726,9 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true) && MoveToElement(null!))
             {
-                var document = new XmlDocument();
-                System.Xml.XmlElement value = document.CreateElement(
-                    m_reader.Prefix,
-                    m_reader.LocalName,
-                    m_reader.NamespaceURI);
-                document.AppendChild(value);
-
-                if (m_reader.MoveToFirstAttribute())
-                {
-                    do
-                    {
-                        XmlAttribute attribute = document.CreateAttribute(m_reader.Name);
-                        attribute.Value = m_reader.Value;
-                        value.Attributes.Append(attribute);
-                    } while (m_reader.MoveToNextAttribute());
-
-                    m_reader.MoveToContent();
-                }
-
-                value.InnerXml = m_reader.ReadInnerXml();
-
+                XmlElement value = XmlElement.From(ReadXmlElementContent(fieldName));
                 EndField(fieldName);
-                return (XmlElement)value;
+                return value;
             }
 
             return default;
@@ -2683,25 +2663,15 @@ namespace Opc.Ua
                 }
             }
 
-            try
-            {
-                var xmlElement = XmlElement.From(m_reader.ReadOuterXml());
-                if (!xmlElement.IsValid)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Invalid xml in extension object body: {0}",
-                        xmlElement);
-                }
-                return new ExtensionObject(typeId, xmlElement);
-            }
-            catch (Exception ae)
+            var xmlElement = XmlElement.From(ReadXmlElementContent(null));
+            if (!xmlElement.IsValid)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Failed to decode xml extension object body: {0}",
-                    ae.Message);
+                    "Invalid xml in extension object body: {0}",
+                    xmlElement);
             }
+            return new ExtensionObject(typeId, xmlElement);
         }
 
         private static ExpandedNodeId GetXmlEncodingIdOrTypeId(IEncodeable encodeable)
@@ -3119,6 +3089,36 @@ namespace Opc.Ua
                 "Unable to read string of {0}: {1}",
                 functionName ?? string.Empty,
                 message);
+        }
+
+        /// <summary>
+        /// Reads the element the reader is positioned on as raw XML, bounded by
+        /// MaxStringLength and by the XML element depth limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private string ReadXmlElementContent(
+            string? fieldName,
+            [CallerMemberName] string? functionName = null)
+        {
+            try
+            {
+                return EncodingLimits.ReadXmlElementContent(
+                    m_reader,
+                    EncodingLimits.GetMaxXmlElementDepth(Context),
+                    Context.MaxStringLength);
+            }
+            catch (XmlException xe)
+            {
+                throw CreateBadDecodingError(fieldName, xe, functionName);
+            }
+            catch (InvalidOperationException ioe)
+            {
+                throw CreateBadDecodingError(fieldName, ioe, functionName);
+            }
+            catch (ArgumentException ae)
+            {
+                throw CreateBadDecodingError(fieldName, ae, functionName);
+            }
         }
 
         private static byte[] SafeConvertFromBase64String(string s)
