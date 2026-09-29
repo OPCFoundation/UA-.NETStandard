@@ -83,6 +83,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
             ReadOnlyMemory<byte> frame,
             PubSubNetworkMessageContext context)
         {
+            int maxMessageSize = context.MessageContext.MaxMessageSize;
+            if (maxMessageSize > 0 && frame.Length > maxMessageSize)
+            {
+                // Refuse oversized frames before any parsing allocation.
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                return null;
+            }
             JsonDocument? document;
             try
             {
@@ -196,6 +204,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             else
             {
+                _ = CheckArrayLength(root, context);
                 foreach (JsonElement entry in root.EnumerateArray())
                 {
                     if (entry.ValueKind != JsonValueKind.Object)
@@ -249,11 +258,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            string messageId = ReadOptionalString(root, "MessageId");
-            PublisherId envelopePublisherId = ReadPublisherId(root);
+            string messageId = ReadOptionalString(root, "MessageId", context);
+            PublisherId envelopePublisherId = ReadPublisherId(root, context);
             Uuid envelopeDataSetClassId = ReadUuid(root, "DataSetClassId");
-            string writerGroupName = ReadOptionalString(root, "WriterGroupName");
-            ArrayOf<string> replyTo = ReadStringArray(root, "ReplyTo");
+            string writerGroupName = ReadOptionalString(root, "WriterGroupName", context);
+            ArrayOf<string> replyTo = ReadStringArray(root, "ReplyTo", context);
             bool flatLayout = !root.TryGetProperty("Messages", out JsonElement messagesElement) ||
                 messagesElement.ValueKind == JsonValueKind.Object;
             var dataSetMessages = new List<PubSubDataSetMessage>();
@@ -287,6 +296,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                     return null;
                 }
+                _ = CheckArrayLength(messagesElement, context);
                 foreach (JsonElement entry in messagesElement.EnumerateArray())
                 {
                     if (entry.ValueKind != JsonValueKind.Object)
@@ -342,8 +352,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            string messageId = ReadOptionalString(root, "MessageId");
-            PublisherId publisherId = ReadPublisherId(root);
+            string messageId = ReadOptionalString(root, "MessageId", context);
+            PublisherId publisherId = ReadPublisherId(root, context);
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
             Uuid dataSetClassId = ReadUuid(root, "DataSetClassId");
             if (!root.TryGetProperty("MetaData", out JsonElement metaElement) ||
@@ -386,8 +396,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubNetworkMessageContext context,
             UadpDiscoveryType? forcedType = null)
         {
-            string messageId = ReadOptionalString(root, "MessageId");
-            PublisherId publisherId = ReadPublisherId(root);
+            string messageId = ReadOptionalString(root, "MessageId", context);
+            PublisherId publisherId = ReadPublisherId(root, context);
             uint typeCode = ReadOptionalUInt32(root, "DiscoveryType");
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
             uint statusCode = ReadOptionalUInt32(root, "Status");
@@ -414,7 +424,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     {
                         msg = msg with
                         {
-                            ApplicationInformation = ReadApplicationInformation(appElement)
+                            ApplicationInformation = ReadApplicationInformation(appElement, context)
                         };
                     }
                     break;
@@ -424,8 +434,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     {
                         msg = msg with
                         {
-                            Connection = DecodeEncodeable<PubSubConnectionDataType>(
-                                "Connection", connElement, context)
+                            Connection = DecodeEncodeable<PubSubConnectionDataType>(connElement, context)
                         };
                     }
                     break;
@@ -441,7 +450,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 case UadpDiscoveryType.DataSetWriterConfiguration:
                     msg = msg with
                     {
-                        DataSetWriterIds = ReadUInt16Array(root, "DataSetWriterIds")
+                        DataSetWriterIds = ReadUInt16Array(root, "DataSetWriterIds", context)
                     };
                     if (root.TryGetProperty("WriterConfiguration",
                             out JsonElement cfgElement) &&
@@ -449,8 +458,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     {
                         msg = msg with
                         {
-                            WriterConfiguration = DecodeEncodeable<WriterGroupDataType>(
-                                "WriterConfiguration", cfgElement, context)
+                            WriterConfiguration = DecodeEncodeable<WriterGroupDataType>(cfgElement, context)
                         };
                     }
                     break;
@@ -470,19 +478,16 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         private static T? DecodeEncodeable<T>(
-            string propertyName,
             JsonElement element,
             PubSubNetworkMessageContext context)
             where T : class, IEncodeable, new()
         {
             try
             {
-                string wrapped = string.Concat(
-                    "{\"", propertyName, "\":",
-                    element.GetRawText(),
-                    "}");
-                using Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
-                return decoder.ReadEncodeable<T>(propertyName);
+                return JsonVariantDecoder.DecodeSpliced(
+                    element,
+                    context.MessageContext,
+                    static decoder => decoder.ReadEncodeable<T>(JsonVariantDecoder.SpliceFieldName));
             }
             catch (ServiceResultException)
             {
@@ -502,7 +507,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement array,
             PubSubNetworkMessageContext context)
         {
-            var list = new List<EndpointDescription>();
+            var list = new List<EndpointDescription>(CheckArrayLength(array, context));
             foreach (JsonElement entry in array.EnumerateArray())
             {
                 if (entry.ValueKind != JsonValueKind.Object)
@@ -510,7 +515,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     continue;
                 }
                 EndpointDescription? ep =
-                    DecodeEncodeable<EndpointDescription>("Endpoint", entry, context);
+                    DecodeEncodeable<EndpointDescription>(entry, context);
                 if (ep is not null)
                 {
                     list.Add(ep);
@@ -519,14 +524,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
             return [.. list];
         }
 
-        private static ushort[] ReadUInt16Array(JsonElement root, string name)
+        private static ushort[] ReadUInt16Array(
+            JsonElement root,
+            string name,
+            PubSubNetworkMessageContext context)
         {
             if (!root.TryGetProperty(name, out JsonElement array) ||
                 array.ValueKind != JsonValueKind.Array)
             {
                 return [];
             }
-            var list = new List<ushort>();
+            var list = new List<ushort>(CheckArrayLength(array, context));
             foreach (JsonElement entry in array.EnumerateArray())
             {
                 if (entry.ValueKind == JsonValueKind.Number &&
@@ -539,12 +547,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         private static UadpApplicationInformation ReadApplicationInformation(
-            JsonElement element)
+            JsonElement element,
+            PubSubNetworkMessageContext context)
         {
-            string text = ReadOptionalString(element, "ApplicationName");
-            string locale = ReadOptionalString(element, "ApplicationLocale");
-            string appUri = ReadOptionalString(element, "ApplicationUri");
-            string productUri = ReadOptionalString(element, "ProductUri");
+            string text = ReadOptionalString(element, "ApplicationName", context);
+            string locale = ReadOptionalString(element, "ApplicationLocale", context);
+            string appUri = ReadOptionalString(element, "ApplicationUri", context);
+            string productUri = ReadOptionalString(element, "ProductUri", context);
             uint appType = ReadOptionalUInt32(element, "ApplicationType");
             return new UadpApplicationInformation
             {
@@ -552,30 +561,20 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 ApplicationUri = appUri,
                 ProductUri = productUri,
                 ApplicationType = (ApplicationType)appType,
-                Capabilities = ReadStringList(element, "Capabilities"),
+                Capabilities = ReadStringList(element, "Capabilities", context),
                 SupportedTransportProfiles =
-                    ReadStringList(element, "SupportedTransportProfiles"),
+                    ReadStringList(element, "SupportedTransportProfiles", context),
                 SupportedSecurityPolicies =
-                    ReadStringList(element, "SupportedSecurityPolicies")
+                    ReadStringList(element, "SupportedSecurityPolicies", context)
             };
         }
 
-        private static string[] ReadStringList(JsonElement root, string name)
+        private static string[] ReadStringList(
+            JsonElement root,
+            string name,
+            PubSubNetworkMessageContext context)
         {
-            if (!root.TryGetProperty(name, out JsonElement array) ||
-                array.ValueKind != JsonValueKind.Array)
-            {
-                return [];
-            }
-            var list = new List<string>();
-            foreach (JsonElement entry in array.EnumerateArray())
-            {
-                if (entry.ValueKind == JsonValueKind.String)
-                {
-                    list.Add(entry.GetString() ?? string.Empty);
-                }
-            }
-            return [.. list];
+            return ReadStringArray(root, name, context);
         }
 
         /// <summary>
@@ -593,10 +592,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubNetworkMessageContext context)
         {
             Ua.JsonActionNetworkMessage? network =
-                DecodeEncodeable<Ua.JsonActionNetworkMessage>(
-                    "ActionNetworkMessage",
-                    root,
-                    context);
+                DecodeEncodeable<Ua.JsonActionNetworkMessage>(root, context);
             if (network is null || network.Messages.Count == 0)
             {
                 context.Diagnostics.Increment(
@@ -612,7 +608,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 NetworkMessage = network,
                 MessageId = network.MessageId ?? string.Empty,
-                PublisherId = ReadPublisherId(root),
+                PublisherId = ReadPublisherId(root, context),
                 ResponseAddress = network.ResponseAddress ?? string.Empty,
                 CorrelationData = network.CorrelationData,
                 RequestorId = network.RequestorId ?? string.Empty,
@@ -639,14 +635,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     continue;
                 }
                 IEncodeable? body = entry.TryGetProperty("Status", out _)
-                    ? DecodeEncodeable<Opc.Ua.JsonActionResponseMessage>(
-                        "ActionResponse",
-                        entry,
-                        context)
-                    : DecodeEncodeable<Opc.Ua.JsonActionRequestMessage>(
-                        "ActionRequest",
-                        entry,
-                        context);
+                    ? DecodeEncodeable<Opc.Ua.JsonActionResponseMessage>(entry, context)
+                    : DecodeEncodeable<Opc.Ua.JsonActionRequestMessage>(entry, context);
                 if (body is not null)
                 {
                     messages.Add(new ExtensionObject(body));
@@ -662,10 +652,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubNetworkMessageContext context)
         {
             JsonActionMetaDataMessage? metaData =
-                DecodeEncodeable<JsonActionMetaDataMessage>(
-                    "ActionMetaData",
-                    root,
-                    context);
+                DecodeEncodeable<JsonActionMetaDataMessage>(root, context);
             if (metaData is null)
             {
                 return null;
@@ -674,7 +661,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 MetaDataMessage = metaData,
                 MessageId = metaData.MessageId ?? string.Empty,
-                PublisherId = ReadPublisherId(root)
+                PublisherId = ReadPublisherId(root, context)
             };
         }
 
@@ -683,10 +670,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubNetworkMessageContext context)
         {
             JsonActionResponderMessage? responder =
-                DecodeEncodeable<JsonActionResponderMessage>(
-                    "ActionResponder",
-                    root,
-                    context);
+                DecodeEncodeable<JsonActionResponderMessage>(root, context);
             if (responder is null)
             {
                 return null;
@@ -695,7 +679,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 ResponderMessage = responder,
                 MessageId = responder.MessageId ?? string.Empty,
-                PublisherId = ReadPublisherId(root)
+                PublisherId = ReadPublisherId(root, context)
             };
         }
 
@@ -725,7 +709,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             identityConflict = false;
             if (entry.TryGetProperty("PublisherId", out JsonElement entryPub))
             {
-                PublisherId nested = ParsePublisherId(entryPub);
+                PublisherId nested = ParsePublisherId(entryPub, context);
                 if (!nested.IsNull &&
                     !envelopePublisherId.IsNull &&
                     !PublisherIdEquals(envelopePublisherId, nested))
@@ -750,11 +734,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 }
             }
             ushort writerId = ReadOptionalUInt16(entry, "DataSetWriterId");
-            string writerName = ReadOptionalString(entry, "DataSetWriterName");
+            string writerName = ReadOptionalString(entry, "DataSetWriterName", context);
             PublisherId messagePublisherId = entry.TryGetProperty("PublisherId", out JsonElement pubElement)
-                ? ParsePublisherId(pubElement)
+                ? ParsePublisherId(pubElement, context)
                 : PublisherId.Null;
-            string writerGroupName = ReadOptionalString(entry, "WriterGroupName");
+            string writerGroupName = ReadOptionalString(entry, "WriterGroupName", context);
             uint sequenceNumber = ReadOptionalUInt32(entry, "SequenceNumber");
             ConfigurationVersionDataType metaVersion = ReadMetaVersion(entry);
             uint minorVersion = ReadOptionalUInt32(entry, "MinorVersion");
@@ -765,7 +749,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             DateTimeUtc timestamp = ReadOptionalTimestamp(entry, "Timestamp");
             StatusCode status = ReadOptionalStatus(entry, "Status");
             PubSubDataSetMessageType messageType = ReadMessageType(
-                entry, out string messageTypeName);
+                entry, context, out string messageTypeName);
             JsonDataSetMessageContentMask mask = DeriveMask(entry);
             bool hasPayloadWrapper = entry.TryGetProperty("Payload", out JsonElement payload);
             bool hasDataSetHeader = HasDataSetMessageHeader(entry);
@@ -849,27 +833,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement element,
             PubSubNetworkMessageContext context)
         {
-            try
-            {
-                string wrapped = string.Concat(
-                    "{\"MetaData\":",
-                    element.GetRawText(),
-                    "}");
-                using Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
-                return decoder.ReadEncodeable<DataSetMetaDataType>("MetaData");
-            }
-            catch (ServiceResultException)
-            {
-                context.Diagnostics.Increment(
-                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
-                return null;
-            }
-            catch (JsonException)
-            {
-                context.Diagnostics.Increment(
-                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
-                return null;
-            }
+            return DecodeEncodeable<DataSetMetaDataType>(element, context);
         }
 
         /// <summary>
@@ -877,15 +841,94 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="root">Source object.</param>
         /// <param name="name">Property name.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <returns>Property value or empty string.</returns>
-        private static string ReadOptionalString(JsonElement root, string name)
+        private static string ReadOptionalString(
+            JsonElement root,
+            string name,
+            PubSubNetworkMessageContext context)
         {
             if (root.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.String)
             {
-                return value.GetString() ?? string.Empty;
+                return CheckStringLength(value.GetString() ?? string.Empty, context);
             }
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Enforces <see cref="IServiceMessageContext.MaxStringLength"/>
+        /// on an envelope string.
+        /// </summary>
+        /// <param name="value">Decoded string.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
+        /// <returns>The unchanged <paramref name="value"/>.</returns>
+        /// <exception cref="ServiceResultException">The string exceeds the
+        /// limit.</exception>
+        private static string CheckStringLength(
+            string value,
+            PubSubNetworkMessageContext context)
+        {
+            int maxStringLength = context.MessageContext.MaxStringLength;
+            if (maxStringLength > 0 && value.Length > maxStringLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxStringLength {0} < {1}.",
+                    maxStringLength,
+                    value.Length);
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Enforces <see cref="IServiceMessageContext.MaxArrayLength"/>
+        /// on an envelope array or object member count.
+        /// </summary>
+        /// <param name="element">JSON array or object.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
+        /// <returns>The number of entries or members.</returns>
+        /// <exception cref="ServiceResultException">The element has more
+        /// entries than the limit.</exception>
+        internal static int CheckArrayLength(
+            JsonElement element,
+            PubSubNetworkMessageContext context)
+        {
+            return CheckArrayLength(element, context.MessageContext);
+        }
+
+        /// <inheritdoc cref="CheckArrayLength(JsonElement, PubSubNetworkMessageContext)"/>
+        internal static int CheckArrayLength(
+            JsonElement element,
+            IServiceMessageContext context)
+        {
+            int maxArrayLength = context.MaxArrayLength;
+            int count;
+            if (element.ValueKind == JsonValueKind.Array)
+            {
+                count = element.GetArrayLength();
+            }
+            else
+            {
+                count = 0;
+                foreach (JsonProperty _ in element.EnumerateObject())
+                {
+                    // Stop counting as soon as the limit is exceeded.
+                    if (++count > maxArrayLength && maxArrayLength > 0)
+                    {
+                        break;
+                    }
+                }
+            }
+            if (maxArrayLength > 0 && count > maxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}.",
+                    maxArrayLength,
+                    count);
+            }
+            return count;
         }
 
         /// <summary>
@@ -1006,18 +1049,20 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <see cref="PubSubDataSetMessageType"/>.
         /// </summary>
         /// <param name="root">Source object.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <param name="wireName">On return, the wire form when one
         /// was supplied; otherwise empty.</param>
         /// <returns>Resolved enum value.</returns>
         private static PubSubDataSetMessageType ReadMessageType(
             JsonElement root,
+            PubSubNetworkMessageContext context,
             out string wireName)
         {
             wireName = string.Empty;
             if (root.TryGetProperty("MessageType", out JsonElement value) &&
                 value.ValueKind == JsonValueKind.String)
             {
-                string raw = value.GetString() ?? string.Empty;
+                string raw = CheckStringLength(value.GetString() ?? string.Empty, context);
                 wireName = raw;
                 if (JsonDataSetMessageType.TryParse(raw, out PubSubDataSetMessageType parsed))
                 {
@@ -1211,14 +1256,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// it to a <see cref="PublisherId"/>.
         /// </summary>
         /// <param name="root">Source object.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <returns>Decoded publisher id.</returns>
-        private static PublisherId ReadPublisherId(JsonElement root)
+        private static PublisherId ReadPublisherId(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
         {
             if (!root.TryGetProperty("PublisherId", out JsonElement value))
             {
                 return PublisherId.Null;
             }
-            return ParsePublisherId(value);
+            return ParsePublisherId(value, context);
         }
 
         /// <summary>
@@ -1226,8 +1274,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <see cref="PublisherId"/>.
         /// </summary>
         /// <param name="value">Source element.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <returns>Decoded publisher id.</returns>
-        private static PublisherId ParsePublisherId(JsonElement value)
+        private static PublisherId ParsePublisherId(
+            JsonElement value,
+            PubSubNetworkMessageContext context)
         {
             switch (value.ValueKind)
             {
@@ -1250,7 +1301,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     }
                     return PublisherId.Null;
                 case JsonValueKind.String:
-                    string raw = value.GetString() ?? string.Empty;
+                    string raw = CheckStringLength(value.GetString() ?? string.Empty, context);
                     if (Guid.TryParseExact(raw, "D", out Guid g))
                     {
                         return PublisherId.From(new Variant(new Uuid(g)));
@@ -1297,20 +1348,24 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="root">Source object.</param>
         /// <param name="name">Property name.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <returns>Decoded array (never null).</returns>
-        private static string[] ReadStringArray(JsonElement root, string name)
+        private static string[] ReadStringArray(
+            JsonElement root,
+            string name,
+            PubSubNetworkMessageContext context)
         {
             if (!root.TryGetProperty(name, out JsonElement value) ||
                 value.ValueKind != JsonValueKind.Array)
             {
                 return [];
             }
-            var list = new List<string>(value.GetArrayLength());
+            var list = new List<string>(CheckArrayLength(value, context));
             foreach (JsonElement entry in value.EnumerateArray())
             {
                 if (entry.ValueKind == JsonValueKind.String)
                 {
-                    list.Add(entry.GetString() ?? string.Empty);
+                    list.Add(CheckStringLength(entry.GetString() ?? string.Empty, context));
                 }
             }
             return [.. list];

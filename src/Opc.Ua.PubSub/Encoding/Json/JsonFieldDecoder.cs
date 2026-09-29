@@ -102,7 +102,16 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return true;
             }
-            var decodedFields = new List<DataSetField>(payload.GetArrayLengthSafe());
+            int memberCount;
+            try
+            {
+                memberCount = JsonDecoder.CheckArrayLength(payload, context);
+            }
+            catch (ServiceResultException) when (tolerant)
+            {
+                return false;
+            }
+            var decodedFields = new List<DataSetField>(memberCount);
             int index = 0;
             foreach (JsonProperty property in payload.EnumerateObject())
             {
@@ -307,31 +316,6 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             // Part 6 flattens typed DataValues; a plain typed Variant has no quality/timestamp members.
             return hasDataValueMetadata || !hasTypeEnvelope;
-        }
-
-        /// <summary>
-        /// Safe variant of <see cref="JsonElement.GetArrayLength"/>
-        /// that returns a default capacity for objects (which do not
-        /// have an array length).
-        /// </summary>
-        /// <param name="element">Element being measured.</param>
-        /// <returns>Suggested list pre-allocation capacity.</returns>
-        private static int GetArrayLengthSafe(this JsonElement element)
-        {
-            if (element.ValueKind == JsonValueKind.Object)
-            {
-                int count = 0;
-                foreach (JsonProperty _ in element.EnumerateObject())
-                {
-                    count++;
-                }
-                return count;
-            }
-            if (element.ValueKind == JsonValueKind.Array)
-            {
-                return element.GetArrayLength();
-            }
-            return 0;
         }
     }
 }
