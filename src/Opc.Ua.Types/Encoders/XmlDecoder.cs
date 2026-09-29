@@ -406,7 +406,8 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!.ToLowerInvariant());
+                    // xs:boolean is true, false, 1 or 0 - case sensitive.
+                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!);
                     EndField(fieldName);
                     return value;
                 }

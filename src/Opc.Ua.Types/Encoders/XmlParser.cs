@@ -401,6 +401,10 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
+                    // xs:boolean is case sensitive (true, false, 1, 0), and the
+                    // XmlDecoder reading messages enforces that. The parser reads
+                    // hand-edited configuration files and deliberately also
+                    // accepts other casings such as "True".
                     bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!.ToLowerInvariant());
                     EndField(fieldName);
                     return value;

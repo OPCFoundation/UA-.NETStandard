@@ -1821,6 +1821,37 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(value, Is.EqualTo(Uuid.Parse("c496578a-0dfe-4b8f-870a-745238c6aeae")));
         }
 
+        [TestCase("True")]
+        [TestCase("FALSE")]
+        [TestCase("yes")]
+        public void ReadBooleanRejectsValuesOutsideTheXsBooleanLexicalSpace(string text)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = "<Boolean xmlns=\"urn:test\">" + text + "</Boolean>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadBoolean("Boolean"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [TestCase("true", true)]
+        [TestCase("1", true)]
+        [TestCase(" false ", false)]
+        [TestCase("0", false)]
+        public void ReadBooleanAcceptsTheXsBooleanLexicalSpace(string text, bool expected)
+        {
+            ServiceMessageContext messageContext = CreateMockContext();
+            string xml = "<Boolean xmlns=\"urn:test\">" + text + "</Boolean>";
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using var decoder = new XmlDecoder(reader, messageContext);
+            decoder.PushNamespace("urn:test");
+
+            Assert.That(decoder.ReadBoolean("Boolean"), Is.EqualTo(expected));
+        }
+
         [Test]
         public void ReadFieldRejectsNilElementWithContent()
         {
