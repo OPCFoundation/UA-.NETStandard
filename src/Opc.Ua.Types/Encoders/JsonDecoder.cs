@@ -66,7 +66,6 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
-                CheckMessageSize(utf8Json.Length);
                 m_document = JsonDocument.Parse(
                     utf8Json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
@@ -92,10 +91,6 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
-                if (Context.MaxMessageSize > 0)
-                {
-                    stream = ReadBounded(stream);
-                }
                 m_document = JsonDocument.Parse(
                     stream,
                     ParseOptions(Context.MaxEncodingNestingLevels));
@@ -121,13 +116,6 @@ namespace Opc.Ua
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
             try
             {
-                if (Context.MaxMessageSize > 0 &&
-                    (long)json.Length * 3 > Context.MaxMessageSize)
-                {
-                    // Every char is at least one UTF-8 byte and at most three.
-                    CheckMessageSize(json.Length);
-                    CheckMessageSize(Encoding.UTF8.GetByteCount(json));
-                }
                 m_document = JsonDocument.Parse(
                     json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
@@ -4710,47 +4698,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The public constructors apply MaxMessageSize like the static
-        /// DecodeMessage does, so no caller parses an unbounded document.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void CheckMessageSize(long length)
-        {
-            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxMessageSize {0} < {1}",
-                    Context.MaxMessageSize,
-                    length);
-            }
-        }
-
-        /// <summary>
-        /// Checks the remaining length of a seekable stream, or copies a
-        /// non-seekable one while checking MaxMessageSize, before parsing.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private Stream ReadBounded(Stream stream)
-        {
-            if (stream.CanSeek)
-            {
-                CheckMessageSize(stream.Length - stream.Position);
-                return stream;
-            }
-            var buffer = new MemoryStream();
-            byte[] chunk = new byte[8192];
-            int read;
-            while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
-            {
-                CheckMessageSize(buffer.Length + read);
-                buffer.Write(chunk, 0, read);
-            }
-            buffer.Position = 0;
-            return buffer;
-        }
-
-        /// <summary>
         /// Handle parser exceptions
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -4760,7 +4707,7 @@ namespace Opc.Ua
             switch (ex)
             {
                 case ServiceResultException sre:
-                    // A limit or validation failure raised before or after parsing.
+                    // A validation failure raised after parsing.
                     throw sre;
                 case JsonException jre when jre.Message.Contains(
                     "maximum configured depth",

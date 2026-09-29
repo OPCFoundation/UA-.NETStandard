@@ -434,43 +434,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void PublicConstructorsApplyMaxMessageSize()
-        {
-            ServiceMessageContext context = CreateContext();
-            context.MaxMessageSize = 64;
-            string json = "{\"A\":\"" + new string('x', 100) + "\"}";
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
-
-            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, () => _ = new JsonDecoder(json, context));
-            AssertStatus(
-                StatusCodes.BadEncodingLimitsExceeded,
-                () => _ = new JsonDecoder(new System.Buffers.ReadOnlySequence<byte>(bytes), context));
-            AssertStatus(
-                StatusCodes.BadEncodingLimitsExceeded,
-                () => _ = new JsonDecoder(new System.IO.MemoryStream(bytes), context));
-            AssertStatus(
-                StatusCodes.BadEncodingLimitsExceeded,
-                () => _ = new JsonDecoder(new NonSeekableStream(bytes), context));
-
-            // "ä" is two UTF-8 bytes, 40 of them exceed 64 bytes in 48 chars.
-            string wide = "{\"A\":\"" + new string('ä', 40) + "\"}";
-            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, () => _ = new JsonDecoder(wide, context));
-
-            using var small = new JsonDecoder(new NonSeekableStream(System.Text.Encoding.UTF8.GetBytes("{\"A\":1}")), context);
-            Assert.That(small.ReadInt32("A"), Is.EqualTo(1));
-        }
-
-        private sealed class NonSeekableStream : System.IO.MemoryStream
-        {
-            public NonSeekableStream(byte[] buffer)
-                : base(buffer)
-            {
-            }
-
-            public override bool CanSeek => false;
-        }
-
-        [Test]
         public void InlineMatrixGivenAsNonObjectKeepsTheElementStackBalanced()
         {
             // The matrix object was pushed before the try, so a non-object

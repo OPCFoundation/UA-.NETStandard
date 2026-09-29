@@ -57,7 +57,16 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            // The decoder checks the buffer against MaxMessageSize before parsing.
+            // check that the max message size was not exceeded before parsing.
+            if (context.MaxMessageSize > 0 && context.MaxMessageSize < buffer.Length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    context.MaxMessageSize,
+                    buffer.Length);
+            }
+
             using var decoder = new JsonDecoder(new ReadOnlySequence<byte>(buffer), context);
             // decode the actual message.
             var message = new SessionLessServiceMessage();
