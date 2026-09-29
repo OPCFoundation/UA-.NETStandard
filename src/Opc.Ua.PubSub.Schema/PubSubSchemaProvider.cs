@@ -307,7 +307,9 @@ namespace Opc.Ua.PubSub.Schema
             }
             if ((messageContentMask & JsonDataSetMessageContentMask.Status) != 0)
             {
-                properties["Status"] = Integer(uint.MinValue, uint.MaxValue);
+                // Part 14 Table 185 types Status as a StatusCode, which is a
+                // Part 6 §5.4.2.12 object in every JSON encoding.
+                properties["Status"] = StatusCodeObject();
             }
             if ((messageContentMask & JsonDataSetMessageContentMask.MinorVersion) != 0)
             {

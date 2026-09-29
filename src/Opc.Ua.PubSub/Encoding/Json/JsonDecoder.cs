@@ -756,7 +756,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 metaVersion.MinorVersion = minorVersion;
             }
             DateTimeUtc timestamp = ReadOptionalTimestamp(entry, "Timestamp");
-            StatusCode status = ReadOptionalStatus(entry, "Status");
+            if (!TryReadOptionalStatus(entry, "Status", out StatusCode status))
+            {
+                return null;
+            }
             PubSubDataSetMessageType messageType = ReadMessageType(
                 entry, context, out string messageTypeName);
             JsonDataSetMessageContentMask mask = DeriveMask(entry);
@@ -1006,29 +1009,40 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
-        /// Reads an optional <see cref="StatusCode"/> property.
+        /// Reads an optional <see cref="StatusCode"/> property encoded as
+        /// the Part 6 §5.4.2.12 <c>{ "Code", "Symbol" }</c> object; an
+        /// absent <c>Code</c> means Good.
         /// </summary>
         /// <param name="root">Source object.</param>
         /// <param name="name">Property name.</param>
-        /// <returns>Status code or zero.</returns>
-        private static StatusCode ReadOptionalStatus(JsonElement root, string name)
+        /// <param name="status">Status code, Good when absent.</param>
+        /// <returns><see langword="false"/> when the property is present
+        /// but is not a valid StatusCode object.</returns>
+        private static bool TryReadOptionalStatus(
+            JsonElement root,
+            string name,
+            out StatusCode status)
         {
-            if (root.TryGetProperty(name, out JsonElement value))
+            status = StatusCodes.Good;
+            if (!root.TryGetProperty(name, out JsonElement value))
             {
-                if (value.ValueKind == JsonValueKind.Number &&
-                    value.TryGetUInt32(out uint v))
-                {
-                    return new StatusCode(v);
-                }
-                if (value.ValueKind == JsonValueKind.Object &&
-                    value.TryGetProperty("Code", out JsonElement codeElement) &&
-                    codeElement.ValueKind == JsonValueKind.Number &&
-                    codeElement.TryGetUInt32(out uint codeValue))
-                {
-                    return new StatusCode(codeValue);
-                }
+                return true;
             }
-            return StatusCodes.Good;
+            if (value.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+            if (!value.TryGetProperty("Code", out JsonElement codeElement))
+            {
+                return true;
+            }
+            if (codeElement.ValueKind != JsonValueKind.Number ||
+                !codeElement.TryGetUInt32(out uint codeValue))
+            {
+                return false;
+            }
+            status = new StatusCode(codeValue);
+            return true;
         }
 
         /// <summary>

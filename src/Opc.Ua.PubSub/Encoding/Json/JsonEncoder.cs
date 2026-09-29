@@ -323,10 +323,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             if ((mask & JsonDataSetMessageContentMask.Status) != 0)
             {
                 // Part 14 Table 185 makes DataSetMessage Status presence
-                // depend on the JsonDataSetMessageContentMask; only
-                // field-level DataValue Status is omitted when Code is 0
-                // in the §7.2.5.4.2 example.
-                writer.WriteNumber("Status", dsm.Status.Code);
+                // depend on the JsonDataSetMessageContentMask; its value is
+                // a Part 6 §5.4.2.12 StatusCode object.
+                WriteStatusCode(writer, "Status", dsm.Status, Mode == JsonEncodingMode.Verbose);
             }
             if ((mask & JsonDataSetMessageContentMask.MessageType) != 0)
             {
@@ -351,6 +350,36 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 Mode,
                 context.MessageContext,
                 dsm.FieldContentMask);
+        }
+
+        /// <summary>
+        /// Writes a <see cref="StatusCode"/> as the Part 6 §5.4.2.12 JSON
+        /// object: <c>Code</c> is omitted for Good, <c>Symbol</c> is
+        /// written only in VerboseEncoding and only for a known, non-Good
+        /// code.
+        /// </summary>
+        /// <param name="writer">Destination writer.</param>
+        /// <param name="propertyName">Property name.</param>
+        /// <param name="status">Status code.</param>
+        /// <param name="verbose">Whether VerboseEncoding is used.</param>
+        private static void WriteStatusCode(
+            Utf8JsonWriter writer,
+            string propertyName,
+            StatusCode status,
+            bool verbose)
+        {
+            writer.WritePropertyName(propertyName);
+            writer.WriteStartObject();
+            if (status.Code != 0)
+            {
+                writer.WriteNumber("Code", status.Code);
+                string? symbol = status.SymbolicId;
+                if (verbose && !string.IsNullOrEmpty(symbol))
+                {
+                    writer.WriteString("Symbol", symbol);
+                }
+            }
+            writer.WriteEndObject();
         }
 
         /// <summary>

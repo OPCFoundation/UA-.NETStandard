@@ -359,6 +359,62 @@ namespace OpcUaPubSubJsonTests
             Assert.That(fields[0].Value, Is.Not.EqualTo(new Variant(42)));
         }
 
+        [TestCase(JsonEncodingMode.Verbose, "{\"Code\":1073741824,\"Symbol\":\"Uncertain\"}")]
+        [TestCase(JsonEncodingMode.Compact, "{\"Code\":1073741824}")]
+        [TestSpec("7.2.5.4.1")]
+        public async Task DataSetMessageStatusIsEncodedAsStatusCodeObjectAsync(
+            JsonEncodingMode mode,
+            string expected)
+        {
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(
+                JsonTestUtilities.CreateMetaData());
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                DataSetWriterId = 1,
+                Status = StatusCodes.Uncertain,
+                MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1 },
+                ContentMask = JsonDataSetMessageContentMask.DataSetWriterId |
+                    JsonDataSetMessageContentMask.MetaDataVersion |
+                    JsonDataSetMessageContentMask.Status,
+                Fields = JsonTestUtilities.CreateFields()
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                DataSetMessages = [dsm]
+            };
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder(mode)
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+            string text = JsonTestUtilities.ToText(bytes);
+
+            PubSubNetworkMessage? result = await new Opc.Ua.PubSub.Encoding.Json.JsonDecoder()
+                .TryDecodeAsync(bytes, ctx).ConfigureAwait(false);
+
+            Assert.That(text, Does.Contain("\"Status\":" + expected), text);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(
+                ((Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage)result!.DataSetMessages[0]).Status,
+                Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+        }
+
+        [Test]
+        [TestSpec("7.2.5.4.1")]
+        public async Task DataSetMessageNumericStatusIsRejectedAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Status\":1073741824," +
+                "\"Payload\":{\"a\":{\"UaType\":6,\"Value\":7}}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.Zero);
+            Assert.That(JsonTestUtilities.Read(ctx,
+                PubSubDiagnosticsCounterKind.FailedDataSetMessages),
+                Is.EqualTo(1));
+        }
+
         private static PubSubNetworkMessageContext NewContextWithMetaData(
             DataSetMetaDataType metaData)
         {
