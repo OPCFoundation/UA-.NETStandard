@@ -218,7 +218,9 @@ namespace Opc.Ua.Machinery.Server.Builders
         /// </remarks>
         /// <param name="onAdjust">
         /// Performs the adjustment and returns the status the event reports.
-        /// A bad status is reported in the event and returned to the caller.
+        /// A bad status is reported in the event and returned to the caller;
+        /// any other exception the handler throws is reported in the event as
+        /// <c>BadUnexpectedError</c> and fails the call.
         /// </param>
         IProcessValueBuilder WithZeroPointAdjustment(
             Func<ProcessValueState, CancellationToken, ValueTask<StatusCode>> onAdjust);
@@ -703,6 +705,14 @@ namespace Opc.Ua.Machinery.Server.Builders
                 catch (ServiceResultException ex)
                 {
                     status = ex.StatusCode;
+                }
+                catch (Exception) when (!ct.IsCancellationRequested)
+                {
+                    // The adjustment may have run partly, and the part asks
+                    // for the event on every call; the method call itself
+                    // still fails with the exception.
+                    RaiseZeroPointAdjustment(context, StatusCodes.BadUnexpectedError);
+                    throw;
                 }
                 RaiseZeroPointAdjustment(context, status);
                 return StatusCode.IsBad(status)

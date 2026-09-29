@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,6 +68,8 @@ namespace Opc.Ua.Machinery.Tests
                 MachineryParts.BuildingBlocks | MachineryParts.ProcessValues);
             await m_fixture.StartAsync();
             m_context = m_fixture.CreateBuildContext();
+            m_adjusted = false;
+            m_adjust = null;
         }
 
         [TearDown]
@@ -219,6 +222,32 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(
                 reported.ZeroPointAdjustmentResult!.Value.Code,
                 Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task ZeroPointAdjustmentReportsTheEventWhenTheHandlerFailsAsync()
+        {
+            m_adjust = () => throw new InvalidOperationException("The sensor is offline.");
+            IProcessValueHandle handle = await BuildAsync().ConfigureAwait(false);
+            MethodState method = handle.State.ZeroPointAdjustment!;
+            List<IFilterTarget> events = CaptureEvents(handle.State);
+
+            ServiceResult status = await method.CallAsync(
+                m_fixture!.Manager.SystemContext,
+                handle.State.NodeId,
+                [],
+                new List<ServiceResult>(),
+                new List<Variant>()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsBad(status), Is.True);
+            Assert.That(
+                events,
+                Has.Count.EqualTo(1),
+                "OPC 40001-2 requires the event on every call, a failed one too.");
+            var reported = (ZeroPointAdjustmentEventState)events[0];
+            Assert.That(
+                reported.ZeroPointAdjustmentResult!.Value.Code,
+                Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
         [Test]
@@ -453,7 +482,7 @@ namespace Opc.Ua.Machinery.Tests
                         .WithZeroPointAdjustment((_, _) =>
                         {
                             m_adjusted = true;
-                            return new ValueTask<StatusCode>(StatusCodes.Good);
+                            return m_adjust?.Invoke() ?? new ValueTask<StatusCode>(StatusCodes.Good);
                         })
                         .WithValue(45)
                         .Bind(out handle))
@@ -492,5 +521,6 @@ namespace Opc.Ua.Machinery.Tests
         private MachineryServerFixture? m_fixture;
         private IMachineryBuildContext? m_context;
         private bool m_adjusted;
+        private Func<ValueTask<StatusCode>>? m_adjust;
     }
 }
