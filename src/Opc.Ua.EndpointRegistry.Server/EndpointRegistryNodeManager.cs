@@ -81,7 +81,7 @@ namespace Opc.Ua.EndpointRegistry.Server
     /// Reading an advertised Endpoint never connects to it, and no Schema Registry root or
     /// PubSub runtime is required or created.
     /// </remarks>
-    public sealed class EndpointRegistryNodeManager : AsyncCustomNodeManager
+    public sealed partial class EndpointRegistryNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Creates the node manager.
@@ -273,7 +273,11 @@ namespace Opc.Ua.EndpointRegistry.Server
                         : nameof(MessageGroupDataType),
                     ResourceRecordType = nameof(MessageDefinitionDataType),
                     InitialDocument = InitialDocument(options.RegistryId),
-                    Validate = options.Validate,
+                    Validate = document =>
+                    {
+                        EndpointRegistryRules.ValidateRegistry(document, media);
+                        options.Validate?.Invoke(document);
+                    },
                     TargetNodeId = xid => new ExpandedNodeId(new NodeId(path + xid, index)),
                     MessageContext = messageContext,
                     Telemetry = Server.Telemetry
@@ -309,6 +313,7 @@ namespace Opc.Ua.EndpointRegistry.Server
                     Epoch = result.Epoch
                 };
             };
+            BindResolution(context, root, host);
             XRegistryProjectionEngine.LinkMethodArguments(root, context);
             XRegistryProjectionEngine.SetValue(root.RegistryId, options.RegistryId);
             XRegistryProjectionEngine.SetValue(root.ProfileUris, options.ProfileUris);

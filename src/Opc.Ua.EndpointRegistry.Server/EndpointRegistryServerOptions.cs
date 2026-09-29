@@ -79,6 +79,7 @@ namespace Opc.Ua.EndpointRegistry.Server
 
         /// <summary>
         /// Gets or sets additional domain validation of a complete resulting registry document.
+        /// The Endpoint Registry rules of the specification are always applied first.
         /// </summary>
         public Action<RegistryObjectValueDataType>? Validate { get; set; }
     }

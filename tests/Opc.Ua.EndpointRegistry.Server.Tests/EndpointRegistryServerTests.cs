@@ -217,6 +217,34 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
             Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
+        [Test]
+        public async Task SemanticRuleViolationsAreReturnedAsTypedDiagnosticsAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            RegistryRecordMapper mapper = Mapper(session);
+            MessageGroupDataType group = FactoryGroup();
+            group.MessageGroupId = "wildcard";
+            var message = (MessageDefinitionDataType)group.Messages.Entries[0].Value;
+            ((MessageDefinitionProtocolOptionsMQTT50DataType)message.ProtocolOptions).TopicName = "factory/+/temperature";
+
+            RegistryMutationResultDataType result = await TypedAccess(session).WriteDocumentAsync(
+                new RegistryWriteRequestDataType
+                {
+                    TargetXid = "/messagegroups/wildcard",
+                    Definition = mapper.Canonicalize(group),
+                    ExpectedEpoch = 0
+                }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(result.Issues[0].Code, Is.EqualTo("E_MQTT_TOPIC"), Detail(result));
+                Assert.That(result.Epoch, Is.Zero);
+            });
+            Assert.That(await TryResolveAsync(session, "wildcard").ConfigureAwait(false), Is.EqualTo(NodeId.Null));
+        }
+
         private static MessageGroupDataType FactoryGroup()
         {
             return new MessageGroupDataType
