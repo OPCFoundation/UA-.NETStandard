@@ -255,6 +255,15 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration)
         {
             // setup server configuration node
+            if (m_serverConfigurationNode.ApplicationUri != null)
+            {
+                m_serverConfigurationNode.ApplicationUri.Value = configuration.ApplicationUri;
+            }
+            if (m_serverConfigurationNode.ProductUri != null)
+            {
+                m_serverConfigurationNode.ProductUri.Value = configuration.ProductUri;
+            }
+
             m_serverConfigurationNode.ServerCapabilities.Value =
             [
                 .. configuration.ServerConfiguration.ServerCapabilities
