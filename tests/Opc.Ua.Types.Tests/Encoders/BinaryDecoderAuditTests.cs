@@ -46,6 +46,8 @@ namespace Opc.Ua.Types.Tests.Encoders
     public class BinaryDecoderAuditTests
     {
         private static readonly int[] s_oneElement = [1];
+        private static readonly bool[] s_streamModes = [false, true];
+        private static readonly double[] s_twoDoubles = [1.5, 2.5];
 
         private static ServiceMessageContext CreateContext()
         {
@@ -66,6 +68,173 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ServiceResultException ex = Assert.Throws<ServiceResultException>(code);
             Assert.That(ex.StatusCode, Is.EqualTo(statusCode));
+        }
+
+        private static BinaryDecoder CreateDecoder(
+            byte[] bytes,
+            IServiceMessageContext context,
+            bool useStream)
+        {
+            return useStream
+                ? new BinaryDecoder(new MemoryStream(bytes, false), context)
+                : new BinaryDecoder(bytes, context);
+        }
+
+        [Test]
+        [TestCase(0x98, false)]
+        [TestCase(0x98, true)]
+        [TestCase(0x97, false)]
+        [TestCase(0x97, true)]
+        [TestCase(0x96, false)]
+        [TestCase(0x8C, true)]
+        [TestCase(0x91, false)]
+        [TestCase(0x8B, false)]
+        [TestCase(0x8B, true)]
+        [TestCase(0x81, true)]
+        public void ReadArrayRejectsLengthBeyondRemainingBytes(int encodingByte, bool useStream)
+        {
+            // A Variant array of 65535 (MaxArrayLength) elements followed by
+            // nothing: the length was only checked against MaxArrayLength and
+            // the element storage allocated before a single element was read.
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)encodingByte);
+                w.Write(65535);
+            });
+
+            using BinaryDecoder decoder = CreateDecoder(bytes, CreateContext(), useStream);
+            AssertStatus(() => decoder.ReadVariant(null), StatusCodes.BadDecodingError);
+        }
+
+        [Test]
+        public void ReadArrayAcceptsLengthThatExactlyFitsTheRemainingBytes()
+        {
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)0x8B);
+                w.Write(2);
+                w.Write(1.5);
+                w.Write(2.5);
+            });
+
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            Variant value = decoder.ReadVariant(null);
+            Assert.That(value.GetDoubleArray().ToArray(), Is.EqualTo(s_twoDoubles));
+        }
+
+        [Test]
+        public void NestedDataValueArraysAreRejectedBeforeAllocating()
+        {
+            // 200 levels of Variant(DataValue[65535]) whose first element is
+            // the next level: ~1.2 KB that used to allocate ~700 MB.
+            byte[] bytes = Build(w =>
+            {
+                for (int ii = 0; ii < 200; ii++)
+                {
+                    w.Write((byte)0x97);
+                    w.Write(65535);
+                    w.Write((byte)0x01);
+                }
+            });
+
+            using var decoder = new BinaryDecoder(
+                new MemoryStream(bytes, false),
+                CreateContext());
+            AssertStatus(() => decoder.ReadVariant(null), StatusCodes.BadDecodingError);
+        }
+
+#if NET
+        [Test]
+        public void NestedDataValueArraysWithPaddingAllocateProportionalToDecodedElements()
+        {
+            // With 1 MB of padding every level passes the remaining bytes
+            // check, the allocation must still not scale with the lengths.
+            const int levels = 100;
+            byte[] bytes = Build(w =>
+            {
+                for (int ii = 0; ii < levels; ii++)
+                {
+                    w.Write((byte)0x97);
+                    w.Write(65535);
+                    w.Write((byte)0x01);
+                }
+                // The innermost value, then padding that the second element
+                // of the innermost array fails on (invalid Variant type).
+                w.Write((byte)0x01);
+                w.Write((byte)0x01);
+                byte[] padding = new byte[1024 * 1024];
+                padding.AsSpan().Fill(0xFF);
+                w.Write(padding);
+            });
+
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            Assert.Throws<ServiceResultException>(() => decoder.ReadVariant(null));
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            // 100 levels x 65535 DataValues used to be several hundred MB.
+            Assert.That(allocated, Is.LessThan(32L * 1024 * 1024));
+        }
+#endif
+
+        [Test]
+        public void LargeArraysRoundTripThroughGrowingStorage()
+        {
+            IServiceMessageContext context = CreateContext();
+            var variants = new Variant[5000];
+            var values = new DataValue[5000];
+            string[] strings = new string[5000];
+            for (int ii = 0; ii < variants.Length; ii++)
+            {
+                variants[ii] = Variant.From(ii);
+                values[ii] = new DataValue(Variant.From((double)ii));
+                strings[ii] = ii.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            byte[] bytes;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteVariantArray(null, variants);
+                encoder.WriteDataValueArray(null, values);
+                encoder.WriteStringArray(null, strings);
+                bytes = encoder.CloseAndReturnBuffer()!;
+            }
+
+            foreach (bool useStream in s_streamModes)
+            {
+                using BinaryDecoder decoder = CreateDecoder(bytes, context, useStream);
+                Assert.That(decoder.ReadVariantArray(null).ToArray(), Is.EqualTo(variants));
+                Assert.That(decoder.ReadDataValueArray(null).ToArray(), Is.EqualTo(values));
+                Assert.That(decoder.ReadStringArray(null).ToArray(), Is.EqualTo(strings));
+            }
+        }
+
+        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ByteStringLengthBeyondRemainingBytesIsRejectedWithoutLimits(bool useStream)
+        {
+            // With MaxByteStringLength = 0 (unlimited) a 2 GB length from 4
+            // bytes was allocated by BinaryReader.ReadBytes on the stream path.
+            ServiceMessageContext context = CreateContext();
+            context.MaxByteStringLength = 0;
+            byte[] bytes = Build(w => w.Write(int.MaxValue));
+
+            using BinaryDecoder decoder = CreateDecoder(bytes, context, useStream);
+            AssertStatus(() => decoder.ReadByteString(null), StatusCodes.BadDecodingError);
+        }
+
+        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
+        public void StringLengthBeyondRemainingBytesIsRejectedWithoutLimits(bool useStream)
+        {
+            ServiceMessageContext context = CreateContext();
+            context.MaxStringLength = 0;
+            byte[] bytes = Build(w => w.Write(int.MaxValue));
+
+            using BinaryDecoder decoder = CreateDecoder(bytes, context, useStream);
+            AssertStatus(() => decoder.ReadString(null), StatusCodes.BadDecodingError);
         }
 
         [Test]

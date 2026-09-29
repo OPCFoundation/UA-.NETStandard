@@ -457,6 +457,9 @@ namespace Opc.Ua
                     length);
             }
 
+            // Do not rent or allocate a declared length the message cannot hold.
+            CheckRemainingBytes(length, nameof(ReadString));
+
             // length is always >= 1 here
 #if NET6_0_OR_GREATER
             const int maxStackAlloc = 1024;
@@ -1080,450 +1083,160 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ArrayOf<bool> ReadBooleanArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            bool[] values = new bool[length];
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadBoolean(null);
-            }
-            return values;
+            return ReadArray(1, static d => d.ReadBoolean(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<sbyte> ReadSByteArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<sbyte>(length);
+            return ReadFixedWidthArray<sbyte>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<byte> ReadByteArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<byte>(length);
+            return ReadFixedWidthArray<byte>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<short> ReadInt16Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<short>(length);
+            return ReadFixedWidthArray<short>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<ushort> ReadUInt16Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<ushort>(length);
+            return ReadFixedWidthArray<ushort>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<int> ReadInt32Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<int>(length);
+            return ReadFixedWidthArray<int>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<uint> ReadUInt32Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<uint>(length);
+            return ReadFixedWidthArray<uint>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<long> ReadInt64Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<long>(length);
+            return ReadFixedWidthArray<long>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<ulong> ReadUInt64Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<ulong>(length);
+            return ReadFixedWidthArray<ulong>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<float> ReadFloatArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<float>(length);
+            return ReadFixedWidthArray<float>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<double> ReadDoubleArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<double>(length);
+            return ReadFixedWidthArray<double>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<string?> ReadStringArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            string?[] values = new string?[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadString(null);
-            }
-
-            return values;
+            return ReadArray(4, static d => d.ReadString(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<DateTimeUtc> ReadDateTimeArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new DateTimeUtc[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadDateTime(null);
-            }
-
-            return values;
+            return ReadArray(8, static d => d.ReadDateTime(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<Uuid> ReadGuidArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new Uuid[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadGuid(null);
-            }
-
-            return values;
+            return ReadArray(16, static d => d.ReadGuid(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<ByteString> ReadByteStringArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new ByteString[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadByteString(null);
-            }
-
-            return values;
+            return ReadArray(4, static d => d.ReadByteString(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<XmlElement> ReadXmlElementArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new XmlElement[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadXmlElement(null);
-            }
-
-            return values;
+            return ReadArray(4, static d => d.ReadXmlElement(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<NodeId> ReadNodeIdArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new NodeId[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadNodeId(null);
-            }
-
-            return values;
+            return ReadArray(2, static d => d.ReadNodeId(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new ExpandedNodeId[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadExpandedNodeId(null);
-            }
-
-            return values;
+            return ReadArray(2, static d => d.ReadExpandedNodeId(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<StatusCode> ReadStatusCodeArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new StatusCode[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadStatusCode(null);
-            }
-
-            return values;
+            return ReadArray(4, static d => d.ReadStatusCode(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new DiagnosticInfo?[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadDiagnosticInfo(null);
-            }
-
-            return values;
+            return ReadArray(1, static d => d.ReadDiagnosticInfo(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<QualifiedName> ReadQualifiedNameArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new QualifiedName[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadQualifiedName(null);
-            }
-
-            return values;
+            return ReadArray(6, static d => d.ReadQualifiedName(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<LocalizedText> ReadLocalizedTextArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new LocalizedText[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadLocalizedText(null);
-            }
-
-            return values;
+            return ReadArray(1, static d => d.ReadLocalizedText(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<Variant> ReadVariantArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new Variant[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadVariant(null);
-            }
-
-            return values;
+            return ReadArray(1, static d => d.ReadVariant(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new DataValue[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadDataValue(null);
-            }
-
-            return values;
+            return ReadArray(1, static d => d.ReadDataValue(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new ExtensionObject[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadExtensionObject(null);
-            }
-
-            return values;
+            return ReadArray(3, static d => d.ReadExtensionObject(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new T[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEncodeable<T>(null, encodeableTypeId);
-            }
-
-            return values;
+            // An encodeable can encode to no bytes at all, only the
+            // MaxArrayLength limit applies to its element count.
+            return ReadArray(0, d => d.ReadEncodeable<T>(null, encodeableTypeId));
         }
 
         /// <inheritdoc/>
@@ -1550,82 +1263,26 @@ namespace Opc.Ua
         public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new T[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEncodeableAsExtensionObject<T>(null);
-            }
-
-            return values;
+            return ReadArray(3, static d => d.ReadEncodeableAsExtensionObject<T>(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName)
             where T : IEncodeable, new()
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new T[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEncodeable<T>(null);
-            }
-
-            return values;
+            return ReadArray(0, static d => d.ReadEncodeable<T>(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName) where T : struct, Enum
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new T[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEnumerated<T>(null);
-            }
-
-            return values;
+            return ReadArray(4, static d => d.ReadEnumerated<T>(null));
         }
 
         /// <inheritdoc/>
         public ArrayOf<EnumValue> ReadEnumeratedArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new EnumValue[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEnumerated(null);
-            }
-
-            return values;
+            return ReadArray(4, static d => d.ReadEnumerated(null));
         }
 
         /// <inheritdoc/>
@@ -2135,12 +1792,7 @@ namespace Opc.Ua
             {
                 return new MatrixOf<T>(Array.Empty<T>(), dimensions);
             }
-            var values = new T[count];
-            for (int ii = 0; ii < values.Length; ii++)
-            {
-                values[ii] = readElement(this);
-            }
-            return new MatrixOf<T>(values, dimensions);
+            return new MatrixOf<T>(ReadArrayElements(count, readElement), dimensions);
         }
 
         /// <summary>
@@ -2354,10 +2006,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads the length of an array.
+        /// Reads the length of an array. The length is attacker controlled:
+        /// besides <see cref="IServiceMessageContext.MaxArrayLength"/> a length
+        /// whose elements (of at least <paramref name="minElementSize"/> bytes
+        /// each) the remaining message cannot hold is rejected before anything
+        /// is allocated for them.
         /// </summary>
+        /// <param name="minElementSize">The minimum number of bytes a single
+        /// element takes on the wire, 0 when an element can be empty.</param>
+        /// <param name="callerMemberName">The caller, for diagnostics.</param>
         /// <exception cref="ServiceResultException"></exception>
-        private int ReadArrayLength([CallerMemberName] string callerMemberName = "")
+        private int ReadArrayLength(
+            int minElementSize,
+            [CallerMemberName] string callerMemberName = "")
         {
             int length = SafeReadInt32();
 
@@ -2376,23 +2037,132 @@ namespace Opc.Ua
                     length);
             }
 
+            long remaining = GetRemainingLength();
+            if (minElementSize > 0 && remaining >= 0 && (long)length * minElementSize > remaining)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Array length {0} in {1} needs at least {2} bytes, only {3} remain.",
+                    length,
+                    callerMemberName,
+                    (long)length * minElementSize,
+                    remaining);
+            }
+
             return length;
+        }
+
+        /// <summary>
+        /// Reads an array whose elements are read one by one.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <param name="minElementSize">The minimum number of bytes a single
+        /// element takes on the wire, 0 when an element can be empty.</param>
+        /// <param name="readElement">Reads a single element.</param>
+        /// <param name="callerMemberName">The caller, for diagnostics.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        private ArrayOf<T> ReadArray<T>(
+            int minElementSize,
+            Func<BinaryDecoder, T> readElement,
+            [CallerMemberName] string callerMemberName = "")
+        {
+            int length = ReadArrayLength(minElementSize, callerMemberName);
+
+            if (length == -1)
+            {
+                return default;
+            }
+
+            return ReadArrayElements(length, readElement);
+        }
+
+        /// <summary>
+        /// Reads <paramref name="length"/> elements into an array that grows
+        /// as the elements are read. The remaining bytes check of the length
+        /// does not bound what a nested element allocates: every level of a
+        /// Variant, DataValue or ExtensionObject array nested in the first
+        /// element of its parent is checked against the same remaining bytes.
+        /// Preallocating at most <see cref="kMaxPreallocatedArrayBytes"/> per
+        /// level keeps the memory held by such a chain proportional to the
+        /// elements actually decoded instead of to the length prefixes.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <param name="length">The validated number of elements.</param>
+        /// <param name="readElement">Reads a single element.</param>
+        private T[] ReadArrayElements<T>(int length, Func<BinaryDecoder, T> readElement)
+        {
+            var values = new T[GetInitialArrayCapacity<T>(length)];
+            for (int ii = 0; ii < length; ii++)
+            {
+                if (ii == values.Length)
+                {
+                    Array.Resize(ref values, (int)Math.Min(length, 2L * values.Length));
+                }
+                values[ii] = readElement(this);
+            }
+            return values;
+        }
+
+        /// <summary>
+        /// The number of elements to allocate up front for an array of
+        /// <paramref name="length"/> elements that is grown while reading.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        private static int GetInitialArrayCapacity<T>(int length)
+        {
+            int maxElements = Math.Max(1, kMaxPreallocatedArrayBytes / Unsafe.SizeOf<T>());
+            return Math.Min(length, maxElements);
+        }
+
+        /// <summary>
+        /// Reads a length prefixed array of a fixed-width unmanaged numeric type.
+        /// </summary>
+        /// <typeparam name="T">The unmanaged element type.</typeparam>
+        /// <param name="callerMemberName">The caller, for diagnostics.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        private ArrayOf<T> ReadFixedWidthArray<T>(
+            [CallerMemberName] string callerMemberName = "")
+            where T : unmanaged
+        {
+            int length = ReadArrayLength(Unsafe.SizeOf<T>(), callerMemberName);
+
+            if (length == -1)
+            {
+                return default;
+            }
+
+            return ReadFixedWidthArray<T>(length);
         }
 
         /// <summary>
         /// Reads a fixed-width unmanaged numeric array from raw little-endian bytes.
         /// </summary>
         /// <typeparam name="T">The unmanaged element type.</typeparam>
-        /// <param name="length">The number of elements to read.</param>
+        /// <param name="length">The number of elements to read, checked
+        /// against the remaining bytes by the caller.</param>
         private T[] ReadFixedWidthArray<T>(int length) where T : unmanaged
         {
-            var values = new T[length];
-            Span<byte> bytes = MemoryMarshal.AsBytes(values.AsSpan());
-            ReadRawBytes(bytes);
+            // The caller verified the length against the remaining bytes. If
+            // they are unknown the array grows with the bytes actually read.
+            int capacity = GetRemainingLength() >= 0
+                ? length
+                : GetInitialArrayCapacity<T>(length);
+            var values = new T[capacity];
+            int read = 0;
+            while (true)
+            {
+                ReadRawBytes(MemoryMarshal.AsBytes(values.AsSpan(read)));
+                read = values.Length;
+                if (read == length)
+                {
+                    break;
+                }
+                Array.Resize(ref values, (int)Math.Min(length, 2L * read));
+            }
 
             if (!BitConverter.IsLittleEndian)
             {
-                ReverseFixedWidthElements(values);
+                ReverseFixedWidthElements<T>(values);
             }
 
             return values;
@@ -2532,17 +2302,57 @@ namespace Opc.Ua
                 return SafeReadSpan(length, functionName).ToArray();
             }
 
-            byte[] bytes = m_reader.ReadBytes(length);
-            if (bytes.Length != length)
+            // BinaryReader.ReadBytes allocates the requested length before it
+            // reads: never hand it a length the stream cannot satisfy.
+            CheckRemainingBytes(length, functionName);
+            if (GetRemainingLength() >= 0)
+            {
+                byte[] bytes = m_reader.ReadBytes(length);
+                if (bytes.Length != length)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                        length,
+                        functionName ?? string.Empty,
+                        bytes.Length);
+                }
+                return bytes;
+            }
+
+            // The remaining bytes are unknown: grow with the bytes read.
+            byte[] buffer = new byte[GetInitialArrayCapacity<byte>(length)];
+            int read = 0;
+            while (true)
+            {
+                ReadRawBytes(buffer.AsSpan(read), functionName);
+                read = buffer.Length;
+                if (read == length)
+                {
+                    return buffer;
+                }
+                Array.Resize(ref buffer, (int)Math.Min(length, 2L * read));
+            }
+        }
+
+        /// <summary>
+        /// Rejects a length prefixed value of <paramref name="length"/> bytes
+        /// that the rest of the message cannot hold, before the caller
+        /// allocates anything for it.
+        /// </summary>
+        /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
+        private void CheckRemainingBytes(int length, string? functionName)
+        {
+            long remaining = GetRemainingLength();
+            if (remaining >= 0 && length > remaining)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
                     length,
                     functionName ?? string.Empty,
-                    bytes.Length);
+                    remaining);
             }
-            return bytes;
         }
 
         /// <summary>
@@ -3023,6 +2833,10 @@ namespace Opc.Ua
         // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
         private uint m_encodeablesRecovered;
+
+        // The most bytes allocated up front for an array read element by
+        // element, see ReadArrayElements. Below the large object heap limit.
+        private const int kMaxPreallocatedArrayBytes = 16 * 1024;
         private readonly bool m_hasBuffer;
         private bool m_baseStreamExposed;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryDecoder>();
