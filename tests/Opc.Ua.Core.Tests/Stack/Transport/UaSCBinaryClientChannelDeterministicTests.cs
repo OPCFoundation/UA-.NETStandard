@@ -537,8 +537,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
                 channel => channel.FeedIncomingMessageAsync(
-                    TcpMessageType.Open,
-                    new ArraySegment<byte>(BuildChunk(TcpMessageType.Open, _ => { }))))
+                    TcpMessageType.Open | TcpMessageType.Final,
+                    new ArraySegment<byte>(BuildChunk(TcpMessageType.Open | TcpMessageType.Final, _ => { }))))
+                .ConfigureAwait(false);
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel messages are always a single final chunk.
+        /// </summary>
+        [TestCase(TcpMessageType.Open | TcpMessageType.Intermediate)]
+        [TestCase(TcpMessageType.Open | TcpMessageType.Abort)]
+        [TestCase(TcpMessageType.Close | TcpMessageType.Intermediate)]
+        public async Task ConnectAsyncFaultsOnNonFinalOpenOrCloseChunkAsync(uint messageType)
+        {
+            ServiceResultException ex = await RunHandshakeToFaultAsync(
+                channel => channel.FeedIncomingMessageAsync(
+                    messageType,
+                    new ArraySegment<byte>(BuildChunk(messageType, _ => { }))))
                 .ConfigureAwait(false);
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));

@@ -34,6 +34,7 @@ using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -302,13 +303,68 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return false;
         }
 
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.3: the sender certificate chain may fill the chunk up to MaxSenderCertificateSize,
+        /// which is derived from the chunk size, so a chain larger than the 7500 byte certificate limit that fits
+        /// the negotiated buffer is accepted.
+        /// </summary>
+        [Test]
+        public async Task OpenSecureChannelAcceptsSenderChainLargerThanSingleCertificateLimitAsync()
+        {
+            using Certificate issuer = CreatePaddedCertificate("CN=PaddedIssuer", 9000);
+            using var harness = new HandoffHarness(SecurityPolicies.Basic256Sha256, appendedChain: [issuer]);
+
+            await harness.OpenAsync().ConfigureAwait(false);
+
+            using CertificateCollection? chain = harness.Target.SnapshotClientCertificateChainForRevalidation();
+            Assert.That(chain, Is.Not.Null);
+            Assert.That(chain, Has.Count.EqualTo(2));
+            Assert.That(chain![1].Subject, Is.EqualTo("CN=PaddedIssuer"));
+            Assert.That(chain[0].RawData.Length + chain[1].RawData.Length,
+                Is.GreaterThan(TcpMessageLimits.MaxCertificateSize));
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.2/§6.7.2.3: an OpenSecureChannel message is a single chunk, so the sender appends
+        /// only the chain certificates that fit next to the encrypted body instead of splitting the message.
+        /// </summary>
+        [Test]
+        public async Task OpenSecureChannelTruncatesSenderChainToFitOneChunkAsync()
+        {
+            using Certificate first = CreatePaddedCertificate("CN=PaddedFirst", 30000);
+            using Certificate second = CreatePaddedCertificate("CN=PaddedSecond", 30000);
+            using Certificate third = CreatePaddedCertificate("CN=PaddedThird", 30000);
+            using var harness = new HandoffHarness(
+                SecurityPolicies.Basic256Sha256,
+                appendedChain: [first, second, third]);
+
+            await harness.OpenAsync().ConfigureAwait(false);
+
+            using CertificateCollection? chain = harness.Target.SnapshotClientCertificateChainForRevalidation();
+            Assert.That(chain, Is.Not.Null);
+            Assert.That(chain, Has.Count.EqualTo(3));
+            Assert.That(chain![2].Subject, Is.EqualTo("CN=PaddedSecond"));
+        }
+
+        private static Certificate CreatePaddedCertificate(string subject, int paddingSize)
+        {
+            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var request = new CertificateRequest(subject, ecdsa, HashAlgorithmName.SHA256);
+            request.CertificateExtensions.Add(
+                new X509Extension(new Oid("1.3.6.1.4.1.311.99999.1"), new byte[paddingSize], false));
+            X509Certificate2 x509 = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+            return Certificate.From(x509);
+        }
+
         private sealed class HandoffHarness : IDisposable
         {
             public HandoffHarness(
                 string policyUri,
                 bool withIssuers = false,
                 ushort clientKeySize = 0,
-                ArrayPool<byte>? pool = null)
+                ArrayPool<byte>? pool = null,
+                Certificate[]? appendedChain = null)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var context = ServiceMessageContext.Create(telemetry);
@@ -371,6 +427,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     [
                         m_clientCertificate, m_issuerCertificate!, m_rootCertificate!
                     ];
+                }
+                else if (appendedChain != null)
+                {
+                    Peer.ClientCertificateChain = [m_clientCertificate];
+                    foreach (Certificate certificate in appendedChain)
+                    {
+                        Peer.ClientCertificateChain.Add(certificate);
+                    }
                 }
                 Target.Attach(1, OldTransport);
                 Target.CurrentState = TcpChannelState.Opening;

@@ -442,6 +442,20 @@ namespace Opc.Ua.Bindings
                         m_logger.TcpServerLog1(ChannelId);
                         ownsBuffer = ProcessHelloMessage(messageChunk);
                     }
+                    // OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel
+                    // messages are always a single final chunk. Rejected before any
+                    // security processing so no chunk of them is ever reassembled.
+                    else if ((TcpMessageType.IsType(messageType, TcpMessageType.Open) ||
+                            TcpMessageType.IsType(messageType, TcpMessageType.Close)) &&
+                        !TcpMessageType.IsFinal(messageType))
+                    {
+                        ForceChannelFaultCore(
+                            StatusCodes.BadTcpMessageTypeInvalid,
+                            "The message type {0:X8} is not a final chunk.",
+                            messageType);
+
+                        ownsBuffer = false;
+                    }
                     // process open secure channel repsonse.
                     else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
@@ -839,14 +853,7 @@ namespace Opc.Ua.Bindings
                 clientCertificate = null;
                 RetainPeerCertificateChain(clientChainBlob);
 
-                // check if it is necessary to wait for more chunks.
-                if (!TcpMessageType.IsFinal(messageType))
-                {
-                    bodyOwned = false;
-                    SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
-                    return false;
-                }
-                // get the chunks to process.
+                // get the chunks to process (the message is a single final chunk).
                 bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
                 if (State == TcpChannelState.Closed)
@@ -1406,19 +1413,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                // check if it is necessary to wait for more chunks.
-                if (!TcpMessageType.IsFinal(messageType))
-                {
-                    // The symmetric message was decrypted in place, so messageBody
-                    // and messageChunk share one array. SaveIntermediateChunk has
-                    // taken it, so reporting "not owned" here would hand the same
-                    // buffer back to the pool as well - the double free the return
-                    // at the end of this method already warns about.
-                    SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
-                    return true;
-                }
-
-                // get the chunks to process.
+                // get the chunks to process (the message is a single final chunk).
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
 
                 using var closeRequestStream = new ArraySegmentStream(chunksToProcess);
