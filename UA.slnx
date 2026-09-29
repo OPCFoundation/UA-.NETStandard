@@ -210,7 +210,6 @@
   </Folder>
   <Folder Name="/Solution Items/Nuget/">
     <File Path="nuget/Opc.Ua.nuspec" />
-    <File Path="nuget/Opc.Ua.Symbols.nuspec" />
   </Folder>
   <Folder Name="/Solution Items/docs/">
     <File Path="docs/Aggregates.md" />
