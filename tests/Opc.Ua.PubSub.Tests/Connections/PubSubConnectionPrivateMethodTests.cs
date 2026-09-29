@@ -37,6 +37,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Connections;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
@@ -399,7 +400,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     [Profiles.PubSubUdpUadpTransport] = decoder
                 },
-                registry: registry);
+                registry: registry,
+                readerGroups: new[] { NewWildcardReaderGroup() });
             SetPrivateField(
                 connection,
                 "m_transport",
@@ -464,7 +466,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     [Profiles.PubSubUdpUadpTransport] = decoder
                 },
-                registry: registry);
+                registry: registry,
+                readerGroups: new[] { NewWildcardReaderGroup() });
             SetPrivateField(
                 connection,
                 "m_transport",
@@ -774,7 +777,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             int maxNetworkMessageSize = 0,
             PubSubDiagnostics? diagnostics = null,
             IDataSetMetaDataRegistry? registry = null,
-            UadpSecurityWrapper? securityWrapper = null)
+            UadpSecurityWrapper? securityWrapper = null,
+            ArrayOf<ReaderGroup> readerGroups = default)
         {
             return new PubSubConnection(
                 new PubSubConnectionDataType
@@ -786,7 +790,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 encoders,
                 decoders,
                 Array.Empty<WriterGroup>(),
-                Array.Empty<ReaderGroup>(),
+                readerGroups,
                 registry ?? new DataSetMetaDataRegistry(),
                 diagnostics ?? new PubSubDiagnostics(PubSubDiagnosticsLevel.High),
                 NUnitTelemetryContext.Create(),
@@ -796,8 +800,21 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 maxNetworkMessageSize);
         }
 
-        private static UadpSecurityWrapper CreateSecurityWrapper(
-            bool acceptInbound = true,
+        private static ReaderGroup NewWildcardReaderGroup()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var reader = new DataSetReader(
+                new DataSetReaderDataType { Name = "any-publisher" },
+                new Moq.Mock<ISubscribedDataSetSink>().Object,
+                telemetry,
+                TimeProvider.System);
+            return new ReaderGroup(
+                new ReaderGroupDataType { Name = "rg" },
+                new[] { reader },
+                telemetry);
+        }
+
+        private static UadpSecurityWrapper CreateSecurityWrapper(            bool acceptInbound = true,
             bool throwOnCurrentKey = false)
         {
             return new UadpSecurityWrapper(

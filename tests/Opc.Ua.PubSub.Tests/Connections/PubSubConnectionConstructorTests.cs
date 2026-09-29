@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Connections;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
@@ -383,6 +384,64 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        public async Task InboundMetaDataIsRegisteredOnlyForConfiguredReaderIdentities()
+        {
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out DataSetMetaDataRegistry registry,
+                new DataSetReaderDataType
+                {
+                    Name = "expected",
+                    PublisherId = new Variant((ushort)42),
+                    DataSetWriterId = 17
+                });
+
+            bool otherPublisher = conn.TryRouteInboundMetaData(NewInboundMeta(PublisherId.FromUInt16(43), 17));
+            bool otherWriter = conn.TryRouteInboundMetaData(NewInboundMeta(PublisherId.FromUInt16(42), 18));
+            bool expected = conn.TryRouteInboundMetaData(NewInboundMeta(PublisherId.FromString("42"), 17));
+
+            Assert.That(otherPublisher && otherWriter && expected, Is.True,
+                "Metadata frames are always consumed, registered or not.");
+            Assert.That(registry.Keys, Has.Count.EqualTo(1));
+            Assert.That(registry.Keys[0].DataSetWriterId, Is.EqualTo((ushort)17));
+        }
+
+        [Test]
+        public async Task InboundMetaDataIdentitiesAreBoundedPerConnection()
+        {
+            await using PubSubConnection conn = NewConnectionWithOwnRegistry(
+                out DataSetMetaDataRegistry registry);
+
+            for (int i = 0; i <= PubSubConnection.MaxInboundMetaDataIdentities; i++)
+            {
+                _ = conn.TryRouteInboundMetaData(
+                    NewInboundMeta(PublisherId.FromString("P" + i), 1));
+            }
+            // A known identity is still updated once the budget is exhausted.
+            _ = conn.TryRouteInboundMetaData(NewInboundMeta(PublisherId.FromString("P0"), 1, major: 8));
+
+            Assert.That(registry.Keys, Has.Count.EqualTo(PubSubConnection.MaxInboundMetaDataIdentities));
+            var first = new DataSetMetaDataKey(PublisherId.FromString("P0"), 0, 1, Uuid.Empty, 8);
+            Assert.That(registry.TryGet(in first, out _), Is.EqualTo(MetaDataMatchResult.Match));
+        }
+
+        private static JsonMetaDataMessage NewInboundMeta(
+            PublisherId publisherId,
+            ushort writerId,
+            uint major = 7)
+        {
+            return new JsonMetaDataMessage
+            {
+                PublisherId = publisherId,
+                DataSetWriterId = writerId,
+                MetaDataPayload = new DataSetMetaDataType
+                {
+                    Name = "Inbound",
+                    ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = major }
+                }
+            };
+        }
+
+        [Test]
         public async Task TryRouteInboundMetaData_NonMetaMessage_ReturnsFalse()
         {
             await using PubSubConnection conn = NewConnectionWithOwnRegistry(out _);
@@ -431,16 +490,23 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         private static PubSubConnection NewConnectionWithOwnRegistry(
-            out DataSetMetaDataRegistry registry)
+            out DataSetMetaDataRegistry registry,
+            DataSetReaderDataType? readerConfiguration = null)
         {
             registry = new DataSetMetaDataRegistry();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var reader = new DataSetReader(
+                readerConfiguration ?? new DataSetReaderDataType { Name = "any-publisher" },
+                new Moq.Mock<ISubscribedDataSetSink>().Object,
+                telemetry,
+                TimeProvider.System);
             return new PubSubConnection(
                 NewConfig(),
                 new StubTransportFactory(),
                 new Dictionary<string, INetworkMessageEncoder>(),
                 new Dictionary<string, INetworkMessageDecoder>(),
                 Array.Empty<WriterGroup>(),
-                Array.Empty<ReaderGroup>(),
+                new[] { new ReaderGroup(new ReaderGroupDataType { Name = "rg" }, new[] { reader }, telemetry) },
                 registry,
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 NUnitTelemetryContext.Create(),
