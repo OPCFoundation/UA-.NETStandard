@@ -326,7 +326,9 @@ namespace Opc.Ua.Fuzzing
             // The message envelope retains its type id; RawData suppresses artifacts inside the body.
             Assert.That(document.RootElement.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=629"));
             JsonElement header = body.GetProperty("RequestHeader").GetProperty("AdditionalHeader");
-            Assert.That(header.TryGetProperty("UaTypeId", out _), Is.EqualTo(!options.SuppressArtifacts));
+            // The AdditionalHeader is an ExtensionObject (abstract Structure), so RawData keeps
+            // its UaTypeId (Part 6 5.4.1).
+            Assert.That(header.TryGetProperty("UaTypeId", out _), Is.True);
             // A structure's abstract Variant still carries its type; retired unwrapped Variants are not emitted.
             Assert.That(
                 header.GetProperty("Parameters")[0].GetProperty("Value").GetProperty("UaType").GetInt32(),

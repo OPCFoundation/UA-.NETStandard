@@ -699,6 +699,33 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void RawDataKeepsTypeArtifactsOfAbstractTypedValues()
+        {
+            // RawData omits UaType/UaTypeId, but not for values of the abstract
+            // BaseDataType (Variant) or Structure (ExtensionObject) (Part 6 5.4.1).
+            var variants = Variant.From(new[] { Variant.From(1), Variant.From("a") }.ToArrayOf());
+            var extensionObject = new ExtensionObject(new Argument { Name = "x" });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.RawData, w => w.WriteVariantValue("V", variants)),
+                    Is.EqualTo("""{"V":[{"UaType":6,"Value":1},{"UaType":12,"Value":"a"}]}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.RawData, w => w.WriteDataValue("V", new DataValue(variants))),
+                    Is.EqualTo("""{"V":{"Value":[{"UaType":6,"Value":1},{"UaType":12,"Value":"a"}]}}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.RawData, w => w.WriteExtensionObject("V", extensionObject)),
+                    Does.StartWith("""{"V":{"UaTypeId":"i=296","Name":"x","""));
+                Assert.That(
+                    Encode(
+                        JsonEncoderOptions.RawData,
+                        w => w.WriteVariantValue("V", new Variant(extensionObject))),
+                    Does.StartWith("""{"V":{"UaTypeId":"i=296","Name":"x","""));
+            });
+        }
+
+        [Test]
         public void EncodeMessageWritesBodyInlineAfterUaTypeId()
         {
             // Messages are ExtensionObjects (Part 6 5.4.9) and a JSON encoded body is

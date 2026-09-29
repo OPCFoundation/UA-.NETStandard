@@ -901,8 +901,8 @@ namespace Opc.Ua
                 return;
             }
             m_writer.WritePropertyName(fieldName!);
-            // Never suppress artifacts when called during structure encoding
-            WriteVariant(value, suppressUaType: false);
+            // A Variant is BaseDataType, so its UaType is kept also in RawData (5.4.1)
+            WriteVariant(value);
         }
 
         /// <inheritdoc/>
@@ -910,8 +910,8 @@ namespace Opc.Ua
         {
             if (WriteArrayProperty(fieldName, values))
             {
-                // Never suppress artifacts when called during structure encoding
-                WriteVariantArray(values, suppressUaType: false);
+                // A Variant is BaseDataType, so its UaType is kept also in RawData (5.4.1)
+                WriteVariantArray(values);
             }
         }
 
@@ -939,7 +939,7 @@ namespace Opc.Ua
                 return;
             }
             m_writer.WritePropertyName(fieldName!);
-            WriteVariantContents(in value, true, m_options.SuppressArtifacts);
+            WriteVariantContents(in value, true);
         }
 
         /// <inheritdoc/>
@@ -1074,6 +1074,8 @@ namespace Opc.Ua
             if (!value.WrappedValue.TypeInfo.IsUnknown &&
                 value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
             {
+                // RawData omits only this outermost UaType; nested Variants and
+                // ExtensionObjects keep their type artifacts (5.4.1).
                 if (!m_options.SuppressArtifacts)
                 {
                     WriteVariantUaTypeByte(value.WrappedValue);
@@ -1081,7 +1083,7 @@ namespace Opc.Ua
                 if (!IsNullVariantValue(value.WrappedValue))
                 {
                     m_writer.WritePropertyName(JsonProperties.Value);
-                    WriteVariantContents(value.WrappedValue, false, m_options.SuppressArtifacts);
+                    WriteVariantContents(value.WrappedValue, false);
                 }
             }
             // Now write the remainder of the data value fields
@@ -1395,7 +1397,9 @@ namespace Opc.Ua
 
             StartObject();
 
-            if (!m_options.SuppressArtifacts && !localTypeId.IsNull)
+            // An ExtensionObject is the abstract Structure, so RawData keeps its
+            // UaTypeId (5.4.1).
+            if (!localTypeId.IsNull)
             {
                 WriteNodeId(JsonProperties.UaTypeId, localTypeId);
             }
@@ -1410,9 +1414,7 @@ namespace Opc.Ua
                     rawJson = rawJson.Trim();
                     if (rawJson.Length > 1 && rawJson[0] == '{' && rawJson[^1] == '}')
                     {
-                        WriteJsonExtensionObjectBody(
-                            rawJson,
-                            !m_options.SuppressArtifacts && !localTypeId.IsNull);
+                        WriteJsonExtensionObjectBody(rawJson, !localTypeId.IsNull);
                         break;
                     }
                     if (rawJson.Length == 0)
@@ -1934,7 +1936,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write variant
         /// </summary>
-        private void WriteVariant(in Variant value, bool suppressUaType)
+        private void WriteVariant(in Variant value)
         {
             if (value.IsNull)
             {
@@ -1942,14 +1944,11 @@ namespace Opc.Ua
                 return;
             }
             StartObject();
-            if (!suppressUaType)
-            {
-                WriteVariantUaTypeByte(value);
-            }
+            WriteVariantUaTypeByte(value);
             if (!IsNullVariantValue(value))
             {
                 m_writer.WritePropertyName(JsonProperties.Value);
-                WriteVariantContents(in value, false, suppressUaType);
+                WriteVariantContents(in value, false);
             }
             EndObject();
         }
@@ -1994,15 +1993,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Write variant values
+        /// Write variant values. Every element is a BaseDataType value, so it keeps its
+        /// UaType also in RawData (5.4.1).
         /// </summary>
-        private void WriteVariantArray(ArrayOf<Variant> values, bool suppressUaType)
+        private void WriteVariantArray(ArrayOf<Variant> values)
         {
             StartArray(values.Count);
             ReadOnlySpan<Variant> span = values.Span;
             for (int i = 0; i < span.Length; i++)
             {
-                WriteVariant(in span[i], suppressUaType);
+                WriteVariant(in span[i]);
             }
             EndArray();
         }
@@ -2052,15 +2052,14 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void WriteVariantContents(
             in Variant value,
-            bool writeRawValue,
-            bool suppressUaType)
+            bool writeRawValue)
         {
             // An empty matrix Variant has no valid Dimensions (all must be
             // > 0) and is written as an empty array (OPC 10000-6 5.2.2.16,
             // 5.4.2.17).
             if (!writeRawValue && value.IsEmptyMatrix)
             {
-                WriteVariantContents(value.ToEmptyArray(), false, suppressUaType);
+                WriteVariantContents(value.ToEmptyArray(), false);
                 return;
             }
 
@@ -2241,7 +2240,7 @@ namespace Opc.Ua
                         WriteDataValueArray(value.GetDataValueArray());
                         break;
                     case BuiltInType.Variant:
-                        WriteVariantArray(value.GetVariantArray(), suppressUaType);
+                        WriteVariantArray(value.GetVariantArray());
                         break;
                     case BuiltInType.DiagnosticInfo:
                     case BuiltInType.Null:
@@ -2353,7 +2352,7 @@ namespace Opc.Ua
                         WriteDataValueArray(value.GetDataValueMatrix().ToArrayOf(out dim));
                         break;
                     case BuiltInType.Variant:
-                        WriteVariantArray(value.GetVariantMatrix().ToArrayOf(out dim), suppressUaType);
+                        WriteVariantArray(value.GetVariantMatrix().ToArrayOf(out dim));
                         break;
                     case BuiltInType.DiagnosticInfo:
                     case BuiltInType.Null:
