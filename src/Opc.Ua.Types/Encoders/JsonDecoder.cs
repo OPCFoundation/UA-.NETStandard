@@ -3473,8 +3473,9 @@ namespace Opc.Ua
                 case JsonValueKind.String
                 when TryGetStringFromElement(element, out string? stringEncoded):
                     // As per 5.4.2.3, formatted as a decimal number encoded as a JSON string
-                    // (digits only: no sign, whitespace, group or currency symbols).
-                    return ulong.TryParse(stringEncoded, NumberStyles.None,
+                    // with the lexical form of xs:unsignedLong (5.3.1.3): digits with an
+                    // optional leading '+' (no whitespace, group or currency symbols).
+                    return ulong.TryParse(stringEncoded, NumberStyles.AllowLeadingSign,
                         CultureInfo.InvariantCulture, out value);
                 case JsonValueKind.Number
                 when !m_options.ParseStrict && element.TryGetUInt64(out value):

@@ -259,13 +259,25 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [TestCase("-1")]
-        [TestCase("+1")]
-        public void UInt64StringWithSignIsRejected(string text)
+        [TestCase("+-1")]
+        public void UInt64StringWithNegativeValueIsRejected(string text)
         {
             ServiceMessageContext context = CreateContext();
             using JsonDecoder decoder = Field(context, "\"" + text + "\"");
 
             AssertStatus(StatusCodes.BadDecodingError, () => decoder.ReadUInt64("F"));
+        }
+
+        [TestCase("+1", 1UL)]
+        [TestCase("+18446744073709551615", ulong.MaxValue)]
+        public void UInt64StringWithLeadingPlusIsAccepted(string text, ulong expected)
+        {
+            // Part 6 5.4.2.3 refers to the XML form (5.3.1.3), xs:unsignedLong,
+            // whose lexical form allows a leading '+'.
+            ServiceMessageContext context = CreateContext();
+            using JsonDecoder decoder = Field(context, "\"" + text + "\"");
+
+            Assert.That(decoder.ReadUInt64("F"), Is.EqualTo(expected));
         }
 
         [TestCase("1.5")]
