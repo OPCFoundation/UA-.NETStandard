@@ -175,6 +175,42 @@ namespace Opc.Ua.Types.Tests.Encoders
             // 100 levels x 65535 DataValues used to be several hundred MB.
             Assert.That(allocated, Is.LessThan(32L * 1024 * 1024));
         }
+
+        [Test]
+        public void LargeArrayBackedByTheMessageIsAllocatedOnce()
+        {
+            IServiceMessageContext context = CreateContext();
+            var values = new DataValue[50000];
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                values[ii] = new DataValue(
+                    Variant.From((double)ii),
+                    StatusCodes.Good,
+                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks(ii));
+            }
+
+            byte[] bytes;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteDataValueArray(null, values);
+                bytes = encoder.CloseAndReturnBuffer()!;
+            }
+
+            // Growing from a small array would allocate about twice the
+            // final array, a message that backs the length allocates it once.
+            long arrayBytes = (long)values.Length *
+                System.Runtime.CompilerServices.Unsafe.SizeOf<DataValue>();
+            foreach (bool useStream in s_streamModes)
+            {
+                using BinaryDecoder decoder = CreateDecoder(bytes, context, useStream);
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                ArrayOf<DataValue> decoded = decoder.ReadDataValueArray(null);
+                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+                Assert.That(decoded.ToArray(), Is.EqualTo(values));
+                Assert.That(allocated, Is.LessThan(arrayBytes + (arrayBytes / 4)));
+            }
+        }
 #endif
 
         [Test]

@@ -2174,14 +2174,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads <paramref name="length"/> elements into an array that grows
-        /// as the elements are read. The remaining bytes check of the length
-        /// does not bound what a nested element allocates: every level of a
-        /// Variant, DataValue or ExtensionObject array nested in the first
-        /// element of its parent is checked against the same remaining bytes.
-        /// Preallocating at most <see cref="kMaxPreallocatedArrayBytes"/> per
-        /// level keeps the memory held by such a chain proportional to the
-        /// elements actually decoded instead of to the length prefixes.
+        /// Reads <paramref name="length"/> elements into an array. The
+        /// remaining bytes check of the length does not bound what a nested
+        /// element allocates: every level of a Variant, DataValue or
+        /// ExtensionObject array nested in the first element of its parent is
+        /// checked against the same remaining bytes.
+        /// The array is allocated at its full length only while all arrays
+        /// allocated this way and still being read, this one included, take
+        /// at most <see cref="kMaxPreallocatedBytesPerRemainingByte"/> bytes
+        /// per remaining message byte, so a chain of nested length prefixes
+        /// shares one budget instead of multiplying it. Otherwise the array
+        /// starts at <see cref="kMaxPreallocatedArrayBytes"/> and grows as
+        /// the elements are read, which keeps the memory held by such a chain
+        /// proportional to the elements actually decoded.
         /// </summary>
         /// <typeparam name="T">The element type.</typeparam>
         /// <typeparam name="TReader">Reads a single element.</typeparam>
@@ -2190,7 +2195,19 @@ namespace Opc.Ua
         private T[] ReadArrayElements<T, TReader>(int length, TReader reader)
             where TReader : struct, IElementReader<T>
         {
-            var values = new T[GetInitialArrayCapacity<T>(length)];
+            int capacity = GetInitialArrayCapacity<T>(length);
+            if (capacity < length)
+            {
+                long bytes = (long)length * Unsafe.SizeOf<T>();
+                long remaining = GetRemainingLength();
+                if (remaining >= 0 &&
+                    m_preallocatedBytes + bytes <= kMaxPreallocatedBytesPerRemainingByte * remaining)
+                {
+                    return ReadPreallocatedArrayElements<T, TReader>(length, bytes, reader);
+                }
+            }
+
+            var values = new T[capacity];
             for (int ii = 0; ii < length; ii++)
             {
                 if (ii == values.Length)
@@ -2198,6 +2215,37 @@ namespace Opc.Ua
                     Array.Resize(ref values, (int)Math.Min(length, 2L * values.Length));
                 }
                 values[ii] = reader.Read(this);
+            }
+            return values;
+        }
+
+        /// <summary>
+        /// Reads <paramref name="length"/> elements into an array allocated
+        /// at its full length of <paramref name="bytes"/> bytes, which count
+        /// against the preallocation budget of nested arrays until the last
+        /// element is read.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <typeparam name="TReader">Reads a single element.</typeparam>
+        private T[] ReadPreallocatedArrayElements<T, TReader>(
+            int length,
+            long bytes,
+            TReader reader)
+            where TReader : struct, IElementReader<T>
+        {
+            var values = new T[length];
+            long preallocatedBytes = m_preallocatedBytes;
+            m_preallocatedBytes = preallocatedBytes + bytes;
+            try
+            {
+                for (int ii = 0; ii < values.Length; ii++)
+                {
+                    values[ii] = reader.Read(this);
+                }
+            }
+            finally
+            {
+                m_preallocatedBytes = preallocatedBytes;
             }
             return values;
         }
@@ -2937,6 +2985,12 @@ namespace Opc.Ua
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.
         private const int kMaxPreallocatedArrayBytes = 16 * 1024;
+
+        // The bytes of all arrays allocated at their full length and still
+        // being read, and the most bytes they may take per remaining message
+        // byte, see ReadArrayElements.
+        private long m_preallocatedBytes;
+        private const int kMaxPreallocatedBytesPerRemainingByte = 8;
 
         // The reserved Variant built-in type ids, OPC 10000-6 5.2.2.16.
         private const int kFirstReservedVariantTypeId = 26;
