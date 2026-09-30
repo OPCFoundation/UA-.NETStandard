@@ -41,7 +41,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   (WoT Connectivity), Part 200 (Industrial Automation), OPC 40001-1/-2/-3/-4/-101
   (Machinery with Process Values, Job Management, Energy and Result
   Transfer), OPC 34100 (Energy Consumption Management), OPC 30081
-  (PA-DIM), OPC 40010-1 (Robotics).
+  (PA-DIM), OPC 40010-1 (Robotics), OPC 40223 (Pumps and Vacuum Pumps).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so

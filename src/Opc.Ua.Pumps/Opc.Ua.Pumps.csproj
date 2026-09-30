@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Pumps</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Pumps</PackageId>
+    <RootNamespace>Opc.Ua.Pumps</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Server/client-independent OPC 40223 Pumps and Vacuum Pumps contracts and source-generated model over the OPC 40001-1 Machinery and OPC 10000-100 DI base models, including model identifiers, typed node states, client proxies and the pump snapshot contracts shared by the client and server packages.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Pumps.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Pumps.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Pumps.Tests" />
+    <InternalsVisibleTo Include="PumpDeviceIntegrationServer" />
+  </ItemGroup>
+  <!-- OPC 40223 binds both base models directly: PumpType derives from the
+       OPC 40001-1 MachineType and PumpIdentificationType from the DI
+       MachineryItemIdentificationType chain, so both model assemblies have to
+       be referenced for the generator to resolve those base types out of the
+       [ModelDependencyAttribute] payloads they publish. Opc.Ua.IA is not a
+       Pumps dependency - it arrives transitively with Machinery, whose
+       MonitoringType/Status/Stacklight reaches into it - but the server
+       package has to load it ahead of Machinery at runtime. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.Pumps.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.Pumps.NodeSet2.csv" />
+  </ItemGroup>
+  <!-- The NodeSet2 XML is the unmodified OPC Foundation publication from
+       UA-Nodeset/latest/Pumps. The sibling CSV is not a NodeId source - for a
+       NodeSet2 input the NodeIds come from the XML - it pins the symbol/NodeId
+       mapping so a client that caches NodeIds across builds keeps working, and
+       the generator fails the build when the two disagree. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.Pumps.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/Pumps/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>Pumps</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Pumps</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.Pumps.NodeSet2.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project does
+         not reference. Opc.Ua.Pumps.Server re-links this NodeSet with
+         ModelSourceGeneratorFluentAccessorsOnly to supply them. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

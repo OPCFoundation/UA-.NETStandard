@@ -71,6 +71,9 @@ OPCFoundation.NetStandard.Opc.Ua.PubSub.Mqtt
 OPCFoundation.NetStandard.Opc.Ua.PubSub.Schema
 OPCFoundation.NetStandard.Opc.Ua.PubSub.Server
 OPCFoundation.NetStandard.Opc.Ua.PubSub.Udp
+OPCFoundation.NetStandard.Opc.Ua.Pumps
+OPCFoundation.NetStandard.Opc.Ua.Pumps.Client
+OPCFoundation.NetStandard.Opc.Ua.Pumps.Server
 OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers
 OPCFoundation.NetStandard.Opc.Ua.Redundancy
 OPCFoundation.NetStandard.Opc.Ua.Redundancy.Client

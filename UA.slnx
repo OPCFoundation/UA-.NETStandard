@@ -31,6 +31,10 @@
     <Project Path="samples/Machinery/MachineryServer/MachineryServer.csproj" />
     <Project Path="samples/Machinery/MachineryClient/MachineryClient.csproj" />
   </Folder>
+  <Folder Name="/samples/Pumps/">
+    <Project Path="samples/Pumps/PumpsServer/PumpsServer.csproj" />
+    <Project Path="samples/Pumps/PumpsClient/PumpsClient.csproj" />
+  </Folder>
   <Folder Name="/samples/Isa95/">
     <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
   </Folder>
@@ -140,6 +144,9 @@
     <Project Path="src/Opc.Ua.Positioning/Opc.Ua.Positioning.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Client/Opc.Ua.Positioning.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Server/Opc.Ua.Positioning.Server.csproj" />
+    <Project Path="src/Opc.Ua.Pumps/Opc.Ua.Pumps.csproj" />
+    <Project Path="src/Opc.Ua.Pumps.Client/Opc.Ua.Pumps.Client.csproj" />
+    <Project Path="src/Opc.Ua.Pumps.Server/Opc.Ua.Pumps.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
@@ -337,6 +344,7 @@
     <Project Path="tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />

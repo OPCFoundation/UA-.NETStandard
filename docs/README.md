@@ -178,6 +178,8 @@ models that each model depends on.
   package) — machines with identification, server-driven state machines,
   process values, job management, energy and result transfer, based on the
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
+- [Pumps](Pumps.md) (OPC 40223; preview package) — pumps and vacuum pumps,
+  published both as Device Integration devices and as Machinery machines.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
   systems, based on the Industrial Automation and Device Integration models.
   The guide's draft Robot Intent model is listed in [stage 7](#7-draft-and-experimental-capabilities).
