@@ -616,11 +616,15 @@ namespace Opc.Ua.Bindings
                 // least 1024 bytes when it intends to use an ECC SecurityPolicy and
                 // 8192 bytes otherwise. Smaller values are rejected, not raised: a
                 // raised SendBufferSize would send chunks the client cannot take.
+                // §7.1.5: this protocol error is reported in an Error message before
+                // the close. Bad_TcpInternalError (Table 79, unexpected configuration
+                // error) is used, not Bad_TcpNotEnoughResources, which tells the
+                // client to retry later and closes without an Error message here.
                 if (receiveBufferSize < TcpMessageLimits.ECCMinBufferSize ||
                     sendBufferSize < TcpMessageLimits.ECCMinBufferSize)
                 {
                     ForceChannelFaultCore(
-                        StatusCodes.BadTcpNotEnoughResources,
+                        StatusCodes.BadTcpInternalError,
                         "Client buffer sizes are below the minimum (receive {0}, send {1} bytes).",
                         sendBufferSize,
                         receiveBufferSize);

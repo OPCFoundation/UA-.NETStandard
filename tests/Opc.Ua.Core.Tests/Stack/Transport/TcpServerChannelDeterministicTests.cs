@@ -219,9 +219,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
-        /// OPC 10000-6 §7.1.2.3: buffer sizes below 1024 bytes are never valid and are rejected with
-        /// Bad_TcpNotEnoughResources (which closes the connection without an Error message, like every
-        /// resource rejection) instead of being raised to a size the client did not agree to.
+        /// OPC 10000-6 §7.1.2.3: buffer sizes below 1024 bytes are never valid and are rejected instead
+        /// of being raised to a size the client did not agree to. §7.1.5: the rejection is an Error
+        /// message with Bad_TcpInternalError (not an Acknowledge) followed by the close.
         /// </summary>
         [TestCase(1023u, 8192u)]
         [TestCase(8192u, 1023u)]
@@ -240,8 +240,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 new ArraySegment<byte>(BuildHello(clientReceiveBufferSize, clientSendBufferSize)))
                 .ConfigureAwait(false);
 
-            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
-            Assert.That(transport.FirstSendTask.IsCompleted, Is.False, "no Acknowledge may be sent");
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never emitted the error message");
+            Assert.That(
+                BitConverter.ToUInt32(transport.LastSent, 0),
+                Is.EqualTo(TcpMessageType.Error),
+                "no Acknowledge may be sent");
+            Assert.That(
+                DecodeErrorStatusCode(transport.LastSent),
+                Is.EqualTo((uint)StatusCodes.BadTcpInternalError));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
             listenerMock.Verify(l => l.ChannelClosed(0u), Times.Once());
         }
 
