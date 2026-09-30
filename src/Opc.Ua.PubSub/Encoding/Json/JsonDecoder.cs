@@ -1228,8 +1228,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="root">Source DataSetMessage object.</param>
         /// <returns>
         /// <see cref="JsonEncodingMode.Verbose"/> when any payload entry
-        /// is a Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c> Variant
-        /// (top-level Variants with a concrete FieldMetaData type are
+        /// is a Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c> Variant or a
+        /// deprecated ReversibleFieldEncoding <c>{ "Type", "Body" }</c>
+        /// Variant (top-level Variants with a concrete FieldMetaData type are
         /// collapsed to bare values, Part 14 §7.2.5.4.2) or the first
         /// entry is a DataValue object;
         /// <see cref="JsonEncodingMode.RawData"/> when bodies are bare.
@@ -1249,7 +1250,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             foreach (JsonProperty member in payload.EnumerateObject())
             {
                 JsonElement value = member.Value;
-                if (JsonVariantDecoder.IsVariantEnvelope(value))
+                if (JsonVariantDecoder.IsVariantEnvelope(value) ||
+                    JsonVariantDecoder.IsLegacyVariantEnvelope(value))
                 {
                     return JsonEncodingMode.Verbose;
                 }

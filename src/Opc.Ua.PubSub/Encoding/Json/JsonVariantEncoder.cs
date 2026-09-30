@@ -52,6 +52,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
     internal static class JsonVariantEncoder
     {
         private const string SpliceFieldName = "v";
+        private const string CollapsedValueFieldName = "c";
 
         /// <summary>
         /// Translates a PubSub-level <see cref="JsonEncodingMode"/> to
@@ -103,6 +104,25 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return false;
             }
             return builtInType is > BuiltInType.Null and < BuiltInType.ExtensionObject;
+        }
+
+        /// <summary>
+        /// <see langword="true"/> when the field has an Enumeration
+        /// DataType: its BuiltInType is Int32 but its DataType is not
+        /// Int32. A top-level VerboseEncoding Enumeration field is written
+        /// as the verbose Enumeration <c>&lt;name&gt;_&lt;value&gt;</c>
+        /// (Part 14 §7.2.5.4.2, Part 6 §5.4.4.2).
+        /// </summary>
+        /// <param name="metaData">FieldMetaData of the field.</param>
+        /// <returns>Whether the field is a scalar or one-dimensional
+        /// Enumeration.</returns>
+        public static bool IsEnumerationField(FieldMetaData? metaData)
+        {
+            return metaData is not null &&
+                metaData.BuiltInType == (byte)BuiltInType.Int32 &&
+                metaData.ValueRank is ValueRanks.Scalar or ValueRanks.OneDimension &&
+                !metaData.DataType.IsNull &&
+                metaData.DataType != DataTypeIds.Int32;
         }
 
         /// <summary>
@@ -176,13 +196,18 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="value">DataValue payload.</param>
         /// <param name="mode">Selected encoding mode.</param>
         /// <param name="context">Stack message context for encoders.</param>
+        /// <param name="collapsedValue">When set, the FieldMetaData
+        /// supplies the concrete type of the value, so this bare value is
+        /// written as the <c>Value</c> without <c>UaType</c>
+        /// (Part 14 §7.2.5.4.3 Table 187).</param>
         /// <exception cref="ArgumentNullException"></exception>
         public static void WriteDataValueProperty(
             Utf8JsonWriter destination,
             string propertyName,
             DataValue value,
             JsonEncodingMode mode,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            Variant? collapsedValue = null)
         {
             if (destination is null)
             {
@@ -205,9 +230,40 @@ namespace Opc.Ua.PubSub.Encoding.Json
             using JsonBufferWriter buffer = new(384);
             using (Ua.JsonEncoder encoder = new(buffer, context, options))
             {
+                if (collapsedValue is { } raw)
+                {
+                    encoder.WriteVariantValue(CollapsedValueFieldName, raw);
+                }
                 encoder.WriteDataValue(SpliceFieldName, value);
             }
-            SplicePropertyValue(destination, propertyName, buffer.WrittenMemory);
+            if (collapsedValue is null)
+            {
+                SplicePropertyValue(destination, propertyName, buffer.WrittenMemory);
+                return;
+            }
+            using var document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement root = document.RootElement;
+            destination.WritePropertyName(propertyName);
+            destination.WriteStartObject();
+            if (root.TryGetProperty(CollapsedValueFieldName, out JsonElement rawValue))
+            {
+                destination.WritePropertyName("Value");
+                rawValue.WriteTo(destination);
+            }
+            if (root.TryGetProperty(SpliceFieldName, out JsonElement dataValue) &&
+                dataValue.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty member in dataValue.EnumerateObject())
+                {
+                    if (!member.NameEquals("UaType") &&
+                        !member.NameEquals("Value") &&
+                        !member.NameEquals("Dimensions"))
+                    {
+                        member.WriteTo(destination);
+                    }
+                }
+            }
+            destination.WriteEndObject();
         }
 
         /// <summary>

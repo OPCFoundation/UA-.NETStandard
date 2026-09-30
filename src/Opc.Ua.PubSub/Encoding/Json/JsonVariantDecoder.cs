@@ -112,6 +112,270 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
+        /// Decodes the value of a DataSet field described by
+        /// <paramref name="metaData"/>. Besides the Part 6 §5.4.2.17
+        /// Variant object, the field shapes of Part 14 §7.2.5.4.3
+        /// Table 186 without <c>UaType</c> / <c>UaTypeId</c> are typed by
+        /// the FieldMetaData: collapsed values, Enumerations as Verbose
+        /// <c>&lt;name&gt;_&lt;value&gt;</c> strings (Part 6 §5.4.4.2) or
+        /// numbers, Structures without <c>UaTypeId</c> and the
+        /// <c>{ "Value", "Dimensions" }</c> object of fields with a
+        /// multi-dimensional or abstract ValueRank.
+        /// </summary>
+        /// <param name="element">JSON element holding the value.</param>
+        /// <param name="mode">Detected encoding mode.</param>
+        /// <param name="metaData">Optional FieldMetaData of the field.</param>
+        /// <param name="context">Stack message context.</param>
+        /// <returns>Decoded variant.</returns>
+        /// <exception cref="ServiceResultException">A Verbose field of an
+        /// abstract DataType has no <c>UaType</c>.</exception>
+        public static Variant DecodeField(
+            JsonElement element,
+            JsonEncodingMode mode,
+            FieldMetaData? metaData,
+            IServiceMessageContext context)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            {
+                return Variant.Null;
+            }
+            if (IsLegacyVariantEnvelope(element))
+            {
+                return DecodeLegacyVariant(element, context);
+            }
+            if (metaData is null || IsVariantEnvelope(element))
+            {
+                return DecodeVariant(
+                    element,
+                    mode,
+                    metaData is null
+                        ? null
+                        : TypeInfo.Create((BuiltInType)metaData.BuiltInType, metaData.ValueRank),
+                    context);
+            }
+            var builtInType = (BuiltInType)metaData.BuiltInType;
+            int valueRank = metaData.ValueRank;
+            if (JsonVariantEncoder.IsEnumerationField(metaData))
+            {
+                // Verbose "<name>_<value>" strings and Compact numbers both
+                // decode; the value keeps the Int32 BuiltInType of the field.
+                Variant enumeration = DecodeSpliced(
+                    element,
+                    context,
+                    decoder => decoder.ReadVariantValue(
+                        SpliceFieldName,
+                        TypeInfo.Create(BuiltInType.Enumeration, valueRank)));
+                if (valueRank == ValueRanks.Scalar)
+                {
+                    return enumeration.TryGetValue(out int scalar) ? new Variant(scalar) : Variant.Null;
+                }
+                return enumeration.TryGetValue(out ArrayOf<int> array) ? new Variant(array) : Variant.Null;
+            }
+            if (JsonVariantEncoder.IsCollapsedField(builtInType, valueRank))
+            {
+                return DecodeVariant(element, mode, TypeInfo.Create(builtInType, valueRank), context);
+            }
+            if (builtInType is BuiltInType.Null or BuiltInType.Variant or
+                BuiltInType.Number or BuiltInType.Integer or BuiltInType.UInteger or
+                BuiltInType.Enumeration)
+            {
+                if (JsonVariantEncoder.WrapsInVariantEnvelope(mode))
+                {
+                    // Part 14 §7.2.5.4.3: with RawData=FALSE the Publisher
+                    // always includes the UaType of an abstract DataType.
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "The field of the abstract DataType {0} has no UaType.",
+                        builtInType);
+                }
+                return DecodeVariant(element, mode, TypeInfo.Create(builtInType, valueRank), context);
+            }
+            return DecodeTypedVariant(element, builtInType, valueRank, metaData.DataType, context);
+        }
+
+        /// <summary>
+        /// Decodes a Structure field or a field with a multi-dimensional or
+        /// abstract ValueRank by supplying the <c>UaType</c> (and, for a
+        /// Structure without one, the <c>UaTypeId</c>) that the
+        /// FieldMetaData defines (Part 14 §7.2.5.4.3 Table 186).
+        /// </summary>
+        private static Variant DecodeTypedVariant(
+            JsonElement element,
+            BuiltInType builtInType,
+            int valueRank,
+            NodeId dataType,
+            IServiceMessageContext context)
+        {
+            JsonElement value = element;
+            JsonElement dimensions = default;
+            bool fixedRank = valueRank is ValueRanks.Scalar or ValueRanks.OneDimension;
+            if (!fixedRank && IsValueDimensionsObject(element))
+            {
+                value = element.GetProperty("Value");
+                element.TryGetProperty("Dimensions", out dimensions);
+            }
+            string? typeId = builtInType == BuiltInType.ExtensionObject && !dataType.IsNull
+                ? dataType.ToString()
+                : null;
+            using JsonBufferWriter buffer = new(256);
+            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
+            {
+                SkipValidation = true,
+                Indented = false
+            }))
+            {
+                writer.WriteStartObject();
+                writer.WritePropertyName(SpliceFieldName);
+                writer.WriteStartObject();
+                writer.WriteNumber("UaType", (int)builtInType);
+                writer.WritePropertyName("Value");
+                WriteWithTypeId(writer, value, typeId, allowArray: true);
+                if (dimensions.ValueKind != JsonValueKind.Undefined)
+                {
+                    writer.WritePropertyName("Dimensions");
+                    dimensions.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+            }
+            using Ua.JsonDecoder decoder = new(
+                new ReadOnlySequence<byte>(buffer.WrittenMemory),
+                context);
+            return decoder.ReadVariant(SpliceFieldName);
+        }
+
+        /// <summary>
+        /// Copies <paramref name="element"/>, adding the <c>UaTypeId</c>
+        /// to a Structure object (or to each Structure of an array) that
+        /// does not carry one.
+        /// </summary>
+        private static void WriteWithTypeId(
+            Utf8JsonWriter writer,
+            JsonElement element,
+            string? typeId,
+            bool allowArray)
+        {
+            if (typeId is not null &&
+                element.ValueKind == JsonValueKind.Object &&
+                !element.TryGetProperty("UaTypeId", out _))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("UaTypeId", typeId);
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    member.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+                return;
+            }
+            if (typeId is not null && allowArray && element.ValueKind == JsonValueKind.Array)
+            {
+                writer.WriteStartArray();
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    WriteWithTypeId(writer, item, typeId, allowArray: false);
+                }
+                writer.WriteEndArray();
+                return;
+            }
+            element.WriteTo(writer);
+        }
+
+        /// <summary>
+        /// Whether <paramref name="element"/> is the
+        /// <c>{ "Value", "Dimensions" }</c> object that Part 14 §7.2.5.4.3
+        /// Table 186 uses for fields with a multi-dimensional or abstract
+        /// ValueRank.
+        /// </summary>
+        /// <param name="element">Candidate element.</param>
+        /// <returns><see langword="true"/> for such an object.</returns>
+        internal static bool IsValueDimensionsObject(JsonElement element)
+        {
+            if (element.ValueKind != JsonValueKind.Object ||
+                !element.TryGetProperty("Value", out _))
+            {
+                return false;
+            }
+            foreach (JsonProperty member in element.EnumerateObject())
+            {
+                if (!member.NameEquals("Value") && !member.NameEquals("Dimensions"))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="element"/> is a Variant in the
+        /// <c>{ "Type", "Body" }</c> form of the deprecated JSON
+        /// ReversibleFieldEncoding (Part 14 §6.3.2.3.1 Table 112,
+        /// FieldEncoding1=True, FieldEncoding2=False).
+        /// </summary>
+        /// <param name="element">Candidate element.</param>
+        /// <returns><see langword="true"/> for a legacy Variant.</returns>
+        internal static bool IsLegacyVariantEnvelope(JsonElement element)
+        {
+            if (element.ValueKind != JsonValueKind.Object ||
+                !element.TryGetProperty("Type", out JsonElement type) ||
+                type.ValueKind != JsonValueKind.Number ||
+                !element.TryGetProperty("Body", out _))
+            {
+                return false;
+            }
+            foreach (JsonProperty member in element.EnumerateObject())
+            {
+                if (!member.NameEquals("Type") &&
+                    !member.NameEquals("Body") &&
+                    !member.NameEquals("Dimensions"))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Decodes a legacy <c>{ "Type", "Body", "Dimensions" }</c> Variant
+        /// by reading it as the Part 6 §5.4.2.17
+        /// <c>{ "UaType", "Value", "Dimensions" }</c> object.
+        /// </summary>
+        private static Variant DecodeLegacyVariant(
+            JsonElement element,
+            IServiceMessageContext context)
+        {
+            using JsonBufferWriter buffer = new(256);
+            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
+            {
+                SkipValidation = true,
+                Indented = false
+            }))
+            {
+                writer.WriteStartObject();
+                writer.WritePropertyName(SpliceFieldName);
+                writer.WriteStartObject();
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    writer.WritePropertyName(
+                        member.NameEquals("Type") ? "UaType" :
+                        member.NameEquals("Body") ? "Value" :
+                        "Dimensions");
+                    member.Value.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+            }
+            using Ua.JsonDecoder decoder = new(
+                new ReadOnlySequence<byte>(buffer.WrittenMemory),
+                context);
+            return decoder.ReadVariant(SpliceFieldName);
+        }
+
+        /// <summary>
         /// Decodes a single DataValue payload from the supplied element.
         /// </summary>
         /// <param name="element">JSON element holding the value.</param>

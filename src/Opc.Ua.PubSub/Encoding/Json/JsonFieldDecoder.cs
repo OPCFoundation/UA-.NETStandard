@@ -158,9 +158,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
             bool tolerant)
         {
             JsonElement value = property.Value;
-            if (LooksLikeDataValue(value))
+            // A { "Value" } object of a field with a multi-dimensional or
+            // abstract ValueRank is a Variant (Part 14 §7.2.5.4.3 Table 186).
+            if (LooksLikeDataValue(value) &&
+                !(metaData is not null &&
+                    metaData.ValueRank is not (ValueRanks.Scalar or ValueRanks.OneDimension) &&
+                    JsonVariantDecoder.IsValueDimensionsObject(value)))
             {
-                if (!TryDecodeDataValue(value, context, tolerant, out DataValue dv))
+                if (!TryDecodeDataValue(value, metaData, detectedMode, context, tolerant, out DataValue dv))
                 {
                     return null;
                 }
@@ -176,16 +181,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     Encoding = PubSubFieldEncoding.DataValue
                 };
             }
-            TypeInfo? typeInfo = metaData is null
-                ? null
-                : TypeInfo.Create(
-                    (BuiltInType)metaData.BuiltInType,
-                    metaData.ValueRank);
             PubSubFieldEncoding encoding = JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode)
                 ? PubSubFieldEncoding.Variant
                 : PubSubFieldEncoding.RawData;
             Variant variant;
-            if (!TryDecodeVariant(value, detectedMode, typeInfo, context, tolerant, out variant))
+            if (!TryDecodeVariant(value, detectedMode, metaData, context, tolerant, out variant))
             {
                 return null;
             }
@@ -200,17 +200,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
         private static bool TryDecodeVariant(
             JsonElement value,
             JsonEncodingMode detectedMode,
-            TypeInfo? typeInfo,
+            FieldMetaData? metaData,
             IServiceMessageContext context,
             bool tolerant,
             out Variant variant)
         {
             try
             {
-                variant = JsonVariantDecoder.DecodeVariant(
+                variant = JsonVariantDecoder.DecodeField(
                     value,
                     detectedMode,
-                    typeInfo,
+                    metaData,
                     context);
                 return true;
             }
@@ -228,13 +228,40 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         private static bool TryDecodeDataValue(
             JsonElement value,
+            FieldMetaData? metaData,
+            JsonEncodingMode detectedMode,
             IServiceMessageContext context,
             bool tolerant,
             out DataValue dataValue)
         {
             try
             {
-                dataValue = JsonVariantDecoder.DecodeDataValue(value, context);
+                JsonElement wrapped = value.GetProperty("Value");
+                if (value.TryGetProperty("UaType", out _) ||
+                    (metaData is null && !JsonVariantDecoder.IsLegacyVariantEnvelope(wrapped)))
+                {
+                    dataValue = JsonVariantDecoder.DecodeDataValue(value, context);
+                    return true;
+                }
+                // Part 14 §7.2.5.4.3 Table 187: without UaType the Value is
+                // typed by the FieldMetaData like a collapsed Variant field.
+                Variant fieldValue = JsonVariantDecoder.DecodeField(
+                    wrapped,
+                    detectedMode,
+                    metaData,
+                    context);
+                DataValue header = JsonVariantDecoder.DecodeSpliced(
+                    value,
+                    context,
+                    static decoder => decoder.ReadDataValue(JsonVariantDecoder.SpliceFieldName),
+                    excludedProperty: "Value");
+                dataValue = new DataValue(
+                    fieldValue,
+                    header.StatusCode,
+                    header.SourceTimestamp,
+                    header.ServerTimestamp,
+                    header.SourcePicoseconds,
+                    header.ServerPicoseconds);
                 return true;
             }
             catch (ServiceResultException) when (tolerant)
