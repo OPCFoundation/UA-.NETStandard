@@ -282,6 +282,156 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        [TestSpec("7.2.5.5.6", Summary = "JSON ua-connection has a unique MessageId and no Address or properties")]
+        public async Task ConvertDiscoveryMessageForTransportJsonConnectionFollowsTable192Async()
+        {
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubMqttJsonTransport,
+                new Dictionary<string, INetworkMessageEncoder>(),
+                new Dictionary<string, INetworkMessageDecoder>());
+            var property = new KeyValuePair { Key = new QualifiedName("p"), Value = new Variant(1) };
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                DiscoveryType = UadpDiscoveryType.PubSubConnection,
+                SequenceNumber = 5,
+                Connection = new PubSubConnectionDataType
+                {
+                    Name = "c",
+                    Address = new ExtensionObject(new NetworkAddressUrlDataType { Url = "mqtt://broker" }),
+                    ConnectionProperties = [property],
+                    WriterGroups =
+                    [
+                        new WriterGroupDataType
+                        {
+                            Name = "wg",
+                            GroupProperties = [property],
+                            DataSetWriters =
+                            [
+                                new DataSetWriterDataType
+                                {
+                                    Name = "w",
+                                    DataSetWriterProperties = [property]
+                                }
+                            ]
+                        }
+                    ],
+                    ReaderGroups = [new ReaderGroupDataType { Name = "rg" }]
+                }
+            };
+
+            var message = InvokePrivate<JsonDiscoveryMessage>(
+                connection,
+                "ConvertDiscoveryMessageForTransport",
+                response);
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, OpcUaPubSubJsonTests.JsonTestUtilities.NewContext())
+                .ConfigureAwait(false);
+            using var document = System.Text.Json.JsonDocument.Parse(bytes);
+
+            PubSubConnectionDataType sent = message.Connection!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Guid.TryParse(document.RootElement.GetProperty("MessageId").GetString(), out _),
+                    Is.True);
+                Assert.That(sent.Address.IsNull, Is.True);
+                Assert.That(sent.ConnectionProperties, Is.Empty);
+                Assert.That(sent.ReaderGroups, Is.Empty);
+                Assert.That(sent.WriterGroups[0].GroupProperties, Is.Empty);
+                Assert.That(sent.WriterGroups[0].DataSetWriters[0].DataSetWriterProperties, Is.Empty);
+                Assert.That(sent.WriterGroups[0].DataSetWriters[0].Name, Is.EqualTo("w"));
+                Assert.That(response.Connection.ConnectionProperties, Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
+        [TestSpec("7.2.5.5.4", Summary = "JSON ua-status last will has a globally unique MessageId")]
+        public async Task ConvertDiscoveryMessageForTransportJsonStatusDoesNotUseSequenceNumberAsync()
+        {
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubMqttJsonTransport,
+                new Dictionary<string, INetworkMessageEncoder>(),
+                new Dictionary<string, INetworkMessageDecoder>());
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationStatus = new UadpApplicationStatus { Status = PubSubState.Error },
+                SequenceNumber = 5
+            };
+
+            var message = InvokePrivate<JsonDiscoveryMessage>(
+                connection,
+                "ConvertDiscoveryMessageForTransport",
+                response);
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, OpcUaPubSubJsonTests.JsonTestUtilities.NewContext())
+                .ConfigureAwait(false);
+            using var document = System.Text.Json.JsonDocument.Parse(bytes);
+
+            string? messageId = document.RootElement.GetProperty("MessageId").GetString();
+            Assert.That(Guid.TryParse(messageId, out _), Is.True, messageId);
+        }
+
+        [Test]
+        [TestSpec("7.2.5.5.2", Summary = "JSON ua-metadata discovery responses carry the writer names")]
+        public async Task ConvertDiscoveryMessageForTransportJsonMetaDataCarriesWriterNamesAsync()
+        {
+            var pds = new PublishedDataSet(
+                new PublishedDataSetDataType { Name = "pds" },
+                new Moq.Mock<IPublishedDataSetSource>().Object);
+            var writer = new DataSetWriter(
+                new DataSetWriterDataType { Name = "writer-3", DataSetWriterId = 3, DataSetName = "pds" },
+                pds,
+                NUnitTelemetryContext.Create());
+            var group = new WriterGroup(
+                new WriterGroupDataType { Name = "group-2", WriterGroupId = 2, PublishingInterval = 100 },
+                [writer],
+                new PubSub.Scheduling.PubSubSchedule(
+                    TimeSpan.FromMilliseconds(100),
+                    TimeSpan.Zero,
+                    TimeSpan.Zero,
+                    TimeSpan.Zero),
+                new Moq.Mock<PubSub.Scheduling.IPubSubScheduler>().Object,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubMqttJsonTransport,
+                new Dictionary<string, INetworkMessageEncoder>(),
+                new Dictionary<string, INetworkMessageDecoder>(),
+                writerGroups: [group]);
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                WriterGroupId = 2,
+                DataSetWriterId = 3,
+                DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                DataSetMetaData = new DataSetMetaDataType { Name = "pds" },
+                SequenceNumber = 5
+            };
+
+            var message = InvokePrivate<JsonMetaDataMessage>(
+                connection,
+                "ConvertDiscoveryMessageForTransport",
+                response);
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, OpcUaPubSubJsonTests.JsonTestUtilities.NewContext())
+                .ConfigureAwait(false);
+            using var document = System.Text.Json.JsonDocument.Parse(bytes);
+            System.Text.Json.JsonElement root = document.RootElement;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(root.GetProperty("MessageType").GetString(), Is.EqualTo("ua-metadata"));
+                Assert.That(Guid.TryParse(root.GetProperty("MessageId").GetString(), out _), Is.True);
+                Assert.That(root.GetProperty("WriterGroupName").GetString(), Is.EqualTo("group-2"));
+                Assert.That(root.GetProperty("DataSetWriterName").GetString(), Is.EqualTo("writer-3"));
+                Assert.That(root.GetProperty("DataSetWriterId").GetInt32(), Is.EqualTo(3));
+            });
+        }
+
+        [Test]
         [TestSpec("7.2.4.4.4", Summary = "Large UADP frames are chunked before transport send")]
         public async Task SendNetworkMessageAsync_WithLargeUadpPayload_UsesChunkingAsync()
         {
@@ -829,7 +979,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
             PubSubDiagnostics? diagnostics = null,
             IDataSetMetaDataRegistry? registry = null,
             UadpSecurityWrapper? securityWrapper = null,
-            ArrayOf<ReaderGroup> readerGroups = default)
+            ArrayOf<ReaderGroup> readerGroups = default,
+            WriterGroup[]? writerGroups = null)
         {
             return new PubSubConnection(
                 new PubSubConnectionDataType
@@ -840,7 +991,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 new StubTransportFactory(),
                 encoders,
                 decoders,
-                Array.Empty<WriterGroup>(),
+                writerGroups ?? Array.Empty<WriterGroup>(),
                 readerGroups,
                 registry ?? new DataSetMetaDataRegistry(),
                 diagnostics ?? new PubSubDiagnostics(PubSubDiagnosticsLevel.High),

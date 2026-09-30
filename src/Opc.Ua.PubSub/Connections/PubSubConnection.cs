@@ -1937,14 +1937,39 @@ namespace Opc.Ua.PubSub.Connections
             {
                 return response;
             }
+            // The MessageId of every JSON discovery message is a globally
+            // unique identifier (Part 14 §7.2.5.5 Tables 188-192), so it is
+            // left empty for the encoder to generate instead of reusing the
+            // discovery sequence number.
+            DataSetMetaDataType? metaData = response.DataSetMetaData ?? response.MetaData;
+            if (response.DiscoveryType == UadpDiscoveryType.DataSetMetaData && metaData is not null)
+            {
+                ResolveWriterNames(
+                    response.WriterGroupId,
+                    response.DataSetWriterId,
+                    out string writerGroupName,
+                    out string dataSetWriterName);
+                return new JsonMetaDataMessage
+                {
+                    PublisherId = response.PublisherId,
+                    WriterGroupId = response.WriterGroupId,
+                    DataSetWriterId = response.DataSetWriterId,
+                    WriterGroupName = writerGroupName,
+                    DataSetWriterName = dataSetWriterName,
+                    DataSetClassId = response.DataSetClassId,
+                    MetaData = metaData,
+                    MetaDataPayload = metaData
+                };
+            }
             return new JsonDiscoveryMessage
             {
                 PublisherId = response.PublisherId,
-                MessageId = response.SequenceNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 DiscoveryType = response.DiscoveryType,
                 ApplicationInformation = response.ApplicationInformation,
                 ApplicationStatus = response.ApplicationStatus,
-                Connection = response.Connection,
+                Connection = response.Connection is null
+                    ? null
+                    : ToJsonDiscoveryConnection(response.Connection),
                 DataSetWriterId = response.DataSetWriterId,
                 WriterConfiguration = response.WriterConfiguration,
                 DataSetWriterIds = [.. response.DataSetWriterIds],
@@ -1952,6 +1977,77 @@ namespace Opc.Ua.PubSub.Connections
                 PublisherEndpoints = [.. response.PublisherEndpoints],
                 Status = response.StatusCode
             };
+        }
+
+        /// <summary>
+        /// Returns a copy of <paramref name="connection"/> without the
+        /// content Part 14 §7.2.5.5.6 Table 192 excludes from a
+        /// <c>ua-connection</c> message: the ReaderGroups, the Address and
+        /// the configuration properties of the connection, its
+        /// WriterGroups and their DataSetWriters.
+        /// </summary>
+        /// <param name="connection">Connection configuration.</param>
+        /// <returns>The reduced copy.</returns>
+        private static PubSubConnectionDataType ToJsonDiscoveryConnection(
+            PubSubConnectionDataType connection)
+        {
+            var result = (PubSubConnectionDataType)connection.Clone();
+            result.Address = ExtensionObject.Null;
+            result.ConnectionProperties = [];
+            result.ReaderGroups = [];
+            if (!result.WriterGroups.IsNull)
+            {
+                foreach (WriterGroupDataType group in result.WriterGroups)
+                {
+                    group.GroupProperties = [];
+                    if (group.DataSetWriters.IsNull)
+                    {
+                        continue;
+                    }
+                    foreach (DataSetWriterDataType writer in group.DataSetWriters)
+                    {
+                        writer.DataSetWriterProperties = [];
+                    }
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Looks up the WriterGroup and DataSetWriter names that
+        /// Part 14 §7.2.5.5.2 Table 188 requires on a <c>ua-metadata</c>
+        /// message.
+        /// </summary>
+        /// <param name="writerGroupId">WriterGroupId, when known.</param>
+        /// <param name="dataSetWriterId">DataSetWriterId.</param>
+        /// <param name="writerGroupName">The WriterGroup name, or empty.</param>
+        /// <param name="dataSetWriterName">The DataSetWriter name, or empty.</param>
+        private void ResolveWriterNames(
+            ushort? writerGroupId,
+            ushort dataSetWriterId,
+            out string writerGroupName,
+            out string dataSetWriterName)
+        {
+            for (int groupIndex = 0; groupIndex < m_writerGroups.Count; groupIndex++)
+            {
+                WriterGroup group = m_writerGroups[groupIndex];
+                if (writerGroupId is ushort id && group.WriterGroupId != id)
+                {
+                    continue;
+                }
+                for (int writerIndex = 0; writerIndex < group.DataSetWriters.Count; writerIndex++)
+                {
+                    IDataSetWriter writer = group.DataSetWriters[writerIndex];
+                    if (writer.DataSetWriterId == dataSetWriterId)
+                    {
+                        writerGroupName = group.Name ?? string.Empty;
+                        dataSetWriterName = writer.Name ?? string.Empty;
+                        return;
+                    }
+                }
+            }
+            writerGroupName = string.Empty;
+            dataSetWriterName = string.Empty;
         }
 
         private string? ResolveDiscoveryTopic(UadpDiscoveryResponseMessage response)
