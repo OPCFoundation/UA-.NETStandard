@@ -4003,10 +4003,16 @@ namespace Opc.Ua
                 // empty, a dimension of 0 means no values (5.2.5, 5.4.5).
                 if (!TryGetInt32ArrayFromElement(
                     dimensionElement,
-                    out ArrayOf<int> dims) ||
-                    (readRawValue
-                        ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
-                        : !MatrixOf.IsValidMatrix(dims.Span)))
+                    out ArrayOf<int> dims))
+                {
+                    value = default;
+                    return false;
+                }
+                // A rank above 32 is valid but cannot be represented.
+                MatrixOf.ThrowIfRankNotSupported(dims.Count);
+                if (readRawValue
+                    ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
+                    : !MatrixOf.IsValidMatrix(dims.Span))
                 {
                     value = default;
                     return false;

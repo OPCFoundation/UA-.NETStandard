@@ -2486,6 +2486,7 @@ namespace Opc.Ua
                     PushNamespace(Namespaces.OpcUaXsd);
 
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
+                    MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
                     // The inline matrix of a structure field may be empty (5.2.5):
                     // a dimension <= 0 means no values, like in binary.
                     if (readRawValue)

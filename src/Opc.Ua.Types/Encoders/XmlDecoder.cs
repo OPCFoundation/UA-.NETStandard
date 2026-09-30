@@ -2783,6 +2783,7 @@ namespace Opc.Ua
                     PushNamespace(Namespaces.OpcUaXsd);
 
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
+                    MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
 
                     // A multi-dimensional Variant must carry Dimensions with at
                     // least two entries, each greater than zero (Part 6 5.2.2.16);

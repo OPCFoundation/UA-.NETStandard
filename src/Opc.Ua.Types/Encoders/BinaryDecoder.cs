@@ -1574,6 +1574,7 @@ namespace Opc.Ua
                 int[] dimensions,
                 TypeInfo typeInfo)
             {
+                MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
                 if (!MatrixOf.IsValidMatrix(dimensions, values.Count))
                 {
                     throw ServiceResultException.Create(
@@ -1915,13 +1916,13 @@ namespace Opc.Ua
             int minElementSize,
             object description)
         {
-            if (dimensions.Length is < 2 or > MatrixOf.MaxMatrixRank)
+            MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
+            if (dimensions.Length < 2)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Inline matrix has {0} dimension(s), 2 to {1} are required ({2}).",
+                    "Inline matrix has {0} dimension(s), at least 2 are required ({1}).",
                     dimensions.Length,
-                    MatrixOf.MaxMatrixRank,
                     description);
             }
 

@@ -739,6 +739,27 @@ namespace Opc.Ua
         internal const int MaxMatrixRank = 32;
 
         /// <summary>
+        /// Rejects a matrix read from the wire that has more than
+        /// <see cref="MaxMatrixRank"/> dimensions. Such a matrix is valid
+        /// per OPC 10000-6 (5.2.2.16, 5.2.5), so it is reported as an
+        /// implementation limit and not as a malformed message.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the rank
+        /// exceeds <see cref="MaxMatrixRank"/>.</exception>
+        internal static void ThrowIfRankNotSupported(int rank)
+        {
+            if (rank > MaxMatrixRank)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "A matrix with {0} dimensions exceeds the supported rank {1}.",
+                    rank,
+                    MaxMatrixRank);
+            }
+        }
+
+        /// <summary>
         /// Empty array
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -766,7 +787,8 @@ namespace Opc.Ua
         /// dimensions equals the number of elements in the flattened array.
         /// A matrix Variant that violates these rules is inconsistent: encoders
         /// must not emit it and decoders must reject it with a
-        /// <c>BadDecodingError</c>.
+        /// <c>BadDecodingError</c>. Decoders check the rank limit before
+        /// (<see cref="ThrowIfRankNotSupported(int)"/>).
         /// </summary>
         /// <param name="dimensions">
         /// The array dimensions to validate.
@@ -848,12 +870,14 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException">with
         /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the shape
-        /// exceeds <paramref name="maxArrayLength"/>.</exception>
+        /// exceeds <paramref name="maxArrayLength"/> or the rank exceeds
+        /// <see cref="MaxMatrixRank"/>.</exception>
         internal static bool IsValidInlineMatrix(
             ReadOnlySpan<int> dimensions,
             int elementCount,
             int maxArrayLength)
         {
+            ThrowIfRankNotSupported(dimensions.Length);
             if (!TryGetInlineMatrixElementCount(dimensions, out int count, out int shapeLength))
             {
                 return false;
