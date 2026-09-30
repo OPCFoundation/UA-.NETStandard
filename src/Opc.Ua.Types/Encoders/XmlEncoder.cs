@@ -1042,6 +1042,8 @@ namespace Opc.Ua
                 {
                     if (!string.IsNullOrEmpty(value.Symbol))
                     {
+                        // the symbol may come from a peer (e.g. a JSON value).
+                        CheckXmlChars(value.Symbol!);
                         m_writer.WriteString(CoreUtils.Format("{0}_{1}",
                             value.Symbol!,
                             value.Value));
@@ -1917,6 +1919,10 @@ namespace Opc.Ua
         /// </summary>
         private void WriteEnumeratedElement(string name, int value, string? symbol)
         {
+            if (!string.IsNullOrEmpty(symbol))
+            {
+                CheckXmlChars(symbol!);
+            }
             m_writer.WriteStartElement(name, m_namespaces.Peek());
             m_writer.WriteString(string.IsNullOrEmpty(symbol)
                 ? value.ToString(CultureInfo.InvariantCulture)

@@ -1107,6 +1107,23 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadXmlElementIsNotBoundedByMaxStringLength()
+        {
+            // configuration files (e.g. ApplicationConfiguration.Extensions)
+            // hold XmlElement values larger than the default MaxStringLength.
+            ServiceMessageContext ctx = CreateContext();
+            ctx.MaxStringLength = 32;
+            string xml = $"<XmlElement xmlns=\"{Ns}\"><v>" + new string('x', 1024) +
+                "</v></XmlElement>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            XmlElement value = decoder.ReadXmlElement("XmlElement");
+
+            Assert.That(value.OuterXml, Does.Contain(new string('x', 1024)));
+        }
+
+        [Test]
         public void ReadXmlElementKeepsNamespaceOfPrefixedAttributes()
         {
             ServiceMessageContext ctx = CreateContext();

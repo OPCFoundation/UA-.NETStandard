@@ -886,13 +886,16 @@ namespace Opc.Ua
                         if (typeId.NamespaceIndex == 0 ||
                             m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
                         {
-                            throw e as ServiceResultException ??
-                                ServiceResultException.Create(
-                                    StatusCodes.BadDecodingError,
-                                    e,
-                                    "Failed to decode encodeable type '{0}' encoded as Xml, NodeId='{1}'.",
-                                    activator.XmlName,
-                                    extension.TypeId);
+                            if (e is ServiceResultException)
+                            {
+                                throw;
+                            }
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                e,
+                                "Failed to decode encodeable type '{0}' encoded as Xml, NodeId='{1}'.",
+                                activator.XmlName,
+                                extension.TypeId);
                         }
 
                         if (m_encodeablesRecovered == 0)

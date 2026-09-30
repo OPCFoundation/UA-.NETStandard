@@ -96,6 +96,8 @@ namespace OpcUaPubSubJsonTests
 
         [TestCase("{\"MessageType\":\"ua-data\",\"PublisherId\":\"0123456789abcdefX\",\"Messages\":[]}")]
         [TestCase("{\"MessageType\":\"ua-data\",\"MessageId\":\"0123456789abcdefX\",\"Messages\":[]}")]
+        // 9 characters but 18 UTF-8 bytes: MaxStringLength counts bytes.
+        [TestCase("{\"MessageType\":\"ua-data\",\"MessageId\":\"ééééééééé\",\"Messages\":[]}")]
         [TestCase("{\"MessageType\":\"ua-data\",\"ReplyTo\":[\"0123456789abcdefX\"],\"Messages\":[]}")]
         [TestCase("{\"MessageType\":\"ua-data\",\"ReplyTo\":[\"\",\"\",\"\",\"\",\"\"],\"Messages\":[]}")]
         [TestCase("{\"MessageType\":\"ua-data\",\"Messages\":[{},{},{},{},{}]}")]

@@ -1537,6 +1537,26 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteEnumeratedRejectsSymbolXmlCannotRepresent()
+        {
+            // an EnumValue symbol can come from a peer; it must fail like a string.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var encoder = new XmlEncoder(messageContext);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteEnumerated("Enumeration", new EnumValue(5, "A\u0001")));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+
+            ex = Assert.Throws<ServiceResultException>(
+                () => encoder.WriteEnumeratedArray(
+                    "ListOfEnumeration",
+                    ArrayOf.Wrapped<EnumValue>([new EnumValue(5, "A\u0001")])));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
         public void WriteStringRoundTripsValidCharacters()
         {
             const string value = "a\tb\nc 😀 é";

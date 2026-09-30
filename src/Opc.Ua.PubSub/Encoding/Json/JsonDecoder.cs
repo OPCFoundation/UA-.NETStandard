@@ -901,14 +901,20 @@ namespace Opc.Ua.PubSub.Encoding.Json
             string value,
             PubSubNetworkMessageContext context)
         {
+            // MaxStringLength counts the UTF-8 bytes of a string, as in every
+            // other codec; a UTF-16 code unit takes at most three of them.
             int maxStringLength = context.MessageContext.MaxStringLength;
-            if (maxStringLength > 0 && value.Length > maxStringLength)
+            if (maxStringLength > 0 && value.Length > maxStringLength / 3)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxStringLength {0} < {1}.",
-                    maxStringLength,
-                    value.Length);
+                int byteLength = System.Text.Encoding.UTF8.GetByteCount(value);
+                if (byteLength > maxStringLength)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxStringLength {0} < {1}.",
+                        maxStringLength,
+                        byteLength);
+                }
             }
             return value;
         }

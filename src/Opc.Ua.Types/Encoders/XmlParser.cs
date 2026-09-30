@@ -714,7 +714,10 @@ namespace Opc.Ua
                     context.Consumed.Add(childIdx);
                     context.Cursor = childIdx + 1;
 
-                    string outerXml = ReadXmlElementContent(fieldName, found, Context.MaxStringLength);
+                    // The parser reads local documents (configuration files, whose
+                    // Extensions can hold large XML), so only the depth limit
+                    // applies, as before; MaxStringLength bounds values on the wire.
+                    string outerXml = ReadXmlElementContent(fieldName, found, 0);
 
                     EndField(fieldName);
                     return XmlElement.From(outerXml);
