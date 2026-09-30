@@ -314,8 +314,11 @@ namespace Opc.Ua.Bindings
                 }
                 if (maxMessageSize > 0 && memory.Length + result.Count > maxMessageSize)
                 {
-                    // Abort instead of a close handshake the peer may never answer.
-                    ws.Abort();
+                    // OPC 10000-6 §7.5.2: close with status 1009 (MessageTooBig).
+                    // Only the Close frame is sent, briefly bounded, and the socket
+                    // is then aborted instead of waiting for a handshake the peer
+                    // may never answer.
+                    await CloseMessageTooBigAsync(ws).ConfigureAwait(false);
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
                         "MaxMessageSize {0} < {1}",
@@ -331,6 +334,28 @@ namespace Opc.Ua.Bindings
                     return memory.ToArray();
                 }
             }
+        }
+
+        /// <summary>
+        /// Sends a Close frame with status 1009 (MessageTooBig), waiting at most
+        /// <see cref="kMessageTooBigCloseTimeout"/> milliseconds, then aborts
+        /// the socket.
+        /// </summary>
+        private static async Task CloseMessageTooBigAsync(WebSocket ws)
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(kMessageTooBigCloseTimeout);
+                await ws.CloseOutputAsync(
+                    WebSocketCloseStatus.MessageTooBig,
+                    "Response exceeds MaxMessageSize.",
+                    cts.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best-effort: the socket is aborted either way.
+            }
+            ws.Abort();
         }
 
         private static Uri NormalizeUrl(Uri url)
@@ -419,6 +444,7 @@ namespace Opc.Ua.Bindings
                 nameof(WssJsonTransportChannel));
         }
 
+        private const int kMessageTooBigCloseTimeout = 1000;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private Uri? m_url;
