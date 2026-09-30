@@ -64,6 +64,11 @@
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Deeply nested inputs, replayed in a child process by FuzzStackTestcasesAsync. -->
+    <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\StackTestcases\**\*.*">
+      <Link>StackTestcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Assets\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
