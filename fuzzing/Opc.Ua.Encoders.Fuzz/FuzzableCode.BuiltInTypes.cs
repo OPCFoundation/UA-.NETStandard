@@ -528,13 +528,14 @@ namespace Opc.Ua.Fuzzing
                     using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
                     reader.MoveToContent();
                     using var decoder = new XmlDecoder(reader, MessageContext);
+
+                    // Built-in values are read inside the namespace of their encodeable,
+                    // which the caller pushes, as BinaryDecoder does for an XML body.
+                    decoder.PushNamespace(Namespaces.OpcUaXsd);
                     return decode(decoder);
                 });
             }
             catch (XmlException)
-            {
-            }
-            catch (InvalidOperationException ex) when (ex.Message == "Stack empty.")
             {
             }
             catch (ServiceResultException sre) when (IsExpectedDecodingException(sre))
