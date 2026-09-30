@@ -1628,8 +1628,11 @@ namespace Opc.Ua
             if (!signOnly)
             {
                 // OPC 10000-6 §6.7.2.5.1: the encrypted data is a whole number of
-                // cipher blocks (the IV is one block long).
-                if (iv.Length > 0 && data.Count % iv.Length != 0)
+                // cipher blocks (the IV is one block long). Only block (CBC) ciphers
+                // have that property; counter mode data may end mid block.
+                if ((algorithm is SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc) &&
+                    iv.Length > 0 &&
+                    data.Count % iv.Length != 0)
                 {
                     throw new CryptographicException(
                         "The encrypted data is not a multiple of the block size.");

@@ -346,6 +346,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// <summary>
         /// A response that never ends its WebSocket message must be rejected
         /// once it exceeds MaxMessageSize, not buffered until the timeout.
+        /// OPC 10000-6 §7.5.2: the connection is closed with status 1009
+        /// (MessageTooBig) before the socket is aborted.
         /// </summary>
         [Test]
         public void ReceiveMessageAsyncStopsAtMaxMessageSize()
@@ -361,6 +363,29 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(ws.Receives, Is.LessThanOrEqualTo(9));
+                Assert.That(ws.SentCloseStatus, Is.EqualTo(WebSocketCloseStatus.MessageTooBig));
+                Assert.That(ws.State, Is.EqualTo(WebSocketState.Aborted));
+            });
+        }
+
+        /// <summary>
+        /// A peer that does not take the 1009 Close frame must not hold up the
+        /// rejection: the close is bounded and the socket is aborted anyway.
+        /// </summary>
+        [Test]
+        public void ReceiveMessageAsyncAbortsWhenTheMessageTooBigCloseStalls()
+        {
+            using var ws = new StreamingWebSocket(endAfter: int.MaxValue, stallClose: true);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await WssJsonTransportChannel
+                    .ReceiveMessageAsync(ws, 64 * 1024, CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(ws.SentCloseStatus, Is.EqualTo(WebSocketCloseStatus.MessageTooBig));
                 Assert.That(ws.State, Is.EqualTo(WebSocketState.Aborted));
             });
         }
@@ -388,14 +413,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class StreamingWebSocket : WebSocket
         {
             private readonly int m_endAfter;
+            private readonly bool m_stallClose;
             private bool m_aborted;
 
-            internal StreamingWebSocket(int endAfter)
+            internal StreamingWebSocket(int endAfter, bool stallClose = false)
             {
                 m_endAfter = endAfter;
+                m_stallClose = stallClose;
             }
 
             public int Receives { get; private set; }
+
+            public WebSocketCloseStatus? SentCloseStatus { get; private set; }
 
             public override WebSocketCloseStatus? CloseStatus => null;
 
@@ -425,7 +454,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 string? statusDescription,
                 CancellationToken cancellationToken)
             {
-                return Task.CompletedTask;
+                SentCloseStatus = closeStatus;
+                return m_stallClose
+                    ? Task.Delay(Timeout.Infinite, cancellationToken)
+                    : Task.CompletedTask;
             }
 
             public override void Dispose()
