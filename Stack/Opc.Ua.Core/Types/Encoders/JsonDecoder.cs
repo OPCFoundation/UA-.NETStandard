@@ -776,6 +776,8 @@ namespace Opc.Ua
 
             try
             {
+                CheckXmlElementDepth(value);
+
                 var document = new XmlDocument();
 
                 using (var reader = XmlReader.Create(
@@ -793,6 +795,34 @@ namespace Opc.Ua
                     StatusCodes.BadDecodingError,
                     "Unable to decode Xml: {0}",
                     xe.Message);
+            }
+        }
+
+        /// <summary>
+        /// Rejects XML whose elements are nested deeper than the encoding
+        /// nesting limit before it is loaded into a DOM, whose recursive
+        /// operations (e.g. CloneNode(true)) would otherwise overflow the stack.
+        /// The streaming reader used for the check does not recurse.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckXmlElementDepth(string xml)
+        {
+            int maxDepth = Context.MaxEncodingNestingLevels > 0
+                ? Context.MaxEncodingNestingLevels
+                : DefaultEncodingLimits.MaxEncodingNestingLevels;
+
+            using var reader = XmlReader.Create(
+                new StringReader(xml),
+                Utils.DefaultXmlReaderSettings());
+            while (reader.Read())
+            {
+                if (reader.NodeType == XmlNodeType.Element && reader.Depth > maxDepth)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "XML element nesting exceeds the maximum depth of {0}.",
+                        maxDepth);
+                }
             }
         }
 

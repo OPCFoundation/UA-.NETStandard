@@ -291,9 +291,12 @@ namespace Opc.Ua.PubSub
 
                     lock (Lock)
                     {
-                        // check if reader's MetaData shall be updated
+                        // check if reader's MetaData shall be updated. The metadata message is
+                        // not authenticated: only accept it from the publisher the reader
+                        // receives data from (6.2.8.1 PublisherId filter, null accepts any).
                         if (reader.DataSetWriterId != 0 &&
                             reader.DataSetWriterId == networkMessage.DataSetWriterId &&
+                            MatchesPublisherId(reader, networkMessage) &&
                             (
                                 reader.DataSetMetaData == null ||
                                 !Utils.IsEqual(
@@ -413,6 +416,36 @@ namespace Opc.Ua.PubSub
                             source, source, publisherEndpointsEventArgs.PublisherEndpoints.Length);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Checks the PublisherId of a received network message against the PublisherId
+        /// filter of a reader, the same way the data messages are filtered when decoded.
+        /// A reader without PublisherId accepts any publisher.
+        /// </summary>
+        private static bool MatchesPublisherId(
+            DataSetReaderDataType reader,
+            UaNetworkMessage networkMessage)
+        {
+            object readerPublisherId = reader.PublisherId.Value;
+            if (readerPublisherId == null)
+            {
+                return true;
+            }
+
+            switch (networkMessage)
+            {
+                case Encoding.JsonNetworkMessage jsonNetworkMessage:
+                    return jsonNetworkMessage.PublisherId != null &&
+                        jsonNetworkMessage.PublisherId.Equals(
+                            readerPublisherId.ToString(),
+                            StringComparison.Ordinal);
+                case Encoding.UadpNetworkMessage uadpNetworkMessage:
+                    return uadpNetworkMessage.PublisherId != null &&
+                        uadpNetworkMessage.PublisherId.Equals(readerPublisherId);
+                default:
+                    return false;
             }
         }
 

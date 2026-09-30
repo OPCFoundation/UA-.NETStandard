@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -532,6 +531,7 @@ namespace Opc.Ua
                     utf8StringLength--;
                 }
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
+                XmlDecoder.CheckXmlElementDepth(xmlString, Context, ConformanceLevel.Document);
                 using var stream = new StringReader(xmlString);
                 using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
                 document.Load(reader);
@@ -1223,14 +1223,22 @@ namespace Opc.Ua
                 return null;
             }
 
-            var values = new VariantCollection(length);
-
-            for (int ii = 0; ii < length; ii++)
+            int capacity = ReserveArrayCapacity(length, s_variantElementSize, out long reserved);
+            try
             {
-                values.Add(ReadVariant(null));
-            }
+                var values = new VariantCollection(capacity);
 
-            return values;
+                for (int ii = 0; ii < length; ii++)
+                {
+                    values.Add(ReadVariant(null));
+                }
+
+                return values;
+            }
+            finally
+            {
+                m_preallocatedBytes -= reserved;
+            }
         }
 
         /// <inheritdoc/>
@@ -1243,14 +1251,22 @@ namespace Opc.Ua
                 return null;
             }
 
-            var values = new DataValueCollection(length);
-
-            for (int ii = 0; ii < length; ii++)
+            int capacity = ReserveArrayCapacity(length, IntPtr.Size, out long reserved);
+            try
             {
-                values.Add(ReadDataValue(null));
-            }
+                var values = new DataValueCollection(capacity);
 
-            return values;
+                for (int ii = 0; ii < length; ii++)
+                {
+                    values.Add(ReadDataValue(null));
+                }
+
+                return values;
+            }
+            finally
+            {
+                m_preallocatedBytes -= reserved;
+            }
         }
 
         /// <inheritdoc/>
@@ -1263,14 +1279,22 @@ namespace Opc.Ua
                 return null;
             }
 
-            var values = new ExtensionObjectCollection(length);
-
-            for (int ii = 0; ii < length; ii++)
+            int capacity = ReserveArrayCapacity(length, IntPtr.Size, out long reserved);
+            try
             {
-                values.Add(ReadExtensionObject(null));
-            }
+                var values = new ExtensionObjectCollection(capacity);
 
-            return values;
+                for (int ii = 0; ii < length; ii++)
+                {
+                    values.Add(ReadExtensionObject(null));
+                }
+
+                return values;
+            }
+            finally
+            {
+                m_preallocatedBytes -= reserved;
+            }
         }
 
         /// <inheritdoc/>
@@ -1286,14 +1310,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            var values = Array.CreateInstance(systemType, length);
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values.SetValue(ReadEncodeable(null, systemType, encodeableTypeId), ii);
-            }
-
-            return values;
+            return ReadEncodeableElements(length, systemType, encodeableTypeId);
         }
 
         /// <inheritdoc/>
@@ -1426,18 +1443,7 @@ namespace Opc.Ua
                     Array elements = null;
                     if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                     {
-                        elements = Array.CreateInstance(systemType, length);
-                        for (int i = 0; i < length; i++)
-                        {
-                            IEncodeable element = ReadEncodeable(
-                                null,
-                                systemType,
-                                encodeableTypeId);
-                            elements.SetValue(Convert.ChangeType(
-                                element,
-                                systemType,
-                                CultureInfo.InvariantCulture), i);
-                        }
+                        elements = ReadEncodeableElements(length, systemType, encodeableTypeId);
                     }
 
                     elements ??= ReadArrayElements(length, builtInType);
@@ -1849,41 +1855,23 @@ namespace Opc.Ua
                     break;
                 }
                 case BuiltInType.ExtensionObject:
-                {
-                    var values = new ExtensionObject[length];
-
-                    for (int ii = 0; ii < values.Length; ii++)
-                    {
-                        values[ii] = ReadExtensionObject();
-                    }
-
-                    array = values;
+                    array = ReadNestedElements(
+                        length,
+                        IntPtr.Size,
+                        static decoder => decoder.ReadExtensionObject());
                     break;
-                }
                 case BuiltInType.DataValue:
-                {
-                    var values = new DataValue[length];
-
-                    for (int ii = 0; ii < values.Length; ii++)
-                    {
-                        values[ii] = ReadDataValue(null);
-                    }
-
-                    array = values;
+                    array = ReadNestedElements(
+                        length,
+                        IntPtr.Size,
+                        static decoder => decoder.ReadDataValue(null));
                     break;
-                }
                 case BuiltInType.Variant:
-                {
-                    var values = new Variant[length];
-
-                    for (int ii = 0; ii < values.Length; ii++)
-                    {
-                        values[ii] = ReadVariant(null);
-                    }
-
-                    array = values;
+                    array = ReadNestedElements(
+                        length,
+                        s_variantElementSize,
+                        static decoder => decoder.ReadVariant(null));
                     break;
-                }
                 case BuiltInType.DiagnosticInfo:
                 {
                     var values = new DiagnosticInfo[length];
@@ -1936,6 +1924,103 @@ namespace Opc.Ua
             }
 
             return length;
+        }
+
+        /// <summary>
+        /// Returns how many elements to allocate up front for an array of
+        /// <paramref name="length"/> elements that can contain nested arrays.
+        /// The length prefix of such an array is not checked against the
+        /// remaining message, and every level of a chain of arrays nested in
+        /// the first element of their parent sees the same remaining bytes,
+        /// so the preallocations of a chain would multiply. An array is
+        /// therefore allocated at its full length only while all arrays
+        /// allocated this way and still being read, this one included, take
+        /// at most <see cref="kMaxPreallocatedBytesPerRemainingByte"/> bytes
+        /// per remaining message byte. Otherwise the caller starts with
+        /// <see cref="kMaxPreallocatedArrayBytes"/> and grows the array as the
+        /// elements are read. The caller subtracts <paramref name="reserved"/>
+        /// from <see cref="m_preallocatedBytes"/> after the last element.
+        /// </summary>
+        private int ReserveArrayCapacity(int length, int elementSize, out long reserved)
+        {
+            reserved = 0;
+            long bytes = (long)length * elementSize;
+            if (bytes <= kMaxPreallocatedArrayBytes)
+            {
+                return length;
+            }
+
+            Stream stream = m_reader.BaseStream;
+            if (stream.CanSeek &&
+                m_preallocatedBytes + bytes <=
+                    kMaxPreallocatedBytesPerRemainingByte * Math.Max(0, stream.Length - stream.Position))
+            {
+                reserved = bytes;
+                m_preallocatedBytes += bytes;
+                return length;
+            }
+
+            return kMaxPreallocatedArrayBytes / elementSize;
+        }
+
+        /// <summary>
+        /// Reads an array of values that can contain nested arrays.
+        /// </summary>
+        private T[] ReadNestedElements<T>(
+            int length,
+            int elementSize,
+            Func<BinaryDecoder, T> readElement)
+        {
+            int capacity = ReserveArrayCapacity(length, elementSize, out long reserved);
+            try
+            {
+                var values = new T[capacity];
+                for (int ii = 0; ii < length; ii++)
+                {
+                    if (ii == values.Length)
+                    {
+                        Array.Resize(ref values, (int)Math.Min(length, 2L * values.Length));
+                    }
+                    values[ii] = readElement(this);
+                }
+                return values;
+            }
+            finally
+            {
+                m_preallocatedBytes -= reserved;
+            }
+        }
+
+        /// <summary>
+        /// Reads an array of encodeables of <paramref name="systemType"/>.
+        /// </summary>
+        private Array ReadEncodeableElements(
+            int length,
+            Type systemType,
+            ExpandedNodeId encodeableTypeId)
+        {
+            int capacity = ReserveArrayCapacity(length, IntPtr.Size, out long reserved);
+            try
+            {
+                Array values = Array.CreateInstance(systemType, capacity);
+                for (int ii = 0; ii < length; ii++)
+                {
+                    if (ii == values.Length)
+                    {
+                        Array grown = Array.CreateInstance(
+                            systemType,
+                            (int)Math.Min(length, 2L * values.Length));
+                        Array.Copy(values, grown, values.Length);
+                        values = grown;
+                    }
+                    values.SetValue(ReadEncodeable(null, systemType, encodeableTypeId), ii);
+                }
+                return values;
+            }
+            finally
+            {
+                m_preallocatedBytes -= reserved;
+            }
         }
 
         /// <summary>
@@ -2684,11 +2769,29 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Arrays of nested values up to this size are always allocated at
+        /// their full length.
+        /// </summary>
+        private const int kMaxPreallocatedArrayBytes = 16 * 1024;
+
+        /// <summary>
+        /// The preallocation budget shared by the arrays of nested values
+        /// that are being read, per remaining message byte.
+        /// </summary>
+        private const int kMaxPreallocatedBytesPerRemainingByte = 8;
+
+        /// <summary>
+        /// The size of a Variant array element (a value and a type reference).
+        /// </summary>
+        private static readonly int s_variantElementSize = 2 * IntPtr.Size;
+
         private BinaryReader m_reader;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private uint m_encodeablesRecovered;
+        private long m_preallocatedBytes;
         private readonly ILogger m_logger;
     }
 }
