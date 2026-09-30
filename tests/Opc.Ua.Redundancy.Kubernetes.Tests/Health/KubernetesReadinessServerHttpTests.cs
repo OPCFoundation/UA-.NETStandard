@@ -129,6 +129,44 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         }
 
         [Test]
+        public void DisposingAnUnstartedServerDoesNotBindItsPort()
+        {
+            // Another process holds the port on the wildcard address, where the
+            // default "+" host binds. A server that was never started must not
+            // try to bind the port when it is disposed.
+            var occupant = new TcpListener(Socket.OSSupportsIPv6 ? IPAddress.IPv6Any : IPAddress.Any, 0);
+            if (Socket.OSSupportsIPv6)
+            {
+                occupant.Server.DualMode = true;
+            }
+            occupant.Start();
+            try
+            {
+                int port = ((IPEndPoint)occupant.LocalEndpoint).Port;
+                var server = new KubernetesReadinessServer(
+                    new ConstantServiceLevelProvider(255),
+                    new KubernetesReadinessOptions { Port = port });
+
+                Assert.That(async () => await server.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
+            }
+            finally
+            {
+                occupant.Stop();
+            }
+        }
+
+        [Test]
+        public async Task StartAfterDisposeIsRejectedAsync()
+        {
+            var server = new KubernetesReadinessServer(
+                new ConstantServiceLevelProvider(255),
+                NewOptions(GetFreePort()));
+            await server.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(server.Start, Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        [Test]
         public void ConstructorRejectsNullServiceLevelProvider()
         {
             Assert.That(
