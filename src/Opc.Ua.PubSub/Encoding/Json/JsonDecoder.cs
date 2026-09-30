@@ -1028,8 +1028,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         /// <summary>
         /// Reads an optional <see cref="StatusCode"/> property encoded as
-        /// the Part 6 §5.4.2.12 <c>{ "Code", "Symbol" }</c> object; an
-        /// absent <c>Code</c> means Good.
+        /// the Part 6 §5.4.2.12 <c>{ "Code", "Symbol" }</c> object (an
+        /// absent <c>Code</c> means Good) or as the legacy bare number.
         /// </summary>
         /// <param name="root">Source object.</param>
         /// <param name="name">Property name.</param>
@@ -1044,6 +1044,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
             status = StatusCodes.Good;
             if (!root.TryGetProperty(name, out JsonElement value))
             {
+                return true;
+            }
+            if (value.ValueKind == JsonValueKind.Number)
+            {
+                // 1.04 and deprecated ReversibleFieldEncoding Publishers
+                // (Part 14 §6.3.2.3.1 Table 112) write the bare code.
+                if (!value.TryGetUInt32(out uint legacyCode))
+                {
+                    return false;
+                }
+                status = new StatusCode(legacyCode);
                 return true;
             }
             if (value.ValueKind != JsonValueKind.Object)
@@ -1217,8 +1228,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="root">Source DataSetMessage object.</param>
         /// <returns>
         /// <see cref="JsonEncodingMode.Verbose"/> when any payload entry
-        /// is a Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c> Variant
-        /// (top-level Variants with a concrete FieldMetaData type are
+        /// is a Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c> Variant or a
+        /// deprecated ReversibleFieldEncoding <c>{ "Type", "Body" }</c>
+        /// Variant (top-level Variants with a concrete FieldMetaData type are
         /// collapsed to bare values, Part 14 §7.2.5.4.2) or the first
         /// entry is a DataValue object;
         /// <see cref="JsonEncodingMode.RawData"/> when bodies are bare.
@@ -1238,7 +1250,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             foreach (JsonProperty member in payload.EnumerateObject())
             {
                 JsonElement value = member.Value;
-                if (JsonVariantDecoder.IsVariantEnvelope(value))
+                if (JsonVariantDecoder.IsVariantEnvelope(value) ||
+                    JsonVariantDecoder.IsLegacyVariantEnvelope(value))
                 {
                     return JsonEncodingMode.Verbose;
                 }
@@ -1260,7 +1273,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="metaVersion">Configuration version.</param>
         /// <param name="hasMajorVersion">Whether the DataSetMessage carried a
         /// MajorVersion. Without one (only <c>MinorVersion</c>, or no version at
-        /// all) the metadata registered for the identity is used.</param>
+        /// all) the metadata registered for the identity is used unless its
+        /// MajorVersion is newer than the message MinorVersion.</param>
         /// <param name="context">Decoder context.</param>
         /// <returns>Resolved metadata or
         /// <see langword="null"/>.</returns>
@@ -1281,7 +1295,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             MetaDataMatchResult result = context.MetaDataRegistry.TryGet(
                 in key,
                 out DataSetMetaDataType? metaData);
-            if (IsUsableMatch(result, hasMajorVersion))
+            if (IsUsableMatch(result, metaData, metaVersion, hasMajorVersion))
             {
                 return metaData;
             }
@@ -1297,7 +1311,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         dataSetClassId,
                         metaVersion?.MajorVersion ?? 0);
                     result = context.MetaDataRegistry.TryGet(in key, out metaData);
-                    if (IsUsableMatch(result, hasMajorVersion))
+                    if (IsUsableMatch(result, metaData, metaVersion, hasMajorVersion))
                     {
                         return metaData;
                     }
@@ -1310,12 +1324,36 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// Whether a registry lookup result can be used to decode the
         /// DataSetMessage. MetaDataVersion and MinorVersion are both
         /// optional (Part 14 §7.2.5.4.1 Table 185); without a MajorVersion
-        /// any registered description for the identity applies.
+        /// the registered description for the identity applies unless the
+        /// message MinorVersion proves it predates that description's
+        /// MajorVersion.
         /// </summary>
-        private static bool IsUsableMatch(MetaDataMatchResult result, bool hasMajorVersion)
+        /// <param name="result">Registry lookup result.</param>
+        /// <param name="metaData">Registered metadata for the identity.</param>
+        /// <param name="metaVersion">Version carried by the message.</param>
+        /// <param name="hasMajorVersion">Whether the message carried a
+        /// MajorVersion.</param>
+        private static bool IsUsableMatch(
+            MetaDataMatchResult result,
+            DataSetMetaDataType? metaData,
+            ConfigurationVersionDataType? metaVersion,
+            bool hasMajorVersion)
         {
-            return result is MetaDataMatchResult.Match or MetaDataMatchResult.MinorVersionMismatch ||
-                (!hasMajorVersion && result == MetaDataMatchResult.MajorVersionMismatch);
+            if (result is MetaDataMatchResult.Match or MetaDataMatchResult.MinorVersionMismatch)
+            {
+                return true;
+            }
+            if (hasMajorVersion || result != MetaDataMatchResult.MajorVersionMismatch)
+            {
+                return false;
+            }
+            // Part 14 §6.2.3.2.6 Table 11: a MajorVersion change sets the
+            // MinorVersion to the same value, and versions only increase, so
+            // a message MinorVersion below the registered MajorVersion was
+            // produced with an older, incompatible layout.
+            uint minorVersion = metaVersion?.MinorVersion ?? 0;
+            uint registeredMajor = metaData?.ConfigurationVersion?.MajorVersion ?? 0;
+            return minorVersion == 0 || registeredMajor <= minorVersion;
         }
 
         /// <summary>

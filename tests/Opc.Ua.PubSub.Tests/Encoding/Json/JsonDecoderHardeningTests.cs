@@ -154,22 +154,30 @@ namespace OpcUaPubSubJsonTests
         }
 
         [Test]
-        public async Task DecodePayloadWithMoreMembersThanMetaDataFieldsIsRejectedAsync()
+        [TestSpec("6.2.3.2.6")]
+        public async Task DecodePayloadWithFieldsAppendedByMinorVersionIsAcceptedAsync()
         {
+            // Table 11: appending fields only bumps the MinorVersion, so the
+            // Subscriber's older metadata of the same MajorVersion still applies.
             PubSubNetworkMessageContext ctx = NewContextWithMetaData(
                 JsonTestUtilities.CreateMetaData());
             const string json =
                 "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
-                "\"MetaDataVersion\":{\"MajorVersion\":1,\"MinorVersion\":0},\"Payload\":{" +
-                "\"BoolField\":true,\"IntField\":1,\"StringField\":\"s\",\"x0\":null}}]}";
+                "\"MetaDataVersion\":{\"MajorVersion\":1,\"MinorVersion\":5},\"Payload\":{" +
+                "\"BoolField\":true,\"IntField\":1,\"StringField\":\"s\",\"Appended\":2.5}}]}";
 
             PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result!.DataSetMessages, Has.Count.Zero);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            ArrayOf<DataSetField> fields = result.DataSetMessages[0].Fields;
+            Assert.That(fields, Has.Count.EqualTo(4));
+            Assert.That(fields[1].Value, Is.EqualTo(new Variant(1)));
+            Assert.That(fields[2].Value, Is.EqualTo(new Variant("s")));
+            Assert.That(fields[3].Name, Is.EqualTo("Appended"));
             Assert.That(JsonTestUtilities.Read(ctx,
                 PubSubDiagnosticsCounterKind.FailedDataSetMessages),
-                Is.EqualTo(1));
+                Is.Zero);
         }
 
         [Test]
@@ -296,6 +304,38 @@ namespace OpcUaPubSubJsonTests
             Assert.That(result.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant("Building A")));
         }
 
+        [TestCase(9u, false)]
+        [TestCase(10u, true)]
+        [TestCase(12u, true)]
+        [TestSpec("6.2.3.2.6")]
+        public async Task MinorVersionOnlyMessageOlderThanRegisteredMajorVersionIsNotDecodedAsync(
+            uint minorVersion,
+            bool decoded)
+        {
+            // Table 11: a MajorVersion change sets the MinorVersion to the same
+            // value, so a message MinorVersion below the registered MajorVersion
+            // was produced with an older layout.
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            meta.ConfigurationVersion = new ConfigurationVersionDataType
+            {
+                MajorVersion = 10,
+                MinorVersion = 10
+            };
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(meta);
+            string json =
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
+                "\"MinorVersion\":" + minorVersion.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                ",\"Payload\":{\"BoolField\":true,\"IntField\":1,\"StringField\":\"s\"}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(decoded ? 1 : 0));
+            Assert.That(JsonTestUtilities.Read(ctx,
+                PubSubDiagnosticsCounterKind.ResolverErrors),
+                Is.EqualTo(decoded ? 0 : 1));
+        }
+
         [Test]
         [TestSpec("7.2.5.4.2")]
         public async Task VerboseCollapsedAndEnvelopedVariantsRoundTripAsync()
@@ -346,11 +386,14 @@ namespace OpcUaPubSubJsonTests
         }
 
         [Test]
-        [TestSpec("7.2.5.4.2")]
-        public void LegacyTypeBodyVariantIsNotDecodedAsVariant()
+        [TestSpec("6.3.2.3.1")]
+        public void DeprecatedReversibleTypeBodyVariantIsDecoded()
         {
+            // Table 112 FieldEncoding1=True/FieldEncoding2=False still defines
+            // the deprecated ReversibleFieldEncoding.
             using var document = System.Text.Json.JsonDocument.Parse(
-                "{\"field\":{\"Type\":6,\"Body\":42}}");
+                "{\"field\":{\"Type\":6,\"Body\":42},\"dv\":{\"Value\":{\"Type\":12,\"Body\":\"x\"}," +
+                "\"SourceTimestamp\":\"2021-09-27T11:32:38.349Z\"}}");
 
             ArrayOf<DataSetField> fields = JsonFieldDecoder.DecodeFields(
                 document.RootElement,
@@ -358,7 +401,255 @@ namespace OpcUaPubSubJsonTests
                 JsonEncodingMode.Verbose,
                 ServiceMessageContext.CreateEmpty(null!));
 
-            Assert.That(fields[0].Value, Is.Not.EqualTo(new Variant(42)));
+            Assert.That(fields[0].Value, Is.EqualTo(new Variant(42)));
+            Assert.That(fields[1].Value, Is.EqualTo(new Variant("x")));
+            Assert.That(fields[1].Encoding, Is.EqualTo(PubSubFieldEncoding.DataValue));
+        }
+
+        [Test]
+        [TestSpec("6.3.2.3.1")]
+        public async Task DeprecatedReversibleTypeBodyPayloadIsDecodedAsync()
+        {
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(
+                JsonTestUtilities.CreateMetaData());
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
+                "\"Payload\":{\"BoolField\":{\"Type\":1,\"Body\":true},\"IntField\":{\"Type\":6,\"Body\":5}," +
+                "\"StringField\":{\"Type\":12,\"Body\":\"s\"}}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(result.DataSetMessages[0].Fields[1].Value, Is.EqualTo(new Variant(5)));
+        }
+
+        [Test]
+        [TestSpec("7.2.5.4.2")]
+        public async Task VerboseEnumerationFieldIsEncodedAsNameValueStringAsync()
+        {
+            var enumType = new NodeId(3001, 1);
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            meta.Fields =
+            [
+                .. meta.Fields.ToArray()!,
+                new FieldMetaData
+                {
+                    Name = "State",
+                    BuiltInType = (byte)BuiltInType.Int32,
+                    DataType = enumType,
+                    ValueRank = ValueRanks.Scalar
+                },
+                new FieldMetaData
+                {
+                    Name = "ServerState",
+                    BuiltInType = (byte)BuiltInType.Int32,
+                    DataType = DataTypeIds.ServerState,
+                    ValueRank = ValueRanks.Scalar
+                },
+                new FieldMetaData
+                {
+                    Name = "States",
+                    BuiltInType = (byte)BuiltInType.Int32,
+                    DataType = enumType,
+                    ValueRank = ValueRanks.OneDimension
+                }
+            ];
+            meta.EnumDataTypes =
+            [
+                new EnumDescription
+                {
+                    DataTypeId = enumType,
+                    Name = new QualifiedName("MachineState", 1),
+                    EnumDefinition = new EnumDefinition
+                    {
+                        Fields =
+                        [
+                            new EnumField { Name = "Running", Value = 0 },
+                            new EnumField { Name = "Suspended", Value = 3 }
+                        ]
+                    }
+                }
+            ];
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(meta);
+            ArrayOf<int> states = [0, 3, 7];
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                DataSetWriterId = 1,
+                MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1 },
+                Fields =
+                [
+                    .. JsonTestUtilities.CreateFields().ToArray()!,
+                    new DataSetField { Name = "State", Value = new Variant(3) },
+                    new DataSetField { Name = "ServerState", Value = new Variant(3) },
+                    new DataSetField { Name = "States", Value = new Variant(states) }
+                ]
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                DataSetMessages = [dsm]
+            };
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+            string text = JsonTestUtilities.ToText(bytes);
+
+            PubSubNetworkMessage? result = await new Opc.Ua.PubSub.Encoding.Json.JsonDecoder()
+                .TryDecodeAsync(bytes, ctx).ConfigureAwait(false);
+
+            Assert.That(text, Does.Contain("\"State\":\"Suspended_3\""), text);
+            // Without a known name the numeric value is encoded as a JSON string.
+            Assert.That(text, Does.Contain("\"ServerState\":\"3\""), text);
+            Assert.That(text, Does.Contain("\"States\":[\"Running_0\",\"Suspended_3\",\"7\"]"), text);
+            Assert.That(result, Is.Not.Null, text);
+            ArrayOf<DataSetField> fields = result!.DataSetMessages[0].Fields;
+            Assert.That(fields[3].Value, Is.EqualTo(new Variant(3)));
+            Assert.That(fields[4].Value, Is.EqualTo(new Variant(3)));
+            Assert.That(fields[5].Value, Is.EqualTo(new Variant(states)));
+        }
+
+        [Test]
+        [TestSpec("7.2.5.4.3")]
+        public async Task VerboseFieldsWithoutUaTypeAreTypedByFieldMetaDataAsync()
+        {
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            meta.Fields =
+            [
+                NewField("LocationName", BuiltInType.String, ValueRanks.Scalar),
+                NewField("Suspended", BuiltInType.Int32, ValueRanks.Scalar, DataTypeIds.ServerState),
+                NewField("Range", BuiltInType.ExtensionObject, ValueRanks.Scalar, DataTypeIds.Range),
+                NewField("Matrix", BuiltInType.Int32, ValueRanks.TwoDimensions),
+                NewField("AnyScalar", BuiltInType.Int32, ValueRanks.Any),
+                NewField("ScalarOrArray", BuiltInType.Int32, ValueRanks.ScalarOrOneDimension),
+                NewField("Ranges", BuiltInType.ExtensionObject, ValueRanks.OneDimension, DataTypeIds.Range)
+            ];
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(meta);
+            // Part 14 7.2.5.4.2 second example and Table 186 / Table 187 rows.
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
+                "\"Payload\":{\"LocationName\":{\"Value\":\"Building A\"," +
+                "\"Status\":{\"Code\":1073741824,\"Symbol\":\"Uncertain\"}," +
+                "\"SourceTimestamp\":\"2021-09-27T11:32:38.349925Z\"}," +
+                "\"Suspended\":\"Suspended_3\"," +
+                "\"Range\":{\"Low\":1,\"High\":2}," +
+                "\"Matrix\":{\"Value\":[1,2,3,4],\"Dimensions\":[2,2]}," +
+                "\"AnyScalar\":{\"Value\":11}," +
+                "\"ScalarOrArray\":[1,2,3,4]," +
+                "\"Ranges\":[{\"Low\":1,\"High\":2}]}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            ArrayOf<DataSetField> fields = result.DataSetMessages[0].Fields;
+            Assert.Multiple(() =>
+            {
+                Assert.That(fields[0].Value, Is.EqualTo(new Variant("Building A")));
+                Assert.That(fields[0].StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+                Assert.That(fields[0].SourceTimestamp, Is.Not.EqualTo(DateTimeUtc.MinValue));
+                Assert.That(fields[0].Encoding, Is.EqualTo(PubSubFieldEncoding.DataValue));
+                Assert.That(fields[1].Value, Is.EqualTo(new Variant(3)));
+                Assert.That(fields[2].Value.TryGetValue(out ExtensionObject range), Is.True);
+                Assert.That(range.IsNull, Is.False);
+                Assert.That(range.TypeId.IsNull, Is.False);
+                Assert.That(fields[3].Value.TypeInfo.ValueRank, Is.EqualTo(2));
+                Assert.That(fields[4].Value, Is.EqualTo(new Variant(11)));
+                Assert.That(fields[5].Value.GetInt32Array(), Has.Count.EqualTo(4));
+                Assert.That(fields[6].Value.IsNull, Is.False);
+                Assert.That(fields[6].Value.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+            });
+        }
+
+        [Test]
+        [TestSpec("7.2.5.4.3")]
+        public async Task VerboseAbstractFieldWithoutUaTypeIsRejectedAsync()
+        {
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            meta.Fields = [NewField("Any", BuiltInType.Variant, ValueRanks.Scalar)];
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(meta);
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
+                "\"Payload\":{\"Any\":{\"Value\":\"Apple\"}}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.Zero);
+            Assert.That(JsonTestUtilities.Read(ctx,
+                PubSubDiagnosticsCounterKind.FailedDataSetMessages),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        [TestSpec("7.2.5.4.3")]
+        public async Task VerboseDataValueFieldOmitsUaTypeForConcreteTypeAsync()
+        {
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(meta);
+            var sourceTimestamp = (DateTimeUtc)new DateTime(2025, 5, 26, 11, 20, 7, 951, DateTimeKind.Utc);
+            var dsm = new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                DataSetWriterId = 1,
+                MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1 },
+                Fields =
+                [
+                    new DataSetField
+                    {
+                        Name = "BoolField",
+                        Value = new Variant(true),
+                        Encoding = PubSubFieldEncoding.DataValue
+                    },
+                    new DataSetField
+                    {
+                        Name = "IntField",
+                        Value = new Variant(1234),
+                        SourceTimestamp = sourceTimestamp,
+                        Encoding = PubSubFieldEncoding.DataValue
+                    },
+                    new DataSetField
+                    {
+                        Name = "StringField",
+                        Value = new Variant("Apple"),
+                        Encoding = PubSubFieldEncoding.DataValue
+                    }
+                ]
+            };
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                DataSetMessages = [dsm]
+            };
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, ctx).ConfigureAwait(false);
+            string text = JsonTestUtilities.ToText(bytes);
+
+            PubSubNetworkMessage? result = await new Opc.Ua.PubSub.Encoding.Json.JsonDecoder()
+                .TryDecodeAsync(bytes, ctx).ConfigureAwait(false);
+
+            Assert.That(text, Does.Contain(
+                "\"IntField\":{\"Value\":1234,\"SourceTimestamp\":\"2025-05-26T11:20:07.951Z\"}"), text);
+            Assert.That(text, Does.Not.Contain("UaType"), text);
+            Assert.That(result, Is.Not.Null, text);
+            ArrayOf<DataSetField> fields = result!.DataSetMessages[0].Fields;
+            Assert.That(fields[1].Value, Is.EqualTo(new Variant(1234)));
+            Assert.That(fields[1].SourceTimestamp, Is.EqualTo(sourceTimestamp));
+            Assert.That(fields[2].Value, Is.EqualTo(new Variant("Apple")));
+            Assert.That(fields[2].Encoding, Is.EqualTo(PubSubFieldEncoding.DataValue));
+        }
+
+        private static FieldMetaData NewField(
+            string name,
+            BuiltInType builtInType,
+            int valueRank,
+            NodeId dataType = default)
+        {
+            return new FieldMetaData
+            {
+                Name = name,
+                BuiltInType = (byte)builtInType,
+                ValueRank = valueRank,
+                DataType = dataType
+            };
         }
 
         [TestCase(JsonEncodingMode.Verbose, "{\"Code\":1073741824,\"Symbol\":\"Uncertain\"}")]
@@ -401,12 +692,32 @@ namespace OpcUaPubSubJsonTests
 
         [Test]
         [TestSpec("7.2.5.4.1")]
-        public async Task DataSetMessageNumericStatusIsRejectedAsync()
+        public async Task DataSetMessageLegacyNumericStatusIsAcceptedAsync()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             const string json =
                 "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Status\":1073741824," +
                 "\"Payload\":{\"a\":{\"UaType\":6,\"Value\":7}}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(
+                ((Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage)result.DataSetMessages[0]).Status,
+                Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+        }
+
+        [TestCase("\"Uncertain\"")]
+        [TestCase("[1073741824]")]
+        [TestCase("-1")]
+        [TestSpec("7.2.5.4.1")]
+        public async Task DataSetMessageMalformedStatusIsRejectedAsync(string status)
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            string json =
+                "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Status\":" + status +
+                ",\"Payload\":{\"a\":{\"UaType\":6,\"Value\":7}}}]}";
 
             PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
 

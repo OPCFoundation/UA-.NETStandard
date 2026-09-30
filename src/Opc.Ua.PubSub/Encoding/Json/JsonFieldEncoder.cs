@@ -95,9 +95,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 DataSetField field = fields[i];
                 string name = ResolveFieldName(field, metaData, i);
-                bool collapsed = mode == JsonEncodingMode.Verbose &&
-                    IsCollapsed(field.Value, ResolveFieldMetaData(metaData, name, i));
-                WriteOneField(writer, name, field, mode, context, fieldContentMask, collapsed);
+                Variant? collapsedValue = mode == JsonEncodingMode.Verbose
+                    ? ToCollapsedValue(field.Value, ResolveFieldMetaData(metaData, name, i), metaData)
+                    : null;
+                WriteOneField(writer, name, field, mode, context, fieldContentMask, collapsedValue);
             }
             if (writePayloadWrapper)
             {
@@ -168,6 +169,95 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
+        /// Returns the bare value a top-level VerboseEncoding field is
+        /// collapsed to (Part 14 §7.2.5.4.2), or <see langword="null"/>
+        /// when the field keeps the Variant envelope. An Enumeration value
+        /// carries the name from the DataSetMetaData <c>EnumDataTypes</c>
+        /// so it is written as the verbose Enumeration
+        /// <c>&lt;name&gt;_&lt;value&gt;</c> (Part 6 §5.4.4.2).
+        /// </summary>
+        /// <param name="value">Field value.</param>
+        /// <param name="fieldMetaData">Matching FieldMetaData.</param>
+        /// <param name="metaData">DataSetMetaData of the fields.</param>
+        /// <returns>The collapsed value or <see langword="null"/>.</returns>
+        private static Variant? ToCollapsedValue(
+            Variant value,
+            FieldMetaData? fieldMetaData,
+            DataSetMetaDataType? metaData)
+        {
+            if (fieldMetaData is null || value.IsNull)
+            {
+                return null;
+            }
+            if (!JsonVariantEncoder.IsEnumerationField(fieldMetaData))
+            {
+                return IsCollapsed(value, fieldMetaData) ? value : (Variant?)null;
+            }
+            TypeInfo typeInfo = value.TypeInfo;
+            if (typeInfo.BuiltInType is not (BuiltInType.Int32 or BuiltInType.Enumeration))
+            {
+                return null;
+            }
+            EnumDefinition? definition = FindEnumDefinition(metaData, fieldMetaData.DataType);
+            if (fieldMetaData.ValueRank == ValueRanks.Scalar)
+            {
+                return typeInfo.IsScalar && value.TryGetValue(out EnumValue scalar)
+                    ? new Variant(WithSymbol(scalar, definition))
+                    : (Variant?)null;
+            }
+            return typeInfo.ValueRank == ValueRanks.OneDimension &&
+                value.TryGetValue(out ArrayOf<EnumValue> array)
+                ? new Variant(array.ConvertAll(item => WithSymbol(item, definition)))
+                : (Variant?)null;
+        }
+
+        /// <summary>
+        /// Finds the definition of an Enumeration DataType in the
+        /// <c>EnumDataTypes</c> of the DataSetMetaData.
+        /// </summary>
+        private static EnumDefinition? FindEnumDefinition(
+            DataSetMetaDataType? metaData,
+            NodeId dataType)
+        {
+            if (metaData is null)
+            {
+                return null;
+            }
+            ReadOnlySpan<EnumDescription> enumDataTypes = metaData.EnumDataTypes.Span;
+            for (int i = 0; i < enumDataTypes.Length; i++)
+            {
+                if (enumDataTypes[i] is { } description && description.DataTypeId == dataType)
+                {
+                    return description.EnumDefinition;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Returns <paramref name="value"/> with the name of its
+        /// Enumeration literal. Without a known name the value is written
+        /// as the numeric string (Part 6 §5.4.4.2).
+        /// </summary>
+        private static EnumValue WithSymbol(EnumValue value, EnumDefinition? definition)
+        {
+            if (definition is not null)
+            {
+                ReadOnlySpan<EnumField> fields = definition.Fields.Span;
+                for (int i = 0; i < fields.Length; i++)
+                {
+                    if (fields[i] is { } enumField &&
+                        enumField.Value == value.Value &&
+                        !string.IsNullOrEmpty(enumField.Name))
+                    {
+                        return new EnumValue(value.Value, enumField.Name);
+                    }
+                }
+            }
+            return value;
+        }
+
+        /// <summary>
         /// Whether a top-level VerboseEncoding Variant field is collapsed
         /// to its bare value: the FieldMetaData supplies a concrete
         /// DataType and the value has exactly that type and rank
@@ -206,8 +296,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="context">Stack message context.</param>
         /// <param name="fieldContentMask">Per-field content mask honoured
         /// when the field is emitted as a <c>DataValue</c> envelope.</param>
-        /// <param name="collapsed">Whether a Variant field omits its
-        /// envelope.</param>
+        /// <param name="collapsedValue">The bare value written without
+        /// the Variant envelope or DataValue <c>UaType</c>, when the
+        /// FieldMetaData supplies its type.</param>
         private static void WriteOneField(
             Utf8JsonWriter writer,
             string propertyName,
@@ -215,7 +306,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonEncodingMode mode,
             IServiceMessageContext context,
             DataSetFieldContentMask fieldContentMask,
-            bool collapsed)
+            Variant? collapsedValue)
         {
             switch (field.Encoding)
             {
@@ -234,16 +325,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         propertyName,
                         dv,
                         mode,
-                        context);
+                        context,
+                        collapsedValue);
                     break;
                 default:
                     JsonVariantEncoder.WriteVariantProperty(
                         writer,
                         propertyName,
-                        field.Value,
+                        collapsedValue ?? field.Value,
                         mode,
                         context,
-                        collapsed);
+                        collapsedValue is not null);
                     break;
             }
         }
