@@ -86,6 +86,11 @@ namespace Opc.Ua.Fuzzing
             context.MaxStringLength = FuzzMaxStringLength;
             context.MaxByteStringLength = FuzzMaxByteStringLength;
             context.MaxArrayLength = FuzzMaxArrayLength;
+
+            // Decimal is not in the default factory, so an ExtensionObject Decimal body is kept
+            // raw and never decoded. Register it so the targets exercise Decimal.Decode, which
+            // the T1-3 octet cap guards (OPC 10000-6 5.1.10).
+            context.Factory.AddEncodeableType(typeof(Decimal));
             return context;
         }
 

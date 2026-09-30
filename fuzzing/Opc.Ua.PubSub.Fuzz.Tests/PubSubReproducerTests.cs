@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Encoding.Uadp;
 
 namespace Opc.Ua.Fuzzing
 {
@@ -74,9 +76,57 @@ namespace Opc.Ua.Fuzzing
             Assert.DoesNotThrow(() => FuzzableCode.LibfuzzPubSubJsonDecode(input));
         }
 
+        /// <summary>
+        /// U1-3: a UADP chunk header advertising a huge TotalSize made the reassembler
+        /// preallocate that many bytes. The fix bounds TotalSize by MaxReassembledMessageSize
+        /// and charges memory per received chunk, so the chunk is rejected before allocation.
+        /// The reassembler probe runs under the allocation oracle in ExerciseUadpChunks.
+        /// </summary>
+        [Test]
+        public void OversizedChunkTotalSizeIsRejectedBeforeAllocation()
+        {
+            byte[] chunk = PubSubReproducerBuilders.BuildOversizedTotalSizeChunk();
+            PubSubNetworkMessageContext context = FuzzableCode.NewContext();
+
+            using (var reassembler = new UadpReassembler(context.TimeProvider))
+            {
+                bool completed = reassembler.TryAddChunk(
+                    FuzzableCode.SeedPublisherId, 1, chunk, out ReadOnlyMemory<byte>? reassembled);
+
+                Assert.That(completed, Is.False);
+                Assert.That(reassembled, Is.Null);
+                Assert.That(reassembler.PendingCount, Is.Zero);
+            }
+
+            Assert.DoesNotThrow(() => FuzzableCode.LibfuzzUadpChunkReassembly(chunk));
+        }
+
         private static byte[] LoadReproducer(string name)
         {
             return File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "Repo", name));
+        }
+    }
+
+    /// <summary>
+    /// Builders for the PubSub resource reproducers, documenting the wire shape they produce.
+    /// </summary>
+    internal static class PubSubReproducerBuilders
+    {
+        /// <summary>
+        /// A single UADP chunk (Part 14 Table 159) whose TotalSize advertises about 1 GiB while
+        /// the chunk carries one payload byte.
+        /// </summary>
+        public static byte[] BuildOversizedTotalSizeChunk()
+        {
+            const uint totalSize = 0x40000000; // 1 GiB.
+            byte[] payload = [0x2A];
+            byte[] frame = new byte[UadpChunker.ChunkHeaderSize + payload.Length];
+            BinaryPrimitives.WriteUInt16LittleEndian(frame.AsSpan(0), 1); // MessageSequenceNumber
+            BinaryPrimitives.WriteUInt32LittleEndian(frame.AsSpan(2), 0); // ChunkOffset
+            BinaryPrimitives.WriteUInt32LittleEndian(frame.AsSpan(6), totalSize);
+            BinaryPrimitives.WriteInt32LittleEndian(frame.AsSpan(10), payload.Length); // ChunkData length
+            payload.CopyTo(frame.AsSpan(UadpChunker.ChunkHeaderSize));
+            return frame;
         }
     }
 }
