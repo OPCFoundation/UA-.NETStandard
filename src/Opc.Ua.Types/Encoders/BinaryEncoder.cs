@@ -838,8 +838,9 @@ namespace Opc.Ua
             // cannot nest: BinaryDecoder.ReadVariant counts each one, so an
             // encoder that skipped them could emit a message one level deeper
             // than its own peer accepts.
-            BuiltInType builtInType = value.TypeInfo.BuiltInType;
-            if (value.TypeInfo.IsScalar &&
+            TypeInfo typeInfo = value.TypeInfo;
+            BuiltInType builtInType = typeInfo.BuiltInType;
+            if (typeInfo.IsScalar &&
                 builtInType != BuiltInType.DataValue &&
                 builtInType != BuiltInType.ExtensionObject)
             {
@@ -851,7 +852,7 @@ namespace Opc.Ua
                 {
                     throw NestingLevelExceeded();
                 }
-                WriteVariantValue(in value, false);
+                WriteVariantValue(in value, typeInfo, false);
                 return;
             }
 
@@ -859,7 +860,7 @@ namespace Opc.Ua
 
             try
             {
-                WriteVariantValue(in value, false);
+                WriteVariantValue(in value, typeInfo, false);
             }
             finally
             {
@@ -1636,7 +1637,15 @@ namespace Opc.Ua
         {
             // Snapshot the type info once; Variant is immutable so repeated
             // value.TypeInfo property reads would each copy the struct.
-            TypeInfo typeInfo = value.TypeInfo;
+            WriteVariantValue(in value, value.TypeInfo, writeRawValue);
+        }
+
+        /// <summary>
+        /// Write variant value with the type info of the value.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteVariantValue(in Variant value, TypeInfo typeInfo, bool writeRawValue)
+        {
             BuiltInType builtInType = typeInfo.BuiltInType;
 
             // check for null.
