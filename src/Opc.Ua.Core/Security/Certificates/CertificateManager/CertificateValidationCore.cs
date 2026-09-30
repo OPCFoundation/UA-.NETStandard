@@ -686,6 +686,10 @@ namespace Opc.Ua
                                 .ConfigureAwait(false);
                         }
                     }
+                    else
+                    {
+                        isTrusted = true;
+                    }
                 }
                 else
                 {
