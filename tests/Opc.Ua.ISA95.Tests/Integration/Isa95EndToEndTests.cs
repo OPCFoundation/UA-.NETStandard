@@ -436,6 +436,22 @@ namespace Opc.Ua.ISA95.Tests.Integration
                     ct).ConfigureAwait(false),
                 Is.True);
 
+            NodeId jobOrderListId = await FindChildAsync(
+                client.Session,
+                v2Order.NodeId,
+                V2.BrowseNames.JobOrderList,
+                V2.Namespaces.ISA95JobControlV2,
+                ct).ConfigureAwait(false);
+
+            // Monitored items learn about a new value through the node's
+            // StateChanged callback with the Value mask; a read alone would
+            // not show that a subscribed client is told.
+            BaseVariableState jobOrderList =
+                manager.FindPredefinedNode<BaseVariableState>(jobOrderListId) ??
+                throw new InvalidOperationException("The V2 JobOrderList is missing.");
+            int jobOrderListChanges = 0;
+            jobOrderList.StateChanged += OnJobOrderListChanged;
+
             V2.ISA95JobOrderDataType externalUpdate =
                 Isa95TestData.V2Order("v2-main");
             externalUpdate.Priority = 77;
@@ -446,12 +462,6 @@ namespace Opc.Ua.ISA95.Tests.Integration
                     [new LocalizedText("en-US", "Updated externally")],
                     ct).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(externalUpdateResult.Result), Is.True);
-            NodeId jobOrderListId = await FindChildAsync(
-                client.Session,
-                v2Order.NodeId,
-                V2.BrowseNames.JobOrderList,
-                V2.Namespaces.ISA95JobControlV2,
-                ct).ConfigureAwait(false);
             Assert.That(
                 await WaitForJobOrderPriorityAsync(
                     client.Session,
@@ -460,6 +470,25 @@ namespace Opc.Ua.ISA95.Tests.Integration
                     77,
                     ct).ConfigureAwait(false),
                 Is.True);
+            Assert.That(
+                await WaitForAsync(
+                    () => Volatile.Read(ref jobOrderListChanges) > 0,
+                    TimeSpan.FromSeconds(5),
+                    ct).ConfigureAwait(false),
+                Is.True,
+                "An external job order change has to reach monitored items of JobOrderList.");
+            jobOrderList.StateChanged -= OnJobOrderListChanged;
+
+            void OnJobOrderListChanged(
+                ISystemContext context,
+                NodeState node,
+                NodeStateChangeMasks changes)
+            {
+                if ((changes & NodeStateChangeMasks.Value) != 0)
+                {
+                    Interlocked.Increment(ref jobOrderListChanges);
+                }
+            }
 
             AssertSuccess(await v2.UpdateAsync(Isa95TestData.V2Order("v2-main"), ct: ct)
                 .ConfigureAwait(false));
