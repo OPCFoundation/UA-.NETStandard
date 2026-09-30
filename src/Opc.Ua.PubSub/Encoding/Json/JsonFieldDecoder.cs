@@ -114,23 +114,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return false;
             }
+            // A Publisher may append fields with only a MinorVersion change
+            // (Part 14 §6.2.3.2.6 Table 11), so the Payload can carry more
+            // members than the metadata describes; those decode without
+            // FieldMetaData. The member count is bounded by MaxArrayLength.
             FieldIndex? fieldIndex = null;
             if (metaData is not null && metaData.Fields.Count > 0)
             {
-                // A DataSetMessage never carries more fields than its
-                // DataSetMetaData describes.
-                if (memberCount > metaData.Fields.Count)
-                {
-                    if (tolerant)
-                    {
-                        return false;
-                    }
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Payload has {0} members but the DataSetMetaData describes {1} fields.",
-                        memberCount,
-                        metaData.Fields.Count);
-                }
                 fieldIndex = GetFieldIndex(metaData);
             }
             var decodedFields = new List<DataSetField>(memberCount);

@@ -154,22 +154,30 @@ namespace OpcUaPubSubJsonTests
         }
 
         [Test]
-        public async Task DecodePayloadWithMoreMembersThanMetaDataFieldsIsRejectedAsync()
+        [TestSpec("6.2.3.2.6")]
+        public async Task DecodePayloadWithFieldsAppendedByMinorVersionIsAcceptedAsync()
         {
+            // Table 11: appending fields only bumps the MinorVersion, so the
+            // Subscriber's older metadata of the same MajorVersion still applies.
             PubSubNetworkMessageContext ctx = NewContextWithMetaData(
                 JsonTestUtilities.CreateMetaData());
             const string json =
                 "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
-                "\"MetaDataVersion\":{\"MajorVersion\":1,\"MinorVersion\":0},\"Payload\":{" +
-                "\"BoolField\":true,\"IntField\":1,\"StringField\":\"s\",\"x0\":null}}]}";
+                "\"MetaDataVersion\":{\"MajorVersion\":1,\"MinorVersion\":5},\"Payload\":{" +
+                "\"BoolField\":true,\"IntField\":1,\"StringField\":\"s\",\"Appended\":2.5}}]}";
 
             PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
 
             Assert.That(result, Is.Not.Null);
-            Assert.That(result!.DataSetMessages, Has.Count.Zero);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            ArrayOf<DataSetField> fields = result.DataSetMessages[0].Fields;
+            Assert.That(fields, Has.Count.EqualTo(4));
+            Assert.That(fields[1].Value, Is.EqualTo(new Variant(1)));
+            Assert.That(fields[2].Value, Is.EqualTo(new Variant("s")));
+            Assert.That(fields[3].Name, Is.EqualTo("Appended"));
             Assert.That(JsonTestUtilities.Read(ctx,
                 PubSubDiagnosticsCounterKind.FailedDataSetMessages),
-                Is.EqualTo(1));
+                Is.Zero);
         }
 
         [Test]
