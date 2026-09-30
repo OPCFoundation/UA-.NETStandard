@@ -710,6 +710,21 @@ namespace Opc.Ua
                     typeId = (int)BuiltInType.ByteString;
                 }
 
+                // Only a mask of 0 is a NULL without further fields; with the
+                // array bit set, ArrayLength (and ArrayDimensions) are present
+                // (OPC 10000-6 5.2.2.16). A Null element has no bytes, so
+                // consume and bound them to stay in sync and return NULL.
+                if (typeId == (int)BuiltInType.Null &&
+                    (encodingByte & (byte)VariantArrayEncodingBits.Array) != 0)
+                {
+                    ReadArrayLength(0);
+                    if ((encodingByte & (byte)VariantArrayEncodingBits.ArrayDimensions) != 0)
+                    {
+                        ReadInt32Array(null);
+                    }
+                    return Variant.Null;
+                }
+
                 var typeInfo = TypeInfo.Create(
                     (BuiltInType)typeId,
                     (encodingByte & (byte)VariantArrayEncodingBits.Array) == 0 ?

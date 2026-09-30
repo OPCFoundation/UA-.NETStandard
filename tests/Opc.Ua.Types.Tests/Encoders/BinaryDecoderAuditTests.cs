@@ -665,6 +665,52 @@ namespace Opc.Ua.Types.Tests.Encoders
                 StatusCodes.BadEncodingLimitsExceeded);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NullVariantWithArrayBitConsumesArrayLengthAndDimensions(bool matrix)
+        {
+            // Null | Array (| ArrayDimensions): ArrayLength and ArrayDimensions
+            // are present (5.2.2.16) and must be consumed, or the Int32 that
+            // follows the Variant is read from the wrong position.
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)(matrix ? 0xC0 : 0x80));
+                w.Write(2);
+                if (matrix)
+                {
+                    w.Write(2);
+                    w.Write(1);
+                    w.Write(2);
+                }
+                w.Write(0x12345678);
+            });
+
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            Variant value = decoder.ReadVariant(null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.IsNull, Is.True);
+                Assert.That(decoder.ReadInt32(null), Is.EqualTo(0x12345678));
+            });
+        }
+
+        [Test]
+        public void NullVariantArrayLengthIsBoundedByMaxArrayLength()
+        {
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)0x80);
+                w.Write(1000);
+            });
+
+            ServiceMessageContext context = CreateContext();
+            context.MaxArrayLength = 10;
+            using var decoder = new BinaryDecoder(bytes, context);
+            AssertStatus(
+                () => decoder.ReadVariant(null),
+                StatusCodes.BadEncodingLimitsExceeded);
+        }
+
         [Test]
         public void VariantMatrixWith32DimensionsIsAccepted()
         {
