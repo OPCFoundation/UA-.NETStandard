@@ -257,6 +257,36 @@ namespace Opc.Ua.Robotics.Client.Tests
         }
 
         [Test]
+        public async Task ResetToProgramStartCallsTheReadySubstateMachine()
+        {
+            // OPC 40010-1 declares ResetToProgramStart on the ReadySubstateMachine,
+            // a sibling of the Ready state below the TaskControlStateMachine.
+            RoboticsSessionHarness h = new();
+            h.ConfigureTaskControl(StatusCodes.Good, 5);
+            TaskControlClient client = new(h.Session.Object, h.TaskControlId, h.Telemetry);
+
+            int status = await client.ResetToProgramStartAsync().ConfigureAwait(false);
+
+            Assert.That(status, Is.EqualTo(5));
+            Assert.That(h.Calls, Has.Count.EqualTo(1));
+            Assert.That(h.Calls[0].ObjectId, Is.EqualTo(h.ReadySubstateMachineId));
+        }
+
+        [Test]
+        public void ResetToProgramStartFailsWithoutAReadySubstateMachine()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureTaskControl(StatusCodes.Good, 5, readySubstateMachine: false);
+            TaskControlClient client = new(h.Session.Object, h.TaskControlId, h.Telemetry);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ResetToProgramStartAsync().ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+            Assert.That(h.Calls, Is.Empty, "the Ready state has no ResetToProgramStart to call");
+        }
+
+        [Test]
         public void OperationCallsFailExplicitlyWhenRequiredNodesAreAbsent()
         {
             RoboticsSessionHarness h = new();
@@ -456,6 +486,12 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public NodeId TaskModuleId { get; } = new(1604, 2);
 
+            public NodeId ReadyStateId { get; } = new(1605, 2);
+
+            public NodeId ReadySubstateMachineId { get; } = new(1606, 2);
+
+            public List<CallMethodRequest> Calls { get; } = [];
+
             public NodeId CurrentStateNode { get; } = new(1700, 2);
 
             public NodeId CurrentStateIdNode { get; } = new(1701, 2);
@@ -555,7 +591,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddStateReads(SystemStateMachineId, RoboticsBrowseNames.Ready);
             }
 
-            public void ConfigureTaskControl(StatusCode statusCode, int output)
+            public void ConfigureTaskControl(StatusCode statusCode, int output, bool readySubstateMachine = true)
             {
                 m_callStatus = statusCode;
                 m_callOutput = output;
@@ -564,7 +600,14 @@ namespace Opc.Ua.Robotics.Client.Tests
                 TaskControlOperationId,
                 RoboticsBrowseNames.TaskControlStateMachine,
                 TaskControlStateMachineId);
-                AddChild(TaskControlStateMachineId, RoboticsBrowseNames.Ready, new NodeId(1605, 2));
+                AddChild(TaskControlStateMachineId, RoboticsBrowseNames.Ready, ReadyStateId);
+                if (readySubstateMachine)
+                {
+                    AddChild(
+                    TaskControlStateMachineId,
+                    RoboticsBrowseNames.ReadySubstateMachine,
+                    ReadySubstateMachineId);
+                }
                 AddStateReads(TaskControlStateMachineId, RoboticsBrowseNames.Ready);
             }
 
@@ -812,8 +855,10 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 Session.Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
-                    .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>((_, _, _) =>
-                        new ValueTask<CallResponse>(new CallResponse
+                    .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>((_, requests, _) =>
+                    {
+                        Calls.AddRange(requests.ToList());
+                        return new ValueTask<CallResponse>(new CallResponse
                         {
                             ResponseHeader = new ResponseHeader(),
                             Results =
@@ -825,7 +870,8 @@ namespace Opc.Ua.Robotics.Client.Tests
                                 }
                             ],
                             DiagnosticInfos = default
-                        }));
+                        });
+                    });
             }
 
             private static async IAsyncEnumerable<DataValueChange> SingleChange(NodeId nodeId)
