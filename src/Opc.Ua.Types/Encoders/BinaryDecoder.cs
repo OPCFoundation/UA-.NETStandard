@@ -2452,6 +2452,15 @@ namespace Opc.Ua
                 return SafeReadSpan(length, functionName).ToArray();
             }
 
+            return SafeReadStreamBytes(length, functionName);
+        }
+
+        /// <summary>
+        /// Reads bytes from the stream, see <see cref="SafeReadBytes(int, string?)"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
+        private byte[] SafeReadStreamBytes(int length, string? functionName)
+        {
             // BinaryReader.ReadBytes allocates the requested length before it
             // reads: never hand it a length the stream cannot satisfy.
             CheckRemainingBytes(length, functionName);
