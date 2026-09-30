@@ -304,6 +304,38 @@ namespace OpcUaPubSubJsonTests
             Assert.That(result.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant("Building A")));
         }
 
+        [TestCase(9u, false)]
+        [TestCase(10u, true)]
+        [TestCase(12u, true)]
+        [TestSpec("6.2.3.2.6")]
+        public async Task MinorVersionOnlyMessageOlderThanRegisteredMajorVersionIsNotDecodedAsync(
+            uint minorVersion,
+            bool decoded)
+        {
+            // Table 11: a MajorVersion change sets the MinorVersion to the same
+            // value, so a message MinorVersion below the registered MajorVersion
+            // was produced with an older layout.
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            meta.ConfigurationVersion = new ConfigurationVersionDataType
+            {
+                MajorVersion = 10,
+                MinorVersion = 10
+            };
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(meta);
+            string json =
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
+                "\"MinorVersion\":" + minorVersion.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                ",\"Payload\":{\"BoolField\":true,\"IntField\":1,\"StringField\":\"s\"}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(decoded ? 1 : 0));
+            Assert.That(JsonTestUtilities.Read(ctx,
+                PubSubDiagnosticsCounterKind.ResolverErrors),
+                Is.EqualTo(decoded ? 0 : 1));
+        }
+
         [Test]
         [TestSpec("7.2.5.4.2")]
         public async Task VerboseCollapsedAndEnvelopedVariantsRoundTripAsync()

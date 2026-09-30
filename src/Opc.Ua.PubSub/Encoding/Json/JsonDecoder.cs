@@ -1260,7 +1260,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="metaVersion">Configuration version.</param>
         /// <param name="hasMajorVersion">Whether the DataSetMessage carried a
         /// MajorVersion. Without one (only <c>MinorVersion</c>, or no version at
-        /// all) the metadata registered for the identity is used.</param>
+        /// all) the metadata registered for the identity is used unless its
+        /// MajorVersion is newer than the message MinorVersion.</param>
         /// <param name="context">Decoder context.</param>
         /// <returns>Resolved metadata or
         /// <see langword="null"/>.</returns>
@@ -1281,7 +1282,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             MetaDataMatchResult result = context.MetaDataRegistry.TryGet(
                 in key,
                 out DataSetMetaDataType? metaData);
-            if (IsUsableMatch(result, hasMajorVersion))
+            if (IsUsableMatch(result, metaData, metaVersion, hasMajorVersion))
             {
                 return metaData;
             }
@@ -1297,7 +1298,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         dataSetClassId,
                         metaVersion?.MajorVersion ?? 0);
                     result = context.MetaDataRegistry.TryGet(in key, out metaData);
-                    if (IsUsableMatch(result, hasMajorVersion))
+                    if (IsUsableMatch(result, metaData, metaVersion, hasMajorVersion))
                     {
                         return metaData;
                     }
@@ -1310,12 +1311,36 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// Whether a registry lookup result can be used to decode the
         /// DataSetMessage. MetaDataVersion and MinorVersion are both
         /// optional (Part 14 §7.2.5.4.1 Table 185); without a MajorVersion
-        /// any registered description for the identity applies.
+        /// the registered description for the identity applies unless the
+        /// message MinorVersion proves it predates that description's
+        /// MajorVersion.
         /// </summary>
-        private static bool IsUsableMatch(MetaDataMatchResult result, bool hasMajorVersion)
+        /// <param name="result">Registry lookup result.</param>
+        /// <param name="metaData">Registered metadata for the identity.</param>
+        /// <param name="metaVersion">Version carried by the message.</param>
+        /// <param name="hasMajorVersion">Whether the message carried a
+        /// MajorVersion.</param>
+        private static bool IsUsableMatch(
+            MetaDataMatchResult result,
+            DataSetMetaDataType? metaData,
+            ConfigurationVersionDataType? metaVersion,
+            bool hasMajorVersion)
         {
-            return result is MetaDataMatchResult.Match or MetaDataMatchResult.MinorVersionMismatch ||
-                (!hasMajorVersion && result == MetaDataMatchResult.MajorVersionMismatch);
+            if (result is MetaDataMatchResult.Match or MetaDataMatchResult.MinorVersionMismatch)
+            {
+                return true;
+            }
+            if (hasMajorVersion || result != MetaDataMatchResult.MajorVersionMismatch)
+            {
+                return false;
+            }
+            // Part 14 §6.2.3.2.6 Table 11: a MajorVersion change sets the
+            // MinorVersion to the same value, and versions only increase, so
+            // a message MinorVersion below the registered MajorVersion was
+            // produced with an older, incompatible layout.
+            uint minorVersion = metaVersion?.MinorVersion ?? 0;
+            uint registeredMajor = metaData?.ConfigurationVersion?.MajorVersion ?? 0;
+            return minorVersion == 0 || registeredMajor <= minorVersion;
         }
 
         /// <summary>
