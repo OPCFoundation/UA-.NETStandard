@@ -167,6 +167,15 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         }
 
         [Test]
+        public void DefaultPortStaysOffCommonWebApplicationPorts()
+        {
+            var options = new KubernetesReadinessOptions();
+
+            Assert.That(options.Port, Is.EqualTo(KubernetesReadinessOptions.DefaultPort));
+            Assert.That(options.Port, Is.EqualTo(4852));
+        }
+
+        [Test]
         public void ConstructorRejectsNullServiceLevelProvider()
         {
             Assert.That(

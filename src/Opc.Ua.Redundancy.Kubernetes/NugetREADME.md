@@ -14,8 +14,10 @@ services.AddOpcUa()
     .UseDistributedAddressSpace(options => options.UseLeaderElection = true)
     .UseKubernetesLeaderElection(options => options.LeaseName = "opcua-ha")
     .UseKubernetesPeerDiscovery(options => options.ServiceName = "opcua-ha-headless")
-    .UseKubernetesReadiness(options => options.Port = 8080);
+    .UseKubernetesReadiness(); // /readyz and /livez on port 4852
 ```
+
+The readiness probe listens on `KubernetesReadinessOptions.DefaultPort` (4852) unless `Port` is set. The default stays off the ports web applications commonly use (8080, 9090, ...), which would collide with the application or a sidecar in the same pod.
 
 For strong consistency, wire a Raft cluster from the StatefulSet ordinals and compose it with `UseRedundancyConsistency`:
 

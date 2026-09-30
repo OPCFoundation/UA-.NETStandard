@@ -116,7 +116,7 @@ services.AddOpcUa()
     })
     .UseKubernetesReadiness(options =>
     {
-        options.Port = 8080;
+        options.Port = KubernetesReadinessOptions.DefaultPort; // 4852
         options.ReadinessPath = "/readyz";
         options.LivenessPath = "/livez";
         options.ReadyMinimumServiceLevel = ServiceLevels.HealthyMinimum;
@@ -278,7 +278,7 @@ spec:
             - name: opcua-tcp
               containerPort: 4840
             - name: health
-              containerPort: 8080
+              containerPort: 4852
           readinessProbe:
             httpGet:
               path: /readyz
@@ -297,7 +297,7 @@ A Deployment variant is nearly identical: replace `kind: StatefulSet` with `kind
 
 ## Readiness and ServiceLevel
 
-`UseKubernetesReadiness` starts a small HTTP listener. `/livez` returns success while the process can answer the probe. `/readyz` returns HTTP 200 only when `IServiceLevelProvider.GetServiceLevel()` is at least `ReadyMinimumServiceLevel`, which defaults to the Healthy sub-range (`200`). This lets a client-facing Service route only to the current leader or otherwise healthy replicas.
+`UseKubernetesReadiness` starts a small HTTP listener on port 4852 (`KubernetesReadinessOptions.DefaultPort`) when the server has started. The default deliberately avoids the ports web applications commonly use, such as 8080 or 9090: the probe shares the pod (and, with host networking, the node) with the application and its sidecars, so such a default collides with them. 4852 sits next to the OPC UA ports 4840/4843 and is unassigned in the IANA service name and port number registry; set `Port` if it is taken in your environment. `/livez` returns success while the process can answer the probe. `/readyz` returns HTTP 200 only when `IServiceLevelProvider.GetServiceLevel()` is at least `ReadyMinimumServiceLevel`, which defaults to the Healthy sub-range (`200`). This lets a client-facing Service route only to the current leader or otherwise healthy replicas.
 
 For Warm active/passive deployments, `LeaderServiceLevelProvider` normally makes the leader Healthy and standbys Degraded; readiness therefore routes traffic to the leader. For Hot load-balanced deployments, use the Healthy 200-255 sub-range to reflect load and keep all healthy pods ready.
 
