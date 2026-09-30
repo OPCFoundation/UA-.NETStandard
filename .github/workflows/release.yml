@@ -43,7 +43,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
   id-token: write
   packages: write
 
@@ -413,6 +413,68 @@ jobs:
             -Feed 'GitHub Packages' `
             -GitHubToken $env:GITHUB_PACKAGES_TOKEN `
             -RequirePresent
+
+      - name: Tag published package candidate
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: |
+          $manifest = Get-Content -LiteralPath 'promotion/release-manifest.json' -Raw | ConvertFrom-Json
+          $tag = if ($manifest.schemaVersion -eq 2) {
+             [string]$manifest.basePackageVersion
+          }
+          else {
+             [string]$manifest.packageVersion
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+             throw 'The promotion manifest does not contain a package version for the release tag.'
+          }
+
+          $tagRef = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" 2>&1
+          if ($LASTEXITCODE -eq 0) {
+             $tagObject = $tagRef | ConvertFrom-Json
+             if ($tagObject.object.type -cne 'commit' -or
+                 $tagObject.object.sha -cne $env:RELEASE_COMMIT) {
+                 throw "Existing tag '$tag' does not point to candidate commit $env:RELEASE_COMMIT."
+             }
+          }
+          elseif ($tagRef -match 'HTTP 404') {
+             gh api --method POST "repos/$env:GITHUB_REPOSITORY/git/refs" `
+                 -f "ref=refs/tags/$tag" `
+                 -f "sha=$env:RELEASE_COMMIT"
+             if ($LASTEXITCODE -ne 0) {
+                 throw "Failed to create tag '$tag' for candidate commit $env:RELEASE_COMMIT."
+             }
+          }
+          else {
+             throw "Unable to determine whether tag '$tag' already exists: $tagRef"
+          }
+
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1
+          $isPrerelease = $env:RELEASE_CHANNEL -ceq 'preview'
+          if ($LASTEXITCODE -eq 0) {
+             $releaseObject = $release | ConvertFrom-Json
+             if ($releaseObject.target_commitish -cne $env:RELEASE_COMMIT -or
+                 [bool]$releaseObject.prerelease -ne $isPrerelease) {
+                 throw "Existing GitHub Release '$tag' does not match the promoted candidate."
+             }
+          }
+          elseif ($release -match 'HTTP 404') {
+             $arguments = @('release', 'create', $tag, '--target', $env:RELEASE_COMMIT, '--generate-notes')
+             if ($isPrerelease) {
+                 $arguments += '--prerelease'
+             }
+             gh @arguments
+             if ($LASTEXITCODE -ne 0) {
+                 throw "Failed to create GitHub Release '$tag'."
+             }
+          }
+          else {
+             throw "Unable to determine whether GitHub Release '$tag' already exists: $release"
+          }
 
       - name: Summary
         if: always()

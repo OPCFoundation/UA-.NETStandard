@@ -373,6 +373,36 @@ namespace Opc.Ua.Tools.Tests
         }
 
         [Test]
+        public void ReleaseWorkflowTagsThePublishedCandidate()
+        {
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    workflow,
+                    Does.Contain("contents: write"),
+                    "The promotion workflow needs permission to create the immutable release tag.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("- name: Tag published package candidate"),
+                    "Every published candidate must be tagged after both feeds have accepted its packages.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("repos/$env:GITHUB_REPOSITORY/git/refs"),
+                    "The package version must create a Git tag through the GitHub API.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("Existing tag '$tag' does not point to candidate commit"),
+                    "A retry must reject a tag that points away from the candidate.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("gh @arguments"),
+                    "The package version must also get a corresponding GitHub Release.");
+            });
+        }
+
+        [Test]
         public async Task GetPreviewPackageBuildNumberMatchesCommittedPropsFileAsync()
         {
             string repositoryRoot = FindRepositoryRoot();
