@@ -859,7 +859,7 @@ namespace Opc.Ua.SourceGeneration
                     .WithLanguageVersion(LanguageVersion.CSharp11))
                 .AddAdditionalTexts(
                 [
-                    CreateRoboticsModelText("Opc.Ua.IA.NodeSet2.xml"),
+                    CreateModelText("Opc.Ua.IA", "Opc.Ua.IA.NodeSet2.xml"),
                     CreateRoboticsModelText("Opc.Ua.Robotics.NodeSet2.xml")
                 ])
                 .WithUpdatedAnalyzerConfigOptions(options);
@@ -927,11 +927,22 @@ namespace Opc.Ua.SourceGeneration
 
         private static StringAdditionalText CreateRoboticsModelText(string fileName)
         {
+            return CreateModelText("Opc.Ua.Robotics", fileName);
+        }
+
+        /// <summary>
+        /// Reads a NodeSet from the model folder of the project that owns it.
+        /// IA used to sit in Opc.Ua.Robotics; it moved to its own assembly when
+        /// OPC 40001-1 Machinery started needing it as well, so the project name
+        /// is a parameter rather than a constant.
+        /// </summary>
+        private static StringAdditionalText CreateModelText(string projectName, string fileName)
+        {
             string repositoryRoot = FindRepositoryRoot();
             string path = Path.Combine(
                 repositoryRoot,
                 "src",
-                "Opc.Ua.Robotics",
+                projectName,
                 "Model",
                 fileName);
             return new StringAdditionalText(fileName, File.ReadAllText(path));

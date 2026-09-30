@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).PackML</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.PackML</PackageId>
+    <RootNamespace>Opc.Ua.PackML</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Source-generated OPC 30050 PackML information model (ISA-TR88.00.02 machine, base and execute state machines, PackML status, admin and command objects), including model identifiers, typed node states, client proxies and the AddOpcUaPackML model loader.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.PackML.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.PackML.NodeIds.csv" />
+  </ItemGroup>
+  <!-- OPC 30050 PackML is source-generated from the unmodified NodeSet2 XML in
+       UA-Nodeset/latest/PackML. It depends on the base namespace only. It has
+       its own assembly because OPC 40200 Scales types the optional
+       ScaleDeviceType/State object with the PackML state machines, and one
+       model URI must have exactly one producing assembly.
+
+       Prefix and Name are pinned: they are the contract this assembly
+       publishes through [ModelDependencyAttribute], which Opc.Ua.Scales
+       resolves the PackML state machine types against.
+
+       Model\Opc.Ua.PackML.NodeIds.csv is a drift guard, not a NodeId source.
+       It is derived from the unmodified publication
+       (Model\Opc.Ua.PackML.Upstream.NodeIds.csv, kept out of AdditionalFiles)
+       with tools/nodesets/derive-identifier-table.py. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.PackML.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PackML/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>PackML</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.PackML</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.PackML.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.PackML.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project does
+         not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,2243 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet LastModified="2025-11-10T12:26:52Z" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/Dictionary/IRDI</Uri>
+  </NamespaceUris>
+
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/Dictionary/IRDI" PublicationDate="2025-11-10T00:00:00Z" Version="1.02.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" PublicationDate="2022-06-28T00:00:00Z" Version="1.05.02"/>
+    </Model>
+  </Models>
+
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="SByte">i=2</Alias>
+    <Alias Alias="Byte">i=3</Alias>
+    <Alias Alias="Int16">i=4</Alias>
+    <Alias Alias="UInt16">i=5</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Int64">i=8</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="XmlElement">i=16</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="ExpandedNodeId">i=18</Alias>
+    <Alias Alias="StatusCode">i=19</Alias>
+    <Alias Alias="QualifiedName">i=20</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="Number">i=26</Alias>
+    <Alias Alias="Integer">i=27</Alias>
+    <Alias Alias="UInteger">i=28</Alias>
+    <Alias Alias="Enumeration">i=29</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasEventSource">i=36</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasDescription">i=39</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasNotifier">i=48</Alias>
+    <Alias Alias="LocaleId">i=295</Alias>
+    <Alias Alias="HasDictionaryEntry">i=17597</Alias>
+    <Alias Alias="HasInterface">i=17603</Alias>
+  </Aliases>
+
+  <!--http://opcfoundation.org/UA/Dictionary/IRDI-->
+
+  <UAObject SymbolicName="http___opcfoundation_org_UA_Dictionary_IRDI" NodeId="ns=1;i=1000" BrowseName="1:http://opcfoundation.org/UA/Dictionary/IRDI" ParentNodeId="i=11715">
+    <DisplayName>http://opcfoundation.org/UA/Dictionary/IRDI</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1003</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1006</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1007</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=1008</Reference>
+    </References>
+  </UAObject>
+
+  <UAVariable DataType="Boolean" NodeId="ns=1;i=1001" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=1000">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <Description>If TRUE then the server only supports a subset of the namespace.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable DataType="DateTime" NodeId="ns=1;i=1002" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=1000">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <Description>The publication date for the namespace.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:DateTime>2025-11-10T00:00:00Z</uax:DateTime>
+    </Value>
+  </UAVariable>
+
+  <UAVariable DataType="String" NodeId="ns=1;i=1003" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=1000">
+    <DisplayName>NamespaceUri</DisplayName>
+    <Description>The URI of the namespace.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:String>http://opcfoundation.org/UA/Dictionary/IRDI</uax:String>
+    </Value>
+  </UAVariable>
+
+  <UAVariable DataType="String" NodeId="ns=1;i=1004" BrowseName="NamespaceVersion" ParentNodeId="ns=1;i=1000">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <Description>The human readable string representing version of the namespace.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:String>1.02.0</uax:String>
+    </Value>
+  </UAVariable>
+
+  <UAVariable DataType="i=256" ValueRank="1" NodeId="ns=1;i=1005" ArrayDimensions="0" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=1;i=1000">
+    <DisplayName>StaticNodeIdTypes</DisplayName>
+    <Description>A list of IdTypes for nodes which are the same in every server that exposes them.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable DataType="i=291" ValueRank="1" NodeId="ns=1;i=1006" ArrayDimensions="0" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=1;i=1000">
+    <DisplayName>StaticNumericNodeIdRange</DisplayName>
+    <Description>A list of ranges for numeric node ids which are the same in every server that exposes them.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable DataType="String" NodeId="ns=1;i=1007" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=1;i=1000">
+    <DisplayName>StaticStringNodeIdPattern</DisplayName>
+    <Description>A regular expression which matches string node ids are the same in every server that exposes them.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+
+  <UAVariable DataType="i=96" ValueRank="1" NodeId="ns=1;i=1008" ArrayDimensions="0" BrowseName="DefaultRolePermissions" ParentNodeId="ns=1;i=1000">
+    <DisplayName>DefaultRolePermissions</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+
+  <UAObject SymbolicName="S_DictionaryEntryName_" NodeId="ns=1;s=&lt;DictionaryEntryName&gt;" BrowseName="1:&lt;DictionaryEntryName&gt;">
+    <DisplayName>&lt;DictionaryEntryName&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61360_7_CBA031_001" NodeId="ns=1;s=0112/2///61360_7#CBA031#001" BrowseName="1:0112/2///61360_7#CBA031#001">
+    <DisplayName>name of manufacturer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61360_7_CBA032_001" NodeId="ns=1;s=0112/2///61360_7#CBA032#001" BrowseName="1:0112/2///61360_7#CBA032#001">
+    <DisplayName>URI of manufacturer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61360_7_CBA039_001" NodeId="ns=1;s=0112/2///61360_7#CBA039#001" BrowseName="1:0112/2///61360_7#CBA039#001">
+    <DisplayName>model name of product</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61360_7_CBA040_001" NodeId="ns=1;s=0112/2///61360_7#CBA040#001" BrowseName="1:0112/2///61360_7#CBA040#001">
+    <DisplayName>code of product</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61360_7_CBA046_001" NodeId="ns=1;s=0112/2///61360_7#CBA046#001" BrowseName="1:0112/2///61360_7#CBA046#001">
+    <DisplayName>software version</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61360_7_CBA047_001" NodeId="ns=1;s=0112/2///61360_7#CBA047#001" BrowseName="1:0112/2///61360_7#CBA047#001">
+    <DisplayName>hardware version</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61360_7_CBA050_001" NodeId="ns=1;s=0112/2///61360_7#CBA050#001" BrowseName="1:0112/2///61360_7#CBA050#001">
+    <DisplayName>serial number</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61360_7_CBA055_001" NodeId="ns=1;s=0112/2///61360_7#CBA055#001" BrowseName="1:0112/2///61360_7#CBA055#001">
+    <DisplayName>URI of product instance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA038_004" NodeId="ns=1;s=0112/2///61987#ABA038#004" BrowseName="1:0112/2///61987#ABA038#004">
+    <DisplayName>identification code of device</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA418_002" NodeId="ns=1;s=0112/2///61987#ABA418#002" BrowseName="1:0112/2///61987#ABA418#002">
+    <DisplayName>pulse value of mass</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA635_003" NodeId="ns=1;s=0112/2///61987#ABA635#003" BrowseName="1:0112/2///61987#ABA635#003">
+    <DisplayName>set pulse width</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA752_002" NodeId="ns=1;s=0112/2///61987#ABA752#002" BrowseName="1:0112/2///61987#ABA752#002">
+    <DisplayName>Accelerometer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA753_003" NodeId="ns=1;s=0112/2///61987#ABA753#003" BrowseName="1:0112/2///61987#ABA753#003">
+    <DisplayName>Current transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA754_001" NodeId="ns=1;s=0112/2///61987#ABA754#001" BrowseName="1:0112/2///61987#ABA754#001">
+    <DisplayName>Density transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA763_003" NodeId="ns=1;s=0112/2///61987#ABA763#003" BrowseName="1:0112/2///61987#ABA763#003">
+    <DisplayName>Coriolis mass flow transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA764_003" NodeId="ns=1;s=0112/2///61987#ABA764#003" BrowseName="1:0112/2///61987#ABA764#003">
+    <DisplayName>Thermal mass flow transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA782_003" NodeId="ns=1;s=0112/2///61987#ABA782#003" BrowseName="1:0112/2///61987#ABA782#003">
+    <DisplayName>Volume flow transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA803_002" NodeId="ns=1;s=0112/2///61987#ABA803#002" BrowseName="1:0112/2///61987#ABA803#002">
+    <DisplayName>Level transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA804_002" NodeId="ns=1;s=0112/2///61987#ABA804#002" BrowseName="1:0112/2///61987#ABA804#002">
+    <DisplayName>Displacer level transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA806_002" NodeId="ns=1;s=0112/2///61987#ABA806#002" BrowseName="1:0112/2///61987#ABA806#002">
+    <DisplayName>Capacitance level transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA824_002" NodeId="ns=1;s=0112/2///61987#ABA824#002" BrowseName="1:0112/2///61987#ABA824#002">
+    <DisplayName>Free-space radar level transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA827_003" NodeId="ns=1;s=0112/2///61987#ABA827#003" BrowseName="1:0112/2///61987#ABA827#003">
+    <DisplayName>Guided-wave radar level transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA829_003" NodeId="ns=1;s=0112/2///61987#ABA829#003" BrowseName="1:0112/2///61987#ABA829#003">
+    <DisplayName>Ultrasonic level transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA830_002" NodeId="ns=1;s=0112/2///61987#ABA830#002" BrowseName="1:0112/2///61987#ABA830#002">
+    <DisplayName>Power transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA831_003" NodeId="ns=1;s=0112/2///61987#ABA831#003" BrowseName="1:0112/2///61987#ABA831#003">
+    <DisplayName>Pressure transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA835_002" NodeId="ns=1;s=0112/2///61987#ABA835#002" BrowseName="1:0112/2///61987#ABA835#002">
+    <DisplayName>Temperature transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA839_002" NodeId="ns=1;s=0112/2///61987#ABA839#002" BrowseName="1:0112/2///61987#ABA839#002">
+    <DisplayName>Velocity transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA841_002" NodeId="ns=1;s=0112/2///61987#ABA841#002" BrowseName="1:0112/2///61987#ABA841#002">
+    <DisplayName>Voltage transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA842_002" NodeId="ns=1;s=0112/2///61987#ABA842#002" BrowseName="1:0112/2///61987#ABA842#002">
+    <DisplayName>Weight transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA927_005" NodeId="ns=1;s=0112/2///61987#ABA927#005" BrowseName="1:0112/2///61987#ABA927#005">
+    <DisplayName>temperature</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA946_004" NodeId="ns=1;s=0112/2///61987#ABA946#004" BrowseName="1:0112/2///61987#ABA946#004">
+    <DisplayName>actual density</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABA968_004" NodeId="ns=1;s=0112/2///61987#ABA968#004" BrowseName="1:0112/2///61987#ABA968#004">
+    <DisplayName>unit of measure</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABB088_003" NodeId="ns=1;s=0112/2///61987#ABB088#003" BrowseName="1:0112/2///61987#ABB088#003">
+    <DisplayName>type of RTD sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABB091_003" NodeId="ns=1;s=0112/2///61987#ABB091#003" BrowseName="1:0112/2///61987#ABB091#003">
+    <DisplayName>style of wiring</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABB092_003" NodeId="ns=1;s=0112/2///61987#ABB092#003" BrowseName="1:0112/2///61987#ABB092#003">
+    <DisplayName>type of thermocouple sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABB093_003" NodeId="ns=1;s=0112/2///61987#ABB093#003" BrowseName="1:0112/2///61987#ABB093#003">
+    <DisplayName>type of thermocouple reference junction</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABB271_009" NodeId="ns=1;s=0112/2///61987#ABB271#009" BrowseName="1:0112/2///61987#ABB271#009">
+    <DisplayName>tag name</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABB290_005" NodeId="ns=1;s=0112/2///61987#ABB290#005" BrowseName="1:0112/2///61987#ABB290#005">
+    <DisplayName>mass flow rate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABB291_005" NodeId="ns=1;s=0112/2///61987#ABB291#005" BrowseName="1:0112/2///61987#ABB291#005">
+    <DisplayName>actual volume flow rate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABB292_005" NodeId="ns=1;s=0112/2///61987#ABB292#005" BrowseName="1:0112/2///61987#ABB292#005">
+    <DisplayName>normalized volume flow rate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABD740_003" NodeId="ns=1;s=0112/2///61987#ABD740#003" BrowseName="1:0112/2///61987#ABD740#003">
+    <DisplayName>type of action</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABD742_003" NodeId="ns=1;s=0112/2///61987#ABD742#003" BrowseName="1:0112/2///61987#ABD742#003">
+    <DisplayName>type of actuator compatibility</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABE882_002" NodeId="ns=1;s=0112/2///61987#ABE882#002" BrowseName="1:0112/2///61987#ABE882#002">
+    <DisplayName>pulse value of volume</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABF161_001" NodeId="ns=1;s=0112/2///61987#ABF161#001" BrowseName="1:0112/2///61987#ABF161#001">
+    <DisplayName>nominal cell constant</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABF288_004" NodeId="ns=1;s=0112/2///61987#ABF288#004" BrowseName="1:0112/2///61987#ABF288#004">
+    <DisplayName>set type of connected probe</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABH327_001" NodeId="ns=1;s=0112/2///61987#ABH327#001" BrowseName="1:0112/2///61987#ABH327#001">
+    <DisplayName>mass</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABH328_001" NodeId="ns=1;s=0112/2///61987#ABH328#001" BrowseName="1:0112/2///61987#ABH328#001">
+    <DisplayName>actual volume</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABH329_002" NodeId="ns=1;s=0112/2///61987#ABH329#002" BrowseName="1:0112/2///61987#ABH329#002">
+    <DisplayName>level</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABH526_002" NodeId="ns=1;s=0112/2///61987#ABH526#002" BrowseName="1:0112/2///61987#ABH526#002">
+    <DisplayName>damping</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABH609_002" NodeId="ns=1;s=0112/2///61987#ABH609#002" BrowseName="1:0112/2///61987#ABH609#002">
+    <DisplayName>type of calibration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABJ683_001" NodeId="ns=1;s=0112/2///61987#ABJ683#001" BrowseName="1:0112/2///61987#ABJ683#001">
+    <DisplayName>READBACK_VALUE</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABJ724_003" NodeId="ns=1;s=0112/2///61987#ABJ724#003" BrowseName="1:0112/2///61987#ABJ724#003">
+    <DisplayName>value of low flow cut-off in units of span</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN594_003" NodeId="ns=1;s=0112/2///61987#ABN594#003" BrowseName="1:0112/2///61987#ABN594#003">
+    <DisplayName>indication of forward flow direction</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN597_004" NodeId="ns=1;s=0112/2///61987#ABN597#004" BrowseName="1:0112/2///61987#ABN597#004">
+    <DisplayName>set display language</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN603_002" NodeId="ns=1;s=0112/2///61987#ABN603#002" BrowseName="1:0112/2///61987#ABN603#002">
+    <DisplayName>revision counter value of the parameter setting</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN604_001" NodeId="ns=1;s=0112/2///61987#ABN604#001" BrowseName="1:0112/2///61987#ABN604#001">
+    <DisplayName>time stamp of last parameter setting change</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN607_002" NodeId="ns=1;s=0112/2///61987#ABN607#002" BrowseName="1:0112/2///61987#ABN607#002">
+    <DisplayName>setpoint of positioner</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN609_002" NodeId="ns=1;s=0112/2///61987#ABN609#002" BrowseName="1:0112/2///61987#ABN609#002">
+    <DisplayName>reset command</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN611_002" NodeId="ns=1;s=0112/2///61987#ABN611#002" BrowseName="1:0112/2///61987#ABN611#002">
+    <DisplayName>state of simulation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN613_001" NodeId="ns=1;s=0112/2///61987#ABN613#001" BrowseName="1:0112/2///61987#ABN613#001">
+    <DisplayName>value of simulation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN614_002" NodeId="ns=1;s=0112/2///61987#ABN614#002" BrowseName="1:0112/2///61987#ABN614#002">
+    <DisplayName>zero point setting command</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN616_001" NodeId="ns=1;s=0112/2///61987#ABN616#001" BrowseName="1:0112/2///61987#ABN616#001">
+    <DisplayName>pressure</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN632_002" NodeId="ns=1;s=0112/2///61987#ABN632#002" BrowseName="1:0112/2///61987#ABN632#002">
+    <DisplayName>discrete two-state value of simulation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN634_001" NodeId="ns=1;s=0112/2///61987#ABN634#001" BrowseName="1:0112/2///61987#ABN634#001">
+    <DisplayName>input/output value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN635_002" NodeId="ns=1;s=0112/2///61987#ABN635#002" BrowseName="1:0112/2///61987#ABN635#002">
+    <DisplayName>discrete two-state input/output value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN636_002" NodeId="ns=1;s=0112/2///61987#ABN636#002" BrowseName="1:0112/2///61987#ABN636#002">
+    <DisplayName>discrete multistate input/output value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN637_002" NodeId="ns=1;s=0112/2///61987#ABN637#002" BrowseName="1:0112/2///61987#ABN637#002">
+    <DisplayName>discrete multistate value of simulation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN639_001" NodeId="ns=1;s=0112/2///61987#ABN639#001" BrowseName="1:0112/2///61987#ABN639#001">
+    <DisplayName>operating time</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN644_001" NodeId="ns=1;s=0112/2///61987#ABN644#001" BrowseName="1:0112/2///61987#ABN644#001">
+    <DisplayName>actual value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN645_002" NodeId="ns=1;s=0112/2///61987#ABN645#002" BrowseName="1:0112/2///61987#ABN645#002">
+    <DisplayName>discrete two-state actual value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN646_002" NodeId="ns=1;s=0112/2///61987#ABN646#002" BrowseName="1:0112/2///61987#ABN646#002">
+    <DisplayName>discrete multistate actual value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN726_002" NodeId="ns=1;s=0112/2///61987#ABN726#002" BrowseName="1:0112/2///61987#ABN726#002">
+    <DisplayName>autoadjust command</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN972_002" NodeId="ns=1;s=0112/2///61987#ABN972#002" BrowseName="1:0112/2///61987#ABN972#002">
+    <DisplayName>Device diagnostic status</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP397_002" NodeId="ns=1;s=0112/2///61987#ABP397#002" BrowseName="1:0112/2///61987#ABP397#002">
+    <DisplayName>Process analyser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP400_002" NodeId="ns=1;s=0112/2///61987#ABP400#002" BrowseName="1:0112/2///61987#ABP400#002">
+    <DisplayName>Gas chromatograph</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP405_002" NodeId="ns=1;s=0112/2///61987#ABP405#002" BrowseName="1:0112/2///61987#ABP405#002">
+    <DisplayName>Conductivity meter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP407_002" NodeId="ns=1;s=0112/2///61987#ABP407#002" BrowseName="1:0112/2///61987#ABP407#002">
+    <DisplayName>Amperometric analyser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP409_002" NodeId="ns=1;s=0112/2///61987#ABP409#002" BrowseName="1:0112/2///61987#ABP409#002">
+    <DisplayName>Zirconium dioxide analyser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP410_002" NodeId="ns=1;s=0112/2///61987#ABP410#002" BrowseName="1:0112/2///61987#ABP410#002">
+    <DisplayName>Flame ionisation detector</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP412_002" NodeId="ns=1;s=0112/2///61987#ABP412#002" BrowseName="1:0112/2///61987#ABP412#002">
+    <DisplayName>Catalytic bead sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP413_002" NodeId="ns=1;s=0112/2///61987#ABP413#002" BrowseName="1:0112/2///61987#ABP413#002">
+    <DisplayName>Infrared sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP415_002" NodeId="ns=1;s=0112/2///61987#ABP415#002" BrowseName="1:0112/2///61987#ABP415#002">
+    <DisplayName>Amperometric sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP423_002" NodeId="ns=1;s=0112/2///61987#ABP423#002" BrowseName="1:0112/2///61987#ABP423#002">
+    <DisplayName>Optical fluorescence quenching sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP425_002" NodeId="ns=1;s=0112/2///61987#ABP425#002" BrowseName="1:0112/2///61987#ABP425#002">
+    <DisplayName>Non-dispersive infrared gas analyser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP432_002" NodeId="ns=1;s=0112/2///61987#ABP432#002" BrowseName="1:0112/2///61987#ABP432#002">
+    <DisplayName>FTNIR or FTIR spectrometer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP433_002" NodeId="ns=1;s=0112/2///61987#ABP433#002" BrowseName="1:0112/2///61987#ABP433#002">
+    <DisplayName>Diode array spectrometer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP434_002" NodeId="ns=1;s=0112/2///61987#ABP434#002" BrowseName="1:0112/2///61987#ABP434#002">
+    <DisplayName>Raman spectrometer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP435_002" NodeId="ns=1;s=0112/2///61987#ABP435#002" BrowseName="1:0112/2///61987#ABP435#002">
+    <DisplayName>Tunable diode laser spectrometer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP436_002" NodeId="ns=1;s=0112/2///61987#ABP436#002" BrowseName="1:0112/2///61987#ABP436#002">
+    <DisplayName>Paramagnetic gas analyser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP440_002" NodeId="ns=1;s=0112/2///61987#ABP440#002" BrowseName="1:0112/2///61987#ABP440#002">
+    <DisplayName>pH meter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP444_002" NodeId="ns=1;s=0112/2///61987#ABP444#002" BrowseName="1:0112/2///61987#ABP444#002">
+    <DisplayName>TOC analyser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP453_002" NodeId="ns=1;s=0112/2///61987#ABP453#002" BrowseName="1:0112/2///61987#ABP453#002">
+    <DisplayName>Thermal conductivity gas analyser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP495_001" NodeId="ns=1;s=0112/2///61987#ABP495#001" BrowseName="1:0112/2///61987#ABP495#001">
+    <DisplayName>Matrix of components/measurands</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP496_001" NodeId="ns=1;s=0112/2///61987#ABP496#001" BrowseName="1:0112/2///61987#ABP496#001">
+    <DisplayName>Chemical component/measurand</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP541_002" NodeId="ns=1;s=0112/2///61987#ABP541#002" BrowseName="1:0112/2///61987#ABP541#002">
+    <DisplayName>discrete two-state control value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP542_002" NodeId="ns=1;s=0112/2///61987#ABP542#002" BrowseName="1:0112/2///61987#ABP542#002">
+    <DisplayName>discrete two-state setpoint value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP543_002" NodeId="ns=1;s=0112/2///61987#ABP543#002" BrowseName="1:0112/2///61987#ABP543#002">
+    <DisplayName>discrete two-state fault value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP544_001" NodeId="ns=1;s=0112/2///61987#ABP544#001" BrowseName="1:0112/2///61987#ABP544#001">
+    <DisplayName>date and time of calibration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP545_001" NodeId="ns=1;s=0112/2///61987#ABP545#001" BrowseName="1:0112/2///61987#ABP545#001">
+    <DisplayName>operating cycle counter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP546_001" NodeId="ns=1;s=0112/2///61987#ABP546#001" BrowseName="1:0112/2///61987#ABP546#001">
+    <DisplayName>total number of passed CIP events</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP547_001" NodeId="ns=1;s=0112/2///61987#ABP547#001" BrowseName="1:0112/2///61987#ABP547#001">
+    <DisplayName>total number of passed SIP events</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP550_001" NodeId="ns=1;s=0112/2///61987#ABP550#001" BrowseName="1:0112/2///61987#ABP550#001">
+    <DisplayName>power on time</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP551_001" NodeId="ns=1;s=0112/2///61987#ABP551#001" BrowseName="1:0112/2///61987#ABP551#001">
+    <DisplayName>zero signal of detector</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP552_001" NodeId="ns=1;s=0112/2///61987#ABP552#001" BrowseName="1:0112/2///61987#ABP552#001">
+    <DisplayName>relative residual operational life of radiation source</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP553_001" NodeId="ns=1;s=0112/2///61987#ABP553#001" BrowseName="1:0112/2///61987#ABP553#001">
+    <DisplayName>relative deviation of chopper frequency</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP554_001" NodeId="ns=1;s=0112/2///61987#ABP554#001" BrowseName="1:0112/2///61987#ABP554#001">
+    <DisplayName>temperature of thermal combustion reactor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP555_001" NodeId="ns=1;s=0112/2///61987#ABP555#001" BrowseName="1:0112/2///61987#ABP555#001">
+    <DisplayName>temperature of gas cooler</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP556_001" NodeId="ns=1;s=0112/2///61987#ABP556#001" BrowseName="1:0112/2///61987#ABP556#001">
+    <DisplayName>temperature of sample cell</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP557_001" NodeId="ns=1;s=0112/2///61987#ABP557#001" BrowseName="1:0112/2///61987#ABP557#001">
+    <DisplayName>relative level of reagent</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP558_001" NodeId="ns=1;s=0112/2///61987#ABP558#001" BrowseName="1:0112/2///61987#ABP558#001">
+    <DisplayName>volume flow of carrier gas</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP559_001" NodeId="ns=1;s=0112/2///61987#ABP559#001" BrowseName="1:0112/2///61987#ABP559#001">
+    <DisplayName>gauge pressure of carrier gas</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP560_001" NodeId="ns=1;s=0112/2///61987#ABP560#001" BrowseName="1:0112/2///61987#ABP560#001">
+    <DisplayName>absolute pressure of sample gas</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP561_001" NodeId="ns=1;s=0112/2///61987#ABP561#001" BrowseName="1:0112/2///61987#ABP561#001">
+    <DisplayName>volume flow of sample water</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP562_001" NodeId="ns=1;s=0112/2///61987#ABP562#001" BrowseName="1:0112/2///61987#ABP562#001">
+    <DisplayName>volume flow of sample gas</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP563_001" NodeId="ns=1;s=0112/2///61987#ABP563#001" BrowseName="1:0112/2///61987#ABP563#001">
+    <DisplayName>reference injection volume</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP564_001" NodeId="ns=1;s=0112/2///61987#ABP564#001" BrowseName="1:0112/2///61987#ABP564#001">
+    <DisplayName>actual injected volume</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP565_001" NodeId="ns=1;s=0112/2///61987#ABP565#001" BrowseName="1:0112/2///61987#ABP565#001">
+    <DisplayName>temperature of sensing element</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP566_001" NodeId="ns=1;s=0112/2///61987#ABP566#001" BrowseName="1:0112/2///61987#ABP566#001">
+    <DisplayName>time remaining until next calibration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP567_001" NodeId="ns=1;s=0112/2///61987#ABP567#001" BrowseName="1:0112/2///61987#ABP567#001">
+    <DisplayName>slope of a pH sensing element characteristic</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP568_001" NodeId="ns=1;s=0112/2///61987#ABP568#001" BrowseName="1:0112/2///61987#ABP568#001">
+    <DisplayName>zero point of a pH sensing element characteristic</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP569_001" NodeId="ns=1;s=0112/2///61987#ABP569#001" BrowseName="1:0112/2///61987#ABP569#001">
+    <DisplayName>t90 settling time at calibration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP570_001" NodeId="ns=1;s=0112/2///61987#ABP570#001" BrowseName="1:0112/2///61987#ABP570#001">
+    <DisplayName>impedance of pH sensing element</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP571_001" NodeId="ns=1;s=0112/2///61987#ABP571#001" BrowseName="1:0112/2///61987#ABP571#001">
+    <DisplayName>impedance of pH reference system</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP572_001" NodeId="ns=1;s=0112/2///61987#ABP572#001" BrowseName="1:0112/2///61987#ABP572#001">
+    <DisplayName>slope of an amperometric sensing element characteristic</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP573_001" NodeId="ns=1;s=0112/2///61987#ABP573#001" BrowseName="1:0112/2///61987#ABP573#001">
+    <DisplayName>zero point of an amperometric sensing element characteristic</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP574_001" NodeId="ns=1;s=0112/2///61987#ABP574#001" BrowseName="1:0112/2///61987#ABP574#001">
+    <DisplayName>absolute pressure of air at calibration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP575_001" NodeId="ns=1;s=0112/2///61987#ABP575#001" BrowseName="1:0112/2///61987#ABP575#001">
+    <DisplayName>temperature of sample</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP576_001" NodeId="ns=1;s=0112/2///61987#ABP576#001" BrowseName="1:0112/2///61987#ABP576#001">
+    <DisplayName>temperature of catalyst</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP577_001" NodeId="ns=1;s=0112/2///61987#ABP577#001" BrowseName="1:0112/2///61987#ABP577#001">
+    <DisplayName>temperature of FID block</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP578_001" NodeId="ns=1;s=0112/2///61987#ABP578#001" BrowseName="1:0112/2///61987#ABP578#001">
+    <DisplayName>absolute pressure of fuel gas</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP579_001" NodeId="ns=1;s=0112/2///61987#ABP579#001" BrowseName="1:0112/2///61987#ABP579#001">
+    <DisplayName>absolute pressure of the combustion air</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP580_001" NodeId="ns=1;s=0112/2///61987#ABP580#001" BrowseName="1:0112/2///61987#ABP580#001">
+    <DisplayName>relative quality of signal fit</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP581_001" NodeId="ns=1;s=0112/2///61987#ABP581#001" BrowseName="1:0112/2///61987#ABP581#001">
+    <DisplayName>signal to noise ratio (absolute)</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP582_001" NodeId="ns=1;s=0112/2///61987#ABP582#001" BrowseName="1:0112/2///61987#ABP582#001">
+    <DisplayName>transmission ratio</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP583_001" NodeId="ns=1;s=0112/2///61987#ABP583#001" BrowseName="1:0112/2///61987#ABP583#001">
+    <DisplayName>temperature of laser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP584_001" NodeId="ns=1;s=0112/2///61987#ABP584#001" BrowseName="1:0112/2///61987#ABP584#001">
+    <DisplayName>relative residual operational life of sensing element</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP585_001" NodeId="ns=1;s=0112/2///61987#ABP585#001" BrowseName="1:0112/2///61987#ABP585#001">
+    <DisplayName>relative heat output</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP586_001" NodeId="ns=1;s=0112/2///61987#ABP586#001" BrowseName="1:0112/2///61987#ABP586#001">
+    <DisplayName>slope of an optical fluorescence quenching sensing element characteristic</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP587_001" NodeId="ns=1;s=0112/2///61987#ABP587#001" BrowseName="1:0112/2///61987#ABP587#001">
+    <DisplayName>zero point of an optical fluorescence quenching sensing element characteristic</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP588_001" NodeId="ns=1;s=0112/2///61987#ABP588#001" BrowseName="1:0112/2///61987#ABP588#001">
+    <DisplayName>analog control value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP591_001" NodeId="ns=1;s=0112/2///61987#ABP591#001" BrowseName="1:0112/2///61987#ABP591#001">
+    <DisplayName>internal temperature of device/transmitter housing</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP595_001" NodeId="ns=1;s=0112/2///61987#ABP595#001" BrowseName="1:0112/2///61987#ABP595#001">
+    <DisplayName>relative residual operational life</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP596_001" NodeId="ns=1;s=0112/2///61987#ABP596#001" BrowseName="1:0112/2///61987#ABP596#001">
+    <DisplayName>resistance of cell</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP640_002" NodeId="ns=1;s=0112/2///61987#ABP640#002" BrowseName="1:0112/2///61987#ABP640#002">
+    <DisplayName>style of pH sensing element</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP641_002" NodeId="ns=1;s=0112/2///61987#ABP641#002" BrowseName="1:0112/2///61987#ABP641#002">
+    <DisplayName>style of conductivity sensing element</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP642_002" NodeId="ns=1;s=0112/2///61987#ABP642#002" BrowseName="1:0112/2///61987#ABP642#002">
+    <DisplayName>style of temperature compensation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP643_002" NodeId="ns=1;s=0112/2///61987#ABP643#002" BrowseName="1:0112/2///61987#ABP643#002">
+    <DisplayName>device version</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP644_002" NodeId="ns=1;s=0112/2///61987#ABP644#002" BrowseName="1:0112/2///61987#ABP644#002">
+    <DisplayName>discrete multi-state control value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP645_002" NodeId="ns=1;s=0112/2///61987#ABP645#002" BrowseName="1:0112/2///61987#ABP645#002">
+    <DisplayName>discrete multi-state setpoint value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP651_002" NodeId="ns=1;s=0112/2///61987#ABP651#002" BrowseName="1:0112/2///61987#ABP651#002">
+    <DisplayName>discrete multi-state fault value</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP996_002" NodeId="ns=1;s=0112/2///61987#ABP996#002" BrowseName="1:0112/2///61987#ABP996#002">
+    <DisplayName>watchdog</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ006_001" NodeId="ns=1;s=0112/2///61987#ABQ006#001" BrowseName="1:0112/2///61987#ABQ006#001">
+    <DisplayName>time of injection</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ007_001" NodeId="ns=1;s=0112/2///61987#ABQ007#001" BrowseName="1:0112/2///61987#ABQ007#001">
+    <DisplayName>quantity of valve switching cycles</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ010_001" NodeId="ns=1;s=0112/2///61987#ABQ010#001" BrowseName="1:0112/2///61987#ABQ010#001">
+    <DisplayName>operating duration of sensing element</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ011_001" NodeId="ns=1;s=0112/2///61987#ABQ011#001" BrowseName="1:0112/2///61987#ABQ011#001">
+    <DisplayName>relative gas flow rate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ016_001" NodeId="ns=1;s=0112/2///61987#ABQ016#001" BrowseName="1:0112/2///61987#ABQ016#001">
+    <DisplayName>days remaining until next calibration (based on the fixed maintenance interval)</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ017_001" NodeId="ns=1;s=0112/2///61987#ABQ017#001" BrowseName="1:0112/2///61987#ABQ017#001">
+    <DisplayName>days remaining until next calibration (based on the dynamic maintenance interval)</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ018_001" NodeId="ns=1;s=0112/2///61987#ABQ018#001" BrowseName="1:0112/2///61987#ABQ018#001">
+    <DisplayName>consumed sensor capacity</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ019_001" NodeId="ns=1;s=0112/2///61987#ABQ019#001" BrowseName="1:0112/2///61987#ABQ019#001">
+    <DisplayName>peak value over upper range-limit of measurement</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ020_001" NodeId="ns=1;s=0112/2///61987#ABQ020#001" BrowseName="1:0112/2///61987#ABQ020#001">
+    <DisplayName>duration of exceeding the upper range-limit of measurement</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ021_001" NodeId="ns=1;s=0112/2///61987#ABQ021#001" BrowseName="1:0112/2///61987#ABQ021#001">
+    <DisplayName>sensor signal of a catalytic bead sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ022_001" NodeId="ns=1;s=0112/2///61987#ABQ022#001" BrowseName="1:0112/2///61987#ABQ022#001">
+    <DisplayName>peak width of a substance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ023_001" NodeId="ns=1;s=0112/2///61987#ABQ023#001" BrowseName="1:0112/2///61987#ABQ023#001">
+    <DisplayName>peak height of a substance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ024_001" NodeId="ns=1;s=0112/2///61987#ABQ024#001" BrowseName="1:0112/2///61987#ABQ024#001">
+    <DisplayName>response factor for calibration range 1</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ025_001" NodeId="ns=1;s=0112/2///61987#ABQ025#001" BrowseName="1:0112/2///61987#ABQ025#001">
+    <DisplayName>lower range-value of volume concentration for calibration range 1</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ026_001" NodeId="ns=1;s=0112/2///61987#ABQ026#001" BrowseName="1:0112/2///61987#ABQ026#001">
+    <DisplayName>upper range-value of volume concentration for calibration range 1</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ027_001" NodeId="ns=1;s=0112/2///61987#ABQ027#001" BrowseName="1:0112/2///61987#ABQ027#001">
+    <DisplayName>response factor for calibration range 2</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ028_001" NodeId="ns=1;s=0112/2///61987#ABQ028#001" BrowseName="1:0112/2///61987#ABQ028#001">
+    <DisplayName>lower range-value of volume concentration for calibration range 2</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ029_001" NodeId="ns=1;s=0112/2///61987#ABQ029#001" BrowseName="1:0112/2///61987#ABQ029#001">
+    <DisplayName>upper range-value of volume concentration for calibration range 2</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ030_001" NodeId="ns=1;s=0112/2///61987#ABQ030#001" BrowseName="1:0112/2///61987#ABQ030#001">
+    <DisplayName>response factor for calibration range 3</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ031_001" NodeId="ns=1;s=0112/2///61987#ABQ031#001" BrowseName="1:0112/2///61987#ABQ031#001">
+    <DisplayName>lower range-value of volume concentration for calibration range 3</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ032_001" NodeId="ns=1;s=0112/2///61987#ABQ032#001" BrowseName="1:0112/2///61987#ABQ032#001">
+    <DisplayName>upper range-value of volume concentration for calibration range 3</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ033_001" NodeId="ns=1;s=0112/2///61987#ABQ033#001" BrowseName="1:0112/2///61987#ABQ033#001">
+    <DisplayName>tailing factor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ034_001" NodeId="ns=1;s=0112/2///61987#ABQ034#001" BrowseName="1:0112/2///61987#ABQ034#001">
+    <DisplayName>expected retention time of a substance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ035_001" NodeId="ns=1;s=0112/2///61987#ABQ035#001" BrowseName="1:0112/2///61987#ABQ035#001">
+    <DisplayName>actual retention time of a substance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ036_001" NodeId="ns=1;s=0112/2///61987#ABQ036#001" BrowseName="1:0112/2///61987#ABQ036#001">
+    <DisplayName>noise of baseline</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ037_001" NodeId="ns=1;s=0112/2///61987#ABQ037#001" BrowseName="1:0112/2///61987#ABQ037#001">
+    <DisplayName>mahalanobis distance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ038_001" NodeId="ns=1;s=0112/2///61987#ABQ038#001" BrowseName="1:0112/2///61987#ABQ038#001">
+    <DisplayName>spectral residual</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ039_001" NodeId="ns=1;s=0112/2///61987#ABQ039#001" BrowseName="1:0112/2///61987#ABQ039#001">
+    <DisplayName>remaining capacity of the internal data storage</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ040_001" NodeId="ns=1;s=0112/2///61987#ABQ040#001" BrowseName="1:0112/2///61987#ABQ040#001">
+    <DisplayName>relative residual sensitivity of sensing element</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ041_001" NodeId="ns=1;s=0112/2///61987#ABQ041#001" BrowseName="1:0112/2///61987#ABQ041#001">
+    <DisplayName>relative residual operational life of infrared radiation source</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ042_001" NodeId="ns=1;s=0112/2///61987#ABQ042#001" BrowseName="1:0112/2///61987#ABQ042#001">
+    <DisplayName>peak area of a substance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ043_001" NodeId="ns=1;s=0112/2///61987#ABQ043#001" BrowseName="1:0112/2///61987#ABQ043#001">
+    <DisplayName>total area of measured peaks</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ044_001" NodeId="ns=1;s=0112/2///61987#ABQ044#001" BrowseName="1:0112/2///61987#ABQ044#001">
+    <DisplayName>relative residual operational life of the interferometric laser</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ045_001" NodeId="ns=1;s=0112/2///61987#ABQ045#001" BrowseName="1:0112/2///61987#ABQ045#001">
+    <DisplayName>designation of substance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ046_001" NodeId="ns=1;s=0112/2///61987#ABQ046#001" BrowseName="1:0112/2///61987#ABQ046#001">
+    <DisplayName>designation of valve</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABQ057_001" NodeId="ns=1;s=0112/2///61987#ABQ057#001" BrowseName="1:0112/2///61987#ABQ057#001">
+    <DisplayName>electronics read noise</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABI407_004" NodeId="ns=1;s=0112/2///61987#ABI407#004" BrowseName="1:0112/2///61987#ABI407#004">
+    <DisplayName>others</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK976_001" NodeId="ns=1;s=0112/2///61987#ABK976#001" BrowseName="1:0112/2///61987#ABK976#001">
+    <DisplayName>Cu1000</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK977_001" NodeId="ns=1;s=0112/2///61987#ABK977#001" BrowseName="1:0112/2///61987#ABK977#001">
+    <DisplayName>Cu25</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK978_001" NodeId="ns=1;s=0112/2///61987#ABK978#001" BrowseName="1:0112/2///61987#ABK978#001">
+    <DisplayName>Ni100</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK979_001" NodeId="ns=1;s=0112/2///61987#ABK979#001" BrowseName="1:0112/2///61987#ABK979#001">
+    <DisplayName>Ni1000</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK980_001" NodeId="ns=1;s=0112/2///61987#ABK980#001" BrowseName="1:0112/2///61987#ABK980#001">
+    <DisplayName>Ni120</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK981_001" NodeId="ns=1;s=0112/2///61987#ABK981#001" BrowseName="1:0112/2///61987#ABK981#001">
+    <DisplayName>Ni25</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK982_001" NodeId="ns=1;s=0112/2///61987#ABK982#001" BrowseName="1:0112/2///61987#ABK982#001">
+    <DisplayName>Ni50</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK983_001" NodeId="ns=1;s=0112/2///61987#ABK983#001" BrowseName="1:0112/2///61987#ABK983#001">
+    <DisplayName>Pt10</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK984_001" NodeId="ns=1;s=0112/2///61987#ABK984#001" BrowseName="1:0112/2///61987#ABK984#001">
+    <DisplayName>Pt100</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK985_001" NodeId="ns=1;s=0112/2///61987#ABK985#001" BrowseName="1:0112/2///61987#ABK985#001">
+    <DisplayName>Pt1000</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK986_001" NodeId="ns=1;s=0112/2///61987#ABK986#001" BrowseName="1:0112/2///61987#ABK986#001">
+    <DisplayName>Pt200</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK987_001" NodeId="ns=1;s=0112/2///61987#ABK987#001" BrowseName="1:0112/2///61987#ABK987#001">
+    <DisplayName>Pt25</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK988_001" NodeId="ns=1;s=0112/2///61987#ABK988#001" BrowseName="1:0112/2///61987#ABK988#001">
+    <DisplayName>Pt50</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK989_001" NodeId="ns=1;s=0112/2///61987#ABK989#001" BrowseName="1:0112/2///61987#ABK989#001">
+    <DisplayName>Pt500</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK993_001" NodeId="ns=1;s=0112/2///61987#ABK993#001" BrowseName="1:0112/2///61987#ABK993#001">
+    <DisplayName>Type B: Pt30Rh-Pt6Rh</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK994_001" NodeId="ns=1;s=0112/2///61987#ABK994#001" BrowseName="1:0112/2///61987#ABK994#001">
+    <DisplayName>Type E: NiCr-CuNi</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK995_001" NodeId="ns=1;s=0112/2///61987#ABK995#001" BrowseName="1:0112/2///61987#ABK995#001">
+    <DisplayName>Type J: Fe-CuNi</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK996_001" NodeId="ns=1;s=0112/2///61987#ABK996#001" BrowseName="1:0112/2///61987#ABK996#001">
+    <DisplayName>Type K: NiCr-Ni</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK997_001" NodeId="ns=1;s=0112/2///61987#ABK997#001" BrowseName="1:0112/2///61987#ABK997#001">
+    <DisplayName>Type N: NiCrSi-NiSi</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK998_001" NodeId="ns=1;s=0112/2///61987#ABK998#001" BrowseName="1:0112/2///61987#ABK998#001">
+    <DisplayName>Type R: Pt13Rh-Pt</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABK999_001" NodeId="ns=1;s=0112/2///61987#ABK999#001" BrowseName="1:0112/2///61987#ABK999#001">
+    <DisplayName>Type S: Pt10Rh-Pt</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL000_001" NodeId="ns=1;s=0112/2///61987#ABL000#001" BrowseName="1:0112/2///61987#ABL000#001">
+    <DisplayName>Type T: Cu-CuNi</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL001_001" NodeId="ns=1;s=0112/2///61987#ABL001#001" BrowseName="1:0112/2///61987#ABL001#001">
+    <DisplayName>Type L: Fe-CuNi</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL002_001" NodeId="ns=1;s=0112/2///61987#ABL002#001" BrowseName="1:0112/2///61987#ABL002#001">
+    <DisplayName>Type U: Cu-CuNi</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL003_001" NodeId="ns=1;s=0112/2///61987#ABL003#001" BrowseName="1:0112/2///61987#ABL003#001">
+    <DisplayName>Type C: W5%-Re</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL004_001" NodeId="ns=1;s=0112/2///61987#ABL004#001" BrowseName="1:0112/2///61987#ABL004#001">
+    <DisplayName>Type D: W3%-Re</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL113_001" NodeId="ns=1;s=0112/2///61987#ABL113#001" BrowseName="1:0112/2///61987#ABL113#001">
+    <DisplayName>4-wire</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL114_001" NodeId="ns=1;s=0112/2///61987#ABL114#001" BrowseName="1:0112/2///61987#ABL114#001">
+    <DisplayName>3-wire</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL115_001" NodeId="ns=1;s=0112/2///61987#ABL115#001" BrowseName="1:0112/2///61987#ABL115#001">
+    <DisplayName>2-wire</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL147_001" NodeId="ns=1;s=0112/2///61987#ABL147#001" BrowseName="1:0112/2///61987#ABL147#001">
+    <DisplayName>direct</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL148_001" NodeId="ns=1;s=0112/2///61987#ABL148#001" BrowseName="1:0112/2///61987#ABL148#001">
+    <DisplayName>reverse</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL238_001" NodeId="ns=1;s=0112/2///61987#ABL238#001" BrowseName="1:0112/2///61987#ABL238#001">
+    <DisplayName>RTD</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL239_001" NodeId="ns=1;s=0112/2///61987#ABL239#001" BrowseName="1:0112/2///61987#ABL239#001">
+    <DisplayName>TC</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN145_001" NodeId="ns=1;s=0112/2///61987#ABN145#001" BrowseName="1:0112/2///61987#ABN145#001">
+    <DisplayName>sliding‐stem linear</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN146_001" NodeId="ns=1;s=0112/2///61987#ABN146#001" BrowseName="1:0112/2///61987#ABN146#001">
+    <DisplayName>quarter‐turn rotary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN416_001" NodeId="ns=1;s=0112/2///61987#ABN416#001" BrowseName="1:0112/2///61987#ABN416#001">
+    <DisplayName>external cold junction</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN417_001" NodeId="ns=1;s=0112/2///61987#ABN417#001" BrowseName="1:0112/2///61987#ABN417#001">
+    <DisplayName>internal cold junction</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN824_001" NodeId="ns=1;s=0112/2///61987#ABN824#001" BrowseName="1:0112/2///61987#ABN824#001">
+    <DisplayName>no action</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN825_002" NodeId="ns=1;s=0112/2///61987#ABN825#002" BrowseName="1:0112/2///61987#ABN825#002">
+    <DisplayName>factory reset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN826_002" NodeId="ns=1;s=0112/2///61987#ABN826#002" BrowseName="1:0112/2///61987#ABN826#002">
+    <DisplayName>application reset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN827_002" NodeId="ns=1;s=0112/2///61987#ABN827#002" BrowseName="1:0112/2///61987#ABN827#002">
+    <DisplayName>communication reset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN828_001" NodeId="ns=1;s=0112/2///61987#ABN828#001" BrowseName="1:0112/2///61987#ABN828#001">
+    <DisplayName>simulation on</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN829_001" NodeId="ns=1;s=0112/2///61987#ABN829#001" BrowseName="1:0112/2///61987#ABN829#001">
+    <DisplayName>simulation off</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABM885_001" NodeId="ns=1;s=0112/2///61987#ABM885#001" BrowseName="1:0112/2///61987#ABM885#001">
+    <DisplayName>positive</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABM886_001" NodeId="ns=1;s=0112/2///61987#ABM886#001" BrowseName="1:0112/2///61987#ABM886#001">
+    <DisplayName>negative</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL213_001" NodeId="ns=1;s=0112/2///61987#ABL213#001" BrowseName="1:0112/2///61987#ABL213#001">
+    <DisplayName>on</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL214_001" NodeId="ns=1;s=0112/2///61987#ABL214#001" BrowseName="1:0112/2///61987#ABL214#001">
+    <DisplayName>off</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL215_001" NodeId="ns=1;s=0112/2///61987#ABL215#001" BrowseName="1:0112/2///61987#ABL215#001">
+    <DisplayName>open</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABL216_001" NodeId="ns=1;s=0112/2///61987#ABL216#001" BrowseName="1:0112/2///61987#ABL216#001">
+    <DisplayName>closed</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABM625_001" NodeId="ns=1;s=0112/2///61987#ABM625#001" BrowseName="1:0112/2///61987#ABM625#001">
+    <DisplayName>low</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABM627_001" NodeId="ns=1;s=0112/2///61987#ABM627#001" BrowseName="1:0112/2///61987#ABM627#001">
+    <DisplayName>high</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN836_001" NodeId="ns=1;s=0112/2///61987#ABN836#001" BrowseName="1:0112/2///61987#ABN836#001">
+    <DisplayName>in-between</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN839_001" NodeId="ns=1;s=0112/2///61987#ABN839#001" BrowseName="1:0112/2///61987#ABN839#001">
+    <DisplayName>moving</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN840_001" NodeId="ns=1;s=0112/2///61987#ABN840#001" BrowseName="1:0112/2///61987#ABN840#001">
+    <DisplayName>true</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN841_001" NodeId="ns=1;s=0112/2///61987#ABN841#001" BrowseName="1:0112/2///61987#ABN841#001">
+    <DisplayName>false</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABN906_001" NodeId="ns=1;s=0112/2///61987#ABN906#001" BrowseName="1:0112/2///61987#ABN906#001">
+    <DisplayName>zero point adjustment</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP718_001" NodeId="ns=1;s=0112/2///61987#ABP718#001" BrowseName="1:0112/2///61987#ABP718#001">
+    <DisplayName>glass electrode</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP719_001" NodeId="ns=1;s=0112/2///61987#ABP719#001" BrowseName="1:0112/2///61987#ABP719#001">
+    <DisplayName>ISFET</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP720_001" NodeId="ns=1;s=0112/2///61987#ABP720#001" BrowseName="1:0112/2///61987#ABP720#001">
+    <DisplayName>ceramic electrode</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP721_001" NodeId="ns=1;s=0112/2///61987#ABP721#001" BrowseName="1:0112/2///61987#ABP721#001">
+    <DisplayName>inductive</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP722_001" NodeId="ns=1;s=0112/2///61987#ABP722#001" BrowseName="1:0112/2///61987#ABP722#001">
+    <DisplayName>conductive 2-electrodes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP723_001" NodeId="ns=1;s=0112/2///61987#ABP723#001" BrowseName="1:0112/2///61987#ABP723#001">
+    <DisplayName>conductive 4-electrodes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP724_001" NodeId="ns=1;s=0112/2///61987#ABP724#001" BrowseName="1:0112/2///61987#ABP724#001">
+    <DisplayName>no temperature compensation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP725_001" NodeId="ns=1;s=0112/2///61987#ABP725#001" BrowseName="1:0112/2///61987#ABP725#001">
+    <DisplayName>linear compensation</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP726_001" NodeId="ns=1;s=0112/2///61987#ABP726#001" BrowseName="1:0112/2///61987#ABP726#001">
+    <DisplayName>NaCl (IEC 60746-3)</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP727_001" NodeId="ns=1;s=0112/2///61987#ABP727#001" BrowseName="1:0112/2///61987#ABP727#001">
+    <DisplayName>water ISO 7888 (20°C)</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP728_001" NodeId="ns=1;s=0112/2///61987#ABP728#001" BrowseName="1:0112/2///61987#ABP728#001">
+    <DisplayName>water ISO 7888 (25°C)</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP729_001" NodeId="ns=1;s=0112/2///61987#ABP729#001" BrowseName="1:0112/2///61987#ABP729#001">
+    <DisplayName>UPW NaCl</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP730_001" NodeId="ns=1;s=0112/2///61987#ABP730#001" BrowseName="1:0112/2///61987#ABP730#001">
+    <DisplayName>UPW HCl</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP731_001" NodeId="ns=1;s=0112/2///61987#ABP731#001" BrowseName="1:0112/2///61987#ABP731#001">
+    <DisplayName>compensation table</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP732_001" NodeId="ns=1;s=0112/2///61987#ABP732#001" BrowseName="1:0112/2///61987#ABP732#001">
+    <DisplayName>adjustment</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP733_001" NodeId="ns=1;s=0112/2///61987#ABP733#001" BrowseName="1:0112/2///61987#ABP733#001">
+    <DisplayName>calibration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+  <UAObject SymbolicName="S0112_2___61987_ABP734_001" NodeId="ns=1;s=0112/2///61987#ABP734#001" BrowseName="1:0112/2///61987#ABP734#001">
+    <DisplayName>custody transfer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=17594</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17598</Reference>
+    </References>
+  </UAObject>
+
+</UANodeSet>

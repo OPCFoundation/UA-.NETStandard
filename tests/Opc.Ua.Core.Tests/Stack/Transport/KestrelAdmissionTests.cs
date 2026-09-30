@@ -410,9 +410,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             for (int i = 0; i < 2; i++)
             {
-                using var rejected = new TcpClient();
-                await rejected.ConnectAsync(IPAddress.Loopback, port, deadline.Token).ConfigureAwait(false);
-                await AssertClosedAsync(rejected.GetStream(), deadline.Token).ConfigureAwait(false);
+                await AssertRejectedAsync(port, deadline.Token).ConfigureAwait(false);
             }
             Assert.That(limiter.Calls, Is.EqualTo(2));
 
@@ -425,10 +423,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await healthy.GetStream().ReadExactlyAsync(header, deadline.Token).ConfigureAwait(false);
             Assert.That(BitConverter.ToUInt32(header), Is.EqualTo(TcpMessageType.Acknowledge));
             Assert.That(limiter.Calls, Is.EqualTo(3));
-            using var excess = new TcpClient();
-            await excess.ConnectAsync(IPAddress.Loopback, port, deadline.Token).ConfigureAwait(false);
-            await AssertClosedAsync(excess.GetStream(), deadline.Token).ConfigureAwait(false);
+            await AssertRejectedAsync(port, deadline.Token).ConfigureAwait(false);
             Assert.That(limiter.Calls, Is.EqualTo(4));
+        }
+
+        private static async Task AssertRejectedAsync(int port, CancellationToken ct)
+        {
+            using var rejected = new TcpClient();
+            try
+            {
+                await rejected.ConnectAsync(IPAddress.Loopback, port, ct).ConfigureAwait(false);
+            }
+            catch (SocketException ex) when (ex.SocketErrorCode is SocketError.ConnectionReset or
+                SocketError.ConnectionAborted)
+            {
+                // The rejection may reset the connection before ConnectAsync completes.
+                return;
+            }
+            await AssertClosedAsync(rejected.GetStream(), ct).ConfigureAwait(false);
         }
 
         private static async Task AssertClosedAsync(NetworkStream stream, CancellationToken ct)

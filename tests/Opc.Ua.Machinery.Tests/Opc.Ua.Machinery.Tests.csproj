@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.Machinery.Tests</RootNamespace>
+    <AssemblyName>Opc.Ua.Machinery.Tests</AssemblyName>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Main.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Machinery.Client\Opc.Ua.Machinery.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
+  </ItemGroup>
+  <!-- The NodeSet conformance tests read the vendored models directly, so a
+       change to a model that slips past the identifier drift guard still has
+       to face an assertion here. -->
+  <ItemGroup>
+    <None Include="..\..\src\Opc.Ua.Machinery\Model\Opc.Ua.Machinery.NodeSet2.xml"
+          Link="Model\Opc.Ua.Machinery.NodeSet2.xml"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Opc.Ua.Machinery.Energy\Model\Opc.Ua.Machinery.Energy.NodeSet2.xml"
+          Link="Model\Opc.Ua.Machinery.Energy.NodeSet2.xml"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Opc.Ua.Machinery.Result\Model\Opc.Ua.Machinery.Result.NodeSet2.xml"
+          Link="Model\Opc.Ua.Machinery.Result.NodeSet2.xml"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Opc.Ua.Machinery.Jobs\Model\Opc.Ua.Machinery.Jobs.NodeSet2.xml"
+          Link="Model\Opc.Ua.Machinery.Jobs.NodeSet2.xml"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Opc.Ua.Machinery.ProcessValues\Model\Opc.Ua.Machinery.ProcessValues.NodeSet2.xml"
+          Link="Model\Opc.Ua.Machinery.ProcessValues.NodeSet2.xml"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

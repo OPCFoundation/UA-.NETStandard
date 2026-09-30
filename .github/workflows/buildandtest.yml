@@ -54,9 +54,16 @@ env:
   # pull requests from forks.
   ENABLE_CODECOV: 'true'
 
+# Pull requests and feature branches cancel a superseded run: only the newest
+# commit's result matters there. A push to a protected line (master, main,
+# master378, release/*) never cancels, and each commit gets its own group,
+# because a queued run in a shared group is replaced as well as a running one
+# being cancelled. Every protected commit therefore finishes its required
+# checks ('build-and-test summary', 'images summary'), which the Release
+# ruleset demands before a release/<major>.<minor> branch can be cut from it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) && github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) }}
 
 jobs:
   discover:
