@@ -177,8 +177,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
-        // ── ReverseHello validation ───────────────────────────────────────────
-
         /// <summary>
         /// OPC 10000-6 §7.1.2.6: the Client returns Bad_TcpEndpointUrlInvalid and closes the connection if the
         /// ServerUri or EndpointUrl exceeds 4096 bytes; a missing or relative EndpointUrl is not a valid URL either.
@@ -206,6 +204,40 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     BuildReverseHello(
                         CreateString("urn:server:", serverUriLength),
                         endpointUrlLength == 0 ? "relative/path" : CreateString("opc.tcp://host/", endpointUrlLength)),
+                    timeout.Token).ConfigureAwait(false);
+
+                ArraySegment<byte> error = await peer.ReceiveChunkAsync(timeout.Token).ConfigureAwait(false);
+
+                Assert.That(BitConverter.ToUInt32(error.Array!, error.Offset), Is.EqualTo(TcpMessageType.Error));
+                Assert.That(
+                    BitConverter.ToUInt32(error.Array!, error.Offset + 8),
+                    Is.EqualTo((uint)StatusCodes.BadTcpEndpointUrlInvalid));
+                listenerMock.Verify(
+                    l => l.TransferListenerChannelAsync(It.IsAny<uint>(), It.IsAny<string>(), It.IsAny<Uri>()),
+                    Times.Never());
+            }
+            finally
+            {
+                peer.Close();
+            }
+        }
+
+        [TestCase("", TestName = "ServerUriEmpty")]
+        [TestCase("   ", TestName = "ServerUriWhitespace")]
+        public async Task ReverseHelloWithEmptyServerUriIsRejectedAsync(string serverUri)
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TcpReverseConnectChannel channel = BuildChannel(listenerMock);
+            var buffers = new BufferManager("rcc-empty-serveruri", 8192, m_telemetry);
+            (InProcessTransport client, InProcessTransport peer) =
+                InProcessTransport.CreatePair(buffers, 8192, m_telemetry);
+            using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            try
+            {
+                channel.Attach(channelId: 6u, transport: client);
+                await peer.SendChunkAsync(
+                    BuildReverseHello(serverUri, "opc.tcp://host/endpoint"),
                     timeout.Token).ConfigureAwait(false);
 
                 ArraySegment<byte> error = await peer.ReceiveChunkAsync(timeout.Token).ConfigureAwait(false);

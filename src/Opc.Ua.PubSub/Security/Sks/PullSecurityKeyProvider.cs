@@ -69,7 +69,8 @@ namespace Opc.Ua.PubSub.Security.Sks
         private readonly Lock m_stateLock = new();
         private Task? m_backgroundTask;
         private Task? m_opportunisticRefreshTask;
-        private long m_lastOpportunisticRefreshTicks = long.MinValue;
+        private long m_lastOpportunisticRefreshTicks;
+        private bool m_hasOpportunisticRefreshed;
         private int m_consecutiveFailures;
         private uint m_highestKnownTokenId;
         private bool m_started;
@@ -227,7 +228,10 @@ namespace Opc.Ua.PubSub.Security.Sks
 
         private void ScheduleOpportunisticRefresh(uint tokenId)
         {
-            long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
+            // Monotonic timestamp: wall-clock (GetUtcNow) can jump backward or
+            // forward on a clock correction, which would suppress genuine
+            // refreshes far past the interval or bypass the throttle entirely.
+            long nowTicks = m_timeProvider.GetTimestamp();
             lock (m_stateLock)
             {
                 if (m_disposed ||
@@ -236,12 +240,13 @@ namespace Opc.Ua.PubSub.Security.Sks
                 {
                     return;
                 }
-                if (m_lastOpportunisticRefreshTicks != long.MinValue &&
-                    nowTicks - m_lastOpportunisticRefreshTicks <
-                        m_options.OpportunisticRefreshInterval.Ticks)
+                if (m_hasOpportunisticRefreshed &&
+                    m_timeProvider.GetElapsedTime(m_lastOpportunisticRefreshTicks, nowTicks) <
+                        m_options.OpportunisticRefreshInterval)
                 {
                     return;
                 }
+                m_hasOpportunisticRefreshed = true;
                 m_lastOpportunisticRefreshTicks = nowTicks;
                 CancellationToken ct = m_disposeCts.Token;
                 m_opportunisticRefreshTask = Task.Run(

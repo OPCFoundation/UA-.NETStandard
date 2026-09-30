@@ -210,7 +210,11 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                if (serverUri == null ||
+                // OPC 10000-6 §7.1.2.6: the ServerUri is the Server's
+                // ApplicationUri and the EndpointUrl an absolute URL; an empty
+                // or whitespace ServerUri, or a missing or relative EndpointUrl,
+                // is not valid and must not reach TransferListenerChannelAsync.
+                if (string.IsNullOrWhiteSpace(serverUri) ||
                     endpointUrlString == null ||
                     !Uri.TryCreate(endpointUrlString, UriKind.Absolute, out Uri? endpointUri))
                 {

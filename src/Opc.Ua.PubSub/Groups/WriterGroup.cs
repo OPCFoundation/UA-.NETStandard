@@ -66,6 +66,13 @@ namespace Opc.Ua.PubSub.Groups
         private readonly Dictionary<ushort, WriterRuntimeState> m_writerState;
         private readonly Dictionary<ushort, EventDataSetWriter> m_eventWriters;
         private readonly Lock m_gate = new();
+        // Serializes PublishOnceAsync so that a NetworkMessage's SequenceNumber
+        // (assigned in BuildNetworkMessage) and the SequenceNumbers reserved for
+        // the chunk NetworkMessages it is split into during the send form one
+        // consecutive block a receiver's replay detection accepts (Part 14
+        // §7.2.3). Without it, a concurrent publish could consume numbers in
+        // between the two reservations.
+        private readonly SemaphoreSlim m_publishLock = new(1, 1);
         private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
         private IPubSubWriterCheckpointStore m_checkpointStore = NullPubSubWriterCheckpointStore.Instance;
         private string m_componentId = string.Empty;
@@ -258,6 +265,9 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return;
             }
+            // Serialize per writer group so the message and its chunk
+            // SequenceNumbers are reserved as one consecutive block.
+            await m_publishLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 if (Volatile.Read(ref m_restorePending) == 1)
@@ -345,6 +355,10 @@ namespace Opc.Ua.PubSub.Groups
             catch (Exception ex)
             {
                 m_logger.WriterGroupPublishFailed(ex, Name);
+            }
+            finally
+            {
+                m_publishLock.Release();
             }
         }
 
@@ -875,6 +889,7 @@ namespace Opc.Ua.PubSub.Groups
             }
             m_disposed = true;
             await DisableAsync(CancellationToken.None).ConfigureAwait(false);
+            m_publishLock.Dispose();
         }
 
         private sealed class WriterRuntimeState
