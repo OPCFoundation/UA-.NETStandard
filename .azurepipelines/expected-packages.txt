@@ -58,6 +58,7 @@ OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server
+OPCFoundation.NetStandard.Opc.Ua.PackML
 OPCFoundation.NetStandard.Opc.Ua.PADIM
 OPCFoundation.NetStandard.Opc.Ua.Positioning
 OPCFoundation.NetStandard.Opc.Ua.Positioning.Client
@@ -83,6 +84,9 @@ OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server
 OPCFoundation.NetStandard.Opc.Ua.Robotics
 OPCFoundation.NetStandard.Opc.Ua.Robotics.Client
 OPCFoundation.NetStandard.Opc.Ua.Robotics.Server
+OPCFoundation.NetStandard.Opc.Ua.Scales
+OPCFoundation.NetStandard.Opc.Ua.Scales.Client
+OPCFoundation.NetStandard.Opc.Ua.Scales.Server
 OPCFoundation.NetStandard.Opc.Ua.Security.Certificates
 OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11
 OPCFoundation.NetStandard.Opc.Ua.Server

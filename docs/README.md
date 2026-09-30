@@ -180,6 +180,9 @@ models that each model depends on.
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
 - [Pumps](Pumps.md) (OPC 40223; preview package) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
+- [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
+  technology with every scale kind, scale systems, recipes and PackML state
+  machines, based on the Machinery model.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
   systems, based on the Industrial Automation and Device Integration models.
   The guide's draft Robot Intent model is listed in [stage 7](#7-draft-and-experimental-capabilities).
