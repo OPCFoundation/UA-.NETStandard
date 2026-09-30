@@ -181,6 +181,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// chunk at <see cref="UadpChunkFrame.PayloadOffset"/>.</param>
         /// <param name="fallbackSequenceNumber">MessageSequenceNumber used
         /// for DataSetMessages that carry no sequence number.</param>
+        /// <param name="reserveNetworkSequenceNumbers">Reserves the given
+        /// number of consecutive GroupHeader SequenceNumbers from the
+        /// WriterGroup counter and returns the first one. The first chunk
+        /// keeps the SequenceNumber of <paramref name="frame"/>; every
+        /// further chunk NetworkMessage takes a reserved one. When
+        /// <c>null</c> the chunks continue from the SequenceNumber of
+        /// <paramref name="frame"/>.</param>
         /// <returns>The chunk NetworkMessages, or <c>null</c> when the frame
         /// is not an unsecured DataSetMessage NetworkMessage that can be
         /// split.</returns>
@@ -192,7 +199,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int maxNetworkMessageSize,
             int securityOverhead,
             bool securityEnabled,
-            ushort fallbackSequenceNumber)
+            ushort fallbackSequenceNumber,
+            Func<int, ushort>? reserveNetworkSequenceNumbers = null)
         {
             if (!UadpDecoder.TryReadPrefix(frame, out UadpPrefixInfo info) ||
                 info.ChunkMessage ||
@@ -240,7 +248,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
 
             var chunker = new UadpChunker();
-            var result = new List<UadpChunkFrame>();
+            var frames = new List<byte[]>();
+            var payloadOffsets = new List<int>();
             for (int i = 0; i < count; i++)
             {
                 ushort? writerId = hasPayloadHeader
@@ -264,10 +273,65 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     byte[] chunkFrame = new byte[prefix.Length + piece.Length];
                     Buffer.BlockCopy(prefix, 0, chunkFrame, 0, prefix.Length);
                     Buffer.BlockCopy(piece, 0, chunkFrame, prefix.Length, piece.Length);
-                    result.Add(new UadpChunkFrame(chunkFrame, prefix.Length));
+                    frames.Add(chunkFrame);
+                    payloadOffsets.Add(prefix.Length);
                 }
             }
+            NumberChunkNetworkMessages(frames, span, info, reserveNetworkSequenceNumbers);
+            var result = new List<UadpChunkFrame>(frames.Count);
+            for (int i = 0; i < frames.Count; i++)
+            {
+                result.Add(new UadpChunkFrame(frames[i], payloadOffsets[i]));
+            }
             return result;
+        }
+
+        /// <summary>
+        /// Gives every chunk NetworkMessage its own GroupHeader
+        /// SequenceNumber ("Sequence number for each new NetworkMessage",
+        /// Part 14 §7.2.4.4.2 Table 154, incremented by exactly one per
+        /// message, §7.2.3) and an incrementing NetworkMessageNumber
+        /// (the NetworkMessages a WriterGroup chunks over within one
+        /// PublishingInterval are numbered consecutively, §6.3.1.3.4).
+        /// </summary>
+        private static void NumberChunkNetworkMessages(
+            List<byte[]> chunks,
+            ReadOnlySpan<byte> frame,
+            in UadpPrefixInfo info,
+            Func<int, ushort>? reserveNetworkSequenceNumbers)
+        {
+            if (chunks.Count < 2)
+            {
+                return;
+            }
+            // The GroupHeader precedes the PayloadHeader and is copied into
+            // each chunk prefix right behind the three flag bytes.
+            int shift = 3 - info.FlagsLength;
+            if (info.SequenceNumberOffset >= 0)
+            {
+                ushort first = BinaryPrimitives.ReadUInt16LittleEndian(
+                    frame[info.SequenceNumberOffset..]);
+                ushort next = reserveNetworkSequenceNumbers is null
+                    ? unchecked((ushort)(first + 1))
+                    : reserveNetworkSequenceNumbers(chunks.Count - 1);
+                for (int i = 1; i < chunks.Count; i++)
+                {
+                    BinaryPrimitives.WriteUInt16LittleEndian(
+                        chunks[i].AsSpan(info.SequenceNumberOffset + shift), next);
+                    next = unchecked((ushort)(next + 1));
+                }
+            }
+            if (info.NetworkMessageNumberOffset >= 0)
+            {
+                ushort first = BinaryPrimitives.ReadUInt16LittleEndian(
+                    frame[info.NetworkMessageNumberOffset..]);
+                for (int i = 1; i < chunks.Count; i++)
+                {
+                    BinaryPrimitives.WriteUInt16LittleEndian(
+                        chunks[i].AsSpan(info.NetworkMessageNumberOffset + shift),
+                        unchecked((ushort)(first + i)));
+                }
+            }
         }
 
         /// <summary>

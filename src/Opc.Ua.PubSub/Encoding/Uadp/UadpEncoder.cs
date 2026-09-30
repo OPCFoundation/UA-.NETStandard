@@ -227,7 +227,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         written = EncodeIntoBuffer(message, context, rented, out localOffset);
                         break;
                     }
-                    catch (ArgumentException)
+                    catch (Exception ex) when (ex is UadpBufferFullException or ArgumentException)
                     {
                         if (rented.Length >= kMaxBufferSize)
                         {
@@ -303,7 +303,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 payloadHeaderSizesPos = writer.Reserve(2 * payloadCount);
             }
 
-            ushort[] sizes = new ushort[payloadCount];
+            int[] sizes = new int[payloadCount];
             for (int i = 0; i < payloadCount; i++)
             {
                 int beforeMessage = writer.Position;
@@ -316,15 +316,23 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         " is not a UadpDataSetMessage.");
                 }
                 WriteDataSetMessage(ref writer, uadpMsg, message, context);
-                int afterMessage = writer.Position;
-                sizes[i] = checked((ushort)(afterMessage - beforeMessage));
+                sizes[i] = writer.Position - beforeMessage;
             }
 
+            // Only the Sizes array limits a DataSetMessage to UInt16; a
+            // single larger DataSetMessage is sent as chunk NetworkMessages
+            // (Part 14 §7.2.4.5.3 Table 161).
             if (payloadHeaderSizesPos >= 0)
             {
                 for (int i = 0; i < payloadCount; i++)
                 {
-                    writer.PatchUInt16Le(payloadHeaderSizesPos + (2 * i), sizes[i]);
+                    if (sizes[i] > ushort.MaxValue)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "A DataSetMessage exceeds the UInt16 range of the UADP Sizes field.");
+                    }
+                    writer.PatchUInt16Le(payloadHeaderSizesPos + (2 * i), (ushort)sizes[i]);
                 }
             }
 
@@ -748,6 +756,10 @@ uadpFlags));
         /// chunk headers.</param>
         /// <param name="fallbackSequenceNumber">MessageSequenceNumber for
         /// DataSetMessages without a sequence number.</param>
+        /// <param name="reserveNetworkSequenceNumbers">Reserves consecutive
+        /// GroupHeader SequenceNumbers from the WriterGroup counter for the
+        /// chunk NetworkMessages after the first one and returns the first
+        /// reserved value.</param>
         /// <exception cref="InvalidOperationException"></exception>
         internal static IReadOnlyList<UadpChunkFrame> EncodeChunks(
             UadpNetworkMessage message,
@@ -755,7 +767,8 @@ uadpFlags));
             int maxNetworkMessageSize,
             int securityOverhead,
             bool securityEnabled,
-            ushort fallbackSequenceNumber)
+            ushort fallbackSequenceNumber,
+            Func<int, ushort>? reserveNetworkSequenceNumbers = null)
         {
             UadpNetworkMessage plain = message.SecurityEnabled
                 ? message with { SecurityEnabled = false }
@@ -766,7 +779,8 @@ uadpFlags));
                     maxNetworkMessageSize,
                     securityOverhead,
                     securityEnabled,
-                    fallbackSequenceNumber) ??
+                    fallbackSequenceNumber,
+                    reserveNetworkSequenceNumbers) ??
                 throw new InvalidOperationException(
                     "The UADP NetworkMessage cannot be split into chunk NetworkMessages.");
         }

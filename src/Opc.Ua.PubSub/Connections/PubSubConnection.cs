@@ -2327,7 +2327,7 @@ namespace Opc.Ua.PubSub.Connections
             CancellationToken cancellationToken)
         {
             string? topic = ResolveDataTopic(writerGroup, networkMessage);
-            await SendNetworkMessageAsync(networkMessage, topic, cancellationToken)
+            await SendNetworkMessageAsync(networkMessage, topic, writerGroup, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -2350,9 +2350,18 @@ namespace Opc.Ua.PubSub.Connections
             return provider.BuildDataTopic(PublisherId, writerGroup.Configuration, dataSetWriterId);
         }
 
+        private ValueTask SendNetworkMessageAsync(
+            PubSubNetworkMessage networkMessage,
+            string? topic,
+            CancellationToken cancellationToken)
+        {
+            return SendNetworkMessageAsync(networkMessage, topic, writerGroup: null, cancellationToken);
+        }
+
         private async ValueTask SendNetworkMessageAsync(
             PubSubNetworkMessage networkMessage,
             string? topic,
+            WriterGroup? writerGroup,
             CancellationToken cancellationToken)
         {
             IPubSubTransport? transport;
@@ -2411,7 +2420,7 @@ namespace Opc.Ua.PubSub.Connections
                 payload.Length > m_maxNetworkMessageSize &&
                 networkMessage is UadpNetworkMessage uadpForChunk)
             {
-                await SendChunkedAsync(transport, uadpForChunk, context, cancellationToken)
+                await SendChunkedAsync(transport, uadpForChunk, context, writerGroup, cancellationToken)
                     .ConfigureAwait(false);
                 return;
             }
@@ -2444,6 +2453,7 @@ namespace Opc.Ua.PubSub.Connections
             IPubSubTransport transport,
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
+            WriterGroup? writerGroup,
             CancellationToken cancellationToken)
         {
             ushort sequenceNumber = unchecked(
@@ -2458,7 +2468,8 @@ namespace Opc.Ua.PubSub.Connections
                     m_maxNetworkMessageSize,
                     wrapper is null ? 0 : GetSecurityOverhead(wrapper),
                     securityEnabled: wrapper is not null,
-                    sequenceNumber);
+                    sequenceNumber,
+                    writerGroup is null ? null : writerGroup.ReserveNetworkSequenceNumbers);
             }
             catch (Exception ex)
             {

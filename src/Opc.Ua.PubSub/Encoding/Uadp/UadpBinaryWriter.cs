@@ -345,14 +345,20 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int available = Capacity - m_position;
             if (available <= 0)
             {
-                throw new InvalidOperationException("UADP writer buffer is full.");
+                throw new UadpBufferFullException("UADP writer buffer is full.");
             }
             int written;
-            using (var encoder = new BinaryEncoder(
-                Buffer, Origin + m_position, available, context))
+            try
             {
+                using var encoder = new BinaryEncoder(
+                    Buffer, Origin + m_position, available, context);
                 encoder.WriteVariant(null, value);
                 written = encoder.Close();
+            }
+            catch (NotSupportedException ex)
+            {
+                // The fixed-size stream cannot expand.
+                throw new UadpBufferFullException("UADP writer buffer is full.", ex);
             }
             m_position += written;
         }
@@ -374,14 +380,20 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int available = Capacity - m_position;
             if (available <= 0)
             {
-                throw new InvalidOperationException("UADP writer buffer is full.");
+                throw new UadpBufferFullException("UADP writer buffer is full.");
             }
             int written;
-            using (var encoder = new BinaryEncoder(
-                Buffer, Origin + m_position, available, context))
+            try
             {
+                using var encoder = new BinaryEncoder(
+                    Buffer, Origin + m_position, available, context);
                 encoder.WriteDataValue(null, value);
                 written = encoder.Close();
+            }
+            catch (NotSupportedException ex)
+            {
+                // The fixed-size stream cannot expand.
+                throw new UadpBufferFullException("UADP writer buffer is full.", ex);
             }
             m_position += written;
         }
@@ -455,7 +467,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int available = Capacity - m_position;
             if (available <= 0)
             {
-                throw new InvalidOperationException("UADP writer buffer is full.");
+                throw new UadpBufferFullException("UADP writer buffer is full.");
             }
 
             if (valueRank == ValueRanks.Scalar &&
@@ -474,9 +486,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
 
             int written;
-            using (var encoder = new BinaryEncoder(
-                Buffer, Origin + m_position, available, context))
+            try
             {
+                using var encoder = new BinaryEncoder(
+                    Buffer, Origin + m_position, available, context);
                 if (valueRank == ValueRanks.Scalar)
                 {
                     WriteRawScalarCore(encoder, value, builtInType);
@@ -486,6 +499,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     WriteRawArrayCore(encoder, value, builtInType);
                 }
                 written = encoder.Close();
+            }
+            catch (NotSupportedException ex)
+            {
+                // The fixed-size stream cannot expand.
+                throw new UadpBufferFullException("UADP writer buffer is full.", ex);
             }
             m_position += written;
         }
@@ -1188,9 +1206,33 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             if (m_position + byteCount > Capacity)
             {
-                throw new InvalidOperationException(
+                throw new UadpBufferFullException(
                     $"UADP writer needs {byteCount} bytes but only {Capacity - m_position} remain.");
             }
+        }
+    }
+
+    /// <summary>
+    /// Thrown when a <see cref="UadpBinaryWriter"/> runs out of buffer
+    /// space, so the caller can retry with a larger buffer.
+    /// </summary>
+    internal sealed class UadpBufferFullException : InvalidOperationException
+    {
+        /// <inheritdoc/>
+        public UadpBufferFullException()
+        {
+        }
+
+        /// <inheritdoc/>
+        public UadpBufferFullException(string message)
+            : base(message)
+        {
+        }
+
+        /// <inheritdoc/>
+        public UadpBufferFullException(string message, Exception innerException)
+            : base(message, innerException)
+        {
         }
     }
 }

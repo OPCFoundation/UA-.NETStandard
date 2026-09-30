@@ -372,6 +372,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                     transport,
                     message,
                     context,
+                    null,
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(exception, Is.Not.Null);
