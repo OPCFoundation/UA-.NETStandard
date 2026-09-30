@@ -838,11 +838,29 @@ namespace Opc.Ua
             // cannot nest: BinaryDecoder.ReadVariant counts each one, so an
             // encoder that skipped them could emit a message one level deeper
             // than its own peer accepts.
+            TypeInfo typeInfo = value.TypeInfo;
+            BuiltInType builtInType = typeInfo.BuiltInType;
+            if (typeInfo.IsScalar &&
+                builtInType != BuiltInType.DataValue &&
+                builtInType != BuiltInType.ExtensionObject)
+            {
+                // A scalar that cannot nest writes no value below its own
+                // level: checking the level is all CheckAndIncrementNestingLevel
+                // would do that matters, without the stack check, the
+                // increment and the try/finally.
+                if (m_nestingLevel > Context.MaxEncodingNestingLevels)
+                {
+                    throw NestingLevelExceeded();
+                }
+                WriteVariantValue(in value, typeInfo, false);
+                return;
+            }
+
             CheckAndIncrementNestingLevel();
 
             try
             {
-                WriteVariantValue(in value, false);
+                WriteVariantValue(in value, typeInfo, false);
             }
             finally
             {
@@ -1619,7 +1637,15 @@ namespace Opc.Ua
         {
             // Snapshot the type info once; Variant is immutable so repeated
             // value.TypeInfo property reads would each copy the struct.
-            TypeInfo typeInfo = value.TypeInfo;
+            WriteVariantValue(in value, value.TypeInfo, writeRawValue);
+        }
+
+        /// <summary>
+        /// Write variant value with the type info of the value.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteVariantValue(in Variant value, TypeInfo typeInfo, bool writeRawValue)
+        {
             BuiltInType builtInType = typeInfo.BuiltInType;
 
             // check for null.
@@ -2571,13 +2597,18 @@ namespace Opc.Ua
         {
             if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    Context.MaxEncodingNestingLevels);
+                throw NestingLevelExceeded();
             }
             EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
+        }
+
+        private ServiceResultException NestingLevelExceeded()
+        {
+            return ServiceResultException.Create(
+                StatusCodes.BadEncodingLimitsExceeded,
+                "Maximum nesting level of {0} was exceeded",
+                Context.MaxEncodingNestingLevels);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
