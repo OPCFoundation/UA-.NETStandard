@@ -441,12 +441,32 @@ namespace OpcUaPubSubJsonTests
 
         [Test]
         [TestSpec("7.2.5.4.1")]
-        public async Task DataSetMessageNumericStatusIsRejectedAsync()
+        public async Task DataSetMessageLegacyNumericStatusIsAcceptedAsync()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             const string json =
                 "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Status\":1073741824," +
                 "\"Payload\":{\"a\":{\"UaType\":6,\"Value\":7}}}]}";
+
+            PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(
+                ((Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage)result.DataSetMessages[0]).Status,
+                Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+        }
+
+        [TestCase("\"Uncertain\"")]
+        [TestCase("[1073741824]")]
+        [TestCase("-1")]
+        [TestSpec("7.2.5.4.1")]
+        public async Task DataSetMessageMalformedStatusIsRejectedAsync(string status)
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            string json =
+                "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Status\":" + status +
+                ",\"Payload\":{\"a\":{\"UaType\":6,\"Value\":7}}}]}";
 
             PubSubNetworkMessage? result = await DecodeAsync(json, ctx).ConfigureAwait(false);
 

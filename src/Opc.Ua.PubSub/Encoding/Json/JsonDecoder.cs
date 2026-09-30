@@ -1028,8 +1028,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         /// <summary>
         /// Reads an optional <see cref="StatusCode"/> property encoded as
-        /// the Part 6 §5.4.2.12 <c>{ "Code", "Symbol" }</c> object; an
-        /// absent <c>Code</c> means Good.
+        /// the Part 6 §5.4.2.12 <c>{ "Code", "Symbol" }</c> object (an
+        /// absent <c>Code</c> means Good) or as the legacy bare number.
         /// </summary>
         /// <param name="root">Source object.</param>
         /// <param name="name">Property name.</param>
@@ -1044,6 +1044,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
             status = StatusCodes.Good;
             if (!root.TryGetProperty(name, out JsonElement value))
             {
+                return true;
+            }
+            if (value.ValueKind == JsonValueKind.Number)
+            {
+                // 1.04 and deprecated ReversibleFieldEncoding Publishers
+                // (Part 14 §6.3.2.3.1 Table 112) write the bare code.
+                if (!value.TryGetUInt32(out uint legacyCode))
+                {
+                    return false;
+                }
+                status = new StatusCode(legacyCode);
                 return true;
             }
             if (value.ValueKind != JsonValueKind.Object)
