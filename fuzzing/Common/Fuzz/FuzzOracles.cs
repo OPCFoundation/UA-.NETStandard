@@ -222,12 +222,21 @@ namespace Opc.Ua.Fuzzing
         /// <exception cref="ResourceBudgetException"></exception>
         public static void RunTarget(string target, long inputLength, Action run)
         {
+            RunTarget(target, inputLength, run, GetTimeBudgetMilliseconds(inputLength));
+        }
+
+        /// <summary>
+        /// Runs a fuzz target like <see cref="RunTarget(string, long, Action)"/> with an
+        /// explicit time budget in milliseconds; 0 disables the time oracle.
+        /// </summary>
+        /// <exception cref="ResourceBudgetException"></exception>
+        public static void RunTarget(string target, long inputLength, Action run, long budget)
+        {
             if (run == null)
             {
                 throw new ArgumentNullException(nameof(run));
             }
 
-            long budget = GetTimeBudgetMilliseconds(inputLength);
             long fastest = RunOnWorker(run);
             if (budget <= 0 || fastest <= budget)
             {

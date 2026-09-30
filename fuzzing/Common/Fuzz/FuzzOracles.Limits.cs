@@ -155,9 +155,25 @@ namespace Opc.Ua.Fuzzing
                     return;
                 }
 
+                if (IsGeneric(type, typeof(ArrayOf<>)))
+                {
+                    // ArrayOf<T> and MatrixOf<T> wrap memory and are not IEnumerable.
+                    VisitEnumerable(GetArrayOfElements(value, type), isMatrix: false, path);
+                    return;
+                }
+
+                if (IsGeneric(type, typeof(MatrixOf<>)))
+                {
+                    // A matrix is bounded by its dimensions, not by MaxArrayLength.
+                    object elements = type.GetMethod(nameof(MatrixOf<int>.ToArrayOf), Type.EmptyTypes)
+                        .Invoke(value, null);
+                    VisitEnumerable(GetArrayOfElements(elements, elements.GetType()), isMatrix: true, path);
+                    return;
+                }
+
                 if (value is IEnumerable enumerable)
                 {
-                    VisitEnumerable(enumerable, type, path);
+                    VisitEnumerable(enumerable, isMatrix: false, path);
                     return;
                 }
 
@@ -197,9 +213,14 @@ namespace Opc.Ua.Fuzzing
                 m_pending.Push((raw, path));
             }
 
-            private void VisitEnumerable(IEnumerable enumerable, Type type, string path)
+            private static IEnumerable GetArrayOfElements(object value, Type type)
             {
-                bool isMatrix = IsGeneric(type, typeof(MatrixOf<>));
+                return (IEnumerable)type.GetMethod(nameof(ArrayOf<int>.ToArray), Type.EmptyTypes)
+                    .Invoke(value, null) ?? Array.Empty<object>();
+            }
+
+            private void VisitEnumerable(IEnumerable enumerable, bool isMatrix, string path)
+            {
                 int count = 0;
                 foreach (object element in enumerable)
                 {
@@ -207,7 +228,6 @@ namespace Opc.Ua.Fuzzing
                     count++;
                 }
 
-                // A matrix is bounded by its dimensions, not by MaxArrayLength.
                 if (!isMatrix && m_maxArrayLength > 0 && count > m_maxArrayLength)
                 {
                     Fail(path, "array", count, m_maxArrayLength, nameof(IServiceMessageContext.MaxArrayLength));
