@@ -447,5 +447,39 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 context.Diagnostics.Read(PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages),
                 Is.EqualTo(1));
         }
+
+        [Test]
+        public void DiscoveryProbeAcceptsNullArrays()
+        {
+            // Part 14 Table 180 / Part 6 §5.2.5: arrays are Int32-counted and
+            // -1 is a null array. Probe type 6 with null writer ids, three
+            // null strings, filter bytes and null TransportProfileUris.
+            byte[] frame =
+            [
+                0x91, 0x80, 0x04, 0x00, 0x06,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0x00, 0x00, 0x00,
+                0xFF, 0xFF, 0xFF, 0xFF
+            ];
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+            Assert.That(decoded, Is.InstanceOf<UadpDiscoveryRequestMessage>());
+            var request = (UadpDiscoveryRequestMessage)decoded!;
+            Assert.That(request.DataSetWriterIds.Count, Is.Zero);
+            Assert.That(request.ProbeFilter, Is.Not.Null);
+            Assert.That(request.ProbeFilter!.TransportProfileUris.Count, Is.Zero);
+        }
+
+        [Test]
+        public void DiscoveryRequestRejectsNegativeArrayLengthOtherThanNull()
+        {
+            // Writer id count -2 is neither null nor a valid length.
+            byte[] frame = [0x91, 0x80, 0x04, 0x00, 0x01, 0xFE, 0xFF, 0xFF, 0xFF];
+            PubSubNetworkMessage? decoded = null;
+            Assert.DoesNotThrow(() => decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()));
+            Assert.That(decoded, Is.Null);
+        }
     }
 }

@@ -407,7 +407,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             IServiceMessageContext context)
         {
             int countInt = ReadArrayCount(ref reader, sizeof(ushort), context);
-            uint count = (uint)countInt;
             ushort[] ids = new ushort[countInt];
             for (int i = 0; i < countInt; i++)
             {
@@ -419,17 +418,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
             WriterGroupDataType cfg = UadpDiscoveryWire.ReadEncodeable<WriterGroupDataType>(
                 ref reader, context);
-            if (!reader.TryReadUInt32Le(out uint statusCount))
-            {
-                throw new InvalidOperationException("Failed reading StatusCode count.");
-            }
-            if (statusCount != count)
+            int statusCount = ReadArrayCount(ref reader, sizeof(uint), context);
+            if (statusCount != countInt)
             {
                 throw new InvalidOperationException("StatusCode count does not match writer-id count.");
             }
             uint statusCode = 0;
-            int statusCountInt = (int)statusCount;
-            for (int i = 0; i < statusCountInt; i++)
+            for (int i = 0; i < statusCount; i++)
             {
                 if (!reader.TryReadUInt32Le(out uint code))
                 {
@@ -710,7 +705,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         /// <summary>
-        /// Reads a UInt32 array length and validates it against the bytes
+        /// Reads a Part 6 array length (Int32, -1 for a null array, which
+        /// is returned as an empty array) and validates it against the bytes
         /// left in the NetworkMessage and the MaxArrayLength of the message
         /// context before the caller allocates the array.
         /// </summary>
@@ -720,22 +716,35 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             int minElementSize,
             IServiceMessageContext context)
         {
-            if (!reader.TryReadUInt32Le(out uint count))
+            if (!reader.TryReadUInt32Le(out uint raw))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Failed reading discovery array length.");
             }
+            int count = unchecked((int)raw);
+            if (count == -1)
+            {
+                // Null array (Part 6 §5.2.5, Part 14 Table 180).
+                return 0;
+            }
+            if (count < 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Discovery array length {0} is invalid.",
+                    count);
+            }
             // Every element occupies at least minElementSize bytes, so a
             // count beyond the remaining bytes can never be satisfied.
-            if (count > (uint)(reader.Remaining / minElementSize))
+            if (count > reader.Remaining / minElementSize)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Discovery array length {0} exceeds the remaining message bytes.",
                     count);
             }
-            if (context.MaxArrayLength > 0 && count > (uint)context.MaxArrayLength)
+            if (context.MaxArrayLength > 0 && (uint)count > (uint)context.MaxArrayLength)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
@@ -743,7 +752,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     count,
                     context.MaxArrayLength);
             }
-            return (int)count;
+            return count;
         }
 
         private static byte[] TrimToWritten(byte[] buffer, int written)
