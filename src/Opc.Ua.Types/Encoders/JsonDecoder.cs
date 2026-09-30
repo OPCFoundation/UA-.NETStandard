@@ -2655,14 +2655,12 @@ namespace Opc.Ua
             ushort namespaceIndex = 0;
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
             {
+                // Without the ';' that separates a NamespaceUri from the name
+                // only the <name> form of Table 7 matches: a name in
+                // namespace 0.
                 int index = text.IndexOf(';', 4);
-                if (index < 0)
-                {
-                    // The ';' separating the NamespaceUri from the name is
-                    // mandatory (Table 7).
-                    return false;
-                }
-                if (CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) &&
+                if (index >= 0 &&
+                    CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) &&
                     !string.IsNullOrWhiteSpace(namespaceUri))
                 {
                     CheckStringLength(namespaceUri);

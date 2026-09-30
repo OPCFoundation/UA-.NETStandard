@@ -131,10 +131,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         [TestCase("nsu=urn:ns1;Name", 1, "Name")]
         [TestCase("nsu=urn:unknown;Name", 0, "nsu=urn:unknown;Name")]
         [TestCase("nsu=urn:%ZZ;Name", 0, "nsu=urn:%ZZ;Name")]
+        [TestCase("nsu=urn:ns1", 0, "nsu=urn:ns1")]
         public void QualifiedNameUsesTheJsonStringForms(string text, int namespaceIndex, string name)
         {
             // Part 6 5.1.12 Table 7 only reserves a digit run followed by ':'.
             // Part 6 5.4.2.14 keeps an unmapped NamespaceUri as the raw name.
+            // Without a ';' the text only matches the <name> form.
             ServiceMessageContext context = CreateContext();
             using JsonDecoder decoder = Field(context, "\"" + text + "\"");
 
@@ -148,8 +150,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [TestCase("70000:Name")]
-        [TestCase("nsu=urn:ns1")]
-        public void QualifiedNameWithInvalidIndexOrSeparatorIsRejected(string text)
+        public void QualifiedNameWithInvalidIndexIsRejected(string text)
         {
             ServiceMessageContext context = CreateContext();
             using JsonDecoder decoder = Field(context, "\"" + text + "\"");
