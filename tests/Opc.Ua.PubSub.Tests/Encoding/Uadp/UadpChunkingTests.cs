@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Time.Testing;
@@ -587,6 +588,106 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 writers.Add(prefix.ChunkDataSetWriterId!.Value);
             }
             Assert.That(writers, Is.EquivalentTo(new ushort[] { 21, 22 }));
+        }
+
+        [Test]
+        public void EncodeChunksGivesEveryChunkNetworkMessageItsOwnSequenceNumber()
+        {
+            // Part 14 Table 154 / §7.2.3: each NetworkMessage carries a new
+            // SequenceNumber; §6.3.1.3.4: the NetworkMessages a group is
+            // chunked over have incrementing NetworkMessageNumbers.
+            UadpNetworkMessage message = CreateMessage(fieldBytes: 100) with
+            {
+                ContentMask =
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    UadpNetworkMessageContentMask.SequenceNumber |
+                    UadpNetworkMessageContentMask.PayloadHeader,
+                SequenceNumber = 40,
+                NetworkMessageNumber = 1,
+                DataSetMessages =
+                [
+                    CreateDataSetMessage(21, 100),
+                    CreateDataSetMessage(22, 100)
+                ]
+            };
+            int reserved = 0;
+            IReadOnlyList<UadpChunkFrame> chunks = UadpEncoder.EncodeChunks(
+                message, UadpTestUtilities.NewContext(), maxNetworkMessageSize: 64, securityOverhead: 0,
+                securityEnabled: false, fallbackSequenceNumber: 1,
+                reserveNetworkSequenceNumbers: count =>
+                {
+                    reserved += count;
+                    return 41;
+                });
+
+            Assert.That(chunks, Has.Count.GreaterThan(2));
+            Assert.That(reserved, Is.EqualTo(chunks.Count - 1));
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                Assert.That(UadpDecoder.TryReadPrefix(chunks[i].Frame, out UadpPrefixInfo prefix), Is.True);
+                ReadOnlySpan<byte> frame = chunks[i].Frame.Span;
+                Assert.That(
+                    BinaryPrimitives.ReadUInt16LittleEndian(frame[prefix.SequenceNumberOffset..]),
+                    Is.EqualTo((ushort)(40 + i)));
+                Assert.That(
+                    BinaryPrimitives.ReadUInt16LittleEndian(frame[prefix.NetworkMessageNumberOffset..]),
+                    Is.EqualTo((ushort)(1 + i)));
+            }
+        }
+
+        [Test]
+        public void EncodeChunksSplitsADataSetMessageLargerThanTheSizesFieldRange()
+        {
+            // Part 14 §7.2.4.5.3 Table 161: a DataSetMessage that exceeds the
+            // payload size is split into chunks, also above 65535 bytes (the
+            // UInt16 Sizes field is only written for more than one message).
+            UadpNetworkMessage message = CreateMessage(fieldBytes: 70000);
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            IReadOnlyList<UadpChunkFrame> chunks = UadpEncoder.EncodeChunks(
+                message, context, maxNetworkMessageSize: 1400, securityOverhead: 0,
+                securityEnabled: false, fallbackSequenceNumber: 1);
+
+            var reassembler = new UadpReassembler();
+            byte[]? rebuilt = null;
+            foreach (UadpChunkFrame chunk in chunks)
+            {
+                Assert.That(chunk.Frame.Length, Is.LessThanOrEqualTo(1400));
+                Assert.That(UadpDecoder.TryReadPrefix(chunk.Frame, out UadpPrefixInfo prefix), Is.True);
+                if (reassembler.TryAddChunk(
+                    prefix.PublisherId, prefix.WriterGroupId, prefix.ChunkDataSetWriterId,
+                    chunk.Frame[prefix.PrefixLength..], out ReadOnlyMemory<byte>? payload))
+                {
+                    rebuilt = UadpChunker.ComposeReassembledNetworkMessage(
+                        chunk.Frame.Span, prefix, payload!.Value.Span);
+                }
+            }
+
+            Assert.That(rebuilt, Is.Not.Null);
+            var decoded = (UadpNetworkMessage)UadpDecoder.Decode(rebuilt, context)!;
+            Assert.That(
+                decoded.DataSetMessages[0].Fields[0].Value.TryGetValue(out ByteString value),
+                Is.True);
+            Assert.That(value.Span.ToArray(), Is.EqualTo(CreateFieldBytes(70000)));
+        }
+
+        [Test]
+        public void EncodeRejectsSizesBeyondTheUInt16Range()
+        {
+            UadpNetworkMessage message = CreateMessage(fieldBytes: 70000) with
+            {
+                DataSetMessages =
+                [
+                    CreateDataSetMessage(21, 70000),
+                    CreateDataSetMessage(22, 10)
+                ]
+            };
+
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
+                () => UadpEncoder.EncodeData(message, UadpTestUtilities.NewContext()));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         [Test]

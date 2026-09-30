@@ -476,15 +476,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             switch (builtInType)
             {
                 case BuiltInType.String:
-                    string s = ReadPaddedUtf8(maxStringLength);
-                    value = new Variant(s);
+                    string? s = ReadPaddedUtf8(maxStringLength);
+                    value = s is null ? Variant.Null : new Variant(s);
                     return true;
                 case BuiltInType.ByteString:
                     ByteString bs = ReadPaddedBytes(maxStringLength);
                     value = new Variant(bs);
                     return true;
                 case BuiltInType.XmlElement:
-                    string xmlText = ReadPaddedUtf8(maxStringLength);
+                    string? xmlText = ReadPaddedUtf8(maxStringLength);
                     var xml = XmlElement.From(
                         string.IsNullOrEmpty(xmlText) ? null : xmlText);
                     value = new Variant(xml);
@@ -495,13 +495,16 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
         }
 
-        private string ReadPaddedUtf8(uint maxStringLength)
+        private string? ReadPaddedUtf8(uint maxStringLength)
         {
             int length = ReadPaddedStringLength(maxStringLength, out int total);
-            string result = length == 0
-                ? string.Empty
-                : SysText.Encoding.UTF8.GetString(
-                    m_buffer, m_origin + m_position + 4, length);
+            string? result = length switch
+            {
+                < 0 => null,
+                0 => string.Empty,
+                _ => SysText.Encoding.UTF8.GetString(
+                    m_buffer, m_origin + m_position + 4, length)
+            };
             m_position += total;
             return result;
         }
@@ -509,10 +512,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         private ByteString ReadPaddedBytes(uint maxLength)
         {
             int length = ReadPaddedStringLength(maxLength, out int total);
-            if (length == 0)
+            if (length <= 0)
             {
                 m_position += total;
-                return ByteString.Empty;
+                return length < 0 ? default : ByteString.Empty;
             }
             byte[] bytes = new byte[length];
             new ReadOnlySpan<byte>(m_buffer, m_origin + m_position + 4, length)
@@ -525,7 +528,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Validates a padded String / ByteString block
         /// (<c>Int32 length + MaxStringLength bytes</c>) at the cursor and
         /// returns the encoded value length without moving the cursor.
-        /// A null value (length -1) is returned as length 0.
+        /// A null value is returned as length -1.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private readonly int ReadPaddedStringLength(uint maxLength, out int total)
@@ -543,7 +546,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 new ReadOnlySpan<byte>(m_buffer, m_origin + m_position, 4));
             if (length == -1)
             {
-                return 0;
+                return -1;
             }
             if (length < 0 || (uint)length > maxLength)
             {
@@ -612,7 +615,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             long paddedSize = (long)expectedCount * elementSize;
             EnsureRemaining(paddedSize);
             int start = m_position;
-            value = builtInType switch
+            value = count < 0 ? NullArray(builtInType) : builtInType switch
             {
                 BuiltInType.Boolean => ReadPaddedBooleanArray(count),
                 BuiltInType.SByte => ReadPaddedSByteArray(count),
@@ -634,10 +637,35 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         /// <summary>
+        /// The value of a null array (length -1, Part 6 §5.2.5), shaped like
+        /// the result of <see cref="ReadRawArrayCore"/>.
+        /// </summary>
+        private static Variant NullArray(BuiltInType builtInType)
+        {
+            return builtInType switch
+            {
+                BuiltInType.Boolean => new Variant(default(ArrayOf<bool>)),
+                BuiltInType.SByte => new Variant(default(ArrayOf<sbyte>)),
+                BuiltInType.Byte => new Variant(default(ArrayOf<byte>)),
+                BuiltInType.Int16 => new Variant(default(ArrayOf<short>)),
+                BuiltInType.UInt16 => new Variant(default(ArrayOf<ushort>)),
+                BuiltInType.Int32 => new Variant(default(ArrayOf<int>)),
+                BuiltInType.UInt32 => new Variant(default(ArrayOf<uint>)),
+                BuiltInType.Int64 => new Variant(default(ArrayOf<long>)),
+                BuiltInType.UInt64 => new Variant(default(ArrayOf<ulong>)),
+                BuiltInType.Float => new Variant(default(ArrayOf<float>)),
+                BuiltInType.Double => new Variant(default(ArrayOf<double>)),
+                BuiltInType.ByteString => new Variant(default(ArrayOf<ByteString>)),
+                _ => Variant.Null
+            };
+        }
+
+        /// <summary>
         /// Reads the Part 6 array header of a padded RawData array: the
         /// Int32 length for one dimension or the Int32 dimensions array
         /// for ValueRank &gt; 1. Returns the actual element count, which
-        /// shall not exceed the configured ArrayDimensions.
+        /// shall not exceed the configured ArrayDimensions, or -1 for a
+        /// null one-dimensional array.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private int ReadPaddedArrayLength(ArrayOf<uint> arrayDimensions, int expectedCount)
@@ -652,7 +680,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 if (header == uint.MaxValue)
                 {
-                    return 0;
+                    // Null array (Part 6 §5.2.5).
+                    return -1;
                 }
                 if (header > (uint)expectedCount)
                 {
@@ -828,7 +857,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             string[] arr = new string[expectedCount];
             for (int i = 0; i < expectedCount; i++)
             {
-                arr[i] = ReadPaddedUtf8(maxStringLength);
+                // Null elements become empty like in DecodeStringArrayVariant.
+                arr[i] = ReadPaddedUtf8(maxStringLength) ?? string.Empty;
             }
             return new Variant(new ArrayOf<string>(arr));
         }

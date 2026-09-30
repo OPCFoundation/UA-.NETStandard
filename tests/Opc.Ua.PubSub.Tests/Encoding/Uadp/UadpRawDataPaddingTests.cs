@@ -266,6 +266,147 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 "ByteString round-trip must skip the zero padding.");
         }
 
+        [TestCase(BuiltInType.String)]
+        [TestCase(BuiltInType.ByteString)]
+        [TestSpec("7.2.4.5.11")]
+        public void NullPaddedStringIsEncodedWithLengthMinusOneAndRoundTripsAsNull(BuiltInType builtInType)
+        {
+            // Structure field semantics (Part 6 §5.2.2.4): null is length -1,
+            // still padded to 4 + MaxStringLength bytes.
+            byte[] buffer = new byte[64];
+            var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+
+            writer.WriteRawScalar(
+                Variant.Null,
+                builtInType,
+                ValueRanks.Scalar,
+                maxStringLength: 8,
+                arrayDimensions: default,
+                context);
+
+            Assert.That(writer.Position, Is.EqualTo(4 + 8));
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(writer.WrittenSpan()), Is.EqualTo(-1));
+            Assert.That(writer.WrittenSpan()[4..].ToArray(), Is.All.Zero);
+
+            var reader = new UadpBinaryReader(buffer, 0, writer.Position);
+            Variant decoded = reader.ReadRawScalar(
+                builtInType,
+                ValueRanks.Scalar,
+                maxStringLength: 8,
+                arrayDimensions: default,
+                context);
+            if (builtInType == BuiltInType.String)
+            {
+                Assert.That(decoded.IsNull, Is.True);
+            }
+            else
+            {
+                Assert.That(decoded.TryGetValue(out ByteString bytes), Is.True);
+                Assert.That(bytes.IsNull, Is.True);
+            }
+            Assert.That(reader.Remaining, Is.Zero);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11")]
+        public void EmptyPaddedStringKeepsLengthZeroAndRoundTripsAsEmpty()
+        {
+            byte[] buffer = new byte[64];
+            var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+
+            writer.WriteRawScalar(
+                new Variant(string.Empty),
+                BuiltInType.String,
+                ValueRanks.Scalar,
+                maxStringLength: 8,
+                arrayDimensions: default,
+                context);
+
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(writer.WrittenSpan()), Is.Zero);
+            var reader = new UadpBinaryReader(buffer, 0, writer.Position);
+            Variant decoded = reader.ReadRawScalar(
+                BuiltInType.String,
+                ValueRanks.Scalar,
+                maxStringLength: 8,
+                arrayDimensions: default,
+                context);
+            Assert.That(decoded.TryGetValue(out string? text), Is.True);
+            Assert.That(text, Is.Empty);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11")]
+        public void NullPaddedArrayIsEncodedWithLengthMinusOneAndRoundTripsAsNull()
+        {
+            // Part 6 §5.2.5: a null array has length -1; the block is still
+            // padded to product(ArrayDimensions) elements.
+            uint[] arrayDimensions = [3u];
+            byte[] buffer = new byte[64];
+            var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+
+            writer.WriteRawScalar(
+                new Variant(default(ArrayOf<int>)),
+                BuiltInType.Int32,
+                ValueRanks.OneDimension,
+                maxStringLength: 0,
+                arrayDimensions: new ArrayOf<uint>(arrayDimensions),
+                context);
+
+            Assert.That(writer.Position, Is.EqualTo(4 + 12));
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(writer.WrittenSpan()), Is.EqualTo(-1));
+
+            var reader = new UadpBinaryReader(buffer, 0, writer.Position);
+            Variant decoded = reader.ReadRawScalar(
+                BuiltInType.Int32,
+                ValueRanks.OneDimension,
+                maxStringLength: 0,
+                arrayDimensions: new ArrayOf<uint>(arrayDimensions),
+                context);
+            decoded.TryGetValue(out ArrayOf<int> arr);
+            Assert.That(arr.IsNull, Is.True);
+            Assert.That(reader.Remaining, Is.Zero);
+        }
+
+        [Test]
+        [TestSpec("7.2.4.5.11")]
+        public void NullByteStringArrayElementIsEncodedWithLengthMinusOne()
+        {
+            uint[] arrayDimensions = [2u];
+            byte[] buffer = new byte[64];
+            var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+
+            writer.WriteRawScalar(
+                new Variant(new ArrayOf<ByteString>(new ByteString[] { default })),
+                BuiltInType.ByteString,
+                ValueRanks.OneDimension,
+                maxStringLength: 4,
+                arrayDimensions: new ArrayOf<uint>(arrayDimensions),
+                context);
+
+            // Array length 1, then the null element (-1) and one all-zero
+            // padding element (length 0), each 4 + 4 bytes.
+            ReadOnlySpan<byte> written = writer.WrittenSpan();
+            Assert.That(writer.Position, Is.EqualTo(4 + (2 * 8)));
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(written), Is.EqualTo(1));
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(written[4..]), Is.EqualTo(-1));
+            Assert.That(BinaryPrimitives.ReadInt32LittleEndian(written[12..]), Is.Zero);
+
+            var reader = new UadpBinaryReader(buffer, 0, writer.Position);
+            Variant decoded = reader.ReadRawScalar(
+                BuiltInType.ByteString,
+                ValueRanks.OneDimension,
+                maxStringLength: 4,
+                arrayDimensions: new ArrayOf<uint>(arrayDimensions),
+                context);
+            Assert.That(decoded.TryGetValue(out ArrayOf<ByteString> arr), Is.True);
+            Assert.That(arr.Count, Is.EqualTo(1));
+            Assert.That(arr[0].IsNull, Is.True);
+        }
+
         [Test]
         [TestSpec("7.2.4.5.11")]
         public void XmlElementWithMaxStringLength64AlwaysEmitsLengthPrefixAnd64Bytes()

@@ -589,6 +589,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 UadpFlags = uadpFlags,
                 ExtendedFlags1 = ext1,
                 ExtendedFlags2 = ext2,
+                NetworkMessageNumberOffset = -1,
+                SequenceNumberOffset = -1,
                 PayloadHeaderOffset = -1
             };
 
@@ -605,6 +607,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 info = info with { PrefixLength = reader.Position };
                 return true;
             }
+            int networkMessageNumberOffset = -1;
+            int sequenceNumberOffset = -1;
             if ((uadpFlags & UadpFlagsEncodingMask.GroupHeaderEnabled) != 0)
             {
                 if (!reader.TryReadByte(out byte gfByte))
@@ -625,15 +629,21 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 {
                     return false;
                 }
-                if ((groupFlags & GroupFlagsEncodingMask.NetworkMessageNumberEnabled) != 0 &&
-                    !reader.TryReadUInt16Le(out _))
+                if ((groupFlags & GroupFlagsEncodingMask.NetworkMessageNumberEnabled) != 0)
                 {
-                    return false;
+                    networkMessageNumberOffset = reader.Position;
+                    if (!reader.TryReadUInt16Le(out _))
+                    {
+                        return false;
+                    }
                 }
-                if ((groupFlags & GroupFlagsEncodingMask.SequenceNumberEnabled) != 0 &&
-                    !reader.TryReadUInt16Le(out _))
+                if ((groupFlags & GroupFlagsEncodingMask.SequenceNumberEnabled) != 0)
                 {
-                    return false;
+                    sequenceNumberOffset = reader.Position;
+                    if (!reader.TryReadUInt16Le(out _))
+                    {
+                        return false;
+                    }
                 }
             }
 
@@ -692,6 +702,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 PrefixLength = reader.Position,
                 WriterGroupId = writerGroupId,
+                NetworkMessageNumberOffset = networkMessageNumberOffset,
+                SequenceNumberOffset = sequenceNumberOffset,
                 PayloadHeaderOffset = payloadHeaderOffset,
                 PayloadHeaderLength = payloadHeaderLength,
                 PayloadCount = payloadCount,
@@ -1017,6 +1029,16 @@ out PubSubDataSetMessageType messageType))
 
         /// <summary>WriterGroupId of the GroupHeader, 0 when absent.</summary>
         public ushort WriterGroupId { get; init; }
+
+        /// <summary>
+        /// Offset of the GroupHeader NetworkMessageNumber, -1 when absent.
+        /// </summary>
+        public int NetworkMessageNumberOffset { get; init; }
+
+        /// <summary>
+        /// Offset of the GroupHeader SequenceNumber, -1 when absent.
+        /// </summary>
+        public int SequenceNumberOffset { get; init; }
 
         /// <summary>Number of flag bytes (UADPFlags and extended flags).</summary>
         public int FlagsLength { get; init; }
