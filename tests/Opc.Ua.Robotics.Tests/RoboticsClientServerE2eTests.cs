@@ -136,6 +136,126 @@ namespace Opc.Ua.Robotics.Client.Tests
         }
 
         [Test]
+        public async Task ReadSystemReturnsTheValuesTheServerPublishesAsync()
+        {
+            RoboticsTopologySnapshot snapshot = await m_client.ReadSystemAsync(
+                await SystemIdAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(snapshot.Controllers, Has.Count.EqualTo(1));
+            Assert.That(snapshot.Axes, Has.Count.EqualTo(6));
+            Assert.That(snapshot.PowerTrains, Has.Count.EqualTo(6));
+            Assert.That(snapshot.SafetyStates, Has.Count.EqualTo(1));
+            Assert.That(snapshot.TaskControls, Has.Count.EqualTo(1));
+            Assert.That(snapshot.TaskModules, Has.Count.EqualTo(3));
+
+            // Process values below DI:ParameterSet, with a good status.
+            for (int ii = 1; ii < s_axes.Length; ii++)
+            {
+                AxisSnapshot axis = snapshot.Axes.ToArray()!
+                    .Single(a => a.Identification.BrowseName.Name == s_axes[ii]);
+                Assert.That(StatusCode.IsGood(axis.State.ActualPosition.StatusCode), Is.True, s_axes[ii]);
+                Assert.That(axis.State.ActualPosition.WrappedValue.TryGetValue(out double position), Is.True,
+                    s_axes[ii]);
+                Assert.That(position, Is.EqualTo(s_home[ii]), s_axes[ii]);
+                Assert.That(axis.MotionProfile, Is.EqualTo(AxisMotionProfileEnumeration.ROTARY));
+            }
+
+            // Identification with DI browse names, members with Robotics browse names.
+            MotionDeviceSnapshot robot = snapshot.MotionDevices[0];
+            Assert.That(robot.Identification.Manufacturer.Text, Is.EqualTo("Acme Robotics"));
+            Assert.That(robot.Identification.SerialNumber, Is.EqualTo("AR6-0001"));
+            Assert.That(robot.Identification.Model.Text, Is.EqualTo("AR-6"));
+            Assert.That(robot.Category, Is.EqualTo(MotionDeviceCategoryEnumeration.ARTICULATED_ROBOT));
+            Assert.That(robot.SpeedOverride.WrappedValue.TryGetValue(out double speed), Is.True);
+            Assert.That(speed, Is.EqualTo(100.0));
+            Assert.That(snapshot.Controllers[0].Identification.SerialNumber, Is.EqualTo("RC9-0001"));
+            LoadSnapshot flange = snapshot.Loads.ToArray()!.Single(l => l.NodeId == robot.FlangeLoadId);
+            Assert.That(flange.Mass.WrappedValue.TryGetValue(out double mass), Is.True);
+            Assert.That(mass, Is.EqualTo(6.5));
+
+            // Safety and task values below the ParameterSet, function and module names directly.
+            SafetyStateSnapshot safety = snapshot.SafetyStates[0];
+            Assert.That(safety.EmergencyStop.WrappedValue.TryGetValue(out bool estop), Is.True);
+            Assert.That(estop, Is.False);
+            Assert.That(safety.OperationalMode.WrappedValue.TryGetValue(out int mode), Is.True);
+            Assert.That(mode, Is.EqualTo((int)OperationalModeEnumeration.AUTOMATIC));
+            Assert.That(safety.ProtectiveStop.WrappedValue.TryGetValue(out bool protective), Is.True);
+            Assert.That(protective, Is.False);
+            Assert.That(safety.EmergencyStopFunctions, Has.Count.EqualTo(1));
+            Assert.That(safety.EmergencyStopFunctions[0].Name, Is.EqualTo("Pendant"));
+            Assert.That(safety.ProtectiveStopFunctions, Has.Count.EqualTo(1));
+            Assert.That(safety.ProtectiveStopFunctions[0].Name, Is.EqualTo("Door"));
+            TaskControlSnapshot task = snapshot.TaskControls[0];
+            Assert.That(task.ExecutionMode.WrappedValue.TryGetValue(out int execution), Is.True);
+            Assert.That(execution, Is.EqualTo((int)ExecutionModeEnumeration.CONTINUOUS));
+            Assert.That(task.TaskProgramLoaded.WrappedValue.TryGetValue(out bool _), Is.True);
+            Assert.That(task.TaskProgramName.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(snapshot.TaskModules.ToArray()!.Select(m => m.Name), Is.EquivalentTo(s_modules));
+            Assert.That(snapshot.TaskModules.ToArray()!.Single(m => m.Name == "Main").Version, Is.EqualTo("1.4"));
+
+            // Motors and gears are placeholders: one of each per power train.
+            Assert.That(
+                snapshot.PowerTrains.ToArray()!.All(p => p.MotorIds.Count == 1 && p.GearIds.Count == 1),
+                Is.True);
+            Assert.That(snapshot.Motors, Has.Count.EqualTo(6));
+            Assert.That(snapshot.Gears, Has.Count.EqualTo(6));
+            Assert.That(
+                snapshot.Motors.ToArray()!.All(m => m.Identification.Manufacturer.Text == "Acme Robotics"),
+                Is.True);
+            Assert.That(snapshot.Drives, Has.Count.EqualTo(1), "one drive drives the A1 and A2 motors");
+            Assert.That(snapshot.Drives[0].Identification.ProductCode, Is.EqualTo("DR-1"));
+
+            // Relationships are browsed in both directions: each Moves reference is
+            // listed from its power train and, inverse, from its axis.
+            Assert.That(snapshot.Relationships.Moves.ToArray()!.Count(r => !r.IsInverse), Is.EqualTo(6));
+            Assert.That(snapshot.Relationships.IsDrivenBy, Is.Not.Empty);
+        }
+
+        [Test]
+        public async Task ObserveAxisDeliversChangingPositionsAsync()
+        {
+            NodeId axisId = await AxisIdAsync("A1").ConfigureAwait(false);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var pump = new CancellationTokenSource();
+            Task writer = Task.Run(async () =>
+            {
+                double value = 10;
+                while (!pump.IsCancellationRequested)
+                {
+                    value++;
+                    Write(m_a1Position, value);
+                    await Task.Delay(150, CancellationToken.None).ConfigureAwait(false);
+                }
+            });
+            var positions = new List<double>();
+            try
+            {
+                await foreach (AxisStateSnapshot state in m_client.ObserveAxisAsync(
+                    axisId, m_streaming, timeout.Token).ConfigureAwait(false))
+                {
+                    Assert.That(StatusCode.IsGood(state.ActualPosition.StatusCode), Is.True);
+                    if (state.ActualPosition.WrappedValue.TryGetValue(out double position) &&
+                        (positions.Count == 0 || positions[positions.Count - 1] != position))
+                    {
+                        positions.Add(position);
+                    }
+                    if (positions.Count >= 3)
+                    {
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                pump.Cancel();
+                await writer.ConfigureAwait(false);
+            }
+
+            Assert.That(positions, Has.Count.GreaterThanOrEqualTo(3));
+            Assert.That(positions, Is.Ordered.Ascending);
+        }
+
+        [Test]
         public async Task ResetToProgramStartRunsTheServerMethodAsync()
         {
             TaskControlClient task = m_client.TaskControl(m_taskControlId);
@@ -154,10 +274,29 @@ namespace Opc.Ua.Robotics.Client.Tests
             Assert.That(await task.ReadStateAsync().ConfigureAwait(false), Is.EqualTo(RoboticsOperationState.Idle));
         }
 
+        private async Task<NodeId> SystemIdAsync()
+        {
+            await foreach (MotionDeviceSystemEntry entry in m_client.EnumerateMotionDeviceSystemsAsync()
+                .ConfigureAwait(false))
+            {
+                return entry.NodeId;
+            }
+            throw new AssertionException("The server publishes no MotionDeviceSystem.");
+        }
+
+        private async Task<NodeId> AxisIdAsync(string name)
+        {
+            RoboticsTopologySnapshot snapshot = await m_client.ReadSystemAsync(
+                await SystemIdAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            return snapshot.Axes.ToArray()!
+                .Single(a => a.Identification.BrowseName.Name == name).Identification.NodeId;
+        }
+
         private async ValueTask ConfigureCellAsync(IRoboticsBuildContext context, CancellationToken cancellationToken)
         {
             try
             {
+                m_serverContext = context.Context;
                 ITaskControlBuilder? mainTask = null;
                 await context.AddMotionDeviceSystemAsync(
                     "Cell",
@@ -244,7 +383,14 @@ namespace Opc.Ua.Robotics.Client.Tests
                     .WithMotionProfile(AxisMotionProfileEnumeration.ROTARY)
                     .WithActualPosition(s_home[index], degree, new Range(180, -180))
                     .WithActualSpeed(0)
-                    .WithActualAcceleration(0));
+                    .WithActualAcceleration(0)
+                    .Configure((node, context) =>
+                    {
+                        if (index == 0)
+                        {
+                            m_a1Position = Child(node.ParameterSet!, context, BrowseNames.ActualPosition);
+                        }
+                    }));
                 IPowerTrainBuilder powerTrain = robot.AddPowerTrain($"PT-{name}", pt =>
                 {
                     IMotorBuilder motor = pt.AddMotor($"M-{name}", m => m
@@ -369,6 +515,13 @@ namespace Opc.Ua.Robotics.Client.Tests
             return configuration;
         }
 
+        private void Write(BaseDataVariableState node, double value)
+        {
+            node.WrappedValue = Variant.From(value);
+            node.Timestamp = DateTime.UtcNow;
+            node.ClearChangeMasks(m_serverContext, includeChildren: false);
+        }
+
         private static Action<DeviceIdentificationData> Identity(string model, string productCode, string serial)
         {
             return data =>
@@ -378,6 +531,13 @@ namespace Opc.Ua.Robotics.Client.Tests
                 data.ProductCode = productCode;
                 data.SerialNumber = serial;
             };
+        }
+
+        private static BaseDataVariableState Child(NodeState parent, ISystemContext context, string browseName)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(context, children);
+            return children.OfType<BaseDataVariableState>().Single(c => c.BrowseName.Name == browseName);
         }
 
         private static EUInformation Unit(string commonCode, string symbol, string name)
@@ -417,6 +577,7 @@ namespace Opc.Ua.Robotics.Client.Tests
 
         private static readonly string[] s_axes = ["A1", "A2", "A3", "A4", "A5", "A6"];
         private static readonly double[] s_home = [0.0, -60.0, 75.0, 0.0, 45.0, 0.0];
+        private static readonly string[] s_modules = ["Main", "Gripper", "Diagnostics"];
 
         private readonly TaskCompletionSource<bool> m_cellReady =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -427,6 +588,8 @@ namespace Opc.Ua.Robotics.Client.Tests
         private ISession m_session = null!;
         private StreamingSubscription m_streaming = null!;
         private RoboticsClient m_client = null!;
+        private ISystemContext m_serverContext = null!;
+        private BaseDataVariableState m_a1Position = null!;
         private NodeId m_taskControlId;
         private int m_resets;
         private string m_serverUrl = string.Empty;

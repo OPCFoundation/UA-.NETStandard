@@ -103,6 +103,26 @@ namespace Opc.Ua.Robotics.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(snapshot.Systems[0].Identification.ComponentName.Text, Is.EqualTo("System"));
+                Assert.That(snapshot.Systems[0].Identification.SerialNumber, Is.EqualTo("SystemSerial"),
+                    "identification comes from the DI namespace, not the namespace-0 decoy");
+                Assert.That(snapshot.Systems[0].Identification.Manufacturer.Text, Is.EqualTo("OPC"));
+                Assert.That(
+                    snapshot.MotionDevices[0].Category,
+                    Is.EqualTo(MotionDeviceCategoryEnumeration.ARTICULATED_ROBOT));
+                Assert.That(
+                    snapshot.MotionDevices[0].SpeedOverride.WrappedValue.TryGetValue(out double speed),
+                    Is.True);
+                Assert.That(speed, Is.EqualTo(0.75d), "SpeedOverride comes from the ParameterSet");
+                Assert.That(snapshot.Axes[0].MotionProfile, Is.EqualTo(AxisMotionProfileEnumeration.ROTARY));
+                Assert.That(snapshot.Gears[0].Pitch.WrappedValue.TryGetValue(out double pitch), Is.True);
+                Assert.That(pitch, Is.EqualTo(1.0d));
+                Assert.That(snapshot.SafetyStates[0].EmergencyStop.WrappedValue.TryGetValue(out bool estop), Is.True);
+                Assert.That(estop, Is.False);
+                Assert.That(
+                    snapshot.TaskControls[0].TaskProgramName.WrappedValue.TryGetValue(out string program),
+                    Is.True);
+                Assert.That(program, Is.EqualTo("Program"));
+                Assert.That(snapshot.TaskModules[0].Version, Is.EqualTo("1.0"));
                 Assert.That(snapshot.Controllers[0].TaskControlIds.ToList(), Does.Contain(h.TaskControlId));
                 Assert.That(snapshot.MotionDevices[0].AxisIds.ToList(), Does.Contain(h.AxisId));
                 Assert.That(snapshot.MotionDevices[0].FlangeLoadId, Is.EqualTo(h.FlangeLoadId));
@@ -161,7 +181,7 @@ namespace Opc.Ua.Robotics.Client.Tests
         public async Task ProgramsAsyncReturnsFileSystemClientAndFailsWhenAbsent()
         {
             RoboticsSessionHarness h = new();
-            h.AddChild(h.ControllerId, RoboticsBrowseNames.Programs, h.ProgramsId);
+            h.AddChild(h.ControllerId, h.Rob(RoboticsBrowseNames.Programs), h.ProgramsId);
 
             FileSystemClient fileSystem = await h.Client.ProgramsAsync(h.ControllerId).ConfigureAwait(false);
 
@@ -363,7 +383,8 @@ namespace Opc.Ua.Robotics.Client.Tests
 
         private sealed class RoboticsSessionHarness
         {
-            private readonly Dictionary<(NodeId Parent, string BrowseName), NodeId> m_children = [];
+            private readonly Dictionary<(NodeId Parent, QualifiedName BrowseName), NodeId> m_children = [];
+            private readonly Dictionary<NodeId, NodeId> m_parameterSets = [];
             private readonly Dictionary<NodeId, List<ReferenceDescription>> m_browse = [];
             private readonly Dictionary<NodeId, Variant> m_values = [];
             private readonly HashSet<NodeId> m_continuationNodes = [];
@@ -498,41 +519,47 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public void ConfigureCompleteTopology()
             {
-                AddChild(SystemId, RoboticsBrowseNames.Controllers, ControllersFolderId);
-                AddChild(SystemId, RoboticsBrowseNames.MotionDevices, MotionDevicesFolderId);
-                AddChild(SystemId, RoboticsBrowseNames.SafetyStates, SafetyStatesFolderId);
+                // The layout of OPC 40010-1: folders and non-parameter members with
+                // Robotics browse names, identification with DI browse names, process
+                // values below DI:ParameterSet. Decoys with the same name in namespace 0
+                // or on the wrong level catch a client that ignores either.
+                AddChild(SystemId, Rob(RoboticsBrowseNames.Controllers), ControllersFolderId);
+                AddChild(SystemId, Rob(RoboticsBrowseNames.MotionDevices), MotionDevicesFolderId);
+                AddChild(SystemId, Rob(RoboticsBrowseNames.SafetyStates), SafetyStatesFolderId);
                 AddBrowse(ControllersFolderId, [Ref(ControllerId, "Controller", RoboticsModel.ControllerType)]);
                 AddBrowse(MotionDevicesFolderId, [Ref(MotionDeviceId, "Motion", RoboticsModel.MotionDeviceType)]);
                 AddBrowse(SafetyStatesFolderId, [Ref(SafetyId, "Safety", ObjectTypes.SafetyStateType)]);
 
                 AddIdentification(SystemId, "System");
                 AddIdentification(ControllerId, "Controller");
-                AddChild(ControllerId, RoboticsBrowseNames.TaskControls, TaskControlsFolderId);
-                AddChild(ControllerId, RoboticsBrowseNames.Components, ControllerComponentsFolderId);
-                AddChild(ControllerId, RoboticsBrowseNames.Programs, ProgramsId);
+                AddChild(ControllerId, Rob(RoboticsBrowseNames.TaskControls), TaskControlsFolderId);
+                AddChild(ControllerId, Rob(RoboticsBrowseNames.Components), ControllerComponentsFolderId);
+                AddChild(ControllerId, Rob(RoboticsBrowseNames.Programs), ProgramsId);
                 AddBrowse(TaskControlsFolderId, [Ref(TaskControlId, "Task", ObjectTypes.TaskControlType)]);
                 AddBrowse(
                 ControllerComponentsFolderId,
                 [Ref(ControllerComponentId, "Component", ObjectTypes.AuxiliaryComponentType)]);
 
                 AddIdentification(MotionDeviceId, "Motion");
-                AddChild(MotionDeviceId, RoboticsBrowseNames.Axes, AxesFolderId);
-                AddChild(MotionDeviceId, RoboticsBrowseNames.PowerTrains, PowerTrainsFolderId);
-                AddChild(MotionDeviceId, RoboticsBrowseNames.AdditionalComponents, AdditionalComponentsFolderId);
-                AddChild(MotionDeviceId, RoboticsBrowseNames.FlangeLoad, FlangeLoadId);
-                AddValueChild(MotionDeviceId, RoboticsBrowseNames.MotionDeviceCategory,
+                AddChild(MotionDeviceId, Rob(RoboticsBrowseNames.Axes), AxesFolderId);
+                AddChild(MotionDeviceId, Rob(RoboticsBrowseNames.PowerTrains), PowerTrainsFolderId);
+                AddChild(MotionDeviceId, Rob(RoboticsBrowseNames.AdditionalComponents), AdditionalComponentsFolderId);
+                AddChild(MotionDeviceId, Rob(RoboticsBrowseNames.FlangeLoad), FlangeLoadId);
+                AddValueChild(MotionDeviceId, Rob(RoboticsBrowseNames.MotionDeviceCategory),
                     (int)MotionDeviceCategoryEnumeration.ARTICULATED_ROBOT);
-                AddValueChild(MotionDeviceId, RoboticsBrowseNames.SpeedOverride, 0.75d);
+                AddParameter(MotionDeviceId, RoboticsBrowseNames.SpeedOverride, 0.75d);
+                AddValueChild(MotionDeviceId, Ua(RoboticsBrowseNames.SpeedOverride), -1d);
                 AddBrowse(AxesFolderId, [Ref(AxisId, "Axis", RoboticsModel.AxisType)]);
                 AddBrowse(PowerTrainsFolderId, [Ref(PowerTrainId, "PowerTrain", ObjectTypes.PowerTrainType)]);
                 AddBrowse(AdditionalComponentsFolderId, []);
 
                 AddIdentification(AxisId, "Axis");
-                AddChild(AxisId, RoboticsBrowseNames.AdditionalLoad, AxisLoadId);
-                AddValueChild(AxisId, RoboticsBrowseNames.ActualPosition, 12.5d, AxisPositionId);
-                AddValueChild(AxisId, RoboticsBrowseNames.ActualSpeed, 3.0d, AxisSpeedId);
-                AddValueChild(AxisId, RoboticsBrowseNames.ActualAcceleration, 1.5d, AxisAccelerationId);
-                AddValueChild(AxisId, RoboticsBrowseNames.MotionProfile, (int)AxisMotionProfileEnumeration.ROTARY,
+                AddChild(AxisId, Rob(RoboticsBrowseNames.AdditionalLoad), AxisLoadId);
+                AddParameter(AxisId, RoboticsBrowseNames.ActualPosition, 12.5d, AxisPositionId);
+                AddParameter(AxisId, RoboticsBrowseNames.ActualSpeed, 3.0d, AxisSpeedId);
+                AddParameter(AxisId, RoboticsBrowseNames.ActualAcceleration, 1.5d, AxisAccelerationId);
+                AddValueChild(AxisId, Rob(RoboticsBrowseNames.ActualPosition), -1d);
+                AddValueChild(AxisId, Rob(RoboticsBrowseNames.MotionProfile), (int)AxisMotionProfileEnumeration.ROTARY,
                     AxisMotionProfileId);
                 AddLoad(AxisLoadId);
                 AddLoad(FlangeLoadId);
@@ -545,15 +572,15 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddComponent(PowerTrainId, Ref(GearId, "Gear1", ObjectTypes.GearType));
                 AddIdentification(MotorId, "Motor");
                 AddIdentification(GearId, "Gear");
-                AddValueChild(GearId, RoboticsBrowseNames.Pitch, 1.0d);
+                AddValueChild(GearId, Rob(RoboticsBrowseNames.Pitch), 1.0d);
                 AddIdentification(DriveId, "Drive");
 
                 AddIdentification(SafetyId, "Safety");
-                AddChild(SafetyId, RoboticsBrowseNames.EmergencyStopFunctions, EmergencyFunctionsFolderId);
-                AddChild(SafetyId, RoboticsBrowseNames.ProtectiveStopFunctions, ProtectiveFunctionsFolderId);
-                AddValueChild(SafetyId, RoboticsBrowseNames.EmergencyStop, false);
-                AddValueChild(SafetyId, RoboticsBrowseNames.OperationalMode, 1);
-                AddValueChild(SafetyId, RoboticsBrowseNames.ProtectiveStop, true);
+                AddChild(SafetyId, Rob(RoboticsBrowseNames.EmergencyStopFunctions), EmergencyFunctionsFolderId);
+                AddChild(SafetyId, Rob(RoboticsBrowseNames.ProtectiveStopFunctions), ProtectiveFunctionsFolderId);
+                AddParameter(SafetyId, RoboticsBrowseNames.EmergencyStop, false);
+                AddParameter(SafetyId, RoboticsBrowseNames.OperationalMode, 1);
+                AddParameter(SafetyId, RoboticsBrowseNames.ProtectiveStop, true);
                 AddBrowse(
                 EmergencyFunctionsFolderId,
                 [Ref(EmergencyFunctionId, "EStop", ObjectTypes.EmergencyStopFunctionType)]);
@@ -564,15 +591,15 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddSafetyFunction(ProtectiveFunctionId, "PStop");
 
                 AddIdentification(TaskControlId, "TaskControl");
-                AddChild(TaskControlId, RoboticsBrowseNames.TaskControlOperation, TaskControlOperationId);
-                AddChild(TaskControlId, RoboticsBrowseNames.TaskModules, TaskModulesFolderId);
-                AddValueChild(TaskControlId, RoboticsBrowseNames.ExecutionMode, 1);
-                AddValueChild(TaskControlId, RoboticsBrowseNames.TaskProgramLoaded, true);
-                AddValueChild(TaskControlId, RoboticsBrowseNames.TaskProgramName, "Program");
+                AddChild(TaskControlId, Rob(RoboticsBrowseNames.TaskControlOperation), TaskControlOperationId);
+                AddChild(TaskControlId, Rob(RoboticsBrowseNames.TaskModules), TaskModulesFolderId);
+                AddParameter(TaskControlId, RoboticsBrowseNames.ExecutionMode, 1);
+                AddParameter(TaskControlId, RoboticsBrowseNames.TaskProgramLoaded, true);
+                AddParameter(TaskControlId, RoboticsBrowseNames.TaskProgramName, "Program");
                 AddBrowse(TaskModulesFolderId, [Ref(TaskModuleId, "Module", ObjectTypes.TaskModuleType)]);
-                AddValueChild(TaskModuleId, RoboticsBrowseNames.Name, "Module");
-                AddValueChild(TaskModuleId, "Version", "1.0");
-                AddValueChild(TaskModuleId, RoboticsBrowseNames.IsReferenced, true);
+                AddValueChild(TaskModuleId, Rob(RoboticsBrowseNames.Name), "Module");
+                AddValueChild(TaskModuleId, Rob(RoboticsBrowseNames.Version), "1.0");
+                AddValueChild(TaskModuleId, Rob(RoboticsBrowseNames.IsReferenced), true);
 
                 AddRelationship(ControllerId, ReferenceTypes.Controls, MotionDeviceId);
                 AddRelationship(ControllerId, ReferenceTypes.HasSafetyStates, SafetyId);
@@ -587,7 +614,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 m_callStatus = statusCode;
                 m_callOutput = output;
-                AddChild(SystemOperationId, RoboticsBrowseNames.SystemOperationStateMachine, SystemStateMachineId);
+                AddChild(SystemOperationId, Rob(RoboticsBrowseNames.SystemOperationStateMachine), SystemStateMachineId);
                 AddStateReads(SystemStateMachineId, RoboticsBrowseNames.Ready);
             }
 
@@ -595,17 +622,17 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 m_callStatus = statusCode;
                 m_callOutput = output;
-                AddChild(TaskControlId, RoboticsBrowseNames.TaskControlOperation, TaskControlOperationId);
+                AddChild(TaskControlId, Rob(RoboticsBrowseNames.TaskControlOperation), TaskControlOperationId);
                 AddChild(
                 TaskControlOperationId,
-                RoboticsBrowseNames.TaskControlStateMachine,
+                Rob(RoboticsBrowseNames.TaskControlStateMachine),
                 TaskControlStateMachineId);
-                AddChild(TaskControlStateMachineId, RoboticsBrowseNames.Ready, ReadyStateId);
+                AddChild(TaskControlStateMachineId, Rob(RoboticsBrowseNames.Ready), ReadyStateId);
                 if (readySubstateMachine)
                 {
                     AddChild(
                     TaskControlStateMachineId,
-                    RoboticsBrowseNames.ReadySubstateMachine,
+                    Rob(RoboticsBrowseNames.ReadySubstateMachine),
                     ReadySubstateMachineId);
                 }
                 AddStateReads(TaskControlStateMachineId, RoboticsBrowseNames.Ready);
@@ -613,8 +640,8 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public void AddStateReads(NodeId stateMachine, string stateName)
             {
-                AddChild(stateMachine, Opc.Ua.BrowseNames.CurrentState, CurrentStateNode);
-                AddChild(CurrentStateNode, Opc.Ua.BrowseNames.Id, CurrentStateIdNode);
+                AddChild(stateMachine, Ua(Opc.Ua.BrowseNames.CurrentState), CurrentStateNode);
+                AddChild(CurrentStateNode, Ua(Opc.Ua.BrowseNames.Id), CurrentStateIdNode);
                 m_values[CurrentStateNode] = Variant.From(new LocalizedText(stateName));
                 m_values[CurrentStateIdNode] = Variant.From(new NodeId(999, 2));
             }
@@ -642,9 +669,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                     BrowseName = new QualifiedName(browseName, 2),
                     DisplayName = new LocalizedText(browseName),
                     NodeClass = NodeClass.Object,
-                    TypeDefinition = new ExpandedNodeId(new NodeId(
-                        typeId,
-                        (ushort)NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics))),
+                    TypeDefinition = new ExpandedNodeId(new NodeId(typeId, RoboticsNamespaceIndex)),
                     ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
                     IsForward = true
                 };
@@ -671,47 +696,91 @@ namespace Opc.Ua.Robotics.Client.Tests
                 m_continuationNodes.Add(folder);
             }
 
-            public void AddChild(NodeId parent, string browseName, NodeId child)
+            public ushort RoboticsNamespaceIndex =>
+                (ushort)NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
+
+            public QualifiedName Rob(string name)
+            {
+                return new QualifiedName(name, RoboticsNamespaceIndex);
+            }
+
+            public QualifiedName Di(string name)
+            {
+                return new QualifiedName(name, (ushort)NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi));
+            }
+
+            public static QualifiedName Ua(string name)
+            {
+                return new QualifiedName(name);
+            }
+
+            /// <summary>
+            /// Registers a child under its full browse name, namespace included:
+            /// a path resolves only when every element names the child exactly.
+            /// </summary>
+            public void AddChild(NodeId parent, QualifiedName browseName, NodeId child)
             {
                 m_children[(parent, browseName)] = child;
             }
 
-            private void AddValueChild(NodeId parent, string browseName, object value)
+            private void AddValueChild(NodeId parent, QualifiedName browseName, object value)
             {
                 AddValueChild(
                 parent, browseName, value,
                 new NodeId((uint)Math.Abs(HashCode.Combine(parent, browseName)), 2));
             }
 
-            private void AddValueChild(NodeId parent, string browseName, object value, NodeId nodeId)
+            private void AddValueChild(NodeId parent, QualifiedName browseName, object value, NodeId nodeId)
             {
                 AddChild(parent, browseName, nodeId);
                 m_values[nodeId] = ToVariant(value);
             }
 
+            /// <summary>
+            /// Registers a process value below the DI ParameterSet of its component.
+            /// </summary>
+            private void AddParameter(NodeId parent, string robName, object value, NodeId nodeId = default)
+            {
+                if (!m_parameterSets.TryGetValue(parent, out NodeId parameterSet))
+                {
+                    parameterSet = new NodeId((uint)Math.Abs(HashCode.Combine(parent, "ParameterSet")), 2);
+                    m_parameterSets[parent] = parameterSet;
+                    AddChild(parent, Di(DiBrowseNames.ParameterSet), parameterSet);
+                }
+                if (nodeId.IsNull)
+                {
+                    AddValueChild(parameterSet, Rob(robName), value);
+                }
+                else
+                {
+                    AddValueChild(parameterSet, Rob(robName), value, nodeId);
+                }
+            }
+
             private void AddIdentification(NodeId nodeId, string name)
             {
-                AddValueChild(nodeId, DiBrowseNames.ComponentName, new LocalizedText(name));
-                AddValueChild(nodeId, DiBrowseNames.AssetId, name + "Asset");
-                AddValueChild(nodeId, DiBrowseNames.Manufacturer, new LocalizedText("OPC"));
-                AddValueChild(nodeId, DiBrowseNames.Model, new LocalizedText(name + "Model"));
-                AddValueChild(nodeId, DiBrowseNames.ProductCode, name + "Code");
-                AddValueChild(nodeId, DiBrowseNames.SerialNumber, name + "Serial");
-                AddValueChild(nodeId, DiBrowseNames.DeviceManual, name + "Manual");
+                AddValueChild(nodeId, Di(DiBrowseNames.ComponentName), new LocalizedText(name));
+                AddValueChild(nodeId, Di(DiBrowseNames.AssetId), name + "Asset");
+                AddValueChild(nodeId, Di(DiBrowseNames.Manufacturer), new LocalizedText("OPC"));
+                AddValueChild(nodeId, Di(DiBrowseNames.Model), new LocalizedText(name + "Model"));
+                AddValueChild(nodeId, Di(DiBrowseNames.ProductCode), name + "Code");
+                AddValueChild(nodeId, Di(DiBrowseNames.SerialNumber), name + "Serial");
+                AddValueChild(nodeId, Di(DiBrowseNames.DeviceManual), name + "Manual");
+                AddValueChild(nodeId, Ua(DiBrowseNames.SerialNumber), "wrong namespace");
             }
 
             private void AddLoad(NodeId load)
             {
-                AddValueChild(load, RoboticsBrowseNames.Mass, 10.0d);
-                AddValueChild(load, RoboticsBrowseNames.CenterOfMass, "center");
-                AddValueChild(load, RoboticsBrowseNames.Inertia, "inertia");
+                AddValueChild(load, Rob(RoboticsBrowseNames.Mass), 10.0d);
+                AddValueChild(load, Rob(RoboticsBrowseNames.CenterOfMass), "center");
+                AddValueChild(load, Rob(RoboticsBrowseNames.Inertia), "inertia");
             }
 
             private void AddSafetyFunction(NodeId nodeId, string name)
             {
-                AddValueChild(nodeId, RoboticsBrowseNames.Name, name);
-                AddValueChild(nodeId, RoboticsBrowseNames.Active, true);
-                AddValueChild(nodeId, RoboticsBrowseNames.Enabled, true);
+                AddValueChild(nodeId, Rob(RoboticsBrowseNames.Name), name);
+                AddValueChild(nodeId, Rob(RoboticsBrowseNames.Active), true);
+                AddValueChild(nodeId, Rob(RoboticsBrowseNames.Enabled), true);
             }
 
             private void AddRelationship(NodeId source, uint referenceType, NodeId target)
@@ -749,7 +818,7 @@ namespace Opc.Ua.Robotics.Client.Tests
                             bool found = true;
                             for (int jj = 0; jj < path.RelativePath.Elements.Count; jj++)
                             {
-                                string name = path.RelativePath.Elements[jj].TargetName.Name ?? string.Empty;
+                                QualifiedName name = path.RelativePath.Elements[jj].TargetName;
                                 if (!m_children.TryGetValue((current, name), out NodeId next))
                                 {
                                     found = false;
@@ -777,29 +846,31 @@ namespace Opc.Ua.Robotics.Client.Tests
                     .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
                         (_, _, _, descriptions, _) =>
                         {
-                            BrowseDescription description = descriptions[0];
-                            List<ReferenceDescription> refs = m_browse.TryGetValue(
-                                description.NodeId, out List<ReferenceDescription>? value)
-                                ? value.Where(r =>
-                                    description.ReferenceTypeId.IsNull ||
-                                    r.ReferenceTypeId == description.ReferenceTypeId ||
-                                    description.ReferenceTypeId ==
-                                        Opc.Ua.ReferenceTypeIds.HierarchicalReferences).ToList()
-                                : [];
-                            bool continuation = m_continuationNodes.Remove(description.NodeId) && refs.Count > 0;
-                            ArrayOf<ReferenceDescription> returned = continuation ? [refs[0]] : refs.ToArrayOf();
+                            var results = new List<BrowseResult>(descriptions.Count);
+                            for (int ii = 0; ii < descriptions.Count; ii++)
+                            {
+                                BrowseDescription description = descriptions[ii];
+                                List<ReferenceDescription> refs = m_browse.TryGetValue(
+                                    description.NodeId, out List<ReferenceDescription>? value)
+                                    ? value.Where(r =>
+                                        description.ReferenceTypeId.IsNull ||
+                                        r.ReferenceTypeId == description.ReferenceTypeId ||
+                                        description.ReferenceTypeId == Opc.Ua.ReferenceTypeIds.References ||
+                                        description.ReferenceTypeId ==
+                                            Opc.Ua.ReferenceTypeIds.HierarchicalReferences).ToList()
+                                    : [];
+                                bool continuation = m_continuationNodes.Remove(description.NodeId) && refs.Count > 0;
+                                results.Add(new BrowseResult
+                                {
+                                    StatusCode = StatusCodes.Good,
+                                    References = continuation ? [refs[0]] : refs.ToArrayOf(),
+                                    ContinuationPoint = continuation ? new ByteString(new byte[] { 1 }) : default
+                                });
+                            }
                             return new ValueTask<BrowseResponse>(new BrowseResponse
                             {
                                 ResponseHeader = new ResponseHeader(),
-                                Results =
-                                [
-                                    new BrowseResult
-                                    {
-                                        StatusCode = StatusCodes.Good,
-                                        References = returned,
-                                        ContinuationPoint = continuation ? new ByteString(new byte[] { 1 }) : default
-                                    }
-                                ],
+                                Results = results.ToArrayOf(),
                                 DiagnosticInfos = default
                             });
                         });
