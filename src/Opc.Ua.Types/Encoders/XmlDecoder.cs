@@ -2495,7 +2495,8 @@ namespace Opc.Ua
                         case "Double":
                             return ReadDouble(typeName);
                         case "String":
-                            return ReadString(typeName) ?? string.Empty;
+                            // a nil element is a null String Variant (5.3.1.17)
+                            return new Variant(ReadString(typeName)!);
                         case "DateTime":
                             return ReadDateTime(typeName);
                         case "Guid":
@@ -2783,6 +2784,7 @@ namespace Opc.Ua
                     PushNamespace(Namespaces.OpcUaXsd);
 
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
+                    MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
 
                     // A multi-dimensional Variant must carry Dimensions with at
                     // least two entries, each greater than zero (Part 6 5.2.2.16);

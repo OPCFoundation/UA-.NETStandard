@@ -618,11 +618,11 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void VariantMatrixWithMoreThan32DimensionsIsRejected()
+        public void VariantMatrixWithMoreThan32DimensionsExceedsEncodingLimits()
         {
             // Int32 | Array | ArrayDimensions, one value, 33 dimensions of 1:
-            // the product matches the element count, but no .NET array (and
-            // hence no consumer) can have a rank above 32.
+            // the matrix is valid per Part 6, but no .NET array (and hence no
+            // consumer) can have a rank above 32, an implementation limit.
             byte[] bytes = Build(w =>
             {
                 w.Write((byte)0xC6);
@@ -636,11 +636,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
 
             using var decoder = new BinaryDecoder(bytes, CreateContext());
-            AssertStatus(() => decoder.ReadVariant(null), StatusCodes.BadDecodingError);
+            AssertStatus(
+                () => decoder.ReadVariant(null),
+                StatusCodes.BadEncodingLimitsExceeded);
         }
 
         [Test]
-        public void VariantMatrixWithRankAboveShortMaxValueIsRejectedAsDecodingError()
+        public void VariantMatrixWithRankAboveShortMaxValueExceedsEncodingLimits()
         {
             // A rank above short.MaxValue made TypeInfo throw an
             // ArgumentOutOfRangeException out of the decoder.
@@ -658,7 +660,55 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
 
             using var decoder = new BinaryDecoder(bytes, CreateContext());
-            AssertStatus(() => decoder.ReadVariant(null), StatusCodes.BadDecodingError);
+            AssertStatus(
+                () => decoder.ReadVariant(null),
+                StatusCodes.BadEncodingLimitsExceeded);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NullVariantWithArrayBitConsumesArrayLengthAndDimensions(bool matrix)
+        {
+            // Null | Array (| ArrayDimensions): ArrayLength and ArrayDimensions
+            // are present (5.2.2.16) and must be consumed, or the Int32 that
+            // follows the Variant is read from the wrong position.
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)(matrix ? 0xC0 : 0x80));
+                w.Write(2);
+                if (matrix)
+                {
+                    w.Write(2);
+                    w.Write(1);
+                    w.Write(2);
+                }
+                w.Write(0x12345678);
+            });
+
+            using var decoder = new BinaryDecoder(bytes, CreateContext());
+            Variant value = decoder.ReadVariant(null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.IsNull, Is.True);
+                Assert.That(decoder.ReadInt32(null), Is.EqualTo(0x12345678));
+            });
+        }
+
+        [Test]
+        public void NullVariantArrayLengthIsBoundedByMaxArrayLength()
+        {
+            byte[] bytes = Build(w =>
+            {
+                w.Write((byte)0x80);
+                w.Write(1000);
+            });
+
+            ServiceMessageContext context = CreateContext();
+            context.MaxArrayLength = 10;
+            using var decoder = new BinaryDecoder(bytes, context);
+            AssertStatus(
+                () => decoder.ReadVariant(null),
+                StatusCodes.BadEncodingLimitsExceeded);
         }
 
         [Test]
@@ -682,7 +732,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void EmptyInlineMatrixWithMoreThan32DimensionsIsRejected()
+        public void EmptyInlineMatrixWithMoreThan32DimensionsExceedsEncodingLimits()
         {
             // An empty inline matrix (a zero dimension, no values) was
             // accepted with any rank.
@@ -700,7 +750,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 () => decoder.ReadVariantValue(
                     null,
                     TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)),
-                StatusCodes.BadDecodingError);
+                StatusCodes.BadEncodingLimitsExceeded);
         }
 
         [Test]

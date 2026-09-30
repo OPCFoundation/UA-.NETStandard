@@ -1771,6 +1771,55 @@ namespace Opc.Ua.Types.Tests.Encoders
                 () => encoder.WriteEncodeable("Item", new TestArrayElement { Value = 1 }, default));
         }
 
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("x")]
+        public void WriteVariantKeepsTheTypeAndValueOfAStringScalar(string value)
+        {
+            // A null String was left out (<V />), which decodes as a null
+            // Variant, and a nil String element was decoded as "" (5.3.1.17).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var variant = new Variant(value);
+            string xml;
+            using (var encoder = new XmlEncoder(
+                new XmlQualifiedName("Root", Namespaces.OpcUaXsd),
+                null,
+                messageContext))
+            {
+                encoder.WriteVariant("V", variant);
+                xml = encoder.CloseAndReturnText();
+            }
+
+            Variant decoded;
+            using (var decoder = new XmlDecoder(XmlReader.Create(new StringReader(xml)), messageContext))
+            {
+                decoder.PushNamespace(Namespaces.OpcUaXsd);
+                decoder.ReadStartElement();
+                decoded = decoder.ReadVariant("V");
+            }
+            Variant parsed;
+            using (var parser = new XmlParser(xml, messageContext))
+            {
+                parser.PushNamespace(Namespaces.OpcUaXsd);
+                parser.ReadStartElement();
+                parsed = parser.ReadVariant("V");
+            }
+
+            Assert.Multiple(() =>
+            {
+                if (value == null)
+                {
+                    Assert.That(xml, Does.Contain("String xsi:nil=\"true\""));
+                }
+                foreach (Variant result in new[] { decoded, parsed })
+                {
+                    Assert.That(result.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.String), xml);
+                    Assert.That(result.GetString(), Is.EqualTo(value), xml);
+                }
+            });
+        }
+
         [Test]
         public void WriteDateTimeWritesTheEarliestValueAsYearOne()
         {

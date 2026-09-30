@@ -1468,11 +1468,12 @@ namespace Opc.Ua
             }
             value.TryGetValue(out IEncodeable? encodeable);
 
-            // For an opaque Binary or XML body of a type the decoder did not know, the
-            // TypeId is the DataTypeEncoding id it was received with, not the DataType id
-            // 5.4.2.16 asks for: the context has no type system to map it, and a peer
-            // decoding the body back needs exactly that encoding id.
-            ExpandedNodeId typeId = encodeable?.TypeId ?? value.TypeId;
+            // UaTypeId is the DataType id also for an opaque Binary or XML body (5.4.2.16
+            // Table 40); its DataTypeEncoding id is mapped through the factory. For a type
+            // the factory does not know the encoding id it was received with is written:
+            // the context has no type system to map it, and a peer decoding the body back
+            // needs exactly that encoding id.
+            ExpandedNodeId typeId = encodeable?.TypeId ?? GetOpaqueBodyDataTypeId(value);
             bool hasTypeId = CanWriteUaTypeId(typeId);
 
             // A TypeId that cannot be written as a JSON NodeId (a server index, or no
@@ -1539,6 +1540,26 @@ namespace Opc.Ua
             }
 
             EndObject();
+        }
+
+        /// <summary>
+        /// Returns the DataType id of an ExtensionObject that is not decoded, which
+        /// carries the DataTypeEncoding id of its Binary or XML body (or the DataType
+        /// id of a JSON body). The DataType id is only known for a type registered in
+        /// the factory; otherwise the TypeId is returned unchanged.
+        /// </summary>
+        private ExpandedNodeId GetOpaqueBodyDataTypeId(ExtensionObject value)
+        {
+            if (value.Encoding is ExtensionObjectEncoding.Binary or ExtensionObjectEncoding.Xml &&
+                Context.Factory.TryGetEncodeableType(value.TypeId, out IEncodeableType? type))
+            {
+                ExpandedNodeId dataTypeId = type.CreateInstance()?.TypeId ?? ExpandedNodeId.Null;
+                if (!dataTypeId.IsNull)
+                {
+                    return dataTypeId;
+                }
+            }
+            return value.TypeId;
         }
 
         /// <summary>
@@ -1873,17 +1894,16 @@ namespace Opc.Ua
                 useNamespaceUri = false;
             }
 
-            if (value.NamespaceIndex == 0 &&
-                value.Name != null &&
-                value.Name.StartsWith("nsu=", StringComparison.Ordinal) &&
-                value.Name.IndexOf(':', StringComparison.Ordinal) < 0)
+            if (value.NamespaceIndex == 0)
             {
-                // Without the index prefix the name would parse back as a namespace
-                // uri form (5.1.12, 5.4.2.14).
-                return "0:" + value.Name;
+                // A name in namespace 0 uses the <name> form (5.1.12 Table 7);
+                // the index prefix is only written when the name would
+                // otherwise parse back as another form (5.4.2.14).
+                string name = value.Name ?? string.Empty;
+                return IsAmbiguousNamespaceZeroName(name) ? "0:" + name : name;
             }
 
-            if (!string.IsNullOrEmpty(value.Name) || value.NamespaceIndex == 0)
+            if (!string.IsNullOrEmpty(value.Name))
             {
                 return value.Format(Context, useNamespaceUri);
             }
@@ -1898,6 +1918,25 @@ namespace Opc.Ua
             }
 
             return value.NamespaceIndex.ToString(CultureInfo.InvariantCulture) + ":";
+        }
+
+        /// <summary>
+        /// Whether a name in namespace 0 has the shape of another QualifiedName
+        /// form: a digit run followed by ':' (a NamespaceIndex) or "nsu=" with
+        /// a ';' (a NamespaceUri).
+        /// </summary>
+        private static bool IsAmbiguousNamespaceZeroName(string name)
+        {
+            if (name.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                return name.IndexOf(';', 4) >= 0;
+            }
+            int digits = 0;
+            while (digits < name.Length && name[digits] is >= '0' and <= '9')
+            {
+                digits++;
+            }
+            return digits > 0 && digits < name.Length && name[digits] == ':';
         }
 
         /// <summary>

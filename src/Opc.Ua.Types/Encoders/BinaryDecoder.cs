@@ -710,6 +710,21 @@ namespace Opc.Ua
                     typeId = (int)BuiltInType.ByteString;
                 }
 
+                // Only a mask of 0 is a NULL without further fields; with the
+                // array bit set, ArrayLength (and ArrayDimensions) are present
+                // (OPC 10000-6 5.2.2.16). A Null element has no bytes, so
+                // consume and bound them to stay in sync and return NULL.
+                if (typeId == (int)BuiltInType.Null &&
+                    (encodingByte & (byte)VariantArrayEncodingBits.Array) != 0)
+                {
+                    ReadArrayLength(0);
+                    if ((encodingByte & (byte)VariantArrayEncodingBits.ArrayDimensions) != 0)
+                    {
+                        ReadInt32Array(null);
+                    }
+                    return Variant.Null;
+                }
+
                 var typeInfo = TypeInfo.Create(
                     (BuiltInType)typeId,
                     (encodingByte & (byte)VariantArrayEncodingBits.Array) == 0 ?
@@ -1574,6 +1589,7 @@ namespace Opc.Ua
                 int[] dimensions,
                 TypeInfo typeInfo)
             {
+                MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
                 if (!MatrixOf.IsValidMatrix(dimensions, values.Count))
                 {
                     throw ServiceResultException.Create(
@@ -1915,13 +1931,13 @@ namespace Opc.Ua
             int minElementSize,
             object description)
         {
-            if (dimensions.Length is < 2 or > MatrixOf.MaxMatrixRank)
+            MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
+            if (dimensions.Length < 2)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Inline matrix has {0} dimension(s), 2 to {1} are required ({2}).",
+                    "Inline matrix has {0} dimension(s), at least 2 are required ({1}).",
                     dimensions.Length,
-                    MatrixOf.MaxMatrixRank,
                     description);
             }
 

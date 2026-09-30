@@ -1991,14 +1991,18 @@ namespace Opc.Ua
                                 case 1: // binary
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
-                                        value = new ExtensionObject(typeId, bytes);
+                                        value = new ExtensionObject(
+                                            GetOpaqueBodyEncodingId(typeId, ExtensionObjectEncoding.Binary),
+                                            bytes);
                                         return true;
                                     }
                                     break;
                                 case 2: // xml
                                     if (TryGetXmlElementFromElement(uaBody, out XmlElement xml))
                                     {
-                                        value = new ExtensionObject(typeId, xml);
+                                        value = new ExtensionObject(
+                                            GetOpaqueBodyEncodingId(typeId, ExtensionObjectEncoding.Xml),
+                                            xml);
                                         return true;
                                     }
                                     break;
@@ -2655,14 +2659,12 @@ namespace Opc.Ua
             ushort namespaceIndex = 0;
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
             {
+                // Without the ';' that separates a NamespaceUri from the name
+                // only the <name> form of Table 7 matches: a name in
+                // namespace 0.
                 int index = text.IndexOf(';', 4);
-                if (index < 0)
-                {
-                    // The ';' separating the NamespaceUri from the name is
-                    // mandatory (Table 7).
-                    return false;
-                }
-                if (CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) &&
+                if (index >= 0 &&
+                    CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) &&
                     !string.IsNullOrWhiteSpace(namespaceUri))
                 {
                     CheckStringLength(namespaceUri);
@@ -2923,6 +2925,38 @@ namespace Opc.Ua
             }
             values = default;
             return false;
+        }
+
+        /// <summary>
+        /// Returns the DataTypeEncoding id an opaque Binary or XML body is kept
+        /// with. The UaTypeId is the DataType id (Part 6 5.4.2.16 Table 40), but
+        /// an ExtensionObject with a Binary or XML body carries the encoding id,
+        /// which a BinaryEncoder or XmlEncoder writes as its TypeId. The mapping
+        /// is only known for a type registered in the factory; otherwise the
+        /// UaTypeId is kept unchanged.
+        /// </summary>
+        private ExpandedNodeId GetOpaqueBodyEncodingId(
+            ExpandedNodeId typeId,
+            ExtensionObjectEncoding encoding)
+        {
+            if (typeId.IsNull ||
+                !Context.Factory.TryGetEncodeableType(typeId, out IEncodeableType? type) ||
+                type.CreateInstance() is not IEncodeable instance)
+            {
+                return typeId;
+            }
+            ExpandedNodeId encodingId;
+            try
+            {
+                encodingId = encoding == ExtensionObjectEncoding.Binary
+                    ? instance.BinaryEncodingId
+                    : instance.XmlEncodingId;
+            }
+            catch (NotSupportedException)
+            {
+                encodingId = ExpandedNodeId.Null;
+            }
+            return encodingId.IsNull ? typeId : encodingId;
         }
 
         /// <summary>
@@ -3475,8 +3509,9 @@ namespace Opc.Ua
                 case JsonValueKind.String
                 when TryGetStringFromElement(element, out string? stringEncoded):
                     // As per 5.4.2.3, formatted as a decimal number encoded as a JSON string
-                    // (digits only: no sign, whitespace, group or currency symbols).
-                    return ulong.TryParse(stringEncoded, NumberStyles.None,
+                    // with the lexical form of xs:unsignedLong (5.3.1.3): digits with an
+                    // optional leading '+' (no whitespace, group or currency symbols).
+                    return ulong.TryParse(stringEncoded, NumberStyles.AllowLeadingSign,
                         CultureInfo.InvariantCulture, out value);
                 case JsonValueKind.Number
                 when !m_options.ParseStrict && element.TryGetUInt64(out value):
@@ -4003,10 +4038,16 @@ namespace Opc.Ua
                 // empty, a dimension of 0 means no values (5.2.5, 5.4.5).
                 if (!TryGetInt32ArrayFromElement(
                     dimensionElement,
-                    out ArrayOf<int> dims) ||
-                    (readRawValue
-                        ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
-                        : !MatrixOf.IsValidMatrix(dims.Span)))
+                    out ArrayOf<int> dims))
+                {
+                    value = default;
+                    return false;
+                }
+                // A rank above 32 is valid but cannot be represented.
+                MatrixOf.ThrowIfRankNotSupported(dims.Count);
+                if (readRawValue
+                    ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
+                    : !MatrixOf.IsValidMatrix(dims.Span))
                 {
                     value = default;
                     return false;
