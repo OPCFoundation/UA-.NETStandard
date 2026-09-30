@@ -363,7 +363,8 @@ IReadOnlyList<AliasNameDataType> result =
 * `AddAliasesToCategoryAsync(IEnumerable<AliasNameAddRequest>, ct)`
 * `DeleteAliasesFromCategoryAsync(IEnumerable<AliasNameDeleteRequest>, ct)`
 * `EnumerateSubCategoriesAsync(ct)` — `IAsyncEnumerable` of child
-  `AliasNameSubCategoryInfo`.
+  `AliasNameSubCategoryInfo`, including children whose type is a
+  subtype of `AliasNameCategoryType`.
 * `ReadLastChangeAsync(ct)` — returns the `VersionTime` (or `null` when
   the category does not expose `LastChange`).
 
