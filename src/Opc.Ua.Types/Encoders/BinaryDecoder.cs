@@ -478,12 +478,14 @@ namespace Opc.Ua
                     length);
             }
 
-            // Do not rent or allocate a declared length the message cannot hold.
-            CheckRemainingBytes(length, nameof(ReadString));
-
             // length is always >= 1 here
 #if NET6_0_OR_GREATER
             const int maxStackAlloc = 1024;
+            if (length > maxStackAlloc)
+            {
+                // Do not rent a declared length the message cannot hold.
+                CheckRemainingBytes(length, nameof(ReadString));
+            }
             byte[]? buffer = null;
             try
             {
@@ -510,6 +512,7 @@ namespace Opc.Ua
                 }
             }
 #else
+            // Does not allocate a declared length the message cannot hold.
             byte[] bytes = SafeReadBytes(length);
 
             // If 0 terminated, decrease length to remove 0 terminators before converting to string
