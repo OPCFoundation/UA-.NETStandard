@@ -70,5 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzOracles.cs" Link="FuzzOracles.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzOracles.Limits.cs" Link="FuzzOracles.Limits.cs" />
   </ItemGroup>
 </Project>

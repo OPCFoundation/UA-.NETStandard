@@ -152,23 +152,36 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void Replay(Delegate fuzzingMethod, ReadOnlySpan<byte> input)
         {
+            byte[] data = input.ToArray();
             if (fuzzingMethod is LibFuzzSpan spanMethod)
             {
-                spanMethod(input);
+                RunWithOracles(spanMethod.Method.Name, data, () => spanMethod(data));
             }
             else if (fuzzingMethod is AflFuzzStream streamMethod)
             {
-                using var stream = new MemoryStream(input.ToArray(), writable: false);
-                streamMethod(stream);
+                RunWithOracles(streamMethod.Method.Name, data, () =>
+                {
+                    using var stream = new MemoryStream(data, writable: false);
+                    streamMethod(stream);
+                });
             }
             else if (fuzzingMethod is AflFuzzString stringMethod)
             {
-                stringMethod(Encoding.UTF8.GetString(input.ToArray()));
+                string text = Encoding.UTF8.GetString(data);
+                RunWithOracles(stringMethod.Method.Name, data, () => stringMethod(text));
             }
             else
             {
                 throw new ArgumentException("Unsupported fuzzing delegate.", nameof(fuzzingMethod));
             }
+        }
+
+        /// <summary>
+        /// Runs one input under the stack and time oracles of <see cref="FuzzOracles"/>.
+        /// </summary>
+        private static void RunWithOracles(string target, byte[] input, Action run)
+        {
+            FuzzOracles.RunTarget(target, input.Length, run);
         }
 
         /// <summary>
@@ -179,31 +192,56 @@ namespace Opc.Ua.Fuzzing
             // find the function to fuzz method based on the type
             if (fuzzingMethod is AflFuzzStream aflFuzzStreamMethod)
             {
+                // Buffered so the oracles can re-run the input and measure its size.
+                void RunStream(Stream stream)
+                {
+                    using var buffer = new MemoryStream();
+                    stream.CopyTo(buffer);
+                    byte[] data = buffer.ToArray();
+                    RunWithOracles(aflFuzzStreamMethod.Method.Name, data, () =>
+                    {
+                        using var input = new MemoryStream(data, writable: false);
+                        aflFuzzStreamMethod(input);
+                    });
+                }
+
                 if (outOfProcess)
                 {
-                    Fuzzer.OutOfProcess.Run(stream => aflFuzzStreamMethod(stream));
+                    Fuzzer.OutOfProcess.Run(RunStream);
                 }
                 else
                 {
-                    Fuzzer.Run(stream => aflFuzzStreamMethod(stream));
+                    Fuzzer.Run(RunStream);
                 }
             }
             else if (fuzzingMethod is AflFuzzString aflFuzzStringMethod)
             {
+                void RunString(string text)
+                {
+                    RunWithOracles(
+                        aflFuzzStringMethod.Method.Name,
+                        Encoding.UTF8.GetBytes(text),
+                        () => aflFuzzStringMethod(text));
+                }
+
                 if (outOfProcess)
                 {
-                    Fuzzer.OutOfProcess.Run(text => aflFuzzStringMethod(text));
+                    Fuzzer.OutOfProcess.Run(RunString);
                 }
                 else
                 {
-                    Fuzzer.Run(text => aflFuzzStringMethod(text));
+                    Fuzzer.Run(RunString);
                 }
                 return;
             }
             // libfuzzer span target
             else if (fuzzingMethod is LibFuzzSpan libFuzzSpanMethod)
             {
-                Fuzzer.LibFuzzer.Run(bytes => libFuzzSpanMethod(bytes));
+                Fuzzer.LibFuzzer.Run(bytes =>
+                {
+                    byte[] data = bytes.ToArray();
+                    RunWithOracles(libFuzzSpanMethod.Method.Name, data, () => libFuzzSpanMethod(data));
+                });
                 return;
             }
             else
