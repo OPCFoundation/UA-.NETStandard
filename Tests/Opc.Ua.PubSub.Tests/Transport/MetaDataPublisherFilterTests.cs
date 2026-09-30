@@ -48,10 +48,87 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [TestCase("Publisher1", "Attacker", false)]
         [TestCase("Publisher1", null, false)]
         [TestCase(null, "Anyone", true)]
-        public void MetaDataUpdatesOnlyReadersOfTheSendingPublisher(
+        public void JsonMetaDataUpdatesOnlyReadersOfTheSendingPublisher(
             string readerPublisherId,
             string messagePublisherId,
             bool expectUpdate)
+        {
+            DataSetMetaDataType metaData = CreateMetaData();
+            var networkMessage = new PubSubEncoding.JsonNetworkMessage(null, metaData)
+            {
+                PublisherId = messagePublisherId,
+                DataSetWriterId = kDataSetWriterId
+            };
+
+            DataSetReaderDataType reader = ProcessMetaData(
+                readerPublisherId == null ? Variant.Null : new Variant(readerPublisherId),
+                Profiles.PubSubMqttJsonTransport,
+                networkMessage);
+
+            AssertUpdated(reader, metaData, expectUpdate);
+        }
+
+        [Test]
+        [TestCase((ushort)10, (ushort)10, true)]
+        [TestCase((ushort)10, (ushort)11, false)]
+        [TestCase((ushort)10, null, false)]
+        [TestCase(null, (ushort)11, true)]
+        public void UadpMetaDataUpdatesOnlyReadersOfTheSendingPublisher(
+            object readerPublisherId,
+            object messagePublisherId,
+            bool expectUpdate)
+        {
+            DataSetMetaDataType metaData = CreateMetaData();
+            var networkMessage = new PubSubEncoding.UadpNetworkMessage(null, metaData)
+            {
+                PublisherId = messagePublisherId,
+                DataSetWriterId = kDataSetWriterId
+            };
+
+            DataSetReaderDataType reader = ProcessMetaData(
+                readerPublisherId == null ? Variant.Null : new Variant(readerPublisherId),
+                Profiles.PubSubMqttUadpTransport,
+                networkMessage);
+
+            AssertUpdated(reader, metaData, expectUpdate);
+        }
+
+        private static DataSetMetaDataType CreateMetaData()
+        {
+            return new DataSetMetaDataType
+            {
+                Name = "DataSet1",
+                ConfigurationVersion = new ConfigurationVersionDataType
+                {
+                    MajorVersion = 1,
+                    MinorVersion = 1
+                }
+            };
+        }
+
+        private static void AssertUpdated(
+            DataSetReaderDataType reader,
+            DataSetMetaDataType metaData,
+            bool expectUpdate)
+        {
+            if (expectUpdate)
+            {
+                Assert.That(reader.DataSetMetaData, Is.SameAs(metaData));
+            }
+            else
+            {
+                Assert.That(reader.DataSetMetaData, Is.Not.SameAs(metaData));
+            }
+        }
+
+        /// <summary>
+        /// Passes a received metadata message to a connection with one reader
+        /// and returns the reader.
+        /// </summary>
+        private static DataSetReaderDataType ProcessMetaData(
+            Variant readerPublisherId,
+            string transportProfileUri,
+            UaNetworkMessage networkMessage)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var reader = new DataSetReaderDataType
@@ -59,9 +136,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Name = "Reader1",
                 Enabled = true,
                 DataSetWriterId = kDataSetWriterId,
-                PublisherId = readerPublisherId == null
-                    ? Variant.Null
-                    : new Variant(readerPublisherId)
+                PublisherId = readerPublisherId
             };
             var configuration = new PubSubConfigurationDataType
             {
@@ -73,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                         Name = "Connection1",
                         Enabled = true,
                         PublisherId = new Variant("Subscriber1"),
-                        TransportProfileUri = Profiles.PubSubMqttJsonTransport,
+                        TransportProfileUri = transportProfileUri,
                         Address = new ExtensionObject(
                             new NetworkAddressUrlDataType { Url = "mqtt://localhost:1883" }),
                         ReaderGroups =
@@ -91,34 +166,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var application = UaPubSubApplication.Create(configuration, telemetry);
             var connection = (UaPubSubConnection)application.PubSubConnections[0];
 
-            var metaData = new DataSetMetaDataType
-            {
-                Name = "DataSet1",
-                ConfigurationVersion = new ConfigurationVersionDataType
-                {
-                    MajorVersion = 1,
-                    MinorVersion = 1
-                }
-            };
-            var networkMessage = new PubSubEncoding.JsonNetworkMessage(null, metaData)
-            {
-                PublisherId = messagePublisherId,
-                DataSetWriterId = kDataSetWriterId
-            };
-
             MethodInfo process = typeof(UaPubSubConnection).GetMethod(
                 "ProcessDecodedNetworkMessage",
                 BindingFlags.Instance | BindingFlags.NonPublic);
             process.Invoke(connection, [networkMessage, "test"]);
-
-            if (expectUpdate)
-            {
-                Assert.That(reader.DataSetMetaData, Is.SameAs(metaData));
-            }
-            else
-            {
-                Assert.That(reader.DataSetMetaData, Is.Not.SameAs(metaData));
-            }
+            return reader;
         }
     }
 }
