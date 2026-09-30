@@ -716,6 +716,119 @@ namespace Opc.Ua.Types.Tests.Encoders
             });
         }
 
+        [Test]
+        public void OpaqueBinaryBodyWritesTheDataTypeIdAndRoundTripsToBinary()
+        {
+            // UaTypeId is the DataType id also for a Binary body (Part 6 5.4.2.16
+            // Table 40), and decoding maps it back to the DataTypeEncoding id that
+            // UA Binary writes as the TypeId.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.Builder.AddEncodeableType(typeof(Argument)).Commit();
+            var argument = new Argument
+            {
+                Name = "In",
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            byte[] body;
+            using (var encoder = new BinaryEncoder(messageContext))
+            {
+                argument.Encode(encoder);
+                body = encoder.CloseAndReturnBuffer();
+            }
+            var opaque = new ExtensionObject(
+                ObjectIds.Argument_Encoding_DefaultBinary,
+                ByteString.From(body));
+
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExtensionObject(JsonProperties.Value, opaque);
+            }
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement envelope = document.RootElement.GetProperty(JsonProperties.Value);
+
+            ExtensionObject decoded;
+            using (var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext))
+            {
+                decoded = decoder.ReadExtensionObject(JsonProperties.Value);
+            }
+
+            byte[] binary;
+            using (var encoder = new BinaryEncoder(messageContext))
+            {
+                encoder.WriteExtensionObject(null, decoded);
+                binary = encoder.CloseAndReturnBuffer();
+            }
+            ExtensionObject reDecoded;
+            using (var decoder = new BinaryDecoder(binary, messageContext))
+            {
+                reDecoded = decoder.ReadExtensionObject(null);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(envelope.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=296"));
+                Assert.That(envelope.GetProperty("UaEncoding").GetInt32(), Is.EqualTo(1));
+                Assert.That(decoded.Encoding, Is.EqualTo(ExtensionObjectEncoding.Binary));
+                Assert.That(
+                    decoded.TypeId,
+                    Is.EqualTo((ExpandedNodeId)ObjectIds.Argument_Encoding_DefaultBinary));
+                Assert.That(reDecoded.TryGetValue(out Argument result), Is.True);
+                Assert.That(result?.Name, Is.EqualTo("In"));
+            });
+        }
+
+        [Test]
+        public void OpaqueXmlBodyDataTypeIdDecodesToTheXmlEncodingId()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.Builder.AddEncodeableType(typeof(Argument)).Commit();
+            const string json =
+                "{\"Value\":{\"UaTypeId\":\"i=296\",\"UaEncoding\":2,\"UaBody\":" +
+                "\"<Argument xmlns=\\\"http://opcfoundation.org/UA/2008/02/Types.xsd\\\">" +
+                "<Name>In</Name></Argument>\"}}";
+            using var decoder = new JsonDecoder(json, messageContext);
+
+            ExtensionObject decoded = decoder.ReadExtensionObject(JsonProperties.Value);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoded.Encoding, Is.EqualTo(ExtensionObjectEncoding.Xml));
+                Assert.That(
+                    decoded.TypeId,
+                    Is.EqualTo((ExpandedNodeId)ObjectIds.Argument_Encoding_DefaultXml));
+            });
+        }
+
+        [Test]
+        public void OpaqueBinaryBodyOfAnUnknownTypeKeepsItsTypeId()
+        {
+            // Without the type the DataType id is unknown: the encoding id is
+            // written (documented deviation from Part 6 5.4.2.16 Table 40).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var opaque = new ExtensionObject(new ExpandedNodeId(99001u), ByteString.From([1, 2]));
+
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExtensionObject(JsonProperties.Value, opaque);
+            }
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    document.RootElement.GetProperty(JsonProperties.Value).GetProperty("UaTypeId").GetString(),
+                    Is.EqualTo("i=99001"));
+                Assert.That(decoder.ReadExtensionObject(JsonProperties.Value), Is.EqualTo(opaque));
+            });
+        }
+
         [TestCase(3, false)]
         [TestCase(4, true)]
         public void WriteExtensionObjectJsonBodyRespectsNestingLimit(int bodyDepth, bool exceeds)

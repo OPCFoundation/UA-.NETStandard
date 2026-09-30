@@ -1468,11 +1468,12 @@ namespace Opc.Ua
             }
             value.TryGetValue(out IEncodeable? encodeable);
 
-            // For an opaque Binary or XML body of a type the decoder did not know, the
-            // TypeId is the DataTypeEncoding id it was received with, not the DataType id
-            // 5.4.2.16 asks for: the context has no type system to map it, and a peer
-            // decoding the body back needs exactly that encoding id.
-            ExpandedNodeId typeId = encodeable?.TypeId ?? value.TypeId;
+            // UaTypeId is the DataType id also for an opaque Binary or XML body (5.4.2.16
+            // Table 40); its DataTypeEncoding id is mapped through the factory. For a type
+            // the factory does not know the encoding id it was received with is written:
+            // the context has no type system to map it, and a peer decoding the body back
+            // needs exactly that encoding id.
+            ExpandedNodeId typeId = encodeable?.TypeId ?? GetOpaqueBodyDataTypeId(value);
             bool hasTypeId = CanWriteUaTypeId(typeId);
 
             // A TypeId that cannot be written as a JSON NodeId (a server index, or no
@@ -1539,6 +1540,26 @@ namespace Opc.Ua
             }
 
             EndObject();
+        }
+
+        /// <summary>
+        /// Returns the DataType id of an ExtensionObject that is not decoded, which
+        /// carries the DataTypeEncoding id of its Binary or XML body (or the DataType
+        /// id of a JSON body). The DataType id is only known for a type registered in
+        /// the factory; otherwise the TypeId is returned unchanged.
+        /// </summary>
+        private ExpandedNodeId GetOpaqueBodyDataTypeId(ExtensionObject value)
+        {
+            if (value.Encoding is ExtensionObjectEncoding.Binary or ExtensionObjectEncoding.Xml &&
+                Context.Factory.TryGetEncodeableType(value.TypeId, out IEncodeableType? type))
+            {
+                ExpandedNodeId dataTypeId = type.CreateInstance()?.TypeId ?? ExpandedNodeId.Null;
+                if (!dataTypeId.IsNull)
+                {
+                    return dataTypeId;
+                }
+            }
+            return value.TypeId;
         }
 
         /// <summary>

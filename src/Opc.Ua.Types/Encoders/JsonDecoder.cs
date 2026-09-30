@@ -1991,14 +1991,18 @@ namespace Opc.Ua
                                 case 1: // binary
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
-                                        value = new ExtensionObject(typeId, bytes);
+                                        value = new ExtensionObject(
+                                            GetOpaqueBodyEncodingId(typeId, ExtensionObjectEncoding.Binary),
+                                            bytes);
                                         return true;
                                     }
                                     break;
                                 case 2: // xml
                                     if (TryGetXmlElementFromElement(uaBody, out XmlElement xml))
                                     {
-                                        value = new ExtensionObject(typeId, xml);
+                                        value = new ExtensionObject(
+                                            GetOpaqueBodyEncodingId(typeId, ExtensionObjectEncoding.Xml),
+                                            xml);
                                         return true;
                                     }
                                     break;
@@ -2921,6 +2925,38 @@ namespace Opc.Ua
             }
             values = default;
             return false;
+        }
+
+        /// <summary>
+        /// Returns the DataTypeEncoding id an opaque Binary or XML body is kept
+        /// with. The UaTypeId is the DataType id (Part 6 5.4.2.16 Table 40), but
+        /// an ExtensionObject with a Binary or XML body carries the encoding id,
+        /// which a BinaryEncoder or XmlEncoder writes as its TypeId. The mapping
+        /// is only known for a type registered in the factory; otherwise the
+        /// UaTypeId is kept unchanged.
+        /// </summary>
+        private ExpandedNodeId GetOpaqueBodyEncodingId(
+            ExpandedNodeId typeId,
+            ExtensionObjectEncoding encoding)
+        {
+            if (typeId.IsNull ||
+                !Context.Factory.TryGetEncodeableType(typeId, out IEncodeableType? type) ||
+                type.CreateInstance() is not IEncodeable instance)
+            {
+                return typeId;
+            }
+            ExpandedNodeId encodingId;
+            try
+            {
+                encodingId = encoding == ExtensionObjectEncoding.Binary
+                    ? instance.BinaryEncodingId
+                    : instance.XmlEncodingId;
+            }
+            catch (NotSupportedException)
+            {
+                encodingId = ExpandedNodeId.Null;
+            }
+            return encodingId.IsNull ? typeId : encodingId;
         }
 
         /// <summary>
