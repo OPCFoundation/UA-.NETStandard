@@ -6,6 +6,7 @@
 
 - [New published packages](#new-published-packages)
 - [Renamed packages — the GDS libraries drop `.Common`](#renamed-packages--the-gds-libraries-drop-common)
+- [`.Debug` packages are no longer published to nuget.org](#debug-packages-are-no-longer-published-to-nugetorg)
 - [Target Frameworks (only Opc.Ua.Types changes)](#target-frameworks-only-opcuatypes-changes)
 - [NuGet dependency additions and removals](#nuget-dependency-additions-and-removals)
 - [ASP.NET Core packages are versioned per target framework](#aspnet-core-packages-are-versioned-per-target-framework)
@@ -63,6 +64,72 @@ against 1.5.378 compiles unchanged once the package id is updated.
 Assembly names follow the package ids (`Opc.Ua.Gds.Server.dll`, not
 `Opc.Ua.Gds.Server.Common.dll`), so update any binding redirects, ILMerge or
 trimming descriptors, or signing manifests that name the files directly.
+
+## `.Debug` packages are no longer published to nuget.org
+
+Up to `1.5.378` and through `2.0.0-preview.5`, every package also had a
+Debug-configuration build on nuget.org under a `.Debug` suffix, for example
+`OPCFoundation.NetStandard.Opc.Ua.Core.Debug`. From `2.0.0-preview.6` on,
+nuget.org receives only the Release packages and their symbol packages
+(`.snupkg`), including the `OPCFoundation.NetStandard.Opc.Ua` meta-package. The
+`.Debug` packages are still built for every release, but they are published
+only to the
+[GitHub Packages feed](https://github.com/orgs/OPCFoundation/packages?repo_name=UA-.NETStandard).
+
+`OPCFoundation.NetStandard.Opc.Ua.Symbols` is discontinued; `2.0.0-preview.5`
+is its last version. It was the Debug counterpart of the meta-package: it
+depended on the `.Debug` package IDs, so it could no longer be restored from
+nuget.org. Reference the individual `.Debug` packages you need instead, as
+described below, or use the `OPCFoundation.NetStandard.Opc.Ua` meta-package.
+
+If you reference a `.Debug` package, do one of the following:
+
+- **Switch to the Release package** by dropping the `.Debug` suffix. For
+  source-level debugging, the symbol packages on nuget.org provide the
+  portable PDBs, and Source Link maps them to this repository.
+
+  ```xml
+  <!-- Before -->
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" Version="1.5.378.176" />
+
+  <!-- After -->
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="2.0.0-preview.*" />
+  ```
+
+- **Keep the `.Debug` package** by adding the GitHub Packages feed as a
+  package source. It requires authentication, even for public packages: use a
+  classic personal access token with the `read:packages` scope.
+
+  ```xml
+  <!-- nuget.config -->
+  <configuration>
+    <packageSources>
+      <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+      <add key="opcfoundation" value="https://nuget.pkg.github.com/OPCFoundation/index.json" />
+    </packageSources>
+    <packageSourceCredentials>
+      <opcfoundation>
+        <add key="Username" value="%GITHUB_USER%" />
+        <add key="ClearTextPassword" value="%GITHUB_TOKEN%" />
+      </opcfoundation>
+    </packageSourceCredentials>
+  </configuration>
+  ```
+
+  The feed also carries in-development builds from `master`
+  (`2.0.0-preview.<N>.g<commit>`), which sort above the published previews,
+  so a floating version such as `2.0.0-preview.*` resolves to a `master` build.
+  **Pin an exact version** of each `.Debug` package, matching the Release
+  version you use:
+
+  ```xml
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" Version="2.0.0-preview.6" />
+  ```
+
+  Optionally, add [package source mapping](https://learn.microsoft.com/nuget/consume-packages/package-source-mapping)
+  so that only the `.Debug` IDs can come from this feed. Source mapping
+  controls which source provides a package ID, not which versions of it are
+  chosen, so it does not replace pinning.
 
 ## Target Frameworks (only Opc.Ua.Types changes)
 

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>MachineryServer</AssemblyName>
+    <PackageId>MachineryServer</PackageId>
+    <RootNamespace>MachinerySample</RootNamespace>
+    <Description>Self-contained .NET console OPC UA server demonstrating the OPC 40001 Machinery specification series end to end: the Machines folder and the building blocks of 40001-1, process values (40001-2), job management over ISA-95 Job Control V2 (40001-3), energy carriers (40001-4) and result transfer (40001-101).</Description>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1822</NoWarn>
+    <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+</Project>

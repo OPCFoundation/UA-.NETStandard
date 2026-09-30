@@ -16,6 +16,7 @@
     <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
   </ItemGroup>
@@ -40,30 +41,25 @@
     <EmbeddedResource Include="Assets\Powerhouse.usda"><LogicalName>Powerhouse.usda</LogicalName></EmbeddedResource>
     <EmbeddedResource Include="Assets\generator.usda"><LogicalName>generator.usda</LogicalName></EmbeddedResource>
   </ItemGroup>
-  <!-- IA + Machinery + Generators NodeSet2 XMLs are source-generated locally; no
-       library refs needed. The generator emits typed classes, NodeId tables, and
-       the AddOpcUaMachinery / AddOpcUaGenerators extension methods in the
-       Opc.Ua.Machinery and Opc.Ua.Generators namespaces (internal to this
-       assembly). Cross-namespace type references to DI types resolve via the
-       [assembly: ModelDependencyAttribute] carried in the Opc.Ua.Di assembly, so
-       no DI NodeSet2 XML is needed here.
+  <!-- The Generators NodeSet2 XML is source-generated locally. The generator
+       emits typed classes, a NodeId table and the AddOpcUaGenerators extension
+       method in the Opc.Ua.Generators namespace, internal to this assembly.
 
-       The full official Machinery nodeset is required (not the reduced copy the
-       pump sample carries): the Generators model composes the Machinery
-       MachineryItemState and MachineryOperationMode state machines and
-       specialises MachineIdentificationType, none of which the reduced set
-       defines. The full set in turn declares a dependency on IA, so IA is
-       vendored as well - it needs only UA core and DI.
+       Machinery is no longer generated here: this sample used to carry a
+       reduced Machinery NodeSet, derived by a script that whitelisted the
+       types the Generators model needs and dropped the IA namespace, because
+       the full official set did not survive the model generator. That defect
+       is fixed. The ProjectReference on src/Opc.Ua.Machinery now supplies the
+       full OPC 40001-1 1.04.1 model - including the Stacklight edge into
+       OPC 10000-200 IA that the reduction removed - and the Generators model
+       resolves its Machinery and DI type references through the referenced
+       assemblies' [ModelDependencyAttribute] payloads.
 
-       The matching *.NodeSet2.csv files (alongside each XML) are picked up as the
-       stable NodeId tables. Without them the generator would assign synthetic
-       NodeIds at compile time, breaking byte-stable wire formats for clients that
-       cache NodeIds across builds. -->
+       The matching Opc.Ua.Generators.NodeSet2.csv (alongside the XML) is picked
+       up as the stable NodeId table. Without it the generator would assign
+       synthetic NodeIds at compile time, breaking byte-stable wire formats for
+       clients that cache NodeIds across builds. -->
   <ItemGroup>
-    <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.xml">
-      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery</ModelSourceGeneratorPrefix>
-    </AdditionalFiles>
-    <AdditionalFiles Include="Model\Opc.Ua.Machinery.NodeSet2.csv" />
     <AdditionalFiles Include="Model\Opc.Ua.Generators.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.Generators</ModelSourceGeneratorPrefix>
     </AdditionalFiles>

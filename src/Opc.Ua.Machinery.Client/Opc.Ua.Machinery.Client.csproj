@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Machinery.Client</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Machinery.Client</PackageId>
+    <RootNamespace>Opc.Ua.Machinery.Client</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Client-side helpers for the OPC 40001 Machinery specification series: discover machines below the Machines folder, read their identification and monitoring add-ins, observe the item-state and operation-mode state machines, drive job management over ISA-95 Job Control V2 and download measurement results through the OPC 40001-101 transfer path.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.ProcessValues\Opc.Ua.Machinery.ProcessValues.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Jobs\Opc.Ua.Machinery.Jobs.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Energy\Opc.Ua.Machinery.Energy.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Result\Opc.Ua.Machinery.Result.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.ISA95.Client\Opc.Ua.ISA95.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

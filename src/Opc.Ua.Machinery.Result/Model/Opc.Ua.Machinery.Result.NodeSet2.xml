@@ -1,0 +1,2640 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/Machinery/Result/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/Machinery/Result/" Version="1.01.0" PublicationDate="2025-07-01T00:00:00Z" ModelVersion="1.1.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.02" PublicationDate="2022-10-01T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="Int64">i=8</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="QualifiedName">i=20</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasDescription">i=39</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="GeneratesEvent">i=41</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="IdType">i=256</Alias>
+    <Alias Alias="Duration">i=290</Alias>
+    <Alias Alias="NumericRange">i=291</Alias>
+    <Alias Alias="UtcTime">i=294</Alias>
+    <Alias Alias="Argument">i=296</Alias>
+    <Alias Alias="EnumValueType">i=7594</Alias>
+    <Alias Alias="UriString">i=23751</Alias>
+    <Alias Alias="HasStructuredComponent">i=24136</Alias>
+    <Alias Alias="TrimmedString">i=31918</Alias>
+    <Alias Alias="ResultEvaluationEnum">ns=1;i=3002</Alias>
+    <Alias Alias="ProcessingTimesDataType">ns=1;i=3006</Alias>
+    <Alias Alias="ResultMetaDataType">ns=1;i=3007</Alias>
+    <Alias Alias="ResultDataType">ns=1;i=3008</Alias>
+  </Aliases>
+  <Extensions>
+    <Extension>
+      <ua:ModelInfo Version="1.7.1" Hash="wnrkYL9YQmEt29QbxU/z4w==" Tool="UaModeler" xmlns:ua="http://unifiedautomation.com/Configuration/NodeSet.xsd" />
+    </Extension>
+  </Extensions>
+  <UADataType NodeId="ns=1;i=3002" BrowseName="1:ResultEvaluationEnum">
+    <DisplayName>ResultEvaluationEnum</DisplayName>
+    <Description>Indicates whether a result was in tolerance</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/10.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6001</Reference>
+    </References>
+    <Definition Name="1:ResultEvaluationEnum">
+      <Field Name="Undefined" Value="0">
+        <Description>The evaluation of the result is unknown, for example because it failed</Description>
+      </Field>
+      <Field Name="OK" Value="1">
+        <Description>The result is in tolerance</Description>
+      </Field>
+      <Field Name="NotOK" Value="2">
+        <Description>The result is out of tolerance</Description>
+      </Field>
+      <Field Name="NotDecidable" Value="3">
+        <Description>The decision is not possible due to measurement uncertainty.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6001" BrowseName="EnumValues" ParentNodeId="ns=1;i=3002" DataType="EnumValueType" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3002</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>Undefined</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>The evaluation of the result is unknown, for example because it failed</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>1</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>OK</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>The result is in tolerance</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>2</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>NotOK</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>The result is out of tolerance</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>3</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>NotDecidable</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>The decision is not possible due to measurement uncertainty.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3005" BrowseName="1:BaseResultTransferOptionsDataType" IsAbstract="true">
+    <DisplayName>BaseResultTransferOptionsDataType</DisplayName>
+    <Description>Abstract type containing information which file should be provided.</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/10.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="1:BaseResultTransferOptionsDataType">
+      <Field Name="ResultId" DataType="TrimmedString">
+        <Description>The Id of the result to be transferred to the Clients</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3004" BrowseName="1:ResultTransferOptionsDataType">
+    <DisplayName>ResultTransferOptionsDataType</DisplayName>
+    <Description>Contains information which file should be provided.</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/10.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3005</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5001</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5012</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5002</Reference>
+    </References>
+    <Definition Name="1:ResultTransferOptionsDataType" />
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6079" BrowseName="1:ResultTransferOptionsDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6075" DataType="String">
+    <DisplayName>ResultTransferOptionsDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6075</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">ResultTransferOptionsDataType</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6080" BrowseName="1:ResultTransferOptionsDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6077" DataType="String">
+    <DisplayName>ResultTransferOptionsDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5002</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6077</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ResultTransferOptionsDataType']</uax:String>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3006" BrowseName="1:ProcessingTimesDataType">
+    <DisplayName>ProcessingTimesDataType</DisplayName>
+    <Description>Contains measured times that were generated during the execution of a recipe.</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/10.4</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5003</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5013</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5004</Reference>
+    </References>
+    <Definition Name="1:ProcessingTimesDataType">
+      <Field Name="StartTime" DataType="UtcTime">
+        <Description>Contains the time when the system started execution of the recipe.</Description>
+      </Field>
+      <Field Name="EndTime" DataType="UtcTime">
+        <Description>Contains the time when the system finished (or stopped/aborted) execution of the recipe.</Description>
+      </Field>
+      <Field Name="AcquisitionDuration" DataType="Duration" IsOptional="true">
+        <Description>Time spent by the system acquiring data.</Description>
+      </Field>
+      <Field Name="ProcessingDuration" DataType="Duration" IsOptional="true">
+        <Description>Time spent by the system processing data.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6081" BrowseName="1:ProcessingTimesDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6075" DataType="String">
+    <DisplayName>ProcessingTimesDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6075</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">ProcessingTimesDataType</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6082" BrowseName="1:ProcessingTimesDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6077" DataType="String">
+    <DisplayName>ProcessingTimesDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5004</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6077</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ProcessingTimesDataType']</uax:String>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3008" BrowseName="1:ResultDataType">
+    <DisplayName>ResultDataType</DisplayName>
+    <Description>Contains fields that were created during the execution of a recipe.</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/10.5</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5008</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5014</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5009</Reference>
+    </References>
+    <Definition Name="1:ResultDataType">
+      <Field Name="ResultMetaData" DataType="ResultMetaDataType" AllowSubTypes="true">
+        <Description>Contains meta data describing the resultContent.</Description>
+      </Field>
+      <Field Name="ResultContent" ValueRank="1" ArrayDimensions="0">
+        <Description>Abstract data type to be subtyped from to hold result data created by the selected recipe.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6083" BrowseName="1:ResultDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6075" DataType="String">
+    <DisplayName>ResultDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5008</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6075</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">ResultDataType</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6084" BrowseName="1:ResultDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6077" DataType="String">
+    <DisplayName>ResultDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5009</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6077</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ResultDataType']</uax:String>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3007" BrowseName="1:ResultMetaDataType">
+    <DisplayName>ResultMetaDataType</DisplayName>
+    <Description>Meta data of a result, describing the result.</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/10.6</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5005</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5015</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5006</Reference>
+    </References>
+    <Definition Name="1:ResultMetaDataType">
+      <Field Name="ResultId" DataType="TrimmedString">
+        <Description>System-wide unique identifier, which is assigned by the system. This ID can be used for fetching exactly this result using the method GetResultById and it is identical to the ResultId of the ResultReadyEventType.
+If the system does not manage resultIds, it should always be set to “NA”.
+</Description>
+      </Field>
+      <Field Name="HasTransferableDataOnFile" DataType="Boolean" IsOptional="true">
+        <Description>Indicates that additional data for this result can be retrieved by temporary file transfer.
+If not provided, it is assumed that no file is available.
+</Description>
+      </Field>
+      <Field Name="IsPartial" DataType="Boolean" IsOptional="true">
+        <Description>Indicates whether the result is the partial result of a total result. When not all samples are finished yet the result is 'partial'.
+If not provided, it is assumed to be a total result.
+</Description>
+      </Field>
+      <Field Name="IsSimulated" DataType="Boolean" IsOptional="true">
+        <Description>Indicates whether the result was created in simulation mode.
+Simulation mode implies that the result is only generated for testing purposes and not based on real production data.
+If not provided, it is assumed to not be simulated.
+</Description>
+      </Field>
+      <Field Name="ResultState" DataType="Int32" IsOptional="true">
+        <Description>ResultState provides information about the current state of the process or measurement creating a result.
+Applications may use negative values for application-specific states. All other values shall only be used as defined in the following:
+0 – Undefined initial value
+1 – Completed: Processing was carried out completely
+2 – Processing: Processing has not been finished yet
+3 – Aborted: Processing was stopped at some point before completion
+4 – Failed: Processing failed in some way
+</Description>
+      </Field>
+      <Field Name="StepId" DataType="TrimmedString" IsOptional="true">
+        <Description>Identifies the step which produced the result.
+Although the system-wide unique JobId would be sufficient to identify the job which the result belongs to, this makes for easier filtering without keeping track of JobIds.
+This specification does not define how the stepId is transmitted to the system. Typically, it is provided by the client when starting an execution.</Description>
+      </Field>
+      <Field Name="PartId" DataType="TrimmedString" IsOptional="true">
+        <Description>Identifies the part used to produce the result.
+Although the system-wide unique JobId would be sufficient to identify the job which the result belongs to, this makes for easier filtering without keeping track of JobIds.
+This specification does not define how the partId is transmitted to the system. Typically, it is provided by the client when starting the job.</Description>
+      </Field>
+      <Field Name="ExternalRecipeId" DataType="TrimmedString" IsOptional="true">
+        <Description>External ID of the recipe in use which produced the result. The External ID is managed by the environment.
+This specification does not define how the externalRecipeId is transmitted to the system. Typically, it is provided by the client.</Description>
+      </Field>
+      <Field Name="InternalRecipeId" DataType="TrimmedString" IsOptional="true">
+        <Description>Internal ID of the recipe in use which produced the result. This ID is system-wide unique and it is assigned by the system.</Description>
+      </Field>
+      <Field Name="ProductId" DataType="TrimmedString" IsOptional="true">
+        <Description>Identifies the product used to produce the result.
+This specification does not define how the externalRecipeId is transmitted to the system. Typically, it is provided by the client.</Description>
+      </Field>
+      <Field Name="ExternalConfigurationId" DataType="TrimmedString" IsOptional="true">
+        <Description>External ID of the Configuration in use while the result was produced.
+It is managed by the Environment.
+This specification does not define how the externalConfigurationId is transmitted to the system. Typically, it is provided by the client.</Description>
+      </Field>
+      <Field Name="InternalConfigurationId" DataType="TrimmedString" IsOptional="true">
+        <Description>Internal ID of the Configuration in use while the result was produced. This ID is system-wide unique and it is assigned by the system.</Description>
+      </Field>
+      <Field Name="JobId" DataType="TrimmedString" IsOptional="true">
+        <Description>Identifies the job which produced the result.
+This ID is system-wide unique and it is assigned by the system.
+</Description>
+      </Field>
+      <Field Name="CreationTime" DataType="UtcTime" IsOptional="true">
+        <Description>CreationTime indicates the time when the result was created. Creation time on the measurement system (not the receive time of the server).
+It is recommended to always provide the creationTime.
+</Description>
+      </Field>
+      <Field Name="ProcessingTimes" DataType="ProcessingTimesDataType" IsOptional="true">
+        <Description>Collection of different processing times that were needed to create the result.</Description>
+      </Field>
+      <Field Name="ResultUri" DataType="UriString" ValueRank="1" ArrayDimensions="0" IsOptional="true">
+        <Description>Path to the actual measured result, managed external to the server.</Description>
+      </Field>
+      <Field Name="ResultEvaluation" DataType="ResultEvaluationEnum" IsOptional="true">
+        <Description>The ResultEvaluation indicates whether the result was in tolerance.</Description>
+      </Field>
+      <Field Name="ResultEvaluationCode" DataType="Int64" IsOptional="true">
+        <Description>Vendor-specific code describing more details on resultEvaluation.</Description>
+      </Field>
+      <Field Name="ResultEvaluationDetails" DataType="LocalizedText" IsOptional="true">
+        <Description>The optional EvaluationDetails provides high level status information in a user-friendly text. This can be left empty for successful operations.</Description>
+      </Field>
+      <Field Name="FileFormat" DataType="String" ValueRank="1" ArrayDimensions="0" IsOptional="true">
+        <Description>The format in which the measurement results are available (e.g. QDAS, CSV, …) using the ResultTransfer Object. If multiple file formats are provided, the GenerateFileForRead of ResultTransfer should contain corresponding transferOptions, to select the file format. This specification does not define those transferOptions.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6085" BrowseName="1:ResultMetaDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6075" DataType="String">
+    <DisplayName>ResultMetaDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5005</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6075</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">ResultMetaDataType</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6086" BrowseName="1:ResultMetaDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6077" DataType="String">
+    <DisplayName>ResultMetaDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5006</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6077</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ResultMetaDataType']</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6075" BrowseName="1:TypeDictionary" SymbolicName="TypeDictionary_BinarySchema" ReleaseStatus="Deprecated" DataType="ByteString">
+    <DisplayName>TypeDictionary</DisplayName>
+    <Description>Collects the data type descriptions of http://opcfoundation.org/UA/Machinery/Result/</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=72</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6087</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6076</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6081</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6083</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6085</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6079</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=93</Reference>
+    </References>
+    <Value>
+      <uax:ByteString xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">PG9wYzpUeXBlRGljdGlvbmFyeSB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1MU2NoZ
+        W1hLWluc3RhbmNlIiBEZWZhdWx0Qnl0ZU9yZGVyPSJMaXR0bGVFbmRpYW4iIHhtbG5zOnRuc
+        z0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL01hY2hpbmVyeS9SZXN1bHQvIiBUYXJnZ
+        XROYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9NYWNoaW5lcnkvUmVzd
+        Wx0LyIgeG1sbnM6dWE9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8iIHhtbG5zOm9wY
+        z0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL0JpbmFyeVNjaGVtYS8iPgogPG9wYzpJbXBvc
+        nQgTmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvIi8+CiA8b3BjOlN0c
+        nVjdHVyZWRUeXBlIEJhc2VUeXBlPSJ1YTpFeHRlbnNpb25PYmplY3QiIE5hbWU9IkJhc2VSZ
+        XN1bHRUcmFuc2Zlck9wdGlvbnNEYXRhVHlwZSI+CiAgPG9wYzpEb2N1bWVudGF0aW9uPkFic
+        3RyYWN0IHR5cGUgY29udGFpbmluZyBpbmZvcm1hdGlvbiB3aGljaCBmaWxlIHNob3VsZCBiZ
+        SBwcm92aWRlZC48L29wYzpEb2N1bWVudGF0aW9uPgogIDxvcGM6RmllbGQgTmFtZT0iUmVzd
+        Wx0SWQiIFR5cGVOYW1lPSJvcGM6Q2hhckFycmF5Ii8+CiA8L29wYzpTdHJ1Y3R1cmVkVHlwZ
+        T4KIDxvcGM6U3RydWN0dXJlZFR5cGUgQmFzZVR5cGU9InRuczpCYXNlUmVzdWx0VHJhbnNmZ
+        XJPcHRpb25zRGF0YVR5cGUiIE5hbWU9IlJlc3VsdFRyYW5zZmVyT3B0aW9uc0RhdGFUeXBlI
+        j4KICA8b3BjOkRvY3VtZW50YXRpb24+Q29udGFpbnMgaW5mb3JtYXRpb24gd2hpY2ggZmlsZ
+        SBzaG91bGQgYmUgcHJvdmlkZWQuPC9vcGM6RG9jdW1lbnRhdGlvbj4KICA8b3BjOkZpZWxkI
+        E5hbWU9IlJlc3VsdElkIiBUeXBlTmFtZT0ib3BjOkNoYXJBcnJheSIgU291cmNlVHlwZT0id
+        G5zOkJhc2VSZXN1bHRUcmFuc2Zlck9wdGlvbnNEYXRhVHlwZSIvPgogPC9vcGM6U3RydWN0d
+        XJlZFR5cGU+CiA8b3BjOlN0cnVjdHVyZWRUeXBlIEJhc2VUeXBlPSJ1YTpFeHRlbnNpb25PY
+        mplY3QiIE5hbWU9IlByb2Nlc3NpbmdUaW1lc0RhdGFUeXBlIj4KICA8b3BjOkRvY3VtZW50Y
+        XRpb24+Q29udGFpbnMgbWVhc3VyZWQgdGltZXMgdGhhdCB3ZXJlIGdlbmVyYXRlZCBkdXJpb
+        mcgdGhlIGV4ZWN1dGlvbiBvZiBhIHJlY2lwZS48L29wYzpEb2N1bWVudGF0aW9uPgogIDxvc
+        GM6RmllbGQgTmFtZT0iQWNxdWlzaXRpb25EdXJhdGlvblNwZWNpZmllZCIgVHlwZU5hbWU9I
+        m9wYzpCaXQiLz4KICA8b3BjOkZpZWxkIE5hbWU9IlByb2Nlc3NpbmdEdXJhdGlvblNwZWNpZ
+        mllZCIgVHlwZU5hbWU9Im9wYzpCaXQiLz4KICA8b3BjOkZpZWxkIE5hbWU9IlJlc2VydmVkM
+        SIgVHlwZU5hbWU9Im9wYzpCaXQiIExlbmd0aD0iMzAiLz4KICA8b3BjOkZpZWxkIE5hbWU9I
+        lN0YXJ0VGltZSIgVHlwZU5hbWU9Im9wYzpEYXRlVGltZSIvPgogIDxvcGM6RmllbGQgTmFtZ
+        T0iRW5kVGltZSIgVHlwZU5hbWU9Im9wYzpEYXRlVGltZSIvPgogIDxvcGM6RmllbGQgU3dpd
+        GNoRmllbGQ9IkFjcXVpc2l0aW9uRHVyYXRpb25TcGVjaWZpZWQiIE5hbWU9IkFjcXVpc2l0a
+        W9uRHVyYXRpb24iIFR5cGVOYW1lPSJvcGM6RG91YmxlIi8+CiAgPG9wYzpGaWVsZCBTd2l0Y
+        2hGaWVsZD0iUHJvY2Vzc2luZ0R1cmF0aW9uU3BlY2lmaWVkIiBOYW1lPSJQcm9jZXNzaW5nR
+        HVyYXRpb24iIFR5cGVOYW1lPSJvcGM6RG91YmxlIi8+CiA8L29wYzpTdHJ1Y3R1cmVkVHlwZ
+        T4KIDxvcGM6U3RydWN0dXJlZFR5cGUgQmFzZVR5cGU9InVhOkV4dGVuc2lvbk9iamVjdCIgT
+        mFtZT0iUmVzdWx0RGF0YVR5cGUiPgogIDxvcGM6RG9jdW1lbnRhdGlvbj5Db250YWlucyBma
+        WVsZHMgdGhhdCB3ZXJlIGNyZWF0ZWQgZHVyaW5nIHRoZSBleGVjdXRpb24gb2YgYSByZWNpc
+        GUuPC9vcGM6RG9jdW1lbnRhdGlvbj4KICA8b3BjOkZpZWxkIE5hbWU9IlJlc3VsdE1ldGFEY
+        XRhIiBUeXBlTmFtZT0idWE6RXh0ZW5zaW9uT2JqZWN0Ii8+CiAgPG9wYzpGaWVsZCBOYW1lP
+        SJOb09mUmVzdWx0Q29udGVudCIgVHlwZU5hbWU9Im9wYzpJbnQzMiIvPgogIDxvcGM6Rmllb
+        GQgTGVuZ3RoRmllbGQ9Ik5vT2ZSZXN1bHRDb250ZW50IiBOYW1lPSJSZXN1bHRDb250ZW50I
+        iBUeXBlTmFtZT0idWE6VmFyaWFudCIvPgogPC9vcGM6U3RydWN0dXJlZFR5cGU+CiA8b3BjO
+        lN0cnVjdHVyZWRUeXBlIEJhc2VUeXBlPSJ1YTpFeHRlbnNpb25PYmplY3QiIE5hbWU9IlJlc
+        3VsdE1ldGFEYXRhVHlwZSI+CiAgPG9wYzpEb2N1bWVudGF0aW9uPk1ldGEgZGF0YSBvZiBhI
+        HJlc3VsdCwgZGVzY3JpYmluZyB0aGUgcmVzdWx0Ljwvb3BjOkRvY3VtZW50YXRpb24+CiAgP
+        G9wYzpGaWVsZCBOYW1lPSJIYXNUcmFuc2ZlcmFibGVEYXRhT25GaWxlU3BlY2lmaWVkIiBUe
+        XBlTmFtZT0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgTmFtZT0iSXNQYXJ0aWFsU3BlY2lma
+        WVkIiBUeXBlTmFtZT0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgTmFtZT0iSXNTaW11bGF0Z
+        WRTcGVjaWZpZWQiIFR5cGVOYW1lPSJvcGM6Qml0Ii8+CiAgPG9wYzpGaWVsZCBOYW1lPSJSZ
+        XN1bHRTdGF0ZVNwZWNpZmllZCIgVHlwZU5hbWU9Im9wYzpCaXQiLz4KICA8b3BjOkZpZWxkI
+        E5hbWU9IlN0ZXBJZFNwZWNpZmllZCIgVHlwZU5hbWU9Im9wYzpCaXQiLz4KICA8b3BjOkZpZ
+        WxkIE5hbWU9IlBhcnRJZFNwZWNpZmllZCIgVHlwZU5hbWU9Im9wYzpCaXQiLz4KICA8b3BjO
+        kZpZWxkIE5hbWU9IkV4dGVybmFsUmVjaXBlSWRTcGVjaWZpZWQiIFR5cGVOYW1lPSJvcGM6Q
+        ml0Ii8+CiAgPG9wYzpGaWVsZCBOYW1lPSJJbnRlcm5hbFJlY2lwZUlkU3BlY2lmaWVkIiBUe
+        XBlTmFtZT0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgTmFtZT0iUHJvZHVjdElkU3BlY2lma
+        WVkIiBUeXBlTmFtZT0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgTmFtZT0iRXh0ZXJuYWxDb
+        25maWd1cmF0aW9uSWRTcGVjaWZpZWQiIFR5cGVOYW1lPSJvcGM6Qml0Ii8+CiAgPG9wYzpGa
+        WVsZCBOYW1lPSJJbnRlcm5hbENvbmZpZ3VyYXRpb25JZFNwZWNpZmllZCIgVHlwZU5hbWU9I
+        m9wYzpCaXQiLz4KICA8b3BjOkZpZWxkIE5hbWU9IkpvYklkU3BlY2lmaWVkIiBUeXBlTmFtZ
+        T0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgTmFtZT0iQ3JlYXRpb25UaW1lU3BlY2lmaWVkI
+        iBUeXBlTmFtZT0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgTmFtZT0iUHJvY2Vzc2luZ1Rpb
+        WVzU3BlY2lmaWVkIiBUeXBlTmFtZT0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgTmFtZT0iU
+        mVzdWx0VXJpU3BlY2lmaWVkIiBUeXBlTmFtZT0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgT
+        mFtZT0iUmVzdWx0RXZhbHVhdGlvblNwZWNpZmllZCIgVHlwZU5hbWU9Im9wYzpCaXQiLz4KI
+        CA8b3BjOkZpZWxkIE5hbWU9IlJlc3VsdEV2YWx1YXRpb25Db2RlU3BlY2lmaWVkIiBUeXBlT
+        mFtZT0ib3BjOkJpdCIvPgogIDxvcGM6RmllbGQgTmFtZT0iUmVzdWx0RXZhbHVhdGlvbkRld
+        GFpbHNTcGVjaWZpZWQiIFR5cGVOYW1lPSJvcGM6Qml0Ii8+CiAgPG9wYzpGaWVsZCBOYW1lP
+        SJGaWxlRm9ybWF0U3BlY2lmaWVkIiBUeXBlTmFtZT0ib3BjOkJpdCIvPgogIDxvcGM6Rmllb
+        GQgTmFtZT0iUmVzZXJ2ZWQxIiBUeXBlTmFtZT0ib3BjOkJpdCIgTGVuZ3RoPSIxMyIvPgogI
+        DxvcGM6RmllbGQgTmFtZT0iUmVzdWx0SWQiIFR5cGVOYW1lPSJvcGM6Q2hhckFycmF5Ii8+C
+        iAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iSGFzVHJhbnNmZXJhYmxlRGF0YU9uRmlsZVNwZ
+        WNpZmllZCIgTmFtZT0iSGFzVHJhbnNmZXJhYmxlRGF0YU9uRmlsZSIgVHlwZU5hbWU9Im9wY
+        zpCb29sZWFuIi8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iSXNQYXJ0aWFsU3BlY2lma
+        WVkIiBOYW1lPSJJc1BhcnRpYWwiIFR5cGVOYW1lPSJvcGM6Qm9vbGVhbiIvPgogIDxvcGM6R
+        mllbGQgU3dpdGNoRmllbGQ9IklzU2ltdWxhdGVkU3BlY2lmaWVkIiBOYW1lPSJJc1NpbXVsY
+        XRlZCIgVHlwZU5hbWU9Im9wYzpCb29sZWFuIi8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZ
+        D0iUmVzdWx0U3RhdGVTcGVjaWZpZWQiIE5hbWU9IlJlc3VsdFN0YXRlIiBUeXBlTmFtZT0ib
+        3BjOkludDMyIi8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iU3RlcElkU3BlY2lmaWVkI
+        iBOYW1lPSJTdGVwSWQiIFR5cGVOYW1lPSJvcGM6Q2hhckFycmF5Ii8+CiAgPG9wYzpGaWVsZ
+        CBTd2l0Y2hGaWVsZD0iUGFydElkU3BlY2lmaWVkIiBOYW1lPSJQYXJ0SWQiIFR5cGVOYW1lP
+        SJvcGM6Q2hhckFycmF5Ii8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iRXh0ZXJuYWxSZ
+        WNpcGVJZFNwZWNpZmllZCIgTmFtZT0iRXh0ZXJuYWxSZWNpcGVJZCIgVHlwZU5hbWU9Im9wY
+        zpDaGFyQXJyYXkiLz4KICA8b3BjOkZpZWxkIFN3aXRjaEZpZWxkPSJJbnRlcm5hbFJlY2lwZ
+        UlkU3BlY2lmaWVkIiBOYW1lPSJJbnRlcm5hbFJlY2lwZUlkIiBUeXBlTmFtZT0ib3BjOkNoY
+        XJBcnJheSIvPgogIDxvcGM6RmllbGQgU3dpdGNoRmllbGQ9IlByb2R1Y3RJZFNwZWNpZmllZ
+        CIgTmFtZT0iUHJvZHVjdElkIiBUeXBlTmFtZT0ib3BjOkNoYXJBcnJheSIvPgogIDxvcGM6R
+        mllbGQgU3dpdGNoRmllbGQ9IkV4dGVybmFsQ29uZmlndXJhdGlvbklkU3BlY2lmaWVkIiBOY
+        W1lPSJFeHRlcm5hbENvbmZpZ3VyYXRpb25JZCIgVHlwZU5hbWU9Im9wYzpDaGFyQXJyYXkiL
+        z4KICA8b3BjOkZpZWxkIFN3aXRjaEZpZWxkPSJJbnRlcm5hbENvbmZpZ3VyYXRpb25JZFNwZ
+        WNpZmllZCIgTmFtZT0iSW50ZXJuYWxDb25maWd1cmF0aW9uSWQiIFR5cGVOYW1lPSJvcGM6Q
+        2hhckFycmF5Ii8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iSm9iSWRTcGVjaWZpZWQiI
+        E5hbWU9IkpvYklkIiBUeXBlTmFtZT0ib3BjOkNoYXJBcnJheSIvPgogIDxvcGM6RmllbGQgU
+        3dpdGNoRmllbGQ9IkNyZWF0aW9uVGltZVNwZWNpZmllZCIgTmFtZT0iQ3JlYXRpb25UaW1lI
+        iBUeXBlTmFtZT0ib3BjOkRhdGVUaW1lIi8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iU
+        HJvY2Vzc2luZ1RpbWVzU3BlY2lmaWVkIiBOYW1lPSJQcm9jZXNzaW5nVGltZXMiIFR5cGVOY
+        W1lPSJ0bnM6UHJvY2Vzc2luZ1RpbWVzRGF0YVR5cGUiLz4KICA8b3BjOkZpZWxkIFN3aXRja
+        EZpZWxkPSJSZXN1bHRVcmlTcGVjaWZpZWQiIE5hbWU9Ik5vT2ZSZXN1bHRVcmkiIFR5cGVOY
+        W1lPSJvcGM6SW50MzIiLz4KICA8b3BjOkZpZWxkIExlbmd0aEZpZWxkPSJOb09mUmVzdWx0V
+        XJpIiBTd2l0Y2hGaWVsZD0iUmVzdWx0VXJpU3BlY2lmaWVkIiBOYW1lPSJSZXN1bHRVcmkiI
+        FR5cGVOYW1lPSJvcGM6Q2hhckFycmF5Ii8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iU
+        mVzdWx0RXZhbHVhdGlvblNwZWNpZmllZCIgTmFtZT0iUmVzdWx0RXZhbHVhdGlvbiIgVHlwZ
+        U5hbWU9InRuczpSZXN1bHRFdmFsdWF0aW9uRW51bSIvPgogIDxvcGM6RmllbGQgU3dpdGNoR
+        mllbGQ9IlJlc3VsdEV2YWx1YXRpb25Db2RlU3BlY2lmaWVkIiBOYW1lPSJSZXN1bHRFdmFsd
+        WF0aW9uQ29kZSIgVHlwZU5hbWU9Im9wYzpJbnQ2NCIvPgogIDxvcGM6RmllbGQgU3dpdGNoR
+        mllbGQ9IlJlc3VsdEV2YWx1YXRpb25EZXRhaWxzU3BlY2lmaWVkIiBOYW1lPSJSZXN1bHRFd
+        mFsdWF0aW9uRGV0YWlscyIgVHlwZU5hbWU9InVhOkxvY2FsaXplZFRleHQiLz4KICA8b3BjO
+        kZpZWxkIFN3aXRjaEZpZWxkPSJGaWxlRm9ybWF0U3BlY2lmaWVkIiBOYW1lPSJOb09mRmlsZ
+        UZvcm1hdCIgVHlwZU5hbWU9Im9wYzpJbnQzMiIvPgogIDxvcGM6RmllbGQgTGVuZ3RoRmllb
+        GQ9Ik5vT2ZGaWxlRm9ybWF0IiBTd2l0Y2hGaWVsZD0iRmlsZUZvcm1hdFNwZWNpZmllZCIgT
+        mFtZT0iRmlsZUZvcm1hdCIgVHlwZU5hbWU9Im9wYzpDaGFyQXJyYXkiLz4KIDwvb3BjOlN0c
+        nVjdHVyZWRUeXBlPgogPG9wYzpFbnVtZXJhdGVkVHlwZSBOYW1lPSJSZXN1bHRFdmFsdWF0a
+        W9uRW51bSIgTGVuZ3RoSW5CaXRzPSIzMiI+CiAgPG9wYzpEb2N1bWVudGF0aW9uPkluZGljY
+        XRlcyB3aGV0aGVyIGEgcmVzdWx0IHdhcyBpbiB0b2xlcmFuY2U8L29wYzpEb2N1bWVudGF0a
+        W9uPgogIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9IlVuZGVmaW5lZCIgVmFsdWU9IjAiL
+        z4KICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJPSyIgVmFsdWU9IjEiLz4KICA8b3BjO
+        kVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJOb3RPSyIgVmFsdWU9IjIiLz4KICA8b3BjOkVudW1lc
+        mF0ZWRWYWx1ZSBOYW1lPSJOb3REZWNpZGFibGUiIFZhbHVlPSIzIi8+CiA8L29wYzpFbnVtZ
+        XJhdGVkVHlwZT4KPC9vcGM6VHlwZURpY3Rpb25hcnk+Cg==</uax:ByteString>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6087" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6075" DataType="Boolean">
+    <DisplayName>Deprecated</DisplayName>
+    <Description>Indicates that all of the DataType definitions represented by the DataTypeDictionaryType are available through a DataTypeDefinition Attribute.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6075</Reference>
+    </References>
+    <Value>
+      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">true</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6076" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6075" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6075</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/Machinery/Result/</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6077" BrowseName="1:TypeDictionary" SymbolicName="TypeDictionary_XmlSchema" ReleaseStatus="Deprecated" DataType="ByteString">
+    <DisplayName>TypeDictionary</DisplayName>
+    <Description>Collects the data type descriptions of http://opcfoundation.org/UA/Machinery/Result/</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=72</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6088</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6078</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6082</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6084</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6086</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6080</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=92</Reference>
+    </References>
+    <Value>
+      <uax:ByteString xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">PHhzOnNjaGVtYSBlbGVtZW50Rm9ybURlZmF1bHQ9InF1YWxpZmllZCIgdGFyZ2V0TmFtZXNwYWNlPSJod
+        HRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvTWFjaGluZXJ5L1Jlc3VsdC9UeXBlcy54c2QiI
+        HhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL01hY2hpbmVyeS9SZXN1b
+        HQvVHlwZXMueHNkIiB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBLzIwM
+        DgvMDIvVHlwZXMueHNkIiB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY
+        2hlbWEiPgogPHhzOmltcG9ydCBuYW1lc3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZ
+        y9VQS8yMDA4LzAyL1R5cGVzLnhzZCIvPgogPHhzOnNpbXBsZVR5cGUgbmFtZT0iUmVzdWx0R
+        XZhbHVhdGlvbkVudW0iPgogIDx4czphbm5vdGF0aW9uPgogICA8eHM6ZG9jdW1lbnRhdGlvb
+        j5JbmRpY2F0ZXMgd2hldGhlciBhIHJlc3VsdCB3YXMgaW4gdG9sZXJhbmNlPC94czpkb2N1b
+        WVudGF0aW9uPgogIDwveHM6YW5ub3RhdGlvbj4KICA8eHM6cmVzdHJpY3Rpb24gYmFzZT0ie
+        HM6c3RyaW5nIj4KICAgPHhzOmVudW1lcmF0aW9uIHZhbHVlPSJVbmRlZmluZWRfMCIvPgogI
+        CA8eHM6ZW51bWVyYXRpb24gdmFsdWU9Ik9LXzEiLz4KICAgPHhzOmVudW1lcmF0aW9uIHZhb
+        HVlPSJOb3RPS18yIi8+CiAgIDx4czplbnVtZXJhdGlvbiB2YWx1ZT0iTm90RGVjaWRhYmxlX
+        zMiLz4KICA8L3hzOnJlc3RyaWN0aW9uPgogPC94czpzaW1wbGVUeXBlPgogPHhzOmVsZW1lb
+        nQgbmFtZT0iUmVzdWx0RXZhbHVhdGlvbkVudW0iIHR5cGU9InRuczpSZXN1bHRFdmFsdWF0a
+        W9uRW51bSIvPgogPHhzOmNvbXBsZXhUeXBlIG5hbWU9Ikxpc3RPZlJlc3VsdEV2YWx1YXRpb
+        25FbnVtIj4KICA8eHM6c2VxdWVuY2U+CiAgIDx4czplbGVtZW50IG5hbWU9IlJlc3VsdEV2Y
+        Wx1YXRpb25FbnVtIiBtaW5PY2N1cnM9IjAiIHR5cGU9InRuczpSZXN1bHRFdmFsdWF0aW9uR
+        W51bSIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIi8+CiAgPC94czpzZ
+        XF1ZW5jZT4KIDwveHM6Y29tcGxleFR5cGU+CiA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZSZ
+        XN1bHRFdmFsdWF0aW9uRW51bSIgdHlwZT0idG5zOkxpc3RPZlJlc3VsdEV2YWx1YXRpb25Fb
+        nVtIiBuaWxsYWJsZT0idHJ1ZSIvPgogPHhzOmNvbXBsZXhUeXBlIG5hbWU9IkJhc2VSZXN1b
+        HRUcmFuc2Zlck9wdGlvbnNEYXRhVHlwZSI+CiAgPHhzOmFubm90YXRpb24+CiAgIDx4czpkb
+        2N1bWVudGF0aW9uPkFic3RyYWN0IHR5cGUgY29udGFpbmluZyBpbmZvcm1hdGlvbiB3aGlja
+        CBmaWxlIHNob3VsZCBiZSBwcm92aWRlZC48L3hzOmRvY3VtZW50YXRpb24+CiAgPC94czphb
+        m5vdGF0aW9uPgogIDx4czpzZXF1ZW5jZT4KICAgPHhzOmVsZW1lbnQgbmFtZT0iUmVzdWx0S
+        WQiIG1pbk9jY3Vycz0iMCIgdHlwZT0ieHM6c3RyaW5nIiBtYXhPY2N1cnM9IjEiLz4KICA8L
+        3hzOnNlcXVlbmNlPgogPC94czpjb21wbGV4VHlwZT4KIDx4czplbGVtZW50IG5hbWU9IkJhc
+        2VSZXN1bHRUcmFuc2Zlck9wdGlvbnNEYXRhVHlwZSIgdHlwZT0idG5zOkJhc2VSZXN1bHRUc
+        mFuc2Zlck9wdGlvbnNEYXRhVHlwZSIvPgogPHhzOmNvbXBsZXhUeXBlIG5hbWU9Ikxpc3RPZ
+        kJhc2VSZXN1bHRUcmFuc2Zlck9wdGlvbnNEYXRhVHlwZSI+CiAgPHhzOnNlcXVlbmNlPgogI
+        CA8eHM6ZWxlbWVudCBuYW1lPSJCYXNlUmVzdWx0VHJhbnNmZXJPcHRpb25zRGF0YVR5cGUiI
+        G1pbk9jY3Vycz0iMCIgdHlwZT0idG5zOkJhc2VSZXN1bHRUcmFuc2Zlck9wdGlvbnNEYXRhV
+        HlwZSIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIi8+CiAgPC94czpzZ
+        XF1ZW5jZT4KIDwveHM6Y29tcGxleFR5cGU+CiA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZCY
+        XNlUmVzdWx0VHJhbnNmZXJPcHRpb25zRGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZCYXNlU
+        mVzdWx0VHJhbnNmZXJPcHRpb25zRGF0YVR5cGUiIG5pbGxhYmxlPSJ0cnVlIi8+CiA8eHM6Y
+        29tcGxleFR5cGUgbmFtZT0iUmVzdWx0VHJhbnNmZXJPcHRpb25zRGF0YVR5cGUiPgogIDx4c
+        zphbm5vdGF0aW9uPgogICA8eHM6ZG9jdW1lbnRhdGlvbj5Db250YWlucyBpbmZvcm1hdGlvb
+        iB3aGljaCBmaWxlIHNob3VsZCBiZSBwcm92aWRlZC48L3hzOmRvY3VtZW50YXRpb24+CiAgP
+        C94czphbm5vdGF0aW9uPgogIDx4czpjb21wbGV4Q29udGVudCBtaXhlZD0iZmFsc2UiPgogI
+        CA8eHM6ZXh0ZW5zaW9uIGJhc2U9InVhOkV4dGVuc2lvbk9iamVjdCI+CiAgICA8eHM6c2Vxd
+        WVuY2UvPgogICA8L3hzOmV4dGVuc2lvbj4KICA8L3hzOmNvbXBsZXhDb250ZW50PgogPC94c
+        zpjb21wbGV4VHlwZT4KIDx4czplbGVtZW50IG5hbWU9IlJlc3VsdFRyYW5zZmVyT3B0aW9uc
+        0RhdGFUeXBlIiB0eXBlPSJ0bnM6UmVzdWx0VHJhbnNmZXJPcHRpb25zRGF0YVR5cGUiLz4KI
+        Dx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZSZXN1bHRUcmFuc2Zlck9wdGlvbnNEYXRhV
+        HlwZSI+CiAgPHhzOnNlcXVlbmNlPgogICA8eHM6ZWxlbWVudCBuYW1lPSJSZXN1bHRUcmFuc
+        2Zlck9wdGlvbnNEYXRhVHlwZSIgbWluT2NjdXJzPSIwIiB0eXBlPSJ0bnM6UmVzdWx0VHJhb
+        nNmZXJPcHRpb25zRGF0YVR5cGUiIG1heE9jY3Vycz0idW5ib3VuZGVkIiBuaWxsYWJsZT0id
+        HJ1ZSIvPgogIDwveHM6c2VxdWVuY2U+CiA8L3hzOmNvbXBsZXhUeXBlPgogPHhzOmVsZW1lb
+        nQgbmFtZT0iTGlzdE9mUmVzdWx0VHJhbnNmZXJPcHRpb25zRGF0YVR5cGUiIHR5cGU9InRuc
+        zpMaXN0T2ZSZXN1bHRUcmFuc2Zlck9wdGlvbnNEYXRhVHlwZSIgbmlsbGFibGU9InRydWUiL
+        z4KIDx4czpjb21wbGV4VHlwZSBuYW1lPSJQcm9jZXNzaW5nVGltZXNEYXRhVHlwZSI+CiAgP
+        HhzOmFubm90YXRpb24+CiAgIDx4czpkb2N1bWVudGF0aW9uPkNvbnRhaW5zIG1lYXN1cmVkI
+        HRpbWVzIHRoYXQgd2VyZSBnZW5lcmF0ZWQgZHVyaW5nIHRoZSBleGVjdXRpb24gb2YgYSByZ
+        WNpcGUuPC94czpkb2N1bWVudGF0aW9uPgogIDwveHM6YW5ub3RhdGlvbj4KICA8eHM6c2Vxd
+        WVuY2U+CiAgIDx4czplbGVtZW50IG5hbWU9IkVuY29kaW5nTWFzayIgbWluT2NjdXJzPSIwI
+        iB0eXBlPSJ4czp1bnNpZ25lZEludCIvPgogICA8eHM6ZWxlbWVudCBuYW1lPSJTdGFydFRpb
+        WUiIG1pbk9jY3Vycz0iMCIgdHlwZT0ieHM6ZGF0ZVRpbWUiIG1heE9jY3Vycz0iMSIvPgogI
+        CA8eHM6ZWxlbWVudCBuYW1lPSJFbmRUaW1lIiBtaW5PY2N1cnM9IjAiIHR5cGU9InhzOmRhd
+        GVUaW1lIiBtYXhPY2N1cnM9IjEiLz4KICAgPHhzOmVsZW1lbnQgbmFtZT0iQWNxdWlzaXRpb
+        25EdXJhdGlvbiIgbWluT2NjdXJzPSIwIiB0eXBlPSJ4czpkb3VibGUiIG1heE9jY3Vycz0iM
+        SIvPgogICA8eHM6ZWxlbWVudCBuYW1lPSJQcm9jZXNzaW5nRHVyYXRpb24iIG1pbk9jY3Vyc
+        z0iMCIgdHlwZT0ieHM6ZG91YmxlIiBtYXhPY2N1cnM9IjEiLz4KICA8L3hzOnNlcXVlbmNlP
+        gogPC94czpjb21wbGV4VHlwZT4KIDx4czplbGVtZW50IG5hbWU9IlByb2Nlc3NpbmdUaW1lc
+        0RhdGFUeXBlIiB0eXBlPSJ0bnM6UHJvY2Vzc2luZ1RpbWVzRGF0YVR5cGUiLz4KIDx4czpjb
+        21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZQcm9jZXNzaW5nVGltZXNEYXRhVHlwZSI+CiAgPHhzO
+        nNlcXVlbmNlPgogICA8eHM6ZWxlbWVudCBuYW1lPSJQcm9jZXNzaW5nVGltZXNEYXRhVHlwZ
+        SIgbWluT2NjdXJzPSIwIiB0eXBlPSJ0bnM6UHJvY2Vzc2luZ1RpbWVzRGF0YVR5cGUiIG1he
+        E9jY3Vycz0idW5ib3VuZGVkIiBuaWxsYWJsZT0idHJ1ZSIvPgogIDwveHM6c2VxdWVuY2U+C
+        iA8L3hzOmNvbXBsZXhUeXBlPgogPHhzOmVsZW1lbnQgbmFtZT0iTGlzdE9mUHJvY2Vzc2luZ
+        1RpbWVzRGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZQcm9jZXNzaW5nVGltZXNEYXRhVHlwZ
+        SIgbmlsbGFibGU9InRydWUiLz4KIDx4czpjb21wbGV4VHlwZSBuYW1lPSJSZXN1bHREYXRhV
+        HlwZSI+CiAgPHhzOmFubm90YXRpb24+CiAgIDx4czpkb2N1bWVudGF0aW9uPkNvbnRhaW5zI
+        GZpZWxkcyB0aGF0IHdlcmUgY3JlYXRlZCBkdXJpbmcgdGhlIGV4ZWN1dGlvbiBvZiBhIHJlY
+        2lwZS48L3hzOmRvY3VtZW50YXRpb24+CiAgPC94czphbm5vdGF0aW9uPgogIDx4czpzZXF1Z
+        W5jZT4KICAgPHhzOmVsZW1lbnQgbmFtZT0iUmVzdWx0TWV0YURhdGEiIG1pbk9jY3Vycz0iM
+        CIgdHlwZT0idWE6RXh0ZW5zaW9uT2JqZWN0IiBtYXhPY2N1cnM9IjEiLz4KICAgPHhzOmVsZ
+        W1lbnQgbmFtZT0iUmVzdWx0Q29udGVudCIgbWluT2NjdXJzPSIwIiB0eXBlPSJ1YTpMaXN0T
+        2ZWYXJpYW50IiBtYXhPY2N1cnM9IjEiLz4KICA8L3hzOnNlcXVlbmNlPgogPC94czpjb21wb
+        GV4VHlwZT4KIDx4czplbGVtZW50IG5hbWU9IlJlc3VsdERhdGFUeXBlIiB0eXBlPSJ0bnM6U
+        mVzdWx0RGF0YVR5cGUiLz4KIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZSZXN1bHREY
+        XRhVHlwZSI+CiAgPHhzOnNlcXVlbmNlPgogICA8eHM6ZWxlbWVudCBuYW1lPSJSZXN1bHREY
+        XRhVHlwZSIgbWluT2NjdXJzPSIwIiB0eXBlPSJ0bnM6UmVzdWx0RGF0YVR5cGUiIG1heE9jY
+        3Vycz0idW5ib3VuZGVkIiBuaWxsYWJsZT0idHJ1ZSIvPgogIDwveHM6c2VxdWVuY2U+CiA8L
+        3hzOmNvbXBsZXhUeXBlPgogPHhzOmVsZW1lbnQgbmFtZT0iTGlzdE9mUmVzdWx0RGF0YVR5c
+        GUiIHR5cGU9InRuczpMaXN0T2ZSZXN1bHREYXRhVHlwZSIgbmlsbGFibGU9InRydWUiLz4KI
+        Dx4czpjb21wbGV4VHlwZSBuYW1lPSJSZXN1bHRNZXRhRGF0YVR5cGUiPgogIDx4czphbm5vd
+        GF0aW9uPgogICA8eHM6ZG9jdW1lbnRhdGlvbj5NZXRhIGRhdGEgb2YgYSByZXN1bHQsIGRlc
+        2NyaWJpbmcgdGhlIHJlc3VsdC48L3hzOmRvY3VtZW50YXRpb24+CiAgPC94czphbm5vdGF0a
+        W9uPgogIDx4czpzZXF1ZW5jZT4KICAgPHhzOmVsZW1lbnQgbmFtZT0iRW5jb2RpbmdNYXNrI
+        iBtaW5PY2N1cnM9IjAiIHR5cGU9InhzOnVuc2lnbmVkSW50Ii8+CiAgIDx4czplbGVtZW50I
+        G5hbWU9IlJlc3VsdElkIiBtaW5PY2N1cnM9IjAiIHR5cGU9InhzOnN0cmluZyIgbWF4T2Njd
+        XJzPSIxIi8+CiAgIDx4czplbGVtZW50IG5hbWU9Ikhhc1RyYW5zZmVyYWJsZURhdGFPbkZpb
+        GUiIG1pbk9jY3Vycz0iMCIgdHlwZT0ieHM6Ym9vbGVhbiIgbWF4T2NjdXJzPSIxIi8+CiAgI
+        Dx4czplbGVtZW50IG5hbWU9IklzUGFydGlhbCIgbWluT2NjdXJzPSIwIiB0eXBlPSJ4czpib
+        29sZWFuIiBtYXhPY2N1cnM9IjEiLz4KICAgPHhzOmVsZW1lbnQgbmFtZT0iSXNTaW11bGF0Z
+        WQiIG1pbk9jY3Vycz0iMCIgdHlwZT0ieHM6Ym9vbGVhbiIgbWF4T2NjdXJzPSIxIi8+CiAgI
+        Dx4czplbGVtZW50IG5hbWU9IlJlc3VsdFN0YXRlIiBtaW5PY2N1cnM9IjAiIHR5cGU9InhzO
+        mludCIgbWF4T2NjdXJzPSIxIi8+CiAgIDx4czplbGVtZW50IG5hbWU9IlN0ZXBJZCIgbWluT
+        2NjdXJzPSIwIiB0eXBlPSJ4czpzdHJpbmciIG1heE9jY3Vycz0iMSIvPgogICA8eHM6ZWxlb
+        WVudCBuYW1lPSJQYXJ0SWQiIG1pbk9jY3Vycz0iMCIgdHlwZT0ieHM6c3RyaW5nIiBtYXhPY
+        2N1cnM9IjEiLz4KICAgPHhzOmVsZW1lbnQgbmFtZT0iRXh0ZXJuYWxSZWNpcGVJZCIgbWluT
+        2NjdXJzPSIwIiB0eXBlPSJ4czpzdHJpbmciIG1heE9jY3Vycz0iMSIvPgogICA8eHM6ZWxlb
+        WVudCBuYW1lPSJJbnRlcm5hbFJlY2lwZUlkIiBtaW5PY2N1cnM9IjAiIHR5cGU9InhzOnN0c
+        mluZyIgbWF4T2NjdXJzPSIxIi8+CiAgIDx4czplbGVtZW50IG5hbWU9IlByb2R1Y3RJZCIgb
+        WluT2NjdXJzPSIwIiB0eXBlPSJ4czpzdHJpbmciIG1heE9jY3Vycz0iMSIvPgogICA8eHM6Z
+        WxlbWVudCBuYW1lPSJFeHRlcm5hbENvbmZpZ3VyYXRpb25JZCIgbWluT2NjdXJzPSIwIiB0e
+        XBlPSJ4czpzdHJpbmciIG1heE9jY3Vycz0iMSIvPgogICA8eHM6ZWxlbWVudCBuYW1lPSJJb
+        nRlcm5hbENvbmZpZ3VyYXRpb25JZCIgbWluT2NjdXJzPSIwIiB0eXBlPSJ4czpzdHJpbmciI
+        G1heE9jY3Vycz0iMSIvPgogICA8eHM6ZWxlbWVudCBuYW1lPSJKb2JJZCIgbWluT2NjdXJzP
+        SIwIiB0eXBlPSJ4czpzdHJpbmciIG1heE9jY3Vycz0iMSIvPgogICA8eHM6ZWxlbWVudCBuY
+        W1lPSJDcmVhdGlvblRpbWUiIG1pbk9jY3Vycz0iMCIgdHlwZT0ieHM6ZGF0ZVRpbWUiIG1he
+        E9jY3Vycz0iMSIvPgogICA8eHM6ZWxlbWVudCBuYW1lPSJQcm9jZXNzaW5nVGltZXMiIG1pb
+        k9jY3Vycz0iMCIgdHlwZT0idG5zOlByb2Nlc3NpbmdUaW1lc0RhdGFUeXBlIiBtYXhPY2N1c
+        nM9IjEiLz4KICAgPHhzOmVsZW1lbnQgbmFtZT0iUmVzdWx0VXJpIiBtaW5PY2N1cnM9IjAiI
+        HR5cGU9InVhOkxpc3RPZlN0cmluZyIgbWF4T2NjdXJzPSIxIi8+CiAgIDx4czplbGVtZW50I
+        G5hbWU9IlJlc3VsdEV2YWx1YXRpb24iIG1pbk9jY3Vycz0iMCIgdHlwZT0idG5zOlJlc3Vsd
+        EV2YWx1YXRpb25FbnVtIiBtYXhPY2N1cnM9IjEiLz4KICAgPHhzOmVsZW1lbnQgbmFtZT0iU
+        mVzdWx0RXZhbHVhdGlvbkNvZGUiIG1pbk9jY3Vycz0iMCIgdHlwZT0ieHM6bG9uZyIgbWF4T
+        2NjdXJzPSIxIi8+CiAgIDx4czplbGVtZW50IG5hbWU9IlJlc3VsdEV2YWx1YXRpb25EZXRha
+        WxzIiBtaW5PY2N1cnM9IjAiIHR5cGU9InVhOkxvY2FsaXplZFRleHQiIG1heE9jY3Vycz0iM
+        SIvPgogICA8eHM6ZWxlbWVudCBuYW1lPSJGaWxlRm9ybWF0IiBtaW5PY2N1cnM9IjAiIHR5c
+        GU9InVhOkxpc3RPZlN0cmluZyIgbWF4T2NjdXJzPSIxIi8+CiAgPC94czpzZXF1ZW5jZT4KI
+        DwveHM6Y29tcGxleFR5cGU+CiA8eHM6ZWxlbWVudCBuYW1lPSJSZXN1bHRNZXRhRGF0YVR5c
+        GUiIHR5cGU9InRuczpSZXN1bHRNZXRhRGF0YVR5cGUiLz4KIDx4czpjb21wbGV4VHlwZSBuY
+        W1lPSJMaXN0T2ZSZXN1bHRNZXRhRGF0YVR5cGUiPgogIDx4czpzZXF1ZW5jZT4KICAgPHhzO
+        mVsZW1lbnQgbmFtZT0iUmVzdWx0TWV0YURhdGFUeXBlIiBtaW5PY2N1cnM9IjAiIHR5cGU9I
+        nRuczpSZXN1bHRNZXRhRGF0YVR5cGUiIG1heE9jY3Vycz0idW5ib3VuZGVkIiBuaWxsYWJsZ
+        T0idHJ1ZSIvPgogIDwveHM6c2VxdWVuY2U+CiA8L3hzOmNvbXBsZXhUeXBlPgogPHhzOmVsZ
+        W1lbnQgbmFtZT0iTGlzdE9mUmVzdWx0TWV0YURhdGFUeXBlIiB0eXBlPSJ0bnM6TGlzdE9mU
+        mVzdWx0TWV0YURhdGFUeXBlIiBuaWxsYWJsZT0idHJ1ZSIvPgo8L3hzOnNjaGVtYT4K</uax:ByteString>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6088" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6077" DataType="Boolean">
+    <DisplayName>Deprecated</DisplayName>
+    <Description>Indicates that all of the DataType definitions represented by the DataTypeDictionaryType are available through a DataTypeDefinition Attribute.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6077</Reference>
+    </References>
+    <Value>
+      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">true</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6078" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6077" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6077</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/Machinery/Result/Types.xsd</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariableType NodeId="ns=1;i=2001" BrowseName="1:ResultType" DataType="ResultDataType">
+    <DisplayName>ResultType</DisplayName>
+    <Description>Exposes the information of the ResultDataType in individual subvariables.</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/9.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6011</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6010</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6009</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:TypeId>
+                    <uax:Identifier>ns=1;i=5009</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <ResultDataType xmlns="http://opcfoundation.org/UA/Machinery/Result/Types.xsd">
+                        <ResultMetaData>
+                            <TypeId xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                                <Identifier>ns=1;i=5006</Identifier>
+                            </TypeId>
+                            <Body xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                                <ResultMetaDataType xmlns="http://opcfoundation.org/UA/Machinery/Result/Types.xsd">
+                                    <EncodingMask>0</EncodingMask>
+                                    <ResultId></ResultId>
+                                </ResultMetaDataType>
+                            </Body>
+                        </ResultMetaData>
+                        <ResultContent />
+                    </ResultDataType>
+                </uax:Body>
+            </uax:ExtensionObject>
+    </Value>
+  </UAVariableType>
+  <UAVariable NodeId="ns=1;i=6011" BrowseName="1:ReducedResultContent" ParentNodeId="ns=1;i=2001" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
+    <DisplayName>ReducedResultContent</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6010" BrowseName="1:ResultContent" ParentNodeId="ns=1;i=2001" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>ResultContent</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=2001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6009" BrowseName="1:ResultMetaData" ParentNodeId="ns=1;i=2001" DataType="ResultMetaDataType">
+    <DisplayName>ResultMetaData</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=2001</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6025</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6022</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6019</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6031</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6013</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6023</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6020</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6014</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6015</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6024</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6018</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6026</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6021</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6028</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6030</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6029</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6012</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6016</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6027</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6017</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6025" BrowseName="1:CreationTime" ParentNodeId="ns=1;i=6009" DataType="UtcTime" AccessLevel="3">
+    <DisplayName>CreationTime</DisplayName>
+    <Description>CreationTime indicates the time when the result was created. Creation time on the measurement system (not the receive time of the server).
+It is recommended to always provide the creationTime.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6022" BrowseName="1:ExternalConfigurationId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ExternalConfigurationId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">External ID of the Configuration in use while the result was produced.
+It is managed by the Environment.
+This specification does not define how the externalConfigurationId is transmitted to the system. Typically, it is provided by the client.
+</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6019" BrowseName="1:ExternalRecipeId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ExternalRecipeId</DisplayName>
+    <Description>External ID of the recipe in use which produced the result. The External ID is managed by the environment.
+This specification does not define how the externalRecipeId is transmitted to the system. Typically, it is provided by the client.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6031" BrowseName="1:FileFormat" ParentNodeId="ns=1;i=6009" DataType="String" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
+    <DisplayName>FileFormat</DisplayName>
+    <Description>The format in which the measurement results are available (e.g. QDAS, CSV, …) using the ResultTransfer Object. If multiple file formats are provided, the GenerateFileForRead of ResultTransfer should contain corresponding transferOptions, to select the file format. This specification does not define those transferOptions.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6013" BrowseName="1:HasTransferableDataOnFile" ParentNodeId="ns=1;i=6009" DataType="Boolean" AccessLevel="3">
+    <DisplayName>HasTransferableDataOnFile</DisplayName>
+    <Description>Indicates that additional data for this result can be retrieved by temporary file transfer.
+If not provided, it is assumed that no file is available.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6023" BrowseName="1:InternalConfigurationId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>InternalConfigurationId</DisplayName>
+    <Description>Internal ID of the Configuration in use while the result was produced. This ID is system-wide unique and it is assigned by the system.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6020" BrowseName="1:InternalRecipeId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>InternalRecipeId</DisplayName>
+    <Description>Internal ID of the recipe in use which produced the result. This ID is system-wide unique and it is assigned by the system.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6014" BrowseName="1:IsPartial" ParentNodeId="ns=1;i=6009" DataType="Boolean" AccessLevel="3">
+    <DisplayName>IsPartial</DisplayName>
+    <Description>Indicates whether the result is the partial result of a total result. When not all samples are finished yet the result is 'partial'.
+If not provided, it is assumed to be a total result.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6015" BrowseName="1:IsSimulated" ParentNodeId="ns=1;i=6009" DataType="Boolean" AccessLevel="3">
+    <DisplayName>IsSimulated</DisplayName>
+    <Description>Indicates whether the result was created in simulation mode.
+Simulation mode implies that the result is only generated for testing purposes and not based on real production data.
+If not provided, it is assumed to not be simulated.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6024" BrowseName="1:JobId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>JobId</DisplayName>
+    <Description>Identifies the job which produced the result.
+This ID is system-wide unique and it is assigned by the system.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6018" BrowseName="1:PartId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>PartId</DisplayName>
+    <Description>Identifies the part used to produce the result.
+Although the system-wide unique JobId would be sufficient to identify the job which the result belongs to, this makes for easier filtering without keeping track of JobIds.
+This specification does not define how the partId is transmitted to the system. Typically, it is provided by the client when starting the job.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6026" BrowseName="1:ProcessingTimes" ParentNodeId="ns=1;i=6009" DataType="ProcessingTimesDataType" AccessLevel="3">
+    <DisplayName>ProcessingTimes</DisplayName>
+    <Description>Collection of different processing times that were needed to create the result.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:TypeId>
+                    <uax:Identifier>ns=1;i=5004</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <ProcessingTimesDataType xmlns="http://opcfoundation.org/UA/Machinery/Result/Types.xsd">
+                        <EncodingMask>0</EncodingMask>
+                        <StartTime>1900-01-01T00:00:00Z</StartTime>
+                        <EndTime>1900-01-01T00:00:00Z</EndTime>
+                    </ProcessingTimesDataType>
+                </uax:Body>
+            </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6021" BrowseName="1:ProductId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ProductId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">Identifies the product used to produce the result.
+This specification does not define how the externalRecipeId is transmitted to the system. Typically, it is provided by the client.
+</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6028" BrowseName="1:ResultEvaluation" ParentNodeId="ns=1;i=6009" DataType="ResultEvaluationEnum" AccessLevel="3">
+    <DisplayName>ResultEvaluation</DisplayName>
+    <Description>The ResultEvaluation indicates whether the result was in tolerance.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6030" BrowseName="1:ResultEvaluationCode" ParentNodeId="ns=1;i=6009" DataType="Int64" AccessLevel="3">
+    <DisplayName>ResultEvaluationCode</DisplayName>
+    <Description>Vendor-specific code describing more details on resultEvaluation.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+    <Value>
+      <uax:Int64 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">0</uax:Int64>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6029" BrowseName="1:ResultEvaluationDetails" ParentNodeId="ns=1;i=6009" DataType="LocalizedText" AccessLevel="3">
+    <DisplayName>ResultEvaluationDetails</DisplayName>
+    <Description>The optional EvaluationDetails provides high level status information in a user-friendly text. This can be left empty for successful operations.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6012" BrowseName="1:ResultId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ResultId</DisplayName>
+    <Description>System-wide unique identifier, which is assigned by the system. This ID can be used for fetching exactly this result using the method GetResultById and it is identical to the ResultId of the ResultReadyEventType.
+If the system does not manage resultIds, it should always be set to “NA”.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6016" BrowseName="1:ResultState" ParentNodeId="ns=1;i=6009" DataType="Int32" AccessLevel="3">
+    <DisplayName>ResultState</DisplayName>
+    <Description>ResultState provides information about the current state of the process or measurement creating a result.
+Applications may use negative values for application-specific states. All other values shall only be used as defined in the following:
+0 – Undefined initial value
+1 – Completed: Processing was carried out completely
+2 – Processing: Processing has not been finished yet
+3 – Aborted: Processing was stopped at some point before completion
+4 – Failed: Processing failed in some way.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6027" BrowseName="1:ResultUri" ParentNodeId="ns=1;i=6009" DataType="UriString" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
+    <DisplayName>ResultUri</DisplayName>
+    <Description>Path to the actual measured result, managed external to the server.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6017" BrowseName="1:StepId" ParentNodeId="ns=1;i=6009" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>StepId</DisplayName>
+    <Description>Identifies the step which produced the result.
+Although the system-wide unique JobId would be sufficient to identify the job which the result belongs to, this makes for easier filtering without keeping track of JobIds.
+This specification does not define how the stepId is transmitted to the system. Typically, it is provided by the client when starting an execution.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1002" BrowseName="1:ResultReadyEventType" IsAbstract="true">
+    <DisplayName>ResultReadyEventType</DisplayName>
+    <Description>Provides information of a complete or partial result.</Description>
+    <Category>Machinery-Result ResultEvents</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/8.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2041</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6032</Reference>
+      <Reference ReferenceType="GeneratesEvent" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6032" BrowseName="1:Result" ParentNodeId="ns=1;i=1002" DataType="ResultDataType" AccessLevel="3">
+    <DisplayName>Result</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=2001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6033</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:TypeId>
+                    <uax:Identifier>ns=1;i=5009</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <ResultDataType xmlns="http://opcfoundation.org/UA/Machinery/Result/Types.xsd">
+                        <ResultMetaData>
+                            <TypeId xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                                <Identifier>ns=1;i=5006</Identifier>
+                            </TypeId>
+                            <Body xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                                <ResultMetaDataType xmlns="http://opcfoundation.org/UA/Machinery/Result/Types.xsd">
+                                    <EncodingMask>0</EncodingMask>
+                                    <ResultId></ResultId>
+                                </ResultMetaDataType>
+                            </Body>
+                        </ResultMetaData>
+                        <ResultContent />
+                    </ResultDataType>
+                </uax:Body>
+            </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6033" BrowseName="1:ResultMetaData" ParentNodeId="ns=1;i=6032" DataType="ResultMetaDataType">
+    <DisplayName>ResultMetaData</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6032</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6056</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6057</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6058</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6059</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6060</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6061</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6062</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6063</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6064</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6065</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6066</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6067</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6068</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6069</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6070</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6071</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6034</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6072</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6073</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6074</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6056" BrowseName="1:CreationTime" ParentNodeId="ns=1;i=6033" DataType="UtcTime" AccessLevel="3">
+    <DisplayName>CreationTime</DisplayName>
+    <Description>CreationTime indicates the time when the result was created. Creation time on the measurement system (not the receive time of the server).
+It is recommended to always provide the creationTime.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6057" BrowseName="1:ExternalConfigurationId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ExternalConfigurationId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">External ID of the Configuration in use while the result was produced.
+It is managed by the Environment.
+This specification does not define how the externalConfigurationId is transmitted to the system. Typically, it is provided by the client.
+</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6058" BrowseName="1:ExternalRecipeId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ExternalRecipeId</DisplayName>
+    <Description>External ID of the recipe in use which produced the result. The External ID is managed by the environment.
+This specification does not define how the externalRecipeId is transmitted to the system. Typically, it is provided by the client.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6059" BrowseName="1:FileFormat" ParentNodeId="ns=1;i=6033" DataType="String" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
+    <DisplayName>FileFormat</DisplayName>
+    <Description>The format in which the measurement results are available (e.g. QDAS, CSV, …) using the ResultTransfer Object. If multiple file formats are provided, the GenerateFileForRead of ResultTransfer should contain corresponding transferOptions, to select the file format. This specification does not define those transferOptions.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6060" BrowseName="1:HasTransferableDataOnFile" ParentNodeId="ns=1;i=6033" DataType="Boolean" AccessLevel="3">
+    <DisplayName>HasTransferableDataOnFile</DisplayName>
+    <Description>Indicates that additional data for this result can be retrieved by temporary file transfer.
+If not provided, it is assumed that no file is available.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6061" BrowseName="1:InternalConfigurationId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>InternalConfigurationId</DisplayName>
+    <Description>Internal ID of the Configuration in use while the result was produced. This ID is system-wide unique and it is assigned by the system.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6062" BrowseName="1:InternalRecipeId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>InternalRecipeId</DisplayName>
+    <Description>Internal ID of the recipe in use which produced the result. This ID is system-wide unique and it is assigned by the system.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6063" BrowseName="1:IsPartial" ParentNodeId="ns=1;i=6033" DataType="Boolean" AccessLevel="3">
+    <DisplayName>IsPartial</DisplayName>
+    <Description>Indicates whether the result is the partial result of a total result. When not all samples are finished yet the result is 'partial'.
+If not provided, it is assumed to be a total result.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6064" BrowseName="1:IsSimulated" ParentNodeId="ns=1;i=6033" DataType="Boolean" AccessLevel="3">
+    <DisplayName>IsSimulated</DisplayName>
+    <Description>Indicates whether the result was created in simulation mode.
+Simulation mode implies that the result is only generated for testing purposes and not based on real production data.
+If not provided, it is assumed to not be simulated.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6065" BrowseName="1:JobId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>JobId</DisplayName>
+    <Description>Identifies the job which produced the result.
+This ID is system-wide unique and it is assigned by the system.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6066" BrowseName="1:PartId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>PartId</DisplayName>
+    <Description>Identifies the part used to produce the result.
+Although the system-wide unique JobId would be sufficient to identify the job which the result belongs to, this makes for easier filtering without keeping track of JobIds.
+This specification does not define how the partId is transmitted to the system. Typically, it is provided by the client when starting the job.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6067" BrowseName="1:ProcessingTimes" ParentNodeId="ns=1;i=6033" DataType="ProcessingTimesDataType" AccessLevel="3">
+    <DisplayName>ProcessingTimes</DisplayName>
+    <Description>Collection of different processing times that were needed to create the result.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:TypeId>
+                    <uax:Identifier>ns=1;i=5004</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <ProcessingTimesDataType xmlns="http://opcfoundation.org/UA/Machinery/Result/Types.xsd">
+                        <EncodingMask>0</EncodingMask>
+                        <StartTime>1900-01-01T00:00:00Z</StartTime>
+                        <EndTime>1900-01-01T00:00:00Z</EndTime>
+                    </ProcessingTimesDataType>
+                </uax:Body>
+            </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6068" BrowseName="1:ProductId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ProductId</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">Identifies the product used to produce the result.
+This specification does not define how the externalRecipeId is transmitted to the system. Typically, it is provided by the client.
+</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6069" BrowseName="1:ResultEvaluation" ParentNodeId="ns=1;i=6033" DataType="ResultEvaluationEnum" AccessLevel="3">
+    <DisplayName>ResultEvaluation</DisplayName>
+    <Description>The ResultEvaluation indicates whether the result was in tolerance.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6070" BrowseName="1:ResultEvaluationCode" ParentNodeId="ns=1;i=6033" DataType="Int64" AccessLevel="3">
+    <DisplayName>ResultEvaluationCode</DisplayName>
+    <Description>Vendor-specific code describing more details on resultEvaluation.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+    <Value>
+      <uax:Int64 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">0</uax:Int64>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6071" BrowseName="1:ResultEvaluationDetails" ParentNodeId="ns=1;i=6033" DataType="LocalizedText" AccessLevel="3">
+    <DisplayName>ResultEvaluationDetails</DisplayName>
+    <Description>The optional EvaluationDetails provides high level status information in a user-friendly text. This can be left empty for successful operations.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6034" BrowseName="1:ResultId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ResultId</DisplayName>
+    <Description>System-wide unique identifier, which is assigned by the system. This ID can be used for fetching exactly this result using the method GetResultById and it is identical to the ResultId of the ResultReadyEventType.
+If the system does not manage resultIds, it should always be set to “NA”.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6072" BrowseName="1:ResultState" ParentNodeId="ns=1;i=6033" DataType="Int32" AccessLevel="3">
+    <DisplayName>ResultState</DisplayName>
+    <Description>ResultState provides information about the current state of the process or measurement creating a result.
+Applications may use negative values for application-specific states. All other values shall only be used as defined in the following:
+0 – Undefined initial value
+1 – Completed: Processing was carried out completely
+2 – Processing: Processing has not been finished yet
+3 – Aborted: Processing was stopped at some point before completion
+4 – Failed: Processing failed in some way.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6073" BrowseName="1:ResultUri" ParentNodeId="ns=1;i=6033" DataType="UriString" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
+    <DisplayName>ResultUri</DisplayName>
+    <Description>Path to the actual measured result, managed external to the server.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6074" BrowseName="1:StepId" ParentNodeId="ns=1;i=6033" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>StepId</DisplayName>
+    <Description>Identifies the step which produced the result.
+Although the system-wide unique JobId would be sufficient to identify the job which the result belongs to, this makes for easier filtering without keeping track of JobIds.
+This specification does not define how the stepId is transmitted to the system. Typically, it is provided by the client when starting an execution.
+</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1004" BrowseName="1:ResultManagementType">
+    <DisplayName>ResultManagementType</DisplayName>
+    <Description>Provides mechanism to access results generated by the underlying system.</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/7.1.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7009</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6037</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7008</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7005</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7006</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7007</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5011</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5010</Reference>
+    </References>
+  </UAObjectType>
+  <UAMethod NodeId="ns=1;i=7009" BrowseName="1:AcknowledgeResults" ParentNodeId="ns=1;i=1004">
+    <DisplayName>AcknowledgeResults</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/7.1.6</Documentation>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6089</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6090</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6089" BrowseName="InputArguments" ParentNodeId="ns=1;i=7009" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7009</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>ResultIds</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=31918</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>1</uax:ValueRank>
+                            <uax:ArrayDimensions>
+                                <uax:UInt32>0</uax:UInt32>
+                            </uax:ArrayDimensions>
+                            <uax:Description>
+                                <uax:Text>List of result identifiers to be acknowledged.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6090" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7009" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7009</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>ErrorPerResultId</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>1</uax:ValueRank>
+                            <uax:ArrayDimensions>
+                                <uax:UInt32>0</uax:UInt32>
+                            </uax:ArrayDimensions>
+                            <uax:Description>
+                                <uax:Text>Shall be null or empty if error equals 0. Shall have the same length as resultIds if error is not equal 0. Indicates for each resultId in resultIds, if the acknowledge was successful.
+Per entry:
+0 – OK
+Values &gt; 0 are reserved for errors defined by this and future standards.
+Values &lt; 0 shall be used for application-specific errors.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Error</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>0 – OK
+Values &gt; 0 are reserved for errors defined by this and future standards.
+Values &lt; 0 shall be used for application-specific errors.
+Shall be not equal 0 if any resultId of resultIds was not successfully acknowledged. Shall be 0 if all resultIds where acknowledged successful.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6037" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=1;i=1004" DataType="QualifiedName" AccessLevel="3">
+    <DisplayName>DefaultInstanceBrowseName</DisplayName>
+    <Description>The default BrowseName for instances of the type.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+    <Value>
+      <uax:QualifiedName xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:NamespaceIndex>1</uax:NamespaceIndex>
+                <uax:Name>ResultManagement</uax:Name>
+            </uax:QualifiedName>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7008" BrowseName="1:GetLatestResult" ParentNodeId="ns=1;i=1004">
+    <DisplayName>GetLatestResult</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/7.1.5</Documentation>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6054</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6055</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6054" BrowseName="InputArguments" ParentNodeId="ns=1;i=7008" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7008</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Timeout</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>With this argument the client can give a hint to the server how long it will need access to the result data.
+A value &gt; 0 indicates an estimated maximum time for processing the data in milliseconds. 
+A value = 0 indicates that the client will not need anything besides the data returned by the method call.
+A value &lt; 0 indicates that the client cannot give an estimate.
+The client cannot rely on the data being available during the indicated time period. The argument is merely a hint allowing the server to optimize its resource management.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6055" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7008" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7008</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>ResultHandle</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=31917</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>The server shall return to each client requesting result data a system-wide unique handle identifying the result set / client combination. This handle should be used by the client to indicate to the server that the result data is no longer needed, allowing the server to optimize its resource handling.
+If the instance of ResultManagementType does not support the ReleaseResultHandle Method, the resultHandle should always be set to 0.
+If the error is set to a value other than 0, the resultHandle may be set to 0.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Result</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>ns=1;i=3008</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>The result including metadata.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Error</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>0 – OK
+Values &gt; 0 are reserved for errors defined by this and future standards.
+Values &lt; 0 shall be used for application-specific errors.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7005" BrowseName="1:GetResultById" ParentNodeId="ns=1;i=1004">
+    <DisplayName>GetResultById</DisplayName>
+    <Description>The server shall return to each client requesting result data a system-wide unique handle identifying the result set / client combination. This handle should be used by the client to indicate to the server that the result data is no longer needed, allowing the server to optimize its resource handling.
+If the instance of ResultManagementType does not support the ReleaseResultHandle Method, the resultHandle should always be set to 0.
+If the error is set to a value other than 0, the resultHandle may be set to 0.
+</Description>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/7.1.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6048</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6049</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6048" BrowseName="InputArguments" ParentNodeId="ns=1;i=7005" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7005</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>ResultId</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=31918</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>System-wide unique identifier for the result.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Timeout</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>With this argument the client can give a hint to the server how long it will need access to the result data.
+A value &gt; 0 indicates an estimated maximum time for processing the data in milliseconds. 
+A value = 0 indicates that the client will not need anything besides the data returned by the method call.
+A value &lt; 0 indicates that the client cannot give an estimate.
+The client cannot rely on the data being available during the indicated time period. The argument is merely a hint allowing the server to optimize its resource management.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6049" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7005" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7005</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>ResultHandle</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=31917</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>The server shall return to each client requesting result data a system-wide unique handle identifying the result set / client combination. This handle should be used by the client to indicate to the server that the result data is no longer needed, allowing the server to optimize its resource handling.
+If the instance of ResultManagementType does not support the ReleaseResultHandle Method, the resultHandle should always be set to 0.
+If the error is set to a value other than 0, the resultHandle may be set to 0.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Result</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>ns=1;i=3008</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>The result including metadata. May be set to Null, if error is set to a value other than 0.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Error</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>0 – OK
+Values &gt; 0 are reserved for errors defined by this and future standards.
+Values &lt; 0 shall be used for application-specific errors.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7006" BrowseName="1:GetResultIdListFiltered" ParentNodeId="ns=1;i=1004">
+    <DisplayName>GetResultIdListFiltered</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/7.1.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6050</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6051</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6050" BrowseName="InputArguments" ParentNodeId="ns=1;i=7006" DataType="Argument" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7006</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Filter</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=586</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>Filter used to filter for specific results based on the meta data of the results. Valid BrowsePaths used in the filter can be built from the fields of the ResultReadyEventType, the ResultType VariableType or the ResultDataType or corresponding subtypes.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>OrderedBy</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=540</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>1</uax:ValueRank>
+                            <uax:ArrayDimensions>
+                                <uax:UInt32>0</uax:UInt32>
+                            </uax:ArrayDimensions>
+                            <uax:Description>
+                                <uax:Text>An array of BrowsePaths (as array of QualifiedName) identifying the ordering criteria for the results. If the array is null or empty, no ordering is executed.
+If several BrowsePaths are provided, the first entry in the array is used as first ordering criteria, etc.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>MaxResults</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=7</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>Defines how many resultIds the Client wants to receive at most. If no maximum should be provided, it is set to 0.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Timeout</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>With this argument the client can give a hint to the server how long it will need access to the result data.
+A value &gt; 0 indicates an estimated maximum time for processing the data in milliseconds. 
+A value = 0 indicates that the client will not need anything besides the data returned by the method call.
+A value &lt; 0 indicates that the client cannot give an estimate.
+The client cannot rely on the data being available during the indicated time period. The argument is merely a hint allowing the server to optimize its resource management.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6051" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7006" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7006</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>ResultHandle</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=31917</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>The server shall return to each client requesting result data a system-wide unique handle identifying the result set / client combination. This handle has to be used by the client to release the result set.
+If the instance of ResultManagementType does not support the ReleaseResultHandle Method, the resultHandle should always be set to 0.
+If the error is set to a value other than 0, the resultHandle may be set to 0.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>ResultIdList</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=31918</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>1</uax:ValueRank>
+                            <uax:ArrayDimensions>
+                                <uax:UInt32>0</uax:UInt32>
+                            </uax:ArrayDimensions>
+                            <uax:Description>
+                                <uax:Text>List of resultIds of results matching the Filter.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Error</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>0 – OK
+Values &gt; 0 are reserved for errors defined by this and future standards.
+Values &lt; 0 shall be used for application-specific errors.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7007" BrowseName="1:ReleaseResultHandle" ParentNodeId="ns=1;i=1004">
+    <DisplayName>ReleaseResultHandle</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/7.1.4</Documentation>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6052</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6053</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6052" BrowseName="InputArguments" ParentNodeId="ns=1;i=7007" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7007</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>ResultHandle</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=31917</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>Handle returned by GetResultById or GetResultIdListFiltered, identifying the result set/client combination.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6053" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7007" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7007</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>Error</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=6</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>0 – OK
+Values &gt; 0 are reserved for errors defined by this and future standards.
+Values &lt; 0 shall be used for application-specific errors.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5011" BrowseName="1:Results" ParentNodeId="ns=1;i=1004">
+    <DisplayName>Results</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6045</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6045" BrowseName="1:&lt;ResultVariable&gt;" SymbolicName="ResultVariable" ParentNodeId="ns=1;i=5011" DataType="ResultDataType" AccessLevel="3">
+    <DisplayName>&lt;ResultVariable&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=2001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5011</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6046</Reference>
+    </References>
+    <Value>
+      <uax:ExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:TypeId>
+                    <uax:Identifier>ns=1;i=5009</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <ResultDataType xmlns="http://opcfoundation.org/UA/Machinery/Result/Types.xsd">
+                        <ResultMetaData>
+                            <TypeId xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                                <Identifier>ns=1;i=5006</Identifier>
+                            </TypeId>
+                            <Body xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                                <ResultMetaDataType xmlns="http://opcfoundation.org/UA/Machinery/Result/Types.xsd">
+                                    <EncodingMask>0</EncodingMask>
+                                    <ResultId></ResultId>
+                                </ResultMetaDataType>
+                            </Body>
+                        </ResultMetaData>
+                        <ResultContent />
+                    </ResultDataType>
+                </uax:Body>
+            </uax:ExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6046" BrowseName="1:ResultMetaData" ParentNodeId="ns=1;i=6045" DataType="ResultMetaDataType">
+    <DisplayName>ResultMetaData</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6045</Reference>
+      <Reference ReferenceType="HasStructuredComponent">ns=1;i=6047</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6047" BrowseName="1:ResultId" ParentNodeId="ns=1;i=6046" DataType="TrimmedString" AccessLevel="3">
+    <DisplayName>ResultId</DisplayName>
+    <Description>System-wide unique identifier, which is assigned by the system. This ID can be used for fetching exactly this result using the method GetResultById and it is identical to the ResultId of the ResultReadyEventType.
+If the system does not manage resultIds, it should always be set to “NA”.
+</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasStructuredComponent" IsForward="false">ns=1;i=6046</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5010" BrowseName="1:ResultTransfer" ParentNodeId="ns=1;i=1004">
+    <DisplayName>ResultTransfer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6040</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7003</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7002</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7004</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6040" BrowseName="ClientProcessingTimeout" ParentNodeId="ns=1;i=5010" DataType="Duration">
+    <DisplayName>ClientProcessingTimeout</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5010</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7003" BrowseName="CloseAndCommit" ParentNodeId="ns=1;i=5010" MethodDeclarationId="i=15751">
+    <DisplayName>CloseAndCommit</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6041</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6042</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6041" BrowseName="InputArguments" ParentNodeId="ns=1;i=7003" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7003</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>FileHandle</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=7</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description />
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6042" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7003" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7003</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>CompletionStateMachine</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=17</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description />
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7002" BrowseName="GenerateFileForRead" ParentNodeId="ns=1;i=5010" MethodDeclarationId="ns=1;i=7001">
+    <DisplayName>GenerateFileForRead</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6038</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6039</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6038" BrowseName="InputArguments" ParentNodeId="ns=1;i=7002" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7002</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>GenerateOptions</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>ns=1;i=3005</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>Options how to generate the file, including the resultId of the result the file belongs to. </uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6039" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7002" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7002</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>FileNodeId</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=17</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>NodeId of the temporary file.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>FileHandle</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=7</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>The FileHandle of the opened TransferFile.
+The FileHandle can be used to access the TransferFile methods Read and Close.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>CompletionStateMachine</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=17</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>If the creation of the file is completed asynchronously, the parameter returns the NodeId of the corresponding FileTransferStateMachineType Object.
+If the creation of the file is already completed, the parameter is null.
+If a FileTransferStateMachineType object NodeId is returned, the Read Method of the file fails until the TransferState changed to ReadTransfer.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=7004" BrowseName="GenerateFileForWrite" ParentNodeId="ns=1;i=5010" MethodDeclarationId="i=15749">
+    <DisplayName>GenerateFileForWrite</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6043</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6044</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6043" BrowseName="InputArguments" ParentNodeId="ns=1;i=7004" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7004</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>GenerateOptions</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=24</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description />
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6044" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7004" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7004</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>FileNodeId</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=17</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description />
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>FileHandle</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=7</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description />
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1003" BrowseName="1:ResultTransferType">
+    <DisplayName>ResultTransferType</DisplayName>
+    <Description>Transfers result data as a file.</Description>
+    <Category>Machinery-Result Types</Category>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/7.2.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=15744</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=7001</Reference>
+    </References>
+  </UAObjectType>
+  <UAMethod NodeId="ns=1;i=7001" BrowseName="GenerateFileForRead" ParentNodeId="ns=1;i=1003">
+    <DisplayName>GenerateFileForRead</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/7.2.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1003</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6035</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6036</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=6035" BrowseName="InputArguments" ParentNodeId="ns=1;i=7001" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7001</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>GenerateOptions</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>ns=1;i=3005</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>Options how to generate the file, including the resultId of the result the file belongs to. </uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6036" BrowseName="OutputArguments" ParentNodeId="ns=1;i=7001" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7001</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>FileNodeId</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=17</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>NodeId of the temporary file.</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>FileHandle</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=7</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>The FileHandle of the opened TransferFile.
+The FileHandle can be used to access the TransferFile methods Read and Close.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:Argument>
+                            <uax:Name>CompletionStateMachine</uax:Name>
+                            <uax:DataType>
+                                <uax:Identifier>i=17</uax:Identifier>
+                            </uax:DataType>
+                            <uax:ValueRank>-1</uax:ValueRank>
+                            <uax:ArrayDimensions />
+                            <uax:Description>
+                                <uax:Text>If the creation of the file is completed asynchronously, the parameter returns the NodeId of the corresponding FileTransferStateMachineType Object.
+If the creation of the file is already completed, the parameter is null.
+If a FileTransferStateMachineType object NodeId is returned, the Read Method of the file fails until the TransferState changed to ReadTransfer.
+</uax:Text>
+                            </uax:Description>
+                        </uax:Argument>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5007" BrowseName="1:http://opcfoundation.org/UA/Machinery/Result/" SymbolicName="http___opcfoundation_org_UA_Machinery_Result_">
+    <DisplayName>http://opcfoundation.org/UA/Machinery/Result/</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/Machinery/Result/v101/docs/12.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6003</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6005</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6006</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6007</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6008</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6002" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=5007" DataType="Boolean">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">false</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6003" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=5007" DataType="DateTime">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-07-01T00:00:00Z</uax:DateTime>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6004" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=5007" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/Machinery/Result/</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6005" BrowseName="NamespaceVersion" ParentNodeId="ns=1;i=5007" DataType="String">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.01.0</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6006" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=1;i=5007" DataType="IdType" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>StaticNodeIdTypes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:ListOfInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:Int32>0</uax:Int32>
+            </uax:ListOfInt32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6007" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=1;i=5007" DataType="NumericRange" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>StaticNumericNodeIdRange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6008" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=1;i=5007" DataType="String">
+    <DisplayName>StaticStringNodeIdPattern</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5001" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3004</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6079</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5002" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3004</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6080</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5003" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3006</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6081</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5004" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3006</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6082</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5005" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3007</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6085</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5006" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3007</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6086</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5008" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3008</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6083</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5009" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3008</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6084</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5012" BrowseName="Default JSON" SymbolicName="DefaultJson" ReleaseStatus="Deprecated">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3004</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5013" BrowseName="Default JSON" SymbolicName="DefaultJson" ReleaseStatus="Deprecated">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3006</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5014" BrowseName="Default JSON" SymbolicName="DefaultJson" ReleaseStatus="Deprecated">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3008</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5015" BrowseName="Default JSON" SymbolicName="DefaultJson" ReleaseStatus="Deprecated">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3007</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

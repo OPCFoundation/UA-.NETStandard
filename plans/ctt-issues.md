@@ -20,7 +20,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 | --- | --- | --- | --- |
 | 3 | Aggregate – Base `002-01.js`…`002-04.js` (every Aggregate CU) | The multi-node path of `HAAggregateHelper.js` dereferences `possibleNodeId` without a guard. | [11251](https://mantis.opcfoundation.org/view.php?id=11251) |
 | 4 | Aggregate – Base `Err-004.js` | Sends an equal-time request when the ProcessingInterval setting is blank. | [11252](https://mantis.opcfoundation.org/view.php?id=11252) |
-| C1 | Aggregate – Base `003-01.js`…`003-04.js`, `004-01.js`…`004-04.js`, `Err-004.js` | The harness always sends `UseServerCapabilitiesDefaults = TRUE`, so the server uses its defaults while the oracle applies the test configuration. | [11420](https://mantis.opcfoundation.org/view.php?id=11420) |
+| C1 | Aggregate – Base `003-01.js`…`003-04.js`, `004-01.js`…`004-04.js`, `Err-004.js`; Aggregate – NumberOfTransitions `003-02.js`, `004-02.js` (TreatUncertainAsBad = False) | The harness always sends `UseServerCapabilitiesDefaults = TRUE`, so the server uses its defaults while the oracle applies the test configuration. | [11420](https://mantis.opcfoundation.org/view.php?id=11420) |
 | C2 | Aggregate – AnnotationCount | The oracle counts raw values instead of Annotations. | [11421](https://mantis.opcfoundation.org/view.php?id=11421) |
 | C3 | Aggregate – WorstQuality2 | The oracle also includes the end bound. | [11422](https://mantis.opcfoundation.org/view.php?id=11422) |
 | C4 | Aggregate – DurationInStateZero / DurationInStateNonZero | The oracle reports Bad below PercentDataBad. | [11423](https://mantis.opcfoundation.org/view.php?id=11423) |

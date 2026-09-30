@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Machinery.Energy</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Machinery.Energy</PackageId>
+    <RootNamespace>Opc.Ua.Machinery.Energy</RootNamespace>
+    <!-- CS0109 joins the usual CS0108 suppression because the ObjectType proxy
+         generator decides the "new" modifier from the method's browse name
+         alone (ObjectTypeProxyGenerator.isShadow) rather than from its
+         signature, so a narrowed inherited method emits a redundant "new".
+         Generated modifiers cannot be hand-tuned. -->
+    <NoWarn>$(NoWarn);CS1591;CS0108;CS0109</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Source-generated OPC 40001-4 Machinery Energy Management information model over the OPC 34100 Energy Consumption Management, OPC 10000-200 Industrial Automation and OPC 10000-100 DI base models.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Tests" />
+  </ItemGroup>
+  <!-- The model binds ECM (its energy carriers are instances of ECM's
+       EnergyMeasurementValueType) and IA. Both are named explicitly because
+       this model's nodes reference their types directly; DI is a declared
+       RequiredModel with no bound node and arrives transitively. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.ECM\Opc.Ua.ECM.csproj" />
+    <ProjectReference Include="..\Opc.Ua.IA\Opc.Ua.IA.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.Machinery.Energy.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.Machinery.Energy.NodeIds.csv" />
+  </ItemGroup>
+  <!-- The identifier file is a drift guard, not a NodeId source - for a
+       NodeSet2 input the NodeIds come from the XML. It is derived from the
+       upstream publication with tools/nodesets/derive-identifier-table.py;
+       Model\*.Upstream.NodeIds.csv is that publication unmodified and is kept
+       out of AdditionalFiles so the two can be diffed. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.Machinery.Energy.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/Machinery/Energy/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>MachineryEnergy</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery.Energy</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Machinery.Energy.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.Machinery.Energy.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

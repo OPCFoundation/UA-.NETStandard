@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Machinery.Result</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Machinery.Result</PackageId>
+    <RootNamespace>Opc.Ua.Machinery.Result</RootNamespace>
+    <!-- CS0109 joins the usual CS0108 suppression because the ObjectType proxy
+         generator decides the "new" modifier from the method's browse name
+         alone (ObjectTypeProxyGenerator.isShadow), not from its signature.
+         ResultTransferType narrows TemporaryFileTransferType's
+         GenerateFileForRead to take a ResultTransferOptionsDataType, which in
+         C# is an overload rather than a hide, so the emitted "new" is
+         redundant. The generated code is correct; only the modifier is
+         superfluous, and generated modifiers cannot be hand-tuned. -->
+    <NoWarn>$(NoWarn);CS1591;CS0108;CS0109</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Source-generated OPC 40001-101 Machinery Result Transfer information model, including the ResultManagement and ResultTransfer object types, the Result data types and their binary, XML and JSON encodings.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Tests" />
+  </ItemGroup>
+  <!-- OPC 40001-101 is standalone on the base UA namespace: its NodeSet has a
+       single entry in NamespaceUris and its only RequiredModel is UA 1.05.02.
+       It does not depend on Machinery 40001-1, so a server that only transfers
+       results does not have to carry the machine model. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.Machinery.Result.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.Machinery.Result.NodeIds.csv" />
+  </ItemGroup>
+  <!-- Upstream publishes this NodeSet as Opc.Ua.Machinery_Result.NodeSet2.xml
+       (underscore). It is renamed here to match the assembly and the other four
+       parts; the upstream path is recorded in docs/Machinery.md. Renaming is
+       safe because NodeSetToModelDesign.IsNodeSet inspects the document, not
+       the file name.
+
+       The identifier file is a drift guard, not a NodeId source - for a
+       NodeSet2 input the NodeIds come from the XML. It is derived from the
+       upstream publication with tools/nodesets/derive-identifier-table.py;
+       Model\*.Upstream.NodeIds.csv is that publication unmodified and is kept
+       out of AdditionalFiles so the two can be diffed. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.Machinery.Result.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/Machinery/Result/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>MachineryResult</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery.Result</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Machinery.Result.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.Machinery.Result.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
