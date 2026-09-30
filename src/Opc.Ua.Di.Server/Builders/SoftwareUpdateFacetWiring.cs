@@ -119,12 +119,13 @@ namespace Opc.Ua.Di.Server.Builders
             // State machines — all four are present but only Installation
             // and Confirmation have method handlers wired by default;
             // PrepareForUpdate.Prepare/Abort/Resume also wired.
+            var transitions = new SoftwareUpdateTransitions(diNs, context);
             PrepareForUpdateStateMachineState prepareForUpdate = CreatePrepareForUpdate(
-                context, su, diNs, config, callbackContext, logger);
+                context, su, diNs, config, callbackContext, transitions, logger);
             su.PrepareForUpdate = prepareForUpdate;
 
             InstallationStateMachineState installation = CreateInstallation(
-                context, su, diNs, config, callbackContext, logger);
+                context, su, diNs, config, callbackContext, transitions, logger);
             su.Installation = installation;
 
             PowerCycleStateMachineState powerCycle = CreatePowerCycle(context, su, diNs);
@@ -282,6 +283,7 @@ namespace Opc.Ua.Di.Server.Builders
             ushort diNs,
             SoftwareUpdateBuilder config,
             SoftwareUpdateContext callbackContext,
+            SoftwareUpdateTransitions transitions,
             ILogger logger)
         {
             var browseName = new QualifiedName(PrepareForUpdateBrowseName, diNs);
@@ -302,15 +304,17 @@ namespace Opc.Ua.Di.Server.Builders
                 FinaliseChild(context, sm.Prepare,
                     new QualifiedName("Prepare", diNs));
                 sm.Prepare.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
-                    InvokePrepareAsync(config, callbackContext, sm, diNs, logger, ct);
+                    InvokePrepareAsync(config, callbackContext, sm, transitions, logger, ct);
             }
             if (sm.Abort != null)
             {
                 FinaliseChild(context, sm.Abort,
                     new QualifiedName("Abort", diNs));
+                sm.Abort.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
+                    InvokeAbortAsync(config, callbackContext, sm, transitions, logger, ct);
             }
             sm.Resume?.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
-                    InvokePrepareAsync(config, callbackContext, sm, diNs, logger, ct);
+                    InvokeResumeAsync(config, callbackContext, sm, parent, transitions, logger, ct);
 
             return sm;
         }
@@ -321,6 +325,7 @@ namespace Opc.Ua.Di.Server.Builders
             ushort diNs,
             SoftwareUpdateBuilder config,
             SoftwareUpdateContext callbackContext,
+            SoftwareUpdateTransitions transitions,
             ILogger logger)
         {
             var browseName = new QualifiedName(InstallationBrowseName, diNs);
@@ -368,6 +373,10 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 FinaliseChild(context, sm.Resume,
                     new QualifiedName("Resume", diNs));
+                sm.Resume.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
+                    new ValueTask<ServiceResult>(transitions.TryResumeInstallation(sm)
+                        ? ServiceResult.Good
+                        : new ServiceResult(StatusCodes.BadInvalidState));
             }
 
             return sm;
@@ -435,65 +444,144 @@ namespace Opc.Ua.Di.Server.Builders
                 child.Parent ?? child);
         }
 
+        /// <summary>
+        /// OPC 10000-100 §8.4.8.3 <c>Prepare</c>: from <c>Idle</c> through
+        /// <c>Preparing</c> to <c>PreparedForUpdate</c>, or back to
+        /// <c>Idle</c> when the preparation fails.
+        /// </summary>
         private static async ValueTask<ServiceResult> InvokePrepareAsync(
             SoftwareUpdateBuilder config,
             SoftwareUpdateContext context,
             PrepareForUpdateStateMachineState sm,
-            ushort diNs,
+            SoftwareUpdateTransitions transitions,
             ILogger logger,
             CancellationToken cancellationToken)
         {
-            ISystemContext sys = context.SystemContext;
-            SoftwareUpdateStateMachineDispatcher.Move(
-                sm,
-                SoftwareUpdateStateMachineDispatcher.PrepareForUpdate_Preparing,
-                SoftwareUpdateStateMachineDispatcher.PrepareForUpdate_IdleToPreparing,
-                diNs,
-                sys);
+            SoftwareUpdateTransitions.Preparation? preparation =
+                transitions.TryBeginPrepare(sm, cancellationToken);
+            if (preparation == null)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
+
+            Exception? failure = null;
+            try
+            {
+                await SoftwareUpdateStateMachineDispatcher.FireAsync(
+                    config.PrepareStateChanged, context,
+                    new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, string.Empty, null),
+                    logger,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (config.PrepareHandler != null)
+                {
+                    await config.PrepareHandler(context, preparation.Token)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+
+            bool ended;
+            try
+            {
+                ended = transitions.TryEndPrepare(sm, preparation, succeeded: failure == null);
+            }
+            finally
+            {
+                preparation.Release();
+            }
+            if (!ended)
+            {
+                return PreparationAborted();
+            }
+            if (failure != null)
+            {
+                await SoftwareUpdateStateMachineDispatcher.FireAsync(
+                    config.PrepareStateChanged, context,
+                    new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, failure.Message, null),
+                    logger,
+                    cancellationToken).ConfigureAwait(false);
+
+                return new ServiceResult(failure);
+            }
+
+            await SoftwareUpdateStateMachineDispatcher.FireAsync(
+                config.PrepareStateChanged, context,
+                new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, null),
+                logger,
+                cancellationToken).ConfigureAwait(false);
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// OPC 10000-100 §8.4.8.4 <c>Abort</c>: from <c>Preparing</c> back
+        /// to <c>Idle</c>, cancelling the preparation in flight.
+        /// </summary>
+        private static async ValueTask<ServiceResult> InvokeAbortAsync(
+            SoftwareUpdateBuilder config,
+            SoftwareUpdateContext context,
+            PrepareForUpdateStateMachineState sm,
+            SoftwareUpdateTransitions transitions,
+            ILogger logger,
+            CancellationToken cancellationToken)
+        {
+            if (!transitions.TryAbort(sm))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
+            await SoftwareUpdateStateMachineDispatcher.FireAsync(
+                config.PrepareStateChanged, context,
+                new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, "Aborted", null),
+                logger,
+                cancellationToken).ConfigureAwait(false);
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// OPC 10000-100 §8.4.8.5 <c>Resume</c>: from
+        /// <c>PreparedForUpdate</c> through <c>Resuming</c> back to
+        /// <c>Idle</c>, unless an installation is running.
+        /// </summary>
+        private static async ValueTask<ServiceResult> InvokeResumeAsync(
+            SoftwareUpdateBuilder config,
+            SoftwareUpdateContext context,
+            PrepareForUpdateStateMachineState sm,
+            SoftwareUpdateState softwareUpdate,
+            SoftwareUpdateTransitions transitions,
+            ILogger logger,
+            CancellationToken cancellationToken)
+        {
+            if (!transitions.TryResume(sm, softwareUpdate.Installation))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
                 config.PrepareStateChanged, context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, string.Empty, null),
                 logger,
                 cancellationToken).ConfigureAwait(false);
+            await SoftwareUpdateStateMachineDispatcher.FireAsync(
+                config.PrepareStateChanged, context,
+                new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, null),
+                logger,
+                cancellationToken).ConfigureAwait(false);
 
-            try
-            {
-                if (config.PrepareHandler != null)
-                {
-                    await config.PrepareHandler(context, cancellationToken)
-                        .ConfigureAwait(false);
-                }
+            return ServiceResult.Good;
+        }
 
-                SoftwareUpdateStateMachineDispatcher.Move(
-                    sm,
-                    SoftwareUpdateStateMachineDispatcher.PrepareForUpdate_PreparedForUpdate,
-                    SoftwareUpdateStateMachineDispatcher.PrepareForUpdate_PreparingToPreparedForUpdate,
-                    diNs,
-                    sys);
-                await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.PrepareStateChanged, context,
-                    new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, null),
-                    logger,
-                    cancellationToken).ConfigureAwait(false);
-
-                return ServiceResult.Good;
-            }
-            catch (Exception ex)
-            {
-                SoftwareUpdateStateMachineDispatcher.Move(
-                    sm,
-                    SoftwareUpdateStateMachineDispatcher.PrepareForUpdate_Idle,
-                    SoftwareUpdateStateMachineDispatcher.PrepareForUpdate_PreparingToIdle,
-                    diNs,
-                    sys);
-                await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.PrepareStateChanged, context,
-                    new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, ex.Message, null),
-                    logger,
-                    cancellationToken).ConfigureAwait(false);
-
-                return new ServiceResult(ex);
-            }
+        /// <summary>
+        /// The result of a <c>Prepare</c> call whose preparation <c>Abort</c> ended.
+        /// </summary>
+        private static ServiceResult PreparationAborted()
+        {
+            return new ServiceResult(
+                StatusCodes.BadInvalidState,
+                new LocalizedText("The preparation was aborted."));
         }
 
         private static async ValueTask<ServiceResult> InvokeInstallSoftwarePackageAsync(
