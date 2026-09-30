@@ -1873,17 +1873,16 @@ namespace Opc.Ua
                 useNamespaceUri = false;
             }
 
-            if (value.NamespaceIndex == 0 &&
-                value.Name != null &&
-                value.Name.StartsWith("nsu=", StringComparison.Ordinal) &&
-                value.Name.IndexOf(':', StringComparison.Ordinal) < 0)
+            if (value.NamespaceIndex == 0)
             {
-                // Without the index prefix the name would parse back as a namespace
-                // uri form (5.1.12, 5.4.2.14).
-                return "0:" + value.Name;
+                // A name in namespace 0 uses the <name> form (5.1.12 Table 7);
+                // the index prefix is only written when the name would
+                // otherwise parse back as another form (5.4.2.14).
+                string name = value.Name ?? string.Empty;
+                return IsAmbiguousNamespaceZeroName(name) ? "0:" + name : name;
             }
 
-            if (!string.IsNullOrEmpty(value.Name) || value.NamespaceIndex == 0)
+            if (!string.IsNullOrEmpty(value.Name))
             {
                 return value.Format(Context, useNamespaceUri);
             }
@@ -1898,6 +1897,25 @@ namespace Opc.Ua
             }
 
             return value.NamespaceIndex.ToString(CultureInfo.InvariantCulture) + ":";
+        }
+
+        /// <summary>
+        /// Whether a name in namespace 0 has the shape of another QualifiedName
+        /// form: a digit run followed by ':' (a NamespaceIndex) or "nsu=" with
+        /// a ';' (a NamespaceUri).
+        /// </summary>
+        private static bool IsAmbiguousNamespaceZeroName(string name)
+        {
+            if (name.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                return name.IndexOf(';', 4) >= 0;
+            }
+            int digits = 0;
+            while (digits < name.Length && name[digits] is >= '0' and <= '9')
+            {
+                digits++;
+            }
+            return digits > 0 && digits < name.Length && name[digits] == ':';
         }
 
         /// <summary>

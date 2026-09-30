@@ -686,10 +686,18 @@ namespace Opc.Ua.Types.Tests.Encoders
         [TestCase("nsu=x;y", "0:nsu=x;y")]
         [TestCase("nsu=urn:a;b", "0:nsu=urn:a;b")]
         [TestCase("nsuffix", "nsuffix")]
+        [TestCase("nsu=urn:a", "nsu=urn:a")]
+        [TestCase("Hello:World", "Hello:World")]
+        [TestCase("a1:b", "a1:b")]
+        [TestCase(":abc", ":abc")]
+        [TestCase("12:Tag", "0:12:Tag")]
+        [TestCase("0:Tag", "0:0:Tag")]
+        [TestCase("123", "123")]
         public void WriteQualifiedNameInNamespaceZeroWithNsuPrefixRoundTrips(string name, string expected)
         {
-            // A name that looks like the namespace uri form needs the "0:" prefix to parse
-            // back into namespace 0 (Part 6 5.1.12, 5.4.2.14).
+            // Namespace 0 uses the <name> form (Part 6 5.1.12 Table 7). Only a name that
+            // looks like the index or namespace uri form needs the "0:" prefix to parse
+            // back into namespace 0 (5.4.2.14).
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var value = new QualifiedName(name, 0);
