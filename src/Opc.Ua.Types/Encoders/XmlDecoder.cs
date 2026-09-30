@@ -2495,7 +2495,8 @@ namespace Opc.Ua
                         case "Double":
                             return ReadDouble(typeName);
                         case "String":
-                            return ReadString(typeName) ?? string.Empty;
+                            // a nil element is a null String Variant (5.3.1.17)
+                            return new Variant(ReadString(typeName)!);
                         case "DateTime":
                             return ReadDateTime(typeName);
                         case "Guid":

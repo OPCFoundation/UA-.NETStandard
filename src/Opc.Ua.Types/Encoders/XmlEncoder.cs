@@ -2333,7 +2333,9 @@ namespace Opc.Ua
                     WriteDouble("Double", value.GetDouble());
                     return;
                 case BuiltInType.String:
-                    WriteString("String", value.GetString());
+                    // a null String keeps its type as <String xsi:nil="true"/>
+                    // (Part 6 5.3.1.17)
+                    WriteString("String", value.GetString(), true);
                     return;
                 case BuiltInType.DateTime:
                     WriteDateTime("DateTime", value.GetDateTime());
