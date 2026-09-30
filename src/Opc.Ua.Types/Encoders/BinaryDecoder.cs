@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// <summary>
     /// Decodes objects from a UA Binary encoded stream.
     /// </summary>
-    public class BinaryDecoder : IDecoder
+    public partial class BinaryDecoder : IDecoder
     {
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
@@ -1155,7 +1155,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ArrayOf<bool> ReadBooleanArray(string? fieldName)
         {
-            return ReadArray(1, static d => d.ReadBoolean(null));
+            return ReadArray<bool, BooleanElementReader>(default);
         }
 
         /// <inheritdoc/>
@@ -1221,85 +1221,85 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ArrayOf<string?> ReadStringArray(string? fieldName)
         {
-            return ReadArray(4, static d => d.ReadString(null));
+            return ReadArray<string?, StringElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<DateTimeUtc> ReadDateTimeArray(string? fieldName)
         {
-            return ReadArray(8, static d => d.ReadDateTime(null));
+            return ReadArray<DateTimeUtc, DateTimeElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<Uuid> ReadGuidArray(string? fieldName)
         {
-            return ReadArray(16, static d => d.ReadGuid(null));
+            return ReadArray<Uuid, GuidElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<ByteString> ReadByteStringArray(string? fieldName)
         {
-            return ReadArray(4, static d => d.ReadByteString(null));
+            return ReadArray<ByteString, ByteStringElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<XmlElement> ReadXmlElementArray(string? fieldName)
         {
-            return ReadArray(4, static d => d.ReadXmlElement(null));
+            return ReadArray<XmlElement, XmlElementElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<NodeId> ReadNodeIdArray(string? fieldName)
         {
-            return ReadArray(2, static d => d.ReadNodeId(null));
+            return ReadArray<NodeId, NodeIdElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string? fieldName)
         {
-            return ReadArray(2, static d => d.ReadExpandedNodeId(null));
+            return ReadArray<ExpandedNodeId, ExpandedNodeIdElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<StatusCode> ReadStatusCodeArray(string? fieldName)
         {
-            return ReadArray(4, static d => d.ReadStatusCode(null));
+            return ReadArray<StatusCode, StatusCodeElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string? fieldName)
         {
-            return ReadArray(1, static d => d.ReadDiagnosticInfo(null));
+            return ReadArray<DiagnosticInfo?, DiagnosticInfoElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<QualifiedName> ReadQualifiedNameArray(string? fieldName)
         {
-            return ReadArray(6, static d => d.ReadQualifiedName(null));
+            return ReadArray<QualifiedName, QualifiedNameElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<LocalizedText> ReadLocalizedTextArray(string? fieldName)
         {
-            return ReadArray(1, static d => d.ReadLocalizedText(null));
+            return ReadArray<LocalizedText, LocalizedTextElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<Variant> ReadVariantArray(string? fieldName)
         {
-            return ReadArray(1, static d => d.ReadVariant(null));
+            return ReadArray<Variant, VariantElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
-            return ReadArray(1, static d => d.ReadDataValue(null));
+            return ReadArray<DataValue, DataValueElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string? fieldName)
         {
-            return ReadArray(3, static d => d.ReadExtensionObject(null));
+            return ReadArray<ExtensionObject, ExtensionObjectElementReader>(default);
         }
 
         /// <inheritdoc/>
@@ -1308,7 +1308,7 @@ namespace Opc.Ua
         {
             // An encodeable can encode to no bytes at all, only the
             // MaxArrayLength limit applies to its element count.
-            return ReadArray(0, d => d.ReadEncodeable<T>(null, encodeableTypeId));
+            return ReadArray<T, EncodeableByTypeIdElementReader<T>>(new(encodeableTypeId));
         }
 
         /// <inheritdoc/>
@@ -1318,8 +1318,9 @@ namespace Opc.Ua
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
             // An encodeable can encode to no bytes at all, only the
             // MaxArrayLength limit applies to its element count.
-            return ReadInlineMatrix(encodeableTypeId, 0,
-                d => d.ReadEncodeable<T>(null, encodeableTypeId));
+            return ReadInlineMatrix<T, EncodeableByTypeIdElementReader<T>>(
+                encodeableTypeId,
+                new(encodeableTypeId));
         }
 
         /// <inheritdoc/>
@@ -1327,34 +1328,33 @@ namespace Opc.Ua
             where T : IEncodeable, new()
         {
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
-            return ReadInlineMatrix(typeof(T).Name, 0,
-                static d => d.ReadEncodeable<T>(null));
+            return ReadInlineMatrix<T, EncodeableElementReader<T>>(typeof(T).Name, default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable
         {
-            return ReadArray(3, static d => d.ReadEncodeableAsExtensionObject<T>(null));
+            return ReadArray<T, EncodeableAsExtensionObjectElementReader<T>>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName)
             where T : IEncodeable, new()
         {
-            return ReadArray(0, static d => d.ReadEncodeable<T>(null));
+            return ReadArray<T, EncodeableElementReader<T>>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName) where T : struct, Enum
         {
-            return ReadArray(4, static d => d.ReadEnumerated<T>(null));
+            return ReadArray<T, EnumeratedElementReader<T>>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<EnumValue> ReadEnumeratedArray(string? fieldName)
         {
-            return ReadArray(4, static d => d.ReadEnumerated(null));
+            return ReadArray<EnumValue, EnumValueElementReader>(default);
         }
 
         /// <inheritdoc/>
@@ -1777,8 +1777,8 @@ namespace Opc.Ua
                 case BuiltInType.Null:
                     return Variant.Null;
                 case BuiltInType.Boolean:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadBoolean(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<bool, BooleanElementReader>(typeInfo, default));
                 case BuiltInType.SByte:
                     return Variant.From(ReadInlineMatrixFixed<sbyte>(typeInfo));
                 case BuiltInType.Byte:
@@ -1790,8 +1790,8 @@ namespace Opc.Ua
                 case BuiltInType.Int32:
                     return Variant.From(ReadInlineMatrixFixed<int>(typeInfo));
                 case BuiltInType.Enumeration:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadEnumerated(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<EnumValue, EnumValueElementReader>(typeInfo, default));
                 case BuiltInType.UInt32:
                     return Variant.From(ReadInlineMatrixFixed<uint>(typeInfo));
                 case BuiltInType.Int64:
@@ -1804,50 +1804,50 @@ namespace Opc.Ua
                     return Variant.From(ReadInlineMatrixFixed<double>(typeInfo));
                 case BuiltInType.String:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadString(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<string?, StringElementReader>(typeInfo, default));
 #pragma warning restore CS8620
                 case BuiltInType.DateTime:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 8,
-                        static d => d.ReadDateTime(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<DateTimeUtc, DateTimeElementReader>(typeInfo, default));
                 case BuiltInType.Guid:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 16,
-                        static d => d.ReadGuid(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<Uuid, GuidElementReader>(typeInfo, default));
                 case BuiltInType.ByteString:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadByteString(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<ByteString, ByteStringElementReader>(typeInfo, default));
                 case BuiltInType.XmlElement:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadXmlElement(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<XmlElement, XmlElementElementReader>(typeInfo, default));
                 case BuiltInType.NodeId:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 2,
-                        static d => d.ReadNodeId(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<NodeId, NodeIdElementReader>(typeInfo, default));
                 case BuiltInType.ExpandedNodeId:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 2,
-                        static d => d.ReadExpandedNodeId(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<ExpandedNodeId, ExpandedNodeIdElementReader>(typeInfo, default));
                 case BuiltInType.StatusCode:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadStatusCode(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<StatusCode, StatusCodeElementReader>(typeInfo, default));
                 case BuiltInType.QualifiedName:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 6,
-                        static d => d.ReadQualifiedName(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<QualifiedName, QualifiedNameElementReader>(typeInfo, default));
                 case BuiltInType.LocalizedText:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadLocalizedText(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<LocalizedText, LocalizedTextElementReader>(typeInfo, default));
                 case BuiltInType.ExtensionObject:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 3,
-                        static d => d.ReadExtensionObject(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<ExtensionObject, ExtensionObjectElementReader>(typeInfo, default));
                 case BuiltInType.DataValue:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadDataValue(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<DataValue, DataValueElementReader>(typeInfo, default));
 #pragma warning restore CS8620
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
                 case BuiltInType.Variant:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadVariant(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<Variant, VariantElementReader>(typeInfo, default));
                 case BuiltInType.DiagnosticInfo:
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
@@ -1873,27 +1873,24 @@ namespace Opc.Ua
         /// allocated.
         /// </summary>
         /// <typeparam name="T">The element type.</typeparam>
+        /// <typeparam name="TReader">Reads a single element.</typeparam>
         /// <param name="description">The field type, for diagnostics.</param>
-        /// <param name="minElementSize">The minimum number of bytes a single
-        /// element takes on the wire, 0 when an element can be empty.</param>
-        /// <param name="readElement">Reads a single element.</param>
+        /// <param name="reader">Reads a single element.</param>
         /// <exception cref="ServiceResultException"></exception>
-        private MatrixOf<T> ReadInlineMatrix<T>(
-            object description,
-            int minElementSize,
-            Func<BinaryDecoder, T> readElement)
+        private MatrixOf<T> ReadInlineMatrix<T, TReader>(object description, TReader reader)
+            where TReader : struct, IElementReader<T>
         {
             int[]? dimensions = ReadInt32Array(null).ToArray();
             if (dimensions == null)
             {
                 return default;
             }
-            int count = GetInlineMatrixElementCount(dimensions, minElementSize, description);
+            int count = GetInlineMatrixElementCount(dimensions, reader.MinElementSize, description);
             if (count == 0)
             {
                 return new MatrixOf<T>(Array.Empty<T>(), dimensions);
             }
-            return new MatrixOf<T>(ReadArrayElements(count, readElement), dimensions);
+            return new MatrixOf<T>(ReadArrayElements<T, TReader>(count, reader), dimensions);
         }
 
         /// <summary>
@@ -2157,24 +2154,23 @@ namespace Opc.Ua
         /// Reads an array whose elements are read one by one.
         /// </summary>
         /// <typeparam name="T">The element type.</typeparam>
-        /// <param name="minElementSize">The minimum number of bytes a single
-        /// element takes on the wire, 0 when an element can be empty.</param>
-        /// <param name="readElement">Reads a single element.</param>
+        /// <typeparam name="TReader">Reads a single element.</typeparam>
+        /// <param name="reader">Reads a single element.</param>
         /// <param name="callerMemberName">The caller, for diagnostics.</param>
         /// <exception cref="ServiceResultException"></exception>
-        private ArrayOf<T> ReadArray<T>(
-            int minElementSize,
-            Func<BinaryDecoder, T> readElement,
+        private ArrayOf<T> ReadArray<T, TReader>(
+            TReader reader,
             [CallerMemberName] string callerMemberName = "")
+            where TReader : struct, IElementReader<T>
         {
-            int length = ReadArrayLength(minElementSize, callerMemberName);
+            int length = ReadArrayLength(reader.MinElementSize, callerMemberName);
 
             if (length == -1)
             {
                 return default;
             }
 
-            return ReadArrayElements(length, readElement);
+            return ReadArrayElements<T, TReader>(length, reader);
         }
 
         /// <summary>
@@ -2188,9 +2184,11 @@ namespace Opc.Ua
         /// elements actually decoded instead of to the length prefixes.
         /// </summary>
         /// <typeparam name="T">The element type.</typeparam>
+        /// <typeparam name="TReader">Reads a single element.</typeparam>
         /// <param name="length">The validated number of elements.</param>
-        /// <param name="readElement">Reads a single element.</param>
-        private T[] ReadArrayElements<T>(int length, Func<BinaryDecoder, T> readElement)
+        /// <param name="reader">Reads a single element.</param>
+        private T[] ReadArrayElements<T, TReader>(int length, TReader reader)
+            where TReader : struct, IElementReader<T>
         {
             var values = new T[GetInitialArrayCapacity<T>(length)];
             for (int ii = 0; ii < length; ii++)
@@ -2199,7 +2197,7 @@ namespace Opc.Ua
                 {
                     Array.Resize(ref values, (int)Math.Min(length, 2L * values.Length));
                 }
-                values[ii] = readElement(this);
+                values[ii] = reader.Read(this);
             }
             return values;
         }
