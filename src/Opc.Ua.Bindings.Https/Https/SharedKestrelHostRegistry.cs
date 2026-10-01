@@ -202,8 +202,7 @@ namespace Opc.Ua.Bindings
                     accessor.Instance = host;
                     // Build + start the host with the accessor already wired
                     // into DI so the first request can resolve the SharedHost.
-                    IHost ihost = hostFactory(accessor);
-                    await host.AttachAndStartAsync(ihost, ct).ConfigureAwait(false);
+                    await StartHostAsync(host, accessor, hostFactory, ct).ConfigureAwait(false);
                     m_hosts[key] = host;
                 }
                 else if (!string.Equals(
@@ -223,6 +222,97 @@ namespace Opc.Ua.Bindings
             finally
             {
                 m_lock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Moves the shared host for <paramref name="key"/> to a new TLS
+        /// certificate (Part 12 certificate rotation). The TLS certificate is
+        /// a property of the whole <c>(host, port)</c>, so the host is rebuilt
+        /// once by <paramref name="listener"/> with the new certificate and
+        /// every listener registered on the old host is moved to the new one.
+        /// Leases stay valid: they are keyed by <c>(key, listener)</c>.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> when <paramref name="listener"/> is not registered on a
+        /// shared host for <paramref name="key"/>; the caller then restarts on
+        /// its own.
+        /// </returns>
+        internal async ValueTask<bool> RotateCertificateAsync(
+            SharedHostKey key,
+            HttpsTransportListener listener,
+            Func<SharedHostAccessor, IHost> hostFactory,
+            string serverCertificateThumbprint,
+            CancellationToken ct = default)
+        {
+            if (hostFactory == null)
+            {
+                throw new ArgumentNullException(nameof(hostFactory));
+            }
+
+            await m_lock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (!m_hosts.TryGetValue(key, out SharedKestrelHost? oldHost) ||
+                    !oldHost.ContainsListener(listener))
+                {
+                    return false;
+                }
+                if (string.Equals(
+                    oldHost.ServerCertificateThumbprint,
+                    serverCertificateThumbprint,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    // Another listener of this host already rotated it.
+                    return true;
+                }
+
+                // Stop the old host first: the new one binds the same port. A
+                // TLS restart also forces every client to renegotiate (Part 12
+                // 7.10.9), the same as the stop / start of a dedicated host.
+                IReadOnlyList<KeyValuePair<string, HttpsTransportListener>> listeners =
+                    oldHost.GetListeners();
+                m_hosts.Remove(key);
+                await oldHost.StopAsync(ct).ConfigureAwait(false);
+
+                var accessor = new SharedHostAccessor();
+                var newHost = new SharedKestrelHost(key, serverCertificateThumbprint);
+                accessor.Instance = newHost;
+                foreach (KeyValuePair<string, HttpsTransportListener> entry in listeners)
+                {
+                    newHost.AddListener(entry.Key, entry.Value);
+                }
+                await StartHostAsync(newHost, accessor, hostFactory, ct).ConfigureAwait(false);
+                m_hosts[key] = newHost;
+                return true;
+            }
+            finally
+            {
+                m_lock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Builds and starts a shared host; a host that fails to start is
+        /// stopped so it releases the port and the TLS certificate it owns.
+        /// </summary>
+        private static async ValueTask StartHostAsync(
+            SharedKestrelHost host,
+            SharedHostAccessor accessor,
+            Func<SharedHostAccessor, IHost> hostFactory,
+            CancellationToken ct)
+        {
+            try
+            {
+                // Build + start the host with the accessor already wired
+                // into DI so the first request can resolve the SharedHost.
+                IHost ihost = hostFactory(accessor);
+                await host.AttachAndStartAsync(ihost, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -456,24 +546,58 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        internal bool ContainsListener(HttpsTransportListener listener)
+        {
+            lock (m_lock)
+            {
+                foreach (HttpsTransportListener registered in m_listeners.Values)
+                {
+                    if (ReferenceEquals(registered, listener))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        internal IReadOnlyList<KeyValuePair<string, HttpsTransportListener>> GetListeners()
+        {
+            lock (m_lock)
+            {
+                return [.. m_listeners];
+            }
+        }
+
+        /// <summary>
+        /// Hands the TLS certificate the host serves to the host, so it lives
+        /// as long as the host and not as long as the listener that built it.
+        /// Disposed when the host stops.
+        /// </summary>
+        internal void OwnCertificate(IDisposable certificate)
+        {
+            IDisposable? previous = Interlocked.Exchange(ref m_ownedCertificate, certificate);
+            previous?.Dispose();
+        }
+
         internal async ValueTask StopAsync(CancellationToken ct = default)
         {
-            if (m_host == null)
+            if (m_host != null)
             {
-                return;
+                try
+                {
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(TimeSpan.FromSeconds(5));
+                    await m_host.StopAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Best-effort shutdown.
+                }
+                m_host.Dispose();
+                m_host = null;
             }
-            try
-            {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(5));
-                await m_host.StopAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch
-            {
-                // Best-effort shutdown.
-            }
-            m_host.Dispose();
-            m_host = null;
+            Interlocked.Exchange(ref m_ownedCertificate, null)?.Dispose();
         }
 
         private void RebuildRouteOrder()
@@ -519,6 +643,7 @@ namespace Opc.Ua.Bindings
         }
 
         private IHost? m_host;
+        private IDisposable? m_ownedCertificate;
         private readonly Lock m_lock = new();
 
         private readonly Dictionary<string, HttpsTransportListener> m_listeners =
