@@ -220,6 +220,39 @@ namespace Opc.Ua.Server.Tests
             Assert.That(original.ClientUserId, Is.Null);
         }
 
+        /// <summary>
+        /// Part 6 7.4.1: every HTTPS client of a listener shares one SecureChannelId,
+        /// so the AuthenticationToken must be a random value of at least 32 bytes.
+        /// A sequential token let a second HTTPS client derive the token of the
+        /// session created just before its own and use that session.
+        /// </summary>
+        [Test]
+        public async Task SharedSecuredChannelGetsRandomTokenThatCannotBeGuessedAsync()
+        {
+            OperationContext victimChannel = CreateContext(
+                "https-listener", MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256,
+                endpointUrl: "opc.https://localhost:4843/binding");
+            OperationContext attackerChannel = CreateContext(
+                "https-listener", MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256,
+                endpointUrl: "opc.https://localhost:4843/binding");
+            CreateSessionResult victim = await CreateAsync(victimChannel).ConfigureAwait(false);
+            CreateSessionResult attacker = await CreateAsync(attackerChannel).ConfigureAwait(false);
+
+            if (attacker.AuthenticationToken.TryGetValue(out uint own))
+            {
+                // the attacker derives the neighbouring tokens from its own one.
+                Assert.That(m_manager.GetSession(new NodeId(own - 1)), Is.Null,
+                    "A token derived from another client's token must not find its session.");
+            }
+            foreach (CreateSessionResult created in new[] { victim, attacker })
+            {
+                Assert.That(created.AuthenticationToken.TryGetValue(out ByteString token), Is.True,
+                    "The token on a shared channel must be a random opaque value.");
+                Assert.That(token.Length, Is.GreaterThanOrEqualTo(32));
+            }
+            Assert.That(victim.AuthenticationToken, Is.Not.EqualTo(attacker.AuthenticationToken));
+        }
+
         [Test]
         public async Task ReadOnlyLookupDoesNotHoldIndexLockWhileProbingSessionAsync()
         {
