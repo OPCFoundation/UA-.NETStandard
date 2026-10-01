@@ -735,6 +735,37 @@ namespace Opc.Ua.Server
 
                     if (snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
                     {
+                        // The snapshot was read in the reporter's context. A user dependent
+                        // UserAccessLevel is evaluated again for the subscriber (Part 3 5.6.3).
+                        if (Node is BaseVariableState variable &&
+                            variable.OnReadUserAccessLevel != null)
+                        {
+                            byte userAccessLevel = variable.UserAccessLevel;
+                            variable.OnReadUserAccessLevel(contextToUse, variable, ref userAccessLevel);
+
+                            if ((userAccessLevel & AccessLevels.CurrentRead) == 0)
+                            {
+                                QueueError(monitoredItem, new ServiceResult(StatusCodes.BadUserAccessDenied));
+                                continue;
+                            }
+
+                            // the reporter could not read the value, but the subscriber can.
+                            if (snapshotValue.StatusCode == StatusCodes.BadUserAccessDenied)
+                            {
+                                (_, snapshotValue) = await Node.ReadAttributeAsync(
+                                    contextToUse,
+                                    Attributes.Value,
+                                    default,
+                                    QualifiedName.Null,
+                                    new DataValue(
+                                        default,
+                                        StatusCodes.Good,
+                                        DateTime.MinValue,
+                                        m_timeProvider.GetUtcNow().UtcDateTime),
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+
                         DataValue valueToQueue = ApplyRangeAndEncoding(contextToUse, monitoredItem, snapshotValue);
                         monitoredItem.QueueValue(valueToQueue, valueToQueue.StatusCode);
                     }
