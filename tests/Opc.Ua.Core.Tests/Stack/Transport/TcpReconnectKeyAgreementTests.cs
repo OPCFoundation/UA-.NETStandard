@@ -79,7 +79,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(harness.Target.SnapshotClientCertificateChainForRevalidation(), Is.Null);
         }
 
+        /// <summary>
+        /// OPC 10000-6 6.8.1 Step 2: a renewal XORs the IKM of the current keys into the new IKM only when the
+        /// policy has SecureChannelEnhancements = TRUE; the legacy ECC policies derive from the new IKM alone.
+        /// </summary>
         [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
         [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         public async Task RenewHandoffRetainsPrivateKeyAndChainsPreviousSecretAsync(string policyUri)
         {
@@ -110,9 +115,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             harness.Target.RecomputeKeys();
             Assert.That(harness.Target.Token.Secret, Is.EqualTo(harness.Peer.Token.Secret));
             Assert.That(harness.Target.Token.Secret, Is.Not.EqualTo(previous.Secret));
+            bool chained = SecurityPolicies.Default.GetInfo(policyUri)!.SecureChannelEnhancements;
             Assert.That(
-                harness.HandedOffLocal!.GenerateSecret(harness.HandedOffRemote!, previous.Secret),
+                harness.HandedOffLocal!.GenerateSecret(harness.HandedOffRemote!, chained ? previous.Secret : null),
                 Is.EqualTo(harness.Target.Token.Secret));
+            Assert.That(
+                harness.HandedOffLocal!.GenerateSecret(harness.HandedOffRemote!, chained ? null : previous.Secret),
+                Is.Not.EqualTo(harness.Target.Token.Secret));
             await harness.AssertEncryptedReadAsync(harness.NewTransport).ConfigureAwait(false);
         }
 

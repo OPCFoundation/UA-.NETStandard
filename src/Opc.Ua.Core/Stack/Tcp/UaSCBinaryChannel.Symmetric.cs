@@ -438,7 +438,11 @@ namespace Opc.Ua.Bindings
             {
                 case KeyDerivationAlgorithm.HKDFSha256:
                 case KeyDerivationAlgorithm.HKDFSha384:
-                    token.Secret = m_localNonce!.GenerateSecret(m_remoteNonce!, token.PreviousSecret);
+                    // OPC 10000-6 6.8.1 Step 2: a renewal chains the IKM of the current
+                    // keys into the new IKM only when SecureChannelEnhancements = TRUE.
+                    token.Secret = m_localNonce!.GenerateSecret(
+                        m_remoteNonce!,
+                        tokenPolicy.SecureChannelEnhancements ? token.PreviousSecret : null);
 
                     byte[] clientSalt = Utils.Append(
                         BitConverter.GetBytes((ushort)tokenPolicy.ClientKeyDataLength),
