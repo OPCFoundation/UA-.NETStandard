@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -927,6 +928,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 MonitoringFilter? previousFilterToUse = FilterToUse;
+                uint previousClientHandle = ClientHandle;
                 AggregationFilterHandler? aggregateFilter = AggregateFilter;
                 if (aggregateFilter == null && filterToUse is ServerAggregateFilter)
                 {
@@ -969,8 +971,100 @@ namespace Opc.Ua.Server
 
                 InitializeQueue();
 
+                RebuildQueuedEventFields(previousFilterToUse, previousClientHandle);
+
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Brings events that were queued before a modification in line with the new
+        /// select clauses and client handle.
+        /// </summary>
+        /// <remarks>
+        /// Event fields are resolved when the event is queued, but the client decodes every
+        /// EventFieldList it receives after the modification with the new select clauses
+        /// (Part 4, 7.25.3). Queued events are therefore resolved again from their filter
+        /// target; an event without one can no longer be delivered correctly and is dropped,
+        /// which is reported to the client as an event queue overflow.
+        /// </remarks>
+        private void RebuildQueuedEventFields(
+            MonitoringFilter? previousFilter,
+            uint previousClientHandle)
+        {
+            if (m_eventQueueHandler == null ||
+                m_eventQueueHandler.ItemsInQueue == 0 ||
+                FilterToUse is not EventFilter filter)
+            {
+                return;
+            }
+
+            bool selectClausesChanged = !AreSelectClausesEqual(
+                (previousFilter as EventFilter)?.SelectClauses ?? default,
+                filter.SelectClauses);
+
+            if (!selectClausesChanged)
+            {
+                if (previousClientHandle != ClientHandle)
+                {
+                    m_eventQueueHandler.RebuildQueuedEvents(fields =>
+                    {
+                        fields.ClientHandle = ClientHandle;
+                        return fields;
+                    });
+                }
+
+                return;
+            }
+
+            var context = new FilterContext(
+                m_server.NamespaceUris,
+                m_server.TypeTree,
+                Session?.PreferredLocales!,
+                m_server.Telemetry);
+
+            m_eventQueueHandler.RebuildQueuedEvents(fields =>
+            {
+                if (fields.Handle is not IFilterTarget target)
+                {
+                    return null;
+                }
+
+                bool overrideRetain = m_filteredRetainEvents != null &&
+                    m_filteredRetainEvents.TryGetValue(fields, out _);
+                EventFieldList rebuilt = GetEventFields(
+                    context,
+                    filter,
+                    overrideRetain ? new FilteredRetainTarget(target) : target);
+                rebuilt.Handle = target;
+
+                if (overrideRetain)
+                {
+                    m_filteredRetainEvents!.Add(rebuilt, s_filteredRetainMarker);
+                }
+
+                return rebuilt;
+            });
+        }
+
+        private static bool AreSelectClausesEqual(
+            ArrayOf<SimpleAttributeOperand> previous,
+            ArrayOf<SimpleAttributeOperand> current)
+        {
+            if (previous.Count != current.Count)
+            {
+                return false;
+            }
+
+            for (int ii = 0; ii < previous.Count; ii++)
+            {
+                if (!Utils.IsEqual(previous[ii], current[ii]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -1443,6 +1537,12 @@ namespace Opc.Ua.Server
                     : instance;
                 EventFieldList fields = GetEventFields(context, filter, fieldSource);
                 fields.Handle = instance;
+                if (overrideRetain)
+                {
+                    // remembered so a later change of the select clauses can rebuild the
+                    // fields of this queued event with the same Retain override.
+                    (m_filteredRetainEvents ??= new()).Add(fields, s_filteredRetainMarker);
+                }
                 QueueEvent(fields);
             }
         }
@@ -2503,6 +2603,8 @@ namespace Opc.Ua.Server
         private bool m_resendData;
         private bool m_valueQueued;
         private HashSet<string>? m_filteredRetainConditionIds;
+        private ConditionalWeakTable<EventFieldList, object>? m_filteredRetainEvents;
+        private static readonly object s_filteredRetainMarker = new();
         private bool m_isDetached;
         private bool m_isDeleted;
     }

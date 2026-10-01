@@ -313,6 +313,118 @@ namespace Opc.Ua.Server.Tests
             Assert.That(published[0].Value.WrappedValue, Is.EqualTo(Variant.From(7)));
         }
 
+        /// <summary>
+        /// Events queued before a modification of the select clauses are published in the
+        /// new field layout and with the new client handle.
+        /// </summary>
+        [Test]
+        public void ModifySelectClausesRebuildsQueuedEvents()
+        {
+            using var harness = new Harness();
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A"), CreateSelectClause("B")],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+            var target = new NamedFieldTarget();
+            item.QueueEvent(target);
+
+            var modified = new EventFilter
+            {
+                SelectClauses =
+                [
+                    CreateSelectClause("C"),
+                    CreateSelectClause("A"),
+                    CreateSelectClause("B")
+                ],
+                WhereClause = new ContentFilter()
+            };
+            ModifyEventItem(item, modified, clientHandle: 9);
+
+            List<EventFieldList> published = PublishEvents(item);
+
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(published[0].ClientHandle, Is.EqualTo(9u));
+            Assert.That(published[0].Handle, Is.SameAs(target));
+            Assert.That(
+                published[0].EventFields.ToArray(),
+                Is.EqualTo(new[] { Variant.From("C"), Variant.From("A"), Variant.From("B") }));
+        }
+
+        /// <summary>
+        /// A modification that only changes the client handle keeps the queued fields and
+        /// updates their client handle.
+        /// </summary>
+        [Test]
+        public void ModifyClientHandleUpdatesQueuedEvents()
+        {
+            using var harness = new Harness();
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+            item.QueueEvent(new NamedFieldTarget());
+
+            ModifyEventItem(item, filter, clientHandle: 11);
+
+            List<EventFieldList> published = PublishEvents(item);
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(published[0].ClientHandle, Is.EqualTo(11u));
+            Assert.That(published[0].EventFields.ToArray(), Is.EqualTo(new[] { Variant.From("A") }));
+        }
+
+        /// <summary>
+        /// A queued event that cannot be resolved again after the select clauses change is
+        /// dropped and reported as an event queue overflow.
+        /// </summary>
+        [Test]
+        public void ModifySelectClausesDropsEventsWithoutTarget()
+        {
+            using var harness = new Harness();
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+            item.QueueEvent(new EventFieldList
+            {
+                ClientHandle = 5,
+                EventFields = [Variant.From("A")]
+            });
+
+            var modified = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("B"), CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            ModifyEventItem(item, modified, clientHandle: 5);
+
+            Assert.That(item.ItemsInQueue, Is.Zero);
+            List<EventFieldList> published = PublishEvents(item);
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(published[0].Handle, Is.AssignableTo<EventQueueOverflowEventState>());
+            Assert.That(published[0].EventFields.Count, Is.EqualTo(2));
+        }
+
+        private static void ModifyEventItem(MonitoredItem item, EventFilter filter, uint clientHandle)
+        {
+            ServiceResult result = item.ModifyAttributes(
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                clientHandle,
+                filter,
+                filter,
+                null,
+                0,
+                10,
+                discardOldest: true);
+            Assert.That(ServiceResult.IsBad(result), Is.False);
+        }
+
         private static SimpleAttributeOperand CreateSelectClause(string name)
         {
             return new SimpleAttributeOperand
