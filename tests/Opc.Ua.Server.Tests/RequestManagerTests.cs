@@ -98,10 +98,12 @@ namespace Opc.Ua.Server.Tests
 
             bool eventFired = false;
             uint cancelledRequestId = 0;
+            StatusCode cancelledStatus = StatusCodes.Good;
             m_requestManager.RequestCancelled += (sender, reqId, status) =>
             {
                 eventFired = true;
                 cancelledRequestId = reqId;
+                cancelledStatus = status;
             };
 
             // Act
@@ -112,6 +114,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(eventFired, Is.True);
             Assert.That(cancelledRequestId, Is.EqualTo(context.RequestId));
             Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.True);
+            // OPC 10000-4 5.7.5.1: cancelled requests respond with Bad_RequestCancelledByClient.
+            Assert.That(cancelledStatus, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+            Assert.That(context.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
         }
 
         [Test]
@@ -134,7 +139,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(cancelCount, Is.EqualTo(1));
             Assert.That(
                 context.OperationStatus.Code,
-                Is.EqualTo(StatusCodes.BadRequestCancelledByRequest));
+                Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
         }
 
         [Test]

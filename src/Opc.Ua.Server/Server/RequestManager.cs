@@ -609,7 +609,7 @@ namespace Opc.Ua.Server
                     if (request.SessionId == sessionId &&
                         request.ClientHandle == requestHandle)
                     {
-                        request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByRequest);
+                        request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
                         cancelledRequests.Add(request.RequestId);
 
                         // report the AuditCancelEventType
@@ -637,7 +637,7 @@ namespace Opc.Ua.Server
                             m_RequestCancelled(
                                 this,
                                 cancelledRequests[ii],
-                                StatusCodes.BadRequestCancelledByRequest);
+                                StatusCodes.BadRequestCancelledByClient);
                         }
                         catch (Exception e)
                         {
