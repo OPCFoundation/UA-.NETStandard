@@ -1536,7 +1536,9 @@ namespace Opc.Ua.Bindings
         /// Builds the shared host serving <paramref name="tlsCertificate"/>,
         /// e.g. the previous certificate when a rotation is rolled back.
         /// </summary>
+#pragma warning disable CA1859 // the registry takes an IHost factory on every target
         private IHost BuildSharedHostInstance(SharedHostAccessor accessor, Certificate tlsCertificate)
+#pragma warning restore CA1859
         {
 #if NET8_0_OR_GREATER
             return new HostBuilder()
