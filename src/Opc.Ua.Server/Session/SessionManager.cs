@@ -903,8 +903,10 @@ namespace Opc.Ua.Server
                     // raise session related event.
                     RaiseSessionEvent(session, SessionEventReason.Closing);
 
-                    // close the session.
-                    await session.CloseAsync(cancellationToken).ConfigureAwait(false);
+                    // close the session. The session is already removed, so the teardown
+                    // must finish: a cancelled close would leave its SessionDiagnostics
+                    // node and array entry behind for a session that no longer exists.
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
                 {
