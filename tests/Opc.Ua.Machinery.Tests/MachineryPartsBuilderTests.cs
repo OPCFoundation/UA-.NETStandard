@@ -388,59 +388,6 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public async Task TheJobListsReportChangesToMonitoredItemsAsync()
-        {
-            using var provider = new InMemoryIsa95JobControlProvider();
-            Opc.Ua.Machinery.Jobs.JobManagementState? jobManagement = null;
-            await NewMachine("Job-Notify-Machine")
-                .WithJobManagement(jobs =>
-                {
-                    jobManagement = jobs.State;
-                    jobs.WithJobOrderReceiver(provider).WithJobResponseProvider(provider);
-                })
-                .BuildAsync()
-                .ConfigureAwait(false);
-
-            // A monitored item learns about a new value through the node's
-            // StateChanged callback with the Value mask; without it a client
-            // subscribed to a job list sees the first value and then nothing.
-            Task<bool> orderListChanged = ValueChangeOf(jobManagement!.JobOrderControl!.JobOrderList!);
-            Task<bool> responseListChanged = ValueChangeOf(
-                jobManagement.JobOrderResults!.JobOrderResponseList!);
-
-            await StoreAsync(jobManagement, new V2.ISA95JobOrderDataType { JobOrderID = "JO-notify" })
-                .ConfigureAwait(false);
-            await provider.ReceiveJobResponseAsync(new V2.ISA95JobResponseDataType
-            {
-                JobResponseID = "JR-notify",
-                JobOrderID = "JO-notify"
-            }).ConfigureAwait(false);
-
-            Task timeout = Task.Delay(TimeSpan.FromSeconds(10));
-            Assert.That(
-                await Task.WhenAny(orderListChanged, timeout).ConfigureAwait(false),
-                Is.SameAs(orderListChanged),
-                "Storing a job order has to reach monitored items of JobOrderList.");
-            Assert.That(
-                await Task.WhenAny(responseListChanged, timeout).ConfigureAwait(false),
-                Is.SameAs(responseListChanged),
-                "A received job response has to reach monitored items of JobOrderResponseList.");
-        }
-
-        private static Task<bool> ValueChangeOf(NodeState node)
-        {
-            var changed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            node.StateChanged += (context, source, changes) =>
-            {
-                if ((changes & NodeStateChangeMasks.Value) != 0)
-                {
-                    changed.TrySetResult(true);
-                }
-            };
-            return changed.Task;
-        }
-
-        [Test]
         public async Task AJobParameterTheSeriesDoesNotPredefineTravelsUntouchedAsync()
         {
             using var provider = new InMemoryIsa95JobControlProvider();

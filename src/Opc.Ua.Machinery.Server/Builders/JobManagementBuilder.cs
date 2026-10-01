@@ -545,14 +545,17 @@ namespace Opc.Ua.Machinery.Server.Builders
 
         /// <summary>
         /// Marks a published list as changed. The lists serve their value from
-        /// a snapshot, so nothing else sets the Value change mask; a new
-        /// source timestamp does, and is what a client sees change.
+        /// a snapshot, so nothing else sets the Value change mask. The new
+        /// source timestamp sets it only when it differs from the last one,
+        /// which two refreshes within one clock tick do not, so the mask is
+        /// set explicitly.
         /// </summary>
         private static void MarkChanged(BaseVariableState? list)
         {
             if (list != null)
             {
                 list.Timestamp = DateTimeUtc.Now;
+                list.UpdateChangeMasks(NodeStateChangeMasks.Value);
             }
         }
 

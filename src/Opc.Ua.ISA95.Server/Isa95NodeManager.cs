@@ -451,17 +451,21 @@ namespace Opc.Ua.ISA95.Server
                     return;
                 }
                 // The lists serve their value from these snapshots, so nothing
-                // else sets the Value change mask; a new source timestamp does.
+                // else sets the Value change mask. The new source timestamp
+                // sets it only when it differs from the last one, which two
+                // refreshes within one clock tick do not, so mark it explicitly.
                 DateTimeUtc now = DateTimeUtc.Now;
                 if (updateV1)
                 {
                     m_v1JobOrders = v1Orders;
                     v1List!.Timestamp = now;
+                    v1List.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 }
                 if (updateV2)
                 {
                     m_v2JobOrders = v2Orders;
                     v2List!.Timestamp = now;
+                    v2List.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 }
                 m_jobOrderAppliedGeneration = generation;
             }
