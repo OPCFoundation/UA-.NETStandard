@@ -599,6 +599,39 @@ namespace Opc.Ua.Server
         /// </summary>
         public void CancelRequests(NodeId sessionId, uint requestHandle, out uint cancelCount)
         {
+            cancelCount = CancelMatchingRequests(sessionId, requestHandle);
+
+            // report the AuditCancelEventType once per Cancel call (OPC 10000-5 6.4.11).
+            m_server.ReportAuditCancelEvent(sessionId, requestHandle, StatusCodes.Good, m_logger);
+        }
+
+        /// <summary>
+        /// Called when the client wishes to cancel one or more requests through the Cancel
+        /// service. The AuditCancelEvent is reported once for the call and carries the
+        /// ClientAuditEntryId and ClientUserId of the Cancel request (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <param name="context">The operation context of the Cancel request.</param>
+        /// <param name="requestHandle">The requestHandle parameter of the Cancel call.</param>
+        /// <param name="cancelCount">The number of cancelled requests.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public void CancelRequests(OperationContext context, uint requestHandle, out uint cancelCount)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            cancelCount = CancelMatchingRequests(context.SessionId, requestHandle);
+
+            m_server.ReportAuditCancelEvent(context, requestHandle, StatusCodes.Good, m_logger);
+        }
+
+        /// <summary>
+        /// Cancels the registered requests of the session with the given client handle and
+        /// raises the <see cref="RequestCancelled"/> event for each of them.
+        /// </summary>
+        private uint CancelMatchingRequests(NodeId sessionId, uint requestHandle)
+        {
             var cancelledRequests = new List<uint>();
 
             // flag requests as cancelled.
@@ -611,19 +644,9 @@ namespace Opc.Ua.Server
                     {
                         request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
                         cancelledRequests.Add(request.RequestId);
-
-                        // report the AuditCancelEventType
-                        m_server.ReportAuditCancelEvent(
-                            request.SessionId,
-                            requestHandle,
-                            StatusCodes.Good,
-                            m_logger);
                     }
                 }
             }
-
-            // return the number of requests found.
-            cancelCount = (uint)cancelledRequests.Count;
 
             // raise notifications.
             lock (m_lock)
@@ -646,6 +669,8 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+
+            return (uint)cancelledRequests.Count;
         }
 
         /// <summary>

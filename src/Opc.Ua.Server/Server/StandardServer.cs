@@ -1293,7 +1293,7 @@ namespace Opc.Ua.Server
             try
             {
                 ServerInternal.RequestManager.CancelRequests(
-                    context.SessionId,
+                    context,
                     requestHandle,
                     out uint cancelCount);
 

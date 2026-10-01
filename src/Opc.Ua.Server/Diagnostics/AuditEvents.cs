@@ -987,6 +987,49 @@ namespace Opc.Ua.Server
             StatusCode statusCode,
             ILogger logger)
         {
+            ReportAuditCancelEvent(server, sessionId, null, null, requestHandle, statusCode, logger);
+        }
+
+        /// <summary>
+        /// Report the AuditCancelEventState for a Cancel service call, carrying the
+        /// ClientAuditEntryId and ClientUserId of the Cancel request (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="context">The operation context of the Cancel request.</param>
+        /// <param name="requestHandle">The requestHandle parameter of the Cancel call.</param>
+        /// <param name="statusCode">The resulted status code of cancel request.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditCancelEvent(
+            this IAuditEventServer? server,
+            OperationContext context,
+            uint requestHandle,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            ReportAuditCancelEvent(
+                server,
+                context.SessionId,
+                context.AuditEntryId,
+                context.Session?.Identity?.DisplayName ?? context.UserIdentity?.DisplayName,
+                requestHandle,
+                statusCode,
+                logger);
+        }
+
+        private static void ReportAuditCancelEvent(
+            IAuditEventServer? server,
+            NodeId sessionId,
+            string? auditEntryId,
+            string? clientUserId,
+            uint requestHandle,
+            StatusCode statusCode,
+            ILogger logger)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -1009,6 +1052,14 @@ namespace Opc.Ua.Server
                     DateTime.UtcNow
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
+                if (auditEntryId != null)
+                {
+                    e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, auditEntryId, false);
+                }
+                if (clientUserId != null)
+                {
+                    e.SetChildValue(systemContext, BrowseNames.ClientUserId, clientUserId, false);
+                }
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/Cancel", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
                 e.SetChildValue(

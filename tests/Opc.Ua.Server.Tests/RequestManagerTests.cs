@@ -120,6 +120,60 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void CancelRequestsWithContextReportsOneAuditEventPerCancelCall()
+        {
+            // OPC 10000-5 6.4.11: one AuditCancelEvent per Cancel call, whether it matched
+            // no request or several, carrying the Cancel request's ClientAuditEntryId.
+            var auditEvents = new System.Collections.Generic.List<AuditEventState>();
+            m_mockServer.Setup(s => s.Auditing).Returns(true);
+            m_mockServer.Setup(s => s.DefaultAuditContext).Returns(CreateAuditContext());
+            m_mockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback<ISystemContext, AuditEventState>((_, e) => auditEvents.Add(e));
+
+            var mockSession = new Mock<ISession>();
+            mockSession.Setup(s => s.Id).Returns(new NodeId(1));
+            using var lifetime1 = new RequestLifetime();
+            using var lifetime2 = new RequestLifetime();
+            m_requestManager.RequestReceived(new OperationContext(
+                new RequestHeader { RequestHandle = 42 }, null, RequestType.Read, lifetime1, mockSession.Object));
+            m_requestManager.RequestReceived(new OperationContext(
+                new RequestHeader { RequestHandle = 42 }, null, RequestType.Browse, lifetime2, mockSession.Object));
+            using var cancelLifetime = new RequestLifetime();
+            var cancelContext = new OperationContext(
+                new RequestHeader { RequestHandle = 43, AuditEntryId = "op-42" },
+                null,
+                RequestType.Cancel,
+                cancelLifetime,
+                mockSession.Object);
+
+            m_requestManager.CancelRequests(cancelContext, 42, out uint cancelCount);
+
+            Assert.That(cancelCount, Is.EqualTo(2));
+            Assert.That(auditEvents, Has.Count.EqualTo(1));
+            var cancelEvent = (AuditCancelEventState)auditEvents[0];
+            Assert.That(cancelEvent.ClientAuditEntryId.Value, Is.EqualTo("op-42"));
+            Assert.That(cancelEvent.RequestHandle.Value, Is.EqualTo(42u));
+
+            m_requestManager.CancelRequests(cancelContext, 99, out cancelCount);
+
+            Assert.That(cancelCount, Is.Zero);
+            Assert.That(auditEvents, Has.Count.EqualTo(2), "A Cancel matching nothing is still audited.");
+        }
+
+        private static ServerSystemContext CreateAuditContext()
+        {
+            NamespaceTable namespaceUris = new();
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
+            server.Setup(s => s.ServerUris).Returns(new StringTable());
+            server.Setup(s => s.TypeTree).Returns(new TypeTable(namespaceUris));
+            server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
+            server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+            return new ServerSystemContext(server.Object);
+        }
+
+        [Test]
         public void CancelRequestsShouldCancelActivateSessionRequestWithoutSession()
         {
             const uint requestHandle = 1234;
