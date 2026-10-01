@@ -131,7 +131,9 @@ namespace Opc.Ua.Server
             QueuedSubscription? subscriptionToPublish;
             lock (m_lock)
             {
-                if (m_queuedSubscriptions.IsEmpty)
+                // A subscription claimed for a transfer that has not completed yet still
+                // belongs to this session and may be restored (OPC 10000-4, 5.14.5).
+                if (m_queuedSubscriptions.IsEmpty && m_transferClaims.Count == 0)
                 {
                     return Task.FromException<ISubscriptionPublishPipeline>(
                         new ServiceResultException(StatusCodes.BadNoSubscription));
@@ -336,7 +338,19 @@ namespace Opc.Ua.Server
                 }
 
                 m_transferClaims.Remove(subscriptionId);
-                return m_queuedSubscriptions.TryAdd(subscriptionId, claim.Entry);
+                if (!m_queuedSubscriptions.TryAdd(subscriptionId, claim.Entry))
+                {
+                    return false;
+                }
+
+                // A Publish that completed with more notifications while the claim was
+                // held left the entry flagged as ready; hand it to the parked requests
+                // because the publish timer skips entries that are already ready.
+                if (claim.Entry.ReadyToPublish && !claim.Entry.Publishing)
+                {
+                    AssignSubscriptionsToRequests();
+                }
+                return true;
             }
         }
 
@@ -383,6 +397,13 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                // the session still owns subscriptions that are claimed for a pending
+                // transfer, or a subscription was added concurrently.
+                if (!m_queuedSubscriptions.IsEmpty || m_transferClaims.Count > 0)
+                {
+                    return;
+                }
+
                 // remove any outstanding publishes.
                 while (m_queuedRequests.Count > 0)
                 {
@@ -595,6 +616,11 @@ namespace Opc.Ua.Server
                 {
                     queuedSubscription.Publishing = false;
                     queuedSubscription.ReadyToPublish = true;
+
+                    // Serve the requests already parked for this session: the publish
+                    // timer skips entries that are already flagged as ready, so nothing
+                    // else would wake them (OPC 10000-4, 5.14.1.2).
+                    AssignSubscriptionsToRequests();
                     return;
                 }
 
@@ -984,6 +1010,15 @@ namespace Opc.Ua.Server
                         : TimeSpan.Zero;
                     if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                     {
+                        // Any UInt32 TimeoutHint is valid (OPC 10000-4, 7.33), but a timer
+                        // delay above Int32.MaxValue ms is rejected by CancellationTokenSource
+                        // on .NET Framework (and above UInt32.MaxValue - 1 ms on .NET). Clamp
+                        // instead of faulting the Publish; the request manager still cancels
+                        // the request at its exact deadline.
+                        if (timeOut > s_maxTimeOut)
+                        {
+                            timeOut = s_maxTimeOut;
+                        }
                         m_cancellationTokenSource = timeProvider.CreateCancellationTokenSource(timeOut);
                         m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
                             () => TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
@@ -1053,6 +1088,11 @@ namespace Opc.Ua.Server
             /// Completes with the ready subscription or the request's terminal failure.
             /// </summary>
             public readonly TaskCompletionSource<ISubscriptionPublishPipeline> Tcs;
+
+            /// <summary>
+            /// The largest timer delay every supported platform accepts.
+            /// </summary>
+            private static readonly TimeSpan s_maxTimeOut = TimeSpan.FromMilliseconds(int.MaxValue);
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
             private readonly CancellationTokenSource? m_cancellationTokenSource;
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration2;
