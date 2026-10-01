@@ -346,6 +346,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                 m_cts.Cancel();
                 m_listener.Stop();
+                // TcpListener is IDisposable only on .NET 8+.
+                (m_listener as IDisposable)?.Dispose();
                 DropConnections();
                 try
                 {
@@ -422,14 +424,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     byte[] hello = await ReadChunkAsync(stream).ConfigureAwait(false);
                     Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(hello), Is.EqualTo(TcpMessageType.Hello));
                     byte[] acknowledge = BuildAcknowledge();
-                    await stream.WriteAsync(acknowledge, 0, acknowledge.Length, m_cts.Token).ConfigureAwait(false);
+                    await stream.WriteAsync(acknowledge.AsMemory(), m_cts.Token).ConfigureAwait(false);
 
                     byte[] open = await ReadChunkAsync(stream).ConfigureAwait(false);
                     Assert.That(
                         BinaryPrimitives.ReadUInt32LittleEndian(open),
                         Is.EqualTo(TcpMessageType.Open | TcpMessageType.Final));
                     byte[] response = BuildNoneOpenResponse();
-                    await stream.WriteAsync(response, 0, response.Length, m_cts.Token).ConfigureAwait(false);
+                    await stream.WriteAsync(response.AsMemory(), m_cts.Token).ConfigureAwait(false);
                     Interlocked.Increment(ref m_forgedResponses);
 
                     // anything the client sends from now on would travel in cleartext.
@@ -468,7 +470,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 while (count > 0)
                 {
-                    int read = await stream.ReadAsync(buffer, offset, count, m_cts.Token).ConfigureAwait(false);
+                    int read = await stream.ReadAsync(buffer.AsMemory(offset, count), m_cts.Token).ConfigureAwait(false);
                     if (read == 0)
                     {
                         throw new EndOfStreamException();

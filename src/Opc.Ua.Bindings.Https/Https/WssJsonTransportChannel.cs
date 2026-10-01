@@ -250,11 +250,17 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (ws.State == WebSocketState.Open)
+                try
                 {
-                    await CloseNormalAsync(ws, ct).ConfigureAwait(false);
+                    if (ws.State == WebSocketState.Open)
+                    {
+                        await CloseNormalAsync(ws, ct).ConfigureAwait(false);
+                    }
                 }
-                ws.Dispose();
+                finally
+                {
+                    ws.Dispose();
+                }
 
                 // The TLS client certificate must outlive the handshake and
                 // the connection; release it only after the socket is gone.
