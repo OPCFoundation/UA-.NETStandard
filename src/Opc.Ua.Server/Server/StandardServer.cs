@@ -881,6 +881,9 @@ namespace Opc.Ua.Server
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
                     session!,
+                    context.ChannelContext.SecureChannelId,
+                    clientCertificate,
+                    clientCertificateThumbprint,
                     revisedSessionTimeout,
                     m_logger);
 
@@ -914,10 +917,14 @@ namespace Opc.Ua.Server
                         exception.Message);
                 m_logger.ServerSESSIONCREATEFailedErrorMessage(e.Message);
 
-                // report the failed AuditCreateSessionEvent
+                // report the failed AuditCreateSessionEvent. The channel id and the
+                // request certificate are known even when no session was created.
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
-                    session!,
+                    session,
+                    context.ChannelContext?.SecureChannelId,
+                    clientCertificate,
+                    clientCertificateThumbprint,
                     revisedSessionTimeout,
                     m_logger,
                     e);
