@@ -147,7 +147,8 @@ namespace Opc.Ua.Bindings
                 object callbackData,
                 int timeout,
                 ILogger logger)
-                : base(callback, callbackData, timeout, logger)
+                // the timeout cancels the token so a pending connect is abandoned.
+                : base(callback, callbackData, timeout, new CancellationTokenSource(), logger)
             {
             }
 
@@ -214,16 +215,15 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                await transport.ConnectAsync(endpointUrl, CancellationToken.None).ConfigureAwait(false);
+                await transport.ConnectAsync(endpointUrl, ar.CancellationToken).ConfigureAwait(false);
                 OnReverseConnectComplete(ar);
             }
             catch (Exception ex)
             {
-                ar.Exception = new ServiceResultException(
+                ar.TryComplete(new ServiceResultException(
                     StatusCodes.BadNotConnected,
                     ex.Message,
-                    ex);
-                ar.OperationCompleted();
+                    ex));
             }
         }
 
@@ -254,6 +254,14 @@ namespace Opc.Ua.Bindings
         {
             if (ar == null || m_pendingReverseHello != null)
             {
+                return;
+            }
+
+            // the reverse connect timed out while connecting: the listener already
+            // disposed this channel, so do not start using the connection.
+            if (ar.IsCompleted)
+            {
+                ar.Transport?.Close();
                 return;
             }
 
@@ -288,8 +296,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                ar.Exception = e;
-                ar.OperationCompleted();
+                ar.TryComplete(e);
             }
             finally
             {
@@ -1183,8 +1190,8 @@ namespace Opc.Ua.Bindings
             if (ar != null &&
                 ar == Interlocked.CompareExchange(ref m_pendingReverseHello, null, ar))
             {
-                ar.Exception = e;
-                ar.OperationCompleted();
+                // a reverse hello that already timed out keeps its timeout outcome.
+                ar.TryComplete(e);
             }
         }
 
