@@ -186,7 +186,7 @@ The single `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` NuGet contains
 | `Opc.Ua.MigrationAnalyzer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | 26 `DiagnosticAnalyzer`s through UA0030 (excluding UA0013, UA0016, UA0017, and UA0029). No `Workspaces` reference, csc-safe. |
 | `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | Workspaces-aware hosts only (Visual Studio, Rider, `dotnet format analyzers`) | 14 `CodeFixProvider`s. |
 | `Opc.Ua.MigrationAnalyzer.Generator.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | `IIncrementalGenerator` that emits `public sealed [Obsolete] class <Name>Collection : List<TElement>` shims into the consumer compilation for every `<Type>Collection` reference that fails to bind. |
-| `Opc.Ua.MigrationAnalyzer.Core.dll` | `lib/<tfm>/` × 6 TFMs (`net48`, `net8.0`, `net9.0`, `net10.0`) | Runtime | Re-supplies the obsolete extension surface 2.0 moved or removed so 1.5.378 call sites continue to compile with `[Obsolete]` warnings. |
+| `Opc.Ua.MigrationAnalyzer.Core.dll` | `lib/<tfm>/` × 4 TFMs (`net48`, `net8.0`, `net9.0`, `net10.0`) | Runtime | Re-supplies the obsolete extension surface 2.0 moved or removed so 1.5.378 call sites continue to compile with `[Obsolete]` warnings. |
 
 ### The 26 analyzer rules at a glance
 
