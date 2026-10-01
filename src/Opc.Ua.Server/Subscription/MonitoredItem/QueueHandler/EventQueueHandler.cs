@@ -244,6 +244,33 @@ namespace Opc.Ua.Server
             return notificationCount;
         }
 
+        /// <summary>
+        /// Replaces every queued event with the result of <paramref name="rebuild"/> and keeps
+        /// the queue order. An event the callback cannot rebuild (it returns <c>null</c>) is
+        /// dropped and reported through <see cref="Overflow"/>.
+        /// </summary>
+        /// <param name="rebuild">Produces the replacement for a queued event.</param>
+        internal void RebuildQueuedEvents(Func<EventFieldList, EventFieldList?> rebuild)
+        {
+            int count = m_eventQueue.ItemsInQueue;
+            var rebuilt = new List<EventFieldList>(count);
+            for (int ii = 0; ii < count && m_eventQueue.Dequeue(out EventFieldList fields); ii++)
+            {
+                EventFieldList? replacement = rebuild(fields);
+                if (replacement == null)
+                {
+                    Overflow = true;
+                    continue;
+                }
+                rebuilt.Add(replacement);
+            }
+
+            foreach (EventFieldList fields in rebuilt)
+            {
+                m_eventQueue.Enqueue(fields);
+            }
+        }
+
         private bool m_discardOldest;
         private readonly IEventMonitoredItemQueue m_eventQueue;
         private readonly ILogger m_logger;

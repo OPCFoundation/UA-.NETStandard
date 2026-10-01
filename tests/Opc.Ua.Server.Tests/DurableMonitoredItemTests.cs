@@ -1331,7 +1331,20 @@ namespace Opc.Ua.Server.Tests
                 {
                     Assert.That(restoredLifecycle.IsDeleted, Is.True);
                     Assert.That(restoredLifecycle.IsDetached, Is.True);
-                    Assert.That(restoredNotifications, Is.Empty);
+                    if (disabledBeforeStore)
+                    {
+                        // leaving DISABLED reports the deleted node once more, as it does for
+                        // a live item that is enabled again; it is not the consumed
+                        // notification from before the restart being republished.
+                        Assert.That(restoredNotifications, Has.Count.EqualTo(1));
+                        Assert.That(
+                            restoredNotifications.Peek().Value.StatusCode,
+                            Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    }
+                    else
+                    {
+                        Assert.That(restoredNotifications, Is.Empty);
+                    }
                     Assert.That(more, Is.False);
                 });
             }
