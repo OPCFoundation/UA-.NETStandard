@@ -1651,6 +1651,8 @@ namespace Opc.Ua.Bindings
 
                 using (senderCertificateChain)
                 {
+                    VerifySenderCertificatePolicy(securityPolicyUri, senderCertificateChain);
+
                     // validate the sender certificate.
                     if (senderCertificate != null &&
                         Quotas.CertificateValidator != null &&
@@ -1782,6 +1784,8 @@ namespace Opc.Ua.Bindings
 
                 using (senderCertificateChain)
                 {
+                    VerifySenderCertificatePolicy(securityPolicyUri, senderCertificateChain);
+
                     // validate the sender certificate.
                     if (senderCertificate != null &&
                         Quotas.CertificateValidator != null &&
@@ -1837,6 +1841,116 @@ namespace Opc.Ua.Bindings
                 ReturnDecryptedBuffer(plainText);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Verifies that the sender's certificates have the key the security
+        /// policy of the message requires.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-4 §6.1.3 (Security Policy Check) and OPC 10000-6 §6.1:
+        /// MinAsymmetricKeyLength and MaxAsymmetricKeyLength apply to every
+        /// certificate of the chain, issuers included, and the leaf has to
+        /// carry a key of the policy's family. A curve policy also accepts a
+        /// leaf on the larger curve of the same family (a P-384 certificate
+        /// on ECC_nistP256), which the spec allows. The failure is
+        /// Bad_CertificatePolicyCheckFailed, reported to the peer as
+        /// Bad_SecurityChecksFailed.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        private void VerifySenderCertificatePolicy(
+            string securityPolicyUri,
+            CertificateCollection? senderCertificateChain)
+        {
+            if (senderCertificateChain == null ||
+                senderCertificateChain.Count == 0 ||
+                securityPolicyUri == SecurityPolicies.None)
+            {
+                return;
+            }
+
+            SecurityPolicyInfo? policy = SecurityPolicyRegistry.GetInfo(securityPolicyUri);
+            if (policy == null)
+            {
+                // an unknown policy is rejected when the endpoint is selected.
+                return;
+            }
+
+            for (int ii = 0; ii < senderCertificateChain.Count; ii++)
+            {
+                Certificate certificate = senderCertificateChain[ii];
+                CertificateKeyAlgorithm algorithm = CryptoUtils.GetCertificateKeyAlgorithm(certificate);
+                bool leaf = ii == 0;
+
+                switch (policy.CertificateKeyFamily)
+                {
+                    case CertificateKeyFamily.RSA:
+                        if (algorithm != CertificateKeyAlgorithm.RSA)
+                        {
+                            if (leaf)
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadCertificatePolicyCheckFailed,
+                                    "The sender certificate has no RSA key as security policy {0} requires.",
+                                    policy.Name);
+                            }
+
+                            // the key length window is defined for RSA keys only.
+                            break;
+                        }
+
+                        int keySize = CryptoUtils.GetRsaPublicKeySize(certificate);
+                        if (keySize < policy.MinAsymmetricKeyLength ||
+                            keySize > policy.MaxAsymmetricKeyLength)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadCertificatePolicyCheckFailed,
+                                "The {0} certificate '{1}' has a {2} bit key, security policy {3} allows {4} to {5} bits.",
+                                leaf ? "sender" : "issuer",
+                                certificate.Subject,
+                                keySize,
+                                policy.Name,
+                                policy.MinAsymmetricKeyLength,
+                                policy.MaxAsymmetricKeyLength);
+                        }
+                        break;
+                    case CertificateKeyFamily.ECC:
+                        if (leaf && !IsCurveAllowed(policy.CertificateKeyAlgorithm, algorithm))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadCertificatePolicyCheckFailed,
+                                "The sender certificate key ({0}) is not allowed by security policy {1}.",
+                                algorithm,
+                                policy.Name);
+                        }
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether a certificate with a key on <paramref name="certificateKey"/>
+        /// may be used with a curve policy for <paramref name="policyKey"/>.
+        /// </summary>
+        private static bool IsCurveAllowed(
+            CertificateKeyAlgorithm policyKey,
+            CertificateKeyAlgorithm certificateKey)
+        {
+            return policyKey switch
+            {
+                CertificateKeyAlgorithm.NistP256 =>
+                    certificateKey is CertificateKeyAlgorithm.NistP256 or CertificateKeyAlgorithm.NistP384,
+                CertificateKeyAlgorithm.NistP384 =>
+                    certificateKey is CertificateKeyAlgorithm.NistP384,
+                CertificateKeyAlgorithm.BrainpoolP256r1 =>
+                    certificateKey is CertificateKeyAlgorithm.BrainpoolP256r1 or
+                        CertificateKeyAlgorithm.BrainpoolP384r1,
+                CertificateKeyAlgorithm.BrainpoolP384r1 =>
+                    certificateKey is CertificateKeyAlgorithm.BrainpoolP384r1,
+                // Edwards curve keys are not classified; only an RSA key is
+                // certainly wrong for them.
+                _ => certificateKey is not CertificateKeyAlgorithm.RSA
+            };
         }
 
         /// <summary>
