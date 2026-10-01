@@ -1578,6 +1578,66 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.EqualTo(new uint[] { 3 }));
         }
 
+        /// <summary>
+        /// Verifies that the first unsent sequence number is mirrored to a second replica.
+        /// </summary>
+        [Test]
+        public async Task RetransmissionFirstUnsentSequenceNumberIsVisibleToSecondReplicaAsync()
+        {
+            const uint subscriptionId = 723;
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+
+            primary.StoreRetransmissionStateDelta(
+                subscriptionId,
+                4,
+                [NewNotification(1), NewNotification(2), NewNotification(3)],
+                []);
+            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 2);
+            await primary.FlushAsync().ConfigureAwait(false);
+
+            SubscriptionRetransmissionState? state =
+                await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(4));
+            Assert.That(state.FirstUnsentSequenceNumber, Is.EqualTo(2));
+
+            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 0);
+            await primary.FlushAsync().ConfigureAwait(false);
+            state = await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+            Assert.That(state!.FirstUnsentSequenceNumber, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that a state record written before the first unsent sequence number
+        /// existed still loads, with every retained message treated as sent.
+        /// </summary>
+        [Test]
+        public async Task RetransmissionStateWithoutFirstUnsentSequenceNumberLoadsAsync()
+        {
+            const uint subscriptionId = 724;
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+
+            ServiceMessageContext context = CreateContext();
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteInt32(null, 2);
+            encoder.WriteUInt32(null, 9);
+            encoder.WriteStringArray(null, context.NamespaceUris.ToArrayOf());
+            encoder.WriteStringArray(null, context.ServerUris.ToArrayOf());
+            await kv.SetAsync(
+                SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(subscriptionId),
+                ByteString.From(encoder.CloseAndReturnBuffer())).ConfigureAwait(false);
+
+            SubscriptionRetransmissionState? state =
+                await store.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(9));
+            Assert.That(state.FirstUnsentSequenceNumber, Is.Zero);
+        }
+
         private static SharedKeyValueSubscriptionStore CreateStore(InMemorySharedKeyValueStore kv)
         {
             return new SharedKeyValueSubscriptionStore(kv, CreateContext());
