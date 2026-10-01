@@ -2842,8 +2842,10 @@ namespace Opc.Ua.Server
                         results.Add(error.StatusCode);
                     }
 
-                    // update diagnostics.
-                    if (ServiceResult.IsGood(error))
+                    // update diagnostics for every item that was removed from the
+                    // subscription above, even if its NodeManager reported a failure: the
+                    // item is gone and must no longer be counted.
+                    if (monitoredItems[ii] != null)
                     {
                         RemoveItemToSamplingInterval(
                             originalSamplingIntervals[ii],
