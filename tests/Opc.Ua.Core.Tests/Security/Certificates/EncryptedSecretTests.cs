@@ -252,6 +252,68 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(asyncDecrypted, Is.Null);
         }
 
+        /// <summary>
+        /// A multi-block KeyData whose first block fails RSA unpadding must still run one private-key
+        /// operation per block, so the operation count does not reveal which block was bad.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void RsaKeyDataDecryptsEveryBlockWhenOneBlockHasBadPadding(int badBlock)
+        {
+            const int blockCount = 3;
+            using RSA privateKey = m_certificate.GetRSAPrivateKey();
+            using var rsa = new DecryptCountingRsa(privateKey);
+            int blockSize = rsa.KeySize / 8;
+            byte[] cipherText = new byte[blockCount * blockSize];
+            for (int ii = 0; ii < blockCount; ii++)
+            {
+                if (ii != badBlock)
+                {
+                    byte[] block = privateKey.Encrypt([1, 2, 3], RSAEncryptionPadding.OaepSHA256);
+                    Buffer.BlockCopy(block, 0, cipherText, ii * blockSize, blockSize);
+                }
+            }
+
+            Assert.That(
+                () => EncryptedSecret.TransformRsaBlocks(cipherText, rsa, RSAEncryptionPadding.OaepSHA256, encrypt: false),
+                Throws.InstanceOf<CryptographicException>());
+            Assert.That(rsa.DecryptCount, Is.EqualTo(blockCount));
+        }
+
+        /// <summary>
+        /// Delegates to an inner RSA key and counts the private-key decrypt operations.
+        /// </summary>
+        private sealed class DecryptCountingRsa : RSA
+        {
+            public DecryptCountingRsa(RSA inner)
+            {
+                m_inner = inner;
+                LegalKeySizesValue = [new KeySizes(inner.KeySize, inner.KeySize, 0)];
+                KeySizeValue = inner.KeySize;
+            }
+
+            public int DecryptCount { get; private set; }
+
+            public override byte[] Decrypt(byte[] data, RSAEncryptionPadding padding)
+            {
+                DecryptCount++;
+                return m_inner.Decrypt(data, padding);
+            }
+
+            public override RSAParameters ExportParameters(bool includePrivateParameters)
+            {
+                return m_inner.ExportParameters(includePrivateParameters);
+            }
+
+            public override void ImportParameters(RSAParameters parameters)
+            {
+                throw new NotSupportedException();
+            }
+
+            private readonly RSA m_inner;
+        }
+
         [Test]
         public void TryDecryptRsaReturnsFalseWhenDataTooShort()
         {
