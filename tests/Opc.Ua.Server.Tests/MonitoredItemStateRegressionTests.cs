@@ -216,6 +216,103 @@ namespace Opc.Ua.Server.Tests
             Assert.That(PublishEvents(item), Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// A restored durable item with queued notifications is ready to publish right away.
+        /// </summary>
+        [Test]
+        public void RestoredItemWithQueuedEventsIsReadyToPublish()
+        {
+            using var harness = new Harness();
+            IEventMonitoredItemQueue queue = harness.QueueFactory.CreateEventQueue(false, 4);
+            queue.SetQueueSize(10, true);
+            queue.Enqueue(new EventFieldList
+            {
+                ClientHandle = 5,
+                EventFields = [Variant.From("A")]
+            });
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            var stored = new StoredMonitoredItem
+            {
+                Id = 4,
+                SubscriptionId = 1,
+                TypeMask = MonitoredItemTypeMask.Events,
+                MonitoringMode = MonitoringMode.Reporting,
+                NodeId = ObjectIds.Server,
+                AttributeId = Attributes.EventNotifier,
+                ClientHandle = 5,
+                QueueSize = 10,
+                DiscardOldest = true,
+                TimestampsToReturn = TimestampsToReturn.Both,
+                DiagnosticsMasks = DiagnosticsMasks.None,
+                OriginalFilter = filter,
+                FilterToUse = filter,
+                IndexRange = string.Empty,
+                ParsedIndexRange = NumericRange.Null,
+                RestoredEventQueue = queue
+            };
+
+            using var item = new MonitoredItem(
+                harness.ServerMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                stored,
+                harness.TimeProvider);
+
+            Assert.That(item.ItemsInQueue, Is.EqualTo(1));
+            Assert.That(item.IsReadyToPublish, Is.True);
+            Assert.That(PublishEvents(item), Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A restored durable data change item with queued values is ready to publish right away.
+        /// </summary>
+        [Test]
+        public void RestoredItemWithQueuedValuesIsReadyToPublish()
+        {
+            using var harness = new Harness();
+            IDataChangeMonitoredItemQueue queue = harness.QueueFactory.CreateDataChangeQueue(false, 2);
+            queue.ResetQueue(10, false);
+            queue.Enqueue(new DataValue(Variant.From(7)), ServiceResult.Good);
+            var filter = new DataChangeFilter { Trigger = DataChangeTrigger.StatusValue };
+            var stored = new StoredMonitoredItem
+            {
+                Id = 2,
+                SubscriptionId = 1,
+                TypeMask = MonitoredItemTypeMask.DataChange,
+                MonitoringMode = MonitoringMode.Reporting,
+                NodeId = new NodeId("V", 1),
+                AttributeId = Attributes.Value,
+                ClientHandle = 3,
+                QueueSize = 10,
+                DiscardOldest = true,
+                SamplingInterval = 0,
+                TimestampsToReturn = TimestampsToReturn.Both,
+                DiagnosticsMasks = DiagnosticsMasks.None,
+                OriginalFilter = filter,
+                FilterToUse = filter,
+                IndexRange = string.Empty,
+                ParsedIndexRange = NumericRange.Null,
+                LastValue = new DataValue(Variant.From(7)),
+                RestoredDataChangeQueue = queue
+            };
+
+            using var item = new MonitoredItem(
+                harness.ServerMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                stored,
+                harness.TimeProvider);
+
+            Assert.That(item.IsReadyToPublish, Is.True);
+            List<MonitoredItemNotification> published = PublishData(harness, item);
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(published[0].Value.WrappedValue, Is.EqualTo(Variant.From(7)));
+        }
+
         private static SimpleAttributeOperand CreateSelectClause(string name)
         {
             return new SimpleAttributeOperand

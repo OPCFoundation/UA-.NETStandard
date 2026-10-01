@@ -344,6 +344,14 @@ namespace Opc.Ua.Server
 
             RestoreQueue();
 
+            // notifications that were queued before the restart are still owed to the
+            // client, so the item is ready without waiting for the next change.
+            if (ItemsInQueue > 0)
+            {
+                m_readyToPublish = true;
+                m_readyToTrigger = true;
+            }
+
             m_isDeleted = storedMonitoredItem.IsDeleted;
             m_isDetached = storedMonitoredItem.IsDetached;
         }
