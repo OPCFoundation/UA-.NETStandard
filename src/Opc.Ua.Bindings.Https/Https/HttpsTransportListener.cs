@@ -1130,6 +1130,25 @@ namespace Opc.Ua.Bindings
             // "force renegotiate" requirement; existing Sessions remain
             // valid and the client's reconnect logic re-binds them over
             // the freshly-issued TLS endpoint.
+            //
+            // A shared host serves one TLS certificate for every listener on
+            // its (host, port): rotate it at host level. A stop / start of
+            // only this listener would leave the host on the old certificate
+            // for the other listeners and could not rebind the port.
+            if (m_sharedHostLease != null && m_pinnedServerCert != null && EndpointUrl != null)
+            {
+                PrepareTlsCertificate();
+                if (await SharedKestrelHostRegistry.Instance.RotateCertificateAsync(
+                        new SharedHostKey(EndpointUrl.Host, EndpointUrl.Port),
+                        this,
+                        BuildSharedHostInstance,
+                        m_pinnedServerCertX509!.Thumbprint,
+                        ct).ConfigureAwait(false))
+                {
+                    return [];
+                }
+            }
+
             await StopAsync(ct).ConfigureAwait(false);
             await StartAsync(ct).ConfigureAwait(false);
 
@@ -1498,6 +1517,12 @@ namespace Opc.Ua.Bindings
 #pragma warning restore CA1859
         {
             UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
+
+            // The shared host owns its own copy of the TLS certificate: it can
+            // outlive this listener (other listeners keep it alive), so it must
+            // not serve the listener's pinned instance that Dispose releases.
+            X509Certificate2 hostCertificate = m_pinnedServerCert!.AsX509Certificate2();
+            accessor.Instance!.OwnCertificate(hostCertificate);
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
                 // TLS-layer revocation is intentionally disabled: certificate
@@ -1516,7 +1541,7 @@ namespace Opc.Ua.Bindings
                 ClientCertificateMode = m_mutualTlsEnabled
                     ? ClientCertificateMode.AllowCertificate
                     : ClientCertificateMode.NoCertificate,
-                ServerCertificate = m_pinnedServerCertX509,
+                ServerCertificate = hostCertificate,
                 ClientCertificateValidation = ValidateClientCertificate,
                 SslProtocols = SslProtocols.None
             };
