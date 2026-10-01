@@ -3285,8 +3285,20 @@ namespace Opc.Ua.Server
             // cannot be retired between resolving the Session and starting to execute the request.
             using IDisposable validationScope = requestManager.EnterValidationScope();
 
-            OperationContext context = await serverInternal.SessionManager
-                .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
+            OperationContext context;
+            try
+            {
+                context = await serverInternal.SessionManager
+                    .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
+            }
+            catch (ServiceResultException e)
+            {
+                // The services count their rejections only once the request was admitted, so
+                // a request rejected by session validation (e.g. Bad_SessionIdInvalid or
+                // Bad_SecureChannelIdInvalid) is counted here (OPC 10000-5 12.9).
+                CountRejectedRequest(serverInternal, e.StatusCode);
+                throw;
+            }
 
             if (m_eventLogger.IsEventLogEnabled())
             {
@@ -3309,6 +3321,12 @@ namespace Opc.Ua.Server
             {
                 await OnRequestValidatedAsync(context).ConfigureAwait(false);
             }
+            catch (ServiceResultException e)
+            {
+                CountRejectedRequest(serverInternal, e.StatusCode);
+                context.Dispose();
+                throw;
+            }
             catch
             {
                 context.Dispose();
@@ -3316,6 +3334,22 @@ namespace Opc.Ua.Server
             }
 
             return context;
+        }
+
+        /// <summary>
+        /// Counts a request rejected before its service ran in the server diagnostics.
+        /// </summary>
+        private void CountRejectedRequest(ServerInternalData serverInternal, StatusCode statusCode)
+        {
+            serverInternal.UpdateServerDiagnostics(diagnostics =>
+            {
+                diagnostics.RejectedRequestsCount++;
+
+                if (IsSecurityError(statusCode))
+                {
+                    diagnostics.SecurityRejectedRequestsCount++;
+                }
+            });
         }
 
         /// <summary>
