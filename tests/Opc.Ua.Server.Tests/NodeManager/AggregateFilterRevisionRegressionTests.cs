@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -204,6 +205,52 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Is.EqualTo(StatusCodes.Good));
                 Assert.That(syncFilter.ProcessingInterval, Is.EqualTo(expected));
                 Assert.That(asyncFilter.ProcessingInterval, Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a past start time is advanced by whole processing intervals so the revised start time
+        /// stays on the client's boundary (startTime + revisedProcessingInterval * n, Part 4 §7.22.4, M5-3).
+        /// </summary>
+        [TestCase(1u, "2024-01-01T10:17:00.000Z")]
+        [TestCase(3u, "2024-01-01T10:15:00.000Z")]
+        [TestCase(1000u, "2024-01-01T08:00:00.000Z")]
+        public async Task RevisedStartTimeStaysOnRequestedBoundaryAsync(uint queueSize, string expected)
+        {
+            var time = new FakeTimeProvider(new DateTimeOffset(2024, 1, 1, 10, 17, 23, 456, TimeSpan.Zero));
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queues, time);
+            using (queues)
+            using (var synchronous = new SyncHooks(server.Object))
+            using (var asynchronous = new AsyncHooks(server.Object))
+            {
+                using var aggregates = new AggregateManager(server.Object);
+                server.SetupGet(value => value.AggregateManager).Returns(aggregates);
+                var requestedStart = new DateTimeUtc(new DateTime(2024, 1, 1, 8, 0, 0, DateTimeKind.Utc));
+                var syncFilter = new ServerAggregateFilter
+                {
+                    StartTime = requestedStart,
+                    ProcessingInterval = 60000,
+                    AggregateConfiguration = new AggregateConfiguration()
+                };
+                var asyncFilter = new ServerAggregateFilter
+                {
+                    StartTime = requestedStart,
+                    ProcessingInterval = 60000,
+                    AggregateConfiguration = new AggregateConfiguration()
+                };
+
+                Assert.That(synchronous.Revise(queueSize, syncFilter), Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    await asynchronous.ReviseAsync(queueSize, asyncFilter).ConfigureAwait(false),
+                    Is.EqualTo(StatusCodes.Good));
+
+                var expectedStart = new DateTimeUtc(DateTime.Parse(
+                    expected,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal));
+                Assert.That(syncFilter.StartTime, Is.EqualTo(expectedStart));
+                Assert.That(asyncFilter.StartTime, Is.EqualTo(expectedStart));
             }
         }
 
