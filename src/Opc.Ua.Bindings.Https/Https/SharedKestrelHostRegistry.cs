@@ -233,6 +233,16 @@ namespace Opc.Ua.Bindings
         /// every listener registered on the old host is moved to the new one.
         /// Leases stay valid: they are keyed by <c>(key, listener)</c>.
         /// </summary>
+        /// <param name="key">The <c>(host, port)</c> of the shared host.</param>
+        /// <param name="listener">The rotating listener.</param>
+        /// <param name="hostFactory">Builds the host with the new certificate.</param>
+        /// <param name="serverCertificateThumbprint">Thumbprint of the new certificate.</param>
+        /// <param name="rollbackFactory">
+        /// Optional factory that builds the host with the previous
+        /// certificate. When the new host fails to start, a host is restarted
+        /// with it for the same listeners before the error is rethrown.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
         /// <returns>
         /// <c>false</c> when <paramref name="listener"/> is not registered on a
         /// shared host for <paramref name="key"/>; the caller then restarts on
@@ -243,6 +253,7 @@ namespace Opc.Ua.Bindings
             HttpsTransportListener listener,
             Func<SharedHostAccessor, IHost> hostFactory,
             string serverCertificateThumbprint,
+            Func<SharedHostAccessor, IHost>? rollbackFactory = null,
             CancellationToken ct = default)
         {
             if (hostFactory == null)
@@ -282,7 +293,37 @@ namespace Opc.Ua.Bindings
                 {
                     newHost.AddListener(entry.Key, entry.Value);
                 }
-                await StartHostAsync(newHost, accessor, hostFactory, ct).ConfigureAwait(false);
+                try
+                {
+                    await StartHostAsync(newHost, accessor, hostFactory, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (rollbackFactory != null)
+                {
+                    // Keep the listeners served: restart a host with the
+                    // previous certificate, then surface the rotation error.
+                    var restoredAccessor = new SharedHostAccessor();
+                    var restoredHost = new SharedKestrelHost(key, oldHost.ServerCertificateThumbprint);
+                    restoredAccessor.Instance = restoredHost;
+                    foreach (KeyValuePair<string, HttpsTransportListener> entry in listeners)
+                    {
+                        restoredHost.AddListener(entry.Key, entry.Value);
+                    }
+                    try
+                    {
+                        await StartHostAsync(restoredHost, restoredAccessor, rollbackFactory, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception rollbackError)
+                    {
+                        throw new AggregateException(
+                            $"Rotating the TLS certificate of the shared host on {key} failed and the " +
+                            "host could not be restarted with the previous certificate.",
+                            ex,
+                            rollbackError);
+                    }
+                    m_hosts[key] = restoredHost;
+                    throw;
+                }
                 m_hosts[key] = newHost;
                 return true;
             }

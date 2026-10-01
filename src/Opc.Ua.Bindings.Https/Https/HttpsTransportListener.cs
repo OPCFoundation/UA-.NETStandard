@@ -1144,12 +1144,17 @@ namespace Opc.Ua.Bindings
                 // Closed before PrepareTlsCertificate releases the pinned
                 // certificate the reverse transports present.
                 CloseActiveConnections();
+
+                // Keep the previous TLS certificate so the registry can restart
+                // the shared host with it when the new host fails to start.
+                using Certificate previousCertificate = m_pinnedServerCert.AddRef();
                 PrepareTlsCertificate();
                 if (await SharedKestrelHostRegistry.Instance.RotateCertificateAsync(
                         new SharedHostKey(EndpointUrl.Host, EndpointUrl.Port),
                         this,
                         BuildSharedHostInstance,
                         m_pinnedServerCertX509!.Thumbprint,
+                        accessor => BuildSharedHostInstance(accessor, previousCertificate),
                         ct).ConfigureAwait(false))
                 {
                     return [];
@@ -1519,15 +1524,24 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private IHost BuildSharedHostInstance(SharedHostAccessor accessor)
         {
+            return BuildSharedHostInstance(accessor, m_pinnedServerCert!);
+        }
+
+        /// <summary>
+        /// Builds the shared host serving <paramref name="tlsCertificate"/>,
+        /// e.g. the previous certificate when a rotation is rolled back.
+        /// </summary>
+        private IHost BuildSharedHostInstance(SharedHostAccessor accessor, Certificate tlsCertificate)
+        {
 #if NET8_0_OR_GREATER
             return new HostBuilder()
-                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor))
+                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor, tlsCertificate))
                 .Build();
 #else
             // Legacy WebHostBuilder.Start() can't be split into Build+Start; use
             // Build() on the IWebHost equivalent and start in AttachAndStart.
             var sharedHostBuilder = new WebHostBuilder();
-            ConfigureSharedWebHost(sharedHostBuilder, accessor);
+            ConfigureSharedWebHost(sharedHostBuilder, accessor, tlsCertificate);
             IWebHost webHost = sharedHostBuilder.UseUrls(Utils.ReplaceLocalhost(EndpointUrl.ToString())).Build();
             return new WebHostAsIHost(webHost);
 #endif
@@ -1541,7 +1555,10 @@ namespace Opc.Ua.Bindings
         /// <see cref="PrepareTlsCertificate"/>.
         /// </summary>
 #pragma warning disable CA1859 // see ConfigureWebHost rationale
-        private void ConfigureSharedWebHost(IWebHostBuilder webHostBuilder, SharedHostAccessor accessor)
+        private void ConfigureSharedWebHost(
+            IWebHostBuilder webHostBuilder,
+            SharedHostAccessor accessor,
+            Certificate tlsCertificate)
 #pragma warning restore CA1859
         {
             UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
@@ -1549,7 +1566,7 @@ namespace Opc.Ua.Bindings
             // The shared host owns its own copy of the TLS certificate: it can
             // outlive this listener (other listeners keep it alive), so it must
             // not serve the listener's pinned instance that Dispose releases.
-            X509Certificate2 hostCertificate = m_pinnedServerCert!.AsX509Certificate2();
+            X509Certificate2 hostCertificate = tlsCertificate.AsX509Certificate2();
             accessor.Instance!.OwnCertificate(hostCertificate);
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
