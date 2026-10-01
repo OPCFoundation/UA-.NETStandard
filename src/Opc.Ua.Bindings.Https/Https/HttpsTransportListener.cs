@@ -2670,7 +2670,22 @@ namespace Opc.Ua.Bindings
                 IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
                     messageBytes, m_quotas.MessageContext);
                 request.RequestHeader ??= new RequestHeader();
-                response = await m_callback!.ProcessRequestAsync(channelContext, request, ct).ConfigureAwait(false);
+                if (channelContext.EndpointDescription == null && !IsDiscoveryRequest(request.TypeId))
+                {
+                    // Fail closed like the binary and JSON paths: without a matching
+                    // SecurityMode.None endpoint the channel is discovery-only.
+                    response = EndpointBase.CreateFault(
+                        m_logger,
+                        request,
+                        new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "Channel can only be used for discovery."));
+                }
+                else
+                {
+                    response = await m_callback!.ProcessRequestAsync(channelContext, request, ct)
+                        .ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {

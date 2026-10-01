@@ -176,6 +176,43 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             AssertReleased(provider);
         }
 
+        /// <summary>
+        /// Without a SecurityMode.None endpoint the OpenAPI channel is discovery-only,
+        /// like the binary and JSON paths: session requests are faulted, never dispatched.
+        /// </summary>
+        [Test]
+        public async Task ChannelWithoutEndpointOnlyDispatchesDiscoveryRequestsAsync()
+        {
+            await using var connection = new Connection(null, withEndpoint: false);
+            connection.Enqueue(connection.Encode(new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 7, AuthenticationToken = new NodeId(123u) }
+            }));
+            connection.Start(upgrade: true);
+
+            IServiceResponse fault = await connection.ReceiveResponseAsync().ConfigureAwait(false);
+            Assert.That(fault, Is.InstanceOf<ServiceFault>());
+            Assert.That(fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(7));
+            Assert.That(connection.DispatchCount, Is.Zero);
+
+            connection.Process = static (request, _) => new ValueTask<IServiceResponse>(
+                new GetEndpointsResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = request.RequestHeader.RequestHandle }
+                });
+            connection.Enqueue(connection.Encode(new GetEndpointsRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 8 }
+            }));
+            IServiceResponse endpoints = await connection.ReceiveResponseAsync().ConfigureAwait(false);
+            Assert.That(endpoints, Is.InstanceOf<GetEndpointsResponse>());
+            Assert.That(connection.DispatchCount, Is.EqualTo(1));
+            connection.Close();
+            await connection.Finished.WaitAsync(kTimeout).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task CloseReleasesConnectionBodyAndPendingMessageLeasesAsync()
         {
@@ -410,8 +447,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         private sealed class Connection : IAsyncDisposable
         {
-            public Connection(AdmissionProvider? provider, int outstandingLimit = 4)
+            public Connection(AdmissionProvider? provider, int outstandingLimit = 4, bool withEndpoint = true)
             {
+                ChannelContext = new SecureChannelContext(
+                    "openapi-test-channel",
+                    withEndpoint
+                        ? new EndpointDescription
+                        {
+                            SecurityMode = MessageSecurityMode.None,
+                            SecurityPolicyUri = SecurityPolicies.None,
+                            TransportProfileUri = Profiles.WssOpenApiTransport
+                        }
+                        : null,
+                    RequestEncoding.Json,
+                    peerAddress: IPAddress.Loopback);
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var messageContext = ServiceMessageContext.Create(telemetry);
                 messageContext.MaxMessageSize = FrameSize * outstandingLimit;
@@ -426,7 +475,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 SetField("m_bufferManager", new BufferManager(DefaultBufferManagerFactory.Instance
                     .Create("openapi-admission", FrameSize, telemetry)));
                 SetField("m_admission", new UaScConnectionAdmission(1, null, provider));
-                SetField("m_descriptions", new List<EndpointDescription> { ChannelContext.EndpointDescription! });
+                SetField("m_descriptions", ChannelContext.EndpointDescription == null
+                    ? new List<EndpointDescription>()
+                    : new List<EndpointDescription> { ChannelContext.EndpointDescription });
                 SetField("m_serverCertProvider", Mock.Of<ICertificateRegistry>());
                 var callback = new Mock<ITransportListenerCallback>();
                 callback.Setup(value => value.ProcessRequestAsync(
@@ -463,16 +514,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public HttpsTransportListener Listener { get; }
             public ChannelQuotas Quotas { get; }
             public Mock<WebSocket> Socket { get; } = new();
-            public SecureChannelContext ChannelContext { get; } = new(
-                "openapi-test-channel",
-                new EndpointDescription
-                {
-                    SecurityMode = MessageSecurityMode.None,
-                    SecurityPolicyUri = SecurityPolicies.None,
-                    TransportProfileUri = Profiles.WssOpenApiTransport
-                },
-                RequestEncoding.Json,
-                peerAddress: IPAddress.Loopback);
+            public SecureChannelContext ChannelContext { get; }
             public Func<IServiceRequest, CancellationToken, ValueTask<IServiceResponse>> Process { get; set; } =
                 static (request, _) => new ValueTask<IServiceResponse>(CreateResponse(request));
             public Func<CancellationToken, Task> Send { get; set; } = static _ => Task.CompletedTask;
