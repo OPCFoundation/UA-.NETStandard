@@ -32,6 +32,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -219,8 +220,16 @@ namespace Opc.Ua.Bindings
             m_channels = new ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>();
             m_callback = callback;
             m_reverseConnectListener = settings.ReverseConnectListener;
+            m_maxChannelCount = settings.MaxChannelCount;
+            m_pendingAccepts = 0;
+
+            // As in TcpTransportListener the channel limit is enforced
+            // against the channel table (ReserveChannel) rather than as a
+            // hard lease cap, so the oldest unused SecureChannel without a
+            // Session can be closed before a new connection is refused
+            // (OPC 10000-4 5.6.2.1).
             m_admission = new UaScConnectionAdmission(
-                settings.MaxChannelCount,
+                0,
                 settings.ConnectionRateLimiter,
                 settings.ResourceIsolationProvider,
                 m_quotas.HandshakeTimeout,
@@ -228,6 +237,14 @@ namespace Opc.Ua.Bindings
 
             m_host = BuildHost(baseAddress);
             await m_host.StartAsync(ct).ConfigureAwait(false);
+
+            int inactivityDetectPeriod = Math.Max(1, m_quotas.ChannelLifetime / 2);
+            m_inactivityDetectionTimer?.Dispose();
+            m_inactivityDetectionTimer = TimeProvider.System.CreateTimer(
+                DetectInactiveChannels,
+                null,
+                TimeSpan.FromMilliseconds(inactivityDetectPeriod),
+                TimeSpan.FromMilliseconds(inactivityDetectPeriod));
         }
 
         /// <inheritdoc/>
@@ -239,6 +256,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public async ValueTask StopAsync(CancellationToken ct = default)
         {
+            m_inactivityDetectionTimer?.Dispose();
+            m_inactivityDetectionTimer = null;
             try
             {
                 m_admission?.Stop();
@@ -291,7 +310,23 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
         {
-            // No inactivity tracking yet - tracked separately.
+            try
+            {
+                string channelIdString = globalChannelId[(ListenerId.Length + 1)..];
+                uint channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
+
+                if (channelId > 0 &&
+                    m_channels?.TryGetValue(
+                        channelId,
+                        out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) entry) == true)
+                {
+                    entry.Channel.UpdateLastActiveTime();
+                }
+            }
+            catch
+            {
+                // ignore errors for calls with invalid channel id
+            }
         }
 
         /// <inheritdoc/>
@@ -516,7 +551,149 @@ namespace Opc.Ua.Bindings
             [NotNullWhen(true)] out UaScConnectionAdmission.Lease? lease)
         {
             lease = null;
-            return m_admission != null && m_admission.TryAcquire(remoteEndpoint, out lease);
+            if (m_admission == null ||
+                !m_admission.TryAcquire(remoteEndpoint, out lease, TryReclaimUnusedChannel))
+            {
+                return false;
+            }
+            if (!ReserveChannel())
+            {
+                lease.Dispose();
+                lease = null;
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Releases a channel slot reserved by <see cref="TryAdmitConnection"/>
+        /// when the connection ends before <see cref="RegisterChannel"/>.
+        /// </summary>
+        internal void ReleaseChannelReservation()
+        {
+            lock (m_lock)
+            {
+                if (m_pendingAccepts > 0)
+                {
+                    m_pendingAccepts--;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reserves capacity in the channel table, reclaiming the oldest
+        /// unused channel without a session when the limit is reached
+        /// (OPC 10000-4 5.6.2.1).
+        /// </summary>
+        private bool ReserveChannel()
+        {
+            var attempted = new HashSet<TcpListenerChannel>();
+            while (true)
+            {
+                int channelCount;
+                lock (m_lock)
+                {
+                    if (m_channels == null)
+                    {
+                        return false;
+                    }
+                    channelCount = m_channels.Count + m_pendingAccepts;
+                    if (m_maxChannelCount <= 0 || channelCount < m_maxChannelCount)
+                    {
+                        m_pendingAccepts++;
+                        return true;
+                    }
+                }
+                if (!TryReclaimUnusedChannel(attempted))
+                {
+                    Logger.KestrelTcpChannelLimitReached(channelCount, m_maxChannelCount);
+                    return false;
+                }
+            }
+        }
+
+        private bool TryReclaimUnusedChannel()
+        {
+            return TryReclaimUnusedChannel([]);
+        }
+
+        /// <summary>
+        /// Closes the least recently active open channel that serves no
+        /// session, mirroring <see cref="TcpTransportListener"/>.
+        /// </summary>
+        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted)
+        {
+            ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? channels =
+                m_channels;
+            if (channels == null)
+            {
+                return false;
+            }
+            TcpListenerChannel[] candidates = [.. channels.Values.Select(entry => entry.Channel)];
+            foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
+                channel => channel.ElapsedSinceLastActiveTime))
+            {
+                if (attempted.Contains(candidate) || candidate.UsedBySession)
+                {
+                    continue;
+                }
+                lock (m_lock)
+                {
+                    if (!m_idleCleanupClaims.Add(candidate))
+                    {
+                        continue;
+                    }
+                }
+                attempted.Add(candidate);
+                try
+                {
+                    if (candidate.TryIdleCleanupForAdmission())
+                    {
+                        Logger.KestrelTcpReclaimedUnusedChannel(candidate.Id);
+                        return true;
+                    }
+                }
+                finally
+                {
+                    lock (m_lock)
+                    {
+                        m_idleCleanupClaims.Remove(candidate);
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The inactivity timer callback: closes channels that were not
+        /// active for longer than the channel lifetime, mirroring
+        /// <see cref="TcpTransportListener"/>.
+        /// </summary>
+        private void DetectInactiveChannels(object? state)
+        {
+            ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? channels =
+                m_channels;
+            ChannelQuotas? quotas = m_quotas;
+            if (channels == null || quotas == null)
+            {
+                return;
+            }
+            try
+            {
+                foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> _) in channels.Values)
+                {
+                    if (Channel.ElapsedSinceLastActiveTime > quotas.ChannelLifetime)
+                    {
+                        Logger.KestrelTcpInactiveChannelCleanup(Channel.Id);
+                        Channel.IdleCleanup();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Timer callback: never let an exception escape.
+                Logger.KestrelTcpInactivityDetectionFailed(ex);
+            }
         }
 
         /// <summary>
@@ -568,9 +745,18 @@ namespace Opc.Ua.Bindings
             {
                 serverChannel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
             }
-            m_channels!.TryAdd(channelId, (
-                channel,
-                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)));
+            lock (m_lock)
+            {
+                ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)> channels =
+                    m_channels ?? throw new InvalidOperationException("KestrelTcpTransportListener is not opened.");
+                if (m_pendingAccepts > 0)
+                {
+                    m_pendingAccepts--;
+                }
+                channels.TryAdd(channelId, (
+                    channel,
+                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)));
+            }
         }
 
         internal void UnregisterChannel(uint channelId)
@@ -691,6 +877,9 @@ namespace Opc.Ua.Bindings
             {
                 return;
             }
+            // Keeps a sessionless channel classified as in use while the
+            // request is processed so admission does not reclaim it.
+            using IDisposable usage = channel.TrackPendingRequest();
             try
             {
                 var context = new SecureChannelContext(
@@ -774,6 +963,19 @@ namespace Opc.Ua.Bindings
         private int m_nextChannelId;
         private bool m_reverseConnectListener;
         private UaScConnectionAdmission? m_admission;
+        private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Tracks channels already selected for reclamation by concurrent admission attempts.
+        /// </summary>
+        private readonly HashSet<TcpListenerChannel> m_idleCleanupClaims = [];
+
+        /// <summary>
+        /// Counts reserved admission slots not yet represented by registered channels.
+        /// </summary>
+        private int m_pendingAccepts;
+        private int m_maxChannelCount;
+        private ITimer? m_inactivityDetectionTimer;
     }
 
     /// <summary>
@@ -824,6 +1026,25 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 7, Level = LogLevel.Error,
             Message = "Kestrel TCP failed to close one or more admitted connections during listener shutdown.")]
         public static partial void KestrelTcpAdmissionStopFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 8, Level = LogLevel.Warning,
+            Message = "KestrelTcp maximum channel count reached ({ChannelCount}/{MaxChannelCount}) and no unused channel could be reclaimed.")]
+        public static partial void KestrelTcpChannelLimitReached(
+            this ILogger logger,
+            int channelCount,
+            int maxChannelCount);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 9, Level = LogLevel.Information,
+            Message = "KestrelTcp closed unused channel {ChannelId} without a session to admit a new connection.")]
+        public static partial void KestrelTcpReclaimedUnusedChannel(this ILogger logger, uint channelId);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 10, Level = LogLevel.Information,
+            Message = "KestrelTcp closing channel {ChannelId} due to inactivity.")]
+        public static partial void KestrelTcpInactiveChannelCleanup(this ILogger logger, uint channelId);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 11, Level = LogLevel.Error,
+            Message = "KestrelTcp inactivity detection failed.")]
+        public static partial void KestrelTcpInactivityDetectionFailed(this ILogger logger, Exception exception);
     }
 }
 #endif // NET8_0_OR_GREATER
