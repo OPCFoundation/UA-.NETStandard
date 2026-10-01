@@ -1417,6 +1417,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Update the event queue overflow count when a monitored item reports an
+        /// EventQueueOverflowEventType event (OPC 10000-5 §12.15).
+        /// </summary>
+        void ISubscriptionPublishPipeline.EventQueueOverflowHandler()
+        {
+            lock (m_diagnosticsLock)
+            {
+                Diagnostics.EventQueueOverflowCount++;
+                MarkDiagnosticsDirty();
+            }
+        }
+
+        /// <summary>
         /// Removes a message from the message queue.
         /// </summary>
         ServiceResult? ISubscriptionPublishPipeline.Acknowledge(OperationContext context, uint sequenceNumber)

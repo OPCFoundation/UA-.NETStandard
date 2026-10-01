@@ -50,6 +50,12 @@ namespace Opc.Ua.Server
         void QueueOverflowHandler();
 
         /// <summary>
+        /// Called when a monitored item of the subscription generates an
+        /// EventQueueOverflowEventType event (OPC 10000-5 §12.15 eventQueueOverflowCount).
+        /// </summary>
+        void EventQueueOverflowHandler();
+
+        /// <summary>
         /// Checks if the subscription is ready to publish.
         /// </summary>
         PublishingState PublishTimerExpired();
