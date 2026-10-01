@@ -459,6 +459,52 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// Part 6 7.4.1: HTTPS applications shall support HTTP chunking. A chunked
+        /// body has no Content-Length and must be read and decoded, not rejected
+        /// as a length mismatch.
+        /// </summary>
+        [Test]
+        public async Task SendAsyncAcceptsChunkedBodyWithoutContentLengthAsync()
+        {
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = "application/octet-stream";
+            context.Request.Headers.TransferEncoding = "chunked";
+            context.Request.Body = new MemoryStream([0x01, 0x02, 0x03, 0x04]);
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            // the body was read and decoded: the undecodable payload gets a ServiceFault.
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
+            ServiceFault fault = BinaryDecoder.DecodeMessage<ServiceFault>(
+                responseBody.ToArray(),
+                ServiceMessageContext.Create(m_telemetry));
+            Assert.That(StatusCode.IsBad(fault.ResponseHeader.ServiceResult), Is.True);
+        }
+
+        /// <summary>
+        /// A chunked body is bounded by MaxMessageSize while it is read.
+        /// </summary>
+        [Test]
+        public async Task SendAsyncRejectsChunkedBodyAboveMaxMessageSizeAsync()
+        {
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener(maxMessageSize: 1024);
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = "application/octet-stream";
+            context.Request.Headers.TransferEncoding = "chunked";
+            context.Request.Body = new MemoryStream(new byte[4096]);
+            context.Response.Body = new MemoryStream();
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.RequestEntityTooLarge));
+        }
+
+        /// <summary>
         /// Verify SendAsync answers a binary payload that cannot be decoded with a
         /// ServiceFault (like the JSON path) instead of an HTTP error.
         /// </summary>
@@ -701,15 +747,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotImplemented));
         }
 
-        private HttpsTransportListener CreatePartiallyOpenedListener()
+        private HttpsTransportListener CreatePartiallyOpenedListener(int maxMessageSize = 0)
         {
             var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var baseAddress = new Uri("https://localhost:51002");
             var callback = new Mock<ITransportListenerCallback>();
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            if (maxMessageSize > 0)
+            {
+                configuration.MaxMessageSize = maxMessageSize;
+            }
             var settings = new TransportListenerSettings
             {
                 Descriptions = [],
-                Configuration = EndpointConfiguration.Create(),
+                Configuration = configuration,
                 ServerCertificates = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
                 NamespaceUris = new NamespaceTable(),

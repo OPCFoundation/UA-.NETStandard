@@ -703,9 +703,26 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                int length = (int)(context.Request.ContentLength ?? 0);
+                // A chunked body (Part 6 7.4.1 requires HTTP chunking) carries no
+                // Content-Length; the bounded reader enforces MaxMessageSize while
+                // it reads.
+                long? contentLength = context.Request.ContentLength;
                 int maxMessageSize = m_quotas.MessageContext.MaxMessageSize;
-                if (maxMessageSize > 0 && length > maxMessageSize)
+                byte[]? buffer = null;
+                if (maxMessageSize <= 0 || !(contentLength > maxMessageSize))
+                {
+                    try
+                    {
+                        buffer = await ReadBodyAsync(context.Request, maxMessageSize, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadRequestTooLarge)
+                    {
+                        buffer = null;
+                    }
+                }
+
+                if (buffer == null)
                 {
                     message = "HTTPSLISTENER - Request body exceeds MaxMessageSize.";
                     await WriteResponseAsync(
@@ -714,10 +731,9 @@ namespace Opc.Ua.Bindings
                         HttpStatusCode.RequestEntityTooLarge).ConfigureAwait(false);
                     return;
                 }
-                byte[] buffer = await ReadBodyAsync(context.Request, maxMessageSize, ct)
-                    .ConfigureAwait(false);
 
-                if (buffer.Length != length)
+                int length = buffer.Length;
+                if (contentLength.HasValue && length != contentLength.Value)
                 {
                     message = "HTTPSLISTENER - Invalid buffer.";
                     await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest)
