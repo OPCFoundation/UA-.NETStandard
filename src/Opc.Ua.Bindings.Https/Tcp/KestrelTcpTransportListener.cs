@@ -643,13 +643,17 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted)
         {
-            ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? channels =
-                m_channels;
-            if (channels == null)
+            ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? channels;
+            TcpListenerChannel[] candidates;
+            lock (m_lock)
             {
-                return false;
+                channels = m_channels;
+                if (channels == null)
+                {
+                    return false;
+                }
+                candidates = [.. channels.Values.Select(entry => entry.Channel)];
             }
-            TcpListenerChannel[] candidates = [.. channels.Values.Select(entry => entry.Channel)];
             foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
                 channel => channel.ElapsedSinceLastActiveTime))
             {
@@ -659,7 +663,14 @@ namespace Opc.Ua.Bindings
                 }
                 lock (m_lock)
                 {
-                    if (!m_idleCleanupClaims.Add(candidate))
+                    // The snapshot may be stale: only reclaim a channel that is
+                    // still the registered channel for its id in the live table.
+                    if (!ReferenceEquals(channels, m_channels) ||
+                        !channels.TryGetValue(
+                            candidate.Id,
+                            out (TcpListenerChannel Channel, TaskCompletionSource<bool> Done) registered) ||
+                        !ReferenceEquals(candidate, registered.Channel) ||
+                        !m_idleCleanupClaims.Add(candidate))
                     {
                         continue;
                     }
