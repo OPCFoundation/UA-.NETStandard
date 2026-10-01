@@ -515,12 +515,17 @@ namespace Opc.Ua.Bindings
             // listener's ConnectionWaiting event when the server's
             // ReverseHello arrives.
             m_reverseConnectListener = settings.ReverseConnectListener;
+            // A reverse connection handed off to the client keeps its physical
+            // lease until it closes, but like on the opc.tcp listeners it no
+            // longer counts against MaxChannelCount, which bounds only the
+            // connections still waiting for their ReverseHello hand-off.
             m_admission = new UaScConnectionAdmission(
                 settings.MaxChannelCount,
                 settings.ConnectionRateLimiter,
                 settings.ResourceIsolationProvider,
                 m_quotas.HandshakeTimeout,
-                telemetry: m_telemetry);
+                telemetry: m_telemetry,
+                limitPendingHandshakesOnly: m_reverseConnectListener);
 
             // buffer manager used by the WSS path to rent send / receive chunks.
             m_bufferManager = new BufferManager(
@@ -1137,12 +1142,24 @@ namespace Opc.Ua.Bindings
             // for the other listeners and could not rebind the port.
             if (m_sharedHostLease != null && m_pinnedServerCert != null && EndpointUrl != null)
             {
+                // The host keeps its TLS certificate when only a non-TLS
+                // application certificate (e.g. ECC) rotates, so the WSS
+                // SecureChannels and the outbound reverse-connect channels of
+                // this listener are cut here rather than by a host restart.
+                // Closed before PrepareTlsCertificate releases the pinned
+                // certificate the reverse transports present.
+                CloseActiveConnections();
+
+                // Keep the previous TLS certificate so the registry can restart
+                // the shared host with it when the new host fails to start.
+                using Certificate previousCertificate = m_pinnedServerCert.AddRef();
                 PrepareTlsCertificate();
                 if (await SharedKestrelHostRegistry.Instance.RotateCertificateAsync(
                         new SharedHostKey(EndpointUrl.Host, EndpointUrl.Port),
                         this,
                         BuildSharedHostInstance,
                         m_pinnedServerCertX509!.Thumbprint,
+                        accessor => BuildSharedHostInstance(accessor, previousCertificate),
                         ct).ConfigureAwait(false))
                 {
                     return [];
@@ -1169,10 +1186,6 @@ namespace Opc.Ua.Bindings
             try
             {
                 m_admission?.Stop();
-                foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
-                {
-                    upgrade.Close();
-                }
             }
             catch (AggregateException ex)
             {
@@ -1184,23 +1197,7 @@ namespace Opc.Ua.Bindings
             // Drain outbound reverse-connect channels first so the
             // ServerCertificateChain handles loaded during the asymmetric
             // ChannelOpen handshake are released before m_pinnedServerCert.
-            // Snapshot the set under the concurrent dictionary's enumerator
-            // contract; subsequent OnReverseConnectChannelStatusChanged
-            // callbacks against disposed channels are no-ops because the
-            // dictionary has been cleared.
-            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
-            m_reverseConnectChannels.Clear();
-            foreach (TcpServerChannel channel in reverseChannels)
-            {
-                try
-                {
-                    channel.Dispose();
-                }
-                catch
-                {
-                    // best-effort; teardown must continue regardless.
-                }
-            }
+            CloseActiveConnections();
 
             SharedHostLease? lease = m_sharedHostLease;
             m_sharedHostLease = null;
@@ -1227,6 +1224,47 @@ namespace Opc.Ua.Bindings
                     // Best-effort shutdown.
                 }
                 host.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Closes this listener's admitted WebSocket upgrades and disposes its
+        /// outbound reverse-connect channels. Used by teardown and by
+        /// certificate rotation (Part 12 7.10.9), which must cut the channels
+        /// even when the shared host keeps serving the same TLS certificate.
+        /// </summary>
+        private void CloseActiveConnections()
+        {
+            foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
+            {
+                try
+                {
+                    upgrade.Close();
+                }
+                catch (Exception ex)
+                {
+                    m_logger.WssAdmissionStopFailed(ex);
+                }
+            }
+
+            // Snapshot the set under the concurrent dictionary's enumerator
+            // contract; status callbacks of the disposed channels no longer
+            // find them in the set and so do not dispose them twice.
+            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
+            foreach (TcpServerChannel channel in reverseChannels)
+            {
+                if (!m_reverseConnectChannels.TryRemove(channel, out _))
+                {
+                    continue;
+                }
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // best-effort; teardown must continue regardless.
+                }
             }
         }
 
@@ -1491,15 +1529,26 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private IHost BuildSharedHostInstance(SharedHostAccessor accessor)
         {
+            return BuildSharedHostInstance(accessor, m_pinnedServerCert!);
+        }
+
+        /// <summary>
+        /// Builds the shared host serving <paramref name="tlsCertificate"/>,
+        /// e.g. the previous certificate when a rotation is rolled back.
+        /// </summary>
+#pragma warning disable CA1859 // the registry takes an IHost factory on every target
+        private IHost BuildSharedHostInstance(SharedHostAccessor accessor, Certificate tlsCertificate)
+#pragma warning restore CA1859
+        {
 #if NET8_0_OR_GREATER
             return new HostBuilder()
-                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor))
+                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor, tlsCertificate))
                 .Build();
 #else
             // Legacy WebHostBuilder.Start() can't be split into Build+Start; use
             // Build() on the IWebHost equivalent and start in AttachAndStart.
             var sharedHostBuilder = new WebHostBuilder();
-            ConfigureSharedWebHost(sharedHostBuilder, accessor);
+            ConfigureSharedWebHost(sharedHostBuilder, accessor, tlsCertificate);
             IWebHost webHost = sharedHostBuilder.UseUrls(Utils.ReplaceLocalhost(EndpointUrl.ToString())).Build();
             return new WebHostAsIHost(webHost);
 #endif
@@ -1513,7 +1562,10 @@ namespace Opc.Ua.Bindings
         /// <see cref="PrepareTlsCertificate"/>.
         /// </summary>
 #pragma warning disable CA1859 // see ConfigureWebHost rationale
-        private void ConfigureSharedWebHost(IWebHostBuilder webHostBuilder, SharedHostAccessor accessor)
+        private void ConfigureSharedWebHost(
+            IWebHostBuilder webHostBuilder,
+            SharedHostAccessor accessor,
+            Certificate tlsCertificate)
 #pragma warning restore CA1859
         {
             UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
@@ -1521,7 +1573,7 @@ namespace Opc.Ua.Bindings
             // The shared host owns its own copy of the TLS certificate: it can
             // outlive this listener (other listeners keep it alive), so it must
             // not serve the listener's pinned instance that Dispose releases.
-            X509Certificate2 hostCertificate = m_pinnedServerCert!.AsX509Certificate2();
+            X509Certificate2 hostCertificate = tlsCertificate.AsX509Certificate2();
             accessor.Instance!.OwnCertificate(hostCertificate);
             var httpsOptions = new HttpsConnectionAdapterOptions
             {

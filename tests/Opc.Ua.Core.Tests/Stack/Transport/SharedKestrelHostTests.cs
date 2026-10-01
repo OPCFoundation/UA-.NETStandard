@@ -291,6 +291,47 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// A rotation whose new host fails to start restarts a host with the
+        /// previous certificate for every listener and surfaces the error.
+        /// </summary>
+        [Test]
+        public async Task RotateCertificateStartFailureRestoresPreviousHostAsync()
+        {
+            SharedHostKey key = NewKey();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var listenerA = new HttpsTransportListener(Utils.UriSchemeHttps, telemetry);
+            await using var listenerB = new HttpsTransportListener(Utils.UriSchemeHttps, telemetry);
+            await using SharedHostLease leaseA = await SharedKestrelHostRegistry.Instance.AcquireAsync(
+                key, listenerA, "/a", _ => MakeStubHost(), kThumbprint).ConfigureAwait(false);
+            await using SharedHostLease leaseB = await SharedKestrelHostRegistry.Instance.AcquireAsync(
+                key, listenerB, "/b", _ => MakeStubHost(), kThumbprint).ConfigureAwait(false);
+
+            var restoredCertificate = new DisposeTracker();
+            int restored = 0;
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await SharedKestrelHostRegistry.Instance.RotateCertificateAsync(
+                    key, listenerA,
+                    _ => throw new InvalidOperationException("new host failed"),
+                    kOtherThumbprint,
+                    acc =>
+                    {
+                        restored++;
+                        acc.Instance!.OwnCertificate(restoredCertificate);
+                        return MakeStubHost();
+                    }).ConfigureAwait(false))!;
+
+            Assert.That(ex.Message, Is.EqualTo("new host failed"));
+            Assert.That(restored, Is.EqualTo(1));
+            Assert.That(restoredCertificate.Disposed, Is.False);
+            Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(2),
+                "Both listeners stay registered on the restored host.");
+            await using SharedHostLease rejoined = await SharedKestrelHostRegistry.Instance.AcquireAsync(
+                key, null!, "/c", _ => throw new InvalidOperationException("Host must be reused."),
+                kThumbprint).ConfigureAwait(false);
+            Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(3));
+        }
+
         private sealed class DisposeTracker : IDisposable
         {
             public bool Disposed { get; private set; }

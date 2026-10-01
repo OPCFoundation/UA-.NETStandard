@@ -356,6 +356,33 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Aborts and releases a socket attached after <see cref="Close"/>
+        /// already ran. Returns <c>true</c> when the transport is closed; the
+        /// caller then also releases what it attached besides the socket.
+        /// </summary>
+        protected bool ReleaseSocketIfClosed()
+        {
+            if (Volatile.Read(ref m_closed) == 0)
+            {
+                return false;
+            }
+            WebSocket? socket = Interlocked.Exchange(ref m_socket, null);
+            if (socket != null)
+            {
+                try
+                {
+                    socket.Abort();
+                }
+                catch
+                {
+                    // Best-effort.
+                }
+                socket.Dispose();
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Waits for the send lock, failing with <see cref="StatusCodes.BadConnectionClosed"/>
         /// when the transport closes while queued. Returns the linked token source
         /// the caller uses for the send and disposes afterwards.
@@ -549,6 +576,16 @@ namespace Opc.Ua.Bindings
                 ws = null; // ownership transferred
                 Interlocked.Exchange(ref m_clientCertificate, clientCert)?.Dispose();
                 clientCert = null; // released in OnClosed
+
+                // Close() may have run while the connect was in flight; it
+                // then found nothing to release (as in TcpByteTransport).
+                if (ReleaseSocketIfClosed())
+                {
+                    OnClosed();
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "The WebSocket transport was closed while connecting.");
+                }
             }
             catch (Exception ex)
             {

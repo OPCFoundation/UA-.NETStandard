@@ -532,6 +532,89 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 
+        /// <summary>
+        /// A <see cref="WebSocketClientByteTransport.Close"/> that runs while
+        /// the WebSocket upgrade is in flight must not leave the socket that the
+        /// upgrade then produces attached to the closed transport.
+        /// </summary>
+        [Test]
+        public async Task ClientCloseDuringConnectReleasesTheConnectedSocketAsync()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            try
+            {
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                using var transport = new WebSocketClientByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+                Task connect = transport.ConnectAsync(
+                    new Uri($"ws://127.0.0.1:{port}/"), CancellationToken.None).AsTask();
+                using TcpClient server = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                NetworkStream stream = server.GetStream();
+                string request = await ReadHttpHeadAsync(stream).ConfigureAwait(false);
+                string key = string.Empty;
+                foreach (string line in request.Split("\r\n"))
+                {
+                    if (line.StartsWith("Sec-WebSocket-Key:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        key = line["Sec-WebSocket-Key:".Length..].Trim();
+                    }
+                }
+
+                transport.Close();
+
+                string accept;
+                using (var sha1 = System.Security.Cryptography.SHA1.Create())
+                {
+                    accept = Convert.ToBase64String(sha1.ComputeHash(System.Text.Encoding.ASCII.GetBytes(
+                        key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+                }
+                byte[] response = System.Text.Encoding.ASCII.GetBytes(
+                    "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
+                    $"Sec-WebSocket-Accept: {accept}\r\n" +
+                    $"Sec-WebSocket-Protocol: {Profiles.OpcUaWsSubProtocolUacp}\r\n\r\n");
+                await stream.WriteAsync(response).ConfigureAwait(false);
+
+                Exception? error = await CaptureAsync(connect).ConfigureAwait(false);
+                Assert.That(error, Is.TypeOf<ServiceResultException>());
+                Assert.That(((ServiceResultException)error!).StatusCode,
+                    Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+
+                // the aborted client socket closes the TCP connection.
+                byte[] buffer = new byte[64];
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try
+                {
+                    while (await stream.ReadAsync(buffer, timeout.Token).ConfigureAwait(false) > 0)
+                    {
+                    }
+                }
+                catch (System.IO.IOException)
+                {
+                    // a reset also proves the client socket was released.
+                }
+            }
+            finally
+            {
+                listener.Stop();
+            }
+        }
+
+        private static async Task<string> ReadHttpHeadAsync(NetworkStream stream)
+        {
+            var head = new System.Text.StringBuilder();
+            byte[] buffer = new byte[1];
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (!head.ToString().EndsWith("\r\n\r\n", StringComparison.Ordinal))
+            {
+                if (await stream.ReadAsync(buffer, timeout.Token).ConfigureAwait(false) == 0)
+                {
+                    break;
+                }
+                head.Append((char)buffer[0]);
+            }
+            return head.ToString();
+        }
+
         private static async Task<Exception?> CaptureAsync(Task task)
         {
             Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
