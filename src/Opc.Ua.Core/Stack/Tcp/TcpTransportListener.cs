@@ -1312,16 +1312,28 @@ namespace Opc.Ua.Bindings
                     m_logger.TcpTransportLog11(remote.Address);
                     return;
                 }
-                if (m_admission == null ||
-                    !m_admission.TryAcquire(remoteEndPoint, out lease, TryReclaimUnusedChannel))
+                if (m_admission == null)
                 {
                     m_logger.TcpAdmissionRejected();
+                    return;
+                }
+                if (!m_admission.TryAcquire(remoteEndPoint, out lease, TryReclaimUnusedChannel))
+                {
+                    m_logger.TcpAdmissionRejected();
+                    ownedSocket = null;
+                    RejectForResources(socket);
                     return;
                 }
                 lease.SetAbortAction(socket.Dispose);
                 channels = ReserveAcceptedChannel();
                 if (channels == null)
                 {
+                    // Release the admission reservations without the abort action so the
+                    // socket survives long enough to report why it was refused.
+                    lease.ReleaseAfterTransportClosed();
+                    lease = null;
+                    ownedSocket = null;
+                    RejectForResources(socket);
                     return;
                 }
                 reserved = true;
@@ -1380,6 +1392,124 @@ namespace Opc.Ua.Bindings
                 }
                 ownedSocket?.Dispose();
                 lease?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Takes ownership of a connection refused for lack of resources and, once its
+        /// Hello arrives, answers it with a Bad_TcpNotEnoughResources Error message before
+        /// closing the socket gracefully (OPC 10000-6 §7.1.2.3). The number of concurrent
+        /// answers is bounded; beyond that, or after the listener stopped, the socket is
+        /// closed silently as before.
+        /// </summary>
+        private void RejectForResources(Socket socket)
+        {
+            bool listening;
+            lock (m_lock)
+            {
+                listening = m_channels != null;
+            }
+            if (!listening ||
+                Interlocked.Increment(ref m_pendingResourceRejections) > kMaxPendingResourceRejections)
+            {
+                if (listening)
+                {
+                    Interlocked.Decrement(ref m_pendingResourceRejections);
+                }
+                socket.Dispose();
+                return;
+            }
+            _ = RejectForResourcesAsync(socket);
+        }
+
+        /// <summary>
+        /// Reads the peer's Hello (bounded in size and time) and replies with Bad_TcpNotEnoughResources.
+        /// </summary>
+        private async Task RejectForResourcesAsync(Socket socket)
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(kResourceRejectionTimeout);
+                using CancellationTokenRegistration registration = cts.Token.Register(socket.Dispose);
+                using var stream = new NetworkStream(socket, ownsSocket: false);
+
+                // A Hello must fit into the smallest receive buffer a server may offer.
+                byte[] buffer = new byte[TcpMessageLimits.MinBufferSize];
+                if (!await ReadExactlyAsync(stream, buffer, TcpMessageLimits.MessageTypeAndSize, cts.Token)
+                    .ConfigureAwait(false))
+                {
+                    return;
+                }
+                uint messageType = ReadUInt32(buffer, 0);
+                uint messageSize = ReadUInt32(buffer, 4);
+                if ((messageType != TcpMessageType.Hello && messageType != TcpMessageType.ReverseHello) ||
+                    messageSize < TcpMessageLimits.MessageTypeAndSize ||
+                    messageSize > (uint)buffer.Length ||
+                    !await ReadExactlyAsync(
+                        stream,
+                        buffer,
+                        (int)messageSize - TcpMessageLimits.MessageTypeAndSize,
+                        cts.Token).ConfigureAwait(false))
+                {
+                    return;
+                }
+
+                byte[] reason = System.Text.Encoding.UTF8.GetBytes(
+                    "The server has no resources for a new connection.");
+                int size = TcpMessageLimits.MessageTypeAndSize + 8 + reason.Length;
+                WriteUInt32(buffer, 0, TcpMessageType.Error);
+                WriteUInt32(buffer, 4, (uint)size);
+                WriteUInt32(buffer, 8, StatusCodes.BadTcpNotEnoughResources.Code);
+                WriteUInt32(buffer, 12, (uint)reason.Length);
+                Buffer.BlockCopy(reason, 0, buffer, 16, reason.Length);
+                await stream.WriteAsync(buffer, 0, size, cts.Token).ConfigureAwait(false);
+                socket.Shutdown(SocketShutdown.Send);
+            }
+            catch (Exception ex)
+            {
+                // The peer went away or did not send its Hello in time.
+                m_logger.TcpResourceRejectionFailed(ex);
+            }
+            finally
+            {
+                socket.Dispose();
+                Interlocked.Decrement(ref m_pendingResourceRejections);
+            }
+
+            static async Task<bool> ReadExactlyAsync(
+                NetworkStream stream,
+                byte[] buffer,
+                int count,
+                CancellationToken ct)
+            {
+                int offset = 0;
+                while (offset < count)
+                {
+                    int read = await stream.ReadAsync(buffer, offset, count - offset, ct)
+                        .ConfigureAwait(false);
+                    if (read <= 0)
+                    {
+                        return false;
+                    }
+                    offset += read;
+                }
+                return true;
+            }
+
+            static uint ReadUInt32(byte[] buffer, int offset)
+            {
+                return buffer[offset] |
+                    ((uint)buffer[offset + 1] << 8) |
+                    ((uint)buffer[offset + 2] << 16) |
+                    ((uint)buffer[offset + 3] << 24);
+            }
+
+            static void WriteUInt32(byte[] buffer, int offset, uint value)
+            {
+                buffer[offset] = (byte)value;
+                buffer[offset + 1] = (byte)(value >> 8);
+                buffer[offset + 2] = (byte)(value >> 16);
+                buffer[offset + 3] = (byte)(value >> 24);
             }
         }
 
@@ -1710,6 +1840,21 @@ namespace Opc.Ua.Bindings
         /// Counts reserved admission slots not yet represented by registered channels.
         /// </summary>
         private int m_pendingAccepts;
+
+        /// <summary>
+        /// Counts refused connections still waiting for their Hello to be answered.
+        /// </summary>
+        private int m_pendingResourceRejections;
+
+        /// <summary>
+        /// Bounds the refused connections answered concurrently with Bad_TcpNotEnoughResources.
+        /// </summary>
+        private const int kMaxPendingResourceRejections = 64;
+
+        /// <summary>
+        /// How long a refused connection may take to send its Hello before it is closed silently.
+        /// </summary>
+        private static readonly TimeSpan kResourceRejectionTimeout = TimeSpan.FromSeconds(2);
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
@@ -1969,5 +2114,12 @@ namespace Opc.Ua.Bindings
             Message = "Basic128Rsa15 abuse tracking reached its fixed {Capacity}-address limit; " +
                 "the least recently active unblocked addresses are evicted for new entries.")]
         public static partial void TcpActiveClientCapacityReached(this ILogger logger, int capacity);
+
+        /// <summary>
+        /// Reports that a refused connection could not be answered with Bad_TcpNotEnoughResources.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 34, Level = LogLevel.Debug,
+            Message = "Refused TCP connection closed before Bad_TcpNotEnoughResources could be sent.")]
+        public static partial void TcpResourceRejectionFailed(this ILogger logger, Exception exception);
     }
 }

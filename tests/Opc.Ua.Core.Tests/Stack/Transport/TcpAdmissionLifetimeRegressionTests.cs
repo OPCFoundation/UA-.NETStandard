@@ -136,6 +136,69 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// OPC 10000-6 §7.1.2.3: a server without resources for a new SecureChannel answers
+        /// the Hello with Bad_TcpNotEnoughResources and closes the socket gracefully.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RefusedConnectionAnswersHelloWithNotEnoughResourcesAsync(bool channelLimit)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter { Allow = channelLimit };
+            await using var harness = new AcceptHarness(
+                telemetry, maxChannels: channelLimit ? 1 : 0, limiter: limiter);
+            using var busy = new IdleChannel(harness.Listener, harness.Buffers, harness.Quotas, telemetry);
+            if (channelLimit)
+            {
+                // A handshake still in progress cannot be reclaimed for the new connection.
+                typeof(UaSCUaBinaryChannel).GetProperty("State", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(busy, TcpChannelState.Connecting);
+                harness.Channels[1] = busy;
+            }
+            (Socket client, Socket accepted) = await harness.CreateFirstConnectionAsync().ConfigureAwait(false);
+            using (client)
+            {
+                harness.Admit(accepted);
+                using var stream = new NetworkStream(client, ownsSocket: false);
+                byte[] hello = harness.CreateHello();
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                await stream.WriteAsync(hello.AsMemory()).ConfigureAwait(false);
+#else
+                await stream.WriteAsync(hello, 0, hello.Length).ConfigureAwait(false);
+#endif
+                byte[] error = new byte[16];
+                int offset = 0;
+                while (offset < error.Length)
+                {
+                    int read = await stream.ReadAsync(error, offset, error.Length - offset)
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(read, Is.GreaterThan(0));
+                    offset += read;
+                }
+                Assert.That(BitConverter.ToUInt32(error, 0), Is.EqualTo(TcpMessageType.Error));
+                Assert.That(
+                    BitConverter.ToUInt32(error, 8),
+                    Is.EqualTo(StatusCodes.BadTcpNotEnoughResources.Code));
+                int reasonLength = BitConverter.ToInt32(error, 12);
+                Assert.That(BitConverter.ToInt32(error, 4), Is.EqualTo(16 + reasonLength));
+                byte[] rest = new byte[reasonLength + 1];
+                offset = 0;
+                while (true)
+                {
+                    int read = await stream.ReadAsync(rest, offset, rest.Length - offset)
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    if (read == 0)
+                    {
+                        break;
+                    }
+                    offset += read;
+                }
+                Assert.That(offset, Is.EqualTo(reasonLength));
+                Assert.That(harness.Channels, Has.Count.EqualTo(channelLimit ? 1 : 0));
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task RejectedAdmissionDoesNotReclaimAnExistingIdleChannelAsync(bool rejectOwner)
