@@ -2210,7 +2210,10 @@ namespace Opc.Ua.Server
                             DiagnosticsMasks);
                         m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
 
-                        if (queueLastValue && !m_lastValue.IsNull)
+                        // seed the new queue only with a value that is still waiting to be
+                        // published. m_lastValue is kept after publishing for the change
+                        // filter, so re-queueing it then would report it a second time.
+                        if (queueLastValue && m_readyToPublish && !m_lastValue.IsNull)
                         {
                             m_dataChangeQueueHandler.QueueValue(
                                 m_lastValue,

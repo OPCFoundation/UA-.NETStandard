@@ -71,6 +71,63 @@ namespace Opc.Ua.Server.Tests
             Assert.That(modified.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Growing the queue from one slot must not re-queue a value that was already published.
+        /// </summary>
+        [Test]
+        public void GrowingQueueDoesNotRequeuePublishedValue()
+        {
+            using var harness = new Harness();
+            using MonitoredItem item = harness.CreateDataItem(queueSize: 1, samplingInterval: 0);
+
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            Assert.That(PublishData(harness, item), Has.Count.EqualTo(1));
+
+            ModifyQueueSize(item, 10);
+            Assert.That(item.ItemsInQueue, Is.Zero);
+            Assert.That(item.IsReadyToPublish, Is.False);
+
+            item.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+            List<MonitoredItemNotification> published = PublishData(harness, item);
+
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(published[0].Value.WrappedValue, Is.EqualTo(Variant.From(2)));
+        }
+
+        /// <summary>
+        /// Growing the queue from one slot keeps a value that has not been published yet.
+        /// </summary>
+        [Test]
+        public void GrowingQueueKeepsUnpublishedValue()
+        {
+            using var harness = new Harness();
+            using MonitoredItem item = harness.CreateDataItem(queueSize: 1, samplingInterval: 0);
+
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            ModifyQueueSize(item, 10);
+            item.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+            List<MonitoredItemNotification> published = PublishData(harness, item);
+
+            Assert.That(published, Has.Count.EqualTo(2));
+            Assert.That(published[0].Value.WrappedValue, Is.EqualTo(Variant.From(1)));
+            Assert.That(published[1].Value.WrappedValue, Is.EqualTo(Variant.From(2)));
+        }
+
+        private static void ModifyQueueSize(MonitoredItem item, uint queueSize)
+        {
+            ServiceResult result = item.ModifyAttributes(
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                item.ClientHandle,
+                item.Filter,
+                item.Filter,
+                null,
+                item.SamplingInterval,
+                queueSize,
+                discardOldest: true);
+            Assert.That(ServiceResult.IsBad(result), Is.False);
+        }
+
         private static List<MonitoredItemNotification> PublishData(
             Harness harness,
             MonitoredItem item)
