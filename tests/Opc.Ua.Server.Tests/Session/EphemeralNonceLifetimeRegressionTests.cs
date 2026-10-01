@@ -164,6 +164,67 @@ namespace Opc.Ua.Server.Tests
             Assert.That(GetKey(original), Is.Null);
         }
 
+        /// <summary>
+        /// AS-1: once ActivateSession succeeds the EphemeralKey that decrypted the
+        /// identity token shall not be accepted again (OPC 10000-6 6.8.2). The
+        /// activation retires it itself, whether or not a new key is handed out.
+        /// </summary>
+        [Test]
+        public async Task SuccessfulActivationRetiresTheEphemeralKeyThatDecryptedTheTokenAsync()
+        {
+            using var harness = new NonceHarness();
+            EphemeralKeyType ephemeral = harness.GetNewEphemeralKey();
+            using Nonce original = GetCurrentNonce(harness.Session);
+            UserNameIdentityToken encrypted = await harness.EncryptPasswordAsync(ephemeral).ConfigureAwait(false);
+            var token = new UserNameIdentityToken
+            {
+                PolicyId = "ecc",
+                UserName = "test-user",
+                Password = encrypted.Password,
+                EncryptionAlgorithm = encrypted.EncryptionAlgorithm
+            };
+
+            (IUserIdentityTokenHandler identity, _) = await harness.Session.ValidateBeforeActivateAsync(
+                harness.Context, harness.ClientSignature, new ExtensionObject(token), new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                Assert.That(s_nonceField.GetValue(harness.Session), Is.SameAs(original),
+                    "Validation alone must not retire the key; the activation may still fail.");
+
+                var user = new UserIdentity(identity);
+                harness.Session.Activate(
+                    harness.Context, identity, user, user, default, Nonce.CreateNonce(32));
+
+                Assert.That(s_nonceField.GetValue(harness.Session), Is.Null);
+                Assert.That(GetKey(original), Is.Null, "The consumed key must be released.");
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(((UserNameIdentityTokenHandler)identity).DecryptedPassword!);
+            }
+        }
+
+        /// <summary>
+        /// AS-1: an activation whose identity token did not use the EphemeralKey
+        /// leaves it in place for the client.
+        /// </summary>
+        [Test]
+        public void ActivationWithoutEncryptedTokenKeepsTheEphemeralKey()
+        {
+            using var harness = new NonceHarness();
+            harness.GetNewEphemeralKey();
+            Nonce original = GetCurrentNonce(harness.Session);
+            var identity = new AnonymousIdentityTokenHandler();
+            var user = new UserIdentity(identity);
+
+            harness.Session.Activate(
+                harness.Context, identity, user, user, default, Nonce.CreateNonce(32));
+
+            Assert.That(s_nonceField.GetValue(harness.Session), Is.SameAs(original));
+            Assert.That(GetKey(original), Is.Not.Null);
+        }
+
         [Test]
         public void HarnessConstructionFailureReleasesCertificates()
         {

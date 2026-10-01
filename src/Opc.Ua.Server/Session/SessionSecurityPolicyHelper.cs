@@ -133,24 +133,71 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Processes additional request parameters during ActivateSession.
         /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 6.8.2: a valid ECDHPolicyUri in the request selects the
+        /// policy of the returned EphemeralKey, an unsupported one is answered with
+        /// Bad_SecurityPolicyRejected; without one the Server returns a new key for
+        /// the policy already in use, since the previous key cannot be accepted
+        /// again. The response carries only the parameters the Server produces; the
+        /// request parameters are not echoed back.
+        /// </remarks>
         public static AdditionalParametersType ProcessActivateSessionAdditionalParameters(
             ISession session,
-            AdditionalParametersType parameters)
+            AdditionalParametersType? parameters,
+            ILogger? logger = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
-            EphemeralKeyType? key = session.GetNewEphemeralKey();
-
-            if (key == null)
+            var responseParameters = new List<KeyValuePair>();
+            bool policyRequested = false;
+            if (parameters != null)
             {
-                return parameters;
+                foreach (KeyValuePair parameter in parameters.Parameters)
+                {
+                    if (parameter.Key != AdditionalParameterNames.ECDHPolicyUri ||
+                        !parameter.Value.TryGetValue(out string policyUri) ||
+                        policyRequested)
+                    {
+                        continue;
+                    }
+
+                    policyRequested = true;
+                    logger?.ReceivedRequestForNewEphmeralKeyUsingSecurityPolicyUri(policyUri);
+
+                    SecurityPolicyInfo? securityPolicy = (securityPolicies ?? SecurityPolicies.Default)
+                        .GetInfo(policyUri);
+
+                    if (securityPolicy != null &&
+                        securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                    {
+                        session.SetUserTokenSecurityPolicy(policyUri);
+                        continue;
+                    }
+
+                    logger?.RejectingRequestForNewEphemeralKeyUsingSecurityPolicyUri(policyUri);
+                    responseParameters.Add(new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
+                        Value = StatusCodes.BadSecurityPolicyRejected
+                    });
+                }
+            }
+
+            if (responseParameters.Count == 0)
+            {
+                EphemeralKeyType? key = session.GetNewEphemeralKey();
+                if (key != null)
+                {
+                    responseParameters.Add(new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
+                        Value = new ExtensionObject(key)
+                    });
+                }
             }
 
             return new AdditionalParametersType
             {
-                Parameters = parameters.Parameters.AddItem(new KeyValuePair
-                {
-                    Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                    Value = new ExtensionObject(key)
-                })
+                Parameters = responseParameters
             };
         }
     }
