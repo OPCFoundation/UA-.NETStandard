@@ -204,7 +204,7 @@ namespace Opc.Ua.Server
                 SessionId = Id,
                 ClientUserIdOfSession = null,
                 AuthenticationMechanism = Identity.TokenType.ToString(),
-                Encoding = context.ChannelContext.MessageEncoding.ToString()
+                Encoding = GetEncodingName(context.ChannelContext.MessageEncoding)
             };
 
             EndpointDescription? description = context.ChannelContext.EndpointDescription;
@@ -255,6 +255,21 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
 
             TraceState("CREATED");
+        }
+
+        /// <summary>
+        /// Returns the SessionSecurityDiagnostics encoding name for a message encoding.
+        /// Part 5 12.12 requires the strings "UA Binary", "XML" or "JSON".
+        /// </summary>
+        internal static string GetEncodingName(RequestEncoding encoding)
+        {
+            return encoding switch
+            {
+                RequestEncoding.Binary => "UA Binary",
+                RequestEncoding.Xml => "XML",
+                RequestEncoding.Json => "JSON",
+                _ => encoding.ToString()
+            };
         }
 
         /// <summary>
