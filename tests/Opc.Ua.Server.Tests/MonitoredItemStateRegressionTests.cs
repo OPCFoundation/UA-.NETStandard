@@ -113,6 +113,27 @@ namespace Opc.Ua.Server.Tests
             Assert.That(published[1].Value.WrappedValue, Is.EqualTo(Variant.From(2)));
         }
 
+        /// <summary>
+        /// The first value queued after a triggering item leaves DISABLED must trigger its
+        /// linked items, while the value queued at creation still does not.
+        /// </summary>
+        [Test]
+        public void FirstValueAfterReenableIsReadyToTrigger()
+        {
+            using var harness = new Harness();
+            using MonitoredItem item = harness.CreateDataItem(queueSize: 1, samplingInterval: 0);
+
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            Assert.That(item.IsReadyToTrigger, Is.False, "creation value must not trigger");
+            _ = PublishData(harness, item);
+
+            item.SetMonitoringMode(MonitoringMode.Disabled);
+            item.SetMonitoringMode(MonitoringMode.Reporting);
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+
+            Assert.That(item.IsReadyToTrigger, Is.True);
+        }
+
         private static void ModifyQueueSize(MonitoredItem item, uint queueSize)
         {
             ServiceResult result = item.ModifyAttributes(
