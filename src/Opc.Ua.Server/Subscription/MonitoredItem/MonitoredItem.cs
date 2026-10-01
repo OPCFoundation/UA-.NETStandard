@@ -1305,6 +1305,15 @@ namespace Opc.Ua.Server
             var eventFieldValues = new List<Variant>();
             foreach (SimpleAttributeOperand clause in filter.SelectClauses)
             {
+                // a select clause rejected in the EventFilterResult returns a null field
+                // (Part 4 §7.22.3). Clauses restored without validation are validated here.
+                if (clause == null ||
+                    (!clause.Validated && ServiceResult.IsBad(clause.Validate(context, 0))))
+                {
+                    eventFieldValues.Add(Variant.Null);
+                    continue;
+                }
+
                 // get the value of the attribute (apply localization).
                 Variant value = instance.GetAttributeValue(
                     context,

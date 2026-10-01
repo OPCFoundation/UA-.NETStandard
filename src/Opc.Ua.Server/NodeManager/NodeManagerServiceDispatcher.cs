@@ -2046,6 +2046,16 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    // Part 4 §7.22.3: rejected select clauses are reported per clause while
+                    // the item is still created (their event fields are returned as null).
+                    if (result.HasSelectClauseErrors)
+                    {
+                        filterResults[ii] = result.ToEventFilterResult(
+                            context.DiagnosticsMask,
+                            context.StringTable,
+                            m_logger);
+                    }
+
                     // check if a valid node.
                     (object? handle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(
                         itemToCreate.ItemToMonitor.NodeId, cancellationToken)
@@ -2557,23 +2567,21 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                try
+                // Part 4 §7.22.3: rejected select clauses are reported per clause while
+                // the item is still modified (their event fields are returned as null).
+                if (result.HasSelectClauseErrors)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    Server.EventManager.ModifyMonitoredItem(
-                        context, monitoredItem, timestampsToReturn, itemToModify, filter);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception failure) when (failure is not OutOfMemoryException)
-                {
-                    errors[ii] = GetMonitoredItemDispatchFailure(monitoredItem.NodeManager, failure);
-                    continue;
+                    filterResults[ii] = result.ToEventFilterResult(
+                        context.DiagnosticsMask,
+                        context.StringTable,
+                        m_logger);
                 }
 
-                // subscribe to all node managers.
+                // Re-subscribe before committing the new parameters: a Bad operation result
+                // means the item was not modified (Part 4 §5.13.3), so the item must keep its
+                // previous filter when the owner rejects the subscription or the request is
+                // cancelled. Re-subscribing an already subscribed item does not depend on the
+                // item's parameters.
                 ServiceResult subscriptionResult = ServiceResult.Good;
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
@@ -2613,6 +2621,26 @@ namespace Opc.Ua.Server
                             monitoredItem, false, cancellationToken),
                         allEvents: false,
                         cancellationToken).ConfigureAwait(false);
+                }
+
+                if (ServiceResult.IsBad(subscriptionResult))
+                {
+                    errors[ii] = subscriptionResult;
+                    filterResults[ii] = null!;
+                    continue;
+                }
+
+                // commit the new parameters.
+                try
+                {
+                    Server.EventManager.ModifyMonitoredItem(
+                        context, monitoredItem, timestampsToReturn, itemToModify, filter);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    errors[ii] = GetMonitoredItemDispatchFailure(monitoredItem.NodeManager, failure);
+                    filterResults[ii] = null!;
+                    continue;
                 }
 
                 errors[ii] = subscriptionResult;

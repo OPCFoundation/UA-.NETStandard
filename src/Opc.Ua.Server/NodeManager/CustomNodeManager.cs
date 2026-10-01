@@ -3742,6 +3742,13 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(result.Status);
                 }
 
+                // HistoryRead has no per-clause filter result, so keep rejecting a filter
+                // with any invalid select clause.
+                if (result.HasSelectClauseErrors)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEventFilterInvalid);
+                }
+
                 // read the event history.
                 HistoryReadEvents(
                     context,

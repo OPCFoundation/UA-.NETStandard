@@ -54,11 +54,12 @@ namespace Opc.Ua
                     DeadbandType);
             }
 
-            // check data change trigger enumeration.
+            // check data change trigger enumeration (an unknown trigger makes the filter
+            // invalid, it is not a deadband error; Part 4 §7.22.2).
             if ((int)Trigger is < ((int)DataChangeTrigger.Status) or > ((int)DataChangeTrigger.StatusValueTimestamp))
             {
                 return ServiceResult.Create(
-                    StatusCodes.BadDeadbandFilterInvalid,
+                    StatusCodes.BadMonitoredItemFilterInvalid,
                     "Deadband trigger '{0}' is not recognized.",
                     Trigger);
             }
@@ -775,6 +776,33 @@ namespace Opc.Ua
             public List<ServiceResult> SelectClauseResults => m_selectClauseResults ??= [];
 
             /// <summary>
+            /// Whether at least one select clause was rejected. The filter
+            /// <see cref="Status"/> stays Good as long as one select clause is valid
+            /// (Part 4 §7.22.3); callers that cannot return per-clause results can use this
+            /// to reject the filter.
+            /// </summary>
+            public bool HasSelectClauseErrors
+            {
+                get
+                {
+                    if (m_selectClauseResults == null)
+                    {
+                        return false;
+                    }
+
+                    foreach (ServiceResult clauseResult in m_selectClauseResults)
+                    {
+                        if (ServiceResult.IsBad(clauseResult))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+            }
+
+            /// <summary>
             /// The results for the where clause.
             /// </summary>
             public ContentFilter.Result? WhereClauseResult { get; internal set; }
@@ -791,25 +819,39 @@ namespace Opc.Ua
 
                 if (m_selectClauseResults != null && m_selectClauseResults.Count > 0)
                 {
+                    // Part 4 §7.22.3 Table 144: selectClauseDiagnosticInfos is empty when
+                    // diagnostics were not requested or no diagnostic was encountered.
+                    bool returnDiagnostics =
+                        (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0 &&
+                        HasSelectClauseErrors;
+
                     foreach (ServiceResult clauseResult in m_selectClauseResults)
                     {
                         if (ServiceResult.IsBad(clauseResult))
                         {
                             result.SelectClauseResults = result.SelectClauseResults.AddItem(clauseResult.StatusCode);
-                            result.SelectClauseDiagnosticInfos = result.SelectClauseDiagnosticInfos.AddItem(
-                                new DiagnosticInfo(
-                                    clauseResult,
-                                    diagnosticsMasks,
-                                    false,
-                                    stringTable,
-                                    logger));
+
+                            if (returnDiagnostics)
+                            {
+                                result.SelectClauseDiagnosticInfos = result.SelectClauseDiagnosticInfos.AddItem(
+                                    new DiagnosticInfo(
+                                        clauseResult,
+                                        diagnosticsMasks,
+                                        false,
+                                        stringTable,
+                                        logger));
+                            }
                         }
                         else
                         {
                             result.SelectClauseResults =
                                 result.SelectClauseResults.AddItem(StatusCodes.Good);
-                            result.SelectClauseDiagnosticInfos =
-                                result.SelectClauseDiagnosticInfos.AddItem(null!); // intentional null sentinel for "no diagnostic"
+
+                            if (returnDiagnostics)
+                            {
+                                result.SelectClauseDiagnosticInfos =
+                                    result.SelectClauseDiagnosticInfos.AddItem(null!); // intentional null sentinel for "no diagnostic"
+                            }
                         }
                     }
                 }
@@ -835,11 +877,12 @@ namespace Opc.Ua
         {
             var result = new Result();
 
-            // check for top level error.
+            // check for top level error (Part 4 §7.22.3 Table 143: at least one valid
+            // select clause shall be specified; an invalid filter is Bad_EventFilterInvalid).
             if (m_selectClauses.IsEmpty)
             {
                 result.Status = ServiceResult.Create(
-                    StatusCodes.BadStructureMissing,
+                    StatusCodes.BadEventFilterInvalid,
                     "EventFilter does not specify any Select Clauses.");
 
                 return result;
@@ -848,7 +891,7 @@ namespace Opc.Ua
             if (m_whereClause == null)
             {
                 result.Status = ServiceResult.Create(
-                    StatusCodes.BadStructureMissing,
+                    StatusCodes.BadEventFilterInvalid,
                     "EventFilter does not specify any Where Clauses.");
 
                 return result;
@@ -858,6 +901,7 @@ namespace Opc.Ua
 
             // validate select clause.
             bool error = false;
+            bool anyValid = false;
 
             foreach (SimpleAttributeOperand clause in m_selectClauses)
             {
@@ -886,14 +930,18 @@ namespace Opc.Ua
                 }
 
                 // clause ok.
+                anyValid = true;
                 result.SelectClauseResults.Add(null!); // intentional null sentinel: List is cleared if no errors, otherwise non-null entries indicate failures
             }
 
-            if (error)
+            // Part 4 §7.22.3: errors in individual select clauses are reported per clause in
+            // selectClauseResults (and the matching event fields are returned as null); the
+            // filter itself is only invalid when no select clause is valid.
+            if (!anyValid)
             {
                 result.Status = StatusCodes.BadEventFilterInvalid;
             }
-            else
+            else if (!error)
             {
                 result.SelectClauseResults.Clear();
             }
