@@ -961,13 +961,26 @@ namespace Opc.Ua.Configuration
                     serverDomainNames.ToList())
                 .SetLifeTime(lifeTimeInMonths);
 
+            // MinimumCertificateKeySize is the smallest key accepted from a
+            // peer, not the size to create. Every RSA security policy except
+            // the deprecated Basic128Rsa15 and Basic256 rejects keys below
+            // 2048 bits (OPC 10000-6 6.1), so only an RsaMin certificate may
+            // be created smaller.
+            ushort keySize = minimumKeySize;
+            if (CertificateIdentifier.IsRsaCertificateType(id.CertificateType) &&
+                id.CertificateType != ObjectTypeIds.RsaMinApplicationCertificateType &&
+                keySize < CertificateFactory.DefaultKeySize)
+            {
+                keySize = CertificateFactory.DefaultKeySize;
+            }
+
             Certificate newCertificate = KeyPairGenerator.CreateCertificate(
-                builder, id.CertificateType, minimumKeySize);
+                builder, id.CertificateType, keySize);
             if (CertificateIdentifier.IsRsaCertificateType(id.CertificateType))
             {
                 m_logger.CertificateCreatedForRsa(
                     newCertificate,
-                    minimumKeySize == 0 ? CertificateFactory.DefaultKeySize : minimumKeySize);
+                    keySize == 0 ? CertificateFactory.DefaultKeySize : keySize);
             }
             else
             {

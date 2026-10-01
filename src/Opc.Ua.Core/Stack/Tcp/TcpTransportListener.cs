@@ -1430,7 +1430,10 @@ namespace Opc.Ua.Bindings
             try
             {
                 using var cts = new CancellationTokenSource(kResourceRejectionTimeout);
-                using CancellationTokenRegistration registration = cts.Token.Register(socket.Dispose);
+                // Shut down before disposing so a pending read ends and the
+                // peer sees an orderly close rather than a reset.
+                using CancellationTokenRegistration registration = cts.Token.Register(
+                    () => CloseGracefully(socket));
                 using var stream = new NetworkStream(socket, ownsSocket: false);
 
                 // A Hello must fit into the smallest receive buffer a server may offer.
@@ -1476,8 +1479,25 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                socket.Dispose();
+                CloseGracefully(socket);
                 Interlocked.Decrement(ref m_pendingResourceRejections);
+            }
+
+            static void CloseGracefully(Socket socket)
+            {
+                try
+                {
+                    socket.Shutdown(SocketShutdown.Both);
+                }
+                catch (SocketException)
+                {
+                    // already reset or not connected.
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+                socket.Dispose();
             }
 
             static async Task<bool> ReadExactlyAsync(

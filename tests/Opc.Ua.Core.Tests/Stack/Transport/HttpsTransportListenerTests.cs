@@ -472,7 +472,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "application/octet-stream";
-            context.Request.Headers.TransferEncoding = "chunked";
+            context.Request.Headers["Transfer-Encoding"] = "chunked";
             context.Request.Body = new MemoryStream([0x01, 0x02, 0x03, 0x04]);
             using var responseBody = new MemoryStream();
             context.Response.Body = responseBody;
@@ -497,7 +497,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = "application/octet-stream";
-            context.Request.Headers.TransferEncoding = "chunked";
+            context.Request.Headers["Transfer-Encoding"] = "chunked";
             context.Request.Body = new MemoryStream(new byte[4096]);
             context.Response.Body = new MemoryStream();
 

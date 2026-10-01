@@ -110,6 +110,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [CancelAfter(60000)]
         public async Task NistP256PolicyAcceptsP384CertificatesAsync()
         {
+            if (SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null)
+            {
+                Assert.Ignore("ECC_nistP256 is not supported on this platform.");
+                return;
+            }
+
             using Certificate server = CreateEcc("CN=server", ECCurve.NamedCurves.nistP384);
             using Certificate client = CreateEcc("CN=client", ECCurve.NamedCurves.nistP384);
 
