@@ -775,14 +775,22 @@ namespace Opc.Ua.Server
                 serverNonce = result.ServerNonce;
                 revisedSessionTimeout = result.RevisedSessionTimeout;
 
-                if (endpointUrl != null)
+                if (!string.IsNullOrEmpty(endpointUrl))
                 {
                     try
                     {
-                        // check the endpointurl
+                        // check the endpointurl. Part 4 5.7.2.2 defines no status
+                        // code for a malformed endpointUrl, so a value that is not
+                        // an absolute URL is reported like a host name mismatch
+                        // instead of failing the service.
+                        if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? parsedEndpointUrl))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid);
+                        }
+
                         var configuredEndpoint = new ConfiguredEndpoint
                         {
-                            EndpointUrl = new Uri(endpointUrl)
+                            EndpointUrl = parsedEndpointUrl
                         };
 
                         certificates.ValidateDomains(
