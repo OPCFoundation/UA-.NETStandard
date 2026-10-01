@@ -627,7 +627,7 @@ namespace Opc.Ua.Server
                     {
                         if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
-                            ContinuationPoint? cp = context.Session
+                            ContinuationPoint? cp = context.Session?
                                 .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
                             cp?.Dispose();
                         }
@@ -786,7 +786,9 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(context.OperationStatus);
                     }
 
-                    ContinuationPoint? cp = context.Session.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
+                    // A session-less request (Part 4 §6.3.1) holds no continuation points, so every
+                    // supplied point is unknown and reported as Bad_ContinuationPointInvalid below.
+                    ContinuationPoint? cp = context.Session?.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
                     ContinuationPoint? ownedCp = cp;
                     try
                     {
@@ -882,7 +884,7 @@ namespace Opc.Ua.Server
                     {
                         if (!result.ContinuationPoint.IsEmpty)
                         {
-                            context.Session.ContinuationPoints.RestoreBrowse(result.ContinuationPoint)?.Dispose();
+                            context.Session?.ContinuationPoints.RestoreBrowse(result.ContinuationPoint)?.Dispose();
                         }
                     }
                 }
@@ -1033,12 +1035,16 @@ namespace Opc.Ua.Server
                     referenceList = referencesToKeep;
                     if (currentCp != null && referenceList.Count >= currentCp.MaxResultsToReturn)
                     {
-                        if (!assignContinuationPoint)
+                        // A session-less request (Part 4 §6.3.1) has nowhere to keep a
+                        // continuation point, so the overflowing node is reported with
+                        // Bad_NoContinuationPoints (Part 4 §7.38.2).
+                        ISession? session = context!.Session;
+                        if (!assignContinuationPoint || session == null)
                         {
                             return (StatusCodes.BadNoContinuationPoints, null, referenceList);
                         }
                         currentCp.Id = Guid.NewGuid();
-                        context!.Session!.ContinuationPoints.SaveBrowse(currentCp);
+                        session.ContinuationPoints.SaveBrowse(currentCp);
                         ContinuationPoint retainedCp = currentCp;
                         currentCp = null;
                         return (ServiceResult.Good, retainedCp, referenceList);
