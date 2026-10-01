@@ -25,7 +25,6 @@ covers cross-cutting changes.
 - [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
 - [Migrating custom ISessionManager implementations to ShutdownAsync](#migrating-custom-isessionmanager-implementations-to-shutdownasync)
 - [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
-- [Kubernetes readiness probe port changed from 8080 to 4852](#kubernetes-readiness-probe-port-changed-from-8080-to-4852)
 - [Migrating SamplingGroupManager create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
 - [Migrating callers of the synchronous MonitoredNode2 notification wrappers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
 - [Migrating callers of the SecurityPolicies lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
@@ -581,21 +580,6 @@ absence-based cleanup or snapshot compaction. These are configuration
 requirements of the distributed-state extension, not a 1.5 persisted-format
 migration guarantee. See
 [address-space consistency](HighAvailability.md#activepassive-address-space-consistency).
-
-## Kubernetes readiness probe port changed from 8080 to 4852
-
-`KubernetesReadinessOptions.Port` of `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes`
-now defaults to `KubernetesReadinessOptions.DefaultPort` (4852) instead of 8080.
-8080 is the de-facto default of web applications and reverse proxies, and the
-probe shares the pod (and, with host networking, the node) with the application
-and its sidecars, so the old default collided with them. 4852 sits next to the
-OPC UA ports 4840/4843 and is unassigned in the IANA service name and port
-number registry.
-
-Deployments that relied on the old default either update the probe port in
-their manifests (`containerPort: 4852` for the `health` port) or keep the old
-value with `UseKubernetesReadiness(options => options.Port = 8080)`. See
-[Kubernetes](Kubernetes.md#readiness-and-servicelevel).
 
 ## Migrating SamplingGroupManager create/modify overrides
 
