@@ -197,7 +197,53 @@ namespace Opc.Ua.Server
             await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
                 .ConfigureAwait(false);
 
+            subscription.RestoreTriggeringLinks(
+                (storedSubscription as IStoredSubscriptionTriggering)?.TriggeringLinks);
+
             return subscription;
+        }
+
+        /// <summary>
+        /// Rebuilds the triggering links between restored monitored items
+        /// (OPC 10000-4 §5.13.1.6). Links to or from items that could not be restored
+        /// are dropped.
+        /// </summary>
+        private void RestoreTriggeringLinks(
+            IReadOnlyDictionary<uint, IReadOnlyList<uint>>? triggeringLinks)
+        {
+            if (triggeringLinks == null)
+            {
+                return;
+            }
+
+            lock (m_lock)
+            {
+                foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
+                {
+                    if (link.Value == null || !m_monitoredItems.ContainsKey(link.Key))
+                    {
+                        continue;
+                    }
+
+                    var triggeredItems = new List<ITriggeredMonitoredItem>(link.Value.Count);
+                    foreach (uint linkedItemId in link.Value)
+                    {
+                        if (m_monitoredItems.TryGetValue(
+                                linkedItemId,
+                                out LinkedListNode<IMonitoredItem>? linkedNode) &&
+                            linkedNode.Value is ITriggeredMonitoredItem triggeredItem &&
+                            !triggeredItems.Exists(item => item.Id == linkedItemId))
+                        {
+                            triggeredItems.Add(triggeredItem);
+                        }
+                    }
+
+                    if (triggeredItems.Count > 0)
+                    {
+                        m_itemsToTrigger[link.Key] = triggeredItems;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -3357,6 +3403,18 @@ namespace Opc.Ua.Server
                     monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
                 }
 
+                Dictionary<uint, IReadOnlyList<uint>>? triggeringLinks = null;
+                foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> link in m_itemsToTrigger)
+                {
+                    if (link.Value.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    triggeringLinks ??= [];
+                    triggeringLinks[link.Key] = [.. link.Value.Select(item => item.Id)];
+                }
+
                 return new StoredSubscription
                 {
                     SentMessages = m_messageQueue.CreateSnapshot(),
@@ -3374,6 +3432,7 @@ namespace Opc.Ua.Server
                     PublishingEnabled = m_publishingEnabled,
                     OwnerClientApplicationUri = m_ownerClientApplicationUri,
                     MonitoredItems = monitoredItemsToStore,
+                    TriggeringLinks = triggeringLinks,
                     IsDurable = IsDurable
                 };
             }
