@@ -635,6 +635,22 @@ fallback.
 | `RoboticsClient.DiscoverMotionDeviceSystemsAsync(session, root, ct)` (static) | Session-only discovery for callers that do not hold a client instance. |
 | `RoboticsClient.TryGetRoboticsTypeName(typeDefinition, namespaceUris, out name)` (static) | Offline exact-match classification with no server round-trip. |
 
+The snapshot reads follow the OPC 40010-1 layout, with the namespace indices of
+the session:
+
+- Identification properties (`Manufacturer`, `SerialNumber`, …) are read
+  directly below the component, with DI browse names.
+- Process values (`ActualPosition`, `EmergencyStop`, `TaskProgramName`,
+  `SpeedOverride`, …) are read below the DI `ParameterSet`, with Robotics
+  browse names.
+- Other members (`MotionProfile`, `MotionDeviceCategory`, `Pitch`, `Mass`, the
+  names of safety functions and task modules, …) are read directly below their
+  object, with Robotics browse names.
+- Motors and gears are placeholders with instance-specific names; a power
+  train's motors and gears are found by type definition (`MotorType`,
+  `GearType`, subtypes included). A motor's drives are found through its
+  `IsDrivenBy` references; a drive that drives several motors is listed once.
+
 Every discovery method returns `ArrayOf<NodeId>` and uses `ManagedBrowseAsync`,
 so a server that caps references per node cannot silently truncate the result.
 When the server does not expose the Robotics namespace, discovery returns an
