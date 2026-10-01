@@ -1049,6 +1049,7 @@ namespace Opc.Ua.Server
                     m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
                     m_lastError = null;
                     m_lastValue = default;
+                    m_readyToPublish = false;
                 }
 
                 MonitoringMode = monitoringMode;
@@ -1078,6 +1079,13 @@ namespace Opc.Ua.Server
                     MonitoringMode);
 
                 InitializeQueue();
+
+                // the node was deleted while the item was disabled, or before it was
+                // disabled: the item reports Bad_NodeIdUnknown again once it samples.
+                if (previousMode == MonitoringMode.Disabled && m_isDeleted)
+                {
+                    QueueNodeIdUnknown();
+                }
 
                 return previousMode;
             }
@@ -2029,7 +2037,10 @@ namespace Opc.Ua.Server
 
         private void QueueNodeIdUnknown()
         {
-            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
+            // a disabled item queues nothing (Part 4, 5.13.4.1); m_isDeleted is kept and
+            // the notification is queued when the item leaves DISABLED.
+            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0 ||
+                MonitoringMode == MonitoringMode.Disabled)
             {
                 return;
             }

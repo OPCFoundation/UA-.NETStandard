@@ -156,6 +156,43 @@ namespace Opc.Ua.Server.Tests
             Assert.That(PublishData(harness, item), Is.Empty);
         }
 
+        /// <summary>
+        /// A node deleted while the item is disabled must be reported as Bad_NodeIdUnknown
+        /// once the item samples again, never as an empty Good value.
+        /// </summary>
+        [TestCase(1u, MonitoringMode.Sampling)]
+        [TestCase(10u, MonitoringMode.Sampling)]
+        [TestCase(1u, MonitoringMode.Reporting)]
+        [TestCase(10u, MonitoringMode.Reporting)]
+        public void NodeDeletedWhileDisabledReportsNodeIdUnknownAfterReenable(
+            uint queueSize,
+            MonitoringMode monitoringMode)
+        {
+            using var harness = new Harness();
+            using MonitoredItem item = harness.CreateDataItem(queueSize, samplingInterval: 0);
+
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            Assert.That(PublishData(harness, item), Has.Count.EqualTo(1));
+
+            item.SetMonitoringMode(MonitoringMode.Disabled);
+            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            Assert.That(item.ItemsInQueue, Is.Zero);
+            Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
+
+            item.SetMonitoringMode(monitoringMode);
+            if (monitoringMode == MonitoringMode.Sampling)
+            {
+                Assert.That(item.SetTriggered(), Is.True);
+            }
+
+            List<MonitoredItemNotification> published = PublishData(harness, item);
+
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(
+                published[0].Value.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
         private static void ModifyQueueSize(MonitoredItem item, uint queueSize)
         {
             ServiceResult result = item.ModifyAttributes(
