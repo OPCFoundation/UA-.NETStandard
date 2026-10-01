@@ -953,7 +953,7 @@ namespace Opc.Ua
 
         private TimeSpan GetReconnectPolicyDelay(int attempt)
         {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return ReconnectPolicy.GetDelay(attempt, budget: null);
 #else
             return ChannelReconnectPolicyBudget.GetDelay(

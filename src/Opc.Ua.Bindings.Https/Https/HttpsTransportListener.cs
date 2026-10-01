@@ -50,9 +50,7 @@ using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
-#endif
 
 namespace Opc.Ua.Bindings
 {
@@ -391,28 +389,6 @@ namespace Opc.Ua.Bindings
             m_bufferManagerFactory = bufferManagerFactory ??
                 throw new ArgumentNullException(nameof(bufferManagerFactory));
         }
-
-        /// <summary>
-        /// Gets a value indicating whether the WSS (WebSocket Secure) transport
-        /// listener is functional in this compiled assembly.
-        /// </summary>
-        /// <remarks>
-        /// The WSS listener is hosted on Kestrel. The <c>netstandard2.1</c>
-        /// build binds against the legacy ASP.NET Core hosting packages, which
-        /// cannot open a Kestrel WebSocket listener when the assembly is loaded
-        /// on a modern .NET runtime, so the WSS transport is unavailable there.
-        /// Every other build (.NET Framework and .NET 5 or later) can open the
-        /// listener, so this probe returns <see langword="true"/> for them and
-        /// <see langword="false"/> only for the <c>netstandard2.1</c> build,
-        /// allowing callers and tests to react at runtime instead of assuming
-        /// compile-time availability.
-        /// </remarks>
-        public static bool IsWssTransportSupported =>
-#if NET5_0_OR_GREATER || NETFRAMEWORK
-            true;
-#else
-            false;
-#endif
 
         /// <inheritdoc/>
         public string UriScheme { get; }
@@ -1566,7 +1542,6 @@ namespace Opc.Ua.Bindings
             using CertificateEntry? instanceEntry = m_serverCertProvider
                 .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https);
             Certificate? serverCertificate = instanceEntry?.Certificate?.AddRef();
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
                 // Create a copy of the certificate with the private key on platforms
@@ -1589,7 +1564,6 @@ namespace Opc.Ua.Bindings
             {
                 m_logger.PrivateKeyCopyDenied(ce.Message);
             }
-#endif
             // pin the cert for the lifetime of the listener so that the
             // OS-level private key handle backing the Kestrel-held
             // X509Certificate2 cannot be invalidated by a concurrent cert
@@ -1712,7 +1686,7 @@ namespace Opc.Ua.Bindings
             context.Response.ContentLength = payload.Length;
             context.Response.ContentType = Profiles.OpcUaJsonContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await context.Response.Body
                 .WriteAsync(payload.AsMemory(0, payload.Length), ct)
                 .ConfigureAwait(false);
@@ -2221,7 +2195,7 @@ namespace Opc.Ua.Bindings
                     byte[] responseBytes = JsonRequestMapper.EncodeResponse(
                         responseToSend,
                         m_quotas.MessageContext);
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     await ws.SendAsync(
                         new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
                         WebSocketMessageType.Text,
@@ -2699,7 +2673,7 @@ namespace Opc.Ua.Bindings
             context.Response.ContentLength = encodedResponse.Length;
             context.Response.ContentType = context.Request.ContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await context
                 .Response.Body.WriteAsync(encodedResponse.AsMemory(0, encodedResponse.Length), ct)
                 .ConfigureAwait(false);

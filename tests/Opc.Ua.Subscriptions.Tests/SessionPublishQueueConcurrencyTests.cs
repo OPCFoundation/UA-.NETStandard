@@ -118,7 +118,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     CancellationToken.None);
 
                 // Status == RanToCompletion rather than Task.IsCompletedSuccessfully,
-                // which is .NET 5+ only and would break the net48/net472 builds.
+                // which is .NET 5+ only and would break the net48 build.
                 Assert.That(firstPublish.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                 Assert.That(await firstPublish.ConfigureAwait(false), Is.SameAs(subscription.Object));
                 Assert.That(secondPublish.Status, Is.Not.EqualTo(TaskStatus.RanToCompletion));
@@ -227,7 +227,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
         private static Subscription CreateConcreteSubscription(uint id, ISession session)
         {
-            // RuntimeHelpers.GetUninitializedObject is .NET 5+ only; net48/net472 have the
+            // RuntimeHelpers.GetUninitializedObject is .NET 5+ only; net48 has the
             // equivalent on FormatterServices, which is obsolete on modern targets.
 #if NET5_0_OR_GREATER
             var subscription = (Subscription)RuntimeHelpers.GetUninitializedObject(typeof(Subscription));

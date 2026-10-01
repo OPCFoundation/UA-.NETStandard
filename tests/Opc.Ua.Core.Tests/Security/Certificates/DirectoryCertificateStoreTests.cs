@@ -41,10 +41,8 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
 using System.Security.AccessControl;
 using System.Security.Principal;
-#endif
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -323,7 +321,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var existingKey = new FileInfo(Path.Combine(privateDirectory.FullName,
                 Path.ChangeExtension(Path.GetFileName(store.GetPublicKeyFilePath(existing.Thumbprint)), ".pfx")));
 
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 using var identity = WindowsIdentity.GetCurrent();
@@ -335,7 +332,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     PropagationFlags.None, AccessControlType.Allow));
                 new DirectoryInfo(m_tempDir).SetAccessControl(directorySecurity);
             }
-#endif
             byte[] keyBytes = existing.Export(X509ContentType.Pfx);
             try
             {
@@ -350,7 +346,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 CryptoUtils.ZeroMemory(keyBytes);
             }
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 Assert.That(privateDirectory.GetAccessControl().GetAccessRules(
@@ -360,11 +355,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(existingKey.GetAccessControl().GetAccessRules(
                     includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)), Is.Empty);
             }
-#endif
 
             await store.AddAsync(added).ConfigureAwait(false);
 
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 AuthorizationRuleCollection rules = existingKey.GetAccessControl().GetAccessRules(
@@ -392,7 +385,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(permitted, Is.True, "Existing keys must retain access for every trusted identity.");
                 }
             }
-#endif
             using (FileStream readable = existingKey.OpenRead())
             {
                 Assert.That(readable.Length, Is.GreaterThan(0));
@@ -421,7 +413,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
 
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 using var identity = WindowsIdentity.GetCurrent();
@@ -453,7 +444,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     return;
                 }
             }
-#endif
 
             await store.AddAsync(certificate).ConfigureAwait(false);
             using Certificate loaded = await store.LoadPrivateKeyAsync(

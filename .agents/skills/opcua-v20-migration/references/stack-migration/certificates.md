@@ -57,7 +57,7 @@ UserIdentity userIdentity = await UserIdentity.CreateAsync(
 ### ECC security policies require .NET 8 or later
 
 The built-in ECC SecureChannel and user-token policies are unavailable in the
-.NET Framework 4.7.2/4.8 and .NET Standard 2.1 builds. OPC UA Part 6 requires
+.NET Framework 4.8 builds. OPC UA Part 6 requires
 raw ECDH shared-secret agreement before HKDF; the older `DeriveKeyMaterial`
 API applies an additional hash and cannot interoperate with compliant peers.
 `SecurityPolicies.GetInfo` returns `null` for these policies on downlevel builds.

@@ -120,17 +120,6 @@ namespace Opc.Ua.Sessions.Tests
             }
         }
 
-        private static void SkipIfWssUnsupported()
-        {
-            if (!HttpsTransportListener.IsWssTransportSupported)
-            {
-                Assert.Ignore(
-                    "The WSS transport listener is unavailable in this build of " +
-                    "Opc.Ua.Bindings.Https (the netstandard2.1 Kestrel hosting cannot open a " +
-                    "WebSocket listener on a modern .NET runtime).");
-            }
-        }
-
         [Test]
         public void ServerExposesWssEndpointDescription()
         {
@@ -148,7 +137,6 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task GetEndpointsViaWssReturnsAtLeastOneSecureEndpointAsync()
         {
-            SkipIfWssUnsupported();
             var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             endpointConfiguration.OperationTimeout = kMaxTimeout;
             using DiscoveryClient client = await DiscoveryClient.CreateAsync(
@@ -172,7 +160,6 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task ConnectAndBrowseServerNodeAsync()
         {
-            SkipIfWssUnsupported();
             using ISession session = await m_clientFixture
                 .ConnectAsync(m_endpointUrl.ToString())
                 .ConfigureAwait(false);
@@ -202,7 +189,6 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task UpdateBeforeConnectUsesApplicationCertificateValidationAsync()
         {
-            SkipIfWssUnsupported();
             ConfiguredEndpoint endpoint = await m_clientFixture
                 .GetEndpointAsync(m_endpointUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
@@ -226,7 +212,6 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public void UpdateBeforeConnectRejectsUntrustedDiscoveryCertificate()
         {
-            SkipIfWssUnsupported();
             ICertificateValidatorEx certificateManager = m_clientFixture.Config.CertificateManager;
             Func<Certificate, ServiceResult, bool>? previousAcceptError = certificateManager.AcceptError;
             certificateManager.AcceptError = (_, _) => false;

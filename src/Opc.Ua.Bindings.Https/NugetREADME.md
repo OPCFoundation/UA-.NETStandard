@@ -104,12 +104,12 @@ generic instantiation at compile time. No
 
 ## Target frameworks
 
-`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, `net10.0`.
+`net48`, `net8.0`, `net9.0`, `net10.0`.
 The opt-in Kestrel-hosted `opc.tcp://` listener
 (`AddKestrelOpcTcpTransport()`) and the REST binding
 (`AddWebApiTransport()`) are available on `net8.0`+ only — the
 ASP.NET Core `ConnectionContext` and Minimal-API surfaces they rely
-on are not available on the .NET Framework / netstandard targets,
+on are not available on the .NET Framework targets,
 where the default raw-socket `opc.tcp` listener remains the right
 choice and REST is unavailable.
 

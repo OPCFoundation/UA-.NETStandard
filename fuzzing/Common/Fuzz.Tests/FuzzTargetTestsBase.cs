@@ -346,7 +346,7 @@ namespace Opc.Ua.Fuzzing
             else if (parameters[0].ParameterType == typeof(ReadOnlySpan<byte>))
             {
                 var span = new ReadOnlySpan<byte>(blob);
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if NET8_0_OR_GREATER
                 LibFuzzTemplate fuzzFunction = fuzzableCode.MethodInfo
                     .CreateDelegate<LibFuzzTemplate>();
 #else

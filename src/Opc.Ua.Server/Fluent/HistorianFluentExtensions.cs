@@ -349,7 +349,7 @@ namespace Opc.Ua.Server.Fluent
         }
 
         // IDE0028 (collection expression) is suppressed: ConditionalWeakTable does not
-        // support collection-expression construction on net472/net48 (CS9174).
+        // support collection-expression construction on net48 (CS9174).
 #pragma warning disable IDE0028
         private static readonly ConditionalWeakTable<INodeManagerBuilder, HistorianBuilder> s_builders
             = new();

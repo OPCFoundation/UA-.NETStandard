@@ -513,7 +513,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Mock<ITransportChannelBindings> transportBindingsMock = CreateBindings(channelMock, telemetry);
             var policy = new Mock<IChannelReconnectPolicy>();
             policy.Setup(p => p.GetDelay(It.IsAny<int>())).Returns(TimeSpan.Zero);
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             policy.Setup(p => p.GetDelay(It.IsAny<int>(), It.IsAny<IRetryBudget>())).Returns(TimeSpan.Zero);
             policy.SetupGet(p => p.ParticipantTimeout).Returns(Timeout.InfiniteTimeSpan);
 #endif

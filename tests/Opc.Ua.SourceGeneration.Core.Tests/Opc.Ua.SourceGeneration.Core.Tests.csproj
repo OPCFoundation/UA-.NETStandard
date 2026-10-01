@@ -29,9 +29,6 @@
     <PackageReference Include="System.Composition.AttributedModel" />
     <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
-  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
-    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
     <!--

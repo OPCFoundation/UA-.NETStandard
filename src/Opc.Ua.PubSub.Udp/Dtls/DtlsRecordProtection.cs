@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// (<c>System.Security.Cryptography.AesGcm</c>,
         /// <c>System.Security.Cryptography.ChaCha20Poly1305</c>) that are
         /// only available on .NET 8 or later. When the assembly is compiled for
-        /// an older target framework (for example <c>netstandard2.1</c>) the
+        /// an older target framework (<c>net48</c>) the
         /// AEAD cipher suites cannot be used and this probe returns
         /// <see langword="false"/>, allowing callers and tests to react at
         /// runtime instead of assuming compile-time availability.

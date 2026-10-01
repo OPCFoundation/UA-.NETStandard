@@ -449,9 +449,9 @@ jobs:
 
   # Every solution in the repository, built for every target framework the
   # runner can host, in parallel with the unit tests. Windows carries the .NET
-  # Framework and netstandard2.0 targets because they need the .NET Framework
-  # reference assemblies; Linux carries the modern .NET and netstandard2.1
-  # targets. Each entry pins the solution to one TFM through CustomTestTarget,
+  # Framework target because it needs the .NET Framework reference assemblies;
+  # Linux carries the modern .NET targets. Each entry pins the solution to one
+  # TFM through CustomTestTarget,
   # so one broken TFM is reported as its own failed job rather than hidden
   # behind the first failure in a loop.
   build-solutions:

@@ -42,7 +42,7 @@
        Directory.Build.targets that produces that shell - keying off this project's
        own TargetFramework is not enough, because it keeps building net8.0 while the
        reference underneath it has been emptied. -->
-  <ItemGroup Condition="'$(CustomTestTarget)' == 'net48' or '$(CustomTestTarget)' == 'net472' or '$(CustomTestTarget)' == 'netstandard2.0' or '$(CustomTestTarget)' == 'netstandard2.1' or '$(TargetFramework)' == 'net48' or '$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netstandard2.1'">
+  <ItemGroup Condition="'$(CustomTestTarget)' == 'net48' or '$(TargetFramework)' == 'net48'">
     <Compile Remove="BlankFrameGuardTests.cs" />
     <Compile Remove="PngEncoderTests.cs" />
     <Compile Remove="SceneCameraCaptureProviderTests.cs" />

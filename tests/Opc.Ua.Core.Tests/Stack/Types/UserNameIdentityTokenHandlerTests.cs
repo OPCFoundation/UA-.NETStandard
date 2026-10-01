@@ -424,7 +424,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         private static byte[] ComputeSha1Hash(byte[] data)
         {
             // CA5350: SHA1 required for legacy compatibility test vector.
-            // CA1850: SHA1.HashData() is .NET 5+ only and the suite still targets net472/net48.
+            // CA1850: SHA1.HashData() is .NET 5+ only and the suite still targets net48.
 #pragma warning disable CA5350, CA1850
             using var sha1 = SHA1.Create();
             return sha1.ComputeHash(data);

@@ -559,7 +559,7 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(secured, Is.EqualTo(withoutMode));
             if (policy.SecureChannelEnhancements)
             {
-                // CA1850: SHA256.HashData() is .NET 5+ only and the suite still targets net472/net48.
+                // CA1850: SHA256.HashData() is .NET 5+ only and the suite still targets net48.
 #pragma warning disable CA1850
                 using var hash = System.Security.Cryptography.SHA256.Create();
                 Assert.That(policy.CertificateThumbprintAlgorithm, Is.EqualTo(CertificateThumbprintAlgorithm.SHA256));

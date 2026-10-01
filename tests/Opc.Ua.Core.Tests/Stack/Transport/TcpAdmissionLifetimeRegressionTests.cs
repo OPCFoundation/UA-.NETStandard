@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 harness.Admit(accepted);
                 using var stream = new NetworkStream(client, ownsSocket: false);
                 byte[] reverseHello = WssAdmissionTests.CreateReverseHello();
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await stream.WriteAsync(reverseHello.AsMemory()).ConfigureAwait(false);
 #else
                 await stream.WriteAsync(reverseHello, 0, reverseHello.Length).ConfigureAwait(false);
@@ -222,7 +222,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.EqualTo(1));
                 byte[] open = harness.CreateOpenChunk();
                 using var stream = new NetworkStream(client, ownsSocket: false);
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await stream.WriteAsync(open.AsMemory()).ConfigureAwait(false);
 #else
                 await stream.WriteAsync(open, 0, open.Length).ConfigureAwait(false);
@@ -326,7 +326,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         using var stream = new NetworkStream(client, ownsSocket: false);
                         try
                         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                             await stream.WriteAsync(chunk.AsMemory()).ConfigureAwait(false);
 #else
                             await stream.WriteAsync(chunk, 0, chunk.Length).ConfigureAwait(false);
@@ -401,7 +401,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using Socket allowed = await harness.ConnectAsync().ConfigureAwait(false);
             using var allowedStream = new NetworkStream(allowed, ownsSocket: false);
             byte[] hello = harness.CreateHello();
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await allowedStream.WriteAsync(hello.AsMemory()).ConfigureAwait(false);
 #else
             await allowedStream.WriteAsync(hello, 0, hello.Length).ConfigureAwait(false);
@@ -580,7 +580,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var stream = new NetworkStream(socket, ownsSocket: false);
             byte[] hello = harness.CreateHello();
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await stream.WriteAsync(hello.AsMemory()).ConfigureAwait(false);
 #else
             await stream.WriteAsync(hello, 0, hello.Length).ConfigureAwait(false);
@@ -607,7 +607,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var stream = new NetworkStream(socket, ownsSocket: false);
             byte[] open = harness.CreateOpenChunk();
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await stream.WriteAsync(open.AsMemory()).ConfigureAwait(false);
 #else
             await stream.WriteAsync(open, 0, open.Length).ConfigureAwait(false);

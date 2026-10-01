@@ -587,7 +587,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// <summary>
         /// Adapts <see cref="TcpListener.Stop"/> to <see cref="IDisposable"/>;
         /// <see cref="TcpListener"/> only became <see cref="IDisposable"/> in
-        /// .NET Standard 2.1, so test code that targets net472/net48 cannot
+        /// .NET Core 3.0, so test code that targets net48 cannot
         /// place the listener in a <c>using</c> directly.
         /// </summary>
         private readonly struct ListenerScope : IDisposable

@@ -279,7 +279,7 @@ namespace Opc.Ua
             WriteBytes(buffer.AsSpan(offset, count));
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         /// <summary>
         /// Writes raw bytes to the stream.
         /// </summary>
@@ -536,7 +536,7 @@ namespace Opc.Ua
 
             int maxByteCount = Encoding.UTF8.GetMaxByteCount(value.Length);
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             const int maxStackAllocByteCount = 128;
             if (maxByteCount <= maxStackAllocByteCount)
             {
