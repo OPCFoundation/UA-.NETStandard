@@ -3165,6 +3165,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                // nothing to do if no event subscriptions.
+                if (monitoredItems.Count == 0)
+                {
+                    return;
+                }
+
                 // generate start event.
                 var e = new RefreshStartEventState(null);
 
@@ -3183,68 +3189,86 @@ namespace Opc.Ua.Server
                     false);
                 e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
 
-                // build list of items to refresh.
-                foreach (IEventMonitoredItem monitoredItem in monitoredItems)
-                {
-                    IEventMonitoredItem eventMonitoredItem = monitoredItem;
+                // OPC 10000-9 §5.5.7: the refresh is in progress from the RefreshStartEvent
+                // until the RefreshEndEvent has been queued. The flag is set and cleared under
+                // m_lock together with queueing those events so ValidateConditionRefresh never
+                // observes a gap.
+                m_refreshInProgress = true;
 
-                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                // build list of items to refresh.
+                try
+                {
+                    foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                     {
-                        // queue start refresh event.
-                        eventMonitoredItem.QueueEvent(e, true);
+                        IEventMonitoredItem eventMonitoredItem = monitoredItem;
+
+                        if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                        {
+                            // queue start refresh event.
+                            eventMonitoredItem.QueueEvent(e, true);
+                        }
                     }
                 }
-
-                // nothing to do if no event subscriptions.
-                if (monitoredItems.Count == 0)
+                catch
                 {
-                    return;
+                    m_refreshInProgress = false;
+                    throw;
                 }
             }
 
             // tell the NodeManagers to report the current state of the conditions.
             try
             {
-                m_refreshInProgress = true;
-
                 using var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
                 await m_server.NodeManager.ConditionRefreshAsync(operationContext, monitoredItems, cancellationToken)
                     .ConfigureAwait(false);
             }
-            finally
+            catch
             {
-                m_refreshInProgress = false;
+                lock (m_lock)
+                {
+                    m_refreshInProgress = false;
+                }
+                throw;
             }
 
             lock (m_lock)
             {
-                // generate start event.
-                var e = new RefreshEndEventState(null);
-
-                var message = new TranslationInfo(
-                    "RefreshEndEvent",
-                    "en-US",
-                    Utils.Format(messageTemplate, "completed"));
-
-                e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
-
-                e.SetChildValue(systemContext, BrowseNames.SourceNode, m_diagnosticsId, false);
-                e.SetChildValue(
-                    systemContext,
-                    BrowseNames.SourceName,
-                    Utils.Format("Subscription/{0}", Id),
-                    false);
-                e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
-
-                // send refresh end event.
-                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                try
                 {
-                    IEventMonitoredItem monitoredItem = monitoredItems[ii];
+                    // generate end event.
+                    var e = new RefreshEndEventState(null);
 
-                    if (monitoredItem.EventFilter != null)
+                    var message = new TranslationInfo(
+                        "RefreshEndEvent",
+                        "en-US",
+                        Utils.Format(messageTemplate, "completed"));
+
+                    e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
+
+                    e.SetChildValue(systemContext, BrowseNames.SourceNode, m_diagnosticsId, false);
+                    e.SetChildValue(
+                        systemContext,
+                        BrowseNames.SourceName,
+                        Utils.Format("Subscription/{0}", Id),
+                        false);
+                    e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
+
+                    // send refresh end event.
+                    for (int ii = 0; ii < monitoredItems.Count; ii++)
                     {
-                        monitoredItem.QueueEvent(e, true);
+                        IEventMonitoredItem monitoredItem = monitoredItems[ii];
+
+                        if (monitoredItem.EventFilter != null)
+                        {
+                            monitoredItem.QueueEvent(e, true);
+                        }
                     }
+                }
+                finally
+                {
+                    // the refresh ends once its RefreshEndEvent has been queued.
+                    m_refreshInProgress = false;
                 }
 
                 // TraceState("CONDITION REFRESH");
