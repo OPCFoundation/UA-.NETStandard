@@ -328,8 +328,9 @@ namespace Opc.Ua.Bindings
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
-                // check for replay attacks.
-                if (!VerifySequenceNumber(sequenceNumber, "Reconnect"))
+                // check for replay attacks. The chunks the client sent on the dropped
+                // socket are lost, so the number may skip ahead but not go back.
+                if (!VerifySequenceNumberCore(sequenceNumber, "Reconnect", true))
                 {
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
@@ -345,7 +346,7 @@ namespace Opc.Ua.Bindings
                     // need to assign a new token id.
                     token.ChannelId = ChannelId;
                     token.TokenId = GetNewTokenId();
-                    token.PreviousSecret = CurrentToken?.Secret;
+                    token.PreviousSecret = (RenewedToken ?? CurrentToken)?.Secret;
                     ReplaceNonces(token);
                     if (Volatile.Read(ref m_disposed) != 0)
                     {
@@ -912,7 +913,9 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
-                token.PreviousSecret = CurrentToken?.Secret;
+                // chain from the most recently issued keys: the client uses a renewed
+                // token as soon as it has the response, before the server sees it.
+                token.PreviousSecret = (RenewedToken ?? CurrentToken)?.Secret;
 
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce.ToArray();

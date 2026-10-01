@@ -79,7 +79,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(harness.Target.SnapshotClientCertificateChainForRevalidation(), Is.Null);
         }
 
+        /// <summary>
+        /// OPC 10000-6 6.8.1 Step 2: a renewal XORs the IKM of the current keys into the new IKM only when the
+        /// policy has SecureChannelEnhancements = TRUE; the legacy ECC policies derive from the new IKM alone.
+        /// </summary>
         [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
         [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         public async Task RenewHandoffRetainsPrivateKeyAndChainsPreviousSecretAsync(string policyUri)
         {
@@ -110,10 +115,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             harness.Target.RecomputeKeys();
             Assert.That(harness.Target.Token.Secret, Is.EqualTo(harness.Peer.Token.Secret));
             Assert.That(harness.Target.Token.Secret, Is.Not.EqualTo(previous.Secret));
+            bool chained = SecurityPolicies.Default.GetInfo(policyUri)!.SecureChannelEnhancements;
             Assert.That(
-                harness.HandedOffLocal!.GenerateSecret(harness.HandedOffRemote!, previous.Secret),
+                harness.HandedOffLocal!.GenerateSecret(harness.HandedOffRemote!, chained ? previous.Secret : null),
                 Is.EqualTo(harness.Target.Token.Secret));
+            Assert.That(
+                harness.HandedOffLocal!.GenerateSecret(harness.HandedOffRemote!, chained ? null : previous.Secret),
+                Is.Not.EqualTo(harness.Target.Token.Secret));
             await harness.AssertEncryptedReadAsync(harness.NewTransport).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// OPC 10000-6 6.8.1 Step 2 / 6.7.4: the client uses a renewed token as soon as it has processed the
+        /// OpenSecureChannel response, so a second renewal before any message was secured with the first one chains
+        /// from the first renewal on both sides.
+        /// </summary>
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+        public async Task BackToBackRenewalsWithoutMessagesChainFromTheSameSecretAsync(string policyUri)
+        {
+            if (!AssertPolicyAvailability(policyUri))
+            {
+                return;
+            }
+            using var harness = new HandoffHarness(policyUri);
+            await harness.OpenAsync().ConfigureAwait(false);
+
+            for (int ii = 0; ii < 2; ii++)
+            {
+                await harness.Target.FeedAsync(await harness.Peer.CreateOpenAsync(true).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                await harness.Peer.CompleteOpenAsync(
+                    await harness.OldTransport.ReadAsync(harness.CancellationToken).ConfigureAwait(false),
+                    renew: true).ConfigureAwait(false);
+            }
+
+            Assert.That(harness.Target.RenewedTokenId, Is.EqualTo(harness.Peer.Token.TokenId));
+            await harness.AssertEncryptedReadAsync(harness.OldTransport).ConfigureAwait(false);
+            Assert.That(harness.Target.Token.TokenId, Is.EqualTo(harness.Peer.Token.TokenId));
+            Assert.That(harness.Target.Token.Secret, Is.EqualTo(harness.Peer.Token.Secret));
         }
 
         [TestCase(SecurityPolicies.ECC_nistP256, false)]
@@ -722,6 +763,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             public uint? CurrentTokenId => CurrentToken?.TokenId;
+
+            public uint? RenewedTokenId => RenewedToken?.TokenId;
 
             public string? ServerCertificateThumbprint => ServerCertificate?.Thumbprint;
 
