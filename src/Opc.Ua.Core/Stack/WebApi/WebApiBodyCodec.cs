@@ -42,8 +42,8 @@ namespace Opc.Ua.Bindings
     /// <remarks>
     /// <para>
     /// The shared <see cref="JsonEncoder.EncodeMessage{T}(T,ExpandedNodeId)"/>
-    /// / <see cref="JsonDecoder.DecodeMessage{T}()"/> pair always wraps the
-    /// payload in the <c>{UaTypeId, UaBody}</c> envelope used by the
+    /// / <see cref="JsonDecoder.DecodeMessage{T}()"/> pair always writes the
+    /// payload as an ExtensionObject with a leading <c>UaTypeId</c>, the envelope used by the
     /// HTTPS-JSON (Part 6 §7.4.5) and WSS <c>opcua+uajson</c> (§7.5.2)
     /// sub-profiles. The REST binding routes the service identity through
     /// the URL path instead, so the body is the bare

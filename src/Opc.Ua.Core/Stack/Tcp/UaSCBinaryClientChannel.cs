@@ -768,15 +768,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
 
-                // check if it is necessary to wait for more chunks.
-                if (!TcpMessageType.IsFinal(messageType))
-                {
-                    bodyOwned = false;
-                    SaveIntermediateChunk(requestId, messageBody, false, gateHeld: true);
-                    return false;
-                }
-
-                // get the chunks to process.
+                // get the chunks to process (the message is a single final chunk).
                 bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: true);
 
@@ -956,6 +948,23 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
+            // OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel
+            // messages are always a single final chunk.
+            if ((TcpMessageType.IsType(messageType, TcpMessageType.Open) ||
+                    TcpMessageType.IsType(messageType, TcpMessageType.Close)) &&
+                !TcpMessageType.IsFinal(messageType))
+            {
+                using (await Gate.EnterAsync(ct).ConfigureAwait(false))
+                {
+                    ForceReconnectCore(
+                        ServiceResult.Create(
+                            StatusCodes.BadTcpMessageTypeInvalid,
+                            "The message type {0:X8} is not a final chunk.",
+                            messageType));
+                }
+                return false;
+            }
+
             // Processed outside the gate. ProcessResponseMessage takes the gate
             // itself where it needs it, and handling both response paths the
             // same way keeps it from being a caller that sometimes holds the

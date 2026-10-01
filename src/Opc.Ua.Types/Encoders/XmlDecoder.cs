@@ -406,7 +406,8 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!.ToLowerInvariant());
+                    // xs:boolean is true, false, 1 or 0 - case sensitive.
+                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -602,11 +603,17 @@ namespace Opc.Ua
                 fieldName,
                 true,
                 out bool isNil,
-                !TreatWhitespaceOnlyStringsAsEmpty,
+                true,
                 out string? whitespace))
             {
-                // xs:string has whiteSpace=preserve (Part 6 5.3.1.5): do not trim.
+                // xs:string has whiteSpace=preserve (Part 6 5.3.1.5): do not trim,
+                // and keep leading whitespace split off by a comment.
                 string? value = SafeReadString();
+                if (whitespace != null)
+                {
+                    value = whitespace + value;
+                    EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
+                }
                 EndField(fieldName);
                 return value;
             }
@@ -617,7 +624,7 @@ namespace Opc.Ua
             }
 
             // an element holding only whitespace keeps it (Part 6 5.3.1.5).
-            if (whitespace != null)
+            if (whitespace != null && !TreatWhitespaceOnlyStringsAsEmpty)
             {
                 EncodingLimits.CheckStringLength(Context.MaxStringLength, whitespace);
                 return whitespace;
@@ -638,20 +645,138 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    try
-                    {
-                        var value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
-                        EndField(fieldName);
-                        return value;
-                    }
-                    catch (FormatException fe)
-                    {
-                        throw CreateBadDecodingError(fieldName, fe, value: xml);
-                    }
+                    DateTimeUtc value = ParseDateTime(fieldName, xml!);
+                    EndField(fieldName);
+                    return value;
                 }
             }
 
             return DateTimeUtc.MinValue;
+        }
+
+        /// <summary>
+        /// Parses an xs:dateTime value (Part 6 5.3.1.6). XmlConvert also takes
+        /// the other XSD date and time types (time, gYear, gMonthDay...) and
+        /// decodes them to a surprising instant (a time takes today's date, a
+        /// gMonthDay the year 1904); those are rejected. Years beyond 9999
+        /// decode as the latest and years before 0001 as the earliest
+        /// date/time value.
+        /// </summary>
+        /// <remarks>
+        /// Part 6 requires encoders to write the time and a time zone. A value
+        /// without a zone is still read as UTC, and a date without a time
+        /// (xs:date) as midnight UTC, because published model files (the
+        /// standard type and DI designs) contain such values.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static DateTimeUtc ParseDateTime(
+            string? fieldName,
+            string xml,
+            [CallerMemberName] string? functionName = null)
+        {
+            // xs:dateTime collapses whitespace.
+            string text = xml.Trim();
+
+            // '-'? yyyy '-' mm '-' dd ('T' hh ':' mm ':' ss ('.' s+)?)? zone?
+            int index = 0;
+            bool negative = text.Length > 0 && text[0] == '-';
+            if (negative)
+            {
+                index++;
+            }
+
+            int yearStart = index;
+            while (index < text.Length && IsDigit(text[index]))
+            {
+                index++;
+            }
+
+            int yearDigits = index - yearStart;
+            bool valid =
+                (yearDigits == 4 || (yearDigits > 4 && text[yearStart] != '0')) &&
+                MatchesPattern(text, index, "-dd-dd");
+            index += 6;
+
+            // the time may be left out (xs:date): published model files use
+            // such values, which decode as midnight of that date.
+            if (valid && index < text.Length && text[index] == 'T')
+            {
+                valid = MatchesPattern(text, index, "Tdd:dd:dd");
+                index += 9;
+
+                if (valid && index < text.Length && text[index] == '.')
+                {
+                    int fractionStart = ++index;
+                    while (index < text.Length && IsDigit(text[index]))
+                    {
+                        index++;
+                    }
+                    valid = index > fractionStart;
+                }
+            }
+
+            if (valid && index < text.Length && text[index] == 'Z')
+            {
+                index++;
+            }
+            else if (valid &&
+                index < text.Length &&
+                (text[index] is '+' or '-') &&
+                MatchesPattern(text, index + 1, "dd:dd"))
+            {
+                index += 6;
+            }
+
+            if (!valid || index != text.Length)
+            {
+                throw CreateBadDecodingError(
+                    fieldName,
+                    new FormatException("The value is not an xs:dateTime."),
+                    functionName,
+                    xml);
+            }
+
+            if (negative ||
+                (yearDigits == 4 && string.CompareOrdinal(text, yearStart, "0000", 0, 4) == 0))
+            {
+                return DateTimeUtc.MinValue;
+            }
+
+            if (yearDigits > 4)
+            {
+                return DateTimeUtc.MaxValue;
+            }
+
+            try
+            {
+                return XmlConvert.ToDateTime(text, XmlDateTimeSerializationMode.Utc);
+            }
+            catch (FormatException fe)
+            {
+                throw CreateBadDecodingError(fieldName, fe, functionName, xml);
+            }
+
+            static bool IsDigit(char c)
+            {
+                return c is >= '0' and <= '9';
+            }
+
+            static bool MatchesPattern(string value, int start, string pattern)
+            {
+                if (start + pattern.Length > value.Length)
+                {
+                    return false;
+                }
+                for (int ii = 0; ii < pattern.Length; ii++)
+                {
+                    char c = value[start + ii];
+                    if (pattern[ii] == 'd' ? !IsDigit(c) : c != pattern[ii])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
 
         /// <inheritdoc/>
@@ -665,19 +790,39 @@ namespace Opc.Ua
                 string? guidString = ReadString("String");
                 PopNamespace();
 
-                try
-                {
-                    value = Uuid.Parse(guidString ?? string.Empty);
-                }
-                catch (FormatException fe)
-                {
-                    throw CreateBadDecodingError(fieldName, fe, value: guidString);
-                }
+                value = ParseGuid(fieldName, guidString);
 
                 EndField(fieldName);
             }
 
             return value;
+        }
+
+        /// <summary>
+        /// Parses the String of an XML Guid, which has the form of Part 6 5.1.3
+        /// (the "D" format: 8-4-4-4-12 hex digits, no braces or parentheses).
+        /// Guid.Parse also takes the N, B, P and X formats.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static Uuid ParseGuid(
+            string? fieldName,
+            string? guidString,
+            [CallerMemberName] string? functionName = null)
+        {
+            // the String element keeps layout whitespace (xs:string).
+            if (!Guid.TryParseExact(
+                (guidString ?? string.Empty).Trim(),
+                "D",
+                out Guid guid))
+            {
+                throw CreateBadDecodingError(
+                    fieldName,
+                    new FormatException("The value is not a Guid in the form of Part 6 5.1.3."),
+                    functionName,
+                    guidString);
+            }
+
+            return new Uuid(guid);
         }
 
         /// <inheritdoc/>
@@ -692,6 +837,8 @@ namespace Opc.Ua
 
                     if (!string.IsNullOrEmpty(xml))
                     {
+                        // check the length before the bytes are allocated.
+                        EncodingLimits.CheckBase64Length(Context.MaxByteStringLength, xml);
                         value = ByteString.From(SafeConvertFromBase64String(xml));
                     }
                     else
@@ -708,12 +855,6 @@ namespace Opc.Ua
                     throw CreateBadDecodingError(fieldName, ioe);
                 }
 
-                // check the length.
-                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-
                 EndField(fieldName);
                 return value;
             }
@@ -726,29 +867,9 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true) && MoveToElement(null!))
             {
-                var document = new XmlDocument();
-                System.Xml.XmlElement value = document.CreateElement(
-                    m_reader.Prefix,
-                    m_reader.LocalName,
-                    m_reader.NamespaceURI);
-                document.AppendChild(value);
-
-                if (m_reader.MoveToFirstAttribute())
-                {
-                    do
-                    {
-                        XmlAttribute attribute = document.CreateAttribute(m_reader.Name);
-                        attribute.Value = m_reader.Value;
-                        value.Attributes.Append(attribute);
-                    } while (m_reader.MoveToNextAttribute());
-
-                    m_reader.MoveToContent();
-                }
-
-                value.InnerXml = m_reader.ReadInnerXml();
-
+                XmlElement value = XmlElement.From(ReadXmlElementContent(fieldName, Context.MaxStringLength));
                 EndField(fieldName);
-                return (XmlElement)value;
+                return value;
             }
 
             return default;
@@ -946,10 +1067,17 @@ namespace Opc.Ua
                         {
                             value = ReadVariantValue();
                         }
-                        catch (Exception ex) when (ex is not ServiceResultException)
+                        catch (Exception ex) when (ex is not ServiceResultException and not OutOfMemoryException)
                         {
+                            // a malformed value fails the decode: returning a
+                            // BadDecodingError value left the reader at an
+                            // arbitrary position inside the Value element.
                             m_logger.ErrorReadingVariant(ex);
-                            value = new Variant(StatusCodes.BadDecodingError);
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                ex,
+                                "Error reading variant value: {0}",
+                                ex.Message);
                         }
                         EndField("Value");
                     }
@@ -1192,13 +1320,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Boolean"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadBoolean("Boolean"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1220,13 +1343,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("SByte"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadSByte("SByte"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1248,13 +1366,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Byte"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadByte("Byte"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1276,13 +1389,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int16"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt16("Int16"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1304,13 +1412,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt16"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt16("UInt16"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1332,13 +1435,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int32"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt32("Int32"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1360,13 +1458,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt32"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt32("UInt32"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1388,13 +1481,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int64"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt64("Int64"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1416,13 +1504,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt64"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt64("UInt64"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1444,13 +1527,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Float"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadFloat("Float"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1472,13 +1550,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Double"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDouble("Double"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1500,13 +1573,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("String"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadString("String"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1528,13 +1596,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DateTime"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDateTime("DateTime"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1556,13 +1619,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Guid"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadGuid("Guid"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1584,13 +1642,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ByteString"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadByteString("ByteString"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1612,13 +1665,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("XmlElement"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadXmlElement("XmlElement"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1640,13 +1688,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("NodeId"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadNodeId("NodeId"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1668,13 +1711,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExpandedNodeId"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadExpandedNodeId("ExpandedNodeId"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1696,13 +1734,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("StatusCode"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadStatusCode("StatusCode"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1724,13 +1757,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DiagnosticInfo"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDiagnosticInfo("DiagnosticInfo"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1752,13 +1780,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("QualifiedName"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadQualifiedName("QualifiedName"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1780,13 +1803,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("LocalizedText"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadLocalizedText("LocalizedText"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1808,13 +1826,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Variant"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadVariant("Variant"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1836,13 +1849,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DataValue"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDataValue("DataValue"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1864,13 +1872,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExtensionObject"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadExtensionObject("ExtensionObject"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1893,13 +1896,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExtensionObject"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadEncodeableAsExtensionObject<T>("ExtensionObject"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1923,13 +1921,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(encodeables.Count);
                     encodeables.Add(ReadEncodeable<T>(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1958,13 +1951,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(encodeables.Count);
                     encodeables.Add(ReadEncodeable<T>(xmlName.Name, encodeableTypeId));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -2101,13 +2089,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(enums.Count);
                     enums.Add(ReadEnumerated<T>(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -2135,13 +2118,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(enums.Count);
                     enums.Add(ReadEnumerated(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -2517,7 +2495,8 @@ namespace Opc.Ua
                         case "Double":
                             return ReadDouble(typeName);
                         case "String":
-                            return ReadString(typeName) ?? string.Empty;
+                            // a nil element is a null String Variant (5.3.1.17)
+                            return new Variant(ReadString(typeName)!);
                         case "DateTime":
                             return ReadDateTime(typeName);
                         case "Guid":
@@ -2683,25 +2662,17 @@ namespace Opc.Ua
                 }
             }
 
-            try
-            {
-                var xmlElement = XmlElement.From(m_reader.ReadOuterXml());
-                if (!xmlElement.IsValid)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Invalid xml in extension object body: {0}",
-                        xmlElement);
-                }
-                return new ExtensionObject(typeId, xmlElement);
-            }
-            catch (Exception ae)
+            // an extension object body is structured XML, bounded by the message
+            // and the depth limit, not by MaxStringLength like an XmlElement value.
+            var xmlElement = XmlElement.From(ReadXmlElementContent(null, 0));
+            if (!xmlElement.IsValid)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Failed to decode xml extension object body: {0}",
-                    ae.Message);
+                    "Invalid xml in extension object body: {0}",
+                    xmlElement);
             }
+            return new ExtensionObject(typeId, xmlElement);
         }
 
         private static ExpandedNodeId GetXmlEncodingIdOrTypeId(IEncodeable encodeable)
@@ -2813,6 +2784,7 @@ namespace Opc.Ua
                     PushNamespace(Namespaces.OpcUaXsd);
 
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
+                    MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
 
                     // A multi-dimensional Variant must carry Dimensions with at
                     // least two entries, each greater than zero (Part 6 5.2.2.16);
@@ -3121,6 +3093,37 @@ namespace Opc.Ua
                 message);
         }
 
+        /// <summary>
+        /// Reads the element the reader is positioned on as raw XML, bounded by
+        /// maxStringLength (0 for none) and by the XML element depth limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private string ReadXmlElementContent(
+            string? fieldName,
+            int maxStringLength,
+            [CallerMemberName] string? functionName = null)
+        {
+            try
+            {
+                return EncodingLimits.ReadXmlElementContent(
+                    m_reader,
+                    EncodingLimits.GetMaxXmlElementDepth(Context, m_nestingLevel),
+                    maxStringLength);
+            }
+            catch (XmlException xe)
+            {
+                throw CreateBadDecodingError(fieldName, xe, functionName);
+            }
+            catch (InvalidOperationException ioe)
+            {
+                throw CreateBadDecodingError(fieldName, ioe, functionName);
+            }
+            catch (ArgumentException ae)
+            {
+                throw CreateBadDecodingError(fieldName, ae, functionName);
+            }
+        }
+
         private static byte[] SafeConvertFromBase64String(string s)
         {
             try
@@ -3156,7 +3159,10 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the start of field. With <paramref name="captureWhitespace"/> the
         /// whitespace of an element that holds nothing else is returned in
-        /// <paramref name="whitespace"/> (the method returns false for it).
+        /// <paramref name="whitespace"/> (the method returns false for it). When
+        /// the method returns true it holds the leading whitespace that was
+        /// read before the content (split off by a comment or processing
+        /// instruction), which the caller prepends.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private bool BeginField(
@@ -3221,10 +3227,21 @@ namespace Opc.Ua
                     string? content = null;
                     if (captureWhitespace)
                     {
-                        // MoveToContent skips whitespace nodes, keep them for xs:string.
-                        while (m_reader.NodeType is XmlNodeType.Whitespace or XmlNodeType.SignificantWhitespace)
+                        // MoveToContent skips whitespace nodes, keep them for
+                        // xs:string - also past comments and processing
+                        // instructions, which are not part of the value.
+                        while (m_reader.NodeType is
+                            XmlNodeType.Whitespace or
+                            XmlNodeType.SignificantWhitespace or
+                            XmlNodeType.Comment or
+                            XmlNodeType.ProcessingInstruction)
                         {
-                            content = content == null ? m_reader.Value : content + m_reader.Value;
+                            if (m_reader.NodeType is
+                                XmlNodeType.Whitespace or
+                                XmlNodeType.SignificantWhitespace)
+                            {
+                                content = content == null ? m_reader.Value : content + m_reader.Value;
+                            }
                             m_reader.Read();
                         }
                     }
@@ -3240,6 +3257,20 @@ namespace Opc.Ua
                         whitespace = content;
                         return false;
                     }
+
+                    // a nilled element shall have no content (XML Schema Part 1,
+                    // Element Locally Valid); callers do not read it, which
+                    // left the reader inside it and dropped the next fields.
+                    if (isNil)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Element '{0}' is nil but has content.",
+                            fieldName!);
+                    }
+
+                    // the leading whitespace of content that follows.
+                    whitespace = content;
                 }
 
                 // caller must read contents of element.
@@ -3318,6 +3349,23 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks MaxArrayLength before one more element is added to an array
+        /// holding <paramref name="count"/> elements, so the list never grows
+        /// beyond the limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckArrayLength(int count)
+        {
+            if (Context.MaxArrayLength > 0 && count >= Context.MaxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} exceeded.",
+                    Context.MaxArrayLength);
+            }
+        }
+
+        /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -3331,6 +3379,7 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels,
                     functionName ?? string.Empty);
             }
+            EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
         }
 

@@ -108,6 +108,21 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        public void DecodeAsJsonChecksMaxMessageSize()
+        {
+            // The buffer was decoded without any MaxMessageSize check.
+            var request = new ReadRequest { MaxAge = 1000.0 };
+            using var stream = new MemoryStream();
+            SessionLessMessage.EncodeAsJson(request, stream, m_context, true);
+            byte[] buffer = stream.ToArray();
+            m_context.MaxMessageSize = buffer.Length - 1;
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => SessionLessMessage.DecodeAsJson(buffer, m_context));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
         public void EncodeAsJsonLeaveOpenFalseDisposesStream()
         {
             var request = new ReadRequest();

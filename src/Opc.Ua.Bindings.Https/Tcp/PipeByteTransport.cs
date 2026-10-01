@@ -179,6 +179,15 @@ namespace Opc.Ua.Bindings
 
                     Span<byte> headerSpan = stackalloc byte[8];
                     buffer.Slice(0, 8).CopyTo(headerSpan);
+                    uint messageType = BinaryPrimitives.ReadUInt32LittleEndian(headerSpan);
+                    if (!TcpMessageType.IsValid(messageType))
+                    {
+                        reader.AdvanceTo(buffer.End);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadTcpMessageTypeInvalid,
+                            "Message type 0x{0:X8} is invalid.",
+                            messageType);
+                    }
                     int size = BinaryPrimitives.ReadInt32LittleEndian(headerSpan[4..]);
                     if (size < 8)
                     {

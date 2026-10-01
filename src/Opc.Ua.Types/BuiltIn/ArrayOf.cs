@@ -117,7 +117,11 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         internal ArrayOf(T[] values)
-            : this(values.AsMemory())
+            // Construct the ReadOnlyMemory directly: AsMemory() returns a
+            // Memory<T> whose implicit conversion reinterprets it with
+            // Unsafe.As, which the optimizing .NET Framework JIT can miscompile
+            // when inlined (the array then reads back with a length of 0).
+            : this(values is null ? default : new ReadOnlyMemory<T>(values))
         {
         }
 

@@ -1528,6 +1528,24 @@ namespace Opc.Ua
             var resolvedFields = new StructureField[declaredFields.Count];
             bool fieldsResolved = false;
 
+            // OPC 10000-6 5.2.7: the EncodingMask has one bit per optional field,
+            // so a structure with more than 32 optional fields cannot be encoded.
+            if (structureDefinition.StructureType == StructureType.StructureWithOptionalFields)
+            {
+                int optionalFields = 0;
+                foreach (StructureField field in declaredFields)
+                {
+                    if (field.IsOptional &&
+                        ++optionalFields > Encoders.StructureWithOptionalFields.MaxOptionalFields)
+                    {
+                        throw new DataTypeNotSupportedException(
+                            complexTypeId,
+                            "The structure definition has more than " +
+                            $"{Encoders.StructureWithOptionalFields.MaxOptionalFields} optional fields.");
+                    }
+                }
+            }
+
             // check all types
             var typeList = new List<IType?>();
             for (int ii = 0; ii < declaredFields.Count; ii++)

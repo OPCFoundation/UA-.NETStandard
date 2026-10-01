@@ -584,8 +584,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             responseBody.Position = 0;
             using var reader = new StreamReader(responseBody);
             string body = await reader.ReadToEndAsync().ConfigureAwait(false);
+            // The fault is an ExtensionObject with its fields inline (Part 6 5.4.9).
             Assert.That(body, Does.Contain("UaTypeId"));
-            Assert.That(body, Does.Contain("UaBody"));
+            Assert.That(body, Does.Not.Contain("UaBody"));
+            Assert.That(body, Does.Contain("ResponseHeader"));
             // The fault payload's StringTable carries the BadDecodingError
             // symbolic name and the mapper's failure description.
             Assert.That(body, Does.Contain("BadDecodingError"));
@@ -601,7 +603,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             byte[] payload = System.Text.Encoding.UTF8.GetBytes(
-                "{\"UaTypeId\":\"i=4294967\",\"UaBody\":{\"RequestHeader\":{\"RequestHandle\":4711}}}");
+                "{\"UaTypeId\":\"i=4294967\",\"RequestHeader\":{\"RequestHandle\":4711}}");
             var context = new DefaultHttpContext();
             context.Request.Method = "POST";
             context.Request.ContentType = Profiles.OpcUaJsonContentType;

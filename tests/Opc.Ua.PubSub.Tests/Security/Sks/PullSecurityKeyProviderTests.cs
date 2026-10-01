@@ -138,8 +138,90 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
             int before = fake.CallCount;
             PubSubSecurityKey? key = await provider.TryGetKeyAsync(99U).ConfigureAwait(false);
-            Assert.That(fake.CallCount, Is.GreaterThan(before));
             Assert.That(key, Is.Null);
+            // The refresh runs in the background, never inline.
+            Assert.That(provider.OpportunisticRefreshTask, Is.Not.Null);
+            await provider.OpportunisticRefreshTask!.ConfigureAwait(false);
+            Assert.That(fake.CallCount, Is.GreaterThan(before));
+        }
+
+        [Test]
+        public async Task ForgedTokenIdsCallSksAtMostOncePerRefreshInterval()
+        {
+            var fake = new FakeSecurityKeyService(Policy, TimeSpan.FromMinutes(2));
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            PullSecurityKeyProviderOptions options = DefaultOptions();
+            options.OpportunisticRefreshInterval = TimeSpan.FromSeconds(30);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                fake,
+                Policy,
+                options,
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            int before = fake.CallCount;
+            for (uint i = 0; i < 100; i++)
+            {
+                PubSubSecurityKey? key = await provider.TryGetKeyAsync(uint.MaxValue - i).ConfigureAwait(false);
+                Assert.That(key, Is.Null);
+                if (provider.OpportunisticRefreshTask is Task pending)
+                {
+                    await pending.ConfigureAwait(false);
+                }
+            }
+            Assert.That(fake.CallCount, Is.EqualTo(before + 1));
+
+            clock.Advance(TimeSpan.FromSeconds(31));
+            _ = await provider.TryGetKeyAsync(uint.MaxValue).ConfigureAwait(false);
+            await provider.OpportunisticRefreshTask!.ConfigureAwait(false);
+            Assert.That(fake.CallCount, Is.EqualTo(before + 2));
+        }
+
+        [Test]
+        public async Task TryGetKeyAsyncDoesNotWaitForTheSks()
+        {
+            var sks = new BlockingSks();
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                DefaultOptions(),
+                NUnitTelemetryContext.Create(),
+                new FakeTimeProvider(DateTimeOffset.UtcNow));
+
+            ValueTask<PubSubSecurityKey?> lookup = provider.TryGetKeyAsync(7U);
+
+            Assert.That(lookup.IsCompleted, Is.True);
+            Assert.That(await lookup.ConfigureAwait(false), Is.Null);
+            await sks.Called.Task.ConfigureAwait(false);
+            sks.Release.SetResult(true);
+            await provider.OpportunisticRefreshTask!.ConfigureAwait(false);
+        }
+
+        private sealed class BlockingSks : ISecurityKeyService
+        {
+            public event EventHandler<SksAvailabilityChangedEventArgs>? AvailabilityChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public TaskCompletionSource<bool> Called { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public async ValueTask<SksKeyResponse> GetSecurityKeysAsync(
+                SksKeyRequest request,
+                CancellationToken cancellationToken = default)
+            {
+                Called.TrySetResult(true);
+                await Release.Task.ConfigureAwait(false);
+                throw new OpcUaSksException(StatusCodes.BadCommunicationError, "unavailable");
+            }
         }
 
         [Test]
@@ -183,6 +265,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 "transient"));
             PubSubSecurityKey? lookup = await provider.TryGetKeyAsync(99U).ConfigureAwait(false);
             Assert.That(lookup, Is.Null);
+            await provider.OpportunisticRefreshTask!.ConfigureAwait(false);
 
             PubSubSecurityKey afterFailure = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
             Assert.That(afterFailure, Is.SameAs(served));
@@ -343,6 +426,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             // Advance past the lifetime so the next refresh rotates.
             clock.Advance(TimeSpan.FromMilliseconds(60));
             await provider.TryGetKeyAsync(uint.MaxValue).ConfigureAwait(false);
+            await provider.OpportunisticRefreshTask!.ConfigureAwait(false);
             Assert.That(rotationCount, Is.GreaterThan(0));
         }
 

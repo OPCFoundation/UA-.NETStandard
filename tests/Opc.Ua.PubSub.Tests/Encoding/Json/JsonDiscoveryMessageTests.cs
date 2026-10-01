@@ -51,6 +51,20 @@ namespace OpcUaPubSubJsonTests
     [Category("PubSub")]
     public sealed class JsonDiscoveryMessageTests
     {
+        private static readonly string[] s_applicationLayout =
+            ["MessageId", "MessageType", "PublisherId", "Timestamp", "Description", "ServerCapabilities"];
+        private static readonly string[] s_endpointsLayout =
+            ["MessageId", "MessageType", "PublisherId", "Timestamp", "Endpoints"];
+        private static readonly string[] s_cyclicStatusLayout =
+            ["MessageId", "MessageType", "PublisherId", "Timestamp", "IsCyclic", "Status", "NextReportTime"];
+        private static readonly string[] s_statusLayout =
+            ["MessageId", "MessageType", "PublisherId", "IsCyclic", "Status"];
+        private static readonly string[] s_metaDataLayout =
+        [
+            "MessageId", "MessageType", "PublisherId", "DataSetWriterId", "WriterGroupName",
+            "DataSetWriterName", "Timestamp", "MetaData"
+        ];
+
         [Test]
         [TestSpec("7.2.5.5")]
         public async Task RoundTrip_ApplicationInformationAsync()
@@ -179,46 +193,157 @@ namespace OpcUaPubSubJsonTests
 
         [Test]
         [TestSpec("7.2.5.5")]
-        public async Task RoundTrip_DataSetWriterConfigurationAsync()
+        public void DataSetWriterConfigurationHasNoJsonDiscoveryMessage()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
-            var writerGroup = new WriterGroupDataType
-            {
-                Name = "WG-JSON",
-                WriterGroupId = 42,
-                PublishingInterval = 1000.0
-            };
             var msg = new JsonDiscoveryMessage
             {
                 MessageId = "disc-wcfg",
                 PublisherId = PublisherId.FromUInt16(0x300),
                 DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
                 DataSetWriterIds = [1, 2, 3],
-                WriterConfiguration = writerGroup
+                WriterConfiguration = new WriterGroupDataType { Name = "WG-JSON", WriterGroupId = 42 }
             };
-            var encoder = new JsonEncoder();
-            ReadOnlyMemory<byte> bytes = await encoder.EncodeAsync(msg, ctx)
-                .ConfigureAwait(false);
-            using (var document = JsonDocument.Parse(bytes))
-            {
-                Assert.That(document.RootElement.GetProperty("MessageType").GetString(),
-                    Is.EqualTo(JsonDiscoveryMessage.MessageTypeStatus));
-            }
 
-            var decoder = new JsonDecoder();
-            PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(bytes, ctx)
-                .ConfigureAwait(false);
-
-            var disc = decoded as JsonDiscoveryMessage;
-            Assert.That(disc, Is.Not.Null);
-            Assert.That(disc!.DiscoveryType,
-                Is.EqualTo(UadpDiscoveryType.DataSetWriterConfiguration));
-            Assert.That(disc.DataSetWriterIds, Is.EqualTo(new ushort[] { 1, 2, 3 }));
-            Assert.That(disc.WriterConfiguration, Is.Not.Null);
-            Assert.That(disc.WriterConfiguration!.Name, Is.EqualTo("WG-JSON"));
-            Assert.That(disc.WriterConfiguration!.WriterGroupId, Is.EqualTo(42));
+            // Part 14 §7.2.5.5 defines ua-metadata, ua-application,
+            // ua-endpoints, ua-status and ua-connection only.
+            Assert.That(
+                async () => await new JsonEncoder().EncodeAsync(msg, ctx).ConfigureAwait(false),
+                Throws.ArgumentException);
         }
 
+        [Test]
+        [TestSpec("7.2.5.5.3")]
+        public async Task ApplicationMessageUsesSpecLayoutAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var msg = new JsonDiscoveryMessage
+            {
+                PublisherId = PublisherId.FromString("Pub"),
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationInformation = new UadpApplicationInformation
+                {
+                    ApplicationName = new LocalizedText("en", "App"),
+                    ApplicationUri = "urn:app",
+                    ProductUri = "urn:product",
+                    ApplicationType = ApplicationType.Server,
+                    Capabilities = ["LDS"]
+                }
+            };
+
+            ReadOnlyMemory<byte> bytes = await new JsonEncoder().EncodeAsync(msg, ctx).ConfigureAwait(false);
+
+            using var document = JsonDocument.Parse(bytes);
+            JsonElement root = document.RootElement;
+            Assert.That(PropertyNames(root), Is.EqualTo(s_applicationLayout));
+            Assert.That(root.GetProperty("MessageId").GetString(), Is.Not.Empty);
+            Assert.That(root.GetProperty("Timestamp").GetString(), Is.EqualTo("2026-06-15T12:00:00.0000000Z"));
+            Assert.That(root.GetProperty("Description").GetProperty("ApplicationUri").GetString(),
+                Is.EqualTo("urn:app"));
+            Assert.That(root.GetProperty("ServerCapabilities")[0].GetString(), Is.EqualTo("LDS"));
+
+            var decoded = await new JsonDecoder().TryDecodeAsync(bytes, ctx).ConfigureAwait(false)
+                as JsonDiscoveryMessage;
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.Description!.ProductUri, Is.EqualTo("urn:product"));
+            Assert.That(decoded.ApplicationInformation!.ApplicationType, Is.EqualTo(ApplicationType.Server));
+        }
+
+        [Test]
+        [TestSpec("7.2.5.5.4")]
+        public async Task EndpointsMessageUsesSpecLayoutAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var msg = new JsonDiscoveryMessage
+            {
+                MessageId = "m",
+                PublisherId = PublisherId.FromString("Pub"),
+                DiscoveryType = UadpDiscoveryType.PublisherEndpoints,
+                PublisherEndpoints = [new EndpointDescription { EndpointUrl = "opc.tcp://a:4840" }]
+            };
+
+            ReadOnlyMemory<byte> bytes = await new JsonEncoder().EncodeAsync(msg, ctx).ConfigureAwait(false);
+
+            using var document = JsonDocument.Parse(bytes);
+            Assert.That(PropertyNames(document.RootElement), Is.EqualTo(s_endpointsLayout));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        [TestSpec("7.2.5.5.5")]
+        public async Task StatusMessageUsesSpecLayoutAsync(bool isCyclic)
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var next = new DateTime(2026, 6, 15, 12, 1, 0, DateTimeKind.Utc);
+            var msg = new JsonDiscoveryMessage
+            {
+                MessageId = "m",
+                PublisherId = PublisherId.FromString("Pub"),
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationStatus = new UadpApplicationStatus
+                {
+                    IsCyclic = isCyclic,
+                    Status = PubSubState.Operational,
+                    NextReportTime = (DateTimeUtc)next
+                }
+            };
+
+            ReadOnlyMemory<byte> bytes = await new JsonEncoder().EncodeAsync(msg, ctx).ConfigureAwait(false);
+
+            using var document = JsonDocument.Parse(bytes);
+            JsonElement root = document.RootElement;
+            Assert.That(root.GetProperty("MessageType").GetString(), Is.EqualTo(JsonDiscoveryMessage.MessageTypeStatus));
+            Assert.That(PropertyNames(root), Is.EqualTo(isCyclic ? s_cyclicStatusLayout : s_statusLayout));
+            Assert.That(root.GetProperty("Status").GetInt32(), Is.EqualTo((int)PubSubState.Operational));
+
+            var decoded = await new JsonDecoder().TryDecodeAsync(bytes, ctx).ConfigureAwait(false)
+                as JsonDiscoveryMessage;
+            Assert.That(decoded?.ApplicationStatus, Is.Not.Null);
+            Assert.That(decoded!.ApplicationStatus!.IsCyclic, Is.EqualTo(isCyclic));
+            Assert.That(decoded.ApplicationStatus.Status, Is.EqualTo(PubSubState.Operational));
+            if (isCyclic)
+            {
+                Assert.That((DateTime)decoded.ApplicationStatus.NextReportTime, Is.EqualTo(next));
+            }
+        }
+
+        [Test]
+        [TestSpec("7.2.5.5.2")]
+        public async Task MetaDataMessageUsesSpecLayoutAsync()
+        {
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var msg = new Opc.Ua.PubSub.Encoding.Json.JsonMetaDataMessage
+            {
+                MessageId = "m",
+                PublisherId = PublisherId.FromString("Pub"),
+                DataSetWriterId = 0,
+                WriterGroupName = "WG",
+                DataSetWriterName = "DSW",
+                DataSetClassId = new Uuid(Guid.NewGuid()),
+                MetaDataPayload = JsonTestUtilities.CreateMetaData()
+            };
+
+            ReadOnlyMemory<byte> bytes = await new JsonEncoder().EncodeAsync(msg, ctx).ConfigureAwait(false);
+
+            using var document = JsonDocument.Parse(bytes);
+            Assert.That(PropertyNames(document.RootElement), Is.EqualTo(s_metaDataLayout));
+            var decoded = await new JsonDecoder().TryDecodeAsync(bytes, ctx).ConfigureAwait(false)
+                as Opc.Ua.PubSub.Encoding.Json.JsonMetaDataMessage;
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.WriterGroupName, Is.EqualTo("WG"));
+            Assert.That(decoded.DataSetWriterName, Is.EqualTo("DSW"));
+            Assert.That(decoded.MetaDataPayload!.Fields, Has.Count.EqualTo(3));
+        }
+
+        private static string[] PropertyNames(JsonElement element)
+        {
+            var names = new System.Collections.Generic.List<string>();
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                names.Add(property.Name);
+            }
+            return [.. names];
+        }
         [Test]
         [TestSpec("7.2.5.5")]
         public async Task RoundTrip_PublisherEndpointsAsync()

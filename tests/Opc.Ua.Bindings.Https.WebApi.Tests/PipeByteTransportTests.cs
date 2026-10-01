@@ -374,10 +374,32 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             // size = 4 in the header (< minimum 8 byte UASC header)
             byte[] bad = new byte[8];
-            BinaryPrimitives.WriteUInt32BigEndian(bad, TcpMessageType.Hello); // message type
-            BinaryPrimitives.WriteInt32LittleEndian(bad.AsSpan(4), 4);        // size = 4
+            BinaryPrimitives.WriteUInt32LittleEndian(bad, TcpMessageType.Hello); // message type
+            BinaryPrimitives.WriteInt32LittleEndian(bad.AsSpan(4), 4);           // size = 4
 
             await WriteToServerInputAsync(ctx, bad).ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None)
+                    .ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
+        }
+
+        /// <summary>
+        /// A chunk with an unknown message type is rejected at the framing
+        /// layer with <see cref="StatusCodes.BadTcpMessageTypeInvalid"/>, as the
+        /// socket transport does.
+        /// </summary>
+        [TestCase(0x464C4548u, TestName = "ByteSwappedHello")] // "FLEH" on the wire
+        [TestCase(0x4F504E58u, TestName = "UnknownChunkType")] // "OPNX" on the wire
+        public async Task ReceiveChunkAsyncRejectsUnknownMessageTypeAsync(uint messageType)
+        {
+            using var ctx = new TestConnectionContext();
+            using var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+
+            byte[] chunk = BuildValidChunk(size: 32);
+            BinaryPrimitives.WriteUInt32BigEndian(chunk, messageType);
+            await WriteToServerInputAsync(ctx, chunk).ConfigureAwait(false);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
@@ -480,7 +502,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private static byte[] BuildValidChunk(int size)
         {
             byte[] buffer = new byte[size];
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, TcpMessageType.Hello);
+            BinaryPrimitives.WriteUInt32LittleEndian(buffer, TcpMessageType.Hello);
             BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(4), size);
             for (int i = 8; i < size; i++)
             {

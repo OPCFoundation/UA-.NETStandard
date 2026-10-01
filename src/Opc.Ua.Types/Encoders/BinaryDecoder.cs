@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// <summary>
     /// Decodes objects from a UA Binary encoded stream.
     /// </summary>
-    public class BinaryDecoder : IDecoder
+    public partial class BinaryDecoder : IDecoder
     {
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
@@ -241,13 +241,18 @@ namespace Opc.Ua
         /// that contains it. <see cref="Decimal.Decode"/> is the only caller,
         /// and this stays internal so it remains the only one.
         /// </remarks>
+        /// <param name="maxLength">The largest number of bytes the caller
+        /// accepts, checked before anything is read; 0 for no limit.</param>
         /// <param name="bytes">The rest of the body.</param>
         /// <returns>
         /// <c>false</c> when no body is being decoded or the writer did not
         /// fill in its length, in which case the extent is unknown and nothing
         /// is read.
         /// </returns>
-        internal bool TryReadRemainingBodyBytes(out byte[] bytes)
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the rest of
+        /// the body is longer than <paramref name="maxLength"/>.</exception>
+        internal bool TryReadRemainingBodyBytes(int maxLength, out byte[] bytes)
         {
             if (m_bodyEnd < 0)
             {
@@ -262,6 +267,14 @@ namespace Opc.Ua
             // as something other than BadDecodingError. An empty run says the
             // same thing and lets the caller reject it in its own terms.
             int remaining = m_bodyEnd - Position;
+            if (maxLength > 0 && remaining > maxLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "ExtensionObject body remainder of {0} bytes exceeds the limit of {1}.",
+                    remaining,
+                    maxLength);
+            }
             bytes = remaining > 0 ? SafeReadBytes(remaining) : [];
             return true;
         }
@@ -295,16 +308,24 @@ namespace Opc.Ua
         /// </summary>
         public bool LoadStringTable(StringTable stringTable)
         {
-            int count = SafeReadInt32();
+            int count = ReadArrayLength(4);
 
-            if (count < -0)
+            if (count < 0)
             {
                 return false;
             }
 
-            for (uint ii = 0; ii < count; ii++)
+            for (int ii = 0; ii < count; ii++)
             {
-                stringTable.Append(ReadString(null) ?? string.Empty);
+                string? value = ReadString(null);
+                if (string.IsNullOrEmpty(value))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "String table entry {0} is null or empty.",
+                        ii);
+                }
+                stringTable.Append(value!);
             }
 
             return true;
@@ -460,6 +481,11 @@ namespace Opc.Ua
             // length is always >= 1 here
 #if NET6_0_OR_GREATER
             const int maxStackAlloc = 1024;
+            if (length > maxStackAlloc)
+            {
+                // Do not rent a declared length the message cannot hold.
+                CheckRemainingBytes(length, nameof(ReadString));
+            }
             byte[]? buffer = null;
             try
             {
@@ -486,6 +512,7 @@ namespace Opc.Ua
                 }
             }
 #else
+            // Does not allocate a declared length the message cannot hold.
             byte[] bytes = SafeReadBytes(length);
 
             // If 0 terminated, decrease length to remove 0 terminators before converting to string
@@ -674,9 +701,35 @@ namespace Opc.Ua
             try
             {
                 byte encodingByte = SafeReadByte();
+                int typeId = encodingByte & (byte)VariantArrayEncodingBits.TypeMask;
+
+                // The built-in type ids 26 through 31 are reserved: decoders
+                // shall accept them and assume the value is a ByteString
+                // (OPC 10000-6 5.2.2.16). The ids 26-29 the SDK assigns to its
+                // pseudo types (Number, Integer, UInteger, Enumeration) are
+                // never written to the wire (Enumeration is sent as Int32).
+                if (typeId is >= kFirstReservedVariantTypeId and <= kLastReservedVariantTypeId)
+                {
+                    typeId = (int)BuiltInType.ByteString;
+                }
+
+                // Only a mask of 0 is a NULL without further fields; with the
+                // array bit set, ArrayLength (and ArrayDimensions) are present
+                // (OPC 10000-6 5.2.2.16). A Null element has no bytes, so
+                // consume and bound them to stay in sync and return NULL.
+                if (typeId == (int)BuiltInType.Null &&
+                    (encodingByte & (byte)VariantArrayEncodingBits.Array) != 0)
+                {
+                    ReadArrayLength(0);
+                    if ((encodingByte & (byte)VariantArrayEncodingBits.ArrayDimensions) != 0)
+                    {
+                        ReadInt32Array(null);
+                    }
+                    return Variant.Null;
+                }
+
                 var typeInfo = TypeInfo.Create(
-                    (BuiltInType)
-                        (encodingByte & (byte)VariantArrayEncodingBits.TypeMask),
+                    (BuiltInType)typeId,
                     (encodingByte & (byte)VariantArrayEncodingBits.Array) == 0 ?
                         ValueRanks.Scalar :
                     (encodingByte & (byte)VariantArrayEncodingBits.ArrayDimensions) == 0 ?
@@ -725,37 +778,35 @@ namespace Opc.Ua
                 statusCode = ReadStatusCode(null);
             }
 
-            bool hasPicoseconds = (encodingByte &
-                (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
-            if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
+            // Picoseconds without their timestamp are read and ignored, and
+            // values >= 10000 are treated as 9999 (OPC 10000-6 5.2.2.17).
+            bool hasTimestamp = (encodingByte &
+                (byte)DataValueEncodingBits.SourceTimestamp) != 0;
+            if (hasTimestamp)
             {
                 sourceTimestamp = ReadDateTime(null);
-                if (hasPicoseconds)
-                {
-                    sourcePicoseconds = ReadUInt16(null);
-                }
             }
-            else if (hasPicoseconds)
+            if ((encodingByte & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "DataValue SourcePicoseconds is present without SourceTimestamp.");
+                ushort picoseconds = ReadUInt16(null);
+                if (hasTimestamp)
+                {
+                    sourcePicoseconds = Math.Min(picoseconds, kMaxPicoseconds);
+                }
             }
 
-            hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0;
-            if ((encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
+            hasTimestamp = (encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0;
+            if (hasTimestamp)
             {
                 serverTimestamp = ReadDateTime(null);
-                if (hasPicoseconds)
-                {
-                    serverPicoseconds = ReadUInt16(null);
-                }
             }
-            else if (hasPicoseconds)
+            if ((encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadDecodingError,
-                    "DataValue ServerPicoseconds is present without ServerTimestamp.");
+                ushort picoseconds = ReadUInt16(null);
+                if (hasTimestamp)
+                {
+                    serverPicoseconds = Math.Min(picoseconds, kMaxPicoseconds);
+                }
             }
 
             return new DataValue(
@@ -846,7 +897,31 @@ namespace Opc.Ua
                     {
                         // An encoding limit breach must not be downgraded into a
                         // successful decode that keeps the over limit raw body.
-                        Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message, element.OuterXml);
+                        // Otherwise the policy of a binary body applies: a known
+                        // type in ns=0 must decode, other types are kept raw only
+                        // up to MaxDecoderRecoveries times and logged once, so a
+                        // message cannot flood the log with its own content.
+                        if (typeId.NamespaceIndex == 0 ||
+                            m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                        {
+                            if (e is ServiceResultException)
+                            {
+                                throw;
+                            }
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                e,
+                                "Failed to decode encodeable type '{0}' encoded as Xml, NodeId='{1}'.",
+                                activator.XmlName,
+                                extension.TypeId);
+                        }
+
+                        if (m_encodeablesRecovered == 0)
+                        {
+                            Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message);
+                        }
+
+                        m_encodeablesRecovered++;
                     }
                 }
 
@@ -911,9 +986,12 @@ namespace Opc.Ua
                     exception = eofStream;
                 }
                 catch (ServiceResultException sre) when (
-                    sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
                     sre.StatusCode == StatusCodes.BadDecodingError)
                 {
+                    // BadEncodingLimitsExceeded is not caught: like in the XML
+                    // branch a limit breach must not be downgraded into keeping
+                    // the over limit body, which a consumer later decodes with a
+                    // fresh decoder whose nesting level starts at 0.
                     errorMessage = sre.Message;
                     exception = sre;
                 }
@@ -1080,450 +1158,160 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ArrayOf<bool> ReadBooleanArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            bool[] values = new bool[length];
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadBoolean(null);
-            }
-            return values;
+            return ReadArray<bool, BooleanElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<sbyte> ReadSByteArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<sbyte>(length);
+            return ReadFixedWidthArray<sbyte>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<byte> ReadByteArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<byte>(length);
+            return ReadFixedWidthArray<byte>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<short> ReadInt16Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<short>(length);
+            return ReadFixedWidthArray<short>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<ushort> ReadUInt16Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<ushort>(length);
+            return ReadFixedWidthArray<ushort>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<int> ReadInt32Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<int>(length);
+            return ReadFixedWidthArray<int>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<uint> ReadUInt32Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<uint>(length);
+            return ReadFixedWidthArray<uint>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<long> ReadInt64Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<long>(length);
+            return ReadFixedWidthArray<long>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<ulong> ReadUInt64Array(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<ulong>(length);
+            return ReadFixedWidthArray<ulong>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<float> ReadFloatArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<float>(length);
+            return ReadFixedWidthArray<float>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<double> ReadDoubleArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            return ReadFixedWidthArray<double>(length);
+            return ReadFixedWidthArray<double>();
         }
 
         /// <inheritdoc/>
         public ArrayOf<string?> ReadStringArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            string?[] values = new string?[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadString(null);
-            }
-
-            return values;
+            return ReadArray<string?, StringElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<DateTimeUtc> ReadDateTimeArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new DateTimeUtc[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadDateTime(null);
-            }
-
-            return values;
+            return ReadArray<DateTimeUtc, DateTimeElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<Uuid> ReadGuidArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new Uuid[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadGuid(null);
-            }
-
-            return values;
+            return ReadArray<Uuid, GuidElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<ByteString> ReadByteStringArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new ByteString[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadByteString(null);
-            }
-
-            return values;
+            return ReadArray<ByteString, ByteStringElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<XmlElement> ReadXmlElementArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new XmlElement[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadXmlElement(null);
-            }
-
-            return values;
+            return ReadArray<XmlElement, XmlElementElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<NodeId> ReadNodeIdArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new NodeId[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadNodeId(null);
-            }
-
-            return values;
+            return ReadArray<NodeId, NodeIdElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new ExpandedNodeId[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadExpandedNodeId(null);
-            }
-
-            return values;
+            return ReadArray<ExpandedNodeId, ExpandedNodeIdElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<StatusCode> ReadStatusCodeArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new StatusCode[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadStatusCode(null);
-            }
-
-            return values;
+            return ReadArray<StatusCode, StatusCodeElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new DiagnosticInfo?[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadDiagnosticInfo(null);
-            }
-
-            return values;
+            return ReadArray<DiagnosticInfo?, DiagnosticInfoElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<QualifiedName> ReadQualifiedNameArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new QualifiedName[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadQualifiedName(null);
-            }
-
-            return values;
+            return ReadArray<QualifiedName, QualifiedNameElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<LocalizedText> ReadLocalizedTextArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new LocalizedText[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadLocalizedText(null);
-            }
-
-            return values;
+            return ReadArray<LocalizedText, LocalizedTextElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<Variant> ReadVariantArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new Variant[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadVariant(null);
-            }
-
-            return values;
+            return ReadArray<Variant, VariantElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<DataValue> ReadDataValueArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new DataValue[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadDataValue(null);
-            }
-
-            return values;
+            return ReadArray<DataValue, DataValueElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new ExtensionObject[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadExtensionObject(null);
-            }
-
-            return values;
+            return ReadArray<ExtensionObject, ExtensionObjectElementReader>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new T[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEncodeable<T>(null, encodeableTypeId);
-            }
-
-            return values;
+            // An encodeable can encode to no bytes at all, only the
+            // MaxArrayLength limit applies to its element count.
+            return ReadArray<T, EncodeableByTypeIdElementReader<T>>(new(encodeableTypeId));
         }
 
         /// <inheritdoc/>
@@ -1533,8 +1321,9 @@ namespace Opc.Ua
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
             // An encodeable can encode to no bytes at all, only the
             // MaxArrayLength limit applies to its element count.
-            return ReadInlineMatrix(encodeableTypeId, 0,
-                d => d.ReadEncodeable<T>(null, encodeableTypeId));
+            return ReadInlineMatrix<T, EncodeableByTypeIdElementReader<T>>(
+                encodeableTypeId,
+                new(encodeableTypeId));
         }
 
         /// <inheritdoc/>
@@ -1542,90 +1331,33 @@ namespace Opc.Ua
             where T : IEncodeable, new()
         {
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
-            return ReadInlineMatrix(typeof(T).Name, 0,
-                static d => d.ReadEncodeable<T>(null));
+            return ReadInlineMatrix<T, EncodeableElementReader<T>>(typeof(T).Name, default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new T[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEncodeableAsExtensionObject<T>(null);
-            }
-
-            return values;
+            return ReadArray<T, EncodeableAsExtensionObjectElementReader<T>>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName)
             where T : IEncodeable, new()
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new T[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEncodeable<T>(null);
-            }
-
-            return values;
+            return ReadArray<T, EncodeableElementReader<T>>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName) where T : struct, Enum
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new T[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEnumerated<T>(null);
-            }
-
-            return values;
+            return ReadArray<T, EnumeratedElementReader<T>>(default);
         }
 
         /// <inheritdoc/>
         public ArrayOf<EnumValue> ReadEnumeratedArray(string? fieldName)
         {
-            int length = ReadArrayLength();
-
-            if (length == -1)
-            {
-                return default;
-            }
-
-            var values = new EnumValue[length];
-
-            for (int ii = 0; ii < length; ii++)
-            {
-                values[ii] = ReadEnumerated(null);
-            }
-
-            return values;
+            return ReadArray<EnumValue, EnumValueElementReader>(default);
         }
 
         /// <inheritdoc/>
@@ -1665,344 +1397,373 @@ namespace Opc.Ua
                 return default;
             }
 
-            // read the encoding byte if we do not have the type info.
+            // Each form is read by its own method. A Variant nested in a Variant
+            // array, a DataValue or an ExtensionObject recurses through here, and a
+            // single method holding the temporaries of all three switches made every
+            // nesting level cost several KB of stack.
             if (typeInfo.IsScalar)
             {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        return Variant.Null;
-                    case BuiltInType.Boolean:
-                        return Variant.From(SafeReadBoolean());
-                    case BuiltInType.SByte:
-                        return Variant.From(SafeReadSByte());
-                    case BuiltInType.Byte:
-                        return Variant.From(SafeReadByte());
-                    case BuiltInType.Int16:
-                        return Variant.From(SafeReadInt16());
-                    case BuiltInType.UInt16:
-                        return Variant.From(SafeReadUInt16());
-                    case BuiltInType.Int32:
-                        return Variant.From(SafeReadInt32());
-                    case BuiltInType.Enumeration:
-                        return Variant.From(ReadEnumerated(null));
-                    case BuiltInType.UInt32:
-                        return Variant.From(SafeReadUInt32());
-                    case BuiltInType.Int64:
-                        return Variant.From(SafeReadInt64());
-                    case BuiltInType.UInt64:
-                        return Variant.From(SafeReadUInt64());
-                    case BuiltInType.Float:
-                        return Variant.From(SafeReadFloat());
-                    case BuiltInType.Double:
-                        return Variant.From(SafeReadDouble());
-                    case BuiltInType.String:
-                        return Variant.From(ReadString(null)!);
-                    case BuiltInType.DateTime:
-                        return Variant.From(ReadDateTime(null));
-                    case BuiltInType.Guid:
-                        return Variant.From(ReadGuid(null));
-                    case BuiltInType.ByteString:
-                        return Variant.From(ReadByteString(null));
-                    case BuiltInType.XmlElement:
-                        return Variant.From(ReadXmlElement(null));
-                    case BuiltInType.NodeId:
-                        return Variant.From(ReadNodeId(null));
-                    case BuiltInType.ExpandedNodeId:
-                        return Variant.From(ReadExpandedNodeId(null));
-                    case BuiltInType.StatusCode:
-                        return Variant.From(ReadStatusCode(null));
-                    case BuiltInType.QualifiedName:
-                        return Variant.From(ReadQualifiedName(null));
-                    case BuiltInType.LocalizedText:
-                        return Variant.From(ReadLocalizedText(null));
-                    case BuiltInType.ExtensionObject:
-                        return Variant.From(ReadExtensionObject(null));
-                    case BuiltInType.DataValue:
-                        return Variant.From(ReadDataValue(null));
-                    case BuiltInType.Variant:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.DiagnosticInfo:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unsupported built in type for Variant content ({0}).",
-                            typeInfo);
-                    default:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unexpected scalar built in type ({0}).",
-                            typeInfo);
-                }
+                return ReadScalarVariantValue(typeInfo);
             }
             if (typeInfo.IsArray)
             {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        return Variant.Null;
-                    case BuiltInType.Boolean:
-                        return Variant.From(ReadBooleanArray(null));
-                    case BuiltInType.SByte:
-                        return Variant.From(ReadSByteArray(null));
-                    case BuiltInType.Byte:
-                        return Variant.From(ReadByteArray(null));
-                    case BuiltInType.Int16:
-                        return Variant.From(ReadInt16Array(null));
-                    case BuiltInType.UInt16:
-                        return Variant.From(ReadUInt16Array(null));
-                    case BuiltInType.Int32:
-                        return Variant.From(ReadInt32Array(null));
-                    case BuiltInType.Enumeration:
-                        return Variant.From(ReadEnumeratedArray(null));
-                    case BuiltInType.UInt32:
-                        return Variant.From(ReadUInt32Array(null));
-                    case BuiltInType.Int64:
-                        return Variant.From(ReadInt64Array(null));
-                    case BuiltInType.UInt64:
-                        return Variant.From(ReadUInt64Array(null));
-                    case BuiltInType.Float:
-                        return Variant.From(ReadFloatArray(null));
-                    case BuiltInType.Double:
-                        return Variant.From(ReadDoubleArray(null));
-                    case BuiltInType.String:
-#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ReadStringArray(null));
-#pragma warning restore CS8620
-                    case BuiltInType.DateTime:
-                        return Variant.From(ReadDateTimeArray(null));
-                    case BuiltInType.Guid:
-                        return Variant.From(ReadGuidArray(null));
-                    case BuiltInType.ByteString:
-                        return Variant.From(ReadByteStringArray(null));
-                    case BuiltInType.XmlElement:
-                        return Variant.From(ReadXmlElementArray(null));
-                    case BuiltInType.NodeId:
-                        return Variant.From(ReadNodeIdArray(null));
-                    case BuiltInType.ExpandedNodeId:
-                        return Variant.From(ReadExpandedNodeIdArray(null));
-                    case BuiltInType.StatusCode:
-                        return Variant.From(ReadStatusCodeArray(null));
-                    case BuiltInType.QualifiedName:
-                        return Variant.From(ReadQualifiedNameArray(null));
-                    case BuiltInType.LocalizedText:
-                        return Variant.From(ReadLocalizedTextArray(null));
-                    case BuiltInType.ExtensionObject:
-                        return Variant.From(ReadExtensionObjectArray(null));
-                    case BuiltInType.DataValue:
-#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ReadDataValueArray(null));
-#pragma warning restore CS8620
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.Variant:
-                        return Variant.From(ReadVariantArray(null));
-                    case BuiltInType.DiagnosticInfo:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unsupported built in type for Variant array content ({0}).",
-                            typeInfo);
-                    default:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unexpected array built in type ({0}).",
-                            typeInfo);
-                }
+                return ReadArrayVariantValue(typeInfo);
             }
-            else if (readRawValue)
+            if (readRawValue)
             {
                 // A multi-dimensional structure field is an inline matrix.
                 // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
                 return ReadInlineMatrix(typeInfo);
             }
-            else
+            return ReadMatrixVariantValue(typeInfo);
+        }
+
+        /// <summary>
+        /// Reads the value of a scalar Variant.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadScalarVariantValue(TypeInfo typeInfo)
+        {
+            switch (typeInfo.BuiltInType)
             {
-                // read the dimensions for variant encoding after the array.
-                // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
-                int[] ReadDims()
-                {
-                    return ReadInt32Array(null).ToArray() ?? [];
-                }
+                case BuiltInType.Null:
+                    return Variant.Null;
+                case BuiltInType.Boolean:
+                    return Variant.From(SafeReadBoolean());
+                case BuiltInType.SByte:
+                    return Variant.From(SafeReadSByte());
+                case BuiltInType.Byte:
+                    return Variant.From(SafeReadByte());
+                case BuiltInType.Int16:
+                    return Variant.From(SafeReadInt16());
+                case BuiltInType.UInt16:
+                    return Variant.From(SafeReadUInt16());
+                case BuiltInType.Int32:
+                    return Variant.From(SafeReadInt32());
+                case BuiltInType.Enumeration:
+                    return Variant.From(ReadEnumerated(null));
+                case BuiltInType.UInt32:
+                    return Variant.From(SafeReadUInt32());
+                case BuiltInType.Int64:
+                    return Variant.From(SafeReadInt64());
+                case BuiltInType.UInt64:
+                    return Variant.From(SafeReadUInt64());
+                case BuiltInType.Float:
+                    return Variant.From(SafeReadFloat());
+                case BuiltInType.Double:
+                    return Variant.From(SafeReadDouble());
+                case BuiltInType.String:
+                    return Variant.From(ReadString(null)!);
+                case BuiltInType.DateTime:
+                    return Variant.From(ReadDateTime(null));
+                case BuiltInType.Guid:
+                    return Variant.From(ReadGuid(null));
+                case BuiltInType.ByteString:
+                    return Variant.From(ReadByteString(null));
+                case BuiltInType.XmlElement:
+                    return Variant.From(ReadXmlElement(null));
+                case BuiltInType.NodeId:
+                    return Variant.From(ReadNodeId(null));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(ReadExpandedNodeId(null));
+                case BuiltInType.StatusCode:
+                    return Variant.From(ReadStatusCode(null));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(ReadQualifiedName(null));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(ReadLocalizedText(null));
+                case BuiltInType.ExtensionObject:
+                    return Variant.From(ReadExtensionObject(null));
+                case BuiltInType.DataValue:
+                    return Variant.From(ReadDataValue(null));
+                case BuiltInType.Variant:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant content ({0}).",
+                        typeInfo);
+                default:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected scalar built in type ({0}).",
+                        typeInfo);
+            }
+        }
 
-                static MatrixOf<T> ToMatrix<T>(
-                    ArrayOf<T> values,
-                    int[] dimensions,
-                    TypeInfo typeInfo)
-                {
-                    if (!MatrixOf.IsValidMatrix(dimensions, values.Count))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Variant matrix ArrayDimensions [{0}] are inconsistent with {1} element(s) ({2}).",
-                            string.Join(",", dimensions),
-                            values.Count,
-                            typeInfo);
-                    }
-
-                    try
-                    {
-                        return values.ToMatrix(dimensions);
-                    }
-                    catch (ArgumentException)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Variant matrix ArrayDimensions [{0}] are inconsistent with {1} element(s) ({2}).",
-                            string.Join(",", dimensions),
-                            values.Count,
-                            typeInfo);
-                    }
-                }
-
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        return Variant.Null;
-                    case BuiltInType.Boolean:
-                        return Variant.From(ToMatrix(
-                            ReadBooleanArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.SByte:
-                        return Variant.From(ToMatrix(
-                            ReadSByteArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Byte:
-                        return Variant.From(ToMatrix(
-                            ReadByteArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Int16:
-                        return Variant.From(ToMatrix(
-                            ReadInt16Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.UInt16:
-                        return Variant.From(ToMatrix(
-                            ReadUInt16Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Int32:
-                        return Variant.From(ToMatrix(
-                            ReadInt32Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Enumeration:
-                        return Variant.From(ToMatrix(
-                            ReadEnumeratedArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.UInt32:
-                        return Variant.From(ToMatrix(
-                            ReadUInt32Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Int64:
-                        return Variant.From(ToMatrix(
-                            ReadInt64Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.UInt64:
-                        return Variant.From(ToMatrix(
-                            ReadUInt64Array(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Float:
-                        return Variant.From(ToMatrix(
-                            ReadFloatArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Double:
-                        return Variant.From(ToMatrix(
-                            ReadDoubleArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.String:
+        /// <summary>
+        /// Reads the value of a one-dimensional Variant array.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadArrayVariantValue(TypeInfo typeInfo)
+        {
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    return Variant.Null;
+                case BuiltInType.Boolean:
+                    return Variant.From(ReadBooleanArray(null));
+                case BuiltInType.SByte:
+                    return Variant.From(ReadSByteArray(null));
+                case BuiltInType.Byte:
+                    return Variant.From(ReadByteArray(null));
+                case BuiltInType.Int16:
+                    return Variant.From(ReadInt16Array(null));
+                case BuiltInType.UInt16:
+                    return Variant.From(ReadUInt16Array(null));
+                case BuiltInType.Int32:
+                    return Variant.From(ReadInt32Array(null));
+                case BuiltInType.Enumeration:
+                    return Variant.From(ReadEnumeratedArray(null));
+                case BuiltInType.UInt32:
+                    return Variant.From(ReadUInt32Array(null));
+                case BuiltInType.Int64:
+                    return Variant.From(ReadInt64Array(null));
+                case BuiltInType.UInt64:
+                    return Variant.From(ReadUInt64Array(null));
+                case BuiltInType.Float:
+                    return Variant.From(ReadFloatArray(null));
+                case BuiltInType.Double:
+                    return Variant.From(ReadDoubleArray(null));
+                case BuiltInType.String:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ToMatrix(
-                            ReadStringArray(null),
-                            ReadDims(),
-                            typeInfo));
+                    return Variant.From(ReadStringArray(null));
 #pragma warning restore CS8620
-                    case BuiltInType.DateTime:
-                        return Variant.From(ToMatrix(
-                            ReadDateTimeArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.Guid:
-                        return Variant.From(ToMatrix(
-                            ReadGuidArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.ByteString:
-                        return Variant.From(ToMatrix(
-                            ReadByteStringArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.XmlElement:
-                        return Variant.From(ToMatrix(
-                            ReadXmlElementArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.NodeId:
-                        return Variant.From(ToMatrix(
-                            ReadNodeIdArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.ExpandedNodeId:
-                        return Variant.From(ToMatrix(
-                            ReadExpandedNodeIdArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.StatusCode:
-                        return Variant.From(ToMatrix(
-                            ReadStatusCodeArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.QualifiedName:
-                        return Variant.From(ToMatrix(
-                            ReadQualifiedNameArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.LocalizedText:
-                        return Variant.From(ToMatrix(
-                            ReadLocalizedTextArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.ExtensionObject:
-                        return Variant.From(ToMatrix(
-                            ReadExtensionObjectArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.DataValue:
+                case BuiltInType.DateTime:
+                    return Variant.From(ReadDateTimeArray(null));
+                case BuiltInType.Guid:
+                    return Variant.From(ReadGuidArray(null));
+                case BuiltInType.ByteString:
+                    return Variant.From(ReadByteStringArray(null));
+                case BuiltInType.XmlElement:
+                    return Variant.From(ReadXmlElementArray(null));
+                case BuiltInType.NodeId:
+                    return Variant.From(ReadNodeIdArray(null));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(ReadExpandedNodeIdArray(null));
+                case BuiltInType.StatusCode:
+                    return Variant.From(ReadStatusCodeArray(null));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(ReadQualifiedNameArray(null));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(ReadLocalizedTextArray(null));
+                case BuiltInType.ExtensionObject:
+                    return Variant.From(ReadExtensionObjectArray(null));
+                case BuiltInType.DataValue:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ToMatrix(
-                            ReadDataValueArray(null),
-                            ReadDims(),
-                            typeInfo));
+                    return Variant.From(ReadDataValueArray(null));
 #pragma warning restore CS8620
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.Variant:
-                        return Variant.From(ToMatrix(
-                            ReadVariantArray(null),
-                            ReadDims(),
-                            typeInfo));
-                    case BuiltInType.DiagnosticInfo:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unsupported built in type for Variant matrix content ({0}).",
-                            typeInfo);
-                    default:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unexpected matrix built in type ({0}).",
-                            typeInfo);
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return Variant.From(ReadVariantArray(null));
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant array content ({0}).",
+                        typeInfo);
+                default:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected array built in type ({0}).",
+                        typeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Reads the value of a Variant matrix: the flattened elements followed
+        /// by the dimensions.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadMatrixVariantValue(TypeInfo typeInfo)
+        {
+            // read the dimensions for variant encoding after the array.
+            // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.2.16
+            int[] ReadDims()
+            {
+                return ReadInt32Array(null).ToArray() ?? [];
+            }
+
+            static MatrixOf<T> ToMatrix<T>(
+                ArrayOf<T> values,
+                int[] dimensions,
+                TypeInfo typeInfo)
+            {
+                MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
+                if (!MatrixOf.IsValidMatrix(dimensions, values.Count))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Variant matrix ArrayDimensions [{0}] are inconsistent with {1} element(s) ({2}).",
+                        string.Join(",", dimensions),
+                        values.Count,
+                        typeInfo);
                 }
+
+                try
+                {
+                    return values.ToMatrix(dimensions);
+                }
+                catch (ArgumentException)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Variant matrix ArrayDimensions [{0}] are inconsistent with {1} element(s) ({2}).",
+                        string.Join(",", dimensions),
+                        values.Count,
+                        typeInfo);
+                }
+            }
+
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    return Variant.Null;
+                case BuiltInType.Boolean:
+                    return Variant.From(ToMatrix(
+                        ReadBooleanArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.SByte:
+                    return Variant.From(ToMatrix(
+                        ReadSByteArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Byte:
+                    return Variant.From(ToMatrix(
+                        ReadByteArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Int16:
+                    return Variant.From(ToMatrix(
+                        ReadInt16Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.UInt16:
+                    return Variant.From(ToMatrix(
+                        ReadUInt16Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Int32:
+                    return Variant.From(ToMatrix(
+                        ReadInt32Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Enumeration:
+                    return Variant.From(ToMatrix(
+                        ReadEnumeratedArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.UInt32:
+                    return Variant.From(ToMatrix(
+                        ReadUInt32Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Int64:
+                    return Variant.From(ToMatrix(
+                        ReadInt64Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.UInt64:
+                    return Variant.From(ToMatrix(
+                        ReadUInt64Array(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Float:
+                    return Variant.From(ToMatrix(
+                        ReadFloatArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Double:
+                    return Variant.From(ToMatrix(
+                        ReadDoubleArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.String:
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
+                    return Variant.From(ToMatrix(
+                        ReadStringArray(null),
+                        ReadDims(),
+                        typeInfo));
+#pragma warning restore CS8620
+                case BuiltInType.DateTime:
+                    return Variant.From(ToMatrix(
+                        ReadDateTimeArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.Guid:
+                    return Variant.From(ToMatrix(
+                        ReadGuidArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.ByteString:
+                    return Variant.From(ToMatrix(
+                        ReadByteStringArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.XmlElement:
+                    return Variant.From(ToMatrix(
+                        ReadXmlElementArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.NodeId:
+                    return Variant.From(ToMatrix(
+                        ReadNodeIdArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.ExpandedNodeId:
+                    return Variant.From(ToMatrix(
+                        ReadExpandedNodeIdArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.StatusCode:
+                    return Variant.From(ToMatrix(
+                        ReadStatusCodeArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.QualifiedName:
+                    return Variant.From(ToMatrix(
+                        ReadQualifiedNameArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.LocalizedText:
+                    return Variant.From(ToMatrix(
+                        ReadLocalizedTextArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.ExtensionObject:
+                    return Variant.From(ToMatrix(
+                        ReadExtensionObjectArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.DataValue:
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
+                    return Variant.From(ToMatrix(
+                        ReadDataValueArray(null),
+                        ReadDims(),
+                        typeInfo));
+#pragma warning restore CS8620
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.Variant:
+                    return Variant.From(ToMatrix(
+                        ReadVariantArray(null),
+                        ReadDims(),
+                        typeInfo));
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant matrix content ({0}).",
+                        typeInfo);
+                default:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected matrix built in type ({0}).",
+                        typeInfo);
             }
         }
 
@@ -2019,8 +1780,8 @@ namespace Opc.Ua
                 case BuiltInType.Null:
                     return Variant.Null;
                 case BuiltInType.Boolean:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadBoolean(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<bool, BooleanElementReader>(typeInfo, default));
                 case BuiltInType.SByte:
                     return Variant.From(ReadInlineMatrixFixed<sbyte>(typeInfo));
                 case BuiltInType.Byte:
@@ -2032,8 +1793,8 @@ namespace Opc.Ua
                 case BuiltInType.Int32:
                     return Variant.From(ReadInlineMatrixFixed<int>(typeInfo));
                 case BuiltInType.Enumeration:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadEnumerated(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<EnumValue, EnumValueElementReader>(typeInfo, default));
                 case BuiltInType.UInt32:
                     return Variant.From(ReadInlineMatrixFixed<uint>(typeInfo));
                 case BuiltInType.Int64:
@@ -2046,50 +1807,50 @@ namespace Opc.Ua
                     return Variant.From(ReadInlineMatrixFixed<double>(typeInfo));
                 case BuiltInType.String:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadString(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<string?, StringElementReader>(typeInfo, default));
 #pragma warning restore CS8620
                 case BuiltInType.DateTime:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 8,
-                        static d => d.ReadDateTime(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<DateTimeUtc, DateTimeElementReader>(typeInfo, default));
                 case BuiltInType.Guid:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 16,
-                        static d => d.ReadGuid(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<Uuid, GuidElementReader>(typeInfo, default));
                 case BuiltInType.ByteString:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadByteString(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<ByteString, ByteStringElementReader>(typeInfo, default));
                 case BuiltInType.XmlElement:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadXmlElement(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<XmlElement, XmlElementElementReader>(typeInfo, default));
                 case BuiltInType.NodeId:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 2,
-                        static d => d.ReadNodeId(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<NodeId, NodeIdElementReader>(typeInfo, default));
                 case BuiltInType.ExpandedNodeId:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 2,
-                        static d => d.ReadExpandedNodeId(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<ExpandedNodeId, ExpandedNodeIdElementReader>(typeInfo, default));
                 case BuiltInType.StatusCode:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 4,
-                        static d => d.ReadStatusCode(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<StatusCode, StatusCodeElementReader>(typeInfo, default));
                 case BuiltInType.QualifiedName:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 6,
-                        static d => d.ReadQualifiedName(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<QualifiedName, QualifiedNameElementReader>(typeInfo, default));
                 case BuiltInType.LocalizedText:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadLocalizedText(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<LocalizedText, LocalizedTextElementReader>(typeInfo, default));
                 case BuiltInType.ExtensionObject:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 3,
-                        static d => d.ReadExtensionObject(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<ExtensionObject, ExtensionObjectElementReader>(typeInfo, default));
                 case BuiltInType.DataValue:
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadDataValue(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<DataValue, DataValueElementReader>(typeInfo, default));
 #pragma warning restore CS8620
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
                 case BuiltInType.Variant:
-                    return Variant.From(ReadInlineMatrix(typeInfo, 1,
-                        static d => d.ReadVariant(null)));
+                    return Variant.From(
+                        ReadInlineMatrix<Variant, VariantElementReader>(typeInfo, default));
                 case BuiltInType.DiagnosticInfo:
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
@@ -2115,32 +1876,24 @@ namespace Opc.Ua
         /// allocated.
         /// </summary>
         /// <typeparam name="T">The element type.</typeparam>
+        /// <typeparam name="TReader">Reads a single element.</typeparam>
         /// <param name="description">The field type, for diagnostics.</param>
-        /// <param name="minElementSize">The minimum number of bytes a single
-        /// element takes on the wire, 0 when an element can be empty.</param>
-        /// <param name="readElement">Reads a single element.</param>
+        /// <param name="reader">Reads a single element.</param>
         /// <exception cref="ServiceResultException"></exception>
-        private MatrixOf<T> ReadInlineMatrix<T>(
-            object description,
-            int minElementSize,
-            Func<BinaryDecoder, T> readElement)
+        private MatrixOf<T> ReadInlineMatrix<T, TReader>(object description, TReader reader)
+            where TReader : struct, IElementReader<T>
         {
             int[]? dimensions = ReadInt32Array(null).ToArray();
             if (dimensions == null)
             {
                 return default;
             }
-            int count = GetInlineMatrixElementCount(dimensions, minElementSize, description);
+            int count = GetInlineMatrixElementCount(dimensions, reader.MinElementSize, description);
             if (count == 0)
             {
                 return new MatrixOf<T>(Array.Empty<T>(), dimensions);
             }
-            var values = new T[count];
-            for (int ii = 0; ii < values.Length; ii++)
-            {
-                values[ii] = readElement(this);
-            }
-            return new MatrixOf<T>(values, dimensions);
+            return new MatrixOf<T>(ReadArrayElements<T, TReader>(count, reader), dimensions);
         }
 
         /// <summary>
@@ -2178,6 +1931,7 @@ namespace Opc.Ua
             int minElementSize,
             object description)
         {
+            MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
             if (dimensions.Length < 2)
             {
                 throw ServiceResultException.Create(
@@ -2353,10 +2107,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads the length of an array.
+        /// Reads the length of an array. The length is attacker controlled:
+        /// besides <see cref="IServiceMessageContext.MaxArrayLength"/> a length
+        /// whose elements (of at least <paramref name="minElementSize"/> bytes
+        /// each) the remaining message cannot hold is rejected before anything
+        /// is allocated for them.
         /// </summary>
+        /// <param name="minElementSize">The minimum number of bytes a single
+        /// element takes on the wire, 0 when an element can be empty.</param>
+        /// <param name="callerMemberName">The caller, for diagnostics.</param>
         /// <exception cref="ServiceResultException"></exception>
-        private int ReadArrayLength([CallerMemberName] string callerMemberName = "")
+        private int ReadArrayLength(
+            int minElementSize,
+            [CallerMemberName] string callerMemberName = "")
         {
             int length = SafeReadInt32();
 
@@ -2375,23 +2138,181 @@ namespace Opc.Ua
                     length);
             }
 
+            long remaining = GetRemainingLength();
+            if (minElementSize > 0 && remaining >= 0 && (long)length * minElementSize > remaining)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Array length {0} in {1} needs at least {2} bytes, only {3} remain.",
+                    length,
+                    callerMemberName,
+                    (long)length * minElementSize,
+                    remaining);
+            }
+
             return length;
+        }
+
+        /// <summary>
+        /// Reads an array whose elements are read one by one.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <typeparam name="TReader">Reads a single element.</typeparam>
+        /// <param name="reader">Reads a single element.</param>
+        /// <param name="callerMemberName">The caller, for diagnostics.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        private ArrayOf<T> ReadArray<T, TReader>(
+            TReader reader,
+            [CallerMemberName] string callerMemberName = "")
+            where TReader : struct, IElementReader<T>
+        {
+            int length = ReadArrayLength(reader.MinElementSize, callerMemberName);
+
+            if (length == -1)
+            {
+                return default;
+            }
+
+            return ReadArrayElements<T, TReader>(length, reader);
+        }
+
+        /// <summary>
+        /// Reads <paramref name="length"/> elements into an array. The
+        /// remaining bytes check of the length does not bound what a nested
+        /// element allocates: every level of a Variant, DataValue or
+        /// ExtensionObject array nested in the first element of its parent is
+        /// checked against the same remaining bytes.
+        /// The array is allocated at its full length only while all arrays
+        /// allocated this way and still being read, this one included, take
+        /// at most <see cref="kMaxPreallocatedBytesPerRemainingByte"/> bytes
+        /// per remaining message byte, so a chain of nested length prefixes
+        /// shares one budget instead of multiplying it. Otherwise the array
+        /// starts at <see cref="kMaxPreallocatedArrayBytes"/> and grows as
+        /// the elements are read, which keeps the memory held by such a chain
+        /// proportional to the elements actually decoded.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <typeparam name="TReader">Reads a single element.</typeparam>
+        /// <param name="length">The validated number of elements.</param>
+        /// <param name="reader">Reads a single element.</param>
+        private T[] ReadArrayElements<T, TReader>(int length, TReader reader)
+            where TReader : struct, IElementReader<T>
+        {
+            int capacity = GetInitialArrayCapacity<T>(length);
+            if (capacity < length)
+            {
+                long bytes = (long)length * Unsafe.SizeOf<T>();
+                long remaining = GetRemainingLength();
+                if (remaining >= 0 &&
+                    m_preallocatedBytes + bytes <= kMaxPreallocatedBytesPerRemainingByte * remaining)
+                {
+                    return ReadPreallocatedArrayElements<T, TReader>(length, bytes, reader);
+                }
+            }
+
+            var values = new T[capacity];
+            for (int ii = 0; ii < length; ii++)
+            {
+                if (ii == values.Length)
+                {
+                    Array.Resize(ref values, (int)Math.Min(length, 2L * values.Length));
+                }
+                values[ii] = reader.Read(this);
+            }
+            return values;
+        }
+
+        /// <summary>
+        /// Reads <paramref name="length"/> elements into an array allocated
+        /// at its full length of <paramref name="bytes"/> bytes, which count
+        /// against the preallocation budget of nested arrays until the last
+        /// element is read.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <typeparam name="TReader">Reads a single element.</typeparam>
+        private T[] ReadPreallocatedArrayElements<T, TReader>(
+            int length,
+            long bytes,
+            TReader reader)
+            where TReader : struct, IElementReader<T>
+        {
+            var values = new T[length];
+            long preallocatedBytes = m_preallocatedBytes;
+            m_preallocatedBytes = preallocatedBytes + bytes;
+            try
+            {
+                for (int ii = 0; ii < values.Length; ii++)
+                {
+                    values[ii] = reader.Read(this);
+                }
+            }
+            finally
+            {
+                m_preallocatedBytes = preallocatedBytes;
+            }
+            return values;
+        }
+
+        /// <summary>
+        /// The number of elements to allocate up front for an array of
+        /// <paramref name="length"/> elements that is grown while reading.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        private static int GetInitialArrayCapacity<T>(int length)
+        {
+            int maxElements = Math.Max(1, kMaxPreallocatedArrayBytes / Unsafe.SizeOf<T>());
+            return Math.Min(length, maxElements);
+        }
+
+        /// <summary>
+        /// Reads a length prefixed array of a fixed-width unmanaged numeric type.
+        /// </summary>
+        /// <typeparam name="T">The unmanaged element type.</typeparam>
+        /// <param name="callerMemberName">The caller, for diagnostics.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        private ArrayOf<T> ReadFixedWidthArray<T>(
+            [CallerMemberName] string callerMemberName = "")
+            where T : unmanaged
+        {
+            int length = ReadArrayLength(Unsafe.SizeOf<T>(), callerMemberName);
+
+            if (length == -1)
+            {
+                return default;
+            }
+
+            return ReadFixedWidthArray<T>(length);
         }
 
         /// <summary>
         /// Reads a fixed-width unmanaged numeric array from raw little-endian bytes.
         /// </summary>
         /// <typeparam name="T">The unmanaged element type.</typeparam>
-        /// <param name="length">The number of elements to read.</param>
+        /// <param name="length">The number of elements to read, checked
+        /// against the remaining bytes by the caller.</param>
         private T[] ReadFixedWidthArray<T>(int length) where T : unmanaged
         {
-            var values = new T[length];
-            Span<byte> bytes = MemoryMarshal.AsBytes(values.AsSpan());
-            ReadRawBytes(bytes);
+            // The caller verified the length against the remaining bytes. If
+            // they are unknown the array grows with the bytes actually read.
+            int capacity = GetRemainingLength() >= 0
+                ? length
+                : GetInitialArrayCapacity<T>(length);
+            var values = new T[capacity];
+            int read = 0;
+            while (true)
+            {
+                ReadRawBytes(MemoryMarshal.AsBytes(values.AsSpan(read)));
+                read = values.Length;
+                if (read == length)
+                {
+                    break;
+                }
+                Array.Resize(ref values, (int)Math.Min(length, 2L * read));
+            }
 
             if (!BitConverter.IsLittleEndian)
             {
-                ReverseFixedWidthElements(values);
+                ReverseFixedWidthElements<T>(values);
             }
 
             return values;
@@ -2531,17 +2452,66 @@ namespace Opc.Ua
                 return SafeReadSpan(length, functionName).ToArray();
             }
 
-            byte[] bytes = m_reader.ReadBytes(length);
-            if (bytes.Length != length)
+            return SafeReadStreamBytes(length, functionName);
+        }
+
+        /// <summary>
+        /// Reads bytes from the stream, see <see cref="SafeReadBytes(int, string?)"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
+        private byte[] SafeReadStreamBytes(int length, string? functionName)
+        {
+            // BinaryReader.ReadBytes allocates the requested length before it
+            // reads: never hand it a length the stream cannot satisfy.
+            CheckRemainingBytes(length, functionName);
+            if (GetRemainingLength() >= 0)
+            {
+                byte[] bytes = m_reader.ReadBytes(length);
+                if (bytes.Length != length)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                        length,
+                        functionName ?? string.Empty,
+                        bytes.Length);
+                }
+                return bytes;
+            }
+
+            // The remaining bytes are unknown: grow with the bytes read.
+            byte[] buffer = new byte[GetInitialArrayCapacity<byte>(length)];
+            int read = 0;
+            while (true)
+            {
+                ReadRawBytes(buffer.AsSpan(read), functionName);
+                read = buffer.Length;
+                if (read == length)
+                {
+                    return buffer;
+                }
+                Array.Resize(ref buffer, (int)Math.Min(length, 2L * read));
+            }
+        }
+
+        /// <summary>
+        /// Rejects a length prefixed value of <paramref name="length"/> bytes
+        /// that the rest of the message cannot hold, before the caller
+        /// allocates anything for it.
+        /// </summary>
+        /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
+        private void CheckRemainingBytes(int length, string? functionName)
+        {
+            long remaining = GetRemainingLength();
+            if (remaining >= 0 && length > remaining)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
                     length,
                     functionName ?? string.Empty,
-                    bytes.Length);
+                    remaining);
             }
-            return bytes;
         }
 
         /// <summary>
@@ -2580,9 +2550,9 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
-                    length,
+                    bytes.Length,
                     functionName ?? string.Empty,
-                    bytes.Length);
+                    length);
             }
         }
 
@@ -2716,9 +2686,9 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
-                    length,
+                    bytes.Length,
                     functionName ?? string.Empty,
-                    bytes.Length);
+                    length);
             }
 
             return length;
@@ -3007,6 +2977,7 @@ namespace Opc.Ua
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
             }
+            EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
         }
 
@@ -3022,6 +2993,23 @@ namespace Opc.Ua
         // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
         private uint m_encodeablesRecovered;
+
+        // The most bytes allocated up front for an array read element by
+        // element, see ReadArrayElements. Below the large object heap limit.
+        private const int kMaxPreallocatedArrayBytes = 16 * 1024;
+
+        // The bytes of all arrays allocated at their full length and still
+        // being read, and the most bytes they may take per remaining message
+        // byte, see ReadArrayElements.
+        private long m_preallocatedBytes;
+        private const int kMaxPreallocatedBytesPerRemainingByte = 8;
+
+        // The reserved Variant built-in type ids, OPC 10000-6 5.2.2.16.
+        private const int kFirstReservedVariantTypeId = 26;
+        private const int kLastReservedVariantTypeId = 31;
+
+        // The largest valid DataValue picoseconds value, OPC 10000-6 5.2.2.17.
+        private const ushort kMaxPicoseconds = 9999;
         private readonly bool m_hasBuffer;
         private bool m_baseStreamExposed;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<BinaryDecoder>();
