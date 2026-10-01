@@ -77,7 +77,7 @@ namespace Opc.Ua.Server
             uint maxMessageCount,
             ISubscriptionRetransmissionStore? retransmissionStore,
             ILogger logger,
-            List<NotificationMessage> sentMessages,
+            List<NotificationMessage>? sentMessages,
             uint nextSequenceNumber,
             int lastSentMessage)
         {
@@ -86,9 +86,15 @@ namespace Opc.Ua.Server
             MaxMessageCount = maxMessageCount;
             m_retransmissionStore = retransmissionStore;
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            SentMessages = sentMessages.ConvertAll(message => CoreUtils.Clone(message)!);
-            m_sequenceNumber = nextSequenceNumber;
-            m_lastSentMessage = lastSentMessage;
+            // Restored state comes from a pluggable store and is validated: a missing list
+            // is empty, the sent index stays within the list and sequence number 0 is
+            // never used (OPC 10000-4, 5.14.1.1).
+            SentMessages = sentMessages == null
+                ? []
+                : sentMessages.FindAll(message => message != null)
+                    .ConvertAll(message => CoreUtils.Clone(message)!);
+            m_sequenceNumber = ValidateNextSequenceNumber(nextSequenceNumber, SentMessages);
+            m_lastSentMessage = Math.Min(Math.Max(lastSentMessage, 0), SentMessages.Count);
         }
 
         /// <summary>
@@ -99,7 +105,7 @@ namespace Opc.Ua.Server
             uint maxMessageCount,
             ISubscriptionRetransmissionStore? retransmissionStore,
             ILogger logger,
-            List<NotificationMessage> sentMessages,
+            List<NotificationMessage>? sentMessages,
             uint nextSequenceNumber,
             int lastSentMessage)
         {
@@ -179,7 +185,9 @@ namespace Opc.Ua.Server
 
                 moreNotifications = (m_lastSentMessage < SentMessages.Count - 1) || hasItemsToPublish;
 
-                return CoreUtils.Clone(SentMessages[m_lastSentMessage++])!;
+                NotificationMessage queued = CoreUtils.Clone(SentMessages[m_lastSentMessage++])!;
+                StoreSendState();
+                return queued;
             }
 
             return null;
@@ -266,7 +274,9 @@ namespace Opc.Ua.Server
                 availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
             }
 
-            return CoreUtils.Clone(SentMessages[m_lastSentMessage++])!;
+            NotificationMessage next = CoreUtils.Clone(SentMessages[m_lastSentMessage++])!;
+            StoreSendState();
+            return next;
         }
 
         /// <summary>
@@ -289,6 +299,7 @@ namespace Opc.Ua.Server
                     SentMessages.RemoveAt(ii);
                     ReuseNotificationPayloads(removed);
                     m_retransmissionStore?.AcknowledgeNotification(Id, sequenceNumber);
+                    StoreSendState();
                     return true;
                 }
             }
@@ -347,9 +358,61 @@ namespace Opc.Ua.Server
             }
 
             Clear();
-            SentMessages.AddRange(state.SentMessages.ConvertAll(message => CoreUtils.Clone(message)!));
-            m_sequenceNumber = state.NextSequenceNumber;
+            foreach (NotificationMessage message in state.SentMessages)
+            {
+                if (message != null)
+                {
+                    SentMessages.Add(CoreUtils.Clone(message)!);
+                }
+            }
+            m_sequenceNumber = ValidateNextSequenceNumber(state.NextSequenceNumber, SentMessages);
+
+            // Messages queued for a Publish response but not yet returned are still
+            // delivered by Publish, not only through Republish (OPC 10000-4, 5.14.1.1).
+            // Mirrors that do not track it treat every retained message as sent.
             m_lastSentMessage = SentMessages.Count;
+            if (state.FirstUnsentSequenceNumber != 0)
+            {
+                int firstUnsent = SentMessages.FindIndex(
+                    message => message.SequenceNumber == state.FirstUnsentSequenceNumber);
+                if (firstUnsent >= 0)
+                {
+                    m_lastSentMessage = firstUnsent;
+                }
+            }
+            m_mirroredFirstUnsentSequenceNumber = GetFirstUnsentSequenceNumber();
+        }
+
+        /// <summary>
+        /// Returns the sequence number of the oldest retained message that was not yet returned
+        /// by a Publish response, or 0 when every retained message was sent.
+        /// </summary>
+        private uint GetFirstUnsentSequenceNumber()
+        {
+            return m_lastSentMessage < SentMessages.Count
+                ? SentMessages[m_lastSentMessage].SequenceNumber
+                : 0;
+        }
+
+        /// <summary>
+        /// Mirrors which retained messages are still queued for a Publish response when the
+        /// store tracks it and the boundary changed.
+        /// </summary>
+        private void StoreSendState()
+        {
+            if (m_retransmissionStore is not ISubscriptionRetransmissionSendStateStore sendStateStore)
+            {
+                return;
+            }
+
+            uint firstUnsentSequenceNumber = GetFirstUnsentSequenceNumber();
+            if (firstUnsentSequenceNumber == m_mirroredFirstUnsentSequenceNumber)
+            {
+                return;
+            }
+
+            sendStateStore.StoreFirstUnsentSequenceNumber(Id, firstUnsentSequenceNumber);
+            m_mirroredFirstUnsentSequenceNumber = firstUnsentSequenceNumber;
         }
 
         /// <summary>
@@ -387,6 +450,26 @@ namespace Opc.Ua.Server
             }
 
             m_retransmissionStore.StoreRetransmissionState(Id, m_sequenceNumber, [.. CreateSnapshot()]);
+        }
+
+        /// <summary>
+        /// Maps the unused sequence number 0 of restored state to the number that follows the
+        /// newest retained message, or to 1 when no message is retained.
+        /// </summary>
+        private static uint ValidateNextSequenceNumber(
+            uint nextSequenceNumber,
+            List<NotificationMessage> sentMessages)
+        {
+            if (nextSequenceNumber != 0)
+            {
+                return nextSequenceNumber;
+            }
+
+            uint sequenceNumber = sentMessages.Count > 0
+                ? sentMessages[sentMessages.Count - 1].SequenceNumber
+                : 0;
+            Utils.IncrementIdentifier(ref sequenceNumber);
+            return sequenceNumber;
         }
 
         private static ArrayOf<uint> GetSequenceNumbers(List<NotificationMessage> messages, int count)
@@ -435,6 +518,7 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private uint m_sequenceNumber;
         private int m_lastSentMessage;
+        private uint m_mirroredFirstUnsentSequenceNumber;
     }
 
     /// <summary>

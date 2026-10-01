@@ -30,28 +30,27 @@
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Mirrored retransmission state for a subscription.
+    /// Optional extension of a live retransmission mirror that also tracks which retained
+    /// notifications are still queued for a Publish response.
     /// </summary>
-    public sealed class SubscriptionRetransmissionState
+    /// <remarks>
+    /// A subscription can retain messages that were produced for a Publish response with
+    /// MoreNotifications set but not yet returned. Without this information a replica that
+    /// restores the mirror treats them as sent, so they are only reachable through Republish.
+    /// Implementations return the stored value in
+    /// <see cref="SubscriptionRetransmissionState.FirstUnsentSequenceNumber"/>.
+    /// </remarks>
+    public interface ISubscriptionRetransmissionSendStateStore : ISubscriptionRetransmissionStore
     {
         /// <summary>
-        /// The next sequence number the subscription should assign.
+        /// Stores the sequence number of the oldest retained notification that was not yet
+        /// returned by a Publish response.
         /// </summary>
-        public uint NextSequenceNumber { get; set; }
-
-        /// <summary>
-        /// Sent notifications that remain available for republish.
-        /// </summary>
-        public ArrayOf<NotificationMessage> SentMessages { get; set; } = [];
-
-        /// <summary>
-        /// The sequence number of the oldest message in <see cref="SentMessages"/> that is
-        /// queued for a Publish response but was not yet returned, or 0 when every message
-        /// was sent (or the mirror does not track it).
-        /// </summary>
-        /// <remarks>
-        /// Populated by stores that implement <see cref="ISubscriptionRetransmissionSendStateStore"/>.
-        /// </remarks>
-        public uint FirstUnsentSequenceNumber { get; set; }
+        /// <param name="subscriptionId">The subscription id.</param>
+        /// <param name="firstUnsentSequenceNumber">
+        /// The sequence number of the oldest unsent notification, or 0 when every retained
+        /// notification was sent.
+        /// </param>
+        void StoreFirstUnsentSequenceNumber(uint subscriptionId, uint firstUnsentSequenceNumber);
     }
 }

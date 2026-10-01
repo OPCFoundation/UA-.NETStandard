@@ -57,6 +57,7 @@ namespace Opc.Ua.Redundancy.Server
     public sealed class SharedKeyValueSubscriptionStore :
         ISubscriptionStore,
         ISubscriptionRetransmissionDeltaStore,
+        ISubscriptionRetransmissionSendStateStore,
         IContinuationPointStore,
         IAsyncDisposable
     {
@@ -293,6 +294,13 @@ namespace Opc.Ua.Redundancy.Server
             {
                 namespaceUris = CreateNamespaceTable(decoder.ReadStringArray(null));
                 serverUris = CreateStringTable(decoder.ReadStringArray(null));
+
+                // Optional trailing field: records written before it existed end here, and
+                // readers that predate it ignore it.
+                if (decoder.Position < payload.Length)
+                {
+                    state.FirstUnsentSequenceNumber = decoder.ReadUInt32(null);
+                }
             }
 
             var messages = new List<NotificationMessage>();
@@ -376,6 +384,19 @@ namespace Opc.Ua.Redundancy.Server
                     state.PendingMessages[message.SequenceNumber] = message;
                     state.PendingDeletes.Remove(message.SequenceNumber);
                 }
+            }
+
+            SignalDrain();
+        }
+
+        /// <inheritdoc/>
+        public void StoreFirstUnsentSequenceNumber(uint subscriptionId, uint firstUnsentSequenceNumber)
+        {
+            lock (m_retransmissionLock)
+            {
+                PendingRetransmissionState state = GetPendingState(subscriptionId);
+                state.FirstUnsentSequenceNumber = firstUnsentSequenceNumber;
+                state.StateDirty = true;
             }
 
             SignalDrain();
@@ -520,6 +541,7 @@ namespace Opc.Ua.Redundancy.Server
                 PendingRetransmissionState state = GetPendingState(subscriptionId);
                 state.ClearRequested = true;
                 state.StateDirty = false;
+                state.FirstUnsentSequenceNumber = 0;
                 state.KnownMessages.Clear();
                 state.PendingMessages.Clear();
                 state.PendingDeletes.Clear();
@@ -585,7 +607,9 @@ namespace Opc.Ua.Redundancy.Server
                                 key,
                                 m_protector.Protect(
                                     RecordProtectionContext.Create("subscription-retransmission-state", key),
-                                    EncodeRetransmissionState(batch.NextSequenceNumber)),
+                                    EncodeRetransmissionState(
+                                        batch.NextSequenceNumber,
+                                        batch.FirstUnsentSequenceNumber)),
                                 cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -672,6 +696,7 @@ namespace Opc.Ua.Redundancy.Server
                     batches.Add(new RetransmissionBatch(
                         subscriptionId,
                         state.NextSequenceNumber,
+                        state.FirstUnsentSequenceNumber,
                         state.StateDirty,
                         [.. state.PendingMessages.Values],
                         [.. state.PendingDeletes],
@@ -704,6 +729,7 @@ namespace Opc.Ua.Redundancy.Server
                 PendingRetransmissionState state = GetPendingState(batch.SubscriptionId);
                 state.ClearRequested |= batch.ClearRequested;
                 state.NextSequenceNumber = batch.NextSequenceNumber;
+                state.FirstUnsentSequenceNumber = batch.FirstUnsentSequenceNumber;
                 state.StateDirty |= batch.StateDirty;
                 foreach (NotificationMessage message in batch.Messages)
                 {
@@ -1054,13 +1080,14 @@ namespace Opc.Ua.Redundancy.Server
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
 
-        private ByteString EncodeRetransmissionState(uint nextSequenceNumber)
+        private ByteString EncodeRetransmissionState(uint nextSequenceNumber, uint firstUnsentSequenceNumber)
         {
             using var encoder = new BinaryEncoder(m_context);
             encoder.WriteInt32(null, RetransmissionStateFormatVersion);
             encoder.WriteUInt32(null, nextSequenceNumber);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
+            encoder.WriteUInt32(null, firstUnsentSequenceNumber);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -1591,6 +1618,11 @@ namespace Opc.Ua.Redundancy.Server
             public uint NextSequenceNumber { get; set; }
 
             /// <summary>
+            /// Gets or sets the oldest retained sequence number not yet returned by a Publish response (0 = none).
+            /// </summary>
+            public uint FirstUnsentSequenceNumber { get; set; }
+
+            /// <summary>
             /// Gets or sets a value indicating whether the retransmission queue should be cleared.
             /// </summary>
             public bool ClearRequested { get; set; }
@@ -1610,6 +1642,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly record struct RetransmissionBatch(
             uint SubscriptionId,
             uint NextSequenceNumber,
+            uint FirstUnsentSequenceNumber,
             bool StateDirty,
             NotificationMessage[] Messages,
             uint[] Deletes,

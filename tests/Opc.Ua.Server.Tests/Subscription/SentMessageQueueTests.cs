@@ -229,6 +229,150 @@ namespace Opc.Ua.Server.Tests
             store.Verify(s => s.AcknowledgeNotification(13, 31), Times.Once);
         }
 
+        [Test]
+        public void CreateRestoredWithMissingStateStartsEmptyAtSequenceNumberOne()
+        {
+            var queue = SentMessageQueue.CreateRestored(
+                () => 15,
+                maxMessageCount: 5,
+                retransmissionStore: null,
+                Mock.Of<ILogger>(),
+                sentMessages: null,
+                nextSequenceNumber: 0,
+                lastSentMessage: -3);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(queue.SentCount, Is.Zero);
+                Assert.That(queue.LastSentMessage, Is.Zero);
+                // OPC 10000-4, 5.14.1.1: sequence number 0 is never used.
+                Assert.That(queue.NextSequenceNumber, Is.EqualTo(1u));
+                Assert.That(queue.AssignSequenceNumber(), Is.EqualTo(1u));
+            });
+        }
+
+        [Test]
+        public void CreateRestoredClampsSentIndexAndContinuesAfterNewestMessage()
+        {
+            var tooLarge = SentMessageQueue.CreateRestored(
+                () => 16,
+                maxMessageCount: 5,
+                retransmissionStore: null,
+                Mock.Of<ILogger>(),
+                [CreateMessage(5), CreateMessage(6)],
+                nextSequenceNumber: 0,
+                lastSentMessage: 10);
+            var negative = SentMessageQueue.CreateRestored(
+                () => 17,
+                maxMessageCount: 5,
+                retransmissionStore: null,
+                Mock.Of<ILogger>(),
+                [CreateMessage(5), CreateMessage(6)],
+                nextSequenceNumber: 7,
+                lastSentMessage: -1);
+
+            NotificationMessage? queued = negative.TryDequeueQueued(
+                [],
+                hasItemsToPublish: false,
+                out bool moreNotifications);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(tooLarge.LastSentMessage, Is.EqualTo(2));
+                Assert.That(tooLarge.NextSequenceNumber, Is.EqualTo(7u));
+                Assert.That(queued!.SequenceNumber, Is.EqualTo(5u));
+                Assert.That(moreNotifications, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task LoadRetransmissionStateAsyncMapsSequenceNumberZeroAsync()
+        {
+            var state = new SubscriptionRetransmissionState
+            {
+                NextSequenceNumber = 0,
+                SentMessages = [CreateMessage(20), CreateMessage(21)]
+            };
+            var store = new Mock<ISubscriptionRetransmissionStore>();
+            store.Setup(s => s.LoadRetransmissionStateAsync(18, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<SubscriptionRetransmissionState?>(state));
+            var queue = new SentMessageQueue(
+                () => 18,
+                maxMessageCount: 5,
+                store.Object,
+                Mock.Of<ILogger>());
+
+            await queue.LoadRetransmissionStateAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(queue.NextSequenceNumber, Is.EqualTo(22u));
+        }
+
+        [Test]
+        public void SendStateStoreMirrorsFirstUnsentSequenceNumber()
+        {
+            var store = new Mock<ISubscriptionRetransmissionSendStateStore>();
+            var queue = new SentMessageQueue(
+                () => 19,
+                maxMessageCount: 5,
+                store.Object,
+                Mock.Of<ILogger>());
+
+            queue.Enqueue(
+                [CreateMessage(10), CreateMessage(11), CreateMessage(12)],
+                [],
+                out bool moreNotifications,
+                out _);
+            Assert.That(moreNotifications, Is.True);
+            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, 11), Times.Once);
+
+            queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
+            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, 12), Times.Once);
+
+            queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
+            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, 0), Times.Once);
+
+            // Nothing changes: no further mirror writes.
+            queue.TryAcknowledge(10);
+            queue.Enqueue([CreateMessage(13)], [], out _, out _);
+            store.Verify(
+                s => s.StoreFirstUnsentSequenceNumber(It.IsAny<uint>(), It.IsAny<uint>()),
+                Times.Exactly(3));
+        }
+
+        [Test]
+        public async Task LoadRetransmissionStateAsyncKeepsUnsentMessagesQueuedForPublishAsync()
+        {
+            var state = new SubscriptionRetransmissionState
+            {
+                NextSequenceNumber = 13,
+                SentMessages = [CreateMessage(10), CreateMessage(11), CreateMessage(12)],
+                FirstUnsentSequenceNumber = 11
+            };
+            var store = new Mock<ISubscriptionRetransmissionSendStateStore>();
+            store.Setup(s => s.LoadRetransmissionStateAsync(20, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<SubscriptionRetransmissionState?>(state));
+            var queue = new SentMessageQueue(
+                () => 20,
+                maxMessageCount: 5,
+                store.Object,
+                Mock.Of<ILogger>());
+
+            await queue.LoadRetransmissionStateAsync(CancellationToken.None).ConfigureAwait(false);
+
+            // OPC 10000-4, 5.14.1.1: the backlog is delivered by Publish, not only by Republish.
+            NotificationMessage? first = queue.TryDequeueQueued([], hasItemsToPublish: false, out bool more);
+            NotificationMessage? second = queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
+            NotificationMessage? none = queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first!.SequenceNumber, Is.EqualTo(11u));
+                Assert.That(more, Is.True);
+                Assert.That(second!.SequenceNumber, Is.EqualTo(12u));
+                Assert.That(none, Is.Null);
+            });
+        }
+
         private static NotificationMessage CreateMessage(uint sequenceNumber)
         {
             return new NotificationMessage

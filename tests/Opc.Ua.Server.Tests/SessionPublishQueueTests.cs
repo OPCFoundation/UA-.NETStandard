@@ -700,6 +700,121 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void PublishAsyncWithMaximumTimeoutHintParksRequest()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            // OPC 10000-4, 7.33: any UInt32 TimeoutHint is valid; the largest one exceeds
+            // the timer range of CancellationTokenSource on every platform.
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(uint.MaxValue);
+            Task<ISubscriptionPublishPipeline> task = null;
+            Assert.DoesNotThrow(() => task = queue.PublishAsync(
+                "channel1", deadline, false, null, CancellationToken.None));
+
+            Assert.That(task.IsCompleted, Is.False);
+
+            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            queue.PublishTimerExpired();
+            Assert.That(task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(task.Result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        public void RequeueServesParkedRequest()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            Task<ISubscriptionPublishPipeline> first = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Task<ISubscriptionPublishPipeline> second = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+
+            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            queue.PublishTimerExpired();
+            Assert.That(first.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(second.IsCompleted, Is.False);
+
+            // The first request returned a status message instead and put the
+            // subscription back: the parked request must be served right away.
+            queue.Requeue(subMock.Object);
+
+            Assert.That(second.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(second.Result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        public void RestoreTransferClaimServesParkedRequestWhenReady()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            subMock.Setup(s => s.TryBeginTransfer(It.IsAny<ISession>())).Returns(true);
+            queue.Add(subMock.Object);
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subMock.Object,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                Is.True);
+
+            Task<ISubscriptionPublishPipeline> parked = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+
+            // An in-flight Publish completes with more notifications while claimed.
+            queue.PublishCompleted(subMock.Object, moreNotifications: true);
+            Assert.That(parked.IsCompleted, Is.False);
+
+            // The transfer rolls back: the parked request gets the ready subscription.
+            Assert.That(queue.RestoreTransferClaim(claim), Is.True);
+
+            Assert.That(parked.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(parked.Result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        public void PublishAsyncParksWhileOnlySubscriptionIsClaimedForTransfer()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            subMock.Setup(s => s.TryBeginTransfer(It.IsAny<ISession>())).Returns(true);
+            queue.Add(subMock.Object);
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subMock.Object,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                Is.True);
+
+            // OPC 10000-4, 5.14.5: the session still owns the subscription.
+            Task<ISubscriptionPublishPipeline> parked = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(parked.IsCompleted, Is.False);
+
+            queue.RemoveQueuedRequests();
+            Assert.That(parked.IsCompleted, Is.False);
+
+            // The transfer completes, so the session no longer owns a subscription.
+            queue.CompleteTransferClaim(claim);
+            queue.RemoveQueuedRequests();
+
+            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => parked);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoSubscription));
+        }
+
+        [Test]
         public void RemoveQueuedRequests_NoSubscriptions_FailsRequests()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
