@@ -201,10 +201,13 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // events are reported as they occur and never sampled, so the revised
-                // sampling interval is 0 (Part 4 5.13.1.2) whatever the client requested.
-                _ = publishingInterval;
-                const double samplingInterval = EventSamplingInterval;
+                // calculate sampling interval: a negative value or NaN selects the
+                // publishing interval of the subscription (Part 4 7.21).
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    itemToCreate.RequestedParameters.SamplingInterval,
+                    publishingInterval,
+                    MinimumSamplingIntervals.Continuous,
+                    0);
 
                 // limit the queue size.
                 uint revisedQueueSize = CalculateRevisedQueueSize(
@@ -331,9 +334,19 @@ namespace Opc.Ua.Server
                     monitoredItem.IsDurable,
                     itemToModify.RequestedParameters.QueueSize);
 
-                // events are never sampled: the revised sampling interval is 0
-                // (Part 4 5.13.1.2), never the raw requested value.
-                const double samplingInterval = EventSamplingInterval;
+                // a negative value or NaN selects the publishing interval of the
+                // subscription (Part 4 7.21), never the raw requested value.
+                double defaultSamplingInterval = monitoredItem.SamplingInterval;
+                if (monitoredItem.SubscriptionCallback is ISubscription subscription)
+                {
+                    defaultSamplingInterval = subscription.PublishingInterval;
+                }
+
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    itemToModify.RequestedParameters.SamplingInterval,
+                    defaultSamplingInterval,
+                    MinimumSamplingIntervals.Continuous,
+                    0);
 
                 // modify the attributes.
                 monitoredItem.ModifyAttributes(
@@ -370,12 +383,6 @@ namespace Opc.Ua.Server
                 return [.. m_monitoredItems.Values.Where(item => item != null)];
             }
         }
-
-        /// <summary>
-        /// The revised sampling interval of event monitored items, which are
-        /// reported as events occur and never sampled.
-        /// </summary>
-        private const double EventSamplingInterval = 0;
 
         private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
