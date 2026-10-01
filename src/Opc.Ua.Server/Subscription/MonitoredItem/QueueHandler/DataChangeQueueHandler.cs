@@ -460,9 +460,9 @@ namespace Opc.Ua.Server
                     m_discardedValueHandler?.Invoke();
                     ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, lastValue);
 
-                    // the newest value reports the loss.
-                    m_overflow = value;
-                    m_overflowPending = true;
+                    // the newest value reports the loss. The Overflow bit is stored with the
+                    // queued value, so a durable queue keeps it across a restore.
+                    SetOverflowBit(ref value, ref error);
 
                     // overwrite last value
                     m_dataValueQueue.OverwriteLastValue(value, error);

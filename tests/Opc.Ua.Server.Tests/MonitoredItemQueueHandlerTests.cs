@@ -250,6 +250,40 @@ namespace Opc.Ua.Server.Tests
             Assert.That(published[4], Is.SameAs(e5));
         }
 
+        [Test]
+        public void DataChangeOverflowBitSurvivesQueueRestoreWhenNotDiscardingOldest()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var queue = new DataChangeMonitoredItemQueue(false, 1, telemetry);
+
+            using (var handler = new DataChangeQueueHandler(queue, false, 0, telemetry))
+            {
+                handler.SetQueueSize(2, false, DiagnosticsMasks.All);
+                handler.QueueValue(new DataValue(new Variant(1)), ServiceResult.Good);
+                handler.QueueValue(new DataValue(new Variant(2)), ServiceResult.Good);
+                // the queue is full: 3 replaces 2 and reports the loss.
+                Assert.That(
+                    handler.QueueValue(new DataValue(new Variant(3)), ServiceResult.Good),
+                    Is.True);
+            }
+
+            // a server restart hands the persisted queue to a new handler.
+            var restored = new DataChangeMonitoredItemQueue(false, 1, telemetry);
+            restored.ResetQueue(2, true);
+            while (queue.Dequeue(out DataValue value, out ServiceResult error))
+            {
+                restored.Enqueue(value, error);
+            }
+
+            using var restoredHandler = new DataChangeQueueHandler(restored, false, 0, telemetry);
+            Assert.That(restoredHandler.PublishSingleValue(out DataValue first, out _), Is.True);
+            Assert.That(first.WrappedValue, Is.EqualTo(new Variant(1)));
+            Assert.That(first.StatusCode.Overflow, Is.False);
+            Assert.That(restoredHandler.PublishSingleValue(out DataValue second, out _), Is.True);
+            Assert.That(second.WrappedValue, Is.EqualTo(new Variant(3)));
+            Assert.That(second.StatusCode.Overflow, Is.True);
+        }
+
         private static EventFieldList NewEvent(int value)
         {
             return new EventFieldList { EventFields = [new Variant(value)] };
