@@ -611,15 +611,41 @@ namespace Opc.Ua.Server
             // lease (a concurrency permit) is held for the duration of the call.
             // It is acquired before the request is registered, so a handshake that
             // waits for a permit is not a request that lifecycle drains wait for.
-            using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
-                secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
-                .ConfigureAwait(false);
+            // Part 5 12.9: a CreateSession refused by admission control or request
+            // validation is a rejected session establishment request too.
+            IDisposable? admittedLease;
+            OperationContext validatedContext;
+            try
+            {
+                admittedLease = await BeginSessionEstablishmentOrThrowAsync(
+                    secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
+                    .ConfigureAwait(false);
+                try
+                {
+                    validatedContext = await ValidateRequestAsync(
+                        secureChannelContext,
+                        requestHeader,
+                        RequestType.CreateSession,
+                        requestLifetime).ConfigureAwait(false);
+                }
+                catch
+                {
+                    admittedLease?.Dispose();
+                    throw;
+                }
+            }
+            catch (Exception exception)
+            {
+                ReportCreateSessionRejected(
+                    requestHeader?.AuditEntryId,
+                    secureChannelContext?.SecureChannelId,
+                    clientCertificate,
+                    exception);
+                throw;
+            }
 
-            using OperationContext context = await ValidateRequestAsync(
-                secureChannelContext,
-                requestHeader,
-                RequestType.CreateSession,
-                requestLifetime).ConfigureAwait(false);
+            using IDisposable? rateLimitLease = admittedLease;
+            using OperationContext context = validatedContext;
 
             ISession? session = null;
             CertificateCollection? clientIssuerCertificates = null;
@@ -790,11 +816,18 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 session = result.Session;
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
+
+                // Part 5 12.11: SessionDiagnostics.ServerUri reports the serverUri of
+                // the CreateSession request, although the Server otherwise ignores it.
+                if (!string.IsNullOrEmpty(serverUri))
                 {
-                    diagnostics.CurrentSessionCount++;
-                    diagnostics.CumulatedSessionCount++;
-                });
+                    session.UpdateDiagnostics(d => d.ServerUri = serverUri);
+                }
+
+                // CumulatedSessionCount counts established sessions and is only
+                // incremented on the success path below; a failure from here on
+                // closes the session and counts it as rejected (Part 5 12.9).
+                ServerInternal.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount++);
                 sessionId = result.SessionId;
                 authenticationToken = result.AuthenticationToken;
                 serverNonce = result.ServerNonce;
@@ -894,6 +927,8 @@ namespace Opc.Ua.Server
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
                 }
 
+                ServerInternal.UpdateServerDiagnostics(diagnostics => diagnostics.CumulatedSessionCount++);
+
                 return new CreateSessionResponse
                 {
                     ResponseHeader = responseHeader,
@@ -940,17 +975,7 @@ namespace Opc.Ua.Server
                     clientIssuerCertificates?.Dispose();
                 }
 
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedSessionCount++;
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedSessionCount++;
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedSession(ServerInternal, e.StatusCode);
 
                 throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, [], e)!;
             }
@@ -979,6 +1004,56 @@ namespace Opc.Ua.Server
                     throw;
                 }
             }
+        }
+
+        /// <summary>
+        /// Audits and counts a CreateSession refused before the request was admitted
+        /// and validated, for example with Bad_ServerTooBusy or Bad_ServerHalted.
+        /// </summary>
+        private void ReportCreateSessionRejected(
+            string? auditEntryId,
+            string? secureChannelId,
+            ByteString clientCertificate,
+            Exception exception)
+        {
+            // a server that is not started or already stopped has no diagnostics
+            // to update; the original rejection is what the caller has to see.
+            ServerInternalData? server = m_serverInternal;
+            if (server == null)
+            {
+                return;
+            }
+
+            server.ReportAuditCreateSessionEvent(
+                auditEntryId!,
+                null,
+                secureChannelId,
+                clientCertificate,
+                null,
+                0,
+                m_logger,
+                exception);
+            CountRejectedSession(
+                server,
+                exception is ServiceResultException sre ? sre.StatusCode : StatusCodes.BadUnexpectedError);
+        }
+
+        /// <summary>
+        /// Counts a rejected session establishment request (Part 5 12.9).
+        /// </summary>
+        private void CountRejectedSession(IServerInternal server, StatusCode statusCode)
+        {
+            server.UpdateServerDiagnostics(diagnostics =>
+            {
+                diagnostics.RejectedSessionCount++;
+                diagnostics.RejectedRequestsCount++;
+
+                if (IsSecurityError(statusCode))
+                {
+                    diagnostics.SecurityRejectedSessionCount++;
+                    diagnostics.SecurityRejectedRequestsCount++;
+                }
+            });
         }
 
         /// <summary>

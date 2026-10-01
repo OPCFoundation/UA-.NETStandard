@@ -374,6 +374,12 @@ namespace Opc.Ua.Server
                     m_maxRequestAge,
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
+
+                // Part 5 12.11: MaxResponseMessageSize is a mandatory field of
+                // SessionDiagnosticsDataType and reports the CreateSession request
+                // value. Set before InitializeAsync publishes the diagnostics node.
+                session.UpdateDiagnostics(d => d.MaxResponseMessageSize = maxResponseMessageSize);
+
                 m_sessionActivationStates.Add(
                     session,
                     new SessionActivationState(
