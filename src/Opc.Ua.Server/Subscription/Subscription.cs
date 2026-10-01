@@ -820,28 +820,10 @@ namespace Opc.Ua.Server
                     m_itemsToPublish.AddLast(current);
                 }
 
-                // Check for triggering only if there are triggered items configured
-                if (m_itemsToTrigger.Count > 0)
+                // update any triggered items.
+                if (TriggerLinkedItems(monitoredItem, promoteTriggeredItems: false))
                 {
-                    bool isReadyToTrigger = monitoredItem.IsReadyToTrigger;
-
-                    // update any triggered items.
-                    if (isReadyToTrigger &&
-                        m_itemsToTrigger.TryGetValue(
-                            current.Value.Id,
-                            out List<ITriggeredMonitoredItem>? triggeredItems))
-                    {
-                        for (int ii = 0; ii < triggeredItems.Count; ii++)
-                        {
-                            if (triggeredItems[ii].SetTriggered())
-                            {
-                                itemsTriggered = true;
-                            }
-                        }
-
-                        // clear ReadyToTrigger flag after trigger
-                        monitoredItem.IsReadyToTrigger = false;
-                    }
+                    itemsTriggered = true;
                 }
 
                 current = next;
@@ -866,6 +848,54 @@ namespace Opc.Ua.Server
                     current = next;
                 }
             }
+        }
+
+        /// <summary>
+        /// Triggers the items linked to a triggering item that has queued a notification
+        /// since its links were last evaluated (OPC 10000-4 §5.13.1.6).
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. When <paramref name="promoteTriggeredItems"/> is
+        /// set, linked items that became ready are moved from the check list to the end of
+        /// the publish list so the publish pass in progress reports them.
+        /// </remarks>
+        /// <returns><c>true</c> when at least one linked item was triggered.</returns>
+        private bool TriggerLinkedItems(IMonitoredItem monitoredItem, bool promoteTriggeredItems)
+        {
+            if (m_itemsToTrigger.Count == 0 ||
+                !monitoredItem.IsReadyToTrigger ||
+                !m_itemsToTrigger.TryGetValue(
+                    monitoredItem.Id,
+                    out List<ITriggeredMonitoredItem>? triggeredItems))
+            {
+                return false;
+            }
+
+            bool itemsTriggered = false;
+            for (int ii = 0; ii < triggeredItems.Count; ii++)
+            {
+                if (!triggeredItems[ii].SetTriggered())
+                {
+                    continue;
+                }
+
+                itemsTriggered = true;
+
+                if (promoteTriggeredItems &&
+                    m_monitoredItems.TryGetValue(
+                        triggeredItems[ii].Id,
+                        out LinkedListNode<IMonitoredItem>? triggeredNode) &&
+                    ReferenceEquals(triggeredNode.List, m_itemsToCheck) &&
+                    triggeredNode.Value.IsReadyToPublish)
+                {
+                    m_itemsToCheck.Remove(triggeredNode);
+                    m_itemsToPublish.AddLast(triggeredNode);
+                }
+            }
+
+            // clear ReadyToTrigger flag after trigger
+            monitoredItem.IsReadyToTrigger = false;
+            return itemsTriggered;
         }
 
         /// <inheritdoc/>
@@ -1603,8 +1633,16 @@ namespace Opc.Ua.Server
 
                 while (current != null && messages.Count < messageBudget)
                 {
-                    LinkedListNode<IMonitoredItem>? next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
+
+                    // A triggering item that is still draining a backlog stays in the publish
+                    // list and is never re-evaluated by the publish timer. Trigger its links
+                    // before its queue is drained, which clears its trigger flag, so every
+                    // notification it reports triggers the linked items (OPC 10000-4
+                    // §5.13.1.6). Linked items that became ready are appended to this pass.
+                    TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
+
+                    LinkedListNode<IMonitoredItem>? next = current.Next;
                     bool hasMoreValuesToPublish;
                     uint notificationLimit = maxNotificationsPerMonitoredItem;
                     if (m_maxNotificationsPerPublish > 0)
