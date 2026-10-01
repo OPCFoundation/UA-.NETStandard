@@ -744,6 +744,12 @@ namespace Opc.Ua.Bindings
             if (!m_reverseConnectListener && m_callback != null && channel is TcpServerChannel serverChannel)
             {
                 serverChannel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+
+                // OPC 10000-4 6.5.5: OpenSecureChannel, CloseSecureChannel and
+                // certificate errors raise audit events, as in TcpTransportListener.
+                serverChannel.SetReportOpenSecureChannelAuditCallback(OnReportAuditOpenSecureChannelEvent);
+                serverChannel.SetReportCloseSecureChannelAuditCallback(OnReportAuditCloseSecureChannelEvent);
+                serverChannel.SetReportCertificateAuditCallback(OnReportAuditCertificateEvent);
             }
             lock (m_lock)
             {
@@ -910,6 +916,64 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Callback for reporting the open secure channel audit event.
+        /// </summary>
+        private void OnReportAuditOpenSecureChannelEvent(
+            TcpServerChannel channel,
+            OpenSecureChannelRequest request,
+            Certificate? clientCertificate,
+            Exception? exception)
+        {
+            try
+            {
+                m_callback?.ReportAuditOpenSecureChannelEvent(
+                    channel.GlobalChannelId,
+                    channel.EndpointDescription!,
+                    request,
+                    clientCertificate!,
+                    exception!);
+            }
+            catch (Exception e)
+            {
+                Logger.KestrelTcpAuditReportFailed(e);
+            }
+        }
+
+        /// <summary>
+        /// Callback for reporting the close secure channel audit event.
+        /// </summary>
+        private void OnReportAuditCloseSecureChannelEvent(
+            TcpServerChannel channel,
+            Exception exception)
+        {
+            try
+            {
+                m_callback?.ReportAuditCloseSecureChannelEvent(channel.GlobalChannelId, exception);
+            }
+            catch (Exception e)
+            {
+                Logger.KestrelTcpAuditReportFailed(e);
+            }
+        }
+
+        /// <summary>
+        /// Callback for reporting the certificate audit events.
+        /// </summary>
+        private void OnReportAuditCertificateEvent(
+            Certificate clientCertificate,
+            Exception exception)
+        {
+            try
+            {
+                m_callback?.ReportAuditCertificateEvent(clientCertificate, exception);
+            }
+            catch (Exception e)
+            {
+                Logger.KestrelTcpAuditReportFailed(e);
+            }
+        }
+
         private IHost BuildHost(Uri baseAddress)
         {
             return new HostBuilder()
@@ -1027,24 +1091,28 @@ namespace Opc.Ua.Bindings
             Message = "Kestrel TCP failed to close one or more admitted connections during listener shutdown.")]
         public static partial void KestrelTcpAdmissionStopFailed(this ILogger logger, Exception exception);
 
-        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 8, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpChannelLifetime + 0, Level = LogLevel.Warning,
             Message = "KestrelTcp maximum channel count reached ({ChannelCount}/{MaxChannelCount}) and no unused channel could be reclaimed.")]
         public static partial void KestrelTcpChannelLimitReached(
             this ILogger logger,
             int channelCount,
             int maxChannelCount);
 
-        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 9, Level = LogLevel.Information,
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpChannelLifetime + 1, Level = LogLevel.Information,
             Message = "KestrelTcp closed unused channel {ChannelId} without a session to admit a new connection.")]
         public static partial void KestrelTcpReclaimedUnusedChannel(this ILogger logger, uint channelId);
 
-        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 10, Level = LogLevel.Information,
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpChannelLifetime + 2, Level = LogLevel.Information,
             Message = "KestrelTcp closing channel {ChannelId} due to inactivity.")]
         public static partial void KestrelTcpInactiveChannelCleanup(this ILogger logger, uint channelId);
 
-        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 11, Level = LogLevel.Error,
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpChannelLifetime + 3, Level = LogLevel.Error,
             Message = "KestrelTcp inactivity detection failed.")]
         public static partial void KestrelTcpInactivityDetectionFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpChannelLifetime + 4, Level = LogLevel.Error,
+            Message = "KestrelTcp failed to report a SecureChannel audit event.")]
+        public static partial void KestrelTcpAuditReportFailed(this ILogger logger, Exception exception);
     }
 }
 #endif // NET8_0_OR_GREATER

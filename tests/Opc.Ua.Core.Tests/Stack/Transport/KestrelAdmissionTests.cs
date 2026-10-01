@@ -53,6 +53,7 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
@@ -474,6 +475,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var idle = new TcpClient();
             await OpenNoneChannelAsync(idle, port, context, url, deadline.Token).ConfigureAwait(false);
             await AssertClosedAsync(idle.GetStream(), deadline.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 6.5.5: OpenSecureChannel raises an audit event on the
+        /// Kestrel-hosted opc.tcp transport like on the raw-socket one.
+        /// </summary>
+        [Test]
+        public async Task OpenSecureChannelReportsAuditEventAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var listener = new KestrelTcpTransportListener(telemetry);
+            var url = new Uri("opc.tcp://127.0.0.1:0");
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var reported = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ReportAuditOpenSecureChannelEvent(
+                    It.IsAny<string>(), It.IsAny<EndpointDescription>(), It.IsAny<OpenSecureChannelRequest>(),
+                    It.IsAny<Certificate>(), It.IsAny<Exception>()))
+                .Callback<string, EndpointDescription, OpenSecureChannelRequest, Certificate, Exception>(
+                    (channelId, _, _, _, _) => reported.TrySetResult(channelId));
+            int port = await OpenLoopbackListenerAsync(listener, url, context, 0, callback: callback.Object)
+                .ConfigureAwait(false);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            using var client = new TcpClient();
+            await OpenNoneChannelAsync(client, port, context, url, deadline.Token).ConfigureAwait(false);
+            string globalChannelId = await reported.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(globalChannelId, Does.StartWith(listener.ListenerId));
         }
 
         private static async Task<int> OpenLoopbackListenerAsync(
