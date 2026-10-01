@@ -313,11 +313,9 @@ namespace Opc.Ua.Subscriptions.Tests
                 filter: new ExtensionObject(filter)).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            // events are not sampled (Part 4 5.13.1.2): the revised interval is 0, not
-            // raised to the minimum supported sampling interval.
             Assert.That(
                 result.RevisedSamplingInterval,
-                Is.Zero,
+                Is.EqualTo(kRequestedBelowFloor),
                 "Event monitored items are not bound by the minimum supported sampling interval.");
         }
 
