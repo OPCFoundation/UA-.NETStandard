@@ -386,12 +386,19 @@ namespace Opc.Ua.Server
         {
             int count = m_eventQueue.ItemsInQueue;
             var rebuilt = new List<EventFieldList>(count);
+            var dropPositions = new List<int>();
+            int[] droppedBefore = new int[count + 1];
             for (int ii = 0; ii < count && m_eventQueue.Dequeue(out EventFieldList fields); ii++)
             {
+                droppedBefore[ii + 1] = droppedBefore[ii];
                 EventFieldList? replacement = rebuild(fields);
                 if (replacement == null)
                 {
-                    Overflow = true;
+                    droppedBefore[ii + 1]++;
+                    if (dropPositions.Count == 0 || dropPositions[dropPositions.Count - 1] != rebuilt.Count)
+                    {
+                        dropPositions.Add(rebuilt.Count);
+                    }
                     continue;
                 }
                 rebuilt.Add(replacement);
@@ -401,6 +408,43 @@ namespace Opc.Ua.Server
             {
                 m_eventQueue.Enqueue(fields);
             }
+
+            if (dropPositions.Count == 0)
+            {
+                return;
+            }
+
+            // pending overflow markers keep their place relative to the remaining events.
+            for (int ii = 0; ii < m_overflowPositions.Count; ii++)
+            {
+                int position = Math.Min(m_overflowPositions[ii], count);
+                m_overflowPositions[ii] = position - droppedBefore[position];
+            }
+
+            for (int ii = 0; ii < droppedBefore[count]; ii++)
+            {
+                m_discardedEventHandler?.Invoke();
+            }
+
+            if (m_discardOldest)
+            {
+                if (!m_overflowAtStart)
+                {
+                    m_overflowAtStart = true;
+                    m_overflowEventHandler?.Invoke();
+                }
+                return;
+            }
+
+            foreach (int position in dropPositions)
+            {
+                if (!m_overflowPositions.Contains(position))
+                {
+                    m_overflowPositions.Add(position);
+                    m_overflowEventHandler?.Invoke();
+                }
+            }
+            m_overflowPositions.Sort();
         }
 
         private bool m_discardOldest;
