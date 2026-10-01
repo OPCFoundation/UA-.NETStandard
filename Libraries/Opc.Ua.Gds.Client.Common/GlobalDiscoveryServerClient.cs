@@ -527,7 +527,15 @@ namespace Opc.Ua.Gds.Client
                 }
                 finally
                 {
-                    m_lock.Release();
+                    try
+                    {
+                        m_lock.Release();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Dispose handed the lock to this task on release and
+                        // then disposed it.
+                    }
                 }
             });
         }
