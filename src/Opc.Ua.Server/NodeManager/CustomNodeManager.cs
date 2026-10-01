@@ -5443,12 +5443,12 @@ namespace Opc.Ua.Server
                     context,
                     QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
                 {
-                    return StatusCodes.BadMonitoredItemFilterUnsupported;
+                    return StatusCodes.BadDeadbandFilterInvalid;
                 }
 
                 if (!property.Value.TryGetStructure(out range!))
                 {
-                    return StatusCodes.BadMonitoredItemFilterUnsupported;
+                    return StatusCodes.BadDeadbandFilterInvalid;
                 }
 
                 filterToUse = deadbandFilter;

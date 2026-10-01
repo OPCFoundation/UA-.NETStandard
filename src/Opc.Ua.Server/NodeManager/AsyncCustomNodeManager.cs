@@ -8977,14 +8977,14 @@ namespace Opc.Ua.Server
                     context,
                     QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
                 {
-                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
+                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
                     return result;
                 }
 
                 Range tmpRange;
                 if (!property.Value.TryGetStructure(out tmpRange!))
                 {
-                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
+                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
                     return result;
                 }
 

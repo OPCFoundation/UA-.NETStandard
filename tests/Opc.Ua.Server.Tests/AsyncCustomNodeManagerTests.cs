@@ -8538,10 +8538,10 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that a percentage deadband without an engineering-unit range returns
-        /// BadMonitoredItemFilterUnsupported.
+        /// BadDeadbandFilterInvalid (Part 8 §7.3.2 Table 61).
         /// </summary>
         [Test]
-        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadMonitoredItemFilterUnsupportedAsync()
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadDeadbandFilterInvalidAsync()
         {
             using ITestNodeManager manager = CreateManager();
 
@@ -8559,7 +8559,48 @@ namespace Opc.Ua.Server.Tests
                 10,
                 filter).ConfigureAwait(false);
 
-            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemFilterUnsupported));
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadDeadbandFilterInvalid));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies that a percentage deadband whose EURange property does not hold a Range
+        /// returns BadDeadbandFilterInvalid (Part 8 §7.3.2 Table 61).
+        /// </summary>
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithNonRangeEURangeReturnsBadDeadbandFilterInvalidAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+
+            SetupNumericTypeTree();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("V", nsIdx),
+                BrowseName = new QualifiedName("V", nsIdx),
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar
+            };
+            var euRangeProperty = new PropertyState(variable)
+            {
+                NodeId = new NodeId("EURange", nsIdx),
+                BrowseName = new QualifiedName(BrowseNames.EURange),
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                Value = new Variant(42.0)
+            };
+            variable.AddChild(euRangeProperty);
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Percent, DeadbandValue = 10.0 });
+
+            AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadDeadbandFilterInvalid));
             Assert.That(result.FilterToUse, Is.Null);
         }
 
