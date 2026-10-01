@@ -1002,11 +1002,14 @@ namespace Opc.Ua
                 encoding = (byte)value.Encoding;
             }
 
+            XmlElement xml = default;
+            bool isBinary = value.TryGetAsBinary(out ByteString bytes);
+            bool isXml = !isBinary && value.TryGetAsXml(out xml);
+
             // Part 6 5.2.2.15: the Length of an encoded body is the byte count
             // of the body, so a null ByteString or XmlElement body (Length -1)
             // is not a valid body. Encoding 0x00 is "no body is encoded".
-            if ((value.TryGetAsBinary(out ByteString nullBinary) && nullBinary.IsNull) ||
-                (value.TryGetAsXml(out XmlElement nullXml) && nullXml.IsEmpty))
+            if ((isBinary && bytes.IsNull) || (isXml && xml.IsEmpty))
             {
                 WriteByte(null, (byte)ExtensionObjectEncoding.None);
                 return;
@@ -1016,14 +1019,14 @@ namespace Opc.Ua
             WriteByte(null, encoding);
 
             // write binary bodies.
-            if (value.TryGetAsBinary(out ByteString bytes))
+            if (isBinary)
             {
                 WriteByteString(null, bytes);
                 return;
             }
 
             // write XML bodies.
-            if (value.TryGetAsXml(out XmlElement xml))
+            if (isXml)
             {
                 WriteXmlElement(null, xml);
                 return;

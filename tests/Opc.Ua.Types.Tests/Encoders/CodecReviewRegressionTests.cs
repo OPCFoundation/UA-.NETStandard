@@ -578,6 +578,41 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(values[1], Is.EqualTo(new Variant((long)2)));
         }
 
+        [Test]
+        [TestCase(EncodingType.Binary)]
+        [TestCase(EncodingType.Xml)]
+        [TestCase(EncodingType.Json)]
+        public void StructureWithAbstractNumberFieldsRoundTripsConcreteArrays(EncodingType encoding)
+        {
+            // Part 6 5.1.6: the elements are Variants. A concrete Int32[] or
+            // Double matrix value used to be written as a raw typed array,
+            // which the decoders read as Variants (a misparse in binary).
+            ServiceMessageContext context = CreateContext();
+            Structure input = CreateNumberStructure();
+            input["I"] = new Variant(new[] { 1, 2, 3 }.ToArrayOf());
+            input["M"] = Variant.From(new[] { 1.5, 2.5, 3.5, 4.5 }.ToArrayOf().ToMatrix(2, 2));
+
+            Structure output = RoundTrip(context, input, encoding);
+
+            Assert.That(output["I"].TryGetValue(out ArrayOf<Variant> values), Is.True);
+            Assert.That(values.Count, Is.EqualTo(3));
+            Assert.That(values[2], Is.EqualTo(new Variant(3)));
+            Assert.That(output["M"].TryGetValue(out MatrixOf<Variant> matrix), Is.True);
+            Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 2, 2 }));
+            Assert.That(matrix.Span[3], Is.EqualTo(new Variant(4.5)));
+        }
+
+        [Test]
+        public void VariantDefaultOfAbstractNumberArrayKeepsTheValueRank()
+        {
+            Variant value = Variant.CreateDefault(
+                TypeInfo.Create(BuiltInType.Integer, ValueRanks.OneOrMoreDimensions));
+
+            Assert.That(
+                value.TypeInfo,
+                Is.EqualTo(TypeInfo.Create(BuiltInType.Variant, ValueRanks.OneOrMoreDimensions)));
+        }
+
         private static Structure RoundTrip(
             ServiceMessageContext context,
             Structure input,
@@ -632,7 +667,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 [
                     new StructureField { Name = "N", DataType = DataTypeIds.Number, ValueRank = ValueRanks.Scalar },
                     new StructureField { Name = "I", DataType = DataTypeIds.Integer, ValueRank = ValueRanks.OneDimension },
-                    new StructureField { Name = "U", DataType = DataTypeIds.UInteger, ValueRank = ValueRanks.OneDimension }
+                    new StructureField { Name = "U", DataType = DataTypeIds.UInteger, ValueRank = ValueRanks.OneDimension },
+                    new StructureField { Name = "M", DataType = DataTypeIds.Number, ValueRank = ValueRanks.TwoDimensions }
                 ]
             };
             return new Structure(
@@ -645,7 +681,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 {
                     ["N"] = BuiltInType.Number,
                     ["I"] = BuiltInType.Integer,
-                    ["U"] = BuiltInType.UInteger
+                    ["U"] = BuiltInType.UInteger,
+                    ["M"] = BuiltInType.Number
                 });
         }
 

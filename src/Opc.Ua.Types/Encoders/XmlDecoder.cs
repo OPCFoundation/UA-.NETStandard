@@ -2254,15 +2254,15 @@ namespace Opc.Ua
 
         /// <summary>
         /// OPC 10000-6 5.1.6: a Number, Integer or UInteger structure field is
-        /// encoded as a Variant, so an array field of such a type is an array
-        /// of Variant, which is what the encoder writes.
+        /// encoded as a Variant, so an array or matrix field of such a type is
+        /// an array or matrix of Variant, which is what the encoder writes.
         /// </summary>
         internal static TypeInfo AsVariantIfAbstractNumber(TypeInfo typeInfo)
         {
             if (typeInfo.BuiltInType is BuiltInType.Number or
                     BuiltInType.Integer or
                     BuiltInType.UInteger &&
-                typeInfo.IsArray)
+                !typeInfo.IsScalar)
             {
                 return typeInfo.WithBuiltInType(BuiltInType.Variant);
             }

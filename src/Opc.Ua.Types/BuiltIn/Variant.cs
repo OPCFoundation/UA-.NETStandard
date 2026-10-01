@@ -8446,10 +8446,10 @@ namespace Opc.Ua
                 {
                     return default;
                 }
-                if (typeInfo.IsArray)
-                {
-                    return new Variant(default, TypeInfo.Arrays.Variant, null);
-                }
+                return new Variant(
+                    default,
+                    typeInfo.WithBuiltInType(BuiltInType.Variant),
+                    null);
             }
             return new Variant(default, typeInfo, null);
         }
