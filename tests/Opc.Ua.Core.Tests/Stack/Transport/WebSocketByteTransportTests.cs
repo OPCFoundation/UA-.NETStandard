@@ -498,6 +498,122 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// Closing the transport while one send is in flight and another is
+        /// queued behind it must fail both with
+        /// <see cref="StatusCodes.BadConnectionClosed"/> (or the socket's own
+        /// abort error for the in-flight one) instead of orphaning the queued
+        /// sender forever.
+        /// </summary>
+        [Test]
+        public async Task CloseFailsQueuedSendInsteadOfOrphaningItAsync()
+        {
+            using var socket = new BlockingSendWebSocket();
+            var transport = new WebSocketServerByteTransport(
+                socket,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            Task inFlight = transport.SendChunkAsync(new byte[16], CancellationToken.None).AsTask();
+            Task queued = transport.SendChunkAsync(new byte[16], CancellationToken.None).AsTask();
+            await socket.SendStarted.Task.ConfigureAwait(false);
+            Assert.That(queued.IsCompleted, Is.False);
+
+            transport.Close();
+
+            Exception? inFlightError = await CaptureAsync(inFlight).ConfigureAwait(false);
+            Assert.That(inFlightError, Is.Not.Null);
+            Assert.That(inFlightError, Is.Not.InstanceOf<ObjectDisposedException>());
+            Exception? queuedError = await CaptureAsync(queued).ConfigureAwait(false);
+            Assert.That(queuedError, Is.TypeOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)queuedError!).StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+        }
+
+        private static async Task<Exception?> CaptureAsync(Task task)
+        {
+            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(task), "Send did not complete after Close.");
+            try
+            {
+                await task.ConfigureAwait(false);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                return ex;
+            }
+        }
+
+        /// <summary>
+        /// Open WebSocket whose sends never complete until the token is
+        /// cancelled or the socket is aborted (a peer that stopped reading).
+        /// </summary>
+        private sealed class BlockingSendWebSocket : WebSocket
+        {
+            public TaskCompletionSource<bool> SendStarted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public override WebSocketCloseStatus? CloseStatus => null;
+            public override string? CloseStatusDescription => null;
+            public override WebSocketState State => WebSocketState.Open;
+            public override string? SubProtocol => Profiles.OpcUaWsSubProtocolUacp;
+
+            public override void Abort()
+            {
+                m_aborted.TrySetException(new WebSocketException(WebSocketError.InvalidState));
+            }
+
+            public override Task CloseAsync(
+                WebSocketCloseStatus closeStatus,
+                string? statusDescription,
+                CancellationToken cancellationToken)
+            {
+                return Task.CompletedTask;
+            }
+
+            public override Task CloseOutputAsync(
+                WebSocketCloseStatus closeStatus,
+                string? statusDescription,
+                CancellationToken cancellationToken)
+            {
+                return Task.CompletedTask;
+            }
+
+            public override void Dispose()
+            {
+                Abort();
+            }
+
+            public override Task<WebSocketReceiveResult> ReceiveAsync(
+                ArraySegment<byte> buffer,
+                CancellationToken cancellationToken)
+            {
+                return new TaskCompletionSource<WebSocketReceiveResult>().Task;
+            }
+
+            public override async Task SendAsync(
+                ArraySegment<byte> buffer,
+                WebSocketMessageType messageType,
+                bool endOfMessage,
+                CancellationToken cancellationToken)
+            {
+                SendStarted.TrySetResult(true);
+                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using (cancellationToken.Register(() => cancelled.TrySetCanceled(cancellationToken)))
+                {
+                    await (await Task.WhenAny(m_aborted.Task, cancelled.Task).ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                }
+            }
+
+            private readonly TaskCompletionSource<bool> m_aborted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
         /// Creates a pair of <see cref="WebSocket"/> instances connected
         /// to each other over a loopback TCP <see cref="NetworkStream"/>.
         /// The handshake is bypassed via <see cref="WebSocket.CreateFromStream"/>.

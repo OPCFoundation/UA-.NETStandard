@@ -80,12 +80,12 @@ namespace Opc.Ua.Bindings
         public async ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
         {
             WebSocket socket = RequireOpenSocket();
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using CancellationTokenSource linkedCts = await EnterSendAsync(ct).ConfigureAwait(false);
             try
             {
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 await socket
-                    .SendAsync(chunk, WebSocketMessageType.Binary, endOfMessage: true, ct)
+                    .SendAsync(chunk, WebSocketMessageType.Binary, endOfMessage: true, linkedCts.Token)
                     .ConfigureAwait(false);
 #else
                 ArraySegment<byte> segment;
@@ -100,9 +100,15 @@ namespace Opc.Ua.Bindings
                     segment = new ArraySegment<byte>(tmp, 0, tmp.Length);
                 }
                 await socket
-                    .SendAsync(segment, WebSocketMessageType.Binary, endOfMessage: true, ct)
+                    .SendAsync(segment, WebSocketMessageType.Binary, endOfMessage: true, linkedCts.Token)
                     .ConfigureAwait(false);
 #endif
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Transport closed while writing chunk.");
             }
             finally
             {
@@ -118,7 +124,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(buffers));
             }
             WebSocket socket = RequireOpenSocket();
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using CancellationTokenSource linkedCts = await EnterSendAsync(ct).ConfigureAwait(false);
             try
             {
                 // WebSocket does not support a vectored send out of the box; concat the
@@ -127,7 +133,7 @@ namespace Opc.Ua.Bindings
                 byte[] frame = m_bufferManager.TakeBuffer(
                     totalSize,
                     nameof(SendChunkAsync),
-                    ct);
+                    linkedCts.Token);
                 try
                 {
                     int offset = 0;
@@ -147,7 +153,7 @@ namespace Opc.Ua.Bindings
                             new ReadOnlyMemory<byte>(frame, 0, totalSize),
                             WebSocketMessageType.Binary,
                             endOfMessage: true,
-                            ct)
+                            linkedCts.Token)
                         .ConfigureAwait(false);
 #else
                     await socket
@@ -155,7 +161,7 @@ namespace Opc.Ua.Bindings
                             new ArraySegment<byte>(frame, 0, totalSize),
                             WebSocketMessageType.Binary,
                             endOfMessage: true,
-                            ct)
+                            linkedCts.Token)
                         .ConfigureAwait(false);
 #endif
                 }
@@ -163,6 +169,12 @@ namespace Opc.Ua.Bindings
                 {
                     m_bufferManager.ReturnBuffer(frame, nameof(SendChunkAsync));
                 }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Transport closed while writing buffer collection.");
             }
             finally
             {
@@ -264,6 +276,18 @@ namespace Opc.Ua.Bindings
             {
                 return;
             }
+            // Wake queued and in-flight senders first so they fail with
+            // BadConnectionClosed and release their buffers. The semaphore
+            // is deliberately not disposed: disposing it would orphan queued
+            // waiters forever (as in TcpByteTransport).
+            try
+            {
+                m_sendCancellation.Cancel();
+            }
+            catch
+            {
+                // Best-effort.
+            }
             WebSocket? socket = Interlocked.Exchange(ref m_socket, null);
             if (socket != null)
             {
@@ -277,7 +301,6 @@ namespace Opc.Ua.Bindings
                 }
                 socket.Dispose();
             }
-            m_sendLock.Dispose();
         }
 
         /// <summary>
@@ -322,6 +345,33 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Waits for the send lock, failing with <see cref="StatusCodes.BadConnectionClosed"/>
+        /// when the transport closes while queued. Returns the linked token source
+        /// the caller uses for the send and disposes afterwards.
+        /// </summary>
+        private async ValueTask<CancellationTokenSource> EnterSendAsync(CancellationToken ct)
+        {
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token);
+            try
+            {
+                await m_sendLock.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                return linkedCts;
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                linkedCts.Dispose();
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "The WebSocket transport is closed.");
+            }
+            catch
+            {
+                linkedCts.Dispose();
+                throw;
+            }
+        }
+
         private WebSocket RequireOpenSocket()
         {
             WebSocket? socket = m_socket;
@@ -349,7 +399,18 @@ namespace Opc.Ua.Bindings
         private int m_closed;
         private readonly BufferManager m_bufferManager;
         private int m_receiveBufferSize;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "The semaphore must remain undisposed so queued send waiters can observe transport cancellation and unwind.")]
         private readonly SemaphoreSlim m_sendLock;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "The lifetime token remains available to concurrent send setup while close cancellation unwinds those sends.")]
+        private readonly CancellationTokenSource m_sendCancellation = new();
     }
 
     /// <summary>
