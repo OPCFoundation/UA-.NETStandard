@@ -2599,6 +2599,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(itemsToCreate, OperationLimits.MaxMonitoredItemsPerCall);
+                ValidateTimestampsToReturn(timestampsToReturn);
 
                 CreateMonitoredItemsResponse result = await ServerInternal.SubscriptionManager.CreateMonitoredItemsAsync(
                     context,
@@ -2649,6 +2650,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(itemsToModify, OperationLimits.MaxMonitoredItemsPerCall);
+                ValidateTimestampsToReturn(timestampsToReturn);
 
                 ModifyMonitoredItemsResponse response = await ServerInternal.SubscriptionManager.ModifyMonitoredItemsAsync(
                     context,
@@ -2747,6 +2749,12 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(monitoredItemIds, OperationLimits.MaxMonitoredItemsPerCall);
+
+                // Part 4 §5.13.4.3: an unknown monitoring mode is a service fault.
+                if (monitoringMode is < MonitoringMode.Disabled or > MonitoringMode.Reporting)
+                {
+                    throw new ServiceResultException(StatusCodes.BadMonitoringModeInvalid);
+                }
 
                 (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.SubscriptionManager.SetMonitoringModeAsync(
@@ -3360,6 +3368,20 @@ namespace Opc.Ua.Server
             if (operationLimitValue > 0 && count > operationLimitValue)
             {
                 throw new ServiceResultException(StatusCodes.BadTooManyOperations);
+            }
+        }
+
+        /// <summary>
+        /// Validates the TimestampsToReturn service parameter before any operation is dispatched,
+        /// so the service fault does not depend on whether the operations resolve
+        /// (Part 4 §5.13.2.3, §5.13.3.3).
+        /// </summary>
+        /// <exception cref="ServiceResultException">BadTimestampsToReturnInvalid for an unknown value.</exception>
+        private static void ValidateTimestampsToReturn(TimestampsToReturn timestampsToReturn)
+        {
+            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
+            {
+                throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
         }
 
