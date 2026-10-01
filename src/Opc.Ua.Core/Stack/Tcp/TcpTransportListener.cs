@@ -1436,8 +1436,8 @@ namespace Opc.Ua.Bindings
                     () => CloseGracefully(socket));
                 using var stream = new NetworkStream(socket, ownsSocket: false);
 
-                // A Hello must fit into the smallest receive buffer a server may offer.
-                byte[] buffer = new byte[TcpMessageLimits.MinBufferSize];
+                // Large enough for the largest valid Hello or ReverseHello.
+                byte[] buffer = new byte[kMaxRejectedHelloSize];
                 if (!await ReadExactlyAsync(stream, buffer, TcpMessageLimits.MessageTypeAndSize, cts.Token)
                     .ConfigureAwait(false))
                 {
@@ -1878,6 +1878,16 @@ namespace Opc.Ua.Bindings
         /// Bounds the refused connections answered concurrently with Bad_TcpNotEnoughResources.
         /// </summary>
         private const int kMaxPendingResourceRejections = 64;
+
+        /// <summary>
+        /// The largest valid Hello or ReverseHello a refused connection may send: a
+        /// ReverseHello carries a ServerUri and an EndpointUrl of up to
+        /// <see cref="TcpMessageLimits.MaxEndpointUrlLength"/> bytes each
+        /// (OPC 10000-6 §7.1.2.6), which exceeds <see cref="TcpMessageLimits.MinBufferSize"/>.
+        /// </summary>
+        internal const int kMaxRejectedHelloSize =
+            TcpMessageLimits.MessageTypeAndSize +
+            (2 * (TcpMessageLimits.StringLengthSize + TcpMessageLimits.MaxEndpointUrlLength));
 
         /// <summary>
         /// How long a refused connection may take to send its Hello before it is closed silently.

@@ -477,6 +477,49 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await AssertClosedAsync(idle.GetStream(), deadline.Token).ConfigureAwait(false);
         }
 
+        [TestCase(0, 0)]
+        [TestCase(-1, 0)]
+        [TestCase(1, 1000)]
+        [TestCase(500, 1000)]
+        [TestCase(600000, 300000)]
+        public void InactivityDetectPeriodIsDisabledOrBoundedForChannelLifetime(int channelLifetime, int expected)
+        {
+            Assert.That(
+                KestrelTcpTransportListener.GetInactivityDetectPeriod(channelLifetime),
+                Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A ChannelLifetime that is not positive means "unset", as for
+        /// TcpTransportListener: no sweep runs and idle channels stay open.
+        /// </summary>
+        [Test]
+        public async Task IdleOpenChannelIsKeptWhenChannelLifetimeIsZeroAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var listener = new KestrelTcpTransportListener(telemetry);
+            var url = new Uri("opc.tcp://127.0.0.1:0");
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.ChannelLifetime = 0;
+            int port = await OpenLoopbackListenerAsync(listener, url, context, 0, configuration)
+                .ConfigureAwait(false);
+            Assert.That(GetField<ITimer?>(listener, "m_inactivityDetectionTimer"), Is.Null);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            using var idle = new TcpClient();
+            await OpenNoneChannelAsync(idle, port, context, url, deadline.Token).ConfigureAwait(false);
+            using var quiet = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+            quiet.CancelAfter(TimeSpan.FromMilliseconds(500));
+            Assert.That(
+                async () => await idle.GetStream().ReadAsync(new byte[1], quiet.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(
+                GetField<ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>>(
+                    listener, "m_channels"),
+                Has.Count.EqualTo(1));
+        }
+
         /// <summary>
         /// OPC 10000-4 6.5.5: OpenSecureChannel raises an audit event on the
         /// Kestrel-hosted opc.tcp transport like on the raw-socket one.
