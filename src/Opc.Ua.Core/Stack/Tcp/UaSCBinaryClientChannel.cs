@@ -1293,19 +1293,30 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnHandshakeComplete(IAsyncResult? result)
         {
+            if (result is not WriteOperation operation)
+            {
+                return;
+            }
+
             using (Gate.Enter())
             {
+                // The callback is queued, so a renewal scheduled by the response
+                // that completed this operation can already have replaced it.
+                // That newer handshake is still in flight and only completes
+                // once its response gets the gate - never wait for it here.
+                if (!ReferenceEquals(m_handshakeOperation, operation))
+                {
+                    m_requests.TryRemove(operation.RequestId, out _);
+                    return;
+                }
+
                 ServiceResult? error = null;
                 try
                 {
-                    if (m_handshakeOperation == null)
-                    {
-                        return;
-                    }
-
                     m_logger.UaSCClientLog24(ChannelId);
 
-                    m_handshakeOperation.End(int.MaxValue);
+                    // the callback only runs once the operation completed.
+                    operation.End(0);
 
                     return;
                 }
@@ -1329,7 +1340,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    OperationCompleted(m_handshakeOperation);
+                    OperationCompleted(operation);
                     m_reconnecting = false;
                 }
 
