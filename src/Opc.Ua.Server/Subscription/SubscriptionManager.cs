@@ -657,7 +657,10 @@ namespace Opc.Ua.Server
             ServiceResultException? serviceResultException = null;
             lock (m_conditionRefreshLock)
             {
-                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask))
+                // a refresh taken off the queue is still in progress until it completes,
+                // including the window before the subscription queues its RefreshStartEvent.
+                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask) &&
+                    !conditionRefreshTask.Equals(m_runningConditionRefresh))
                 {
                     m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
                 }
@@ -700,7 +703,10 @@ namespace Opc.Ua.Server
 
             lock (m_conditionRefreshLock)
             {
-                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask))
+                // a refresh taken off the queue is still in progress until it completes,
+                // including the window before the subscription queues its RefreshStartEvent.
+                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask) &&
+                    !conditionRefreshTask.Equals(m_runningConditionRefresh))
                 {
                     m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
                 }
@@ -2898,6 +2904,7 @@ namespace Opc.Ua.Server
                         if (m_conditionRefreshQueue.Count > 0)
                         {
                             conditionRefreshTask = m_conditionRefreshQueue.Dequeue();
+                            m_runningConditionRefresh = conditionRefreshTask;
                         }
                         else if (m_shutdownEvent.WaitOne(0))
                         {
@@ -2919,17 +2926,30 @@ namespace Opc.Ua.Server
                     {
                         m_conditionRefreshEvent.WaitOne();
                     }
-                    else if (conditionRefreshTask.MonitoredItemId == 0)
-                    {
-                        await DoConditionRefreshAsync(conditionRefreshTask.Subscription)
-                            .ConfigureAwait(false);
-                    }
                     else
                     {
-                        await DoConditionRefresh2Async(
-                            conditionRefreshTask.Subscription,
-                            conditionRefreshTask.MonitoredItemId)
-                            .ConfigureAwait(false);
+                        try
+                        {
+                            if (conditionRefreshTask.MonitoredItemId == 0)
+                            {
+                                await DoConditionRefreshAsync(conditionRefreshTask.Subscription)
+                                    .ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await DoConditionRefresh2Async(
+                                    conditionRefreshTask.Subscription,
+                                    conditionRefreshTask.MonitoredItemId)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            lock (m_conditionRefreshLock)
+                            {
+                                m_runningConditionRefresh = null;
+                            }
+                        }
                     }
 
                     // use shutdown event to end loop
@@ -3010,6 +3030,8 @@ namespace Opc.Ua.Server
             public uint SubscriptionId;
             public NotificationMessage? Message;
         }
+
+        private ConditionRefreshTask? m_runningConditionRefresh;
 
         private class ConditionRefreshTask
         {
