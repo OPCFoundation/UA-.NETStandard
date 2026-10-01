@@ -627,6 +627,62 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Aborts every outstanding request of a Session that is being closed, so that they
+        /// complete with <paramref name="statusCode"/> instead of running on against a Session
+        /// that is torn down underneath them (OPC 10000-4 5.7.2.1).
+        /// </summary>
+        /// <param name="sessionId">The session being closed.</param>
+        /// <param name="excludedRequestId">A request that must not be aborted (the CloseSession
+        /// request driving the close), or 0.</param>
+        /// <param name="statusCode">The status the aborted requests complete with.</param>
+        /// <returns>The number of aborted requests.</returns>
+        public uint CancelSessionRequests(NodeId sessionId, uint excludedRequestId, StatusCode statusCode)
+        {
+            if (sessionId.IsNull)
+            {
+                return 0;
+            }
+
+            var cancelledRequests = new List<uint>();
+            lock (m_requestsLock)
+            {
+                foreach (OperationContext request in m_requests.Values)
+                {
+                    if (request.RequestId != excludedRequestId &&
+                        request.SessionId == sessionId &&
+                        request.RequestLifetime.TryCancel(statusCode))
+                    {
+                        cancelledRequests.Add(request.RequestId);
+                    }
+                }
+            }
+
+            RaiseRequestCancelled(cancelledRequests, statusCode);
+            return (uint)cancelledRequests.Count;
+        }
+
+        private void RaiseRequestCancelled(List<uint> requestIds, StatusCode statusCode)
+        {
+            lock (m_lock)
+            {
+                for (int ii = 0; ii < requestIds.Count; ii++)
+                {
+                    if (m_RequestCancelled != null)
+                    {
+                        try
+                        {
+                            m_RequestCancelled(this, requestIds[ii], statusCode);
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.UnexpectedErrorReportingRequestCancelledEvent(e);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Cancels the registered requests of the session with the given client handle and
         /// raises the <see cref="RequestCancelled"/> event for each of them.
         /// </summary>

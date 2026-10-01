@@ -1051,6 +1051,14 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            // OPC 10000-4 5.7.2.1: when a Session is terminated, all outstanding requests on
+            // the Session are aborted with Bad_SessionClosed. The CloseSession request that
+            // drives this close is the one request that must still complete normally.
+            RequestManager?.CancelSessionRequests(
+                sessionId,
+                GetRequestId(context),
+                StatusCodes.BadSessionClosed);
+
             CancellationToken closeCancellationToken = CancellationToken.None;
 
             try
@@ -1076,6 +1084,15 @@ namespace Opc.Ua.Server
                 // down. The original failure still propagates to the caller.
                 await SessionManager.CloseSessionAsync(sessionId, closeCancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Returns the id of the request a server-internal close runs for, or 0 when the close
+        /// was not requested by a client (timeout or termination pass no context).
+        /// </summary>
+        private static uint GetRequestId(OperationContext? context)
+        {
+            return context?.RequestId ?? 0;
         }
 
         /// <summary>
