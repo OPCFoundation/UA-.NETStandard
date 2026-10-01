@@ -579,8 +579,11 @@ namespace Opc.Ua.Server
                 try
                 {
                     if (!m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
-                        !ReferenceEquals(currentSession, session))
+                        !ReferenceEquals(currentSession, session) ||
+                        session.IsClosing)
                     {
+                        // A timeout or server termination may already be tearing the
+                        // session down; it then waits for this lock only to remove it.
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
 
@@ -766,6 +769,15 @@ namespace Opc.Ua.Server
                     // client knows to prompt for a new password. The role
                     // restriction is enforced separately by AddMandatoryRoles.
                     activationStatus = ComputeActivationStatus(effectiveIdentity);
+
+                    // Re-check after the (possibly slow) authentication: a close that started
+                    // meanwhile has already abandoned the session's subscriptions, so
+                    // reporting a successful activation would hand the client a session that
+                    // is removed as soon as this lock is released (OPC 10000-4 5.7.2.1).
+                    if (session.IsClosing)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    }
 
                     lock (m_bindingsLock)
                     {
@@ -1010,9 +1022,11 @@ namespace Opc.Ua.Server
             lock (m_bindingsLock)
             {
                 state.IsCommitting = false;
-                // Shutdown can remove the session while authentication is awaiting a provider.
+                // Shutdown can remove the session while authentication is awaiting a provider,
+                // and a timeout or termination can start closing it.
                 if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
-                    !ReferenceEquals(current, session))
+                    !ReferenceEquals(current, session) ||
+                    session.IsClosing)
                 {
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
