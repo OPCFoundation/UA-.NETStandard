@@ -238,13 +238,33 @@ namespace Opc.Ua.Bindings
             m_host = BuildHost(baseAddress);
             await m_host.StartAsync(ct).ConfigureAwait(false);
 
-            int inactivityDetectPeriod = Math.Max(1, m_quotas.ChannelLifetime / 2);
             m_inactivityDetectionTimer?.Dispose();
-            m_inactivityDetectionTimer = TimeProvider.System.CreateTimer(
-                DetectInactiveChannels,
-                null,
-                TimeSpan.FromMilliseconds(inactivityDetectPeriod),
-                TimeSpan.FromMilliseconds(inactivityDetectPeriod));
+            m_inactivityDetectionTimer = null;
+            int inactivityDetectPeriod = GetInactivityDetectPeriod(m_quotas.ChannelLifetime);
+            if (inactivityDetectPeriod > 0)
+            {
+                m_inactivityDetectionTimer = TimeProvider.System.CreateTimer(
+                    DetectInactiveChannels,
+                    null,
+                    TimeSpan.FromMilliseconds(inactivityDetectPeriod),
+                    TimeSpan.FromMilliseconds(inactivityDetectPeriod));
+            }
+        }
+
+        /// <summary>
+        /// Returns the period of the inactivity sweep in milliseconds, or 0
+        /// when no sweep runs. As in <see cref="TcpTransportListener"/> a
+        /// channel lifetime that is not positive disables the sweep instead
+        /// of closing every channel; a tiny lifetime is swept at most once
+        /// per <see cref="kMinInactivityDetectPeriod"/>.
+        /// </summary>
+        internal static int GetInactivityDetectPeriod(int channelLifetime)
+        {
+            if (channelLifetime <= 0)
+            {
+                return 0;
+            }
+            return Math.Max(kMinInactivityDetectPeriod, channelLifetime / 2);
         }
 
         /// <inheritdoc/>
@@ -1040,6 +1060,11 @@ namespace Opc.Ua.Bindings
         private int m_pendingAccepts;
         private int m_maxChannelCount;
         private ITimer? m_inactivityDetectionTimer;
+
+        /// <summary>
+        /// The shortest period of the inactivity sweep in milliseconds.
+        /// </summary>
+        private const int kMinInactivityDetectPeriod = 1000;
     }
 
     /// <summary>
