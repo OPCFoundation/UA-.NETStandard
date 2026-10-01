@@ -131,7 +131,11 @@ namespace Opc.Ua.Bindings
                     int currentTicks = m_timeProvider.GetTickCount();
                     return IsBlockedTicks(client.BlockedUntilTicks, currentTicks);
                 }
-                return m_activeClients.Count >= MaximumTrackedClients;
+
+                // Fail open: an address without a recorded history is never blocked,
+                // even when the table is full. Blocking unknown addresses would let an
+                // attacker lock every legitimate client out by filling the table.
+                return false;
             }
         }
 
@@ -146,8 +150,11 @@ namespace Opc.Ua.Bindings
             {
                 if (!m_activeClients.TryGetValue(ipAddress, out ActiveClient? client))
                 {
-                    if (m_activeClients.Count >= MaximumTrackedClients)
+                    if (m_activeClients.Count >= MaximumTrackedClients &&
+                        !TryEvictUnblockedClient(currentTicks))
                     {
+                        // Every retained history is an active block: keep those and
+                        // do not track the new address.
                         return;
                     }
                     m_activeClients.TryAdd(ipAddress, new ActiveClient
@@ -247,6 +254,38 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Makes room for a new history while the caller holds the client-tracking gate.
+        /// Expired histories are removed first; otherwise the least recently active
+        /// history that is not currently blocked is evicted, so tracked offenders stay
+        /// blocked while new offenders can still be tracked.
+        /// </summary>
+        private bool TryEvictUnblockedClient(int currentTicks)
+        {
+            CleanupExpiredEntriesCore();
+            if (m_activeClients.Count < MaximumTrackedClients)
+            {
+                return true;
+            }
+
+            IPAddress? oldest = null;
+            int oldestAge = -1;
+            foreach (KeyValuePair<IPAddress, ActiveClient> entry in m_activeClients)
+            {
+                if (IsBlockedTicks(entry.Value.BlockedUntilTicks, currentTicks))
+                {
+                    continue;
+                }
+                int age = currentTicks - entry.Value.LastActionTicks;
+                if (age > oldestAge)
+                {
+                    oldestAge = age;
+                    oldest = entry.Key;
+                }
+            }
+            return oldest != null && m_activeClients.TryRemove(oldest, out _);
+        }
+
+        /// <summary>
         /// Determines if the IP is currently blocked based on the block expiration ticks and current ticks
         /// </summary>
         private static bool IsBlockedTicks(int blockedUntilTicks, int currentTicks)
@@ -263,7 +302,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Caps retained client histories; unknown clients are blocked while this table is full.
+        /// Caps retained client histories; when full, the least recently active unblocked history is evicted.
         /// </summary>
         internal const int MaximumTrackedClients = 1024;
 
@@ -1924,11 +1963,11 @@ namespace Opc.Ua.Bindings
         public static partial void TcpAdmissionStopFailed(this ILogger logger, Exception exception);
 
         /// <summary>
-        /// Reports when the bounded abuse history starts rejecting untracked addresses.
+        /// Reports when the bounded abuse history starts evicting unblocked addresses.
         /// </summary>
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 33, Level = LogLevel.Warning,
             Message = "Basic128Rsa15 abuse tracking reached its fixed {Capacity}-address limit; " +
-                "untracked addresses are rejected until expired entries are removed.")]
+                "the least recently active unblocked addresses are evicted for new entries.")]
         public static partial void TcpActiveClientCapacityReached(this ILogger logger, int capacity);
     }
 }
