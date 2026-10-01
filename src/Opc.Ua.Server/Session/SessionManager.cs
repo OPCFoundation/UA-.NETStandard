@@ -1194,9 +1194,6 @@ namespace Opc.Ua.Server
                 // validate request header.
                 session!.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
-                // validate user has permissions for additional info
-                session.ValidateDiagnosticInfo(requestHeader);
-
                 // Lazily reconcile the RoleManager subscription. The
                 // RoleManager is bound during server startup, after
                 // SessionManager construction, so we
@@ -1210,6 +1207,10 @@ namespace Opc.Ua.Server
                 // RoleManager identity-mapping rules) before the request runs
                 // so that downstream access checks see the current grants.
                 ReevaluateIdentityIfStale(session, secureChannelContext);
+
+                // validate user has permissions for additional info. Decided after the
+                // re-evaluation so the privilege reflects the roles the request runs with.
+                session.ValidateDiagnosticInfo(requestHeader);
 
                 // return context.
                 return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, session);
