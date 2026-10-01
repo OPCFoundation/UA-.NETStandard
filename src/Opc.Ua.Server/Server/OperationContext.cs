@@ -68,7 +68,9 @@ namespace Opc.Ua.Server
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
-            ClientTimestamp = (DateTime)requestHeader.Timestamp;
+            ClientTimestamp = requestHeader.Timestamp.IsNull
+                ? DateTime.MinValue
+                : (DateTime)requestHeader.Timestamp;
             RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
             RequestType = requestType;
             ClientHandle = requestHeader.RequestHandle;
@@ -108,7 +110,9 @@ namespace Opc.Ua.Server
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
-            ClientTimestamp = (DateTime)requestHeader.Timestamp;
+            ClientTimestamp = requestHeader.Timestamp.IsNull
+                ? DateTime.MinValue
+                : (DateTime)requestHeader.Timestamp;
             RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
             RequestType = requestType;
             ClientHandle = requestHeader.RequestHandle;

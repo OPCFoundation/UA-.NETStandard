@@ -753,7 +753,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports whether a request that is being admitted was already cancelled by a Cancel
         /// call that arrived while the request was still queued. A request the client sent
-        /// after the Cancel (by RequestHeader.Timestamp, when both carry one) is not affected.
+        /// after the Cancel is not affected. Both the request and the Cancel must carry a
+        /// RequestHeader.Timestamp; otherwise the request is admitted.
         /// </summary>
         /// <param name="context">The request being admitted.</param>
         /// <returns><c>true</c> when the request must complete with Bad_RequestCancelledByClient.</returns>
@@ -776,11 +777,14 @@ namespace Opc.Ua.Server
                 PurgeExpiredPendingCancelsLocked(m_timeProvider.GetUtcNow().UtcDateTime);
                 foreach (PendingCancel pending in m_pendingCancels)
                 {
+                    // Only a request the client provably sent before the Cancel is
+                    // cancelled; without both timestamps a later request reusing the
+                    // handle (e.g. a client that always sends 0) cannot be told apart.
                     if (pending.RequestHandle == context.ClientHandle &&
                         pending.SessionId == context.SessionId &&
-                        (pending.CancelTimestamp == DateTime.MinValue ||
-                            context.ClientTimestamp == DateTime.MinValue ||
-                            context.ClientTimestamp <= pending.CancelTimestamp))
+                        pending.CancelTimestamp != DateTime.MinValue &&
+                        context.ClientTimestamp != DateTime.MinValue &&
+                        context.ClientTimestamp <= pending.CancelTimestamp)
                     {
                         return true;
                     }

@@ -191,7 +191,9 @@ namespace Opc.Ua.Server.Tests
                 created.AuthenticationToken,
                 RequestType.Read).ConfigureAwait(false);
 
-            Assert.That(harness.Order, Is.EqualTo(new[] { "reevaluate", "diagnostics" }));
+            Assert.That(harness.Order, Has.Count.EqualTo(2));
+            Assert.That(harness.Order[0], Is.EqualTo("reevaluate"));
+            Assert.That(harness.Order[1], Is.EqualTo("diagnostics"));
         }
 
         /// <summary>

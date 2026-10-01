@@ -240,6 +240,34 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 m_requestManager.IsCancelledBeforeAdmission(Queued(otherSession.Object, 9, sentAt)),
                 Is.False);
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(Queued(session.Object, 9, DateTime.MinValue)),
+                Is.False,
+                "A request without a timestamp cannot be proven to precede the Cancel.");
+        }
+
+        [Test]
+        public void CancelWithoutTimestampDoesNotCancelLaterRequestsReusingTheHandle()
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            using var cancelLifetime = new RequestLifetime();
+            var cancel = new OperationContext(
+                new RequestHeader { RequestHandle = 10 },
+                null,
+                RequestType.Cancel,
+                cancelLifetime,
+                session.Object);
+
+            m_requestManager.CancelRequests(cancel, 0, out _);
+
+            var later = new OperationContext(
+                new RequestHeader { RequestHandle = 0 },
+                null,
+                RequestType.Read,
+                RequestLifetime.None,
+                session.Object);
+            Assert.That(m_requestManager.IsCancelledBeforeAdmission(later), Is.False);
         }
 
         private static ServerSystemContext CreateAuditContext()
