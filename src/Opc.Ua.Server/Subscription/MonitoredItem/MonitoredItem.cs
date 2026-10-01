@@ -2380,7 +2380,9 @@ namespace Opc.Ua.Server
                             IsDurable,
                             m_monitoredItemQueueFactory,
                             Id,
-                            m_server.Telemetry);
+                            m_server.Telemetry,
+                            QueueOverflowHandler,
+                            null);
                         m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                     }
                     break;
@@ -2488,7 +2490,9 @@ namespace Opc.Ua.Server
                             m_eventQueueHandler = new EventQueueHandler(
                                 restoredQueue,
                                 m_discardOldest,
-                                m_server.Telemetry);
+                                m_server.Telemetry,
+                                QueueOverflowHandler,
+                                null);
 
                             // the queue may have been persisted with a size that was
                             // revised since, e.g. a literal size of 1 before queueSize 1
@@ -2505,7 +2509,9 @@ namespace Opc.Ua.Server
                                 IsDurable,
                                 m_monitoredItemQueueFactory,
                                 Id,
-                                m_server.Telemetry);
+                                m_server.Telemetry,
+                                QueueOverflowHandler,
+                                null);
                             m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                         }
                     }

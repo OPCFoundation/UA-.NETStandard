@@ -220,29 +220,34 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            int maxCount =
+            // a duplicate is the same instance reported again through another notifier
+            // path, so it sits among the most recently queued events: scan from the newest
+            // (the enqueue batch, then the stored batches from the latest backwards).
+            int remaining =
                 ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents
                     ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents
                     : ItemsInQueue;
 
-            for (int i = 0; i < maxCount; i++)
+            for (int i = m_enqueueBatch.Events.Count - 1; i >= 0 && remaining > 0; i--, remaining--)
             {
-                // Check in the enqueue batch
-                if (i < m_enqueueBatch.Events.Count &&
-                    m_enqueueBatch.Events[i] is EventFieldList processedEvent)
+                if (m_enqueueBatch.Events[i] is EventFieldList processedEvent &&
+                    ReferenceEquals(instance, processedEvent.Handle))
                 {
-                    if (ReferenceEquals(instance, processedEvent.Handle))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
-                // If the enqueue batch is smaller than maxCount, check in the first stored batch
-                else if (i >= m_enqueueBatch.Events.Count && m_eventBatches.Count > 0)
+            }
+
+            for (int batch = m_eventBatches.Count - 1; batch >= 0 && remaining > 0; batch--)
+            {
+                // older batches are persisted (no events in memory) and hold no recent duplicate.
+                List<EventFieldList>? events = m_eventBatches[batch].Events;
+                if (events == null)
                 {
-                    int indexInStoredBatch = i - m_enqueueBatch.Events.Count;
-                    if (indexInStoredBatch < m_eventBatches[^1].Events.Count &&
-                        m_eventBatches[^1].Events[
-                            indexInStoredBatch] is EventFieldList storedEvent &&
+                    break;
+                }
+                for (int i = events.Count - 1; i >= 0 && remaining > 0; i--, remaining--)
+                {
+                    if (events[i] is EventFieldList storedEvent &&
                         ReferenceEquals(instance, storedEvent.Handle))
                     {
                         return true;
