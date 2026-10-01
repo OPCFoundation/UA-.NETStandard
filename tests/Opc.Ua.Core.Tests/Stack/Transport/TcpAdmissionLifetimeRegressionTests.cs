@@ -199,6 +199,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// A refused reverse connection whose ReverseHello carries the longest valid
+        /// ServerUri and EndpointUrl (above 8192 bytes in total) is still answered with
+        /// Bad_TcpNotEnoughResources.
+        /// </summary>
+        [Test]
+        public async Task RefusedReverseConnectionAnswersLargestReverseHelloWithNotEnoughResourcesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter { Allow = false };
+            await using var harness = new AcceptHarness(telemetry, limiter: limiter, reverse: true);
+            int maxLength = TcpMessageLimits.MaxEndpointUrlLength - 1;
+            byte[] buffer = new byte[TcpTransportListener.kMaxRejectedHelloSize];
+            int count;
+            using (var encoder = new BinaryEncoder(buffer, 0, buffer.Length, harness.Context))
+            {
+                encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, "urn:" + new string('s', maxLength - 4));
+                encoder.WriteString(null, "opc.tcp://localhost/" + new string('e', maxLength - 20));
+                count = encoder.Close();
+            }
+            Assert.That(count, Is.GreaterThan(TcpMessageLimits.MinBufferSize));
+            BitConverter.GetBytes(count).CopyTo(buffer, 4);
+
+            (Socket client, Socket accepted) = await harness.CreateFirstConnectionAsync().ConfigureAwait(false);
+            using (client)
+            {
+                harness.Admit(accepted);
+                using var stream = new NetworkStream(client, ownsSocket: false);
+                await stream.WriteAsync(buffer, 0, count).ConfigureAwait(false);
+                byte[] error = new byte[12];
+                await ReadExactAsync(stream, error, 0, error.Length).ConfigureAwait(false);
+                Assert.That(BitConverter.ToUInt32(error, 0), Is.EqualTo(TcpMessageType.Error));
+                Assert.That(
+                    BitConverter.ToUInt32(error, 8),
+                    Is.EqualTo(StatusCodes.BadTcpNotEnoughResources.Code));
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task RejectedAdmissionDoesNotReclaimAnExistingIdleChannelAsync(bool rejectOwner)
