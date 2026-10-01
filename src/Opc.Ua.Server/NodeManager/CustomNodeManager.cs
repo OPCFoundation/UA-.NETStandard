@@ -5483,15 +5483,9 @@ namespace Opc.Ua.Server
             uint queueSize,
             ServerAggregateFilter filterToUse)
         {
-            if (filterToUse.ProcessingInterval < samplingInterval)
-            {
-                filterToUse.ProcessingInterval = samplingInterval;
-            }
-
-            if (filterToUse.ProcessingInterval < Server.AggregateManager.MinimumProcessingInterval)
-            {
-                filterToUse.ProcessingInterval = Server.AggregateManager.MinimumProcessingInterval;
-            }
+            filterToUse.ReviseProcessingInterval(
+                samplingInterval,
+                Server.AggregateManager.MinimumProcessingInterval);
 
             DateTimeUtc currentTime = ((Server as ITimeProviderProvider)?.TimeProvider ??
                 TimeProvider.System).GetUtcNow().UtcDateTime;
