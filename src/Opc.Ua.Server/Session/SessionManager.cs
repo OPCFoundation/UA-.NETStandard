@@ -223,7 +223,26 @@ namespace Opc.Ua.Server
             m_workerCts?.Dispose();
             m_workerCts = null;
 
-            CloseAllSessions();
+            // Sessions still open at shutdown are closed like any other session: the Closing
+            // event is raised, the SessionDiagnostics node is removed and the session count
+            // is decremented, rather than the sessions only being disposed.
+            foreach (ISession session in DetachAllSessions())
+            {
+                try
+                {
+                    RaiseSessionEvent(session, SessionEventReason.Closing);
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.FailedToCloseSessionAtShutdown(e, session.Id);
+                }
+                finally
+                {
+                    session.Dispose();
+                    m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount--);
+                }
+            }
         }
 
         /// <summary>
@@ -231,19 +250,33 @@ namespace Opc.Ua.Server
         /// </summary>
         private void CloseAllSessions()
         {
-            KeyValuePair<NodeId, ISession>[] sessions;
+            foreach (ISession session in DetachAllSessions())
+            {
+                session.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Stops admitting sessions and empties the session table.
+        /// </summary>
+        /// <returns>The sessions that were tracked.</returns>
+        private List<ISession> DetachAllSessions()
+        {
+            var sessions = new List<ISession>();
             lock (m_bindingsLock)
             {
                 m_stopping = true;
-                sessions = [.. m_sessions];
+                foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in m_sessions)
+                {
+                    if (sessionKeyValue.Value != null)
+                    {
+                        sessions.Add(sessionKeyValue.Value);
+                    }
+                }
                 m_sessions.Clear();
                 m_channelSessionCounts.Clear();
             }
-
-            foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
-            {
-                sessionKeyValue.Value?.Dispose();
-            }
+            return sessions;
         }
 
         /// <summary>
@@ -2352,6 +2385,13 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.SessionManager + 9, Level = LogLevel.Error,
             Message = "Server - Session Monitor failed to process session {SessionId}.")]
         public static partial void FailedToCloseTimedOutSession(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 10, Level = LogLevel.Warning,
+            Message = "Server - Failed to close session {SessionId} at shutdown.")]
+        public static partial void FailedToCloseSessionAtShutdown(
             this ILogger logger,
             Exception ex,
             NodeId sessionId);

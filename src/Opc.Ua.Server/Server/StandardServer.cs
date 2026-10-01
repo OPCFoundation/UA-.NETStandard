@@ -4549,6 +4549,20 @@ namespace Opc.Ua.Server
             // is torn down.
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
 
+            // No request can close a session any more: every session still open is terminated
+            // by the server, which is audited once per session (OPC 10000-5 6.4.7).
+            foreach (ISession session in serverInternal.SessionManager.GetSessions())
+            {
+                if (!session.IsClosing)
+                {
+                    serverInternal.ReportAuditCloseSessionEvent(
+                        null!,
+                        session,
+                        m_logger,
+                        "Session/Terminated");
+                }
+            }
+
             await RunShutdownStageAsync(
                     failures,
                     serverInternal.DrainRoleStateBindingAsync)
@@ -4663,16 +4677,9 @@ namespace Opc.Ua.Server
                                 .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
                         });
 
-                    foreach (ISession session in currentessions)
-                    {
-                        // raise close session audit event
-                        ServerInternal.ReportAuditCloseSessionEvent(
-                            null!,
-                            session,
-                            m_logger,
-                            "Session/Terminated");
-                    }
-
+                    // The "Session/Terminated" audit is reported when the sessions that are
+                    // still open after the delay are actually terminated, not here: a client
+                    // that closes its session during the delay audits its own close.
                     for (int timeTillShutdown = Configuration!.ServerConfiguration!.ShutdownDelay;
                         timeTillShutdown > 0;
                         timeTillShutdown--)
