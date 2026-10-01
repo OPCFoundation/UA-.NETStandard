@@ -985,16 +985,25 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="session">The session.</param>
         /// <param name="additionalHeader">The additional request header.</param>
-        /// <returns>An AdditionalParametersType object containing the processed parameters.</returns>
+        /// <returns>
+        /// An AdditionalParametersType object containing the processed parameters, or
+        /// <c>null</c> when there is nothing to return.
+        /// </returns>
+        /// <remarks>
+        /// Runs for every successful ActivateSession, with or without an additional
+        /// header, so a client that used its EphemeralKey always receives a new one
+        /// (OPC 10000-6 6.8.2).
+        /// </remarks>
         protected virtual AdditionalParametersType? ActivateSessionProcessAdditionalParameters(
             ISession session,
             ExtensionObject additionalHeader)
         {
-            if (additionalHeader.TryGetValue(out AdditionalParametersType? parameters))
+            if (!additionalHeader.TryGetValue(out AdditionalParametersType? parameters))
             {
-                parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
+                parameters = new AdditionalParametersType();
             }
-            return parameters;
+            parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
+            return parameters == null || parameters.Parameters.IsEmpty ? null : parameters;
         }
 
         /// <summary>
@@ -1009,7 +1018,9 @@ namespace Opc.Ua.Server
         {
             return SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
                 session,
-                parameters);
+                parameters,
+                m_logger,
+                SecurityPolicyRegistry);
         }
 
         /// <inheritdoc/>

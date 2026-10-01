@@ -742,6 +742,9 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                // a previous activation attempt that failed before Activate must not
+                // make this one retire a key it did not use.
+                m_consumedUserTokenNonce = null;
                 ValidateChannelBeforeActivate(context, clientSignature);
             }
 
@@ -889,11 +892,11 @@ namespace Opc.Ua.Server
             ArrayOf<string> localeIds,
             Nonce serverNonce)
         {
+            Nonce? retiredUserTokenNonce = null;
+            bool changed = false;
             lock (m_lock)
             {
                 // update user identity.
-                bool changed = false;
-
                 if (identityToken != null &&
                     UpdateUserIdentity(identityToken, identity, effectiveIdentity))
                 {
@@ -925,16 +928,28 @@ namespace Opc.Ua.Server
                 // update server nonce.
                 m_serverNonce = serverNonce;
 
+                // once ActivateSession succeeds the EphemeralKey that decrypted the
+                // identity token shall not be accepted again (OPC 10000-6 6.8.2).
+                // Retiring it here, inside the activation, keeps it from being reused
+                // even when no new key is handed out after the activation committed.
+                if (m_consumedUserTokenNonce != null &&
+                    ReferenceEquals(m_consumedUserTokenNonce, m_userTokenNonce))
+                {
+                    retiredUserTokenNonce = ReplaceUserTokenNonce(null);
+                }
+                m_consumedUserTokenNonce = null;
+
                 // update the contact time.
                 lock (m_diagnosticsLock)
                 {
                     SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
                     m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
                 }
-
-                // indicate whether the user context has changed.
-                return changed;
             }
+            retiredUserTokenNonce?.Dispose();
+
+            // indicate whether the user context has changed.
+            return changed;
         }
 
         /// <summary>
@@ -1227,6 +1242,14 @@ namespace Opc.Ua.Server
                         // the client certificate.
                         (m_server as ICertificateValidatorProvider)?.CertificateValidator,
                         cancellationToken).ConfigureAwait(false);
+
+                    if (userTokenNonce != null)
+                    {
+                        lock (m_lock)
+                        {
+                            m_consumedUserTokenNonce = userTokenNonce;
+                        }
+                    }
                 }
                 catch (Exception e)
                     when (e is not OperationCanceledException)
@@ -1617,6 +1640,14 @@ namespace Opc.Ua.Server
         private Nonce m_serverNonce;
         private string? m_userTokenSecurityPolicyUri;
         private Nonce? m_userTokenNonce;
+
+        /// <summary>
+        /// The user-token nonce that decrypted the identity token of the activation
+        /// being validated; <see cref="Activate"/> retires it when it commits.
+        /// Only compared by reference and not owned (the borrow tracking disposes
+        /// the nonce), hence typed as object.
+        /// </summary>
+        private object? m_consumedUserTokenNonce;
 
         /// <summary>
         /// Counts active validation operations borrowing each user-token nonce.
