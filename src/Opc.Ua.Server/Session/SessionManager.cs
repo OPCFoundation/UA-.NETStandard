@@ -1219,7 +1219,17 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException sre)
             {
-                if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
+                if (sre.StatusCode == StatusCodes.BadSessionClosed &&
+                    session != null &&
+                    !session.IsClosing &&
+                    session.HasExpired)
+                {
+                    // The request found the session timed out before the session monitor
+                    // did: terminate it now (OPC 10000-4 5.7.2.1), as ActivateSession does.
+                    // The shared timeout claim keeps the count and audit single-shot.
+                    await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
+                }
+                else if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
                     await CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
                 }
