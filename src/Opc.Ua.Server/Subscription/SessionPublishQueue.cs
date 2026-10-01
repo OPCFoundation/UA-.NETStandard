@@ -60,9 +60,6 @@ namespace Opc.Ua.Server
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SessionPublishQueue>();
-            m_backgroundWork = new BackgroundTaskScope(
-                nameof(SessionPublishQueue),
-                server.Telemetry);
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_queuedRequests = new LinkedList<QueuedPublishRequest>();
             m_queuedSubscriptions = new ConcurrentDictionary<uint, QueuedSubscription>();
@@ -89,10 +86,6 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                // Signal only: Dispose is synchronous. A cleanup already running
-                // finishes deleting the subscriptions it captured.
-                m_backgroundWork.Dispose();
-
                 lock (m_lock)
                 {
                     while (m_queuedRequests.Count > 0)
@@ -711,9 +704,13 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // schedule cleanup on a background thread.
-            SubscriptionManager.CleanupSubscriptions(
-                m_server, subscriptionsToDelete, m_logger, m_backgroundWork);
+            // schedule cleanup on a background thread owned by the manager, so a
+            // closing session cannot cancel the deletion of a claimed expiry.
+            if (subscriptionsToDelete.Count > 0)
+            {
+                ((SubscriptionManager)m_server.SubscriptionManager)
+                    .CleanupSubscriptions(subscriptionsToDelete);
+            }
         }
 
         /// <summary>
@@ -1177,7 +1174,6 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
-        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
         private readonly LinkedList<QueuedPublishRequest> m_queuedRequests;

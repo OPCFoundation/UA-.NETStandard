@@ -272,6 +272,17 @@ namespace Opc.Ua.Server
 
                 m_shutdownEvent.Reset();
 
+                // ShutdownAsync drains and disposes the expiry cleanup scope. A
+                // disposed scope refuses new work, so a restarted manager needs a
+                // fresh one or expired subscriptions would never be deleted.
+                if (m_backgroundWorkStopped)
+                {
+                    m_backgroundWork = new BackgroundTaskScope(
+                        nameof(SubscriptionManager),
+                        m_server.Telemetry);
+                    m_backgroundWorkStopped = false;
+                }
+
                 // Recreated on every startup: a token source cannot be reset once
                 // ShutdownAsync has cancelled it, and the manager supports restart.
                 m_workerCts?.Dispose();
@@ -311,16 +322,18 @@ namespace Opc.Ua.Server
                 m_conditionRefreshWorkerTask = null;
             }
 
+            // Expired-subscription cleanups scheduled by the publish sweep still
+            // delete subscriptions through the server and take the manager
+            // semaphore without honouring cancellation (a claimed expiry must
+            // not be dropped), so drain them before taking the semaphore.
+            m_backgroundWorkStopped = true;
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 m_workerCts?.Dispose();
                 m_workerCts = null;
-
-                // Expired-subscription cleanups scheduled by the publish sweep
-                // still delete subscriptions through the server, so drain them
-                // before the queues and subscriptions go away.
-                await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
 
                 // dispose of publish queues.
                 foreach (SessionPublishQueue queue in m_publishQueues.Values)
@@ -365,6 +378,13 @@ namespace Opc.Ua.Server
             {
                 // only store durable subscriptions
                 if (!subscription.IsDurable)
+                {
+                    continue;
+                }
+
+                // an expired subscription whose cleanup did not run before the
+                // shutdown is closed (Part 4 5.14.1.1) and must not be resurrected.
+                if (m_expiringSubscriptions.ContainsKey(subscription.Id))
                 {
                     continue;
                 }
@@ -2563,7 +2583,7 @@ namespace Opc.Ua.Server
                 m_logger.SubscriptionAbandonedSubscriptionIdSubscriptionId(subscription.Id);
             }
 
-            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger, m_backgroundWork);
+            CleanupSubscriptions(subscriptionsToDelete);
         }
 
         /// <summary>
@@ -2638,54 +2658,58 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Cleanups the subscriptions.
+        /// Schedules the deletion of subscriptions whose expiration was claimed.
         /// </summary>
-        /// <param name="server">The server.</param>
+        /// <remarks>
+        /// The deletion runs on the manager's scope, not on the scope of the session
+        /// publish queue that detected the expiry: a claimed subscription is no longer
+        /// in any publish queue or in the abandoned set, so a cleanup cancelled by a
+        /// closing session would leak it until restart.
+        /// </remarks>
         /// <param name="subscriptionsToDelete">The subscriptions to delete.</param>
-        /// <param name="logger">A contextual logger to log to</param>
-        /// <param name="backgroundWork">Owns the deletion so it is drained
-        /// before the caller that scheduled it goes away.</param>
-        internal static void CleanupSubscriptions(
-            IServerInternal server,
-            IList<ISubscriptionPublishPipeline> subscriptionsToDelete,
-            ILogger logger,
-            BackgroundTaskScope backgroundWork)
+        internal void CleanupSubscriptions(IList<ISubscriptionPublishPipeline> subscriptionsToDelete)
         {
             if (subscriptionsToDelete != null && subscriptionsToDelete.Count > 0)
             {
-                logger.ServerCountSubscriptionsScheduledForDelete(subscriptionsToDelete.Count);
+                m_logger.ServerCountSubscriptionsScheduledForDelete(subscriptionsToDelete.Count);
 
-                backgroundWork.Run(
+                IServerInternal server = m_server;
+                ILogger logger = m_logger;
+                m_backgroundWork.Run(
                     nameof(CleanupSubscriptionsCoreAsync),
-                    async ct => await CleanupSubscriptionsCoreAsync(
-                        server, subscriptionsToDelete, logger, ct).ConfigureAwait(false));
+                    async _ => await CleanupSubscriptionsCoreAsync(
+                        server, subscriptionsToDelete, logger).ConfigureAwait(false));
             }
         }
 
         /// <summary>
         /// Deletes any expired subscriptions.
         /// </summary>
+        /// <remarks>
+        /// Each deletion runs without a cancellation token and in its own try block:
+        /// the expiry is already claimed, so nothing else would delete the subscription.
+        /// </remarks>
         private static async ValueTask CleanupSubscriptionsCoreAsync(
             IServerInternal server,
             IList<ISubscriptionPublishPipeline> subscriptionsToDelete,
-            ILogger logger,
-            CancellationToken cancellationToken = default)
+            ILogger logger)
         {
-            try
-            {
-                logger.ServerCleanupSubscriptionsTaskStarted();
+            logger.ServerCleanupSubscriptionsTaskStarted();
 
-                foreach (ISubscriptionPublishPipeline subscription in subscriptionsToDelete)
+            foreach (ISubscriptionPublishPipeline subscription in subscriptionsToDelete)
+            {
+                try
                 {
-                    await server.DeleteSubscriptionAsync(subscription.Id, cancellationToken).ConfigureAwait(false);
+                    await server.DeleteSubscriptionAsync(subscription.Id, CancellationToken.None)
+                        .ConfigureAwait(false);
                 }
+                catch (Exception e)
+                {
+                    logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
+                }
+            }
 
-                logger.ServerCleanupSubscriptionsTaskCompleted();
-            }
-            catch (Exception e)
-            {
-                logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
-            }
+            logger.ServerCleanupSubscriptionsTaskCompleted();
         }
 
         private class StatusMessage
@@ -2767,7 +2791,8 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_conditionRefreshEvent;
         private readonly ISubscriptionStore m_subscriptionStore;
         private Task? m_conditionRefreshWorkerTask;
-        private readonly BackgroundTaskScope m_backgroundWork;
+        private BackgroundTaskScope m_backgroundWork;
+        private bool m_backgroundWorkStopped;
         private Task? m_publishWorkerTask;
         private CancellationTokenSource? m_workerCts;
 
