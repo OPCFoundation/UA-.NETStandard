@@ -119,12 +119,14 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            int maxCount =
+            // a duplicate is the same instance reported again through another notifier
+            // path, so it sits among the most recently queued events: scan from the newest.
+            int lowestIndex =
                 m_events.Count > kMaxNoOfEntriesCheckedForDuplicateEvents
-                    ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents
-                    : m_events.Count;
+                    ? m_events.Count - (int)kMaxNoOfEntriesCheckedForDuplicateEvents
+                    : 0;
 
-            for (int i = 0; i < maxCount; i++)
+            for (int i = m_events.Count - 1; i >= lowestIndex; i--)
             {
                 if (m_events[i] is EventFieldList processedEvent &&
                     ReferenceEquals(instance, processedEvent.Handle))
