@@ -233,7 +233,16 @@ namespace Opc.Ua.Bindings
             // before any message secured with this token replaces them.
             ComputeKeys(token);
 
-            RenewedToken?.Dispose();
+            // a renewal still pending here was answered before the client sent this one
+            // on the same connection, so the client already secures its requests with it.
+            // Make it current (the token before it stays accepted as the previous one)
+            // instead of dropping it: OPC 10000-6 6.7.4 requires the server to accept it
+            // until it expires or a message secured with the newest token arrives.
+            if (RenewedToken != null)
+            {
+                ActivateToken(RenewedToken);
+            }
+
             RenewedToken = token;
             m_renewedTokenWithKeys = token;
             if (m_logger.IsEnabled(LogLevel.Information))

@@ -88,6 +88,49 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.That(tokenHandler.DecryptedPassword, Is.EqualTo(expectedPassword));
         }
 
+        /// <summary>
+        /// A failing RSAEncryptedSecret must report its own cause (here the nonce) to the
+        /// server, which logs it, instead of falling through to the legacy decryption path.
+        /// </summary>
+        [Test]
+        public void DecryptReportsRsaEncryptedSecretFailureCause()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            byte[] otherNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=User Identity Token Failure Test Subject, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            byte[] encryptedSecret = CreateRsaEncryptedSecret(
+                context,
+                certificate,
+                kSecurityPolicyUri,
+                Nonce.CreateNonce(96).Data,
+                otherNonce);
+
+            var token = new UserNameIdentityToken
+            {
+                UserName = "user",
+                Password = encryptedSecret.ToByteString(),
+                EncryptionAlgorithm = null
+            };
+
+            var tokenHandler = new UserNameIdentityTokenHandler(token);
+            Assert.That(
+                async () => await tokenHandler.DecryptAsync(
+                    certificate,
+                    Nonce.CreateNonce(securityPolicy, receiverNonce),
+                    kSecurityPolicyUri,
+                    context).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadNonceInvalid));
+        }
+
         [Test]
         public async Task DecryptKeepsLegacyRsaEncryptedTokenPathAsync()
         {

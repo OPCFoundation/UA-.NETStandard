@@ -1900,8 +1900,7 @@ namespace Opc.Ua.Bindings
                         }
 
                         int keySize = CryptoUtils.GetRsaPublicKeySize(certificate);
-                        if (keySize < policy.MinAsymmetricKeyLength ||
-                            keySize > policy.MaxAsymmetricKeyLength)
+                        if (!IsRsaKeySizeAllowed(policy, keySize))
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadCertificatePolicyCheckFailed,
@@ -1926,6 +1925,17 @@ namespace Opc.Ua.Bindings
                         break;
                 }
             }
+        }
+
+        /// <summary>
+        /// Whether an RSA key of <paramref name="keySize"/> bits is inside the key length
+        /// window of the policy. A non-positive minimum or maximum means no bound, as for the
+        /// certificate selection in ServerBase.
+        /// </summary>
+        internal static bool IsRsaKeySizeAllowed(SecurityPolicyInfo policy, int keySize)
+        {
+            return (policy.MinAsymmetricKeyLength <= 0 || keySize >= policy.MinAsymmetricKeyLength) &&
+                (policy.MaxAsymmetricKeyLength <= 0 || keySize <= policy.MaxAsymmetricKeyLength);
         }
 
         /// <summary>

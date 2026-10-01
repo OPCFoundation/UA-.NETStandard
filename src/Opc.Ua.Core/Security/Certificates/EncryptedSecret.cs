@@ -1111,7 +1111,7 @@ namespace Opc.Ua
             };
         }
 
-        private static byte[] TransformRsaBlocks(
+        internal static byte[] TransformRsaBlocks(
             ReadOnlySpan<byte> input,
             RSA rsa,
             RSAEncryptionPadding padding,
@@ -1133,18 +1133,54 @@ namespace Opc.Ua
             }
 
             using var output = new MemoryStream();
+            CryptographicException? decryptFailure = null;
 
-            for (int offset = 0; offset < input.Length; offset += inputBlockSize)
+            try
             {
-                int count = Math.Min(inputBlockSize, input.Length - offset);
-                byte[] transformed = encrypt
-                    ? rsa.Encrypt(input.Slice(offset, count).ToArray(), padding)
-                    : rsa.Decrypt(input.Slice(offset, count).ToArray(), padding);
-                output.Write(transformed, 0, transformed.Length);
-                CryptoUtils.ZeroMemory(transformed);
-            }
+                for (int offset = 0; offset < input.Length; offset += inputBlockSize)
+                {
+                    int count = Math.Min(inputBlockSize, input.Length - offset);
+                    byte[] transformed;
+                    if (encrypt)
+                    {
+                        transformed = rsa.Encrypt(input.Slice(offset, count).ToArray(), padding);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            transformed = rsa.Decrypt(input.Slice(offset, count).ToArray(), padding);
+                        }
+                        catch (CryptographicException ex)
+                        {
+                            // Keep decrypting the remaining blocks: stopping at the first block
+                            // with bad padding would make the number of private-key operations
+                            // (and so the response time) reveal the padding validity of the
+                            // earlier blocks.
+                            decryptFailure ??= ex;
+                            continue;
+                        }
+                    }
 
-            return output.ToArray();
+                    if (decryptFailure == null)
+                    {
+                        output.Write(transformed, 0, transformed.Length);
+                    }
+
+                    CryptoUtils.ZeroMemory(transformed);
+                }
+
+                if (decryptFailure != null)
+                {
+                    throw new CryptographicException("RSA decryption failed.", decryptFailure);
+                }
+
+                return output.ToArray();
+            }
+            finally
+            {
+                Array.Clear(output.GetBuffer(), 0, (int)output.Length);
+            }
         }
 
         private static void EncryptCbcWithoutPadding(ArraySegment<byte> payload, byte[] encryptingKey, byte[] iv)
