@@ -1868,6 +1868,24 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Binds the channel to the security policy it was created with, so
+        /// every asymmetric message it receives has to name that policy.
+        /// </summary>
+        /// <remarks>
+        /// A client requested one policy and mode in its OpenSecureChannel
+        /// request, and the response carries no mode of its own, so a
+        /// response secured with any other policy cannot be a conforming one
+        /// (OPC 10000-4 §5.6.2.1, OPC 10000-6 §6.7.2.3). Without this the
+        /// first response falls through to the discovery-only None channel a
+        /// server offers unknown peers, and an unsigned None response would
+        /// downgrade a secured channel to cleartext.
+        /// </remarks>
+        private protected void RequireConfiguredSecurityPolicy()
+        {
+            m_uninitialized = false;
+        }
+
+        /// <summary>
         /// Binds the channel to an endpoint the first time a message arrives.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>

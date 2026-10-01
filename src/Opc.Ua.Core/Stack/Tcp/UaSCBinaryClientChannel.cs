@@ -127,6 +127,10 @@ namespace Opc.Ua.Bindings
 
                 ClientCertificate = clientCertificate;
                 ClientCertificateChain = clientCertificateChain;
+
+                // the server must answer with the policy the client asked for;
+                // never fall back to an unsecured channel.
+                RequireConfiguredSecurityPolicy();
             }
             else
             {
@@ -151,6 +155,8 @@ namespace Opc.Ua.Bindings
 
             // save the endpoint.
             EndpointDescription = endpoint;
+            m_requestedSecurityMode = endpoint.SecurityMode;
+            m_requestedSecurityPolicyUri = endpoint.SecurityPolicyUri;
             m_url = new Uri(endpoint.EndpointUrl);
         }
 
@@ -759,8 +765,25 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                // verify server certificate.
-                CompareCertificates(ServerCertificate, serverCertificate, true);
+                // a secured channel must stay on the policy and mode the client
+                // requested (OPC 10000-4 §5.6.2.1); the response cannot revise them.
+                if (m_requestedSecurityMode != MessageSecurityMode.None &&
+                    (SecurityMode != m_requestedSecurityMode ||
+                        SecurityPolicyUri != m_requestedSecurityPolicyUri))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "The OpenSecureChannel response uses security policy {0} instead of {1}.",
+                        SecurityPolicyUri,
+                        m_requestedSecurityPolicyUri ?? SecurityPolicies.None);
+                }
+
+                // verify server certificate. A secured response is signed with
+                // the server's key, so it always carries the server certificate.
+                CompareCertificates(
+                    ServerCertificate,
+                    serverCertificate,
+                    m_requestedSecurityMode == MessageSecurityMode.None);
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelResponse"))
@@ -1959,6 +1982,8 @@ namespace Opc.Ua.Bindings
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private byte[]? m_oscRequestSignature;
+        private readonly MessageSecurityMode m_requestedSecurityMode;
+        private readonly string? m_requestedSecurityPolicyUri;
     }
 
     /// <summary>
