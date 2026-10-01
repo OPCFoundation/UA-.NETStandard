@@ -562,12 +562,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                 transport.Close();
 
-                string accept;
-                using (var sha1 = System.Security.Cryptography.SHA1.Create())
-                {
-                    accept = Convert.ToBase64String(sha1.ComputeHash(System.Text.Encoding.ASCII.GetBytes(
-                        key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
-                }
+                // RFC 6455 4.2.2 defines Sec-WebSocket-Accept as a SHA-1 hash.
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+                string accept = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(
+                    System.Text.Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+#pragma warning restore CA5350
                 byte[] response = System.Text.Encoding.ASCII.GetBytes(
                     "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
                     $"Sec-WebSocket-Accept: {accept}\r\n" +

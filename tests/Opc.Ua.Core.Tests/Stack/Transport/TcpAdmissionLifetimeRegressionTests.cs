@@ -314,7 +314,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 harness.Admit(accepted);
                 using var stream = new NetworkStream(client, ownsSocket: false);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                await stream.WriteAsync(buffer.AsMemory(0, count)).ConfigureAwait(false);
+#else
                 await stream.WriteAsync(buffer, 0, count).ConfigureAwait(false);
+#endif
                 byte[] error = new byte[12];
                 await ReadExactAsync(stream, error, 0, error.Length).ConfigureAwait(false);
                 Assert.That(BitConverter.ToUInt32(error, 0), Is.EqualTo(TcpMessageType.Error));
