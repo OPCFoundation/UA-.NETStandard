@@ -814,14 +814,24 @@ namespace Opc.Ua.Server
                     activationLock = null;
                 }
 
-                await OnSessionActivatedAsync(
-                    authenticationToken,
-                    session,
-                    serverNonce,
-                    clientUserTokenType,
-                    clientUserId,
-                    activationSequence,
-                    cancellationToken).ConfigureAwait(false);
+                // The session already holds serverNonce and is bound to this channel;
+                // a fault now would hide the nonce from the client and desync it
+                // (Part 4 5.7.3.1), so a failing or cancelled callback is only logged.
+                try
+                {
+                    await OnSessionActivatedAsync(
+                        authenticationToken,
+                        session,
+                        serverNonce,
+                        clientUserTokenType,
+                        clientUserId,
+                        activationSequence,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.SessionActivatedCallbackFailed(e, session.Id);
+                }
 
                 // External callbacks run after the activation transaction has
                 // committed and released its per-Session gate.
@@ -2316,6 +2326,13 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.SessionManager + 9, Level = LogLevel.Error,
             Message = "Server - Session Monitor failed to process session {SessionId}.")]
         public static partial void FailedToCloseTimedOutSession(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 17, Level = LogLevel.Warning,
+            Message = "Server - Session activated callback failed for session {SessionId}; the activation stands.")]
+        public static partial void SessionActivatedCallbackFailed(
             this ILogger logger,
             Exception ex,
             NodeId sessionId);

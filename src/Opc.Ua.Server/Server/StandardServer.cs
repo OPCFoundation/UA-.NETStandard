@@ -1064,27 +1064,44 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                if (identityChanged)
-                {
-                    ISession? activatedSession = ServerInternal.SessionManager
-                        .GetSession(requestHeader.AuthenticationToken);
-
-                    if (activatedSession != null)
-                    {
-                        await ServerInternal.NodeManager.SessionActivatedAsync(
-                            context,
-                            activatedSession.Id,
-                            requestLifetime.CancellationToken).ConfigureAwait(false);
-                    }
-                }
-
+                // The activation has committed and the session now expects the next
+                // request to be signed over serverNonce, which only this response
+                // carries (Part 4 5.7.3.1). The steps below are therefore best-effort:
+                // turning their failure into a fault would leave the client with a
+                // nonce the server no longer accepts. Only a session that was closed
+                // concurrently still fails the request; its nonce is moot.
                 ISession? session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken)
                     ?? throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
 
-                AdditionalParametersType? parameters = ActivateSessionProcessAdditionalParameters(
-                    session,
-                    requestHeader.AdditionalHeader);
+                if (identityChanged)
+                {
+                    try
+                    {
+                        await ServerInternal.NodeManager.SessionActivatedAsync(
+                            context,
+                            session.Id,
+                            requestLifetime.CancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.ActivateSessionPostCommitStepFailed(e, session.Id);
+                    }
+                }
+
+                AdditionalParametersType? parameters = null;
+                try
+                {
+                    parameters = ActivateSessionProcessAdditionalParameters(
+                        session,
+                        requestHeader.AdditionalHeader);
+                }
+                catch (Exception e)
+                {
+                    // e.g. the session started closing; the client can request a key
+                    // with ECDHPolicyUri on its next ActivateSession.
+                    m_logger.ActivateSessionPostCommitStepFailed(e, session.Id);
+                }
 
                 m_logger.ServerSESSIONACTIVATED(session.Id);
 
@@ -1114,9 +1131,11 @@ namespace Opc.Ua.Server
                     DiagnosticInfos = []
                 };
             }
-            catch (ServiceResultException e)
+            catch (Exception e)
             {
-                // report the audit event for failed session activate
+                // report the audit event for failed session activate. Every failure,
+                // including cancellation and unexpected exceptions, is audited and
+                // counted, not only ServiceResultExceptions.
                 ISession? session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
 
@@ -1128,22 +1147,28 @@ namespace Opc.Ua.Server
                     ExtractAuditUserIdentityToken(userIdentityToken),
                     e);
 
+                var sre = e as ServiceResultException;
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
                     diagnostics.RejectedSessionCount++;
                     diagnostics.RejectedRequestsCount++;
 
-                    if (IsSecurityError(e.StatusCode))
+                    if (sre != null && IsSecurityError(sre.StatusCode))
                     {
                         diagnostics.SecurityRejectedSessionCount++;
                         diagnostics.SecurityRejectedRequestsCount++;
                     }
                 });
 
+                if (sre == null)
+                {
+                    throw;
+                }
+
                 throw TranslateException(
                     (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                     localeIds,
-                    e)!;
+                    sre)!;
             }
             finally
             {
@@ -5826,5 +5851,15 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             string? errorMessage);
+
+        /// <summary>
+        /// Logs a failed best-effort step after an ActivateSession committed.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 38, Level = LogLevel.Warning,
+            Message = "Server - ActivateSession post-commit step failed for session {SessionId}; the activation stands.")]
+        public static partial void ActivateSessionPostCommitStepFailed(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
     }
 }
