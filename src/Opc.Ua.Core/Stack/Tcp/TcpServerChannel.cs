@@ -353,7 +353,10 @@ namespace Opc.Ua.Bindings
                     // need to assign a new token id.
                     token.ChannelId = ChannelId;
                     token.TokenId = GetNewTokenId();
-                    token.PreviousSecret = (RenewedToken ?? CurrentToken)?.Secret;
+                    // chain from the current token, not from a pending renewal: the socket
+                    // may have dropped before the client received that renewal's response,
+                    // and a client chains from the token it has activated.
+                    token.PreviousSecret = CurrentToken?.Secret;
                     ReplaceNonces(token);
                     if (Volatile.Read(ref m_disposed) != 0)
                     {
