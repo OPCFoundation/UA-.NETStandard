@@ -800,11 +800,7 @@ namespace Opc.Ua.Server
                     context.ChannelContext.ClientChannelCertificate,
                     clientNonceData);
 
-                if (!m_securityPolicies.VerifySignatureData(
-                        clientSignature!,
-                        EndpointDescription.SecurityPolicyUri!,
-                        ClientCertificate,
-                        dataToSign))
+                if (!VerifyClientSignature(clientSignature!, dataToSign))
                 {
                     // verify for certificate chain in endpoint.
                     // validate the signature with complete chain if the check with leaf certificate failed.
@@ -832,11 +828,7 @@ namespace Opc.Ua.Server
                             context.ChannelContext.ClientChannelCertificate,
                             clientNonceData);
 
-                        if (!m_securityPolicies.VerifySignatureData(
-                              clientSignature!,
-                              EndpointDescription.SecurityPolicyUri!,
-                              ClientCertificate,
-                              dataToSign))
+                        if (!VerifyClientSignature(clientSignature!, dataToSign))
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadApplicationSignatureInvalid);
@@ -853,6 +845,36 @@ namespace Opc.Ua.Server
             if (!Activated && SecureChannelId != context.ChannelContext.SecureChannelId)
             {
                 throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the client signature against the client certificate.
+        /// </summary>
+        /// <remarks>
+        /// The shared signature check reports an unexpected SignatureData algorithm as
+        /// the channel-level Bad_SecurityChecksFailed; for ActivateSession that is a
+        /// missing or invalid client signature, Bad_ApplicationSignatureInvalid
+        /// (Part 4 5.7.3.3).
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool VerifyClientSignature(SignatureData clientSignature, byte[] dataToSign)
+        {
+            try
+            {
+                return m_securityPolicies.VerifySignatureData(
+                    clientSignature,
+                    EndpointDescription.SecurityPolicyUri!,
+                    ClientCertificate!,
+                    dataToSign);
+            }
+            catch (ServiceResultException e)
+                when (e.StatusCode == StatusCodes.BadSecurityChecksFailed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadApplicationSignatureInvalid,
+                    e,
+                    "The client signature uses an unexpected algorithm.");
             }
         }
 
@@ -1078,7 +1100,9 @@ namespace Opc.Ua.Server
             }
 
             IUserIdentityTokenHandler token;
-            // check for unrecognized token.
+            // check for unrecognized token. A token that cannot be decoded or names an
+            // unknown policy is Bad_IdentityTokenInvalid (Part 4 5.7.3.3), the same
+            // result the regular path below returns.
             if (identityToken.TryGetValue(out UserIdentityToken? decodedToken))
             {
                 token = decodedToken.AsTokenHandler(m_securityPolicies);
@@ -1090,7 +1114,7 @@ namespace Opc.Ua.Server
                     !identityToken.TryGetAsBinary(out ByteString _))
                 {
                     throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "Invalid user identity token provided.");
                 }
                 if (BaseVariableState.DecodeExtensionObject(
@@ -1101,7 +1125,7 @@ namespace Opc.Ua.Server
                     is not UserIdentityToken newToken)
                 {
                     throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "Invalid user identity token provided.");
                 }
 
@@ -1109,7 +1133,7 @@ namespace Opc.Ua.Server
                     newToken.PolicyId!,
                     EndpointDescription.SecurityPolicyUri!) ??
                     throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "User token policy not supported.",
                         "Opc.Ua.Server.Session.ValidateUserIdentityTokenAsync");
 
@@ -1146,7 +1170,7 @@ namespace Opc.Ua.Server
                         break;
                     default:
                         throw ServiceResultException.Create(
-                            StatusCodes.BadUserAccessDenied,
+                            StatusCodes.BadIdentityTokenInvalid,
                             "Invalid user identity token provided.");
                 }
 

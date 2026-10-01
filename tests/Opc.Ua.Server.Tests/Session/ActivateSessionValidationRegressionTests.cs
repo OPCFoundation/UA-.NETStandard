@@ -118,6 +118,54 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// AS-5: a client signature with an unexpected algorithm is a missing or
+        /// invalid client signature, Bad_ApplicationSignatureInvalid (Part 4 5.7.3.3),
+        /// not the channel-level Bad_SecurityChecksFailed of the shared check.
+        /// </summary>
+        [Test]
+        public void ClientSignatureWithUnexpectedAlgorithmIsApplicationSignatureInvalid()
+        {
+            using Certificate clientCertificate =
+                CertificateBuilder.Create("CN=ActivateSessionValidationClient").CreateForRSA();
+            EndpointDescription endpoint = CreateEndpoint(
+                SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign);
+            using ServerSession session = CreateSession(endpoint, clientCertificate);
+            using OperationContext context = CreateContext(endpoint);
+            var clientSignature = new SignatureData
+            {
+                Algorithm = SecurityAlgorithms.RsaSha1,
+                Signature = new byte[] { 1, 2, 3, 4 }.ToByteString()
+            };
+
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
+                    context, clientSignature, default, new SignatureData(),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
+        }
+
+        /// <summary>
+        /// AS-5: an identity token that is not a UserIdentityToken is
+        /// Bad_IdentityTokenInvalid (Part 4 5.7.3.3), as on the regular path, rather
+        /// than Bad_UserAccessDenied.
+        /// </summary>
+        [Test]
+        public void UndecodableIdentityTokenIsIdentityTokenInvalid()
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                tokens: [new UserTokenPolicy { PolicyId = "anon", TokenType = UserTokenType.Anonymous }]);
+            using ServerSession session = CreateSession(endpoint);
+            using OperationContext context = CreateContext(endpoint);
+            var token = new ExtensionObject(new ExpandedNodeId(9999u, 1), "{}");
+
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
+                    context, new SignatureData(), token, new SignatureData(),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        /// <summary>
         /// AS-6: ClientUserIdOfSession names the user authenticated when the session
         /// was created (Part 5 12.12); a later identity change only extends
         /// ClientUserIdHistory.
