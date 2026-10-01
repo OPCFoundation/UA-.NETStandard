@@ -457,7 +457,10 @@ namespace Opc.Ua.Server
                     return true;
                 }
 
-                if (m_sourceSamplingInterval == 0)
+                // events are exception based and are not sampled (Part 4, 5.13.1.2), so a
+                // requested sampling interval must not hold back their delivery.
+                if (m_sourceSamplingInterval == 0 &&
+                    (MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     // re-queue if too little time has passed since the last publish, in case it doesn't ResendData
                     long now = m_timeProvider.GetTimestampMilliseconds();

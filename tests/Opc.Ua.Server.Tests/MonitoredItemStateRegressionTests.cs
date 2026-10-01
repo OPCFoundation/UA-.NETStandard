@@ -193,6 +193,60 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        /// <summary>
+        /// A non-zero sampling interval requested for an event item must not delay delivery.
+        /// </summary>
+        [Test]
+        public void EventItemIsNotThrottledBySamplingInterval()
+        {
+            using var harness = new Harness();
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter, samplingInterval: 5000);
+
+            item.QueueEvent(new NamedFieldTarget());
+            Assert.That(PublishEvents(item), Has.Count.EqualTo(1));
+
+            item.QueueEvent(new NamedFieldTarget());
+
+            Assert.That(item.IsReadyToPublish, Is.True);
+            Assert.That(PublishEvents(item), Has.Count.EqualTo(1));
+        }
+
+        private static SimpleAttributeOperand CreateSelectClause(string name)
+        {
+            return new SimpleAttributeOperand
+            {
+                TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                BrowsePath = [new QualifiedName(name)],
+                AttributeId = Attributes.Value
+            };
+        }
+
+        /// <summary>
+        /// Event filter target that reports the browse name of each selected field as its value.
+        /// </summary>
+        private sealed class NamedFieldTarget : IFilterTarget
+        {
+            public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
+            {
+                return true;
+            }
+
+            public Variant GetAttributeValue(
+                IFilterContext context,
+                NodeId typeDefinitionId,
+                ArrayOf<QualifiedName> relativePath,
+                uint attributeId,
+                NumericRange indexRange)
+            {
+                return Variant.From(relativePath[0].Name);
+            }
+        }
+
         private static void ModifyQueueSize(MonitoredItem item, uint queueSize)
         {
             ServiceResult result = item.ModifyAttributes(
