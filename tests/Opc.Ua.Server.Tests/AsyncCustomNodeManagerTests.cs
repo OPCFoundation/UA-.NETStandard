@@ -7240,10 +7240,12 @@ namespace Opc.Ua.Server.Tests
                     queueSize: 4,
                     filter).ConfigureAwait(false);
 
+            // the retained window starts at now - 3 s; the revised start stays on the requested
+            // 250 ms boundary (startTime + n * processingInterval, Part 4 §7.22.4).
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).StartTime.ToDateTime(),
-                Is.EqualTo(now.UtcDateTime.AddSeconds(-3)));
+                Is.EqualTo(requestedStart.AddSeconds(6)));
         }
 
         /// <summary>
