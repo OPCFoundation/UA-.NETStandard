@@ -345,10 +345,15 @@ namespace Opc.Ua.Server
                 tempNonce = Nonce.CreateNonce(kSessionNonceLength);
                 serverNonceObject = tempNonce;
 
-                // assign client name.
+                // assign client name (Part 4 5.7.2.2). The session id is only
+                // assigned by InitializeAsync, so a separate counter keeps the
+                // names (and the diagnostics BrowseNames) distinct. It is not
+                // derived from the authentication token, which must stay secret.
                 if (string.IsNullOrEmpty(sessionName))
                 {
-                    sessionName = Utils.Format("Session {0}", sessionId);
+                    sessionName = Utils.Format(
+                        "Session {0}",
+                        Utils.IncrementIdentifier(ref m_lastSessionNameId));
                 }
 
                 // create instance of session.
@@ -1907,6 +1912,7 @@ namespace Opc.Ua.Server
 #endif
 
         private uint m_lastSessionId;
+        private uint m_lastSessionNameId;
         private readonly ManualResetEvent m_shutdownEvent;
         private Task? m_monitorWorkerTask;
         private CancellationTokenSource? m_workerCts;
