@@ -651,6 +651,45 @@ the session:
   `GearType`, subtypes included). A motor's drives are found through its
   `IsDrivenBy` references; a drive that drives several motors is listed once.
 
+Every value in a snapshot comes with the NodeId of the variable it was read
+from (`AxisStateSnapshot.ActualPositionId`, `MotionDeviceSnapshot.SpeedOverrideId`,
+`SafetyStateSnapshot.EmergencyStopId`, `TaskControlSnapshot.TaskProgramNameId`,
+`MotorSnapshot.MotorTemperatureId`, …), or `NodeId.Null` when the server does
+not publish the variable. A client that shows a snapshot can subscribe to
+exactly the values it shows, without resolving the browse paths again.
+
+`ControllerSnapshot` and `TaskControlSnapshot` also carry the state of their
+operation state machine: `CurrentStateId` is the `CurrentState` variable of the
+`SystemOperationStateMachine` or `TaskControlStateMachine`, and `CurrentState`
+is the `RoboticsOperationState` it named when read. `CurrentState` is `null`
+when the state machine is absent, its read failed, or it names a state other
+than `Idle`, `Ready` or `Executing`; the rest of the snapshot is still
+returned. `ControllerSnapshot.SystemOperationId` is the SystemOperation object.
+
+`RoboticsComponentIdentification` includes the DI `HardwareRevision`,
+`SoftwareRevision`, `ManufacturerUri` and `ProductInstanceUri`, and
+`MotorSnapshot` the motor's `MotorTemperature` (with its `EngineeringUnits`
+and `EURange` in `MotorTemperatureEngineering`), `BrakeReleased` and
+`EffectiveLoadRate`, all read below the motor's DI `ParameterSet`.
+
+```csharp
+AxisSnapshot axis = await robots.ReadAxisAsync(axisNodeId, ct);
+if (!axis.State.ActualPositionId.IsNull)
+{
+    await foreach (DataValueChange change in streaming.SubscribeDataChangesAsync(
+        axis.State.ActualPositionId, null, ct))
+    {
+        // The ActualPosition value as it changes.
+    }
+}
+
+TaskControlSnapshot task = await robots.ReadTaskControlAsync(taskControlNodeId, ct);
+if (task.CurrentState == RoboticsOperationState.Ready)
+{
+    // A program is loaded; subscribe to task.CurrentStateId to follow the state.
+}
+```
+
 Every discovery method returns `ArrayOf<NodeId>` and uses `ManagedBrowseAsync`,
 so a server that caps references per node cannot silently truncate the result.
 When the server does not expose the Robotics namespace, discovery returns an

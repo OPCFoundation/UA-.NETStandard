@@ -53,5 +53,10 @@ namespace Opc.Ua.Robotics
         /// Whether another task module references this module.
         /// </summary>
         public DataValue IsReferenced { get; init; } = DataValue.Null;
+
+        /// <summary>
+        /// The IsReferenced variable to subscribe to, or <see cref="NodeId.Null"/> when not published.
+        /// </summary>
+        public NodeId IsReferencedId { get; init; } = NodeId.Null;
     }
 }
