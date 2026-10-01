@@ -207,7 +207,20 @@ namespace Opc.Ua.Server
             {
                 if (MeetsGroupCriteria(context, monitoredItem, savedOwnerIdentity))
                 {
-                    m_itemsToAdd.Add(monitoredItem);
+                    // an item that is still sampled by this group but was marked for
+                    // removal by an earlier modification simply stays in the group.
+                    if (m_itemsToRemove.Remove(monitoredItem) &&
+                        m_items.ContainsKey(monitoredItem.Id))
+                    {
+                        monitoredItem.SetSamplingInterval(m_samplingInterval);
+                        return true;
+                    }
+
+                    if (!m_itemsToAdd.Contains(monitoredItem))
+                    {
+                        m_itemsToAdd.Add(monitoredItem);
+                    }
+
                     monitoredItem.SetSamplingInterval(m_samplingInterval);
                     return true;
                 }
@@ -231,7 +244,10 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_items.ContainsKey(monitoredItem.Id))
+                // an item added by StartMonitoring but not yet applied is still owned by
+                // this group; it must leave the pending additions when it moves to another
+                // group, otherwise both groups end up sampling it.
+                if (m_itemsToAdd.Contains(monitoredItem))
                 {
                     if (MeetsGroupCriteria(context, monitoredItem))
                     {
@@ -239,7 +255,23 @@ namespace Opc.Ua.Server
                         return true;
                     }
 
-                    m_itemsToRemove.Add(monitoredItem);
+                    m_itemsToAdd.Remove(monitoredItem);
+                    return false;
+                }
+
+                if (m_items.ContainsKey(monitoredItem.Id))
+                {
+                    if (MeetsGroupCriteria(context, monitoredItem))
+                    {
+                        m_itemsToRemove.Remove(monitoredItem);
+                        monitoredItem.SetSamplingInterval(m_samplingInterval);
+                        return true;
+                    }
+
+                    if (!m_itemsToRemove.Contains(monitoredItem))
+                    {
+                        m_itemsToRemove.Add(monitoredItem);
+                    }
                 }
 
                 return false;
