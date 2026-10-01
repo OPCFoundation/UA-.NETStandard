@@ -291,13 +291,21 @@ namespace Opc.Ua.Scales.Server
                 var profiles = new List<string>(base.ServerProfiles.ToList());
                 lock (m_scaleLock)
                 {
-                    if (m_scales.Count > 0)
+                    // Base Scale, and so every kind facet, Scale System, Feeder
+                    // Module and Printer Module include the Machinery Machine
+                    // Identification facet (OPC 40200 Tables 164 to 167), which
+                    // needs the scales in the Machines folder.
+                    bool identified = AreScalesInMachinesFolder();
+                    if (identified)
+                    {
+                        profiles.Add(MachineIdentificationFacet);
+                    }
+                    if (identified && m_scales.Count > 0)
                     {
                         profiles.Add(ScalesProfiles.BaseScale);
                     }
                     foreach (ScaleHandle scale in m_scales)
                     {
-                        AddDistinct(profiles, ScalesProfiles.FacetOf(scale.Kind));
                         if (scale.ProductionPreset is { } preset)
                         {
                             AddDistinct(
@@ -306,6 +314,14 @@ namespace Opc.Ua.Scales.Server
                                     ? ScalesProfiles.FullProductionPreset
                                     : ScalesProfiles.MinimalProductionPreset);
                         }
+                        if (!identified)
+                        {
+                            continue;
+                        }
+                        if (IsKindFacetMet(scale.Kind))
+                        {
+                            AddDistinct(profiles, ScalesProfiles.FacetOf(scale.Kind));
+                        }
                         foreach (ScaleModuleHandle module in scale.Modules)
                         {
                             AddDistinct(
@@ -313,7 +329,7 @@ namespace Opc.Ua.Scales.Server
                                 module.Feeder != null ? ScalesProfiles.FeederModule : ScalesProfiles.PrinterModule);
                         }
                     }
-                    if (m_systems.Count > 0)
+                    if (identified && m_systems.Count > 0)
                     {
                         profiles.Add(ScalesProfiles.ScaleSystem);
                     }
@@ -333,20 +349,28 @@ namespace Opc.Ua.Scales.Server
             {
                 var units = new List<QualifiedName>(base.ConformanceUnits.ToList());
                 ushort ns = NamespaceIndices.Scales;
-                void Add(string name)
+                void AddUnit(QualifiedName unit)
                 {
-                    var unit = new QualifiedName(name, ns);
                     if (!units.Contains(unit))
                     {
                         units.Add(unit);
                     }
                 }
+                void Add(string name)
+                {
+                    AddUnit(new QualifiedName(name, ns));
+                }
                 lock (m_scaleLock)
                 {
+                    bool packMl = false;
                     foreach (ScaleHandle scale in m_scales)
                     {
                         Add("Scales ScaleDeviceType");
-                        Add(ConformanceUnitOf(scale.Kind));
+                        if (IsKindFacetMet(scale.Kind))
+                        {
+                            Add(ConformanceUnitOf(scale.Kind));
+                        }
+                        packMl |= scale.PackML != null;
                         if (scale.ProductionPreset is { } preset)
                         {
                             Add("Scales ProductType");
@@ -380,9 +404,26 @@ namespace Opc.Ua.Scales.Server
                     {
                         Add("Scales ScaleSystemType");
                     }
+                    foreach (ScaleSystemHandle system in m_systems)
+                    {
+                        packMl |= system.PackML != null;
+                    }
                     if (m_scales.Count > 0 || m_systems.Count > 0)
                     {
                         Add("Scales DataChange");
+                    }
+                    if (AreScalesInMachinesFolder())
+                    {
+                        // Named as MachineryNodeManager names them, so every
+                        // node manager reports a Machinery unit the same way.
+                        AddUnit(new QualifiedName(FindMachinesUnit));
+                        AddUnit(new QualifiedName(MachineIdentificationUnit));
+                    }
+                    if (packMl)
+                    {
+                        // A PackML unit, qualified with the PackML namespace
+                        // as OPC 40200 Table 164 lists it.
+                        AddUnit(new QualifiedName(PackMLStateInformationUnit, NamespaceIndices.PackML));
                     }
                 }
                 if (m_options.RequireSiUnits)
@@ -475,9 +516,17 @@ namespace Opc.Ua.Scales.Server
                 await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
                 await AddRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
 
-                if (m_options.OrganizeIntoMachinesFolder && !TryAddToMachinesFolder(node))
+                bool inMachinesFolder = m_options.OrganizeIntoMachinesFolder && TryAddToMachinesFolder(node);
+                if (m_options.OrganizeIntoMachinesFolder && !inMachinesFolder)
                 {
                     m_scalesLogger.MachinesFolderUnavailable(node.BrowseName.Name);
+                }
+                if (!inMachinesFolder)
+                {
+                    lock (m_scaleLock)
+                    {
+                        m_outsideMachinesFolder = true;
+                    }
                 }
             }
             finally
@@ -579,6 +628,37 @@ namespace Opc.Ua.Scales.Server
             };
         }
 
+        /// <summary>
+        /// Gets whether the runtime drives what the facet of a scale kind adds.
+        /// </summary>
+        /// <remarks>
+        /// No controller drives the <c>TipCounter</c> of a totalizing hopper,
+        /// and the catchweigher and the price labeler have no controller of
+        /// their own (see the known limitations in <c>docs/Scales.md</c>).
+        /// Their kind facets and units are not claimed; the scales still
+        /// count towards the Base Scale facet.
+        /// </remarks>
+        private static bool IsKindFacetMet(ScaleKind kind)
+        {
+            return kind is not (
+                ScaleKind.TotalizingHopper or
+                ScaleKind.Catchweigher or
+                ScaleKind.AutomaticWeightPriceLabeler);
+        }
+
+        /// <summary>
+        /// Gets whether scales or scale systems are published and every one of
+        /// them is organized into the Machinery <c>Machines</c> folder.
+        /// </summary>
+        /// <remarks>
+        /// "Machinery Find Machines" requires the folder to reference all
+        /// machines of the server. The caller holds the scale lock.
+        /// </remarks>
+        private bool AreScalesInMachinesFolder()
+        {
+            return (m_scales.Count > 0 || m_systems.Count > 0) && !m_outsideMachinesFolder;
+        }
+
         private static void AddDistinct(List<string> list, string value)
         {
             if (!list.Contains(value))
@@ -608,6 +688,12 @@ namespace Opc.Ua.Scales.Server
             return [.. uris];
         }
 
+        private const string MachineIdentificationFacet =
+            "http://opcfoundation.org/UA-Profile/Machinery/Server/MachineIdentification";
+
+        private const string FindMachinesUnit = "Machinery Find Machines";
+        private const string MachineIdentificationUnit = "Machinery Machine Identification";
+        private const string PackMLStateInformationUnit = "PackML State Information";
         private readonly ScalesServerOptions m_options;
         private readonly ILogger m_scalesLogger;
         private readonly Lock m_scaleLock = new();
@@ -618,6 +704,7 @@ namespace Opc.Ua.Scales.Server
         private ScaleNamespaceIndices? m_namespaces;
         private ScaleRuntimeServices? m_services;
         private bool m_lockAttached;
+        private bool m_outsideMachinesFolder;
     }
 
     internal static partial class ScalesNodeManagerLog

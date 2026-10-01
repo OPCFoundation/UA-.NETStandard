@@ -105,7 +105,11 @@ publishes the top-level node in two places:
   facet includes the CU *Machinery Find Machines*.
 
 `ScalesNodeManager` does both by default
-(`ScalesServerOptions.OrganizeIntoMachinesFolder`).
+(`ScalesServerOptions.OrganizeIntoMachinesFolder`). With the option turned
+off, the server no longer advertises the facets that include *Machinery
+Machine Identification*: Base Scale and every kind facet, Scale System,
+Feeder Module and Printer Module. The production preset and SI unit facets
+do not include it and stay advertised.
 
 Everything below a top-level node follows the DI modular-device pattern
 (§6.3):
@@ -218,7 +222,7 @@ A second DI owner, such as `AddOpcUaDi`, is rejected with an
 
 | `ScalesServerOptions` | Default | Meaning |
 | --- | --- | --- |
-| `OrganizeIntoMachinesFolder` | `true` | Add top-level scales and systems to the Machinery `Machines` folder |
+| `OrganizeIntoMachinesFolder` | `true` | Add top-level scales and systems to the Machinery `Machines` folder; required for every facet that includes *Machinery Machine Identification* |
 | `RequireSiUnits` | `false` | Accept only SI mass units as method inputs and advertise the *International System of Units* facet |
 | `PackMLInitialState` | `Idle` | The state a PackML state machine starts in (`Aborted`, `Stopped` or `Idle`) |
 | `ZeroSettingRange` | `0.04` | The zero band as a fraction of the capacity, for `SetZero`, `InsideZero` and underload |
@@ -520,7 +524,12 @@ test · ❌ not shipped.
 OPC 40200 defines server facets only; there are no client facets or client
 conformance units (§12). The server advertises the facets and CUs of what
 it actually built through `ServerProfiles` and `ConformanceUnits`
-(`ServerAdvertisesTheFacetsOfWhatItBuiltAsync`).
+(`ServerAdvertisesTheFacetsOfWhatItBuiltAsync`). A facet is advertised only
+with the facets it includes: the *Machinery Machine Identification* facet
+and its units come with Base Scale, and the kind facets without a controller
+are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
+`ScaleFacetsAreNotClaimedOutsideTheMachinesFolderAsync`,
+`KindFacetsWithoutAControllerAreNotClaimedAsync`).
 
 ### Facets
 
@@ -535,12 +544,12 @@ it actually built through `ServerProfiles` and `ConformanceUnits`
 | International System of Units | 🧪 | `PresetTareChecksAndConvertsTheUnitAsync`; `SiMassUnitsAreRecognised` |
 | Simple, Laboratory, Hopper, Weighing Bridge | ✅ / 🧪 | `LaboratoryShieldsLevelingCalibrationAndIonisatorAsync`; `HopperPublishesLevelsAsync`; `WeighingModulesAreScalesOfTheirOwnAsync`; E2E for Simple, Laboratory and Hopper |
 | AutomaticFillingScale | 🧪 | `AutomaticFillingEvaluatesAgainstTheTargetAsync` |
-| Catchweigher, AutomaticWeightPriceLabeler | 🧪 | `CatchweigherProductZonesCanBeAddedAndRemovedAsync` |
+| Catchweigher, AutomaticWeightPriceLabeler | 🧪 | `CatchweigherProductZonesCanBeAddedAndRemovedAsync` (not advertised, see [limitations](#known-limitations)) |
 | Checkweigher | ✅ | `CheckweigherStatisticsCountAcceptedAndRejectedAsync`; `ClientSubscribesToANestedScaleThroughTheNotifierHierarchyAsync` |
 | Continuous Scale, LossInWeight Scale | ✅ | `ContinuousScaleTotalizesAndResetsAsync`; `LossInWeightDischargesAndRefillsAsync`; `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | PieceCountingScale | ✅ | `PieceCountingReferencesAndCountsAsync`; `PieceCountingProductTargetsCanBeSetAsync`; `ClientCallsTheTypeSpecificMethodsAsync` |
 | RecipeScale | ✅ | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `RecipeProcessingGuardsAsync`; `RecipeFilesAreUploadedParsedAndReportedAsync`; `ClientBuildsAndProcessesARecipeAsync` |
-| Totalizing Hopper Scale | 🧪 | `EveryKindIsPublishedWithItsMandatoryMembersAsync` (structure only, see [limitations](#known-limitations)) |
+| Totalizing Hopper Scale | 🧪 | `EveryKindIsPublishedWithItsMandatoryMembersAsync` (structure only and not advertised, see [limitations](#known-limitations)) |
 | Vehicle Scale | ✅ | `VehicleWeighingComputesTheDeltaAsync`; `ClientCallsTheTypeSpecificMethodsAsync` |
 
 ### Cross-cutting conformance units and behaviour
@@ -552,7 +561,7 @@ it actually built through `ServerProfiles` and `ConformanceUnits`
 | *Scales DataChange* | ✅ | `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | `ScaleEventType` / `ScaleAlarmType` with Annex C ids, vendor ids > 5000 | ✅ | `EventsAndVendorEventsCanBeRaisedAsync`; `FailedZeroOrTareRaisesAFaultAndOverloadAnAlarmAsync`; `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | Notifier hierarchy with `HasNotifier`, nested sources subscribable | ✅ | `ClientSubscribesToANestedScaleThroughTheNotifierHierarchyAsync` |
-| PackML state information with transition events | ✅ | `PackMLMethodsWalkTheStateMachineAsync`; `PackMLActingStatesCanBeCompletedByTheEquipmentAsync`; `ClientDrivesThePackMLStateMachineAsync` |
+| PackML state information with transition events | ✅ | `PackMLMethodsWalkTheStateMachineAsync`; `PackMLActingStatesCanBeCompletedByTheEquipmentAsync`; `ClientDrivesThePackMLStateMachineAsync`; advertised as *PackML State Information*: `PackMLStateInformationIsClaimedWithAPackMLStateMachineAsync` |
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |
 | Machinery building blocks, MachineryItemState, OperationMode | 🧪 | `StateSettersPublishTheMachineryStatesAndProcessStateAsync` |
 | *RecipeManagment*, *DynamicRecipeManagement*, *FileRecipeManagement* | ✅ | as RecipeScale above |
@@ -611,10 +620,14 @@ Two defects this work found passed every in-process assertion:
 
 - **Totalizing hopper.** Published with its full structure, but no
   controller drives `TipCounter`. The application sets it through
-  `With<TotalizingHopperScaleState>` or the product node.
+  `With<TotalizingHopperScaleState>` or the product node. The Totalizing
+  Hopper Scale facet and its CU are therefore not advertised; the scale
+  still counts towards Base Scale.
 - **Catchweigher and price labeler.** These have no dedicated controller.
   - Zones and `LastItem` statistics are implemented.
   - The application writes item prices and measured dimensions itself.
+  - Their kind facets and CUs are therefore not advertised; the scales
+    still count towards Base Scale.
 - **Recipe elements.** Elements are executed by the application through
   `ElementStarted` / `CompleteElement`. `ConditionSleep` thresholds are not
   evaluated by the server.
