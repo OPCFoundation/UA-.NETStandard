@@ -490,17 +490,35 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private async void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
-            if (ServiceResult.IsBad(e.Status) && !m_disposed)
+            if (!ServiceResult.IsBad(e.Status) || m_disposed)
             {
-                await m_lock.WaitAsync().ConfigureAwait(false);
+                return;
+            }
+
+            // Disposing the session waits for its keep-alive worker to stop, and
+            // this callback runs on that worker. Move the cleanup off the worker
+            // so the callback returns first, otherwise the dispose deadlocks while
+            // holding m_lock and every later call on this client hangs.
+            _ = Task.Run(async () =>
+            {
                 try
                 {
-                    if (session == Session)
+                    await m_lock.WaitAsync().ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // the client was disposed, which also disposed the session.
+                    return;
+                }
+
+                try
+                {
+                    if (!m_disposed && session == Session)
                     {
-                        Session.Dispose();
                         Session = null;
+                        session.Dispose();
                     }
                 }
                 catch (Exception ex)
@@ -511,7 +529,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     m_lock.Release();
                 }
-            }
+            });
         }
 
         private void Session_SessionClosing(object sender, EventArgs e)
@@ -1560,7 +1578,7 @@ namespace Opc.Ua.Gds.Client
                 .ConfigureAwait(false);
 
                 Session.SessionClosing += Session_SessionClosing;
-                Session.KeepAlive += Session_KeepAliveAsync;
+                Session.KeepAlive += Session_KeepAlive;
                 Session.KeepAlive += KeepAlive;
 
                 // TODO: implement, suppress warning/error
