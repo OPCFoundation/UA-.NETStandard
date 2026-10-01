@@ -1053,6 +1053,13 @@ namespace Opc.Ua.Server
 
                 MonitoringMode = monitoringMode;
 
+                // a pending ResendData/transfer resend only applies to a reporting item;
+                // a sampling or disabled item must not report (Part 4, 5.13.1.3).
+                if (monitoringMode != MonitoringMode.Reporting)
+                {
+                    m_resendData = false;
+                }
+
                 if (monitoringMode == MonitoringMode.Disabled)
                 {
                     m_readyToPublish = false;
@@ -1770,6 +1777,13 @@ namespace Opc.Ua.Server
                 // check if the item reports data changes.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
+                    return false;
+                }
+
+                // a disabled item reports nothing, not even a pending resend.
+                if (MonitoringMode == MonitoringMode.Disabled)
+                {
+                    m_resendData = false;
                     return false;
                 }
 

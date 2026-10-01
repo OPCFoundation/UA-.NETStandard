@@ -134,6 +134,28 @@ namespace Opc.Ua.Server.Tests
             Assert.That(item.IsReadyToTrigger, Is.True);
         }
 
+        /// <summary>
+        /// A resend requested before the item leaves REPORTING must not publish the last value.
+        /// </summary>
+        [TestCase(MonitoringMode.Disabled)]
+        [TestCase(MonitoringMode.Sampling)]
+        public void ResendDataIsDroppedWhenItemStopsReporting(MonitoringMode monitoringMode)
+        {
+            using var harness = new Harness();
+            using MonitoredItem item = harness.CreateDataItem(queueSize: 1, samplingInterval: 0);
+
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            Assert.That(PublishData(harness, item), Has.Count.EqualTo(1));
+
+            item.SetupResendDataTrigger();
+            Assert.That(item.IsResendData, Is.True);
+
+            item.SetMonitoringMode(monitoringMode);
+
+            Assert.That(item.IsResendData, Is.False);
+            Assert.That(PublishData(harness, item), Is.Empty);
+        }
+
         private static void ModifyQueueSize(MonitoredItem item, uint queueSize)
         {
             ServiceResult result = item.ModifyAttributes(
