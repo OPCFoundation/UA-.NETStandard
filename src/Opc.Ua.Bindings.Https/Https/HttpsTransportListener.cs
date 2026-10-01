@@ -1137,6 +1137,13 @@ namespace Opc.Ua.Bindings
             // for the other listeners and could not rebind the port.
             if (m_sharedHostLease != null && m_pinnedServerCert != null && EndpointUrl != null)
             {
+                // The host keeps its TLS certificate when only a non-TLS
+                // application certificate (e.g. ECC) rotates, so the WSS
+                // SecureChannels and the outbound reverse-connect channels of
+                // this listener are cut here rather than by a host restart.
+                // Closed before PrepareTlsCertificate releases the pinned
+                // certificate the reverse transports present.
+                CloseActiveConnections();
                 PrepareTlsCertificate();
                 if (await SharedKestrelHostRegistry.Instance.RotateCertificateAsync(
                         new SharedHostKey(EndpointUrl.Host, EndpointUrl.Port),
@@ -1169,10 +1176,6 @@ namespace Opc.Ua.Bindings
             try
             {
                 m_admission?.Stop();
-                foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
-                {
-                    upgrade.Close();
-                }
             }
             catch (AggregateException ex)
             {
@@ -1184,23 +1187,7 @@ namespace Opc.Ua.Bindings
             // Drain outbound reverse-connect channels first so the
             // ServerCertificateChain handles loaded during the asymmetric
             // ChannelOpen handshake are released before m_pinnedServerCert.
-            // Snapshot the set under the concurrent dictionary's enumerator
-            // contract; subsequent OnReverseConnectChannelStatusChanged
-            // callbacks against disposed channels are no-ops because the
-            // dictionary has been cleared.
-            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
-            m_reverseConnectChannels.Clear();
-            foreach (TcpServerChannel channel in reverseChannels)
-            {
-                try
-                {
-                    channel.Dispose();
-                }
-                catch
-                {
-                    // best-effort; teardown must continue regardless.
-                }
-            }
+            CloseActiveConnections();
 
             SharedHostLease? lease = m_sharedHostLease;
             m_sharedHostLease = null;
@@ -1227,6 +1214,47 @@ namespace Opc.Ua.Bindings
                     // Best-effort shutdown.
                 }
                 host.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Closes this listener's admitted WebSocket upgrades and disposes its
+        /// outbound reverse-connect channels. Used by teardown and by
+        /// certificate rotation (Part 12 7.10.9), which must cut the channels
+        /// even when the shared host keeps serving the same TLS certificate.
+        /// </summary>
+        private void CloseActiveConnections()
+        {
+            foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
+            {
+                try
+                {
+                    upgrade.Close();
+                }
+                catch (Exception ex)
+                {
+                    m_logger.WssAdmissionStopFailed(ex);
+                }
+            }
+
+            // Snapshot the set under the concurrent dictionary's enumerator
+            // contract; status callbacks of the disposed channels no longer
+            // find them in the set and so do not dispose them twice.
+            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
+            foreach (TcpServerChannel channel in reverseChannels)
+            {
+                if (!m_reverseConnectChannels.TryRemove(channel, out _))
+                {
+                    continue;
+                }
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // best-effort; teardown must continue regardless.
+                }
             }
         }
 

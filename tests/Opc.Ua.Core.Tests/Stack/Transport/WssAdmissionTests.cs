@@ -39,10 +39,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+#if NET6_0_OR_GREATER
+using Microsoft.Extensions.Hosting;
+#endif
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
@@ -308,6 +312,45 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
             body.VerifyNoOtherCalls();
         }
+
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Rotating an application certificate that is not the TLS certificate
+        /// (e.g. ECC) leaves the shared host on the same TLS certificate; the
+        /// listener must still cut its WSS SecureChannels (Part 12 7.10.9).
+        /// </summary>
+        [Test]
+        public async Task SharedHostRotationWithUnchangedTlsCertificateClosesWssChannelsAsync()
+        {
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=WssRotationTls").CreateForRSA();
+            using Certificate rotatedCertificate = CertificateBuilder.Create("CN=WssRotationEcc").CreateForRSA();
+            await using HttpsTransportListener listener = CreateListener();
+            var registry = new Mock<ICertificateRegistry>();
+            registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https))
+                .Returns(() => new CertificateEntry(
+                    tlsCertificate, new CertificateCollection(), ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            SetField(listener, "m_serverCertProvider", registry.Object);
+            var key = new SharedHostKey($"wss-rotation-{Guid.NewGuid():N}", 4843);
+            typeof(HttpsTransportListener).GetProperty(nameof(HttpsTransportListener.EndpointUrl))!
+                .SetValue(listener, new Uri($"opc.wss://{key.Host}:{key.Port}/a"));
+            SharedHostLease hostLease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
+                key, listener, "/a", _ => new HostBuilder().Build(), tlsCertificate.Thumbprint)
+                .ConfigureAwait(false);
+            SetField(listener, "m_sharedHostLease", hostLease);
+            SetField(listener, "m_pinnedServerCert", tlsCertificate.AddRef());
+
+            using var request = new UpgradeRequest();
+            Task handler = listener.AcceptWebSocketAsync(request.Context);
+            await request.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            await listener.CloseChannelsForCertificateAsync(rotatedCertificate).ConfigureAwait(false);
+
+            await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1),
+                "The listener stays on the shared host.");
+            await AssertHealthyUpgradeAsync(listener).ConfigureAwait(false);
+        }
+#endif
 
         private static async Task AssertHealthyUpgradeAsync(HttpsTransportListener listener)
         {
