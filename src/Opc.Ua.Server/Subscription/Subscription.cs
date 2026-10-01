@@ -1598,10 +1598,15 @@ namespace Opc.Ua.Server
 
             moreNotifications = false;
 
-            NotificationMessage? queuedMessage = m_messageQueue.TryDequeueQueued(
-                availableSequenceNumberList,
-                m_itemsToPublish.Count > 0,
-                out moreNotifications);
+            // OPC 10000-4 §5.14.1.2: while PublishingEnabled is FALSE a Publish request only
+            // yields a keep-alive. Messages already built for a previous Publish stay queued
+            // until publishing is enabled again.
+            NotificationMessage? queuedMessage = m_publishingEnabled
+                ? m_messageQueue.TryDequeueQueued(
+                    availableSequenceNumberList,
+                    m_itemsToPublish.Count > 0,
+                    out moreNotifications)
+                : null;
             if (queuedMessage != null)
             {
                 m_waitingForPublish = moreNotifications;
@@ -1767,11 +1772,27 @@ namespace Opc.Ua.Server
             {
                 // create a keep alive message.
                 var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
-                message.SequenceNumber = m_messageQueue.NextSequenceNumber;
                 message.PublishTime = DateTimeUtc.Now;
 
-                // return the available sequence numbers.
-                m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
+                int lastSentMessage = m_messageQueue.LastSentMessage;
+                if (lastSentMessage < m_messageQueue.SentCount)
+                {
+                    // Messages held back while publishing is disabled are sent next, so the
+                    // keep-alive carries the first of them as the next sequence number and
+                    // only advertises the messages already sent for republish.
+                    message.SequenceNumber = m_messageQueue.SentMessages[lastSentMessage].SequenceNumber;
+                    for (int ii = 0; ii < lastSentMessage; ii++)
+                    {
+                        availableSequenceNumberList.Add(m_messageQueue.SentMessages[ii].SequenceNumber);
+                    }
+                }
+                else
+                {
+                    message.SequenceNumber = m_messageQueue.NextSequenceNumber;
+
+                    // return the available sequence numbers.
+                    m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
+                }
 
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH KEEPALIVE");
                 availableSequenceNumbers = availableSequenceNumberList;
