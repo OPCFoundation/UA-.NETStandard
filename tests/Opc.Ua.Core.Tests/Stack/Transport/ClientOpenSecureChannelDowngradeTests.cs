@@ -424,14 +424,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     byte[] hello = await ReadChunkAsync(stream).ConfigureAwait(false);
                     Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(hello), Is.EqualTo(TcpMessageType.Hello));
                     byte[] acknowledge = BuildAcknowledge();
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                     await stream.WriteAsync(acknowledge.AsMemory(), m_cts.Token).ConfigureAwait(false);
+#else
+                    await stream.WriteAsync(acknowledge, 0, acknowledge.Length, m_cts.Token).ConfigureAwait(false);
+#endif
 
                     byte[] open = await ReadChunkAsync(stream).ConfigureAwait(false);
                     Assert.That(
                         BinaryPrimitives.ReadUInt32LittleEndian(open),
                         Is.EqualTo(TcpMessageType.Open | TcpMessageType.Final));
                     byte[] response = BuildNoneOpenResponse();
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                     await stream.WriteAsync(response.AsMemory(), m_cts.Token).ConfigureAwait(false);
+#else
+                    await stream.WriteAsync(response, 0, response.Length, m_cts.Token).ConfigureAwait(false);
+#endif
                     Interlocked.Increment(ref m_forgedResponses);
 
                     // anything the client sends from now on would travel in cleartext.
@@ -470,7 +478,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 while (count > 0)
                 {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                     int read = await stream.ReadAsync(buffer.AsMemory(offset, count), m_cts.Token).ConfigureAwait(false);
+#else
+                    int read = await stream.ReadAsync(buffer, offset, count, m_cts.Token).ConfigureAwait(false);
+#endif
                     if (read == 0)
                     {
                         throw new EndOfStreamException();

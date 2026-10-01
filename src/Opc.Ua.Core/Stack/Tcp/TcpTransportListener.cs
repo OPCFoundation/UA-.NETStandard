@@ -1462,7 +1462,11 @@ namespace Opc.Ua.Bindings
                 WriteUInt32(buffer, 8, StatusCodes.BadTcpNotEnoughResources.Code);
                 WriteUInt32(buffer, 12, (uint)reason.Length);
                 Buffer.BlockCopy(reason, 0, buffer, 16, reason.Length);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 await stream.WriteAsync(buffer.AsMemory(0, size), cts.Token).ConfigureAwait(false);
+#else
+                await stream.WriteAsync(buffer, 0, size, cts.Token).ConfigureAwait(false);
+#endif
                 socket.Shutdown(SocketShutdown.Send);
             }
             catch (Exception ex)
@@ -1485,7 +1489,11 @@ namespace Opc.Ua.Bindings
                 int offset = 0;
                 while (offset < count)
                 {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                     int read = await stream.ReadAsync(buffer.AsMemory(offset, count - offset), ct)
+#else
+                    int read = await stream.ReadAsync(buffer, offset, count - offset, ct)
+#endif
                         .ConfigureAwait(false);
                     if (read <= 0)
                     {

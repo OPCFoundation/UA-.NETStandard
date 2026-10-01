@@ -558,7 +558,9 @@ namespace Opc.Ua.Bindings
             finally
             {
                 ws?.Dispose();
+#if NET5_0_OR_GREATER
                 clientCert?.Dispose();
+#endif
             }
         }
 
