@@ -1245,7 +1245,16 @@ namespace Opc.Ua.Server
                 }
                 else if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
-                    await CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    // The server terminates the session because of the client's error, so
+                    // it goes through the regular close path and is counted and audited as
+                    // an abort. Not cancellable by the rejected request: a close cut short
+                    // by the request's timeout or transport cancellation must not leave the
+                    // session half torn down.
+                    await m_server.TerminateSessionAsync(
+                        session.Id,
+                        deleteSubscriptions: false,
+                        m_logger,
+                        CancellationToken.None).ConfigureAwait(false);
                 }
                 throw;
             }

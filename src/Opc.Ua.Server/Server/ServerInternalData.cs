@@ -1044,11 +1044,31 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
+            await TryCloseSessionAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Closes the specified session and reports whether this call performed the teardown.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sessionId">The session identifier.</param>
+        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        /// <param name="cancellationToken">The cancellationToken</param>
+        /// <returns>
+        /// <c>false</c> when another close of the same session was already in progress.
+        /// </returns>
+        internal async ValueTask<bool> TryCloseSessionAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
             // Only the first caller to mark the session closing performs the teardown. If the
             // session is already closing another close is in progress, so return without racing it.
             if (!MarkSessionClosing(sessionId))
             {
-                return;
+                return false;
             }
 
             // OPC 10000-4 5.7.2.1: when a Session is terminated, all outstanding requests on
@@ -1084,6 +1104,8 @@ namespace Opc.Ua.Server
                 // down. The original failure still propagates to the caller.
                 await SessionManager.CloseSessionAsync(sessionId, closeCancellationToken).ConfigureAwait(false);
             }
+
+            return true;
         }
 
         /// <summary>
