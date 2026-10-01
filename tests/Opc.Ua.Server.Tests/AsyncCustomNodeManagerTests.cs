@@ -3191,16 +3191,17 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that revising an aggregate reuses the monitored item's retained queue.
+        /// Verifies that a modify requesting queue size 0 revises the aggregate with the default
+        /// queue size 1 instead of the previous queue size.
         /// </summary>
         [Test]
-        public async Task ModifyMonitoredItemsAsyncUsesRetainedQueueForAggregateRevisionAsync()
+        public async Task ModifyMonitoredItemsAsyncUsesDefaultQueueForAggregateRevisionAsync()
         {
             using ITestNodeManager manager = CreateManager();
             Assume.That(
                 m_useSamplingGroups &&
                 manager is TestableAsyncCustomNodeManager,
-                "The retained-zero queue rule belongs to sampling groups.");
+                "Covers the sampling-group modify path.");
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var aggregateId = new NodeId("SupportedAggregate", nsIdx);
@@ -3300,13 +3301,15 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 modifyFilterErrors[0],
                 Is.InstanceOf<AggregateFilterResult>());
+            // Part 4 7.21: queueSize 0 on modify selects the default queue size 1 for
+            // data items; the previous queue size is not retained.
             Assert.That(
                 ((AggregateFilterResult)modifyFilterErrors[0])
                     .RevisedStartTime.ToDateTime(),
-                Is.EqualTo(now.UtcDateTime.AddSeconds(-3)));
+                Is.EqualTo(now.UtcDateTime));
             Assert.That(
                 ((ISampledDataChangeMonitoredItem)monitoredItems[0]).QueueSize,
-                Is.EqualTo(4));
+                Is.EqualTo(1));
         }
 
         /// <summary>

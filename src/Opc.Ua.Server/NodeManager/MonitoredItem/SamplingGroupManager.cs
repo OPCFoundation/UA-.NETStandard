@@ -289,9 +289,11 @@ namespace Opc.Ua.Server
                 m_maxQueueSize,
                 m_maxDurableQueueSize);
 
+            // Part 4 7.21: 0 selects the default queue size of 1 for data items,
+            // the same as on create; it does not keep the previous size.
             if (revisedQueueSize == 0)
             {
-                revisedQueueSize = monitoredItem.QueueSize;
+                revisedQueueSize = 1;
             }
 
             if (originalFilter is EventFilter)

@@ -163,6 +163,53 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that a modify requesting queue size 0 revises a data item to the default queue size 1
+        /// instead of keeping the previous queue size (Part 4 7.21).
+        /// </summary>
+        [Test]
+        public void ModifyWithQueueSizeZeroRevisesToOne()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                using OperationContext context = CreateContext();
+                using var manager = new SamplingGroupManager(
+                    server.Object, nodeManager.Object, 100, 100, Rates());
+                using MonitoredItem item = CreateItem(server.Object, nodeManager.Object, 1, 100, queueSize: 10);
+                manager.StartMonitoring(context, item);
+                manager.ApplyChanges();
+                Assert.That(item.QueueSize, Is.EqualTo(10));
+
+                ServiceResult result = manager.ModifyMonitoredItem(
+                    context,
+                    TimestampsToReturn.Both,
+                    item,
+                    new MonitoredItemModifyRequest
+                    {
+                        MonitoredItemId = item.Id,
+                        RequestedParameters = new MonitoringParameters
+                        {
+                            ClientHandle = 1,
+                            SamplingInterval = 100,
+                            QueueSize = 0,
+                            DiscardOldest = true
+                        }
+                    },
+                    null,
+                    null,
+                    revisedSamplingInterval: 100);
+
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(item.QueueSize, Is.EqualTo(1));
+
+                manager.StopMonitoring(item);
+                manager.ApplyChanges();
+            }
+        }
+
         private static List<SamplingRateGroup> Rates()
         {
             return [new SamplingRateGroup(100, 100, 9)];
@@ -187,7 +234,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             uint id,
-            double samplingInterval)
+            double samplingInterval,
+            uint queueSize = 1)
         {
             return new MonitoredItem(
                 server,
@@ -204,7 +252,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 filterToUse: null,
                 range: null,
                 samplingInterval,
-                queueSize: 1,
+                queueSize,
                 discardOldest: true,
                 sourceSamplingInterval: 1);
         }

@@ -9287,12 +9287,6 @@ namespace Opc.Ua.Server
                 itemToModify.RequestedParameters.QueueSize,
                 MaxQueueSize,
                 MaxDurableQueueSize);
-            uint filterQueueSize = revisedQueueSize;
-            if (filterQueueSize == 0 &&
-                m_monitoredItemManager is SamplingGroupMonitoredItemManager)
-            {
-                filterQueueSize = datachangeItem.QueueSize;
-            }
 
             // validate the monitoring filter.
             ValidateMonitoringFilterResult validateMonitoringFilterResult = await ValidateMonitoringFilterAsync(
@@ -9300,7 +9294,7 @@ namespace Opc.Ua.Server
                 handle,
                 datachangeItem.AttributeId,
                 samplingInterval,
-                filterQueueSize,
+                revisedQueueSize,
                 parameters.Filter,
                 cancellationToken).ConfigureAwait(false);
 
