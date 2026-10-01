@@ -1464,7 +1464,7 @@ namespace Opc.Ua.Server
             try
             {
                 ServerInternal.RequestManager.CancelRequests(
-                    context.SessionId,
+                    context,
                     requestHandle,
                     out uint cancelCount);
 
@@ -3462,8 +3462,20 @@ namespace Opc.Ua.Server
             // cannot be retired between resolving the Session and starting to execute the request.
             using IDisposable validationScope = requestManager.EnterValidationScope();
 
-            OperationContext context = await serverInternal.SessionManager
-                .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
+            OperationContext context;
+            try
+            {
+                context = await serverInternal.SessionManager
+                    .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
+            }
+            catch (ServiceResultException e)
+            {
+                // The services count their rejections only once the request was admitted, so
+                // a request rejected by session validation (e.g. Bad_SessionIdInvalid or
+                // Bad_SecureChannelIdInvalid) is counted here (OPC 10000-5 12.9).
+                CountRejectedRequest(serverInternal, e.StatusCode);
+                throw;
+            }
 
             if (m_eventLogger.IsEventLogEnabled())
             {
@@ -3482,9 +3494,24 @@ namespace Opc.Ua.Server
             // from here, so disposing the context completes the request.
             context.AttachRequestScope(requestManager.EnterRequestScope(context));
 
+            // A Cancel that ran while this request was still queued cancels it now
+            // (OPC 10000-4 5.7.5.2).
+            if (requestManager.IsCancelledBeforeAdmission(context))
+            {
+                context.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
+                context.Dispose();
+                throw new ServiceResultException(StatusCodes.BadRequestCancelledByClient);
+            }
+
             try
             {
                 await OnRequestValidatedAsync(context).ConfigureAwait(false);
+            }
+            catch (ServiceResultException e)
+            {
+                CountRejectedRequest(serverInternal, e.StatusCode);
+                context.Dispose();
+                throw;
             }
             catch
             {
@@ -3493,6 +3520,22 @@ namespace Opc.Ua.Server
             }
 
             return context;
+        }
+
+        /// <summary>
+        /// Counts a request rejected before its service ran in the server diagnostics.
+        /// </summary>
+        private void CountRejectedRequest(ServerInternalData serverInternal, StatusCode statusCode)
+        {
+            serverInternal.UpdateServerDiagnostics(diagnostics =>
+            {
+                diagnostics.RejectedRequestsCount++;
+
+                if (IsSecurityError(statusCode))
+                {
+                    diagnostics.SecurityRejectedRequestsCount++;
+                }
+            });
         }
 
         /// <summary>
@@ -4692,6 +4735,20 @@ namespace Opc.Ua.Server
             // is torn down.
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
 
+            // No request can close a session any more: every session still open is terminated
+            // by the server, which is audited once per session (OPC 10000-5 6.4.7).
+            foreach (ISession session in serverInternal.SessionManager.GetSessions())
+            {
+                if (!session.IsClosing)
+                {
+                    serverInternal.ReportAuditCloseSessionEvent(
+                        null!,
+                        session,
+                        m_logger,
+                        "Session/Terminated");
+                }
+            }
+
             await RunShutdownStageAsync(
                     failures,
                     serverInternal.DrainRoleStateBindingAsync)
@@ -4806,16 +4863,9 @@ namespace Opc.Ua.Server
                                 .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
                         });
 
-                    foreach (ISession session in currentessions)
-                    {
-                        // raise close session audit event
-                        ServerInternal.ReportAuditCloseSessionEvent(
-                            null!,
-                            session,
-                            m_logger,
-                            "Session/Terminated");
-                    }
-
+                    // The "Session/Terminated" audit is reported when the sessions that are
+                    // still open after the delay are actually terminated, not here: a client
+                    // that closes its session during the delay audits its own close.
                     for (int timeTillShutdown = Configuration!.ServerConfiguration!.ShutdownDelay;
                         timeTillShutdown > 0;
                         timeTillShutdown--)

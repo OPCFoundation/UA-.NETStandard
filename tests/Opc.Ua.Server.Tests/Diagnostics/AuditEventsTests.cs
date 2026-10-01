@@ -390,6 +390,33 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
+        /// Verifies that the AuditCancelEvent reported for a Cancel request carries the
+        /// ClientAuditEntryId and ClientUserId of that request (OPC 10000-5 6.4.3) even
+        /// though the server's default audit context has no operation context.
+        /// </summary>
+        [Test]
+        public void ReportAuditCancelEventWithContextSetsClientAuditEntryIdAndUserId()
+        {
+            var server = new CapturingAuditEventServer(CreateSystemContextWithoutOperation(), true);
+            ISession session = CreateSession();
+            var context = new OperationContext(
+                new RequestHeader { AuditEntryId = "op-42", RequestHandle = 5 },
+                null,
+                RequestType.Cancel,
+                RequestLifetime.None,
+                session);
+
+            server.ReportAuditCancelEvent(context, 7, StatusCodes.Good, s_logger);
+
+            var auditEvent = (AuditCancelEventState)server.Events.Single();
+            Assert.That(auditEvent.ClientAuditEntryId.Value, Is.EqualTo("op-42"));
+            Assert.That(auditEvent.ClientUserId.Value, Is.EqualTo(SessionUserDisplayName));
+            Assert.That(auditEvent.SessionId.Value, Is.EqualTo(session.Id));
+            Assert.That(auditEvent.RequestHandle.Value, Is.EqualTo(7u));
+            Assert.That(auditEvent.SourceName.Value, Is.EqualTo("Session/Cancel"));
+        }
+
+        /// <summary>
         /// Verifies that trust-list audit reporting uses a valid system context.
         /// </summary>
         [Test]
@@ -887,6 +914,18 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             server.Setup(s => s.Telemetry).Returns(telemetry);
 
             return new ServerSystemContext(server.Object, CreateOperationContext(requestType));
+        }
+
+        private static ServerSystemContext CreateSystemContextWithoutOperation()
+        {
+            NamespaceTable namespaceUris = new();
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
+            server.Setup(s => s.ServerUris).Returns(new StringTable());
+            server.Setup(s => s.TypeTree).Returns(new TypeTable(namespaceUris));
+            server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
+            server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+            return new ServerSystemContext(server.Object);
         }
 
         private static OperationContext CreateOperationContext(RequestType requestType)

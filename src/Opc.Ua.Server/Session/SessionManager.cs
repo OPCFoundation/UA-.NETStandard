@@ -223,7 +223,26 @@ namespace Opc.Ua.Server
             m_workerCts?.Dispose();
             m_workerCts = null;
 
-            CloseAllSessions();
+            // Sessions still open at shutdown are closed like any other session: the Closing
+            // event is raised, the SessionDiagnostics node is removed and the session count
+            // is decremented, rather than the sessions only being disposed.
+            foreach (ISession session in DetachAllSessions())
+            {
+                try
+                {
+                    RaiseSessionEvent(session, SessionEventReason.Closing);
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.FailedToCloseSessionAtShutdown(e, session.Id);
+                }
+                finally
+                {
+                    session.Dispose();
+                    m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount--);
+                }
+            }
         }
 
         /// <summary>
@@ -231,19 +250,33 @@ namespace Opc.Ua.Server
         /// </summary>
         private void CloseAllSessions()
         {
-            KeyValuePair<NodeId, ISession>[] sessions;
+            foreach (ISession session in DetachAllSessions())
+            {
+                session.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Stops admitting sessions and empties the session table.
+        /// </summary>
+        /// <returns>The sessions that were tracked.</returns>
+        private List<ISession> DetachAllSessions()
+        {
+            var sessions = new List<ISession>();
             lock (m_bindingsLock)
             {
                 m_stopping = true;
-                sessions = [.. m_sessions];
+                foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in m_sessions)
+                {
+                    if (sessionKeyValue.Value != null)
+                    {
+                        sessions.Add(sessionKeyValue.Value);
+                    }
+                }
                 m_sessions.Clear();
                 m_channelSessionCounts.Clear();
             }
-
-            foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
-            {
-                sessionKeyValue.Value?.Dispose();
-            }
+            return sessions;
         }
 
         /// <summary>
@@ -601,8 +634,11 @@ namespace Opc.Ua.Server
                 try
                 {
                     if (!m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
-                        !ReferenceEquals(currentSession, session))
+                        !ReferenceEquals(currentSession, session) ||
+                        session.IsClosing)
                     {
+                        // A timeout or server termination may already be tearing the
+                        // session down; it then waits for this lock only to remove it.
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
 
@@ -789,6 +825,15 @@ namespace Opc.Ua.Server
                     // restriction is enforced separately by AddMandatoryRoles.
                     activationStatus = ComputeActivationStatus(effectiveIdentity);
 
+                    // Re-check after the (possibly slow) authentication: a close that started
+                    // meanwhile has already abandoned the session's subscriptions, so
+                    // reporting a successful activation would hand the client a session that
+                    // is removed as soon as this lock is released (OPC 10000-4 5.7.2.1).
+                    if (session.IsClosing)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    }
+
                     lock (m_bindingsLock)
                     {
                         activationState.IsCommitting = true;
@@ -935,8 +980,10 @@ namespace Opc.Ua.Server
                     // raise session related event.
                     RaiseSessionEvent(session, SessionEventReason.Closing);
 
-                    // close the session.
-                    await session.CloseAsync(cancellationToken).ConfigureAwait(false);
+                    // close the session. The session is already removed, so the teardown
+                    // must finish: a cancelled close would leave its SessionDiagnostics
+                    // node and array entry behind for a session that no longer exists.
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -1040,9 +1087,11 @@ namespace Opc.Ua.Server
             lock (m_bindingsLock)
             {
                 state.IsCommitting = false;
-                // Shutdown can remove the session while authentication is awaiting a provider.
+                // Shutdown can remove the session while authentication is awaiting a provider,
+                // and a timeout or termination can start closing it.
                 if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
-                    !ReferenceEquals(current, session))
+                    !ReferenceEquals(current, session) ||
+                    session.IsClosing)
                 {
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
@@ -1226,9 +1275,6 @@ namespace Opc.Ua.Server
                 // validate request header.
                 session!.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
-                // validate user has permissions for additional info
-                session.ValidateDiagnosticInfo(requestHeader);
-
                 // Lazily reconcile the RoleManager subscription. The
                 // RoleManager is bound during server startup, after
                 // SessionManager construction, so we
@@ -1243,14 +1289,37 @@ namespace Opc.Ua.Server
                 // so that downstream access checks see the current grants.
                 ReevaluateIdentityIfStale(session, secureChannelContext);
 
+                // validate user has permissions for additional info. Decided after the
+                // re-evaluation so the privilege reflects the roles the request runs with.
+                session.ValidateDiagnosticInfo(requestHeader);
+
                 // return context.
                 return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, session);
             }
             catch (ServiceResultException sre)
             {
-                if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
+                if (sre.StatusCode == StatusCodes.BadSessionClosed &&
+                    session != null &&
+                    !session.IsClosing &&
+                    session.HasExpired)
                 {
-                    await CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    // The request found the session timed out before the session monitor
+                    // did: terminate it now (OPC 10000-4 5.7.2.1), as ActivateSession does.
+                    // The shared timeout claim keeps the count and audit single-shot.
+                    await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
+                }
+                else if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
+                {
+                    // The server terminates the session because of the client's error, so
+                    // it goes through the regular close path and is counted and audited as
+                    // an abort. Not cancellable by the rejected request: a close cut short
+                    // by the request's timeout or transport cancellation must not leave the
+                    // session half torn down.
+                    await m_server.TerminateSessionAsync(
+                        session.Id,
+                        deleteSubscriptions: false,
+                        m_logger,
+                        CancellationToken.None).ConfigureAwait(false);
                 }
                 throw;
             }
@@ -2421,5 +2490,12 @@ namespace Opc.Ua.Server
             this ILogger logger,
             NodeId sessionId,
             int maxSessionCount);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 10, Level = LogLevel.Warning,
+            Message = "Server - Failed to close session {SessionId} at shutdown.")]
+        public static partial void FailedToCloseSessionAtShutdown(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
     }
 }

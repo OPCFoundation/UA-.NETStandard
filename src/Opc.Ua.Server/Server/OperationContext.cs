@@ -68,6 +68,7 @@ namespace Opc.Ua.Server
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
+            ClientTimestamp = (DateTime)requestHeader.Timestamp;
             RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
             RequestType = requestType;
             ClientHandle = requestHeader.RequestHandle;
@@ -107,6 +108,7 @@ namespace Opc.Ua.Server
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
+            ClientTimestamp = (DateTime)requestHeader.Timestamp;
             RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
             RequestType = requestType;
             ClientHandle = requestHeader.RequestHandle;
@@ -231,6 +233,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The client handle.</value>
         public uint ClientHandle { get; }
+
+        /// <summary>
+        /// The time the client sent the request (RequestHeader.Timestamp), or
+        /// <see cref="DateTime.MinValue"/> when unknown.
+        /// </summary>
+        internal DateTime ClientTimestamp { get; }
 
         /// <summary>
         /// Updates the status code (thread safe).

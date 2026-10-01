@@ -599,6 +599,95 @@ namespace Opc.Ua.Server
         /// </summary>
         public void CancelRequests(NodeId sessionId, uint requestHandle, out uint cancelCount)
         {
+            cancelCount = CancelMatchingRequests(sessionId, requestHandle, DateTime.MinValue);
+
+            // report the AuditCancelEventType once per Cancel call (OPC 10000-5 6.4.11).
+            m_server.ReportAuditCancelEvent(sessionId, requestHandle, StatusCodes.Good, m_logger);
+        }
+
+        /// <summary>
+        /// Called when the client wishes to cancel one or more requests through the Cancel
+        /// service. The AuditCancelEvent is reported once for the call and carries the
+        /// ClientAuditEntryId and ClientUserId of the Cancel request (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <param name="context">The operation context of the Cancel request.</param>
+        /// <param name="requestHandle">The requestHandle parameter of the Cancel call.</param>
+        /// <param name="cancelCount">The number of cancelled requests.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public void CancelRequests(OperationContext context, uint requestHandle, out uint cancelCount)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            cancelCount = CancelMatchingRequests(context.SessionId, requestHandle, context.ClientTimestamp);
+
+            m_server.ReportAuditCancelEvent(context, requestHandle, StatusCodes.Good, m_logger);
+        }
+
+        /// <summary>
+        /// Aborts every outstanding request of a Session that is being closed, so that they
+        /// complete with <paramref name="statusCode"/> instead of running on against a Session
+        /// that is torn down underneath them (OPC 10000-4 5.7.2.1).
+        /// </summary>
+        /// <param name="sessionId">The session being closed.</param>
+        /// <param name="excludedRequestId">A request that must not be aborted (the CloseSession
+        /// request driving the close), or 0.</param>
+        /// <param name="statusCode">The status the aborted requests complete with.</param>
+        /// <returns>The number of aborted requests.</returns>
+        public uint CancelSessionRequests(NodeId sessionId, uint excludedRequestId, StatusCode statusCode)
+        {
+            if (sessionId.IsNull)
+            {
+                return 0;
+            }
+
+            var cancelledRequests = new List<uint>();
+            lock (m_requestsLock)
+            {
+                foreach (OperationContext request in m_requests.Values)
+                {
+                    if (request.RequestId != excludedRequestId &&
+                        request.SessionId == sessionId &&
+                        request.RequestLifetime.TryCancel(statusCode))
+                    {
+                        cancelledRequests.Add(request.RequestId);
+                    }
+                }
+            }
+
+            RaiseRequestCancelled(cancelledRequests, statusCode);
+            return (uint)cancelledRequests.Count;
+        }
+
+        private void RaiseRequestCancelled(List<uint> requestIds, StatusCode statusCode)
+        {
+            lock (m_lock)
+            {
+                for (int ii = 0; ii < requestIds.Count; ii++)
+                {
+                    if (m_RequestCancelled != null)
+                    {
+                        try
+                        {
+                            m_RequestCancelled(this, requestIds[ii], statusCode);
+                        }
+                        catch (Exception e)
+                        {
+                            m_logger.UnexpectedErrorReportingRequestCancelledEvent(e);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cancels the registered requests of the session with the given client handle and
+        /// raises the <see cref="RequestCancelled"/> event for each of them.
+        /// </summary>
+        private uint CancelMatchingRequests(NodeId sessionId, uint requestHandle, DateTime cancelTimestamp)
+        {
             var cancelledRequests = new List<uint>();
 
             // flag requests as cancelled.
@@ -609,21 +698,26 @@ namespace Opc.Ua.Server
                     if (request.SessionId == sessionId &&
                         request.ClientHandle == requestHandle)
                     {
-                        request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByRequest);
+                        request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
                         cancelledRequests.Add(request.RequestId);
-
-                        // report the AuditCancelEventType
-                        m_server.ReportAuditCancelEvent(
-                            request.SessionId,
-                            requestHandle,
-                            StatusCodes.Good,
-                            m_logger);
                     }
                 }
-            }
 
-            // return the number of requests found.
-            cancelCount = (uint)cancelledRequests.Count;
+                // OPC 10000-4 5.7.5.2: all outstanding requests with the handle are cancelled,
+                // including those still waiting in the server request queue, which are not
+                // registered yet. Remember the cancellation for a while so they are rejected
+                // when they reach validation.
+                if (!sessionId.IsNull)
+                {
+                    DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                    PurgeExpiredPendingCancelsLocked(now);
+                    m_pendingCancels.Add(new PendingCancel(
+                        sessionId,
+                        requestHandle,
+                        cancelTimestamp,
+                        now + PendingCancelWindow));
+                }
+            }
 
             // raise notifications.
             lock (m_lock)
@@ -637,7 +731,7 @@ namespace Opc.Ua.Server
                             m_RequestCancelled(
                                 this,
                                 cancelledRequests[ii],
-                                StatusCodes.BadRequestCancelledByRequest);
+                                StatusCodes.BadRequestCancelledByClient);
                         }
                         catch (Exception e)
                         {
@@ -646,7 +740,77 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+
+            return (uint)cancelledRequests.Count;
         }
+
+        /// <summary>
+        /// Gets or sets how long a Cancel call keeps cancelling matching requests that reach
+        /// validation after it, because they were still waiting in the server request queue.
+        /// </summary>
+        internal TimeSpan PendingCancelWindow { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Reports whether a request that is being admitted was already cancelled by a Cancel
+        /// call that arrived while the request was still queued. A request the client sent
+        /// after the Cancel (by RequestHeader.Timestamp, when both carry one) is not affected.
+        /// </summary>
+        /// <param name="context">The request being admitted.</param>
+        /// <returns><c>true</c> when the request must complete with Bad_RequestCancelledByClient.</returns>
+        internal bool IsCancelledBeforeAdmission(OperationContext context)
+        {
+            if (context == null ||
+                context.RequestType == RequestType.Cancel ||
+                context.SessionId.IsNull)
+            {
+                return false;
+            }
+
+            lock (m_requestsLock)
+            {
+                if (m_pendingCancels.Count == 0)
+                {
+                    return false;
+                }
+
+                PurgeExpiredPendingCancelsLocked(m_timeProvider.GetUtcNow().UtcDateTime);
+                foreach (PendingCancel pending in m_pendingCancels)
+                {
+                    if (pending.RequestHandle == context.ClientHandle &&
+                        pending.SessionId == context.SessionId &&
+                        (pending.CancelTimestamp == DateTime.MinValue ||
+                            context.ClientTimestamp == DateTime.MinValue ||
+                            context.ClientTimestamp <= pending.CancelTimestamp))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        private void PurgeExpiredPendingCancelsLocked(DateTime now)
+        {
+            m_pendingCancels.RemoveAll(pending => pending.ExpiresAt <= now);
+            if (m_pendingCancels.Count >= kMaxPendingCancels)
+            {
+                m_pendingCancels.RemoveRange(0, m_pendingCancels.Count - kMaxPendingCancels + 1);
+            }
+        }
+
+        /// <summary>
+        /// A Cancel call remembered for requests that were still queued when it ran.
+        /// </summary>
+        private readonly record struct PendingCancel(
+            NodeId SessionId,
+            uint RequestHandle,
+            DateTime CancelTimestamp,
+            DateTime ExpiresAt);
+
+        /// <summary>
+        /// Bounds the remembered Cancel calls so a client flooding Cancel cannot grow them.
+        /// </summary>
+        private const int kMaxPendingCancels = 1024;
 
         /// <summary>
         /// Checks for any expired requests and changes their status.
@@ -713,6 +877,7 @@ namespace Opc.Ua.Server
         private readonly List<RequestDrain> m_requestDrains = [];
         private readonly Lock m_requestsLock = new();
         private readonly HashSet<long> m_activeValidationScopes = [];
+        private readonly List<PendingCancel> m_pendingCancels = [];
         private long m_lastValidationScopeId;
         private RequestManagerLifecycleExtension? m_lifecycleExtension;
         private ITimer? m_requestTimer;

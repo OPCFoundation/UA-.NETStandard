@@ -680,6 +680,16 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
                 }
 
+                // OPC 10000-4 5.7.2.1: a Session that is being closed, or whose timeout has
+                // elapsed, is terminated and serves no further requests. The expiry check and
+                // the contact refresh are one step under the diagnostics lock, so a request
+                // cannot revive a Session that the session monitor has already seen expire.
+                if (IsClosing || !TryRefreshLastContact())
+                {
+                    UpdateDiagnosticCounters(requestType, true, false);
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
+
                 // request accepted.
                 UpdateDiagnosticCounters(requestType, false, false);
             }
@@ -1487,6 +1497,24 @@ namespace Opc.Ua.Server
                 }
 
                 return changed;
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the last contact time unless the session timeout has already elapsed.
+        /// </summary>
+        /// <returns><c>false</c> when the session has expired.</returns>
+        private bool TryRefreshLastContact()
+        {
+            lock (m_diagnosticsLock)
+            {
+                long now = m_timeProvider.GetTimestampMilliseconds();
+                if (now - m_lastContactTickCount > (long)SessionDiagnostics.ActualSessionTimeout)
+                {
+                    return false;
+                }
+                m_lastContactTickCount = now;
+                return true;
             }
         }
 

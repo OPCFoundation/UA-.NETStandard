@@ -98,10 +98,12 @@ namespace Opc.Ua.Server.Tests
 
             bool eventFired = false;
             uint cancelledRequestId = 0;
+            StatusCode cancelledStatus = StatusCodes.Good;
             m_requestManager.RequestCancelled += (sender, reqId, status) =>
             {
                 eventFired = true;
                 cancelledRequestId = reqId;
+                cancelledStatus = status;
             };
 
             // Act
@@ -112,6 +114,144 @@ namespace Opc.Ua.Server.Tests
             Assert.That(eventFired, Is.True);
             Assert.That(cancelledRequestId, Is.EqualTo(context.RequestId));
             Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.True);
+            // OPC 10000-4 5.7.5.1: cancelled requests respond with Bad_RequestCancelledByClient.
+            Assert.That(cancelledStatus, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+            Assert.That(context.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+        }
+
+        [Test]
+        public void CancelRequestsWithContextReportsOneAuditEventPerCancelCall()
+        {
+            // OPC 10000-5 6.4.11: one AuditCancelEvent per Cancel call, whether it matched
+            // no request or several, carrying the Cancel request's ClientAuditEntryId.
+            var auditEvents = new System.Collections.Generic.List<AuditEventState>();
+            m_mockServer.Setup(s => s.Auditing).Returns(true);
+            m_mockServer.Setup(s => s.DefaultAuditContext).Returns(CreateAuditContext());
+            m_mockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback<ISystemContext, AuditEventState>((_, e) => auditEvents.Add(e));
+
+            var mockSession = new Mock<ISession>();
+            mockSession.Setup(s => s.Id).Returns(new NodeId(1));
+            using var lifetime1 = new RequestLifetime();
+            using var lifetime2 = new RequestLifetime();
+            m_requestManager.RequestReceived(new OperationContext(
+                new RequestHeader { RequestHandle = 42 }, null, RequestType.Read, lifetime1, mockSession.Object));
+            m_requestManager.RequestReceived(new OperationContext(
+                new RequestHeader { RequestHandle = 42 }, null, RequestType.Browse, lifetime2, mockSession.Object));
+            using var cancelLifetime = new RequestLifetime();
+            var cancelContext = new OperationContext(
+                new RequestHeader { RequestHandle = 43, AuditEntryId = "op-42" },
+                null,
+                RequestType.Cancel,
+                cancelLifetime,
+                mockSession.Object);
+
+            m_requestManager.CancelRequests(cancelContext, 42, out uint cancelCount);
+
+            Assert.That(cancelCount, Is.EqualTo(2));
+            Assert.That(auditEvents, Has.Count.EqualTo(1));
+            var cancelEvent = (AuditCancelEventState)auditEvents[0];
+            Assert.That(cancelEvent.ClientAuditEntryId.Value, Is.EqualTo("op-42"));
+            Assert.That(cancelEvent.RequestHandle.Value, Is.EqualTo(42u));
+
+            m_requestManager.CancelRequests(cancelContext, 99, out cancelCount);
+
+            Assert.That(cancelCount, Is.Zero);
+            Assert.That(auditEvents, Has.Count.EqualTo(2), "A Cancel matching nothing is still audited.");
+        }
+
+        [Test]
+        public void CancelSessionRequestsAbortsOutstandingRequestsExceptTheExcludedOne()
+        {
+            // OPC 10000-4 5.7.2.1: closing a Session aborts its outstanding requests with
+            // Bad_SessionClosed; the CloseSession request itself completes normally.
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            var otherSession = new Mock<ISession>();
+            otherSession.Setup(s => s.Id).Returns(new NodeId(2));
+            using var callLifetime = new RequestLifetime();
+            using var closeLifetime = new RequestLifetime();
+            using var otherLifetime = new RequestLifetime();
+            var call = new OperationContext(
+                new RequestHeader { RequestHandle = 1 }, null, RequestType.Call, callLifetime, session.Object);
+            var close = new OperationContext(
+                new RequestHeader { RequestHandle = 2 }, null, RequestType.CloseSession, closeLifetime, session.Object);
+            var other = new OperationContext(
+                new RequestHeader { RequestHandle = 1 }, null, RequestType.Read, otherLifetime, otherSession.Object);
+            m_requestManager.RequestReceived(call);
+            m_requestManager.RequestReceived(close);
+            m_requestManager.RequestReceived(other);
+
+            uint aborted = m_requestManager.CancelSessionRequests(
+                session.Object.Id,
+                close.RequestId,
+                StatusCodes.BadSessionClosed);
+
+            Assert.That(aborted, Is.EqualTo(1));
+            Assert.That(call.OperationStatus.Code, Is.EqualTo(StatusCodes.BadSessionClosed));
+            Assert.That(callLifetime.CancellationToken.IsCancellationRequested, Is.True);
+            Assert.That(closeLifetime.CancellationToken.IsCancellationRequested, Is.False);
+            Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+        }
+
+        [Test]
+        public void CancelAppliesToMatchingRequestsThatWereStillQueued()
+        {
+            // OPC 10000-4 5.7.5.2: every outstanding request with the handle is cancelled,
+            // including one that was still queued (not registered) when Cancel ran.
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            var otherSession = new Mock<ISession>();
+            otherSession.Setup(s => s.Id).Returns(new NodeId(2));
+            var sentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            using var cancelLifetime = new RequestLifetime();
+            var cancel = new OperationContext(
+                new RequestHeader { RequestHandle = 10, Timestamp = sentAt.AddSeconds(1) },
+                null,
+                RequestType.Cancel,
+                cancelLifetime,
+                session.Object);
+
+            m_requestManager.CancelRequests(cancel, 9, out uint cancelCount);
+            Assert.That(cancelCount, Is.Zero);
+
+            OperationContext Queued(ISession owner, uint handle, DateTime timestamp)
+            {
+                return new OperationContext(
+                    new RequestHeader { RequestHandle = handle, Timestamp = timestamp },
+                    null,
+                    RequestType.HistoryRead,
+                    RequestLifetime.None,
+                    owner);
+            }
+
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(Queued(session.Object, 9, sentAt)),
+                Is.True,
+                "A queued request sent before the Cancel is cancelled.");
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(Queued(session.Object, 9, sentAt.AddSeconds(2))),
+                Is.False,
+                "A request sent after the Cancel is not affected.");
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(Queued(session.Object, 8, sentAt)),
+                Is.False);
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(Queued(otherSession.Object, 9, sentAt)),
+                Is.False);
+        }
+
+        private static ServerSystemContext CreateAuditContext()
+        {
+            NamespaceTable namespaceUris = new();
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
+            server.Setup(s => s.ServerUris).Returns(new StringTable());
+            server.Setup(s => s.TypeTree).Returns(new TypeTable(namespaceUris));
+            server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
+            server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+            return new ServerSystemContext(server.Object);
         }
 
         [Test]
@@ -134,7 +274,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(cancelCount, Is.EqualTo(1));
             Assert.That(
                 context.OperationStatus.Code,
-                Is.EqualTo(StatusCodes.BadRequestCancelledByRequest));
+                Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
         }
 
         [Test]

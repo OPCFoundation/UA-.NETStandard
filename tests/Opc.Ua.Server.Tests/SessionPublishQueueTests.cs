@@ -380,7 +380,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(task.IsCanceled, Is.True, "The parked Publish request must complete as canceled.");
             Assert.That(
                 context.OperationStatus.Code,
-                Is.EqualTo(StatusCodes.BadRequestCancelledByRequest),
+                Is.EqualTo(StatusCodes.BadRequestCancelledByClient),
                 "The canceled Publish must carry the Cancel service status code.");
         }
 
