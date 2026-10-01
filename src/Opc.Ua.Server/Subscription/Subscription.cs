@@ -2280,6 +2280,12 @@ namespace Opc.Ua.Server
 
                                 errors[ii] = monitoredItem.GetCreateResult(out result);
 
+                                // e.g. per-clause EventFilterResult for a partially valid filter.
+                                if (filterResults[ii] != null && result.FilterResult.IsNull)
+                                {
+                                    result.FilterResult = new ExtensionObject(filterResults[ii]);
+                                }
+
                                 AddItemToSamplingInterval(
                                     result.RevisedSamplingInterval,
                                     itemsToCreate[ii].MonitoringMode);

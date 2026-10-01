@@ -6332,9 +6332,16 @@ namespace Opc.Ua.Server
                         }
                         else
                         {
-                            validation = readEventDetails.Filter.Validate(
-                                new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry))
-                                .Status;
+                            EventFilter.Result filterResult = readEventDetails.Filter.Validate(
+                                new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
+                            validation = filterResult.Status;
+
+                            // HistoryRead has no per-clause filter result, so keep rejecting
+                            // a filter with any invalid select clause.
+                            if (ServiceResult.IsGood(validation) && filterResult.HasSelectClauseErrors)
+                            {
+                                validation = StatusCodes.BadEventFilterInvalid;
+                            }
                         }
                         validated = true;
                     }
@@ -8977,14 +8984,14 @@ namespace Opc.Ua.Server
                     context,
                     QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
                 {
-                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
+                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
                     return result;
                 }
 
                 Range tmpRange;
                 if (!property.Value.TryGetStructure(out tmpRange!))
                 {
-                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
+                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
                     return result;
                 }
 

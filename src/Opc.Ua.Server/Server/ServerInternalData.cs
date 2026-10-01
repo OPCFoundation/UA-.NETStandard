@@ -1367,6 +1367,20 @@ namespace Opc.Ua.Server
             serverCapabilities.MaxSubscriptionsPerSession!.Value = (uint)Math.Max(1,
                 m_configuration.ServerConfiguration.MaxSubscriptionCount);
 
+            // Monitored item limits enforced by the SubscriptionManager (zero means the
+            // server does not impose a limit) and the data queue cap applied when the
+            // queue size of a monitored item is revised (Part 5 §6.3.2).
+            serverCapabilities.MaxMonitoredItems?.Value = (uint)Math.Max(0,
+                m_configuration.ServerConfiguration.MaxMonitoredItemCount);
+            serverCapabilities.MaxMonitoredItemsPerSubscription?.Value = (uint)Math.Max(0,
+                m_configuration.ServerConfiguration.MaxMonitoredItemsPerSubscription);
+            serverCapabilities.MaxMonitoredItemsQueueSize?.Value = (uint)Math.Max(0,
+                m_configuration.ServerConfiguration.DurableSubscriptionsEnabled
+                    ? Math.Max(
+                        m_configuration.ServerConfiguration.MaxNotificationQueueSize,
+                        m_configuration.ServerConfiguration.MaxDurableNotificationQueueSize)
+                    : m_configuration.ServerConfiguration.MaxNotificationQueueSize);
+
             // Operational-limit Properties: per Part 5 §6.3.4, any exposed
             // operational-limit Property shall have a non-zero value.
             // DiagnosticsNodeManager.LoadPredefinedNodesAsync lazy-adds the
