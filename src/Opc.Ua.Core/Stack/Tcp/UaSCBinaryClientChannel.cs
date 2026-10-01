@@ -762,8 +762,9 @@ namespace Opc.Ua.Bindings
                 // verify server certificate.
                 CompareCertificates(ServerCertificate, serverCertificate, true);
 
-                // check for replay attacks.
-                if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelResponse"))
+                // check for replay attacks. After a reconnect the responses the server
+                // sent on the dropped socket are lost, so the number may skip ahead.
+                if (!VerifySequenceNumberCore(sequenceNumber, "ProcessOpenSecureChannelResponse", m_reconnecting))
                 {
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
@@ -1865,7 +1866,7 @@ namespace Opc.Ua.Bindings
             if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
             {
                 m_logger.InvalidResponseSequence(ChannelId, sequenceNumber);
-                var error = new ServiceResult(StatusCodes.BadSecurityChecksFailed);
+                var error = new ServiceResult(StatusCodes.BadSequenceNumberInvalid);
                 operation?.Fault(true, error);
                 ForceReconnect(error);
                 return false;

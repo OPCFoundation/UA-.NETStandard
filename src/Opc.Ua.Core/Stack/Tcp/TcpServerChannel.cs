@@ -328,8 +328,9 @@ namespace Opc.Ua.Bindings
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
-                // check for replay attacks.
-                if (!VerifySequenceNumber(sequenceNumber, "Reconnect"))
+                // check for replay attacks. The chunks the client sent on the dropped
+                // socket are lost, so the number may skip ahead but not go back.
+                if (!VerifySequenceNumberCore(sequenceNumber, "Reconnect", true))
                 {
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
