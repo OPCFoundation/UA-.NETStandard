@@ -249,30 +249,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Part 4 7.21: a NaN sampling interval on create is revised to the publishing interval
-        /// instead of being echoed back.
+        /// Part 4 5.13.1.2: events are not sampled, so the revised sampling interval of an event
+        /// item is 0 instead of an echo of the requested value (negative and NaN included).
         /// </summary>
-        [Test]
-        public void CreateMonitoredItemRevisesNaNSamplingIntervalToPublishingInterval()
+        [TestCase(1000.0)]
+        [TestCase(-1.0)]
+        [TestCase(-5.0)]
+        [TestCase(double.NaN)]
+        public void CreateMonitoredItemRevisesEventSamplingIntervalToZero(double requestedSamplingInterval)
         {
             EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
 
             IEventMonitoredItem item = manager.CreateMonitoredItem(
                 NewContext(), nm.Object, null!, 1, new MonitoredItemIdFactory(),
-                TimestampsToReturn.Both, 750.0, NewCreateRequest(double.NaN, 5),
+                TimestampsToReturn.Both, 750.0, NewCreateRequest(requestedSamplingInterval, 5),
                 new EventFilter(), false);
 
-            Assert.That(((MonitoredItem)item).SamplingInterval, Is.EqualTo(750.0));
+            Assert.That(((MonitoredItem)item).SamplingInterval, Is.Zero);
         }
 
         /// <summary>
-        /// Part 4 7.21: any negative sampling interval on modify selects the publishing interval
-        /// of the subscription; the negative value is never returned as the revised interval.
+        /// Part 4 5.13.1.2: modifying an event item keeps the revised sampling interval at 0;
+        /// a negative or NaN request is never returned as the revised interval.
         /// </summary>
+        [TestCase(1000.0)]
         [TestCase(-1.0)]
         [TestCase(-5.0)]
         [TestCase(double.NaN)]
-        public void ModifyMonitoredItemRevisesNegativeSamplingIntervalToPublishingInterval(
+        public void ModifyMonitoredItemRevisesEventSamplingIntervalToZero(
             double requestedSamplingInterval)
         {
             EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
@@ -280,9 +284,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NewContext(), nm.Object, null!, 1, new MonitoredItemIdFactory(),
                 TimestampsToReturn.Both, 1000.0, NewCreateRequest(500.0, 5),
                 new EventFilter(), false);
-            var subscription = new Mock<ISubscription>();
-            subscription.SetupGet(s => s.PublishingInterval).Returns(250.0);
-            item.SubscriptionCallback = subscription.Object;
 
             manager.ModifyMonitoredItem(
                 NewContext(),
@@ -300,7 +301,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 },
                 new EventFilter());
 
-            Assert.That(((MonitoredItem)item).SamplingInterval, Is.EqualTo(250.0));
+            Assert.That(((MonitoredItem)item).SamplingInterval, Is.Zero);
         }
 
         /// <summary>
@@ -400,27 +401,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(
                 notifications.Select(n => n.EventFields[0].GetString()),
                 Is.EqualTo(s_eventBurst));
-        }
-
-        [Test]
-        public void CreateMonitoredItemUsesPublishingIntervalWhenSamplingNegative()
-        {
-            EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
-            var idFactory = new MonitoredItemIdFactory();
-
-            IEventMonitoredItem item = manager.CreateMonitoredItem(
-                NewContext(),
-                nm.Object,
-                null!,
-                1,
-                idFactory,
-                TimestampsToReturn.Both,
-                2500.0,
-                NewCreateRequest(-1.0, 5),
-                new EventFilter(),
-                false);
-
-            Assert.That(item.SamplingInterval, Is.EqualTo(2500.0));
         }
 
         [Test]
