@@ -38,6 +38,9 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
     <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.Types\Encoders\XmlElementDepth.cs" Link="Types\Encoders\XmlElementDepth.cs" />
+  </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size! -->
   <!-- This is not used by the stack, but was added as convinience for applications to get the nodesets -->

@@ -531,7 +531,7 @@ namespace Opc.Ua
                     utf8StringLength--;
                 }
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
-                XmlDecoder.CheckXmlElementDepth(xmlString, Context, ConformanceLevel.Document);
+                XmlElementDepth.Check(xmlString, Context, ConformanceLevel.Document);
                 using var stream = new StringReader(xmlString);
                 using var reader = XmlReader.Create(stream, CoreUtils.DefaultXmlReaderSettings());
                 document.Load(reader);

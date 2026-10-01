@@ -591,7 +591,7 @@ namespace Opc.Ua
                     ae.Message);
             }
 
-            CheckXmlElementDepth(xmlString, Context, ConformanceLevel.Document);
+            XmlElementDepth.Check(xmlString, Context, ConformanceLevel.Document);
 
             // check for empty body.
             var document = new XmlDocument();
@@ -603,51 +603,6 @@ namespace Opc.Ua
             }
 
             return document.DocumentElement;
-        }
-
-        /// <summary>
-        /// Rejects raw XML whose elements are nested deeper than the encoding
-        /// nesting limit before it is loaded into a DOM. The InnerXml setter
-        /// and CloneNode(true) recurse once per element level, so a deeply
-        /// nested value would overflow the stack and terminate the process.
-        /// The check reads the XML with a streaming reader, which does not
-        /// recurse. Part 6 sets no depth limit for XmlElement; the limit is
-        /// implementation specific.
-        /// </summary>
-        /// <exception cref="ServiceResultException">Thrown with
-        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the XML is
-        /// nested too deep.</exception>
-        /// <exception cref="XmlException">Thrown when the XML is not
-        /// well-formed.</exception>
-        internal static void CheckXmlElementDepth(
-            string xml,
-            IServiceMessageContext context,
-            ConformanceLevel conformanceLevel)
-        {
-            if (string.IsNullOrEmpty(xml))
-            {
-                return;
-            }
-
-            int maxDepth = context.MaxEncodingNestingLevels > 0
-                ? context.MaxEncodingNestingLevels
-                : DefaultEncodingLimits.MaxEncodingNestingLevels;
-
-            XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
-            settings.ConformanceLevel = conformanceLevel;
-
-            using var stream = new StringReader(xml);
-            using var reader = XmlReader.Create(stream, settings);
-            while (reader.Read())
-            {
-                if (reader.NodeType == XmlNodeType.Element && reader.Depth > maxDepth)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadEncodingLimitsExceeded,
-                        "XML element nesting exceeds the maximum depth of {0}.",
-                        maxDepth);
-                }
-            }
         }
 
         /// <summary>
@@ -1129,7 +1084,7 @@ namespace Opc.Ua
                 }
 
                 string innerXml = m_reader.ReadInnerXml();
-                CheckXmlElementDepth(innerXml, Context, ConformanceLevel.Fragment);
+                XmlElementDepth.Check(innerXml, Context, ConformanceLevel.Fragment);
                 value.InnerXml = innerXml;
 
                 EndField(fieldName);

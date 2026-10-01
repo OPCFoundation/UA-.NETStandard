@@ -776,7 +776,7 @@ namespace Opc.Ua
 
             try
             {
-                XmlDecoder.CheckXmlElementDepth(value, Context, ConformanceLevel.Document);
+                XmlElementDepth.Check(value, Context, ConformanceLevel.Document);
 
                 var document = new XmlDocument();
 
