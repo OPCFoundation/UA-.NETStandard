@@ -426,6 +426,67 @@ namespace Opc.Ua.Server.Tests
             Assert.That(m_serverDiagnostics.CurrentSubscriptionCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Deleting a subscription without a context (the expiry cleanup) must update
+        /// the owning session's diagnostics (M2-3).
+        /// </summary>
+        [Test]
+        public async Task ExpiryDeletionUpdatesTheOwnerSessionDiagnosticsAsync()
+        {
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration());
+            TestSession session = CreateSession();
+            Subscription subscription = await CreateSubscriptionAsync(manager, session).ConfigureAwait(false);
+            session.Diagnostics.CurrentMonitoredItemsCount = 4;
+            SetMonitoredItemCount(subscription, 3);
+            Assert.That(session.Diagnostics.CurrentSubscriptionsCount, Is.EqualTo(1));
+
+            StatusCode result = await manager.DeleteSubscriptionAsync(null!, subscription.Id).ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(StatusCodes.Good));
+            Assert.That(session.Diagnostics.CurrentSubscriptionsCount, Is.Zero);
+            Assert.That(session.Diagnostics.CurrentMonitoredItemsCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A transfer counts as same-client or alternate-client by the ApplicationUri
+        /// of the two sessions and moves the monitored item count to the new session (M2-4).
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task TransferCountsTheClientKindAndMovesMonitoredItemCountsAsync(bool sameClient)
+        {
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration());
+            TestSession source = CreateSession("urn:client:a");
+            TestSession destination = CreateSession(sameClient ? "urn:client:a" : "urn:client:b");
+            Subscription subscription = await CreateSubscriptionAsync(manager, source).ConfigureAwait(false);
+            SetMonitoredItemCount(subscription, 2);
+            source.Diagnostics.CurrentMonitoredItemsCount = 2;
+
+            TransferSubscriptionsResponse response = await manager.TransferSubscriptionsAsync(
+                new OperationContext(destination.Mock.Object, DiagnosticsMasks.None),
+                [subscription.Id],
+                sendInitialValues: false).ConfigureAwait(false);
+
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(subscription.Diagnostics.TransferredToSameClientCount, Is.EqualTo(sameClient ? 1u : 0u));
+            Assert.That(subscription.Diagnostics.TransferredToAltClientCount, Is.EqualTo(sameClient ? 0u : 1u));
+            Assert.That(source.Diagnostics.CurrentSubscriptionsCount, Is.Zero);
+            Assert.That(source.Diagnostics.CurrentMonitoredItemsCount, Is.Zero);
+            Assert.That(destination.Diagnostics.CurrentSubscriptionsCount, Is.EqualTo(1));
+            Assert.That(destination.Diagnostics.CurrentMonitoredItemsCount, Is.EqualTo(2));
+        }
+
+        private static void SetMonitoredItemCount(Subscription subscription, int count)
+        {
+            var monitoredItems = GetPrivateField<System.Collections.IDictionary>(subscription, "m_monitoredItems");
+            for (uint ii = 1; ii <= count; ii++)
+            {
+                var item = new Mock<IMonitoredItem>();
+                item.SetupGet(value => value.Id).Returns(ii);
+                monitoredItems.Add(ii, new LinkedListNode<IMonitoredItem>(item.Object));
+            }
+        }
+
         private static bool HasPublishQueue(SubscriptionManager manager, NodeId sessionId)
         {
             return GetPrivateField<System.Collections.IDictionary>(manager, "m_publishQueues").Contains(sessionId);

@@ -757,6 +757,7 @@ namespace Opc.Ua.Server
         public async ValueTask<StatusCode> DeleteSubscriptionAsync(OperationContext context, uint subscriptionId, CancellationToken cancellationToken = default)
         {
             ISubscriptionPublishPipeline? subscription = null;
+            ISession? ownerSession = null;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -765,6 +766,10 @@ namespace Opc.Ua.Server
                 if (m_subscriptions.TryGetValue(subscriptionId, out subscription))
                 {
                     NodeId sessionId = subscription.SessionId;
+
+                    // The owner, not the caller, loses the subscription. The expiry
+                    // cleanup deletes without a context while the owner is still open.
+                    ownerSession = subscription.Session;
 
                     if (context != null &&
                         !ReferenceEquals(context.Session, subscription.Session))
@@ -822,9 +827,9 @@ namespace Opc.Ua.Server
                     diagnostics.PublishingIntervalCount = publishingIntervalCount;
                 });
 
-                if (context != null && context.Session != null)
+                if (ownerSession != null)
                 {
-                    context.Session.UpdateDiagnostics(diagnostics =>
+                    ownerSession.UpdateDiagnostics(diagnostics =>
                     {
                         diagnostics.CurrentSubscriptionsCount--;
                         UpdateCurrentMonitoredItemsCount(diagnostics, -monitoredItemCount);
@@ -1634,6 +1639,7 @@ namespace Opc.Ua.Server
                     Subscription.PreparedSessionTransfer? preparedTransfer = null;
                     SessionPublishQueue? destinationPublishQueue = null;
                     bool destinationAdded = false;
+                    string? sourceApplicationUri = null;
                     await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
@@ -1703,6 +1709,10 @@ namespace Opc.Ua.Server
                             }
                             continue;
                         }
+
+                        // the owner is replaced by the transfer, so capture the source client now.
+                        sourceApplicationUri = (subscription as Subscription)?.OwnerClientApplicationUri
+                            ?? ownerSession?.ClientApplicationUri;
 
                         // Claim the exact current source before any fallible monitored-item
                         // callback can run. Lock order is manager semaphore, then queue lock,
@@ -1924,8 +1934,14 @@ namespace Opc.Ua.Server
                         m_semaphoreSlim.Release();
                     }
 
+                    // the monitored items move with the subscription (Part 5 12.13).
+                    int monitoredItemCount = subscription.MonitoredItemCount;
                     context.Session?.UpdateDiagnostics(
-                            diagnostics => diagnostics.CurrentSubscriptionsCount++);
+                        diagnostics =>
+                        {
+                            diagnostics.CurrentSubscriptionsCount++;
+                            UpdateCurrentMonitoredItemsCount(diagnostics, monitoredItemCount);
+                        });
 
                     // raise subscription event.
                     RaiseSubscriptionEvent(subscription, false);
@@ -1935,7 +1951,11 @@ namespace Opc.Ua.Server
                     if (ownerSession != null)
                     {
                         ownerSession.UpdateDiagnostics(
-                            diagnostics => diagnostics.CurrentSubscriptionsCount--);
+                            diagnostics =>
+                            {
+                                diagnostics.CurrentSubscriptionsCount--;
+                                UpdateCurrentMonitoredItemsCount(diagnostics, -monitoredItemCount);
+                            });
 
                         // queue the Good_SubscriptionTransferred message
                         bool statusQueued = false;
@@ -1992,8 +2012,24 @@ namespace Opc.Ua.Server
                     result.AvailableSequenceNumbers = subscription
                         .AvailableSequenceNumbersForRetransmission();
 
+                    // Part 5 12.15: a transfer to a session of another client
+                    // application counts as a transfer to an alternate client.
+                    bool sameClient = string.Equals(
+                        sourceApplicationUri,
+                        context.Session!.ClientApplicationUri,
+                        StringComparison.Ordinal);
                     subscription.UpdateDiagnostics(
-                        diagnostics => diagnostics.TransferredToSameClientCount++);
+                        diagnostics =>
+                        {
+                            if (sameClient)
+                            {
+                                diagnostics.TransferredToSameClientCount++;
+                            }
+                            else
+                            {
+                                diagnostics.TransferredToAltClientCount++;
+                            }
+                        });
 
                     // save results.
                     results.Add(result);
