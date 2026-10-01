@@ -606,6 +606,17 @@ namespace Opc.Ua.Server
                 m_logger.LogTrace("Failed to transfer {Count} Monitored Items", badTransfers);
             }
 
+            lock (m_lock)
+            {
+                ResetLifetimeCount();
+
+                // An abandoned subscription can be waiting for a keep-alive without having
+                // checked its monitored item queues. Force the next timer check to inspect
+                // queued data before the new session's first Publish, even when initial
+                // values were not requested.
+                m_publishTimerExpiry = HiResClock.TickCount64 - 1;
+            }
+
             lock (DiagnosticsWriteLock)
             {
                 Diagnostics.SessionId = Session.Id;

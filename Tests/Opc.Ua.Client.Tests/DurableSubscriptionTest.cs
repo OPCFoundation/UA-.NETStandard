@@ -30,7 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
@@ -611,6 +613,228 @@ namespace Opc.Ua.Client.Tests
                 Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
 
             return modifiedValues;
+        }
+
+        /// <summary>
+        /// Queued samples must be sent on the first Publish after TransferSubscriptions(false).
+        /// Raw services prevent the client's automatic Publish pipeline from consuming the response.
+        /// </summary>
+        [Test]
+        public async Task TransferWithoutInitialValuesPublishesQueuedCurrentTimeAsync()
+        {
+            uint id = await CreateRawDurableSubscriptionAsync(0).ConfigureAwait(false);
+            try
+            {
+                CreateMonitoredItemsResponse items = await CreateRawMonitoredItemsAsync(
+                    id, [VariableIds.Server_ServerStatus_CurrentTime], 1000, 1000).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMilliseconds(items.Results[0].RevisedSamplingInterval * 1.5))
+                    .ConfigureAwait(false);
+                List<MonitoredItemNotification> initial = await DrainRawAsync(id,
+                    await PublishRawAsync(id).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.IsNotEmpty(initial);
+                DateTime lastTimestamp = initial.Last().Value.ServerTimestamp;
+
+                await CloseRawSessionAsync().ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await MySetUpAsync().ConfigureAwait(false);
+                await TransferRawAsync(id).ConfigureAwait(false);
+
+                PublishResponse first = await PublishRawAsync(id).ConfigureAwait(false);
+                Assert.IsNotEmpty(first.NotificationMessage.NotificationData,
+                    "The first Publish after transfer must contain queued data, not a keep-alive.");
+                List<MonitoredItemNotification> values = await DrainRawAsync(id, first).ConfigureAwait(false);
+                Assert.Greater(values.Count, 1, "Samples must accumulate while disconnected.");
+                Assert.GreaterOrEqual(values[0].Value.ServerTimestamp, lastTimestamp);
+                Assert.IsTrue(values.All(value => StatusCode.IsGood(value.Value.StatusCode)));
+                // Allow a server clock update (1 second) and scheduling jitter in addition to sampling.
+                Assert.LessOrEqual((DateTime.UtcNow - values.Last().Value.ServerTimestamp).TotalMilliseconds,
+                    items.Results[0].RevisedSamplingInterval + 2000,
+                    "The final sample must be current relative to the sampling interval.");
+            }
+            finally
+            {
+                await DeleteRawSubscriptionAsync(id).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Draining queued writes must be followed by a keep-alive without extra initial values.
+        /// Cover both one response and notification limits requiring MoreNotifications.
+        /// </summary>
+        [TestCase(0u)]
+        [TestCase(7u)]
+        public async Task TransferWithoutInitialValuesReturnsKeepAliveAfterDrainingAsync(uint maxNotifications)
+        {
+            const int loopCount = 10;
+            NodeId[] nodes = GetTestSetStaticMassNumeric(Session.NamespaceUris)
+                .Where(entry => entry.Value == typeof(int)).Take(3).Select(entry => entry.Key).ToArray();
+            Assert.AreEqual(3, nodes.Length);
+            var originals = new List<int>();
+            foreach (NodeId node in nodes)
+            {
+                originals.Add((int)(await Session.ReadValueAsync(node).ConfigureAwait(false)).Value);
+            }
+            uint id = await CreateRawDurableSubscriptionAsync(maxNotifications).ConfigureAwait(false);
+            try
+            {
+                await WriteRawValuesAsync(nodes, Enumerable.Repeat(-1, nodes.Length).ToArray()).ConfigureAwait(false);
+                CreateMonitoredItemsResponse items = await CreateRawMonitoredItemsAsync(
+                    id, nodes, loopCount, 100).ConfigureAwait(false);
+                List<MonitoredItemNotification> initial = await DrainRawAsync(id,
+                    await PublishRawAsync(id).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.AreEqual(nodes.Length, initial.Count);
+                Assert.IsEmpty((await PublishRawAsync(id).ConfigureAwait(false)).NotificationMessage.NotificationData);
+
+                await CloseRawSessionAsync().ConfigureAwait(false);
+                await MySetUpAsync().ConfigureAwait(false);
+                double samplingInterval = items.Results.Max(item => item.RevisedSamplingInterval);
+                for (int value = 0; value < loopCount; value++)
+                {
+                    await WriteRawValuesAsync(nodes, Enumerable.Repeat(value, nodes.Length).ToArray()).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromMilliseconds(samplingInterval * 1.5)).ConfigureAwait(false);
+                }
+                await CloseRawSessionAsync().ConfigureAwait(false);
+                await MySetUpAsync().ConfigureAwait(false);
+                await TransferRawAsync(id).ConfigureAwait(false);
+
+                PublishResponse first = await PublishRawAsync(id).ConfigureAwait(false);
+                Assert.IsNotEmpty(first.NotificationMessage.NotificationData,
+                    "Queued writes must be delivered on the first Publish after transfer.");
+                if (maxNotifications == 0)
+                {
+                    Assert.AreEqual(nodes.Length * loopCount,
+                        ((DataChangeNotification)first.NotificationMessage.NotificationData.Single().Body).MonitoredItems.Count);
+                }
+                else
+                {
+                    Assert.IsTrue(first.MoreNotifications);
+                }
+                List<MonitoredItemNotification> values = await DrainRawAsync(id, first).ConfigureAwait(false);
+                Assert.AreEqual(nodes.Length * loopCount, values.Count);
+                for (uint handle = 1; handle <= nodes.Length; handle++)
+                {
+                    Assert.AreEqual(Enumerable.Range(0, loopCount), values
+                        .Where(value => value.ClientHandle == handle).Select(value => value.Value.Value),
+                        "Every queued write must be delivered once and in order for each item.");
+                }
+                PublishResponse keepAlive = await PublishRawAsync(id).ConfigureAwait(false);
+                Assert.IsEmpty(keepAlive.NotificationMessage.NotificationData,
+                    "The next Publish after draining must be a keep-alive.");
+                Assert.IsFalse(keepAlive.MoreNotifications);
+            }
+            finally
+            {
+                await DeleteRawSubscriptionAsync(id).ConfigureAwait(false);
+                await WriteRawValuesAsync(nodes, originals.ToArray()).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<uint> CreateRawDurableSubscriptionAsync(uint maxNotifications)
+        {
+            CreateSubscriptionResponse response = await Session.CreateSubscriptionAsync(
+                null, 100, 1000, 5, maxNotifications, true, 0, CancellationToken.None).ConfigureAwait(false);
+            IList<object> result = await Session.CallAsync(ObjectIds.Server,
+                MethodIds.Server_SetSubscriptionDurable, CancellationToken.None, response.SubscriptionId, 1u)
+                .ConfigureAwait(false);
+            Assert.AreEqual(1u, result[0]);
+            return response.SubscriptionId;
+        }
+
+        private async Task<CreateMonitoredItemsResponse> CreateRawMonitoredItemsAsync(
+            uint id, NodeId[] nodes, uint queueSize, double samplingInterval)
+        {
+            var requests = new MonitoredItemCreateRequestCollection(nodes.Select((node, index) =>
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = node, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = (uint)index + 1,
+                        SamplingInterval = samplingInterval,
+                        QueueSize = queueSize,
+                        DiscardOldest = true
+                    }
+                }));
+            CreateMonitoredItemsResponse response = await Session.CreateMonitoredItemsAsync(
+                null, id, TimestampsToReturn.Both, requests, CancellationToken.None).ConfigureAwait(false);
+            Assert.AreEqual(nodes.Length, response.Results.Count);
+            foreach (MonitoredItemCreateResult result in response.Results)
+            {
+                Assert.IsTrue(StatusCode.IsGood(result.StatusCode));
+                Assert.AreEqual(queueSize, result.RevisedQueueSize);
+            }
+            return response;
+        }
+
+        private async Task CloseRawSessionAsync()
+        {
+            Session.DeleteSubscriptionsOnClose = false;
+            await Session.CloseAsync().ConfigureAwait(false);
+            Session.Dispose();
+            Session = null;
+        }
+
+        private async Task TransferRawAsync(uint id)
+        {
+            TransferSubscriptionsResponse response = await Session.TransferSubscriptionsAsync(
+                null, [id], false, CancellationToken.None).ConfigureAwait(false);
+            Assert.AreEqual(1, response.Results.Count);
+            Assert.AreEqual(StatusCodes.Good, response.Results[0].StatusCode.Code);
+        }
+
+        private async Task<PublishResponse> PublishRawAsync(uint id)
+        {
+            PublishResponse response = await Session.PublishAsync(
+                new RequestHeader { TimeoutHint = 10000 }, [], CancellationToken.None).ConfigureAwait(false);
+            Assert.AreEqual(id, response.SubscriptionId);
+            Assert.AreEqual(StatusCodes.Good, response.ResponseHeader.ServiceResult.Code);
+            return response;
+        }
+
+        private async Task<List<MonitoredItemNotification>> DrainRawAsync(uint id, PublishResponse response)
+        {
+            var values = new List<MonitoredItemNotification>();
+            for (int responses = 0; ; responses++)
+            {
+                Assert.Less(responses, 100, "MoreNotifications must eventually become false.");
+                foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
+                {
+                    Assert.IsInstanceOf<DataChangeNotification>(notification.Body);
+                    values.AddRange(((DataChangeNotification)notification.Body).MonitoredItems);
+                }
+                if (!response.MoreNotifications)
+                {
+                    return values;
+                }
+                response = await PublishRawAsync(id).ConfigureAwait(false);
+            }
+        }
+
+        private async Task WriteRawValuesAsync(NodeId[] nodes, int[] values)
+        {
+            var writes = new WriteValueCollection(nodes.Select((node, index) => new WriteValue
+            {
+                NodeId = node,
+                AttributeId = Attributes.Value,
+                Value = new DataValue(new Variant(values[index]))
+            }));
+            WriteResponse response = await Session.WriteAsync(null, writes, CancellationToken.None).ConfigureAwait(false);
+            Assert.AreEqual(nodes.Length, response.Results.Count);
+            Assert.IsTrue(response.Results.All(StatusCode.IsGood));
+        }
+
+        private async Task DeleteRawSubscriptionAsync(uint id)
+        {
+            if (Session == null)
+            {
+                await MySetUpAsync().ConfigureAwait(false);
+            }
+            // Reclaim the subscription if the test failed while it was abandoned.
+            await Session.TransferSubscriptionsAsync(null, [id], false, CancellationToken.None).ConfigureAwait(false);
+            DeleteSubscriptionsResponse response = await Session.DeleteSubscriptionsAsync(
+                null, [id], CancellationToken.None).ConfigureAwait(false);
+            Assert.AreEqual(StatusCodes.Good, response.Results[0].Code);
         }
 
         private async Task<TestableSubscription> CreateDurableSubscriptionAsync()
