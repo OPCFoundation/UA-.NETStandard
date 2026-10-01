@@ -2090,7 +2090,7 @@ namespace Opc.Ua.Server
 
                 if (!m_monitoredItems.TryGetValue(
                     triggeringItemId,
-                    out _))
+                    out LinkedListNode<IMonitoredItem>? triggeringNode))
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -2146,6 +2146,10 @@ namespace Opc.Ua.Server
                         removeDiagnosticInfoList!.Add(null!);
                     }
                 }
+
+                // The trigger flag is only consumed while the item has links, so it can still
+                // carry a notification queued before the first link existed.
+                bool hadLinks = triggeredItems.Count > 0;
 
                 // add new links.
                 for (int ii = 0; ii < linksToAdd.Count; ii++)
@@ -2222,6 +2226,13 @@ namespace Opc.Ua.Server
                 if (triggeredItems.Count == 0)
                 {
                     m_itemsToTrigger.Remove(triggeringItemId);
+                }
+                else if (!hadLinks)
+                {
+                    // OPC 10000-4 §5.13.1.6: the first trigger occurs when the first
+                    // notification is queued for the triggering item after the link was
+                    // created, so discard a flag left over from before the first link.
+                    triggeringNode.Value.IsReadyToTrigger = false;
                 }
 
                 // clear diagnostics if not required.
