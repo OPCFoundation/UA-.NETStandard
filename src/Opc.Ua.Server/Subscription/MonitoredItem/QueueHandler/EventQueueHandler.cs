@@ -100,11 +100,35 @@ namespace Opc.Ua.Server
             IMonitoredItemQueueFactory queueFactory,
             uint monitoredItemId,
             ITelemetryContext telemetry)
+            : this(createDurable, queueFactory, monitoredItemId, telemetry, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new Queue handler
+        /// </summary>
+        /// <param name="createDurable">create a durable queue</param>
+        /// <param name="queueFactory">the factory for creating the factory for <see cref="IEventMonitoredItemQueue"/></param>
+        /// <param name="monitoredItemId">the id of the monitoredItem associated with the queue</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="discardedEventHandler">Invoked once for every event discarded because the queue is full.</param>
+        /// <param name="overflowEventHandler">
+        /// Invoked every time the loss of events requires a new EventQueueOverflowEventType event
+        /// (Part 5 12.15 EventQueueOverflowCount).
+        /// </param>
+        public EventQueueHandler(
+            bool createDurable,
+            IMonitoredItemQueueFactory queueFactory,
+            uint monitoredItemId,
+            ITelemetryContext telemetry,
+            Action? discardedEventHandler,
+            Action? overflowEventHandler)
         {
             m_logger = telemetry.CreateLogger<EventQueueHandler>();
             m_eventQueue = queueFactory.CreateEventQueue(createDurable, monitoredItemId);
             m_discardOldest = false;
-            Overflow = false;
+            m_discardedEventHandler = discardedEventHandler;
+            m_overflowEventHandler = overflowEventHandler;
         }
 
         /// <summary>
@@ -115,11 +139,34 @@ namespace Opc.Ua.Server
             IEventMonitoredItemQueue eventQueue,
             bool discardOldest,
             ITelemetryContext telemetry)
+            : this(eventQueue, discardOldest, telemetry, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Create an EventQueueHandler from an existing queue
+        /// Used for restore after a server restart
+        /// </summary>
+        /// <param name="eventQueue">The queue to take over.</param>
+        /// <param name="discardOldest">Whether to discard the oldest events if the queue overflows.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="discardedEventHandler">Invoked once for every event discarded because the queue is full.</param>
+        /// <param name="overflowEventHandler">
+        /// Invoked every time the loss of events requires a new EventQueueOverflowEventType event
+        /// (Part 5 12.15 EventQueueOverflowCount).
+        /// </param>
+        public EventQueueHandler(
+            IEventMonitoredItemQueue eventQueue,
+            bool discardOldest,
+            ITelemetryContext telemetry,
+            Action? discardedEventHandler,
+            Action? overflowEventHandler)
         {
             m_logger = telemetry.CreateLogger<EventQueueHandler>();
             m_eventQueue = eventQueue;
             m_discardOldest = discardOldest;
-            Overflow = false;
+            m_discardedEventHandler = discardedEventHandler;
+            m_overflowEventHandler = overflowEventHandler;
         }
 
         /// <summary>
@@ -129,8 +176,34 @@ namespace Opc.Ua.Server
         /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
         public void SetQueueSize(uint queueSize, bool discardOldest)
         {
+            // move a pending overflow event to where the new discard policy places it.
+            if (discardOldest && !m_discardOldest && m_overflowPositions.Count > 0)
+            {
+                m_overflowPositions.Clear();
+                m_overflowAtStart = true;
+            }
+            else if (!discardOldest && m_discardOldest && m_overflowAtStart)
+            {
+                m_overflowAtStart = false;
+                m_overflowPositions.Add(0);
+            }
+
             m_discardOldest = discardOldest;
+
+            long discarded = m_eventQueue.ItemsInQueue - (long)queueSize;
             m_eventQueue.SetQueueSize(queueSize, discardOldest);
+
+            // shrinking the queue loses events, which is signalled like any other overflow
+            // (Part 4 5.13.1.5).
+            if (discarded > 0)
+            {
+                if (!discardOldest)
+                {
+                    // the newest events were removed, so were any overflow events behind them.
+                    m_overflowPositions.RemoveAll(position => position > m_eventQueue.ItemsInQueue);
+                }
+                ReportDiscardedEvents(discarded);
+            }
         }
 
         /// <summary>
@@ -139,9 +212,9 @@ namespace Opc.Ua.Server
         public int ItemsInQueue => m_eventQueue.ItemsInQueue;
 
         /// <summary>
-        /// True if the queue is overflowing
+        /// True if the queue is overflowing, i.e. an EventQueueOverflowEventType event is pending.
         /// </summary>
-        public bool Overflow { get; private set; }
+        public bool Overflow => m_overflowAtStart || m_overflowPositions.Count > 0;
 
         /// <summary>
         /// Checks the last 1k queue entries if the event is already in there
@@ -158,10 +231,44 @@ namespace Opc.Ua.Server
         {
             if (m_eventQueue.ItemsInQueue >= m_eventQueue.QueueSize && !m_discardOldest)
             {
-                Overflow = true;
+                // the incoming event is discarded.
+                ReportDiscardedEvents(1);
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Records that events were discarded and, for the first discarded event since the
+        /// last overflow event, places a new EventQueueOverflowEventType event: at the beginning
+        /// of the queue for discardOldest TRUE, else at the end of the queue as it is now
+        /// (Part 4 5.13.1.5). Events queued later are published after it.
+        /// </summary>
+        /// <param name="count">The number of discarded events.</param>
+        private void ReportDiscardedEvents(long count)
+        {
+            for (long ii = 0; ii < count; ii++)
+            {
+                m_discardedEventHandler?.Invoke();
+            }
+
+            if (m_discardOldest)
+            {
+                if (!m_overflowAtStart)
+                {
+                    m_overflowAtStart = true;
+                    m_overflowEventHandler?.Invoke();
+                }
+                return;
+            }
+
+            int position = m_eventQueue.ItemsInQueue;
+            if (m_overflowPositions.Count == 0 ||
+                m_overflowPositions[m_overflowPositions.Count - 1] != position)
+            {
+                m_overflowPositions.Add(position);
+                m_overflowEventHandler?.Invoke();
+            }
         }
 
         /// <inheritdoc/>
@@ -191,13 +298,15 @@ namespace Opc.Ua.Server
             // make space in the queue.
             if (m_eventQueue.ItemsInQueue >= m_eventQueue.QueueSize)
             {
-                Overflow = true;
                 if (!m_discardOldest)
                 {
+                    // the incoming event is lost.
+                    ReportDiscardedEvents(1);
                     throw new InvalidOperationException(
                         "Queue is full and no discarding of old values is allowed");
                 }
                 m_eventQueue.Dequeue(out _);
+                ReportDiscardedEvents(1);
             }
             // queue the event.
             m_eventQueue.Enqueue(fields);
@@ -214,8 +323,15 @@ namespace Opc.Ua.Server
             Queue<EventFieldList> notifications,
             uint maxNotificationsPerPublish)
         {
+            // with discardOldest FALSE a pending overflow event keeps the position it was
+            // placed at, so only the events queued before it are published ahead of it.
+            long eventsBeforeOverflow = !m_discardOldest && m_overflowPositions.Count > 0
+                ? m_overflowPositions[0]
+                : long.MaxValue;
+
             uint notificationCount = 0;
             while (notificationCount < maxNotificationsPerPublish &&
+                notificationCount < eventsBeforeOverflow &&
                 m_eventQueue.Dequeue(out EventFieldList fields))
             {
                 foreach (Variant field in fields.EventFields)
@@ -235,16 +351,36 @@ namespace Opc.Ua.Server
                 notifications.Enqueue(fields);
                 notificationCount++;
             }
-            // if overflow event is placed at the end of the queue only set overflow to false if the overflow event
-            // still fits into the publish
-            Overflow = Overflow &&
-                notificationCount == maxNotificationsPerPublish &&
-                !m_discardOldest;
+            if (m_discardOldest)
+            {
+                // the caller placed the overflow event in front of the published events.
+                m_overflowAtStart = false;
+            }
+            else if (m_overflowPositions.Count > 0)
+            {
+                for (int ii = 0; ii < m_overflowPositions.Count; ii++)
+                {
+                    m_overflowPositions[ii] = Math.Max(
+                        0,
+                        m_overflowPositions[ii] - (int)notificationCount);
+                }
+
+                // the caller appends the overflow event when it still fits into the publish,
+                // which is only the case once the events queued before it have been published.
+                if (notificationCount < maxNotificationsPerPublish)
+                {
+                    m_overflowPositions.RemoveAt(0);
+                }
+            }
 
             return notificationCount;
         }
 
         private bool m_discardOldest;
+        private bool m_overflowAtStart;
+        private readonly List<int> m_overflowPositions = [];
+        private readonly Action? m_discardedEventHandler;
+        private readonly Action? m_overflowEventHandler;
         private readonly IEventMonitoredItemQueue m_eventQueue;
         private readonly ILogger m_logger;
     }
