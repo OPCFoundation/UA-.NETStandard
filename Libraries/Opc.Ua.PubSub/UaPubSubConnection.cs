@@ -438,12 +438,12 @@ namespace Opc.Ua.PubSub
             {
                 case Encoding.JsonNetworkMessage jsonNetworkMessage:
                     return jsonNetworkMessage.PublisherId != null &&
-                        jsonNetworkMessage.PublisherId.Equals(
-                            readerPublisherId.ToString(),
-                            StringComparison.Ordinal);
+                        Utils.IsEqual(
+                            jsonNetworkMessage.PublisherId,
+                            readerPublisherId.ToString());
                 case Encoding.UadpNetworkMessage uadpNetworkMessage:
                     return uadpNetworkMessage.PublisherId != null &&
-                        uadpNetworkMessage.PublisherId.Equals(readerPublisherId);
+                        Utils.IsEqual(uadpNetworkMessage.PublisherId, readerPublisherId);
                 default:
                     return false;
             }
