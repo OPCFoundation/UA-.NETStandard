@@ -328,8 +328,12 @@ namespace Opc.Ua.Bindings
                         receiveBufferSize);
                 }
 
+                // Rent for this chunk rather than for the largest one the
+                // channel accepts (as PipeByteTransport does): a small chunk,
+                // in particular one kept for an incomplete message, must not
+                // hold a whole receive buffer of memory budget.
                 buffer = m_bufferManager.TakeBuffer(
-                    receiveBufferSize,
+                    messageSize,
                     nameof(ReceiveChunkAsync),
                     ct);
                 Buffer.BlockCopy(header, 0, buffer, 0, TcpMessageLimits.MessageTypeAndSize);

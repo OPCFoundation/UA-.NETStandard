@@ -429,6 +429,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ReceiveChunkAsyncRentsOnlyWhatTheChunkNeeds()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                byte[] payload = BuildValidChunk(TcpMessageType.Acknowledge, 16);
+                await serverSocket
+                    .SendAsync(new ArraySegment<byte>(payload), SocketFlags.None)
+                    .ConfigureAwait(false);
+
+                ArraySegment<byte> chunk = await client
+                    .ReceiveChunkAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                try
+                {
+                    Assert.That(chunk, Has.Count.EqualTo(payload.Length));
+                    Assert.That(chunk.Array!, Has.Length.LessThan(kBufferSize));
+                }
+                finally
+                {
+                    m_bufferManager.ReturnBuffer(chunk.Array, nameof(ReceiveChunkAsyncRentsOnlyWhatTheChunkNeeds));
+                }
+            }
+        }
+
+        [Test]
         public async Task ReceiveChunkAsyncDoesNotHoldReceiveBufferWhileIdle()
         {
             int budget = new FastBufferManager("sizing", kBufferSize, m_telemetry)
