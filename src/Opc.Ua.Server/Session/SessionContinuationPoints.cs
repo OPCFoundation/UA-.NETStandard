@@ -705,7 +705,7 @@ namespace Opc.Ua.Server
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadNoContinuationPoints,
-                            "All history continuation slots are being persisted or claimed.");
+                            "All history continuation slots are being persisted, claimed or used by an in-flight request.");
                     }
                     HistoryContinuationPoint old =
                         m_history[evictionIndex];
@@ -729,6 +729,15 @@ namespace Opc.Ua.Server
                     Timestamp = DateTime.UtcNow
                 };
                 m_history.Add(stored);
+                if (m_historyRequests != null)
+                {
+                    // The client has not received this point yet: keep it until every
+                    // in-flight HistoryRead has returned its response.
+                    foreach (HistoryRequestScope scope in m_historyRequests)
+                    {
+                        scope.Pin(stored);
+                    }
+                }
                 return stored;
             }
         }
@@ -758,12 +767,110 @@ namespace Opc.Ua.Server
             for (int i = 0; i < m_history.Count; i++)
             {
                 HistoryContinuationPoint candidate = m_history[i];
-                if (!candidate.PendingPersistence && !candidate.Claiming)
+                if (!candidate.PendingPersistence &&
+                    !candidate.Claiming &&
+                    candidate.Pins == 0)
                 {
                     return i;
                 }
             }
             return -1;
+        }
+
+        /// <summary>
+        /// Marks the start of a HistoryRead request. Until the returned scope is disposed, the
+        /// history continuation points the request continues and every point saved meanwhile
+        /// are excluded from eviction, so the limit makes a further operation fail with
+        /// Bad_NoContinuationPoints instead of dropping a point of the same request or one the
+        /// request is about to continue (Part 4 §7.9: only points from prior requests are freed
+        /// automatically, and continuing a halted operation never fails for lack of points).
+        /// </summary>
+        /// <param name="nodesToRead">The operations of the request.</param>
+        /// <returns>The scope to dispose once the response has been produced.</returns>
+        internal IDisposable BeginHistoryRequest(ArrayOf<HistoryReadValueId> nodesToRead)
+        {
+            var scope = new HistoryRequestScope(this);
+            lock (m_lock)
+            {
+                if (m_closed)
+                {
+                    return scope;
+                }
+                m_historyRequests ??= [];
+                m_historyRequests.Add(scope);
+                if (m_history == null)
+                {
+                    return scope;
+                }
+                for (int ii = 0; ii < nodesToRead.Count; ii++)
+                {
+                    HistoryReadValueId? nodeToRead = nodesToRead[ii];
+                    if (nodeToRead == null ||
+                        !TryGetHistoryContinuationPointId(
+                            nodeToRead.ContinuationPoint,
+                            out Guid id))
+                    {
+                        continue;
+                    }
+                    foreach (HistoryContinuationPoint candidate in m_history)
+                    {
+                        if (candidate.Id == id)
+                        {
+                            scope.Pin(candidate);
+                            break;
+                        }
+                    }
+                }
+            }
+            return scope;
+        }
+
+        private void EndHistoryRequest(HistoryRequestScope scope)
+        {
+            lock (m_lock)
+            {
+                m_historyRequests?.Remove(scope);
+                scope.UnpinAll();
+            }
+        }
+
+        /// <summary>
+        /// Tracks the history continuation points pinned by one in-flight HistoryRead request.
+        /// All members are accessed under the owner's lock.
+        /// </summary>
+        private sealed class HistoryRequestScope : IDisposable
+        {
+            public HistoryRequestScope(SessionContinuationPoints owner)
+            {
+                m_owner = owner;
+            }
+
+            public void Pin(HistoryContinuationPoint continuationPoint)
+            {
+                continuationPoint.Pins++;
+                m_pinned.Add(continuationPoint);
+            }
+
+            public void UnpinAll()
+            {
+                foreach (HistoryContinuationPoint continuationPoint in m_pinned)
+                {
+                    continuationPoint.Pins--;
+                }
+                m_pinned.Clear();
+            }
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    m_owner.EndHistoryRequest(this);
+                }
+            }
+
+            private readonly SessionContinuationPoints m_owner;
+            private readonly List<HistoryContinuationPoint> m_pinned = [];
+            private int m_disposed;
         }
 
         /// <summary>
@@ -965,6 +1072,7 @@ namespace Opc.Ua.Server
                 }
                 m_mirroredBrowseOwners = null;
                 m_mirroredHistoryOwners = null;
+                m_historyRequests = null;
             }
 
             foreach ((NodeId ownerSessionId, ContinuationPointKind kind, Guid id) in mirrored)
@@ -1049,6 +1157,7 @@ namespace Opc.Ua.Server
             public bool Portable;
             public bool PendingPersistence;
             public bool Claiming;
+            public int Pins;
             public IHistoryContinuationPoint Value = null!;
             public DateTime Timestamp;
         }
@@ -1064,6 +1173,7 @@ namespace Opc.Ua.Server
         private List<HistoryContinuationPoint>? m_history;
         private Dictionary<Guid, NodeId>? m_mirroredBrowseOwners;
         private Dictionary<Guid, NodeId>? m_mirroredHistoryOwners;
+        private List<HistoryRequestScope>? m_historyRequests;
         private bool m_closed;
     }
 }

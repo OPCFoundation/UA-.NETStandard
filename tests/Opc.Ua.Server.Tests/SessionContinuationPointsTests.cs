@@ -676,6 +676,69 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that a HistoryRead request that needs more continuation points than the
+        /// limit gets Bad_NoContinuationPoints for the overflow instead of evicting a point it
+        /// created itself (Part 4 §7.9), and that the points become evictable once the request ends.
+        /// </summary>
+        [Test]
+        public void HistoryRequestDoesNotEvictItsOwnContinuationPoints()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 2);
+            var first = new TrackingDisposable();
+            var second = new TrackingDisposable();
+            var third = new TrackingDisposable();
+
+            using (holder.BeginHistoryRequest([new HistoryReadValueId(), new HistoryReadValueId(), new HistoryReadValueId()]))
+            {
+                holder.SaveHistory(first);
+                holder.SaveHistory(second);
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => holder.SaveHistory(third))!;
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            }
+
+            Assert.That(first.Disposed, Is.False);
+            Assert.That(second.Disposed, Is.False);
+            Assert.That(third.Disposed, Is.True);
+
+            // a later request may free the points of this (now prior) request.
+            var next = new TrackingDisposable();
+            holder.SaveHistory(next);
+            Assert.That(first.Disposed, Is.True);
+            Assert.That(holder.RestoreHistory(ToByteString(second.Id)), Is.SameAs(second));
+            Assert.That(holder.RestoreHistory(ToByteString(next.Id)), Is.SameAs(next));
+        }
+
+        /// <summary>
+        /// Verifies that a new read in a HistoryRead request cannot evict a point that a later
+        /// operation of the same request continues: continuing a halted operation never fails for
+        /// lack of continuation points, so the new read gets Bad_NoContinuationPoints (Part 4 §7.9).
+        /// </summary>
+        [Test]
+        public void HistoryRequestKeepsTheContinuedPointFromEviction()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var held = new TrackingDisposable();
+            holder.SaveHistory(held);
+            var newRead = new TrackingDisposable();
+
+            using (holder.BeginHistoryRequest(
+            [
+                new HistoryReadValueId(),
+                new HistoryReadValueId { ContinuationPoint = ToByteString(held.Id) }
+            ]))
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => holder.SaveHistory(newRead))!;
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(newRead.Disposed, Is.True);
+
+                Assert.That(holder.RestoreHistory(ToByteString(held.Id)), Is.SameAs(held));
+                Assert.That(held.Disposed, Is.False);
+            }
+        }
+
         private static SessionContinuationPoints NewHolder(
             int maxBrowse = 10,
             int maxHistory = 10,
