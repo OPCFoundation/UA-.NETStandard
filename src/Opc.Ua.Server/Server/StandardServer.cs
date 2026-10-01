@@ -626,11 +626,10 @@ namespace Opc.Ua.Server
             Certificate? parsedClientCertificate = null;
             try
             {
-                // check the server uri.
-                if (!string.IsNullOrEmpty(serverUri) && serverUri != Configuration!.ApplicationUri)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerUriInvalid);
-                }
+                // The serverUri is not checked: Part 4 5.7.2.2 says the parameter
+                // is no longer used and the Server shall ignore any value provided.
+                // A 1.04 Client behind a gateway still sends the underlying Server's
+                // URI there.
 
                 bool requireEncryption = RequireEncryption(
                     context.ChannelContext!.EndpointDescription!);
