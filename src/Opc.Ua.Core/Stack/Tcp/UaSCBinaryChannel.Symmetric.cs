@@ -199,6 +199,12 @@ namespace Opc.Ua.Bindings
             }
             m_renewedTokenWithKeys = null;
 
+            // a pending renewal superseded by another token (reconnect) is dropped.
+            if (RenewedToken != null && !ReferenceEquals(RenewedToken, token))
+            {
+                RenewedToken.Dispose();
+            }
+
             PreviousToken?.Dispose();
             PreviousToken = CurrentToken;
             CurrentToken = token;
@@ -222,8 +228,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SetRenewedToken(ChannelToken token)
         {
+            // compute the keys (and the secret a further renewal chains from) now,
+            // while the nonces of this renewal are installed: a second renewal
+            // before any message secured with this token replaces them.
+            ComputeKeys(token);
+
             RenewedToken?.Dispose();
             RenewedToken = token;
+            m_renewedTokenWithKeys = token;
             if (m_logger.IsEnabled(LogLevel.Information))
             {
                 m_logger.UaSCChannelLog11(

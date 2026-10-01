@@ -345,7 +345,7 @@ namespace Opc.Ua.Bindings
                     // need to assign a new token id.
                     token.ChannelId = ChannelId;
                     token.TokenId = GetNewTokenId();
-                    token.PreviousSecret = CurrentToken?.Secret;
+                    token.PreviousSecret = (RenewedToken ?? CurrentToken)?.Secret;
                     ReplaceNonces(token);
                     if (Volatile.Read(ref m_disposed) != 0)
                     {
@@ -912,7 +912,9 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
-                token.PreviousSecret = CurrentToken?.Secret;
+                // chain from the most recently issued keys: the client uses a renewed
+                // token as soon as it has the response, before the server sees it.
+                token.PreviousSecret = (RenewedToken ?? CurrentToken)?.Secret;
 
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce.ToArray();
