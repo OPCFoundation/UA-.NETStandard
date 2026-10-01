@@ -198,6 +198,60 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// A KeyData block that fails RSA unpadding, one that unpads to the wrong layout and one with
+        /// valid keys but a bad signature must all fail with the same status (OPC 10000-4 7.40.2.1),
+        /// and the non-throwing entry points must report every one of them as a plain failure.
+        /// </summary>
+        [TestCase("padding")]
+        [TestCase("layout")]
+        [TestCase("signature")]
+        public async Task TryDecryptRsaKeyDataFailuresAreIndistinguishableAsync(string failure)
+        {
+            EncryptedSecret encryptedSecret = CreateRsa();
+            byte[] nonce = NonceBytes();
+            byte[] encoded = encryptedSecret.EncryptRsa(SecretBytes(), nonce);
+            if (failure == "signature")
+            {
+                encoded[^1] ^= 0xFF;
+            }
+            else
+            {
+                using var decoder = new BinaryDecoder(encoded, m_context);
+                decoder.ReadNodeId(null);
+                decoder.ReadByte(null);
+                decoder.ReadUInt32(null);
+                decoder.ReadString(null);
+                decoder.ReadByteString(null);
+                decoder.ReadDateTime(null);
+                int keyDataLength = decoder.ReadUInt16(null);
+                int keyDataStart = decoder.Position;
+
+                using RSA rsa = m_certificate.GetRSAPublicKey();
+                byte[] keyData = failure == "padding"
+                    ? new byte[keyDataLength]
+                    : rsa.Encrypt([0x03, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03], RSAEncryptionPadding.OaepSHA1);
+                Assert.That(keyData, Has.Length.EqualTo(keyDataLength));
+                Buffer.BlockCopy(keyData, 0, encoded, keyDataStart, keyDataLength);
+            }
+
+            Assert.That(
+                () => encryptedSecret.TryDecryptRsa(encoded, nonce, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+
+            bool ok = encryptedSecret.TryDecrypt(encoded, nonce, out byte[] decrypted);
+            Assert.That(ok, Is.False);
+            Assert.That(decrypted, Is.Null);
+
+            (bool success, byte[] asyncDecrypted) = await encryptedSecret
+                .TryDecryptAsync(encoded, nonce)
+                .ConfigureAwait(false);
+            Assert.That(success, Is.False);
+            Assert.That(asyncDecrypted, Is.Null);
+        }
+
         [Test]
         public void TryDecryptRsaReturnsFalseWhenDataTooShort()
         {
