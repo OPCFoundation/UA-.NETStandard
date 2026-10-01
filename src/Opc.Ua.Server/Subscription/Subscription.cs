@@ -723,23 +723,34 @@ namespace Opc.Ua.Server
                     m_publishTimerExpiry += (long)m_publishingInterval;
                 }
 
-                // check lifetime has elapsed.
-                if (m_waitingForPublish)
-                {
-                    m_lifetimeCounter++;
+                // OPC 10000-4 §5.14.1.4 StartPublishingTimer(): every publishing timer expiry
+                // advances the lifetime counter, in the NORMAL, LATE and KEEPALIVE states alike.
+                // The counter is reset when a NotificationMessage or keep-alive is sent
+                // (ResetLifetimeCounter() in the §5.14.1.2 state table) or a request
+                // acknowledges a message, so it only reaches MaxLifetimeCount when the client
+                // has stopped sending Publish requests.
+                m_lifetimeCounter++;
 
-                    lock (m_diagnosticsLock)
+                // A subscription that was already waiting for a Publish request when the
+                // timer expired has entered the LATE state; count the entry only once per
+                // episode (Part 5 §12.15 latePublishRequestCount).
+                bool enteredLate = m_waitingForPublish && !m_isLate;
+                m_isLate = m_waitingForPublish;
+
+                lock (m_diagnosticsLock)
+                {
+                    if (enteredLate)
                     {
                         Diagnostics.LatePublishRequestCount++;
-                        Diagnostics.CurrentLifetimeCount = m_lifetimeCounter;
-                        MarkDiagnosticsDirty();
                     }
+                    Diagnostics.CurrentLifetimeCount = m_lifetimeCounter;
+                    MarkDiagnosticsDirty();
+                }
 
-                    if (m_lifetimeCounter >= m_maxLifetimeCount)
-                    {
-                        TraceState(LogLevel.Information, TraceStateId.Deleted, "EXPIRED");
-                        return PublishingState.Expired;
-                    }
+                if (m_lifetimeCounter >= m_maxLifetimeCount)
+                {
+                    TraceState(LogLevel.Information, TraceStateId.Deleted, "EXPIRED");
+                    return PublishingState.Expired;
                 }
 
                 // increment keep alive counter.
@@ -1462,6 +1473,7 @@ namespace Opc.Ua.Server
                         // TraceState(LogLevel.Trace, TraceStateId.Items, Utils.Format("PUBLISH #{0}", message.SequenceNumber));
                         ResetKeepaliveCount();
                         m_waitingForPublish = moreNotifications;
+                        m_isLate = false;
                         ResetLifetimeCount();
                     }
                 }
@@ -3484,6 +3496,7 @@ namespace Opc.Ua.Server
         private uint m_keepAliveCounter;
         private uint m_lifetimeCounter;
         private bool m_waitingForPublish;
+        private bool m_isLate;
         private readonly SentMessageQueue m_messageQueue;
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
