@@ -599,7 +599,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void CancelRequests(NodeId sessionId, uint requestHandle, out uint cancelCount)
         {
-            cancelCount = CancelMatchingRequests(sessionId, requestHandle);
+            cancelCount = CancelMatchingRequests(sessionId, requestHandle, DateTime.MinValue);
 
             // report the AuditCancelEventType once per Cancel call (OPC 10000-5 6.4.11).
             m_server.ReportAuditCancelEvent(sessionId, requestHandle, StatusCodes.Good, m_logger);
@@ -621,7 +621,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            cancelCount = CancelMatchingRequests(context.SessionId, requestHandle);
+            cancelCount = CancelMatchingRequests(context.SessionId, requestHandle, context.ClientTimestamp);
 
             m_server.ReportAuditCancelEvent(context, requestHandle, StatusCodes.Good, m_logger);
         }
@@ -686,7 +686,7 @@ namespace Opc.Ua.Server
         /// Cancels the registered requests of the session with the given client handle and
         /// raises the <see cref="RequestCancelled"/> event for each of them.
         /// </summary>
-        private uint CancelMatchingRequests(NodeId sessionId, uint requestHandle)
+        private uint CancelMatchingRequests(NodeId sessionId, uint requestHandle, DateTime cancelTimestamp)
         {
             var cancelledRequests = new List<uint>();
 
@@ -701,6 +701,21 @@ namespace Opc.Ua.Server
                         request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
                         cancelledRequests.Add(request.RequestId);
                     }
+                }
+
+                // OPC 10000-4 5.7.5.2: all outstanding requests with the handle are cancelled,
+                // including those still waiting in the server request queue, which are not
+                // registered yet. Remember the cancellation for a while so they are rejected
+                // when they reach validation.
+                if (!sessionId.IsNull)
+                {
+                    DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                    PurgeExpiredPendingCancelsLocked(now);
+                    m_pendingCancels.Add(new PendingCancel(
+                        sessionId,
+                        requestHandle,
+                        cancelTimestamp,
+                        now + PendingCancelWindow));
                 }
             }
 
@@ -728,6 +743,74 @@ namespace Opc.Ua.Server
 
             return (uint)cancelledRequests.Count;
         }
+
+        /// <summary>
+        /// Gets or sets how long a Cancel call keeps cancelling matching requests that reach
+        /// validation after it, because they were still waiting in the server request queue.
+        /// </summary>
+        internal TimeSpan PendingCancelWindow { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Reports whether a request that is being admitted was already cancelled by a Cancel
+        /// call that arrived while the request was still queued. A request the client sent
+        /// after the Cancel (by RequestHeader.Timestamp, when both carry one) is not affected.
+        /// </summary>
+        /// <param name="context">The request being admitted.</param>
+        /// <returns><c>true</c> when the request must complete with Bad_RequestCancelledByClient.</returns>
+        internal bool IsCancelledBeforeAdmission(OperationContext context)
+        {
+            if (context == null ||
+                context.RequestType == RequestType.Cancel ||
+                context.SessionId.IsNull)
+            {
+                return false;
+            }
+
+            lock (m_requestsLock)
+            {
+                if (m_pendingCancels.Count == 0)
+                {
+                    return false;
+                }
+
+                PurgeExpiredPendingCancelsLocked(m_timeProvider.GetUtcNow().UtcDateTime);
+                foreach (PendingCancel pending in m_pendingCancels)
+                {
+                    if (pending.RequestHandle == context.ClientHandle &&
+                        pending.SessionId == context.SessionId &&
+                        (pending.CancelTimestamp == DateTime.MinValue ||
+                            context.ClientTimestamp == DateTime.MinValue ||
+                            context.ClientTimestamp <= pending.CancelTimestamp))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        private void PurgeExpiredPendingCancelsLocked(DateTime now)
+        {
+            m_pendingCancels.RemoveAll(pending => pending.ExpiresAt <= now);
+            if (m_pendingCancels.Count >= kMaxPendingCancels)
+            {
+                m_pendingCancels.RemoveRange(0, m_pendingCancels.Count - kMaxPendingCancels + 1);
+            }
+        }
+
+        /// <summary>
+        /// A Cancel call remembered for requests that were still queued when it ran.
+        /// </summary>
+        private readonly record struct PendingCancel(
+            NodeId SessionId,
+            uint RequestHandle,
+            DateTime CancelTimestamp,
+            DateTime ExpiresAt);
+
+        /// <summary>
+        /// Bounds the remembered Cancel calls so a client flooding Cancel cannot grow them.
+        /// </summary>
+        private const int kMaxPendingCancels = 1024;
 
         /// <summary>
         /// Checks for any expired requests and changes their status.
@@ -794,6 +877,7 @@ namespace Opc.Ua.Server
         private readonly List<RequestDrain> m_requestDrains = [];
         private readonly Lock m_requestsLock = new();
         private readonly HashSet<long> m_activeValidationScopes = [];
+        private readonly List<PendingCancel> m_pendingCancels = [];
         private long m_lastValidationScopeId;
         private RequestManagerLifecycleExtension? m_lifecycleExtension;
         private ITimer? m_requestTimer;

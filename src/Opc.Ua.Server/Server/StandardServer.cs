@@ -3317,6 +3317,15 @@ namespace Opc.Ua.Server
             // from here, so disposing the context completes the request.
             context.AttachRequestScope(requestManager.EnterRequestScope(context));
 
+            // A Cancel that ran while this request was still queued cancels it now
+            // (OPC 10000-4 5.7.5.2).
+            if (requestManager.IsCancelledBeforeAdmission(context))
+            {
+                context.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
+                context.Dispose();
+                throw new ServiceResultException(StatusCodes.BadRequestCancelledByClient);
+            }
+
             try
             {
                 await OnRequestValidatedAsync(context).ConfigureAwait(false);
