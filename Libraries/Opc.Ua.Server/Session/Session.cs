@@ -1003,11 +1003,20 @@ namespace Opc.Ua.Server
                         ClientCertificate,
                         m_clientIssuerCertificates);
                 }
-                catch (Exception e) when (e is not ServiceResultException)
+                catch (Exception e)
                 {
+                    // Every decryption, padding, length or nonce error must look the
+                    // same to the client (OPC 10000-4 7.40.2.1). The cause is logged
+                    // here only: returning it as the status or the inner result would
+                    // let a client tell the failures apart and use the server key as
+                    // a decryption oracle.
+                    m_logger.LogWarning(
+                        e,
+                        "Could not decrypt the user identity token of session {SessionId} (SecurityPolicyUri={SecurityPolicyUri}).",
+                        Id,
+                        securityPolicyUri);
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenInvalid,
-                        e,
                         "Could not decrypt identity token.");
                 }
 
