@@ -307,6 +307,135 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A CreateSubscription that passed the closing check before CloseSession
+        /// marked the session closing must not re-create the publish and status
+        /// queues of the closed session (M2-2).
+        /// </summary>
+        [Test]
+        public async Task CreateSubscriptionRacingCloseSessionIsRejectedAsync()
+        {
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration());
+            TestSession session = CreateSession();
+            SemaphoreSlim semaphore = GetPrivateField<SemaphoreSlim>(manager, "m_semaphoreSlim");
+
+            await semaphore.WaitAsync().ConfigureAwait(false);
+            Task<CreateSubscriptionResponse> creating;
+            try
+            {
+                creating = StartCreateSubscription(manager, session);
+                Assert.That(creating.IsCompleted, Is.False);
+                session.Closing = true;
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await creating.ConfigureAwait(false));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+            Assert.That(manager.GetSubscriptions(), Is.Empty);
+            Assert.That(HasPublishQueue(manager, session.Id), Is.False);
+            Assert.That(HasStatusQueue(manager, session.Id), Is.False);
+            Assert.That(m_serverDiagnostics.CurrentSubscriptionCount, Is.Zero);
+            Assert.That(session.Diagnostics.CurrentSubscriptionsCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A TransferSubscriptions to a destination session that starts closing while
+        /// the transfer waits for the manager must not attach the subscription to the
+        /// closed session (M2-2).
+        /// </summary>
+        [Test]
+        public async Task TransferToSessionClosedWhileWaitingIsRejectedAsync()
+        {
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration());
+            TestSession source = CreateSession();
+            TestSession destination = CreateSession();
+            Subscription subscription = await CreateSubscriptionAsync(manager, source).ConfigureAwait(false);
+            SemaphoreSlim semaphore = GetPrivateField<SemaphoreSlim>(manager, "m_semaphoreSlim");
+
+            await semaphore.WaitAsync().ConfigureAwait(false);
+            Task<TransferSubscriptionsResponse> transferring;
+            try
+            {
+                transferring = manager.TransferSubscriptionsAsync(
+                    new OperationContext(destination.Mock.Object, DiagnosticsMasks.None),
+                    [subscription.Id],
+                    sendInitialValues: false).AsTask();
+                Assert.That(transferring.IsCompleted, Is.False);
+                destination.Closing = true;
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+
+            TransferSubscriptionsResponse response = await transferring.ConfigureAwait(false);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+            Assert.That(subscription.Session, Is.SameAs(source.Mock.Object));
+            Assert.That(HasPublishQueue(manager, destination.Id), Is.False);
+            Assert.That(HasStatusQueue(manager, destination.Id), Is.False);
+        }
+
+        /// <summary>
+        /// Concurrent CreateSubscription requests must not exceed MaxSubscriptionCount (M2-7).
+        /// </summary>
+        [Test]
+        public async Task ConcurrentCreateSubscriptionHonoursMaxSubscriptionCountAsync()
+        {
+            using SubscriptionManager manager = CreateManager(
+                new ServerConfiguration { MaxSubscriptionCount = 1 });
+            TestSession session = CreateSession();
+            SemaphoreSlim semaphore = GetPrivateField<SemaphoreSlim>(manager, "m_semaphoreSlim");
+
+            await semaphore.WaitAsync().ConfigureAwait(false);
+            var creating = new List<Task<CreateSubscriptionResponse>>();
+            try
+            {
+                for (int ii = 0; ii < 3; ii++)
+                {
+                    creating.Add(StartCreateSubscription(manager, session));
+                }
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+
+            int succeeded = 0;
+            int rejected = 0;
+            foreach (Task<CreateSubscriptionResponse> task in creating)
+            {
+                try
+                {
+                    await task.ConfigureAwait(false);
+                    succeeded++;
+                }
+                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadTooManySubscriptions)
+                {
+                    rejected++;
+                }
+            }
+
+            Assert.That(succeeded, Is.EqualTo(1));
+            Assert.That(rejected, Is.EqualTo(2));
+            Assert.That(manager.GetSubscriptions(), Has.Count.EqualTo(1));
+            Assert.That(m_serverDiagnostics.CurrentSubscriptionCount, Is.EqualTo(1));
+        }
+
+        private static bool HasPublishQueue(SubscriptionManager manager, NodeId sessionId)
+        {
+            return GetPrivateField<System.Collections.IDictionary>(manager, "m_publishQueues").Contains(sessionId);
+        }
+
+        private static bool HasStatusQueue(SubscriptionManager manager, NodeId sessionId)
+        {
+            return GetPrivateField<System.Collections.IDictionary>(manager, "m_statusMessages").Contains(sessionId);
+        }
+
         private SubscriptionManager CreateManager(ServerConfiguration serverConfiguration)
         {
             var manager = new SubscriptionManager(
@@ -353,16 +482,24 @@ namespace Opc.Ua.Server.Tests
             SubscriptionManager manager,
             TestSession session)
         {
-            CreateSubscriptionResponse created = await manager.CreateSubscriptionAsync(
+            CreateSubscriptionResponse created = await StartCreateSubscription(manager, session)
+                .ConfigureAwait(false);
+            Assert.That(manager.TryGetSubscription(created.SubscriptionId, out ISubscription subscription), Is.True);
+            return (Subscription)subscription;
+        }
+
+        private static Task<CreateSubscriptionResponse> StartCreateSubscription(
+            SubscriptionManager manager,
+            TestSession session)
+        {
+            return manager.CreateSubscriptionAsync(
                 new OperationContext(session.Mock.Object, DiagnosticsMasks.None),
                 requestedPublishingInterval: 1000,
                 requestedLifetimeCount: 30,
                 requestedMaxKeepAliveCount: 10,
                 maxNotificationsPerPublish: 0,
                 publishingEnabled: true,
-                priority: 0).ConfigureAwait(false);
-            Assert.That(manager.TryGetSubscription(created.SubscriptionId, out ISubscription subscription), Is.True);
-            return (Subscription)subscription;
+                priority: 0).AsTask();
         }
 
         private static SessionPublishQueue GetPublishQueue(SubscriptionManager manager, NodeId sessionId)

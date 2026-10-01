@@ -957,53 +957,34 @@ namespace Opc.Ua.Server
                     "Subscription (see docs/migrate/2.0.x/sessions-subscriptions.md).");
             }
 
-            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            StatusCode rejected;
             try
             {
-                // save subscription.
-                if (!m_subscriptions.TryAdd(subscriptionId, subscription))
-                {
-                    throw new ServiceResultException(StatusCodes.BadInternalError, "Failed to create subscription in Server");
-                }
+                await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                await DiscardRejectedSubscriptionAsync(context, subscription).ConfigureAwait(false);
+                throw;
+            }
 
-                // create/update publish queue.
-                m_publishQueues.AddOrUpdate(
-                    session.Id,
-                    (key) =>
-                    {
-                        var queue = new SessionPublishQueue(
-                            m_server,
-                            session,
-                            m_maxPublishRequestCount,
-                            m_timeProvider);
-
-                        queue.Add(subscription);
-                        return queue;
-                    },
-                    (key, queue) =>
-                        {
-                            queue.Add(subscription);
-                            return queue;
-                        }
-                );
+            try
+            {
+                rejected = RegisterCreatedSubscriptionNoLock(session, subscription);
             }
             finally
             {
                 m_semaphoreSlim.Release();
             }
 
+            if (rejected != StatusCodes.Good)
+            {
+                await DiscardRejectedSubscriptionAsync(context, subscription).ConfigureAwait(false);
+                throw new ServiceResultException(rejected);
+            }
+
             // get the count for the diagnostics.
             publishingIntervalCount = GetPublishingIntervalCount();
-
-            lock (m_statusMessagesLock)
-            {
-                if (!m_statusMessages.TryGetValue(
-                    session.Id,
-                    out Queue<StatusMessage>? messagesQueue))
-                {
-                    m_statusMessages[session.Id] = new Queue<StatusMessage>();
-                }
-            }
 
             m_server.UpdateServerDiagnostics(diagnostics =>
             {
@@ -1025,6 +1006,90 @@ namespace Opc.Ua.Server
                 RevisedLifetimeCount = revisedLifetimeCount,
                 RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
             };
+        }
+
+        /// <summary>
+        /// Adds a newly created subscription to the manager, its session's publish
+        /// queue and status queue. Must be called while holding the manager semaphore.
+        /// </summary>
+        /// <returns>Good, or the status code the creation is rejected with.</returns>
+        private StatusCode RegisterCreatedSubscriptionNoLock(
+            ISession session,
+            ISubscriptionPublishPipeline subscription)
+        {
+            // Re-check under the semaphore: SessionClosingAsync removes the session's
+            // publish and status queues under the same semaphore, after the session
+            // was marked closing. A Create that passed the first check must not
+            // re-create them for the closed session.
+            if (session.IsClosing)
+            {
+                return StatusCodes.BadSessionClosed;
+            }
+
+            // The check at the start of the service is not atomic with the add, so
+            // parallel requests could otherwise all pass it and exceed the limit.
+            if (m_subscriptions.Count >= m_maxSubscriptionCount)
+            {
+                return StatusCodes.BadTooManySubscriptions;
+            }
+
+            // save subscription.
+            if (!m_subscriptions.TryAdd(subscription.Id, subscription))
+            {
+                return StatusCodes.BadInternalError;
+            }
+
+            // create/update publish queue.
+            m_publishQueues.AddOrUpdate(
+                session.Id,
+                (key) =>
+                {
+                    var queue = new SessionPublishQueue(
+                        m_server,
+                        session,
+                        m_maxPublishRequestCount,
+                        m_timeProvider);
+
+                    queue.Add(subscription);
+                    return queue;
+                },
+                (key, queue) =>
+                    {
+                        queue.Add(subscription);
+                        return queue;
+                    }
+            );
+
+            lock (m_statusMessagesLock)
+            {
+                if (!m_statusMessages.ContainsKey(session.Id))
+                {
+                    m_statusMessages[session.Id] = new Queue<StatusMessage>();
+                }
+            }
+
+            return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Releases a created subscription that was never registered with the manager.
+        /// </summary>
+        private async ValueTask DiscardRejectedSubscriptionAsync(
+            OperationContext context,
+            ISubscription subscription)
+        {
+            try
+            {
+                await subscription.DeleteAsync(context, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
+            }
+            finally
+            {
+                subscription.Dispose();
+            }
         }
 
         /// <summary>
@@ -1587,6 +1652,14 @@ namespace Opc.Ua.Server
                             continue;
                         }
 
+                        // Re-check under the semaphore: SessionClosingAsync of the
+                        // destination removes its publish and status queues under the
+                        // same semaphore, so a closing destination must not get them back.
+                        if (context.Session.IsClosing)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                        }
+
                         // check if new and old sessions are different
                         ownerSession = subscription.Session;
                         if (ownerSession != null &&
@@ -1751,6 +1824,30 @@ namespace Opc.Ua.Server
                                 sourcePublishQueue!.CompleteTransferClaim(sourceQueueClaim);
                             }
                             preparedTransfer?.Complete();
+
+                            // Create the destination status queue under the semaphore,
+                            // ordered with SessionClosingAsync removing it.
+                            lock (m_statusMessagesLock)
+                            {
+                                var processedQueue = new Queue<StatusMessage>();
+                                if (m_statusMessages.TryGetValue(
+                                        context.SessionId,
+                                        out Queue<StatusMessage>? messagesQueue) &&
+                                    messagesQueue != null)
+                                {
+                                    // There must not be any messages left from
+                                    // the transferred subscription
+                                    foreach (StatusMessage statusMessage in messagesQueue)
+                                    {
+                                        if (statusMessage.SubscriptionId == subscription.Id)
+                                        {
+                                            continue;
+                                        }
+                                        processedQueue.Enqueue(statusMessage);
+                                    }
+                                }
+                                m_statusMessages[context.SessionId] = processedQueue;
+                            }
                         }
                         catch (Exception transferError)
                         {
@@ -1825,28 +1922,6 @@ namespace Opc.Ua.Server
                     finally
                     {
                         m_semaphoreSlim.Release();
-                    }
-
-                    lock (m_statusMessagesLock)
-                    {
-                        var processedQueue = new Queue<StatusMessage>();
-                        if (m_statusMessages.TryGetValue(
-                                context.SessionId,
-                                out Queue<StatusMessage>? messagesQueue) &&
-                            messagesQueue != null)
-                        {
-                            // There must not be any messages left from
-                            // the transferred subscription
-                            foreach (StatusMessage statusMessage in messagesQueue)
-                            {
-                                if (statusMessage.SubscriptionId == subscription.Id)
-                                {
-                                    continue;
-                                }
-                                processedQueue.Enqueue(statusMessage);
-                            }
-                        }
-                        m_statusMessages[context.SessionId] = processedQueue;
                     }
 
                     context.Session?.UpdateDiagnostics(
