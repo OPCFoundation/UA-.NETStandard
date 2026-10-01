@@ -88,6 +88,9 @@ namespace Opc.Ua.Server
                 .MaxNotificationsPerPublish;
             m_maxPublishRequestCount = configuration.ServerConfiguration.MaxPublishRequestCount;
             m_maxSubscriptionCount = configuration.ServerConfiguration.MaxSubscriptionCount;
+            m_maxMonitoredItemCount = configuration.ServerConfiguration.MaxMonitoredItemCount;
+            m_maxMonitoredItemsPerSubscription = configuration.ServerConfiguration
+                .MaxMonitoredItemsPerSubscription;
 
             m_subscriptionStore = server.SubscriptionStore;
 
@@ -2015,17 +2018,46 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            int currentMonitoredItemCount = subscription.MonitoredItemCount;
+            // reserve room for the items within the configured monitored item limits.
+            int allowed = ReserveMonitoredItems(subscription, itemsToCreate.Count);
+            CreateMonitoredItemsResponse response;
+            try
+            {
+                // create the items.
+                if (allowed >= itemsToCreate.Count)
+                {
+                    response = await subscription.CreateMonitoredItemsAsync(
+                        context,
+                        timestampsToReturn,
+                        itemsToCreate,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    response = await CreateMonitoredItemsWithinLimitAsync(
+                        context,
+                        subscription,
+                        timestampsToReturn,
+                        itemsToCreate,
+                        allowed,
+                        cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                ReleaseMonitoredItems(subscription, allowed);
+            }
 
-            // create the items.
-            CreateMonitoredItemsResponse response = await subscription.CreateMonitoredItemsAsync(
-                context,
-                timestampsToReturn,
-                itemsToCreate,
-                cancellationToken).ConfigureAwait(false);
-
-            int monitoredItemCountIncrement = subscription.MonitoredItemCount -
-                currentMonitoredItemCount;
+            // count the items this request created; sampling MonitoredItemCount before and
+            // after the await also counts concurrent create/delete calls on the subscription.
+            int monitoredItemCountIncrement = 0;
+            foreach (MonitoredItemCreateResult result in response.Results)
+            {
+                if (result != null && !StatusCode.IsBad(result.StatusCode))
+                {
+                    monitoredItemCountIncrement++;
+                }
+            }
 
             // update diagnostics.
             context.Session?.UpdateDiagnostics(
@@ -2033,6 +2065,152 @@ namespace Opc.Ua.Server
                         diagnostics, monitoredItemCountIncrement));
 
             return response;
+        }
+
+        /// <summary>
+        /// Creates the first <paramref name="allowed"/> items and rejects the rest with
+        /// Bad_TooManyMonitoredItems (Part 4 §5.13.2.4).
+        /// </summary>
+        private async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsWithinLimitAsync(
+            OperationContext context,
+            ISubscriptionPublishPipeline subscription,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            int allowed,
+            CancellationToken cancellationToken)
+        {
+            var itemsWithinLimit = new MonitoredItemCreateRequest[allowed];
+            for (int ii = 0; ii < allowed; ii++)
+            {
+                itemsWithinLimit[ii] = itemsToCreate[ii];
+            }
+
+            // always call the subscription so the session ownership and lifetime are
+            // handled as for any other CreateMonitoredItems request.
+            CreateMonitoredItemsResponse created = await subscription.CreateMonitoredItemsAsync(
+                context,
+                timestampsToReturn,
+                itemsWithinLimit.ToArrayOf(),
+                cancellationToken).ConfigureAwait(false);
+
+            int count = itemsToCreate.Count;
+            var results = new List<MonitoredItemCreateResult>(count);
+            foreach (MonitoredItemCreateResult result in created.Results)
+            {
+                results.Add(result);
+            }
+
+            bool returnDiagnostics = (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0;
+            var diagnosticInfos = new List<DiagnosticInfo>(count);
+            bool diagnosticsExist = false;
+            if (returnDiagnostics)
+            {
+                // the subscription returns an empty list when none of its items has a diagnostic.
+                bool hasCreatedDiagnostics = created.DiagnosticInfos.Count == created.Results.Count &&
+                    created.DiagnosticInfos.Count > 0;
+                for (int ii = 0; ii < created.Results.Count; ii++)
+                {
+                    diagnosticInfos.Add(hasCreatedDiagnostics ? created.DiagnosticInfos[ii] : null!);
+                }
+                diagnosticsExist = hasCreatedDiagnostics;
+            }
+
+            for (int ii = allowed; ii < count; ii++)
+            {
+                results.Add(new MonitoredItemCreateResult
+                {
+                    StatusCode = StatusCodes.BadTooManyMonitoredItems
+                });
+
+                if (returnDiagnostics)
+                {
+                    diagnosticInfos.Add(ServerUtils.CreateDiagnosticInfo(
+                        m_server,
+                        context,
+                        new ServiceResult(StatusCodes.BadTooManyMonitoredItems),
+                        m_logger)!);
+                    diagnosticsExist = true;
+                }
+            }
+
+            created.Results = results;
+            if (!diagnosticsExist)
+            {
+                diagnosticInfos.Clear();
+            }
+            created.DiagnosticInfos = diagnosticInfos;
+            return created;
+        }
+
+        /// <summary>
+        /// Reserves room for up to <paramref name="requested"/> new monitored items within
+        /// the configured server-wide and per-subscription limits and returns how many
+        /// items may be created. The reservation is released with
+        /// <see cref="ReleaseMonitoredItems"/> once the items are part of the subscription.
+        /// </summary>
+        private int ReserveMonitoredItems(ISubscriptionPublishPipeline subscription, int requested)
+        {
+            int maxPerSubscription = m_maxMonitoredItemsPerSubscription;
+            int maxTotal = m_maxMonitoredItemCount;
+            if (maxPerSubscription <= 0 && maxTotal <= 0)
+            {
+                return requested;
+            }
+
+            lock (m_monitoredItemReservationLock)
+            {
+                int allowed = requested;
+                m_monitoredItemReservations.TryGetValue(subscription.Id, out int reservedForSubscription);
+
+                if (maxPerSubscription > 0)
+                {
+                    long inUse = (long)subscription.MonitoredItemCount + reservedForSubscription;
+                    allowed = (int)Math.Max(0, Math.Min(allowed, maxPerSubscription - inUse));
+                }
+
+                if (maxTotal > 0)
+                {
+                    long inUse = m_totalMonitoredItemReservations;
+                    foreach (ISubscriptionPublishPipeline existing in m_subscriptions.Values)
+                    {
+                        inUse += existing.MonitoredItemCount;
+                    }
+
+                    allowed = (int)Math.Max(0, Math.Min(allowed, maxTotal - inUse));
+                }
+
+                m_monitoredItemReservations[subscription.Id] = reservedForSubscription + allowed;
+                m_totalMonitoredItemReservations += allowed;
+                return allowed;
+            }
+        }
+
+        /// <summary>
+        /// Releases a reservation made by <see cref="ReserveMonitoredItems"/>.
+        /// </summary>
+        private void ReleaseMonitoredItems(ISubscriptionPublishPipeline subscription, int reserved)
+        {
+            if (m_maxMonitoredItemsPerSubscription <= 0 && m_maxMonitoredItemCount <= 0)
+            {
+                return;
+            }
+
+            lock (m_monitoredItemReservationLock)
+            {
+                m_totalMonitoredItemReservations -= reserved;
+                if (m_monitoredItemReservations.TryGetValue(subscription.Id, out int reservedForSubscription))
+                {
+                    reservedForSubscription -= reserved;
+                    if (reservedForSubscription > 0)
+                    {
+                        m_monitoredItemReservations[subscription.Id] = reservedForSubscription;
+                    }
+                    else
+                    {
+                        m_monitoredItemReservations.Remove(subscription.Id);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -2076,16 +2254,24 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            int currentMonitoredItemCount = subscription.MonitoredItemCount;
-
-            // create the items.
+            // delete the items.
             DeleteMonitoredItemsResponse response = await subscription.DeleteMonitoredItemsAsync(
                 context,
                 monitoredItemIds,
                 cancellationToken).ConfigureAwait(false);
 
-            int monitoredItemCountIncrement = subscription.MonitoredItemCount -
-                currentMonitoredItemCount;
+            // count the items this request removed; sampling MonitoredItemCount before and
+            // after the await also counts concurrent create/delete calls on the subscription.
+            // The subscription removes every item it finds, so only an unknown id
+            // (Bad_MonitoredItemIdInvalid) leaves the count unchanged.
+            int monitoredItemCountIncrement = 0;
+            foreach (StatusCode result in response.Results)
+            {
+                if (result != StatusCodes.BadMonitoredItemIdInvalid)
+                {
+                    monitoredItemCountIncrement--;
+                }
+            }
 
             // update diagnostics.
             context.Session?.UpdateDiagnostics(
@@ -2756,6 +2942,11 @@ namespace Opc.Ua.Server
         private readonly uint m_maxNotificationsPerPublish;
         private readonly int m_maxPublishRequestCount;
         private readonly int m_maxSubscriptionCount;
+        private readonly int m_maxMonitoredItemCount;
+        private readonly int m_maxMonitoredItemsPerSubscription;
+        private readonly Lock m_monitoredItemReservationLock = new();
+        private readonly Dictionary<uint, int> m_monitoredItemReservations = [];
+        private long m_totalMonitoredItemReservations;
         private readonly bool m_durableSubscriptionsEnabled;
         private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_subscriptions;
         private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_abandonedSubscriptions;
