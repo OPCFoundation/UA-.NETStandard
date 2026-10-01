@@ -1369,9 +1369,15 @@ namespace Opc.Ua.Server
                     string? clientUserId = ClientUserIdResolver.Resolve(
                         identityToken,
                         identity);
-                    m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
-                    m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
                     ArrayOf<string> history = m_securityDiagnostics.ClientUserIdHistory;
+
+                    // ClientUserIdOfSession names the user authenticated when the session
+                    // was created (Part 5 12.12); later identity changes go to the history only.
+                    if (history.Count == 0)
+                    {
+                        m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
+                    }
+                    m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
                     if (history.Count == 0 ||
                         !string.Equals(
                             history[^1],
