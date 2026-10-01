@@ -952,7 +952,8 @@ namespace Opc.Ua.Server.Tests
             queueHandler.QueueValue(dataValue2, statuscode2);
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(1));
-            Assert.That(called, Is.True);
+            // sampling coalescing is not a queue overflow (Part 5 12.15)
+            Assert.That(called, Is.False);
 
             bool success = queueHandler.PublishSingleValue(
                 out DataValue result,

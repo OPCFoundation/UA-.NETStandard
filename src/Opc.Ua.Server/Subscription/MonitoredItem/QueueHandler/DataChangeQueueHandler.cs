@@ -303,9 +303,10 @@ namespace Opc.Ua.Server
                         m_overflow = default;
                         m_overflowPending = false;
                     }
+                    // a value replaced because the next sampling interval has not elapsed
+                    // is sampling, not a queue overflow: it is not counted as a discard
+                    // (Part 5 12.15 MonitoringQueueOverflowCount).
                     m_dataValueQueue.OverwriteLastValue(replacement, error);
-
-                    m_discardedValueHandler?.Invoke();
 
                     return false;
                 }
