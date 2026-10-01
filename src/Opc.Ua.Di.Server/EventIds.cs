@@ -47,5 +47,6 @@ namespace Opc.Ua
         public const int DiPostSetupRunner = 10;
         public const int SoftwareUpdateFileTransferManager = 20;
         public const int SoftwareUpdateStateMachineDispatcher = 30;
+        public const int DiNodeManager = 40;
     }
 }
