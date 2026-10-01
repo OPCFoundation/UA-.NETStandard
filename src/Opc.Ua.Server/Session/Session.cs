@@ -1018,8 +1018,9 @@ namespace Opc.Ua.Server
             UserTokenPolicy? policy = null;
 
             // check for anonymous (same as empty) token.
+            AnonymousIdentityToken? anonymousToken = null;
             if (identityToken.IsNull ||
-                identityToken.TryGetValue(out AnonymousIdentityToken? _))
+                identityToken.TryGetValue(out anonymousToken))
             {
                 // check if an anonymous login is permitted.
                 if (!EndpointDescription.UserIdentityTokens.IsEmpty)
@@ -1042,6 +1043,34 @@ namespace Opc.Ua.Server
                         throw ServiceResultException.Create(
                             StatusCodes.BadIdentityTokenRejected,
                             "Anonymous user token policy not supported.");
+                    }
+
+                    // a token that names its policy must conform to that policy
+                    // (Part 4 7.40.3); only an omitted token or PolicyId falls back
+                    // to the first anonymous policy of the endpoint.
+                    if (!string.IsNullOrEmpty(anonymousToken?.PolicyId))
+                    {
+                        policy = null;
+                        for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
+                        {
+                            UserTokenPolicy candidate = EndpointDescription.UserIdentityTokens[ii];
+                            if (candidate.TokenType == UserTokenType.Anonymous &&
+                                string.Equals(
+                                    candidate.PolicyId,
+                                    anonymousToken!.PolicyId,
+                                    StringComparison.Ordinal))
+                            {
+                                policy = candidate;
+                                break;
+                            }
+                        }
+
+                        if (policy == null)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadIdentityTokenInvalid,
+                                "The anonymous identity token does not match an anonymous user token policy.");
+                        }
                     }
                 }
 

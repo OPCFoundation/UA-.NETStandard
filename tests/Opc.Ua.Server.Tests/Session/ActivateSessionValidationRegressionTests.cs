@@ -69,6 +69,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// AS-4: an AnonymousIdentityToken that names a policy must conform to an
+        /// anonymous UserTokenPolicy of the endpoint (Part 4 7.40.3); an unknown or
+        /// non-anonymous PolicyId is Bad_IdentityTokenInvalid. Only a token without
+        /// PolicyId falls back to the first anonymous policy.
+        /// </summary>
+        [TestCase("does-not-exist", null)]
+        [TestCase("user", null)]
+        [TestCase("anon-2", "anon-2")]
+        [TestCase("", "anon-1")]
+        [TestCase(null, "anon-1")]
+        public async Task AnonymousTokenPolicyIdMustNameAnAnonymousPolicyAsync(
+            string? policyId,
+            string? expectedPolicyId)
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                tokens:
+                [
+                    new UserTokenPolicy { PolicyId = "anon-1", TokenType = UserTokenType.Anonymous },
+                    new UserTokenPolicy
+                    {
+                        PolicyId = "user",
+                        TokenType = UserTokenType.UserName,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    },
+                    new UserTokenPolicy { PolicyId = "anon-2", TokenType = UserTokenType.Anonymous }
+                ]);
+            using ServerSession session = CreateSession(endpoint);
+            using OperationContext context = CreateContext(endpoint);
+            var token = new ExtensionObject(new AnonymousIdentityToken { PolicyId = policyId! });
+
+            if (expectedPolicyId == null)
+            {
+                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await session.ValidateBeforeActivateAsync(
+                        context, new SignatureData(), token, new SignatureData(),
+                        CancellationToken.None).ConfigureAwait(false));
+                Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+                return;
+            }
+
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? policy) =
+                await session.ValidateBeforeActivateAsync(
+                    context, new SignatureData(), token, new SignatureData(),
+                    CancellationToken.None).ConfigureAwait(false);
+            Assert.That(handler.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+            Assert.That(policy!.PolicyId, Is.EqualTo(expectedPolicyId));
+        }
+
+        /// <summary>
         /// AS-6: ClientUserIdOfSession names the user authenticated when the session
         /// was created (Part 5 12.12); a later identity change only extends
         /// ClientUserIdHistory.
