@@ -33,6 +33,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -54,8 +55,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(2u, -1.0, 1000.0)]
         [TestCase(uint.MaxValue, 1000.0, 4294967294000.0)]
         [TestCase(uint.MaxValue, double.MaxValue, -1.0)]
-        [TestCase(2u, double.NaN, -1.0)]
-        [TestCase(2u, double.PositiveInfinity, -1.0)]
+        [TestCase(2u, double.NaN, 1000.0)]
+        [TestCase(2u, double.PositiveInfinity, 1000.0)]
         [TestCase(2u, double.NegativeInfinity, 1000.0)]
         public async Task AggregateRetentionRevisionBoundsClientArithmeticAsync(
             uint queueSize,
@@ -99,6 +100,160 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Verifies that a NaN, infinite, non-positive or sub-tick processing interval is revised to a finite,
+        /// positive interval (Part 4 §5.13.2.1, §7.22.4) and that an aggregate calculator built from the revised
+        /// filter terminates (M7-9: a NaN interval made every slice zero-width and the calculator loop forever).
+        /// </summary>
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(double.NegativeInfinity)]
+        [TestCase(0.0)]
+        [TestCase(-5.0)]
+        [TestCase(1e-6)]
+        public async Task InvalidProcessingIntervalIsRevisedToUsableIntervalAsync(double interval)
+        {
+            var time = new FakeTimeProvider(new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queues, time);
+            using (queues)
+            using (var synchronous = new SyncHooks(server.Object))
+            using (var asynchronous = new AsyncHooks(server.Object))
+            {
+                using var aggregates = new AggregateManager(server.Object) { MinimumProcessingInterval = 0 };
+                server.SetupGet(value => value.AggregateManager).Returns(aggregates);
+                var syncFilter = new ServerAggregateFilter
+                {
+                    ProcessingInterval = interval,
+                    AggregateConfiguration = new AggregateConfiguration()
+                };
+                var asyncFilter = new ServerAggregateFilter
+                {
+                    ProcessingInterval = interval,
+                    AggregateConfiguration = new AggregateConfiguration()
+                };
+
+                Assert.That(synchronous.Revise(1, syncFilter), Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    await asynchronous.ReviseAsync(1, asyncFilter).ConfigureAwait(false),
+                    Is.EqualTo(StatusCodes.Good));
+
+                foreach (ServerAggregateFilter revised in new[] { syncFilter, asyncFilter })
+                {
+                    Assert.That(revised.ProcessingInterval.IsFinite(), Is.True);
+                    Assert.That(
+                        revised.ProcessingInterval * TimeSpan.TicksPerMillisecond,
+                        Is.GreaterThanOrEqualTo(1));
+                    Assert.That(
+                        CountProcessedValues(revised.StartTime, revised.ProcessingInterval),
+                        Is.LessThan(kProcessedValueCap));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the aggregate calculator rejects a processing interval that cannot advance its slices
+        /// instead of producing processed values forever (M7-9 defensive guard).
+        /// </summary>
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(double.NegativeInfinity)]
+        [TestCase(-1.0)]
+        [TestCase(1e-6)]
+        public void AggregateCalculatorRejectsUnusableProcessingInterval(double interval)
+        {
+            Assert.That(
+                () => CreateAverageCalculator(new DateTimeUtc(DateTime.UtcNow), interval),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        /// <summary>
+        /// Verifies that the revised processing interval is at least twice the revised sampling interval
+        /// (Part 4 §7.22.4 AggregateFilterResult, M5-4) in both node-manager implementations.
+        /// </summary>
+        [TestCase(1500.0, 2000.0, 4000.0)]
+        [TestCase(5000.0, 2000.0, 5000.0)]
+        [TestCase(100.0, 0.0, 1000.0)]
+        public async Task ProcessingIntervalIsAtLeastTwiceSamplingIntervalAsync(
+            double requested,
+            double samplingInterval,
+            double expected)
+        {
+            var time = new FakeTimeProvider(new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queues, time);
+            using (queues)
+            using (var synchronous = new SyncHooks(server.Object))
+            using (var asynchronous = new AsyncHooks(server.Object))
+            {
+                using var aggregates = new AggregateManager(server.Object);
+                server.SetupGet(value => value.AggregateManager).Returns(aggregates);
+                var syncFilter = new ServerAggregateFilter
+                {
+                    ProcessingInterval = requested,
+                    AggregateConfiguration = new AggregateConfiguration()
+                };
+                var asyncFilter = new ServerAggregateFilter
+                {
+                    ProcessingInterval = requested,
+                    AggregateConfiguration = new AggregateConfiguration()
+                };
+
+                Assert.That(synchronous.Revise(1, syncFilter, samplingInterval), Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    await asynchronous.ReviseAsync(1, asyncFilter, samplingInterval).ConfigureAwait(false),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(syncFilter.ProcessingInterval, Is.EqualTo(expected));
+                Assert.That(asyncFilter.ProcessingInterval, Is.EqualTo(expected));
+            }
+        }
+
+        private const int kProcessedValueCap = 1000;
+
+        /// <summary>
+        /// Feeds three raw samples one second apart and counts the processed values, capped to detect a
+        /// calculator that never stops producing values.
+        /// </summary>
+        private static int CountProcessedValues(DateTimeUtc startTime, double processingInterval)
+        {
+            AverageAggregateCalculator calculator = CreateAverageCalculator(startTime, processingInterval);
+            for (int ii = 0; ii < 3; ii++)
+            {
+                calculator.QueueRawValue(new DataValue(
+                    new Variant((double)ii),
+                    StatusCodes.Good,
+                    startTime.AddMilliseconds(ii * 1000)));
+            }
+
+            int count = 0;
+            while (count < kProcessedValueCap && calculator.TryGetProcessedValue(false, out _))
+            {
+                count++;
+            }
+
+            return count;
+        }
+
+        private static AverageAggregateCalculator CreateAverageCalculator(
+            DateTimeUtc startTime,
+            double processingInterval)
+        {
+            return new AverageAggregateCalculator(
+                ObjectIds.AggregateFunction_Average,
+                startTime,
+                DateTimeUtc.MaxValue,
+                processingInterval,
+                false,
+                new AggregateConfiguration
+                {
+                    TreatUncertainAsBad = true,
+                    PercentDataBad = 100,
+                    PercentDataGood = 100,
+                    UseSlopedExtrapolation = false
+                },
+                NUnitTelemetryContext.Create());
+        }
+
+        /// <summary>
         /// Exposes synchronous aggregate-filter revision for comparison with the asynchronous implementation.
         /// </summary>
         private sealed class SyncHooks : CustomNodeManager2
@@ -114,9 +269,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Revises aggregate retention for the supplied queue size and mutable filter.
             /// </summary>
-            public StatusCode Revise(uint queueSize, ServerAggregateFilter filter)
+            public StatusCode Revise(uint queueSize, ServerAggregateFilter filter, double samplingInterval = 0)
             {
-                return ReviseAggregateFilter(SystemContext, CreateHandle(), 0, queueSize, filter);
+                return ReviseAggregateFilter(SystemContext, CreateHandle(), samplingInterval, queueSize, filter);
             }
         }
 
@@ -136,9 +291,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Revises aggregate retention asynchronously for the supplied queue size and mutable filter.
             /// </summary>
-            public ValueTask<StatusCode> ReviseAsync(uint queueSize, ServerAggregateFilter filter)
+            public ValueTask<StatusCode> ReviseAsync(
+                uint queueSize,
+                ServerAggregateFilter filter,
+                double samplingInterval = 0)
             {
-                return ReviseAggregateFilterAsync(SystemContext, CreateHandle(), 0, queueSize, filter);
+                return ReviseAggregateFilterAsync(SystemContext, CreateHandle(), samplingInterval, queueSize, filter);
             }
         }
 

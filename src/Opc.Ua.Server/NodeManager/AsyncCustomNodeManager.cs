@@ -9024,17 +9024,9 @@ namespace Opc.Ua.Server
                 TimestampStructuredDataKeySelector.Instance;
             if (provider == null)
             {
-                if (filterToUse.ProcessingInterval < samplingInterval)
-                {
-                    filterToUse.ProcessingInterval = samplingInterval;
-                }
-
-                if (filterToUse.ProcessingInterval <
-                    Server.AggregateManager.MinimumProcessingInterval)
-                {
-                    filterToUse.ProcessingInterval =
-                        Server.AggregateManager.MinimumProcessingInterval;
-                }
+                filterToUse.ReviseProcessingInterval(
+                    samplingInterval,
+                    Server.AggregateManager.MinimumProcessingInterval);
 
                 DateTimeUtc currentTime =
                     ((Server as ITimeProviderProvider)?.TimeProvider ??
@@ -9104,17 +9096,10 @@ namespace Opc.Ua.Server
                         capabilities.DefaultAggregateConfiguration);
             }
 
-            double minimumFromSampling = samplingInterval > 0 &&
-                samplingInterval.IsFinite()
-                    ? samplingInterval
-                    : 0;
-            filterToUse.ProcessingInterval = Math.Max(
-                filterToUse.ProcessingInterval,
-                Math.Max(
-                    minimumFromSampling,
-                    Math.Max(
-                        Server.AggregateManager.MinimumProcessingInterval,
-                        providerInterval)));
+            filterToUse.ReviseProcessingInterval(
+                samplingInterval,
+                Server.AggregateManager.MinimumProcessingInterval,
+                providerInterval);
 
             DateTimeUtc utcNow = ((Server as ITimeProviderProvider)?.TimeProvider ??
                 TimeProvider.System).GetUtcNow().UtcDateTime;

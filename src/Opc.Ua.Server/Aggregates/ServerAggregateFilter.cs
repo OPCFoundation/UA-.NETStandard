@@ -64,6 +64,50 @@ namespace Opc.Ua.Server
         internal IHistorianStructuredDataKeySelector? HistorianKeySelector { get; set; }
 
         /// <summary>
+        /// The processing interval used when neither the request nor the server limits
+        /// provide a usable positive interval.
+        /// </summary>
+        internal const double DefaultProcessingInterval = 1000;
+
+        /// <summary>
+        /// Revises the processing interval (Part 4 §7.22.4): a non-finite or non-positive
+        /// request is replaced, and the result is at least twice the revised sampling interval,
+        /// at least the server minimum and at least the historian interval.
+        /// </summary>
+        internal void ReviseProcessingInterval(
+            double samplingInterval,
+            double minimumProcessingInterval,
+            double providerInterval = 0)
+        {
+            double requested = ProcessingInterval.IsFinite() && ProcessingInterval > 0
+                ? ProcessingInterval
+                : 0;
+            double minimumFromSampling = samplingInterval.IsFinite() && samplingInterval > 0
+                ? 2 * samplingInterval
+                : 0;
+            if (!minimumFromSampling.IsFinite())
+            {
+                minimumFromSampling = samplingInterval;
+            }
+
+            double revised = Math.Max(
+                requested,
+                Math.Max(
+                    minimumFromSampling,
+                    Math.Max(
+                        ToPositiveFinite(minimumProcessingInterval),
+                        ToPositiveFinite(providerInterval))));
+
+            // the calculator needs an interval of at least one tick to advance its slices.
+            if (revised * TimeSpan.TicksPerMillisecond < 1)
+            {
+                revised = DefaultProcessingInterval;
+            }
+
+            ProcessingInterval = revised;
+        }
+
+        /// <summary>
         /// Advances the start time to the earliest processing interval retained by the queue.
         /// </summary>
         internal void ReviseStartTime(DateTimeUtc currentTime, uint queueSize)
@@ -77,6 +121,11 @@ namespace Opc.Ua.Server
             {
                 StartTime = earliestStartTime;
             }
+        }
+
+        private static double ToPositiveFinite(double value)
+        {
+            return value.IsFinite() && value > 0 ? value : 0;
         }
     }
 }

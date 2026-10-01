@@ -7169,10 +7169,11 @@ namespace Opc.Ua.Server.Tests
                     queueSize: 4,
                     filter).ConfigureAwait(false);
 
+            // Part 4 §7.22.4: at least twice the revised sampling interval.
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).ProcessingInterval,
-                Is.EqualTo(200));
+                Is.EqualTo(400));
         }
 
         /// <summary>
@@ -8303,7 +8304,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that aggregate processing intervals are raised to the monitored item's sampling interval.
+        /// Verifies that aggregate processing intervals are raised to twice the monitored item's sampling interval
+        /// (Part 4 §7.22.4).
         /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToSamplingIntervalAsync()
@@ -8335,7 +8337,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.InstanceOf<ServerAggregateFilter>());
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).ProcessingInterval,
-                Is.EqualTo(200));
+                Is.EqualTo(400));
         }
 
         /// <summary>
