@@ -252,8 +252,11 @@ namespace Opc.Ua
                     securityPolicyUri,
                     certificate,
                     receiverNonce);
+                // TryDecryptRsa returns false only when the password is not an RSAEncryptedSecret
+                // (legacy format); any failure of an RSAEncryptedSecret throws its specific cause,
+                // which the caller logs and reports to the client as Bad_IdentityTokenInvalid.
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
-                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data, out byte[]? decryptedSecret))
+                    encryptedSecret.TryDecryptRsa(m_token.Password.ToArray()!, receiverNonce?.Data, out byte[]? decryptedSecret))
                 {
                     DecryptedPassword = decryptedSecret;
                     return;
