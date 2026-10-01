@@ -847,12 +847,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (error == null)
-                {
-                    m_samplingError = ServiceResult.Good;
-                }
-
-                m_samplingError = error;
+                m_samplingError = error ?? ServiceResult.Good;
             }
         }
 
