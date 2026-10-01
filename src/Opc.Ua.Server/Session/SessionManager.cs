@@ -324,8 +324,14 @@ namespace Opc.Ua.Server
                     authenticationToken = new NodeId(token.ToByteString());
                 }
 
-                // determine session timeout.
-                if (requestedSessionTimeout > m_maxSessionTimeout)
+                // determine session timeout. Every comparison with NaN is false,
+                // so NaN is revised explicitly instead of being returned as the
+                // revisedSessionTimeout (Part 4 5.7.2.2).
+                if (double.IsNaN(requestedSessionTimeout))
+                {
+                    revisedSessionTimeout = m_minSessionTimeout;
+                }
+                else if (requestedSessionTimeout > m_maxSessionTimeout)
                 {
                     revisedSessionTimeout = m_maxSessionTimeout;
                 }
