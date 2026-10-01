@@ -2436,17 +2436,13 @@ namespace Opc.Ua.Server
 
             double keepAliveInterval = keepAliveCount * publishingInterval;
 
-            // keep alive interval cannot be longer than the max subscription lifetime.
-            if (keepAliveInterval > maxSubscriptionLifetime)
+            // The lifetime is raised to at least three keep-alive intervals (Part 4
+            // 5.14.2.2), so the keep-alive interval cannot be longer than a third of
+            // the max subscription lifetime or the revised lifetime would exceed it.
+            ulong maxKeepAliveInterval = maxSubscriptionLifetime / 3;
+            if (keepAliveInterval > maxKeepAliveInterval)
             {
-                keepAliveCount = (uint)(maxSubscriptionLifetime / publishingInterval);
-
-                if (keepAliveCount < uint.MaxValue &&
-                    maxSubscriptionLifetime % publishingInterval != 0)
-                {
-                    keepAliveCount++;
-                }
-
+                keepAliveCount = Math.Max(1u, (uint)(maxKeepAliveInterval / publishingInterval));
                 keepAliveInterval = keepAliveCount * publishingInterval;
             }
 
