@@ -369,7 +369,8 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             byte[] salt,
             bool isServer,
-            int length)
+            int length,
+            bool signingKeyOnly)
         {
             SecurityPolicyInfo tokenPolicy = token.SecurityPolicy!;
             byte[] keyData;
@@ -393,13 +394,21 @@ namespace Opc.Ua.Bindings
                     length);
             }
 
+            // a Sign only channel without AuthenticatedEncryption derives no
+            // encrypting key or IV; neither is used to sign.
             byte[] signingKey = new byte[m_signatureKeySize];
-            byte[] encryptingKey = new byte[m_encryptionKeySize];
-            byte[] iv = new byte[EncryptionBlockSize];
+            byte[] encryptingKey = [];
+            byte[] iv = [];
 
             Buffer.BlockCopy(keyData, 0, signingKey, 0, signingKey.Length);
-            Buffer.BlockCopy(keyData, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
-            Buffer.BlockCopy(keyData, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
+
+            if (!signingKeyOnly)
+            {
+                encryptingKey = new byte[m_encryptionKeySize];
+                iv = new byte[EncryptionBlockSize];
+                Buffer.BlockCopy(keyData, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
+                Buffer.BlockCopy(keyData, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
+            }
 
             if (isServer)
             {
@@ -444,21 +453,34 @@ namespace Opc.Ua.Bindings
                         m_remoteNonce!,
                         tokenPolicy.SecureChannelEnhancements ? token.PreviousSecret : null);
 
+                    // OPC 10000-6 6.8.1: when not using AuthenticatedEncryption with Sign
+                    // only, the EncryptionKeyLength and InitializationVectorLength are 0 in
+                    // the calculation of L, which is part of the salt.
+                    bool signingKeyOnly =
+                        SecurityMode == MessageSecurityMode.Sign &&
+                        !tokenPolicy.NoSymmetricEncryptionPadding;
+                    int clientKeyDataLength = signingKeyOnly
+                        ? tokenPolicy.DerivedSignatureKeyLength
+                        : tokenPolicy.ClientKeyDataLength;
+                    int serverKeyDataLength = signingKeyOnly
+                        ? tokenPolicy.DerivedSignatureKeyLength
+                        : tokenPolicy.ServerKeyDataLength;
+
                     byte[] clientSalt = Utils.Append(
-                        BitConverter.GetBytes((ushort)tokenPolicy.ClientKeyDataLength),
+                        BitConverter.GetBytes((ushort)clientKeyDataLength),
                         s_hkdfClientLabel,
                         clientSecret,
                         serverSecret);
 
-                    DeriveKeysWithHKDF(token, clientSalt, false, tokenPolicy.ClientKeyDataLength);
+                    DeriveKeysWithHKDF(token, clientSalt, false, clientKeyDataLength, signingKeyOnly);
 
                     byte[] serverSalt = Utils.Append(
-                        BitConverter.GetBytes((ushort)tokenPolicy.ServerKeyDataLength),
+                        BitConverter.GetBytes((ushort)serverKeyDataLength),
                         s_hkdfServerLabel,
                         serverSecret,
                         clientSecret);
 
-                    DeriveKeysWithHKDF(token, serverSalt, true, tokenPolicy.ServerKeyDataLength);
+                    DeriveKeysWithHKDF(token, serverSalt, true, serverKeyDataLength, signingKeyOnly);
                     break;
                 default:
                     HashAlgorithmName algorithmName = tokenPolicy.GetKeyDerivationHashAlgorithmName();
