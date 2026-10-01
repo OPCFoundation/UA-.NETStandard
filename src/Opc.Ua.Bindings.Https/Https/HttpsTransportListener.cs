@@ -515,12 +515,17 @@ namespace Opc.Ua.Bindings
             // listener's ConnectionWaiting event when the server's
             // ReverseHello arrives.
             m_reverseConnectListener = settings.ReverseConnectListener;
+            // A reverse connection handed off to the client keeps its physical
+            // lease until it closes, but like on the opc.tcp listeners it no
+            // longer counts against MaxChannelCount, which bounds only the
+            // connections still waiting for their ReverseHello hand-off.
             m_admission = new UaScConnectionAdmission(
                 settings.MaxChannelCount,
                 settings.ConnectionRateLimiter,
                 settings.ResourceIsolationProvider,
                 m_quotas.HandshakeTimeout,
-                telemetry: m_telemetry);
+                telemetry: m_telemetry,
+                limitPendingHandshakesOnly: m_reverseConnectListener);
 
             // buffer manager used by the WSS path to rent send / receive chunks.
             m_bufferManager = new BufferManager(

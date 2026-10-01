@@ -194,8 +194,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
         }
 
+        /// <summary>
+        /// A handed-off reverse connection keeps its physical connection alive
+        /// but, as on the opc.tcp listeners, no longer holds one of the
+        /// MaxChannelCount slots, which bound only pending reverse connections.
+        /// </summary>
         [Test]
-        public async Task ReverseHandoffRetainsCapacityUntilAdoptedTransportClosesAsync()
+        public async Task ReverseHandoffKeepsConnectionButReleasesPendingCapacityAsync()
         {
             await using HttpsTransportListener listener = CreateListener(reverse: true);
             var adopted = new TaskCompletionSource<IUaSCByteTransport>(
@@ -206,6 +211,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 adopted.TrySetResult(((TcpConnectionWaitingEventArgs)args).Transport);
                 return Task.CompletedTask;
             };
+
+            // a reverse connection still waiting for its ReverseHello holds the slot.
+            using (var pending = new UpgradeRequest())
+            {
+                Task pendingHandler = listener.AcceptWebSocketAsync(pending.Context);
+                await pending.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                using var rejected = new UpgradeRequest();
+                await listener.AcceptWebSocketAsync(rejected.Context).ConfigureAwait(false);
+                Assert.That(rejected.UpgradeCalls, Is.Zero);
+                Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
+                pending.Context.Abort();
+                await pendingHandler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+
             using var request = new UpgradeRequest(CreateReverseHello());
             Task handler = listener.AcceptWebSocketAsync(request.Context);
             IUaSCByteTransport transport = await adopted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -213,10 +232,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(handler.IsCompleted, Is.False);
                 Assert.That(request.Context.RequestAborted.IsCancellationRequested, Is.False);
-                using var rejected = new UpgradeRequest();
-                await listener.AcceptWebSocketAsync(rejected.Context).ConfigureAwait(false);
-                Assert.That(rejected.UpgradeCalls, Is.Zero);
-                Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
+                await AssertHealthyUpgradeAsync(listener).ConfigureAwait(false);
+                Assert.That(handler.IsCompleted, Is.False, "The adopted connection stays open.");
             }
             finally
             {
@@ -378,7 +395,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var listener = new HttpsTransportListener(Utils.UriSchemeWss, telemetry);
-            SetField(listener, "m_admission", new UaScConnectionAdmission(1, limiter, provider, timeProvider: clock));
+            SetField(listener, "m_admission", new UaScConnectionAdmission(
+                1, limiter, provider, timeProvider: clock, limitPendingHandshakesOnly: reverse));
             SetField(listener, "m_quotas", new ChannelQuotas(ServiceMessageContext.Create(telemetry))
             {
                 ResourceIsolationProvider = provider
