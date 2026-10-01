@@ -301,6 +301,16 @@ namespace Opc.Ua.Bindings
                 }
                 socket.Dispose();
             }
+            OnClosed();
+        }
+
+        /// <summary>
+        /// Releases resources a derived transport must keep alive for the
+        /// lifetime of the WebSocket. Called once from <see cref="Close"/>
+        /// after the WebSocket has been torn down.
+        /// </summary>
+        protected virtual void OnClosed()
+        {
         }
 
         /// <summary>
@@ -481,6 +491,7 @@ namespace Opc.Ua.Bindings
             Uri wsUrl = NormalizeUrl(url);
 
             var ws = new ClientWebSocket();
+            X509Certificate2? clientCert = null;
             try
             {
                 ws.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolUacp);
@@ -498,7 +509,11 @@ namespace Opc.Ua.Bindings
                 }
                 if (ClientTlsCertificate != null)
                 {
-                    using X509Certificate2 clientCert = ClientTlsCertificate.AsX509Certificate2();
+                    // AsX509Certificate2 returns a caller-owned copy. SslStream
+                    // reads its private key during the handshake (and possibly
+                    // later for post-handshake authentication), so keep it alive
+                    // until the transport is closed instead of disposing it here.
+                    clientCert = ClientTlsCertificate.AsX509Certificate2();
                     ws.Options.ClientCertificates ??= [];
                     ws.Options.ClientCertificates.Add(clientCert);
                 }
@@ -532,6 +547,8 @@ namespace Opc.Ua.Bindings
                     wsUrl.IdnHost,
                     wsUrl.Port > 0 ? wsUrl.Port : Utils.UaWebSocketsDefaultPort);
                 ws = null; // ownership transferred
+                Interlocked.Exchange(ref m_clientCertificate, clientCert)?.Dispose();
+                clientCert = null; // released in OnClosed
             }
             catch (Exception ex)
             {
@@ -541,7 +558,14 @@ namespace Opc.Ua.Bindings
             finally
             {
                 ws?.Dispose();
+                clientCert?.Dispose();
             }
+        }
+
+        /// <inheritdoc/>
+        protected override void OnClosed()
+        {
+            Interlocked.Exchange(ref m_clientCertificate, null)?.Dispose();
         }
 
 #if NET5_0_OR_GREATER
@@ -600,6 +624,7 @@ namespace Opc.Ua.Bindings
         }
 
         private EndPoint? m_remoteEndpoint;
+        private X509Certificate2? m_clientCertificate;
     }
 
     /// <summary>
