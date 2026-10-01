@@ -198,6 +198,35 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// Verifies that shared definitions preserve the triggering links between monitored
+        /// items (OPC 10000-4 §5.13.1.6).
+        /// </summary>
+        [Test]
+        public async Task StoreAndRestoreRoundTripsTriggeringLinksAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(108, 18);
+            expected.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+            {
+                [18] = [19u, 20u]
+            };
+
+            await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            var actual = (StoredSubscription)result.Subscriptions!.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.True);
+                Assert.That(actual.TriggeringLinks, Is.Not.Null);
+                Assert.That(actual.TriggeringLinks!.Keys, Is.EquivalentTo(new uint[] { 18 }));
+                Assert.That(actual.TriggeringLinks[18], Is.EqualTo(new uint[] { 19, 20 }));
+            });
+        }
+
+        /// <summary>
         /// Verifies that stored subscriptions preserve monitored-item lifecycle state.
         /// </summary>
         [TestCase(false, false)]
@@ -300,8 +329,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 actual.LastError.StatusCode,
                 Is.EqualTo(StatusCodes.BadCommunicationError));
             using var decoder = new BinaryDecoder(EncodeDefinition(active, expected).ToArray(), CreateContext());
-            Assert.That(decoder.ReadInt32(null), Is.EqualTo(5),
-                "New definitions must carry the owner and publishing state format.");
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(6),
+                "New definitions must carry the owner, publishing state and triggering link format.");
         }
 
         /// <summary>

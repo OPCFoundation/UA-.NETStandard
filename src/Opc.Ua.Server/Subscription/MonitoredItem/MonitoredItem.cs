@@ -1837,6 +1837,7 @@ namespace Opc.Ua.Server
                     if (overflowEvent != null && m_discardOldest)
                     {
                         notifications.Enqueue(overflowEvent);
+                        EventQueueOverflowReported();
                         maxNotificationsPerPublish--;
                     }
                     uint notificationCount = m_eventQueueHandler.Publish(
@@ -1852,6 +1853,7 @@ namespace Opc.Ua.Server
                         if (notificationCount < maxNotificationsPerPublish)
                         {
                             notifications.Enqueue(overflowEvent);
+                            EventQueueOverflowReported();
                         }
                         else
                         {
@@ -2522,6 +2524,15 @@ namespace Opc.Ua.Server
         private void QueueOverflowHandler()
         {
             (m_subscription as ISubscriptionPublishPipeline)?.QueueOverflowHandler();
+        }
+
+        /// <summary>
+        /// Update the event queue overflow count once an EventQueueOverflowEventType
+        /// event is reported to the client.
+        /// </summary>
+        private void EventQueueOverflowReported()
+        {
+            (m_subscription as ISubscriptionPublishPipeline)?.EventQueueOverflowHandler();
         }
 
         /// <inheritdoc/>

@@ -1011,7 +1011,8 @@ namespace Opc.Ua.Redundancy.Server
                 SequenceNumber = subscription.SequenceNumber,
                 UserIdentityToken = subscription.UserIdentityToken,
                 SentMessages = subscription.SentMessages ?? [],
-                MonitoredItems = subscription.MonitoredItems.Select(CloneMonitoredItem).ToList()
+                MonitoredItems = subscription.MonitoredItems.Select(CloneMonitoredItem).ToList(),
+                TriggeringLinks = (subscription as IStoredSubscriptionTriggering)?.TriggeringLinks
             };
         }
 
@@ -1262,6 +1263,21 @@ namespace Opc.Ua.Redundancy.Server
             {
                 EncodeMonitoredItem(encoder, item, version);
             }
+
+            if (version >= TriggeringLinksDefinitionFormatVersion)
+            {
+                IReadOnlyDictionary<uint, IReadOnlyList<uint>>? triggeringLinks =
+                    subscription.TriggeringLinks;
+                encoder.WriteInt32(null, triggeringLinks?.Count ?? 0);
+                if (triggeringLinks != null)
+                {
+                    foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
+                    {
+                        encoder.WriteUInt32(null, link.Key);
+                        encoder.WriteUInt32Array(null, [.. link.Value ?? []]);
+                    }
+                }
+            }
         }
 
         private static StoredSubscription DecodeSubscription(BinaryDecoder decoder, int version)
@@ -1303,6 +1319,24 @@ namespace Opc.Ua.Redundancy.Server
                 items.Add(DecodeMonitoredItem(decoder, version));
             }
             subscription.MonitoredItems = items;
+
+            if (version >= TriggeringLinksDefinitionFormatVersion)
+            {
+                int linkCount = decoder.ReadInt32(null);
+                if (linkCount > 0)
+                {
+                    var triggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>(linkCount);
+                    for (int ii = 0; ii < linkCount; ii++)
+                    {
+                        uint triggeringItemId = decoder.ReadUInt32(null);
+                        ArrayOf<uint> linkedItemIds = decoder.ReadUInt32Array(null);
+                        triggeringLinks[triggeringItemId] = linkedItemIds.IsNull
+                            ? []
+                            : linkedItemIds.Memory.ToArray();
+                    }
+                    subscription.TriggeringLinks = triggeringLinks;
+                }
+            }
             return subscription;
         }
 
@@ -1468,7 +1502,8 @@ namespace Opc.Ua.Redundancy.Server
             return version is LegacyDefinitionFormatVersion or
                 LifecycleStateDefinitionFormatVersion or
                 FilteredRetainDefinitionFormatVersion or
-                OwnerStateDefinitionFormatVersion;
+                OwnerStateDefinitionFormatVersion or
+                TriggeringLinksDefinitionFormatVersion;
         }
 
         private static string ContinuationPointPrefixFor(NodeId ownerSessionId)
@@ -1482,9 +1517,10 @@ namespace Opc.Ua.Redundancy.Server
         private const int LifecycleStateDefinitionFormatVersion = 2;
         private const int FilteredRetainDefinitionFormatVersion = 3;
         private const int OwnerStateDefinitionFormatVersion = 5;
+        private const int TriggeringLinksDefinitionFormatVersion = 6;
 
         private const int DefinitionFormatVersion =
-            OwnerStateDefinitionFormatVersion;
+            TriggeringLinksDefinitionFormatVersion;
 
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;

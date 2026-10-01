@@ -197,7 +197,53 @@ namespace Opc.Ua.Server
             await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
                 .ConfigureAwait(false);
 
+            subscription.RestoreTriggeringLinks(
+                (storedSubscription as IStoredSubscriptionTriggering)?.TriggeringLinks);
+
             return subscription;
+        }
+
+        /// <summary>
+        /// Rebuilds the triggering links between restored monitored items
+        /// (OPC 10000-4 §5.13.1.6). Links to or from items that could not be restored
+        /// are dropped.
+        /// </summary>
+        private void RestoreTriggeringLinks(
+            IReadOnlyDictionary<uint, IReadOnlyList<uint>>? triggeringLinks)
+        {
+            if (triggeringLinks == null)
+            {
+                return;
+            }
+
+            lock (m_lock)
+            {
+                foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
+                {
+                    if (link.Value == null || !m_monitoredItems.ContainsKey(link.Key))
+                    {
+                        continue;
+                    }
+
+                    var triggeredItems = new List<ITriggeredMonitoredItem>(link.Value.Count);
+                    foreach (uint linkedItemId in link.Value)
+                    {
+                        if (m_monitoredItems.TryGetValue(
+                                linkedItemId,
+                                out LinkedListNode<IMonitoredItem>? linkedNode) &&
+                            linkedNode.Value is ITriggeredMonitoredItem triggeredItem &&
+                            !triggeredItems.Exists(item => item.Id == linkedItemId))
+                        {
+                            triggeredItems.Add(triggeredItem);
+                        }
+                    }
+
+                    if (triggeredItems.Count > 0)
+                    {
+                        m_itemsToTrigger[link.Key] = triggeredItems;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -723,23 +769,34 @@ namespace Opc.Ua.Server
                     m_publishTimerExpiry += (long)m_publishingInterval;
                 }
 
-                // check lifetime has elapsed.
-                if (m_waitingForPublish)
-                {
-                    m_lifetimeCounter++;
+                // OPC 10000-4 §5.14.1.4 StartPublishingTimer(): every publishing timer expiry
+                // advances the lifetime counter, in the NORMAL, LATE and KEEPALIVE states alike.
+                // The counter is reset when a NotificationMessage or keep-alive is sent
+                // (ResetLifetimeCounter() in the §5.14.1.2 state table) or a request
+                // acknowledges a message, so it only reaches MaxLifetimeCount when the client
+                // has stopped sending Publish requests.
+                m_lifetimeCounter++;
 
-                    lock (m_diagnosticsLock)
+                // A subscription that was already waiting for a Publish request when the
+                // timer expired has entered the LATE state; count the entry only once per
+                // episode (Part 5 §12.15 latePublishRequestCount).
+                bool enteredLate = m_waitingForPublish && !m_isLate;
+                m_isLate = m_waitingForPublish;
+
+                lock (m_diagnosticsLock)
+                {
+                    if (enteredLate)
                     {
                         Diagnostics.LatePublishRequestCount++;
-                        Diagnostics.CurrentLifetimeCount = m_lifetimeCounter;
-                        MarkDiagnosticsDirty();
                     }
+                    Diagnostics.CurrentLifetimeCount = m_lifetimeCounter;
+                    MarkDiagnosticsDirty();
+                }
 
-                    if (m_lifetimeCounter >= m_maxLifetimeCount)
-                    {
-                        TraceState(LogLevel.Information, TraceStateId.Deleted, "EXPIRED");
-                        return PublishingState.Expired;
-                    }
+                if (m_lifetimeCounter >= m_maxLifetimeCount)
+                {
+                    TraceState(LogLevel.Information, TraceStateId.Deleted, "EXPIRED");
+                    return PublishingState.Expired;
                 }
 
                 // increment keep alive counter.
@@ -809,28 +866,10 @@ namespace Opc.Ua.Server
                     m_itemsToPublish.AddLast(current);
                 }
 
-                // Check for triggering only if there are triggered items configured
-                if (m_itemsToTrigger.Count > 0)
+                // update any triggered items.
+                if (TriggerLinkedItems(monitoredItem, promoteTriggeredItems: false))
                 {
-                    bool isReadyToTrigger = monitoredItem.IsReadyToTrigger;
-
-                    // update any triggered items.
-                    if (isReadyToTrigger &&
-                        m_itemsToTrigger.TryGetValue(
-                            current.Value.Id,
-                            out List<ITriggeredMonitoredItem>? triggeredItems))
-                    {
-                        for (int ii = 0; ii < triggeredItems.Count; ii++)
-                        {
-                            if (triggeredItems[ii].SetTriggered())
-                            {
-                                itemsTriggered = true;
-                            }
-                        }
-
-                        // clear ReadyToTrigger flag after trigger
-                        monitoredItem.IsReadyToTrigger = false;
-                    }
+                    itemsTriggered = true;
                 }
 
                 current = next;
@@ -863,6 +902,54 @@ namespace Opc.Ua.Server
         /// </summary>
         internal string? OwnerClientApplicationUri
             => Session?.ClientApplicationUri ?? m_ownerClientApplicationUri;
+
+        /// <summary>
+        /// Triggers the items linked to a triggering item that has queued a notification
+        /// since its links were last evaluated (OPC 10000-4 §5.13.1.6).
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. When <paramref name="promoteTriggeredItems"/> is
+        /// set, linked items that became ready are moved from the check list to the end of
+        /// the publish list so the publish pass in progress reports them.
+        /// </remarks>
+        /// <returns><c>true</c> when at least one linked item was triggered.</returns>
+        private bool TriggerLinkedItems(IMonitoredItem monitoredItem, bool promoteTriggeredItems)
+        {
+            if (m_itemsToTrigger.Count == 0 ||
+                !monitoredItem.IsReadyToTrigger ||
+                !m_itemsToTrigger.TryGetValue(
+                    monitoredItem.Id,
+                    out List<ITriggeredMonitoredItem>? triggeredItems))
+            {
+                return false;
+            }
+
+            bool itemsTriggered = false;
+            for (int ii = 0; ii < triggeredItems.Count; ii++)
+            {
+                if (!triggeredItems[ii].SetTriggered())
+                {
+                    continue;
+                }
+
+                itemsTriggered = true;
+
+                if (promoteTriggeredItems &&
+                    m_monitoredItems.TryGetValue(
+                        triggeredItems[ii].Id,
+                        out LinkedListNode<IMonitoredItem>? triggeredNode) &&
+                    ReferenceEquals(triggeredNode.List, m_itemsToCheck) &&
+                    triggeredNode.Value.IsReadyToPublish)
+                {
+                    m_itemsToCheck.Remove(triggeredNode);
+                    m_itemsToPublish.AddLast(triggeredNode);
+                }
+            }
+
+            // clear ReadyToTrigger flag after trigger
+            monitoredItem.IsReadyToTrigger = false;
+            return itemsTriggered;
+        }
 
         /// <inheritdoc/>
         public bool IsTransferIdentityCompatible(ISession targetSession)
@@ -1383,6 +1470,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Update the event queue overflow count when a monitored item reports an
+        /// EventQueueOverflowEventType event (OPC 10000-5 §12.15).
+        /// </summary>
+        void ISubscriptionPublishPipeline.EventQueueOverflowHandler()
+        {
+            lock (m_diagnosticsLock)
+            {
+                Diagnostics.EventQueueOverflowCount++;
+                MarkDiagnosticsDirty();
+            }
+        }
+
+        /// <summary>
         /// Removes a message from the message queue.
         /// </summary>
         ServiceResult? ISubscriptionPublishPipeline.Acknowledge(OperationContext context, uint sequenceNumber)
@@ -1469,6 +1569,7 @@ namespace Opc.Ua.Server
                         // TraceState(LogLevel.Trace, TraceStateId.Items, Utils.Format("PUBLISH #{0}", message.SequenceNumber));
                         ResetKeepaliveCount();
                         m_waitingForPublish = moreNotifications;
+                        m_isLate = false;
                         ResetLifetimeCount();
                     }
                 }
@@ -1563,10 +1664,15 @@ namespace Opc.Ua.Server
 
             moreNotifications = false;
 
-            NotificationMessage? queuedMessage = m_messageQueue.TryDequeueQueued(
-                availableSequenceNumberList,
-                m_itemsToPublish.Count > 0,
-                out moreNotifications);
+            // OPC 10000-4 §5.14.1.2: while PublishingEnabled is FALSE a Publish request only
+            // yields a keep-alive. Messages already built for a previous Publish stay queued
+            // until publishing is enabled again.
+            NotificationMessage? queuedMessage = m_publishingEnabled
+                ? m_messageQueue.TryDequeueQueued(
+                    availableSequenceNumberList,
+                    m_itemsToPublish.Count > 0,
+                    out moreNotifications)
+                : null;
             if (queuedMessage != null)
             {
                 m_waitingForPublish = moreNotifications;
@@ -1598,8 +1704,16 @@ namespace Opc.Ua.Server
 
                 while (current != null && messages.Count < messageBudget)
                 {
-                    LinkedListNode<IMonitoredItem>? next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
+
+                    // A triggering item that is still draining a backlog stays in the publish
+                    // list and is never re-evaluated by the publish timer. Trigger its links
+                    // before its queue is drained, which clears its trigger flag, so every
+                    // notification it reports triggers the linked items (OPC 10000-4
+                    // §5.13.1.6). Linked items that became ready are appended to this pass.
+                    TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
+
+                    LinkedListNode<IMonitoredItem>? next = current.Next;
                     bool hasMoreValuesToPublish;
                     uint notificationLimit = maxNotificationsPerMonitoredItem;
                     if (m_maxNotificationsPerPublish > 0)
@@ -1724,11 +1838,27 @@ namespace Opc.Ua.Server
             {
                 // create a keep alive message.
                 var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
-                message.SequenceNumber = m_messageQueue.NextSequenceNumber;
                 message.PublishTime = DateTimeUtc.Now;
 
-                // return the available sequence numbers.
-                m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
+                int lastSentMessage = m_messageQueue.LastSentMessage;
+                if (lastSentMessage < m_messageQueue.SentCount)
+                {
+                    // Messages held back while publishing is disabled are sent next, so the
+                    // keep-alive carries the first of them as the next sequence number and
+                    // only advertises the messages already sent for republish.
+                    message.SequenceNumber = m_messageQueue.SentMessages[lastSentMessage].SequenceNumber;
+                    for (int ii = 0; ii < lastSentMessage; ii++)
+                    {
+                        availableSequenceNumberList.Add(m_messageQueue.SentMessages[ii].SequenceNumber);
+                    }
+                }
+                else
+                {
+                    message.SequenceNumber = m_messageQueue.NextSequenceNumber;
+
+                    // return the available sequence numbers.
+                    m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
+                }
 
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH KEEPALIVE");
                 availableSequenceNumbers = availableSequenceNumberList;
@@ -2047,7 +2177,7 @@ namespace Opc.Ua.Server
 
                 if (!m_monitoredItems.TryGetValue(
                     triggeringItemId,
-                    out _))
+                    out LinkedListNode<IMonitoredItem>? triggeringNode))
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -2103,6 +2233,10 @@ namespace Opc.Ua.Server
                         removeDiagnosticInfoList!.Add(null!);
                     }
                 }
+
+                // The trigger flag is only consumed while the item has links, so it can still
+                // carry a notification queued before the first link existed.
+                bool hadLinks = triggeredItems.Count > 0;
 
                 // add new links.
                 for (int ii = 0; ii < linksToAdd.Count; ii++)
@@ -2179,6 +2313,13 @@ namespace Opc.Ua.Server
                 if (triggeredItems.Count == 0)
                 {
                     m_itemsToTrigger.Remove(triggeringItemId);
+                }
+                else if (!hadLinks)
+                {
+                    // OPC 10000-4 §5.13.1.6: the first trigger occurs when the first
+                    // notification is queued for the triggering item after the link was
+                    // created, so discard a flag left over from before the first link.
+                    triggeringNode.Value.IsReadyToTrigger = false;
                 }
 
                 // clear diagnostics if not required.
@@ -2760,8 +2901,10 @@ namespace Opc.Ua.Server
                         results.Add(error.StatusCode);
                     }
 
-                    // update diagnostics.
-                    if (ServiceResult.IsGood(error))
+                    // update diagnostics for every item that was removed from the
+                    // subscription above, even if its NodeManager reported a failure: the
+                    // item is gone and must no longer be counted.
+                    if (monitoredItems[ii] != null)
                     {
                         RemoveItemToSamplingInterval(
                             originalSamplingIntervals[ii],
@@ -3083,6 +3226,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                // nothing to do if no event subscriptions.
+                if (monitoredItems.Count == 0)
+                {
+                    return;
+                }
+
                 // generate start event.
                 var e = new RefreshStartEventState(null);
 
@@ -3101,68 +3250,86 @@ namespace Opc.Ua.Server
                     false);
                 e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
 
-                // build list of items to refresh.
-                foreach (IEventMonitoredItem monitoredItem in monitoredItems)
-                {
-                    IEventMonitoredItem eventMonitoredItem = monitoredItem;
+                // OPC 10000-9 §5.5.7: the refresh is in progress from the RefreshStartEvent
+                // until the RefreshEndEvent has been queued. The flag is set and cleared under
+                // m_lock together with queueing those events so ValidateConditionRefresh never
+                // observes a gap.
+                m_refreshInProgress = true;
 
-                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                // build list of items to refresh.
+                try
+                {
+                    foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                     {
-                        // queue start refresh event.
-                        eventMonitoredItem.QueueEvent(e, true);
+                        IEventMonitoredItem eventMonitoredItem = monitoredItem;
+
+                        if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                        {
+                            // queue start refresh event.
+                            eventMonitoredItem.QueueEvent(e, true);
+                        }
                     }
                 }
-
-                // nothing to do if no event subscriptions.
-                if (monitoredItems.Count == 0)
+                catch
                 {
-                    return;
+                    m_refreshInProgress = false;
+                    throw;
                 }
             }
 
             // tell the NodeManagers to report the current state of the conditions.
             try
             {
-                m_refreshInProgress = true;
-
                 using var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
                 await m_server.NodeManager.ConditionRefreshAsync(operationContext, monitoredItems, cancellationToken)
                     .ConfigureAwait(false);
             }
-            finally
+            catch
             {
-                m_refreshInProgress = false;
+                lock (m_lock)
+                {
+                    m_refreshInProgress = false;
+                }
+                throw;
             }
 
             lock (m_lock)
             {
-                // generate start event.
-                var e = new RefreshEndEventState(null);
-
-                var message = new TranslationInfo(
-                    "RefreshEndEvent",
-                    "en-US",
-                    Utils.Format(messageTemplate, "completed"));
-
-                e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
-
-                e.SetChildValue(systemContext, BrowseNames.SourceNode, m_diagnosticsId, false);
-                e.SetChildValue(
-                    systemContext,
-                    BrowseNames.SourceName,
-                    Utils.Format("Subscription/{0}", Id),
-                    false);
-                e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
-
-                // send refresh end event.
-                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                try
                 {
-                    IEventMonitoredItem monitoredItem = monitoredItems[ii];
+                    // generate end event.
+                    var e = new RefreshEndEventState(null);
 
-                    if (monitoredItem.EventFilter != null)
+                    var message = new TranslationInfo(
+                        "RefreshEndEvent",
+                        "en-US",
+                        Utils.Format(messageTemplate, "completed"));
+
+                    e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
+
+                    e.SetChildValue(systemContext, BrowseNames.SourceNode, m_diagnosticsId, false);
+                    e.SetChildValue(
+                        systemContext,
+                        BrowseNames.SourceName,
+                        Utils.Format("Subscription/{0}", Id),
+                        false);
+                    e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
+
+                    // send refresh end event.
+                    for (int ii = 0; ii < monitoredItems.Count; ii++)
                     {
-                        monitoredItem.QueueEvent(e, true);
+                        IEventMonitoredItem monitoredItem = monitoredItems[ii];
+
+                        if (monitoredItem.EventFilter != null)
+                        {
+                            monitoredItem.QueueEvent(e, true);
+                        }
                     }
+                }
+                finally
+                {
+                    // the refresh ends once its RefreshEndEvent has been queued.
+                    m_refreshInProgress = false;
                 }
 
                 // TraceState("CONDITION REFRESH");
@@ -3249,6 +3416,18 @@ namespace Opc.Ua.Server
                     monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
                 }
 
+                Dictionary<uint, IReadOnlyList<uint>>? triggeringLinks = null;
+                foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> link in m_itemsToTrigger)
+                {
+                    if (link.Value.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    triggeringLinks ??= [];
+                    triggeringLinks[link.Key] = [.. link.Value.Select(item => item.Id)];
+                }
+
                 return new StoredSubscription
                 {
                     SentMessages = m_messageQueue.CreateSnapshot(),
@@ -3266,6 +3445,7 @@ namespace Opc.Ua.Server
                     PublishingEnabled = m_publishingEnabled,
                     OwnerClientApplicationUri = m_ownerClientApplicationUri,
                     MonitoredItems = monitoredItemsToStore,
+                    TriggeringLinks = triggeringLinks,
                     IsDurable = IsDurable
                 };
             }
@@ -3497,6 +3677,7 @@ namespace Opc.Ua.Server
         private uint m_keepAliveCounter;
         private uint m_lifetimeCounter;
         private bool m_waitingForPublish;
+        private bool m_isLate;
         private readonly SentMessageQueue m_messageQueue;
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
