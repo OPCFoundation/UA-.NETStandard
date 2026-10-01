@@ -857,6 +857,13 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// The ApplicationUri of the client that owns the subscription, also known
+        /// while the subscription is abandoned or restored without a session.
+        /// </summary>
+        internal string? OwnerClientApplicationUri
+            => Session?.ClientApplicationUri ?? m_ownerClientApplicationUri;
+
         /// <inheritdoc/>
         public bool IsTransferIdentityCompatible(ISession targetSession)
         {
