@@ -325,11 +325,20 @@ namespace Opc.Ua.Server
 
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
+            bool enabled = previousMode == MonitoringMode.Disabled &&
+                monitoringMode != MonitoringMode.Disabled;
+
+            // the value read below is the immediate update after enabling, so the
+            // sampling group does not take another one.
+            if (enabled)
+            {
+                m_samplingGroupManager.MarkInitialValueQueued(monitoredItem);
+            }
+
             m_samplingGroupManager.ModifyMonitoring(context.OperationContext!, monitoredItem);
 
             // need to provide an immediate update after enabling.
-            if (previousMode == MonitoringMode.Disabled &&
-                monitoringMode != MonitoringMode.Disabled)
+            if (enabled)
             {
                 var initialValue = new DataValue(
                     Variant.Null,

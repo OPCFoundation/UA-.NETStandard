@@ -113,9 +113,6 @@ namespace Opc.Ua.Server
             m_itemsToAdd = [];
             m_itemsToRemove = [];
             m_items = [];
-
-            // create a event to signal shutdown.
-            m_shutdownEvent = new ManualResetEvent(true);
         }
 
         /// <summary>
@@ -140,53 +137,77 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    m_shutdownEvent.Set();
+                    StopSamplingLoop();
                 }
-
-                if (m_samplingTask != null)
-                {
-                    try
-                    {
-                        m_samplingTask.GetAwaiter().GetResult();
-                    }
-                    catch (AggregateException)
-                    { /* Ignore exceptions on shutdown */
-                    }
-                }
-
-                m_samplingTask?.Dispose();
-                m_shutdownEvent.Dispose();
             }
         }
 
         /// <summary>
-        /// Starts the sampling thread which periodically reads the items in the group.
+        /// Starts the sampling loop which periodically reads the items in the group.
         /// </summary>
+        /// <remarks>
+        /// The loop waits asynchronously between samples, so an idle group does not
+        /// hold a thread.
+        /// </remarks>
         public void Startup()
         {
             lock (m_lock)
             {
-                m_shutdownEvent.Reset();
+                StopSamplingLoop();
 
-                m_samplingTask = Task.Factory.StartNew(
-                    () => SampleMonitoredItemsAsync(m_samplingInterval, CancellationToken.None).AsTask(),
-                    default, // TODO: Pass a cancellation token
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default).Unwrap();
+                var samplingCts = new CancellationTokenSource();
+                m_samplingCts = samplingCts;
+                CancellationToken token = samplingCts.Token;
+                double samplingInterval = m_samplingInterval;
+                m_samplingTask = Task.Run(
+                    () => SampleMonitoredItemsAsync(samplingInterval, token).AsTask(),
+                    CancellationToken.None);
             }
         }
 
         /// <summary>
-        /// Stops the sampling thread.
+        /// Stops the sampling loop.
         /// </summary>
         public void Shutdown()
         {
             lock (m_lock)
             {
-                m_shutdownEvent.Set();
+                StopSamplingLoop();
                 m_items.Clear();
-                m_samplingTask = null;
             }
+        }
+
+        /// <summary>
+        /// Cancels the running sampling loop. The token source is released once the
+        /// loop has observed the cancellation, so an in-flight sample never touches a
+        /// disposed object. Must be called while holding the lock.
+        /// </summary>
+        private void StopSamplingLoop()
+        {
+            CancellationTokenSource? samplingCts = m_samplingCts;
+            Task? samplingTask = m_samplingTask;
+            m_samplingCts = null;
+            m_samplingTask = null;
+
+            if (samplingCts == null)
+            {
+                return;
+            }
+
+            samplingCts.Cancel();
+
+            if (samplingTask == null || samplingTask.IsCompleted)
+            {
+                samplingCts.Dispose();
+                return;
+            }
+
+            _ = samplingTask.ContinueWith(
+                (_, state) => ((CancellationTokenSource)state!).Dispose(),
+                samplingCts,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         /// <summary>
@@ -203,11 +224,48 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             IUserIdentity? savedOwnerIdentity = null)
         {
+            return StartMonitoring(context, monitoredItem, savedOwnerIdentity, initialValueQueued: false);
+        }
+
+        /// <summary>
+        /// Checks if the monitored item can be handled by the group.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="savedOwnerIdentity">Owner identity for sessionless groups.</param>
+        /// <param name="initialValueQueued">
+        /// True when the caller already queued the initial value of the item, so the
+        /// immediate sample taken by <see cref="ApplyChanges"/> is skipped.
+        /// </param>
+        internal bool StartMonitoring(
+            OperationContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IUserIdentity? savedOwnerIdentity,
+            bool initialValueQueued)
+        {
             lock (m_lock)
             {
                 if (MeetsGroupCriteria(context, monitoredItem, savedOwnerIdentity))
                 {
-                    m_itemsToAdd.Add(monitoredItem);
+                    // an item that is still sampled by this group but was marked for
+                    // removal by an earlier modification simply stays in the group.
+                    if (m_itemsToRemove.Remove(monitoredItem) &&
+                        m_items.ContainsKey(monitoredItem.Id))
+                    {
+                        monitoredItem.SetSamplingInterval(m_samplingInterval);
+                        return true;
+                    }
+
+                    if (!m_itemsToAdd.Contains(monitoredItem))
+                    {
+                        m_itemsToAdd.Add(monitoredItem);
+                    }
+
+                    if (initialValueQueued)
+                    {
+                        m_itemsWithInitialValue.Add(monitoredItem.Id);
+                    }
+
                     monitoredItem.SetSamplingInterval(m_samplingInterval);
                     return true;
                 }
@@ -231,7 +289,10 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_items.ContainsKey(monitoredItem.Id))
+                // an item added by StartMonitoring but not yet applied is still owned by
+                // this group; it must leave the pending additions when it moves to another
+                // group, otherwise both groups end up sampling it.
+                if (m_itemsToAdd.Contains(monitoredItem))
                 {
                     if (MeetsGroupCriteria(context, monitoredItem))
                     {
@@ -239,7 +300,24 @@ namespace Opc.Ua.Server
                         return true;
                     }
 
-                    m_itemsToRemove.Add(monitoredItem);
+                    m_itemsToAdd.Remove(monitoredItem);
+                    m_itemsWithInitialValue.Remove(monitoredItem.Id);
+                    return false;
+                }
+
+                if (m_items.ContainsKey(monitoredItem.Id))
+                {
+                    if (MeetsGroupCriteria(context, monitoredItem))
+                    {
+                        m_itemsToRemove.Remove(monitoredItem);
+                        monitoredItem.SetSamplingInterval(m_samplingInterval);
+                        return true;
+                    }
+
+                    if (!m_itemsToRemove.Contains(monitoredItem))
+                    {
+                        m_itemsToRemove.Add(monitoredItem);
+                    }
                 }
 
                 return false;
@@ -258,6 +336,7 @@ namespace Opc.Ua.Server
             {
                 if (m_itemsToAdd.Remove(monitoredItem))
                 {
+                    m_itemsWithInitialValue.Remove(monitoredItem.Id);
                     return true;
                 }
 
@@ -288,14 +367,18 @@ namespace Opc.Ua.Server
                 {
                     ISampledDataChangeMonitoredItem monitoredItem = m_itemsToAdd[ii];
 
+                    // an item whose initial value the caller already queued is not
+                    // sampled again right away (Part 4 5.13.2.1: queued once).
                     if (m_items.TryAdd(monitoredItem.Id, monitoredItem) &&
-                        monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                        monitoredItem.MonitoringMode != MonitoringMode.Disabled &&
+                        !m_itemsWithInitialValue.Contains(monitoredItem.Id))
                     {
                         itemsToSample.Add(monitoredItem);
                     }
                 }
 
                 m_itemsToAdd.Clear();
+                m_itemsWithInitialValue.Clear();
 
                 // collect first sample.
                 if (itemsToSample.Count > 0)
@@ -396,12 +479,17 @@ namespace Opc.Ua.Server
 
                 if (!(samplingRate.Increment > 0) ||
                     double.IsInfinity(samplingRate.Increment) ||
-                    samplingRate.Count <= 0)
+                    samplingRate.Count < 0)
                 {
                     continue;
                 }
 
-                double maxSamplingRate = samplingRate.Start + (samplingRate.Increment * samplingRate.Count);
+                // a count of 0 means the group has no limit: every interval beyond the
+                // start is rounded up to a multiple of the increment, so client chosen
+                // intervals cannot create an unbounded number of groups.
+                double maxSamplingRate = samplingRate.Count == 0
+                    ? int.MaxValue
+                    : samplingRate.Start + (samplingRate.Increment * samplingRate.Count);
                 if (samplingInterval > maxSamplingRate)
                 {
                     continue;
@@ -433,12 +521,16 @@ namespace Opc.Ua.Server
                 int sleepCycle = Convert.ToInt32(samplingInterval, CultureInfo.InvariantCulture);
                 int timeToWait = sleepCycle;
 
-                while (m_server.IsRunning)
+                while (m_server.IsRunning && !cancellationToken.IsCancellationRequested)
                 {
                     long startTimestamp = m_timeProvider.GetTimestamp();
 
-                    // wait till next sample.
-                    if (m_shutdownEvent.WaitOne(timeToWait))
+                    // wait till next sample without holding a thread.
+                    try
+                    {
+                        await Task.Delay(timeToWait, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
                         break;
                     }
@@ -475,6 +567,11 @@ namespace Opc.Ua.Server
 
                     // sample the values.
                     await DoSampleAsync(items, cancellationToken).ConfigureAwait(false);
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
 
                     int delay = (int)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
                     timeToWait = sleepCycle;
@@ -529,6 +626,10 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // the group was stopped while sampling.
+            }
             catch (Exception e)
             {
                 m_logger.ServerUnexpectedErrorSamplingValues(e);
@@ -561,9 +662,15 @@ namespace Opc.Ua.Server
             // read values.
             await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
 
-            // update monitored items.
+            // update monitored items, unless the group stopped while reading: its items
+            // may already be deleted.
             for (int ii = 0; ii < items.Count; ii++)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 ServiceResult permissionResult = await m_nodeManager
                     .ValidateRolePermissionsAsync(
                         context,
@@ -604,10 +711,11 @@ namespace Opc.Ua.Server
         private readonly double m_samplingInterval;
         private readonly List<ISampledDataChangeMonitoredItem> m_itemsToAdd;
         private readonly List<ISampledDataChangeMonitoredItem> m_itemsToRemove;
+        private readonly HashSet<uint> m_itemsWithInitialValue = [];
         private readonly Dictionary<uint, ISampledDataChangeMonitoredItem> m_items;
-        private readonly ManualResetEvent m_shutdownEvent;
         private readonly List<SamplingRateGroup> m_samplingRates;
         private Task? m_samplingTask;
+        private CancellationTokenSource? m_samplingCts;
     }
 
     /// <summary>

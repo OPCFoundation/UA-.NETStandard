@@ -249,6 +249,62 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Part 4 5.13.1.2: events are not sampled, so the revised sampling interval of an event
+        /// item is 0 instead of an echo of the requested value (negative and NaN included).
+        /// </summary>
+        [TestCase(1000.0)]
+        [TestCase(-1.0)]
+        [TestCase(-5.0)]
+        [TestCase(double.NaN)]
+        public void CreateMonitoredItemRevisesEventSamplingIntervalToZero(double requestedSamplingInterval)
+        {
+            EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
+
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, new MonitoredItemIdFactory(),
+                TimestampsToReturn.Both, 750.0, NewCreateRequest(requestedSamplingInterval, 5),
+                new EventFilter(), false);
+
+            Assert.That(((MonitoredItem)item).SamplingInterval, Is.Zero);
+        }
+
+        /// <summary>
+        /// Part 4 5.13.1.2: modifying an event item keeps the revised sampling interval at 0;
+        /// a negative or NaN request is never returned as the revised interval.
+        /// </summary>
+        [TestCase(1000.0)]
+        [TestCase(-1.0)]
+        [TestCase(-5.0)]
+        [TestCase(double.NaN)]
+        public void ModifyMonitoredItemRevisesEventSamplingIntervalToZero(
+            double requestedSamplingInterval)
+        {
+            EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, new MonitoredItemIdFactory(),
+                TimestampsToReturn.Both, 1000.0, NewCreateRequest(500.0, 5),
+                new EventFilter(), false);
+
+            manager.ModifyMonitoredItem(
+                NewContext(),
+                item,
+                TimestampsToReturn.Both,
+                new MonitoredItemModifyRequest
+                {
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 42,
+                        SamplingInterval = requestedSamplingInterval,
+                        QueueSize = 5,
+                        DiscardOldest = true
+                    }
+                },
+                new EventFilter());
+
+            Assert.That(((MonitoredItem)item).SamplingInterval, Is.Zero);
+        }
+
+        /// <summary>
         /// Regression for the CTT "Auditing Connections" failures: the CTT audit
         /// subscription requests QueueSize 1 on Server.EventNotifier. Every event
         /// raised between two publishes must still be delivered.
@@ -345,27 +401,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(
                 notifications.Select(n => n.EventFields[0].GetString()),
                 Is.EqualTo(s_eventBurst));
-        }
-
-        [Test]
-        public void CreateMonitoredItemUsesPublishingIntervalWhenSamplingNegative()
-        {
-            EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
-            var idFactory = new MonitoredItemIdFactory();
-
-            IEventMonitoredItem item = manager.CreateMonitoredItem(
-                NewContext(),
-                nm.Object,
-                null!,
-                1,
-                idFactory,
-                TimestampsToReturn.Both,
-                2500.0,
-                NewCreateRequest(-1.0, 5),
-                new EventFilter(),
-                false);
-
-            Assert.That(item.SamplingInterval, Is.EqualTo(2500.0));
         }
 
         [Test]

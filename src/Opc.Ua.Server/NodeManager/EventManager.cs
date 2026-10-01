@@ -201,13 +201,10 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // calculate sampling interval.
-                double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-
-                if (samplingInterval < 0)
-                {
-                    samplingInterval = publishingInterval;
-                }
+                // events are reported as they occur and never sampled, so the revised
+                // sampling interval is 0 (Part 4 5.13.1.2) whatever the client requested.
+                _ = publishingInterval;
+                const double samplingInterval = EventSamplingInterval;
 
                 // limit the queue size.
                 uint revisedQueueSize = CalculateRevisedQueueSize(
@@ -334,6 +331,10 @@ namespace Opc.Ua.Server
                     monitoredItem.IsDurable,
                     itemToModify.RequestedParameters.QueueSize);
 
+                // events are never sampled: the revised sampling interval is 0
+                // (Part 4 5.13.1.2), never the raw requested value.
+                const double samplingInterval = EventSamplingInterval;
+
                 // modify the attributes.
                 monitoredItem.ModifyAttributes(
                     context.DiagnosticsMask,
@@ -342,7 +343,7 @@ namespace Opc.Ua.Server
                     filter,
                     filter,
                     null!,
-                    itemToModify.RequestedParameters.SamplingInterval,
+                    samplingInterval,
                     revisedQueueSize,
                     itemToModify.RequestedParameters.DiscardOldest);
             }
@@ -369,6 +370,12 @@ namespace Opc.Ua.Server
                 return [.. m_monitoredItems.Values.Where(item => item != null)];
             }
         }
+
+        /// <summary>
+        /// The revised sampling interval of event monitored items, which are
+        /// reported as events occur and never sampled.
+        /// </summary>
+        private const double EventSamplingInterval = 0;
 
         private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;

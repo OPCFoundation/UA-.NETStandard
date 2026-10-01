@@ -5744,7 +5744,13 @@ namespace Opc.Ua.Server
                     if (ServiceResult.IsGood(errors[ii]))
                     {
                         deletedItems.Add(monitoredItems[ii]);
-                        RemoveNodeFromComponentCache(systemContext, handle);
+
+                        // only MonitoredNode items hold a component-cache reference;
+                        // sampling-group items never took one (see create).
+                        if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
+                        {
+                            RemoveNodeFromComponentCache(systemContext, handle);
+                        }
                     }
                 }
             }

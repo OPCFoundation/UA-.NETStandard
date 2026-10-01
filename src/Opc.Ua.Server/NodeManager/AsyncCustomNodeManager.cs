@@ -9279,12 +9279,6 @@ namespace Opc.Ua.Server
                 itemToModify.RequestedParameters.QueueSize,
                 MaxQueueSize,
                 MaxDurableQueueSize);
-            uint filterQueueSize = revisedQueueSize;
-            if (filterQueueSize == 0 &&
-                m_monitoredItemManager is SamplingGroupMonitoredItemManager)
-            {
-                filterQueueSize = datachangeItem.QueueSize;
-            }
 
             // validate the monitoring filter.
             ValidateMonitoringFilterResult validateMonitoringFilterResult = await ValidateMonitoringFilterAsync(
@@ -9292,7 +9286,7 @@ namespace Opc.Ua.Server
                 handle,
                 datachangeItem.AttributeId,
                 samplingInterval,
-                filterQueueSize,
+                revisedQueueSize,
                 parameters.Filter,
                 cancellationToken).ConfigureAwait(false);
 
@@ -9552,7 +9546,13 @@ namespace Opc.Ua.Server
                     if (ServiceResult.IsGood(errors[ii]))
                     {
                         deletedItems.Add(monitoredItems[ii]);
-                        RemoveNodeFromComponentCache(systemContext, handle);
+
+                        // only MonitoredNode items hold a component-cache reference;
+                        // sampling-group items never took one (see create).
+                        if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
+                        {
+                            RemoveNodeFromComponentCache(systemContext, handle);
+                        }
                     }
                 }
                 m_monitoredItemManager.ApplyChanges();
