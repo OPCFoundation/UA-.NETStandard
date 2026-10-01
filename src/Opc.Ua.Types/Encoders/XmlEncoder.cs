@@ -442,10 +442,40 @@ namespace Opc.Ua
                 if (!string.IsNullOrEmpty(value))
                 {
                     CheckXmlChars(value!);
-                    m_writer.WriteString(value);
+                    WriteText(value!);
                 }
 
                 EndField(fieldName);
+            }
+        }
+
+        /// <summary>
+        /// Writes element text so that every carriage return survives the
+        /// round trip. XML 1.0 2.11 makes readers turn a literal CR or CRLF
+        /// into LF, so only the character reference &#xD; keeps a CR. The
+        /// writer may come from the caller with any NewLineHandling, so the
+        /// CRs are written as character entities here.
+        /// </summary>
+        private void WriteText(string value)
+        {
+            int start = 0;
+            int index;
+            while ((index = value.IndexOf('\r', start)) >= 0)
+            {
+                if (index > start)
+                {
+                    m_writer.WriteString(value.Substring(start, index - start));
+                }
+                m_writer.WriteCharEntity('\r');
+                start = index + 1;
+            }
+            if (start == 0)
+            {
+                m_writer.WriteString(value);
+            }
+            else if (start < value.Length)
+            {
+                m_writer.WriteString(value.Substring(start));
             }
         }
 
@@ -751,18 +781,22 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value)
         {
-            WriteDiagnosticInfo(fieldName, value, 0);
+            WriteDiagnosticInfo(fieldName, value, 0, false);
         }
 
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
         /// </summary>
-        private void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value, int depth)
+        private void WriteDiagnosticInfo(
+            string? fieldName,
+            DiagnosticInfo? value,
+            int depth,
+            bool isArrayElement)
         {
             CheckAndIncrementNestingLevel();
             try
             {
-                if (BeginField(fieldName, value == null, true))
+                if (BeginField(fieldName, value == null, true, isArrayElement))
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
@@ -779,7 +813,8 @@ namespace Opc.Ua
                             WriteDiagnosticInfo(
                                 "InnerDiagnosticInfo",
                                 value.InnerDiagnosticInfo,
-                                depth + 1);
+                                depth + 1,
+                                false);
                         }
                         else
                         {
@@ -1589,7 +1624,9 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDiagnosticInfo("DiagnosticInfo", values[ii]);
+                        // Part 6 5.3.4: a null element is written as a nil
+                        // element so later entries keep their position.
+                        WriteDiagnosticInfo("DiagnosticInfo", values[ii], 0, true);
                     }
                 }
 
@@ -1697,7 +1734,9 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDataValue("DataValue", values[ii]);
+                        // Part 6 5.3.4: a null element is written as a nil
+                        // element so later entries keep their position.
+                        WriteDataValue("DataValue", values[ii], true);
                     }
                 }
 

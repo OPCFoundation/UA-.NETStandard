@@ -1198,10 +1198,15 @@ namespace Opc.Ua
                     }
                     break;
                 case JsonValueKind.Array:
-                    bool success = TryGetArrayElements(
+                    // Part 6 5.4.5: a nested JSON array is not a valid array
+                    // element, so TryGetArrayElements rejects it.
+                    if (!TryGetArrayElements(
                         element,
-                        out ArrayOf<JsonElement> elements);
-                    Debug.Assert(success, "Must be an array");
+                        out ArrayOf<JsonElement> elements))
+                    {
+                        values = default;
+                        return false;
+                    }
                     byte[] bytes = new byte[elements.Count];
                     for (int i = 0; i < elements.Count; i++)
                     {
@@ -1961,6 +1966,15 @@ namespace Opc.Ua
                         bool artifactsSuppressed = !TryGetExpandedNodeIdFromElement(
                             GetPropertyElement(JsonProperties.UaTypeId),
                             out ExpandedNodeId typeId);
+                        if (artifactsSuppressed && m_options.ParseStrict)
+                        {
+                            // Part 6 5.4.2.16: UaTypeId is a NodeId in the 5.4.2.10
+                            // string form. An absent UaTypeId parses as the null
+                            // NodeId, so getting here means it is present but
+                            // malformed. Keeping the envelope as a type-less raw
+                            // body would silently drop the type identity.
+                            goto default;
+                        }
                         if (!artifactsSuppressed &&
                             typeId.IsNull &&
                             IsBodylessExtensionObject(element))
@@ -2784,10 +2798,15 @@ namespace Opc.Ua
                     values = MemoryMarshal.Cast<byte, sbyte>(bytes).ToArray();
                     return true;
                 case JsonValueKind.Array:
-                    bool success = TryGetArrayElements(
+                    // Part 6 5.4.5: a nested JSON array is not a valid array
+                    // element, so TryGetArrayElements rejects it.
+                    if (!TryGetArrayElements(
                         element,
-                        out ArrayOf<JsonElement> elements);
-                    Debug.Assert(success, "Can only be array here");
+                        out ArrayOf<JsonElement> elements))
+                    {
+                        values = default;
+                        return false;
+                    }
                     sbyte[] result = new sbyte[elements.Count];
                     for (int i = 0; i < elements.Count; i++)
                     {

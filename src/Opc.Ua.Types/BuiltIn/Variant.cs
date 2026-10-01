@@ -8434,6 +8434,23 @@ namespace Opc.Ua
             {
                 return default;
             }
+            // OPC 10000-6 5.1.6: a value of the abstract Number, Integer or
+            // UInteger type is encoded as a Variant, so its default is the
+            // default of a Variant. A null typed with the abstract type
+            // itself cannot be encoded.
+            if (typeInfo.BuiltInType is BuiltInType.Number or
+                BuiltInType.Integer or
+                BuiltInType.UInteger)
+            {
+                if (typeInfo.IsScalar)
+                {
+                    return default;
+                }
+                if (typeInfo.IsArray)
+                {
+                    return new Variant(default, TypeInfo.Arrays.Variant, null);
+                }
+            }
             return new Variant(default, typeInfo, null);
         }
 
