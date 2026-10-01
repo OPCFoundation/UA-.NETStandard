@@ -36,7 +36,9 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 #if NET8_0_OR_GREATER
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Http;
+using Opc.Ua.Security.Certificates;
 #endif
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
@@ -747,7 +749,88 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotImplemented));
         }
 
-        private HttpsTransportListener CreatePartiallyOpenedListener(int maxMessageSize = 0)
+        /// <summary>
+        /// With mutual TLS, a CreateSession ClientCertificate that carries the leaf
+        /// followed by its issuers matches the TLS client certificate (the leaf).
+        /// The request then reaches endpoint selection instead of an HTTP 401.
+        /// </summary>
+        [Test]
+        public async Task SendAsyncMutualTlsAcceptsCreateSessionCertificateChainWithTlsLeafAsync()
+        {
+            using X509Certificate2 leaf = CreateTlsTestCertificate("CN=Https Leaf");
+            using X509Certificate2 issuer = CreateTlsTestCertificate("CN=Https Issuer");
+            byte[] chain = [.. leaf.RawData, .. issuer.RawData];
+
+            ServiceFault fault = await SendCreateSessionWithMutualTlsAsync(leaf, chain).ConfigureAwait(false);
+
+            // the certificate check passed; the listener has no endpoints, so the
+            // request is refused by the discovery-only gate that follows it.
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected));
+        }
+
+        /// <summary>
+        /// A CreateSession ClientCertificate whose leaf differs from the TLS client
+        /// certificate is answered with a ServiceFault, not an HTTP 401.
+        /// </summary>
+        [Test]
+        public async Task SendAsyncMutualTlsRejectsMismatchedCreateSessionCertificateWithServiceFaultAsync()
+        {
+            using X509Certificate2 tls = CreateTlsTestCertificate("CN=Https Tls");
+            using X509Certificate2 other = CreateTlsTestCertificate("CN=Https Other");
+            byte[] chain = [.. other.RawData, .. tls.RawData];
+
+            ServiceFault fault = await SendCreateSessionWithMutualTlsAsync(tls, chain).ConfigureAwait(false);
+
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(42u));
+        }
+
+        private async Task<ServiceFault> SendCreateSessionWithMutualTlsAsync(
+            X509Certificate2 tlsCertificate,
+            byte[] clientCertificate)
+        {
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener(mutualTls: true);
+            byte[] body = BinaryEncoder.EncodeMessage(
+                new CreateSessionRequest
+                {
+                    RequestHeader = new RequestHeader { RequestHandle = 42 },
+                    ClientCertificate = clientCertificate.ToByteString(),
+                    ClientNonce = Nonce.CreateRandomNonceData(32).ToByteString(),
+                    RequestedSessionTimeout = 60000
+                },
+                ServiceMessageContext.Create(m_telemetry));
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = "application/octet-stream";
+            context.Request.ContentLength = body.Length;
+            context.Request.Body = new MemoryStream(body);
+            context.Connection.ClientCertificate = tlsCertificate;
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
+            return BinaryDecoder.DecodeMessage<ServiceFault>(
+                responseBody.ToArray(),
+                ServiceMessageContext.Create(m_telemetry));
+        }
+
+        private static X509Certificate2 CreateTlsTestCertificate(string subject)
+        {
+            using Certificate certificate = CertificateBuilder.Create(subject)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            return certificate.AsX509Certificate2();
+        }
+
+        private HttpsTransportListener CreatePartiallyOpenedListener(
+            int maxMessageSize = 0,
+            bool mutualTls = false)
         {
             var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             var baseAddress = new Uri("https://localhost:51002");
@@ -764,7 +847,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ServerCertificates = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
                 NamespaceUris = new NamespaceTable(),
-                Factory = null
+                Factory = null,
+                HttpsMutualTls = mutualTls
             };
 
             try

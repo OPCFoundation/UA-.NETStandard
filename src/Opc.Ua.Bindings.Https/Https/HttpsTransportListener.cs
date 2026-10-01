@@ -764,22 +764,24 @@ namespace Opc.Ua.Bindings
 
                 if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
-                    // Match the TLS certificate against the application certificate in CreateSessionRequest.
-                    var tlsClientCertificate = ByteString.From(context.Connection.ClientCertificate?.RawData);
+                    // Match the TLS certificate against the application certificate in
+                    // CreateSessionRequest. The request may carry the leaf followed by its
+                    // issuers; TLS presents only the leaf.
+                    byte[]? tlsClientCertificate = context.Connection.ClientCertificate?.RawData;
                     ByteString opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
 
-                    if (context.Connection.ClientCertificate?.RawData == null ||
-                        tlsClientCertificate != opcUaClientCertificate)
+                    if (!IsLeafOfCertificateChain(tlsClientCertificate, opcUaClientCertificate))
                     {
-                        message =
+                        m_logger.ClientTlsCertificateMismatch(
                             "Client TLS certificate does not match with ClientCertificate " +
-                            "provided in CreateSessionRequest";
-                        m_logger.ClientTlsCertificateMismatch(message);
-                        await WriteResponseAsync(
-                            context.Response,
-                            message,
-                            HttpStatusCode.Unauthorized)
-                            .ConfigureAwait(false);
+                            "provided in CreateSessionRequest");
+                        IServiceResponse mismatchFault = EndpointBase.CreateFault(
+                            m_logger,
+                            input,
+                            new ServiceResultException(
+                                StatusCodes.BadSecurityChecksFailed,
+                                "The TLS client certificate does not match the ClientCertificate."));
+                        await WriteServiceResponseAsync(context, mismatchFault, ct).ConfigureAwait(false);
                         return;
                     }
                 }
@@ -2748,6 +2750,19 @@ namespace Opc.Ua.Bindings
             return typeId == DataTypeIds.GetEndpointsRequest ||
                 typeId == DataTypeIds.FindServersRequest ||
                 typeId == DataTypeIds.FindServersOnNetworkRequest;
+        }
+
+        /// <summary>
+        /// Returns true when the DER encoded TLS client certificate is the leaf
+        /// (first certificate) of the CreateSession ClientCertificate chain blob.
+        /// A DER certificate is self-delimiting, so a byte prefix match means the
+        /// first element of the blob is exactly that certificate.
+        /// </summary>
+        internal static bool IsLeafOfCertificateChain(byte[]? tlsCertificate, ByteString certificateChain)
+        {
+            return tlsCertificate != null &&
+                tlsCertificate.Length > 0 &&
+                certificateChain.Span.StartsWith(tlsCertificate);
         }
 
         /// <summary>
