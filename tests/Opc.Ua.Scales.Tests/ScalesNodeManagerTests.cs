@@ -223,6 +223,141 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task AScaleThatFailsToRegisterIsDetachedSoTheNameCanBeReusedAsync()
+        {
+            // The scale is attached to the DeviceSet before it is registered. A
+            // registration that failed after that left it there, so the name
+            // stayed taken and a retry was rejected with BadBrowseNameDuplicated.
+            NodeState deviceSet = DeviceSet();
+            ScaleDeviceState? failed = null;
+            bool attached = false;
+
+            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await CreateAsync(ScaleKind.Simple, "Broken", b =>
+                {
+                    failed = b.Scale;
+                    var extension = new FailingChildState(b.Scale, () => attached =
+                        ReferenceEquals(deviceSet.FindChild(m_fixture.Context, m_fixture.Name("Broken")), b.Scale))
+                    {
+                        NodeId = new NodeId("Broken.Extension", b.Scale.NodeId.NamespaceIndex),
+                        BrowseName = new QualifiedName("Extension", b.Scale.BrowseName.NamespaceIndex),
+                        DisplayName = new LocalizedText("Extension"),
+                        ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                        TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
+                    };
+                    b.Scale.AddChild(extension);
+                }).ConfigureAwait(false));
+
+            Assert.That(failed, Is.Not.Null, "the scale was configured");
+            Assert.Multiple(() =>
+            {
+                Assert.That(error!.Message, Is.EqualTo("Registration failed."), "the failure is rethrown");
+                Assert.That(attached, Is.True, "the scale was attached when it failed");
+                Assert.That(
+                    deviceSet.FindChild(m_fixture.Context, m_fixture.Name("Broken")),
+                    Is.Null,
+                    "the DeviceSet drops the scale");
+                Assert.That(m_fixture.Manager.FindPredefinedNode(failed!.NodeId), Is.Null, "no scale node remains");
+                Assert.That(m_fixture.Manager.Scales, Has.Count.EqualTo(0));
+            });
+
+            await AssertTheNameCanBeUsedAgainAsync(deviceSet, "Broken").ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task AScaleThatFailsOnceRegisteredIsDeletedSoTheNameCanBeReusedAsync()
+        {
+            NodeState deviceSet = DeviceSet();
+            BaseObjectState? failed = null;
+            NodeId currentWeight = NodeId.Null;
+            bool registered = false;
+            m_fixture.Manager.PublishedForTest = node =>
+            {
+                failed = node;
+                currentWeight = ((ScaleDeviceState)node).CurrentWeight!.NodeId;
+                registered = ReferenceEquals(m_fixture.Manager.FindPredefinedNode(node.NodeId), node) &&
+                    m_fixture.Manager.FindPredefinedNode(currentWeight) != null &&
+                    IsRootNotifier(node.NodeId);
+                throw new InvalidOperationException("Registration failed.");
+            };
+
+            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await CreateAsync(ScaleKind.Simple, "Broken").ConfigureAwait(false));
+            m_fixture.Manager.PublishedForTest = null;
+
+            Assert.That(failed, Is.Not.Null, "the registration reached the seam");
+            Assert.Multiple(() =>
+            {
+                Assert.That(error!.Message, Is.EqualTo("Registration failed."), "the failure is rethrown");
+                Assert.That(registered, Is.True, "the scale was registered when it failed");
+                Assert.That(
+                    deviceSet.FindChild(m_fixture.Context, m_fixture.Name("Broken")),
+                    Is.Null,
+                    "the DeviceSet drops the scale");
+                Assert.That(m_fixture.Manager.FindPredefinedNode(failed!.NodeId), Is.Null, "the scale node is deleted");
+                Assert.That(
+                    m_fixture.Manager.FindPredefinedNode(currentWeight),
+                    Is.Null,
+                    "the scale's children are deleted");
+                Assert.That(IsRootNotifier(failed.NodeId), Is.False, "the scale is no root notifier");
+                Assert.That(m_fixture.Manager.Scales, Has.Count.EqualTo(0));
+            });
+
+            await AssertTheNameCanBeUsedAgainAsync(deviceSet, "Broken").ConfigureAwait(false);
+        }
+
+        private NodeState DeviceSet()
+        {
+            return m_fixture.Manager.FindPredefinedNode(NodeId.Create(
+                Opc.Ua.Di.Objects.DeviceSet,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
+                m_fixture.Server.NamespaceUris))!;
+        }
+
+        private bool IsRootNotifier(NodeId notifier)
+        {
+            return m_fixture.Server.ServerObject.ReferenceExists(
+                Opc.Ua.ReferenceTypeIds.HasNotifier,
+                false,
+                notifier);
+        }
+
+        private async Task AssertTheNameCanBeUsedAgainAsync(NodeState deviceSet, string name)
+        {
+            ScaleHandle retry = await CreateAsync(ScaleKind.Simple, name).ConfigureAwait(false);
+
+            Assert.That(
+                deviceSet.FindChild(m_fixture.Context, m_fixture.Name(name)),
+                Is.SameAs(retry.Scale),
+                "the name can be used again");
+        }
+
+        /// <summary>
+        /// An extension node whose create lifecycle fails, the way a node added
+        /// through <see cref="IScaleBuilder.Scale"/> can fail while the scale
+        /// is registered.
+        /// </summary>
+        private sealed class FailingChildState : BaseObjectState
+        {
+            public FailingChildState(NodeState parent, Action creating)
+                : base(parent)
+            {
+                m_creating = creating;
+            }
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                CancellationToken ct = default)
+            {
+                m_creating();
+                throw new InvalidOperationException("Registration failed.");
+            }
+
+            private readonly Action m_creating;
+        }
+
+        [Test]
         public async Task ConcurrentScalesOfTheSameNameAreRejectedAsync()
         {
             // Both creations pass the first duplicate check and meet in their

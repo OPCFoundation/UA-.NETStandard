@@ -167,6 +167,14 @@ namespace Opc.Ua.Scales.Server
             m_namespaces ??= ScaleNamespaceIndices.Resolve(Server.NamespaceUris);
 
         /// <summary>
+        /// Deterministic test seam invoked when a new scale or scale system is
+        /// attached to its parent, registered and made a root notifier, before
+        /// its publication completes. Lets a test fail the registration at its
+        /// last step and prove the rollback. Always <c>null</c> in production.
+        /// </summary>
+        internal Func<BaseObjectState, Task>? PublishedForTest { get; set; }
+
+        /// <summary>
         /// Creates a scale below the Device Integration <c>DeviceSet</c>.
         /// </summary>
         /// <param name="browseName">The scale's browse name.</param>
@@ -508,13 +516,26 @@ namespace Opc.Ua.Scales.Server
             {
                 ThrowIfDuplicate(parent, node.BrowseName);
                 parent.AddChild(node);
-
-                // A scale reports scale events and alarms, so it has to be a
-                // notifier before a client can subscribe to it.
-                node.EventNotifier |= EventNotifiers.SubscribeToEvents;
-                WireNestedNotifiers(node, node);
-                await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
-                await AddRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    // A scale reports scale events and alarms, so it has to be a
+                    // notifier before a client can subscribe to it.
+                    node.EventNotifier |= EventNotifiers.SubscribeToEvents;
+                    WireNestedNotifiers(node, node);
+                    await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+                    await AddRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
+                    if (PublishedForTest != null)
+                    {
+                        await PublishedForTest(node).ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                    // Left in place, the half-registered node would keep its
+                    // name taken: a retry fails with BadBrowseNameDuplicated.
+                    await RemoveUnpublishedAsync(parent, node).ConfigureAwait(false);
+                    throw;
+                }
 
                 bool inMachinesFolder = m_options.OrganizeIntoMachinesFolder && TryAddToMachinesFolder(node);
                 if (m_options.OrganizeIntoMachinesFolder && !inMachinesFolder)
@@ -532,6 +553,39 @@ namespace Opc.Ua.Scales.Server
             finally
             {
                 m_publishGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Undoes a publication that failed after the node was attached to its
+        /// parent: deletes what was registered of it (its nodes, its root
+        /// notifier and the references to it) and detaches it from the parent.
+        /// </summary>
+        /// <remarks>
+        /// A failure of the cleanup is logged rather than thrown, so the caller
+        /// sees the exception that failed the creation.
+        /// </remarks>
+        private async ValueTask RemoveUnpublishedAsync(NodeState parent, BaseObjectState node)
+        {
+            try
+            {
+                // Only the node this call registered is deleted; a node of the
+                // same NodeId that belongs to someone else is left alone.
+                if (ReferenceEquals(FindPredefinedNode(node.NodeId), node))
+                {
+                    await DeleteNodeAsync(SystemContext, node.NodeId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_scalesLogger.PublicationRollbackFailed(ex, node.BrowseName.Name);
+            }
+            finally
+            {
+                // Deleting a registered node detaches it already; a node that
+                // failed before it was registered is still attached.
+                parent.RemoveChild(node);
             }
         }
 
@@ -726,5 +780,11 @@ namespace Opc.Ua.Scales.Server
             Level = LogLevel.Warning,
             Message = "The Machinery Machines folder is unavailable - '{Name}' is reachable from the DeviceSet only.")]
         public static partial void MachinesFolderUnavailable(this ILogger logger, string? name);
+
+        [LoggerMessage(
+            EventId = ScalesServerEventIds.ScalesNodeManager + 3,
+            Level = LogLevel.Error,
+            Message = "Could not remove '{Name}' after its creation failed.")]
+        public static partial void PublicationRollbackFailed(this ILogger logger, Exception exception, string? name);
     }
 }

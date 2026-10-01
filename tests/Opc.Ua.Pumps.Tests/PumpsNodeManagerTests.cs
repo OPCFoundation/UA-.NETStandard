@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -228,6 +229,64 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         [Test]
+        public async Task AFailedRegistrationIsRolledBackSoTheNameCanBeReusedAsync()
+        {
+            // The pump is attached to the DeviceSet before it is registered. A
+            // registration that failed after that left it there, so the name
+            // stayed taken and a retry was rejected with BadBrowseNameDuplicated.
+            await using var fixture = new PumpsServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            NodeState deviceSet = fixture.Manager.FindPredefinedNode(NodeId.Create(
+                Opc.Ua.Di.Objects.DeviceSet,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
+                fixture.Server.NamespaceUris))!;
+            PumpState? failed = null;
+            NodeId identification = NodeId.Null;
+            bool attached = false;
+            bool registered = false;
+            bool rootNotifier = false;
+            fixture.Manager.PumpRegisteredForTest = pump =>
+            {
+                failed = pump;
+                identification = pump.Identification!.NodeId;
+                attached = HasChild(fixture, deviceSet, pump.NodeId);
+                registered = ReferenceEquals(fixture.Manager.FindPredefinedNode(pump.NodeId), pump) &&
+                    fixture.Manager.FindPredefinedNode(identification) != null;
+                rootNotifier = IsRootNotifier(fixture, pump.NodeId);
+                throw new InvalidOperationException("Registration failed.");
+            };
+
+            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await fixture.Manager.CreatePumpAsync(fixture.PumpName("Pump_1"))
+                    .ConfigureAwait(false));
+
+            Assert.That(failed, Is.Not.Null, "the registration reached the seam");
+            Assert.Multiple(() =>
+            {
+                Assert.That(error!.Message, Is.EqualTo("Registration failed."), "the failure is rethrown");
+                Assert.That(attached && registered && rootNotifier, Is.True, "the pump was registered when it failed");
+                Assert.That(HasChild(fixture, deviceSet, failed!.NodeId), Is.False, "the DeviceSet drops the pump");
+                Assert.That(fixture.Manager.FindPredefinedNode(failed.NodeId), Is.Null, "the pump node is deleted");
+                Assert.That(
+                    fixture.Manager.FindPredefinedNode(identification),
+                    Is.Null,
+                    "the pump's children are deleted");
+                Assert.That(IsRootNotifier(fixture, failed.NodeId), Is.False, "the pump is no root notifier");
+                Assert.That(fixture.Manager.Pumps.Count, Is.Zero);
+            });
+
+            fixture.Manager.PumpRegisteredForTest = null;
+            IPumpBuilder retry = await fixture.Manager.CreatePumpAsync(fixture.PumpName("Pump_1"))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(HasChild(fixture, deviceSet, retry.NodeId), Is.True, "the name can be used again");
+                Assert.That(fixture.Manager.Pumps.Count, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
         public async Task EveryPumpGetsItsOwnInstanceNodeIdsAsync()
         {
             // Two pumps that shared the type-level NodeIds of their children
@@ -295,6 +354,14 @@ namespace Opc.Ua.Pumps.Tests
                 }
             }
             return false;
+        }
+
+        private static bool IsRootNotifier(PumpsServerFixture fixture, NodeId notifier)
+        {
+            return fixture.Server.ServerObject.ReferenceExists(
+                Opc.Ua.ReferenceTypeIds.HasNotifier,
+                false,
+                notifier);
         }
 
         private static bool HasChild(PumpsServerFixture fixture, NodeState parent, NodeId child)
