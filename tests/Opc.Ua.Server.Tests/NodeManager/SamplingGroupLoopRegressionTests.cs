@@ -157,6 +157,117 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// A created item already gets its initial value from the node manager, so applying the
+        /// changes does not take another immediate sample (Part 4 5.13.2.1).
+        /// </summary>
+        [Test]
+        public async Task CreatedItemIsNotSampledAgainWhenChangesAreAppliedAsync()
+        {
+            Assert.That(await ImmediateSampleTakenAsync(created: true).ConfigureAwait(false), Is.False);
+        }
+
+        /// <summary>
+        /// An item started without an initial value (for example a restored item) is sampled
+        /// immediately when the changes are applied.
+        /// </summary>
+        [Test]
+        public async Task StartedItemIsSampledWhenChangesAreAppliedAsync()
+        {
+            Assert.That(await ImmediateSampleTakenAsync(created: false).ConfigureAwait(false), Is.True);
+        }
+
+        private static async Task<bool> ImmediateSampleTakenAsync(bool created)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var read = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager
+                    .Setup(m => m.ReadAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<double>(),
+                        It.IsAny<ArrayOf<ReadValueId>>(),
+                        It.IsAny<IList<DataValue>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Callback(() => read.TrySetResult(true))
+                    .Returns(default(ValueTask));
+                nodeManager
+                    .Setup(m => m.ValidateRolePermissionsAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<PermissionType>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+                using OperationContext context = CreateContext();
+                using var manager = new SamplingGroupManager(
+                    server.Object, nodeManager.Object, 10, 10, [new SamplingRateGroup(60000, 0, 1)]);
+                ISampledDataChangeMonitoredItem item;
+                if (created)
+                {
+                    item = manager.CreateMonitoredItem(
+                        context,
+                        1,
+                        1000,
+                        TimestampsToReturn.Both,
+                        1,
+                        new NodeHandle(),
+                        new MonitoredItemCreateRequest
+                        {
+                            ItemToMonitor = new ReadValueId { NodeId = new NodeId(1, 1), AttributeId = Attributes.Value },
+                            MonitoringMode = MonitoringMode.Reporting,
+                            RequestedParameters = new MonitoringParameters
+                            {
+                                ClientHandle = 1,
+                                SamplingInterval = 60000,
+                                QueueSize = 1,
+                                DiscardOldest = true
+                            }
+                        },
+                        null,
+                        null,
+                        0,
+                        false,
+                        sourceSamplingInterval: 1);
+                }
+                else
+                {
+                    item = new MonitoredItem(
+                        server.Object,
+                        nodeManager.Object,
+                        new NodeHandle(),
+                        subscriptionId: 1,
+                        1,
+                        new ReadValueId { NodeId = new NodeId(1, 1), AttributeId = Attributes.Value },
+                        DiagnosticsMasks.None,
+                        TimestampsToReturn.Both,
+                        MonitoringMode.Reporting,
+                        clientHandle: 1,
+                        originalFilter: null,
+                        filterToUse: null,
+                        range: null,
+                        60000,
+                        queueSize: 1,
+                        discardOldest: true,
+                        sourceSamplingInterval: 1);
+                    manager.StartMonitoring(context, item);
+                }
+
+                using (item)
+                {
+                    manager.ApplyChanges();
+                    Task completed = await Task.WhenAny(read.Task, Task.Delay(1000)).ConfigureAwait(false);
+                    manager.StopMonitoring(item);
+                    manager.ApplyChanges();
+                    return completed == read.Task;
+                }
+            }
+        }
+
         private static int QueuedCount(Mock<ISampledDataChangeMonitoredItem> item)
         {
             return item.Invocations.Count(i => i.Method.Name == nameof(IDataChangeMonitoredItem.QueueValue));

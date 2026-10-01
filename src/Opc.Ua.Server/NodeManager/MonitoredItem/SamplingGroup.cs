@@ -224,6 +224,25 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             IUserIdentity? savedOwnerIdentity = null)
         {
+            return StartMonitoring(context, monitoredItem, savedOwnerIdentity, initialValueQueued: false);
+        }
+
+        /// <summary>
+        /// Checks if the monitored item can be handled by the group.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="savedOwnerIdentity">Owner identity for sessionless groups.</param>
+        /// <param name="initialValueQueued">
+        /// True when the caller already queued the initial value of the item, so the
+        /// immediate sample taken by <see cref="ApplyChanges"/> is skipped.
+        /// </param>
+        internal bool StartMonitoring(
+            OperationContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IUserIdentity? savedOwnerIdentity,
+            bool initialValueQueued)
+        {
             lock (m_lock)
             {
                 if (MeetsGroupCriteria(context, monitoredItem, savedOwnerIdentity))
@@ -240,6 +259,11 @@ namespace Opc.Ua.Server
                     if (!m_itemsToAdd.Contains(monitoredItem))
                     {
                         m_itemsToAdd.Add(monitoredItem);
+                    }
+
+                    if (initialValueQueued)
+                    {
+                        m_itemsWithInitialValue.Add(monitoredItem.Id);
                     }
 
                     monitoredItem.SetSamplingInterval(m_samplingInterval);
@@ -277,6 +301,7 @@ namespace Opc.Ua.Server
                     }
 
                     m_itemsToAdd.Remove(monitoredItem);
+                    m_itemsWithInitialValue.Remove(monitoredItem.Id);
                     return false;
                 }
 
@@ -311,6 +336,7 @@ namespace Opc.Ua.Server
             {
                 if (m_itemsToAdd.Remove(monitoredItem))
                 {
+                    m_itemsWithInitialValue.Remove(monitoredItem.Id);
                     return true;
                 }
 
@@ -341,14 +367,18 @@ namespace Opc.Ua.Server
                 {
                     ISampledDataChangeMonitoredItem monitoredItem = m_itemsToAdd[ii];
 
+                    // an item whose initial value the caller already queued is not
+                    // sampled again right away (Part 4 5.13.2.1: queued once).
                     if (m_items.TryAdd(monitoredItem.Id, monitoredItem) &&
-                        monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                        monitoredItem.MonitoringMode != MonitoringMode.Disabled &&
+                        !m_itemsWithInitialValue.Contains(monitoredItem.Id))
                     {
                         itemsToSample.Add(monitoredItem);
                     }
                 }
 
                 m_itemsToAdd.Clear();
+                m_itemsWithInitialValue.Clear();
 
                 // collect first sample.
                 if (itemsToSample.Count > 0)
@@ -681,6 +711,7 @@ namespace Opc.Ua.Server
         private readonly double m_samplingInterval;
         private readonly List<ISampledDataChangeMonitoredItem> m_itemsToAdd;
         private readonly List<ISampledDataChangeMonitoredItem> m_itemsToRemove;
+        private readonly HashSet<uint> m_itemsWithInitialValue = [];
         private readonly Dictionary<uint, ISampledDataChangeMonitoredItem> m_items;
         private readonly List<SamplingRateGroup> m_samplingRates;
         private Task? m_samplingTask;
