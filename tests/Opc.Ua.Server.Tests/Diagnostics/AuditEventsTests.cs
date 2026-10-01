@@ -326,6 +326,35 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
+        /// Part 5 6.4.8: a CreateSession that fails before a session exists still
+        /// reports the SecureChannelId and the clientCertificate request parameter,
+        /// with the thumbprint of its leaf certificate.
+        /// </summary>
+        [Test]
+        public void ReportAuditCreateSessionEventWithoutSessionCarriesChannelAndCertificate()
+        {
+            using Certificate certificate = CreateCertificate();
+            CapturingAuditEventServer server = CreateAuditServer();
+            ByteString requestCertificate = certificate.RawData.ToByteString();
+
+            server.ReportAuditCreateSessionEvent(
+                AuditEntryId,
+                null,
+                "channel-7",
+                requestCertificate,
+                null,
+                0,
+                s_logger,
+                new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+
+            var auditEvent = (AuditCreateSessionEventState)server.Events.Single();
+            Assert.That(auditEvent.Status.Value, Is.False);
+            Assert.That(auditEvent.SecureChannelId.Value, Is.EqualTo("channel-7"));
+            Assert.That(auditEvent.ClientCertificate.Value, Is.EqualTo(requestCertificate));
+            Assert.That(auditEvent.ClientCertificateThumbprint.Value, Is.EqualTo(certificate.Thumbprint));
+        }
+
+        /// <summary>
         /// Verifies that certificate update reporting methods emit failed audit events for exceptions.
         /// </summary>
         [Test]

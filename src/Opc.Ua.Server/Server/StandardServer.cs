@@ -611,26 +611,52 @@ namespace Opc.Ua.Server
             // lease (a concurrency permit) is held for the duration of the call.
             // It is acquired before the request is registered, so a handshake that
             // waits for a permit is not a request that lifecycle drains wait for.
-            using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
-                secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
-                .ConfigureAwait(false);
+            // Part 5 12.9: a CreateSession refused by admission control or request
+            // validation is a rejected session establishment request too.
+            IDisposable? admittedLease;
+            OperationContext validatedContext;
+            try
+            {
+                admittedLease = await BeginSessionEstablishmentOrThrowAsync(
+                    secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
+                    .ConfigureAwait(false);
+                try
+                {
+                    validatedContext = await ValidateRequestAsync(
+                        secureChannelContext,
+                        requestHeader,
+                        RequestType.CreateSession,
+                        requestLifetime).ConfigureAwait(false);
+                }
+                catch
+                {
+                    admittedLease?.Dispose();
+                    throw;
+                }
+            }
+            catch (Exception exception)
+            {
+                ReportCreateSessionRejected(
+                    requestHeader?.AuditEntryId,
+                    secureChannelContext?.SecureChannelId,
+                    clientCertificate,
+                    exception);
+                throw;
+            }
 
-            using OperationContext context = await ValidateRequestAsync(
-                secureChannelContext,
-                requestHeader,
-                RequestType.CreateSession,
-                requestLifetime).ConfigureAwait(false);
+            using IDisposable? rateLimitLease = admittedLease;
+            using OperationContext context = validatedContext;
 
             ISession? session = null;
             CertificateCollection? clientIssuerCertificates = null;
             Certificate? parsedClientCertificate = null;
+            string? clientCertificateThumbprint = null;
             try
             {
-                // check the server uri.
-                if (!string.IsNullOrEmpty(serverUri) && serverUri != Configuration!.ApplicationUri)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerUriInvalid);
-                }
+                // The serverUri is not checked: Part 4 5.7.2.2 says the parameter
+                // is no longer used and the Server shall ignore any value provided.
+                // A 1.04 Client behind a gateway still sends the underlying Server's
+                // URI there.
 
                 bool requireEncryption = RequireEncryption(
                     context.ChannelContext!.EndpointDescription!);
@@ -640,84 +666,108 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
-                // validate client application instance certificate.
+                // validate client application instance certificate. Each check
+                // reports its own failure through OnApplicationCertificateError. An
+                // override that accepts the error (returns instead of throwing)
+                // keeps the certificate, so the session can still sign (Part 4
+                // 6.1.8), and the checks after the accepted one still run.
                 if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
+                    CertificateCollection? clientCertificateChain = null;
                     try
-                    {
-                        if (clientCertificate.IsEmpty)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
-                        }
-                        using CertificateCollection clientCertificateChain
-                            = Utils.ParseCertificateChainBlob(
-                                clientCertificate,
-                                ServerInternal.Telemetry);
-                        parsedClientCertificate = clientCertificateChain[0].AddRef();
-
-                        if (clientCertificateChain.Count > 1)
-                        {
-                            clientIssuerCertificates = [];
-                            for (int i = 1; i < clientCertificateChain.Count; i++)
-                            {
-                                clientIssuerCertificates.Add(clientCertificateChain[i]);
-                            }
-                        }
-
-                        CertificateValidationResult clientCertResult = await CertificateManager!
-                            .ValidateAsync(
-                                clientCertificateChain,
-                                TrustListIdentifier.Peers,
-                                options: null,
-                                ct: requestLifetime.CancellationToken)
-                            .ConfigureAwait(false);
-                        // Preserve nested validation failures for client-status masking and detailed audit reporting.
-                        clientCertResult.ThrowIfInvalid();
-
-                        string applicationUri = clientDescription?.ApplicationUri ?? string.Empty;
-                        if (string.IsNullOrEmpty(applicationUri) ||
-                            !X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate, applicationUri))
-                        {
-                            ServerInternal?.ReportAuditCertificateDataMismatchEvent(
-                                parsedClientCertificate,
-                                null,
-                                applicationUri,
-                                StatusCodes.BadCertificateUriInvalid,
-                                m_logger);
-
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadCertificateUriInvalid,
-                                "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
-                                applicationUri);
-                        }
-
-                        string? profile = context.ChannelContext.EndpointDescription!.TransportProfileUri;
-                        if (profile is Profiles.UaTcpTransport or Profiles.UaWssTransport &&
-                            !Utils.IsEqual(
-                                parsedClientCertificate.RawData,
-                                context.ChannelContext.ClientChannelCertificate))
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "The session certificate does not match the SecureChannel certificate.");
-                        }
-                    }
-                    catch (Exception e)
                     {
                         try
                         {
-                            // report audit event for client certificate
-                            ReportAuditCertificateEvent(parsedClientCertificate!, e);
+                            if (clientCertificate.IsEmpty)
+                            {
+                                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                            }
+                            clientCertificateChain = Utils.ParseCertificateChainBlob(
+                                clientCertificate,
+                                ServerInternal.Telemetry);
+                            parsedClientCertificate = clientCertificateChain[0].AddRef();
+                            clientCertificateThumbprint = parsedClientCertificate.Thumbprint;
 
-                            OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
+                            if (clientCertificateChain.Count > 1)
+                            {
+                                clientIssuerCertificates = [];
+                                for (int i = 1; i < clientCertificateChain.Count; i++)
+                                {
+                                    clientIssuerCertificates.Add(clientCertificateChain[i]);
+                                }
+                            }
                         }
-                        finally
+                        catch (Exception e)
                         {
-                            parsedClientCertificate?.Dispose();
-                            parsedClientCertificate = null;
-                            clientIssuerCertificates?.Dispose();
-                            clientIssuerCertificates = null;
+                            HandleClientCertificateError(e);
                         }
+
+                        // nothing left to check when no certificate could be parsed.
+                        if (parsedClientCertificate != null && clientCertificateChain != null)
+                        {
+                            try
+                            {
+                                CertificateValidationResult clientCertResult = await CertificateManager!
+                                    .ValidateAsync(
+                                        clientCertificateChain,
+                                        TrustListIdentifier.Peers,
+                                        options: null,
+                                        ct: requestLifetime.CancellationToken)
+                                    .ConfigureAwait(false);
+                                // Preserve nested validation failures for client-status masking and detailed audit reporting.
+                                clientCertResult.ThrowIfInvalid();
+                            }
+                            catch (Exception e)
+                            {
+                                HandleClientCertificateError(e);
+                            }
+
+                            try
+                            {
+                                string applicationUri = clientDescription?.ApplicationUri ?? string.Empty;
+                                if (string.IsNullOrEmpty(applicationUri) ||
+                                    !X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate!, applicationUri))
+                                {
+                                    ServerInternal?.ReportAuditCertificateDataMismatchEvent(
+                                        parsedClientCertificate!,
+                                        null,
+                                        applicationUri,
+                                        StatusCodes.BadCertificateUriInvalid,
+                                        m_logger);
+
+                                    throw ServiceResultException.Create(
+                                        StatusCodes.BadCertificateUriInvalid,
+                                        "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
+                                        applicationUri);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                HandleClientCertificateError(e);
+                            }
+
+                            try
+                            {
+                                string? profile = context.ChannelContext.EndpointDescription!.TransportProfileUri;
+                                if (profile is Profiles.UaTcpTransport or Profiles.UaWssTransport &&
+                                    !Utils.IsEqual(
+                                        parsedClientCertificate!.RawData,
+                                        context.ChannelContext.ClientChannelCertificate))
+                                {
+                                    throw ServiceResultException.Create(
+                                        StatusCodes.BadSecurityChecksFailed,
+                                        "The session certificate does not match the SecureChannel certificate.");
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                HandleClientCertificateError(e);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        clientCertificateChain?.Dispose();
                     }
                 }
 
@@ -766,24 +816,39 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 session = result.Session;
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
+
+                // Part 5 12.11: SessionDiagnostics.ServerUri reports the serverUri of
+                // the CreateSession request, although the Server otherwise ignores it.
+                if (!string.IsNullOrEmpty(serverUri))
                 {
-                    diagnostics.CurrentSessionCount++;
-                    diagnostics.CumulatedSessionCount++;
-                });
+                    session.UpdateDiagnostics(d => d.ServerUri = serverUri);
+                }
+
+                // CumulatedSessionCount counts established sessions and is only
+                // incremented on the success path below; a failure from here on
+                // closes the session and counts it as rejected (Part 5 12.9).
+                ServerInternal.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount++);
                 sessionId = result.SessionId;
                 authenticationToken = result.AuthenticationToken;
                 serverNonce = result.ServerNonce;
                 revisedSessionTimeout = result.RevisedSessionTimeout;
 
-                if (endpointUrl != null)
+                if (!string.IsNullOrEmpty(endpointUrl))
                 {
                     try
                     {
-                        // check the endpointurl
+                        // check the endpointurl. Part 4 5.7.2.2 defines no status
+                        // code for a malformed endpointUrl, so a value that is not
+                        // an absolute URL is reported like a host name mismatch
+                        // instead of failing the service.
+                        if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? parsedEndpointUrl))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid);
+                        }
+
                         var configuredEndpoint = new ConfiguredEndpoint
                         {
-                            EndpointUrl = new Uri(endpointUrl)
+                            EndpointUrl = parsedEndpointUrl
                         };
 
                         certificates.ValidateDomains(
@@ -849,6 +914,9 @@ namespace Opc.Ua.Server
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
                     session!,
+                    context.ChannelContext.SecureChannelId,
+                    clientCertificate,
+                    clientCertificateThumbprint,
                     revisedSessionTimeout,
                     m_logger);
 
@@ -858,6 +926,8 @@ namespace Opc.Ua.Server
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
                 }
+
+                ServerInternal.UpdateServerDiagnostics(diagnostics => diagnostics.CumulatedSessionCount++);
 
                 return new CreateSessionResponse
                 {
@@ -882,10 +952,14 @@ namespace Opc.Ua.Server
                         exception.Message);
                 m_logger.ServerSESSIONCREATEFailedErrorMessage(e.Message);
 
-                // report the failed AuditCreateSessionEvent
+                // report the failed AuditCreateSessionEvent. The channel id and the
+                // request certificate are known even when no session was created.
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
-                    session!,
+                    session,
+                    context.ChannelContext?.SecureChannelId,
+                    clientCertificate,
+                    clientCertificateThumbprint,
                     revisedSessionTimeout,
                     m_logger,
                     e);
@@ -901,17 +975,7 @@ namespace Opc.Ua.Server
                     clientIssuerCertificates?.Dispose();
                 }
 
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedSessionCount++;
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedSessionCount++;
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedSession(ServerInternal, e.StatusCode);
 
                 throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, [], e)!;
             }
@@ -919,6 +983,77 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
+
+            // Audits a failed client certificate check and lets OnApplicationCertificateError
+            // decide. The certificate is released only when the error is not accepted.
+            void HandleClientCertificateError(Exception e)
+            {
+                try
+                {
+                    // report audit event for client certificate
+                    ReportAuditCertificateEvent(parsedClientCertificate!, e);
+
+                    OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
+                }
+                catch
+                {
+                    parsedClientCertificate?.Dispose();
+                    parsedClientCertificate = null;
+                    clientIssuerCertificates?.Dispose();
+                    clientIssuerCertificates = null;
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Audits and counts a CreateSession refused before the request was admitted
+        /// and validated, for example with Bad_ServerTooBusy or Bad_ServerHalted.
+        /// </summary>
+        private void ReportCreateSessionRejected(
+            string? auditEntryId,
+            string? secureChannelId,
+            ByteString clientCertificate,
+            Exception exception)
+        {
+            // a server that is not started or already stopped has no diagnostics
+            // to update; the original rejection is what the caller has to see.
+            ServerInternalData? server = m_serverInternal;
+            if (server == null)
+            {
+                return;
+            }
+
+            server.ReportAuditCreateSessionEvent(
+                auditEntryId!,
+                null,
+                secureChannelId,
+                clientCertificate,
+                null,
+                0,
+                m_logger,
+                exception);
+            CountRejectedSession(
+                server,
+                exception is ServiceResultException sre ? sre.StatusCode : StatusCodes.BadUnexpectedError);
+        }
+
+        /// <summary>
+        /// Counts a rejected session establishment request (Part 5 12.9).
+        /// </summary>
+        private void CountRejectedSession(IServerInternal server, StatusCode statusCode)
+        {
+            server.UpdateServerDiagnostics(diagnostics =>
+            {
+                diagnostics.RejectedSessionCount++;
+                diagnostics.RejectedRequestsCount++;
+
+                if (IsSecurityError(statusCode))
+                {
+                    diagnostics.SecurityRejectedSessionCount++;
+                    diagnostics.SecurityRejectedRequestsCount++;
+                }
+            });
         }
 
         /// <summary>
@@ -3240,6 +3375,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Handles an error when validating the application instance certificate provided by a client.
         /// </summary>
+        /// <remarks>
+        /// The default implementation throws, which rejects the CreateSession request. An override
+        /// that returns accepts the error: CreateSession keeps the certificate and continues with
+        /// the remaining checks (trust, ApplicationUri match, SecureChannel certificate match),
+        /// each of which reports its own failure here.
+        /// </remarks>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="result">The result.</param>
         /// <exception cref="ServiceResultException"></exception>

@@ -273,6 +273,11 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             bool reserved = false;
 
+            // Part 4 5.7.2.1: at the cap, the oldest Session that was never
+            // activated is closed to make room, so Sessions that are created
+            // and abandoned cannot lock legitimate Clients out.
+            await EvictNonActivatedSessionsAtCapAsync().ConfigureAwait(false);
+
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -319,8 +324,14 @@ namespace Opc.Ua.Server
                     authenticationToken = new NodeId(token.ToByteString());
                 }
 
-                // determine session timeout.
-                if (requestedSessionTimeout > m_maxSessionTimeout)
+                // determine session timeout. Every comparison with NaN is false,
+                // so NaN is revised explicitly instead of being returned as the
+                // revisedSessionTimeout (Part 4 5.7.2.2).
+                if (double.IsNaN(requestedSessionTimeout))
+                {
+                    revisedSessionTimeout = m_minSessionTimeout;
+                }
+                else if (requestedSessionTimeout > m_maxSessionTimeout)
                 {
                     revisedSessionTimeout = m_maxSessionTimeout;
                 }
@@ -334,10 +345,15 @@ namespace Opc.Ua.Server
                 tempNonce = Nonce.CreateNonce(kSessionNonceLength);
                 serverNonceObject = tempNonce;
 
-                // assign client name.
+                // assign client name (Part 4 5.7.2.2). The session id is only
+                // assigned by InitializeAsync, so a separate counter keeps the
+                // names (and the diagnostics BrowseNames) distinct. It is not
+                // derived from the authentication token, which must stay secret.
                 if (string.IsNullOrEmpty(sessionName))
                 {
-                    sessionName = Utils.Format("Session {0}", sessionId);
+                    sessionName = Utils.Format(
+                        "Session {0}",
+                        Utils.IncrementIdentifier(ref m_lastSessionNameId));
                 }
 
                 // create instance of session.
@@ -358,6 +374,12 @@ namespace Opc.Ua.Server
                     m_maxRequestAge,
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
+
+                // Part 5 12.11: MaxResponseMessageSize is a mandatory field of
+                // SessionDiagnosticsDataType and reports the CreateSession request
+                // value. Set before InitializeAsync publishes the diagnostics node.
+                session.UpdateDiagnostics(d => d.MaxResponseMessageSize = maxResponseMessageSize);
+
                 m_sessionActivationStates.Add(
                     session,
                     new SessionActivationState(
@@ -1770,6 +1792,59 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Closes the oldest Sessions that were never activated while the Session
+        /// table is at its cap (Part 4 5.7.2.1). A cap filled with activated
+        /// Sessions is left alone and CreateSession fails with Bad_TooManySessions.
+        /// </summary>
+        /// <remarks>
+        /// Runs before the session-manager lock is taken, because closing a Session
+        /// takes its activation lock first. Concurrent creators can pick the same
+        /// victim, so the check is repeated a bounded number of times.
+        /// </remarks>
+        private async ValueTask EvictNonActivatedSessionsAtCapAsync()
+        {
+            for (int attempt = 0;
+                attempt < kMaxCapEvictionAttempts &&
+                    m_maxSessionCount > 0 &&
+                    m_sessions.Count >= m_maxSessionCount;
+                attempt++)
+            {
+                ISession? victim = null;
+                DateTimeUtc victimConnectionTime = DateTimeUtc.MaxValue;
+                foreach (KeyValuePair<NodeId, ISession> entry in m_sessions)
+                {
+                    ISession candidate = entry.Value;
+                    if (candidate == null ||
+                        candidate.Activated ||
+                        candidate.IsClosing ||
+                        candidate.Id.IsNull)
+                    {
+                        continue;
+                    }
+                    DateTimeUtc connectionTime = candidate.ReadDiagnostics(d => d.ClientConnectionTime);
+                    if (victim == null || connectionTime < victimConnectionTime)
+                    {
+                        victim = candidate;
+                        victimConnectionTime = connectionTime;
+                    }
+                }
+
+                if (victim == null)
+                {
+                    return;
+                }
+
+                m_logger.ClosingNonActivatedSessionAtCap(victim.Id, m_maxSessionCount);
+                m_server.ReportAuditCloseSessionEvent(null!, victim, m_logger, "Session/Terminated");
+
+                // Not cancellable for the same reason as a timed-out close: a close
+                // that started must finish so the slot is really released.
+                await m_server.CloseSessionAsync(null!, victim.Id, true, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
         private async ValueTask MonitorSessionsAsync(
@@ -1853,6 +1928,7 @@ namespace Opc.Ua.Server
 #endif
 
         private uint m_lastSessionId;
+        private uint m_lastSessionNameId;
         private readonly ManualResetEvent m_shutdownEvent;
         private Task? m_monitorWorkerTask;
         private CancellationTokenSource? m_workerCts;
@@ -1900,6 +1976,7 @@ namespace Opc.Ua.Server
         /// separate value carried in the AdditionalParameters ECDHKey entry.
         /// </remarks>
         private const int kSessionNonceLength = 32;
+        private const int kMaxCapEvictionAttempts = 3;
 
         /// <summary>
         /// Pairs an activated identity with the effective identity it was mapped to.
@@ -2336,5 +2413,13 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 30, Level = LogLevel.Information,
+            Message = "Server - Closing non-activated session {SessionId}: the session limit of " +
+                "{MaxSessionCount} is reached.")]
+        public static partial void ClosingNonActivatedSessionAtCap(
+            this ILogger logger,
+            NodeId sessionId,
+            int maxSessionCount);
     }
 }
