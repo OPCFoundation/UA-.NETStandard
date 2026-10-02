@@ -445,7 +445,7 @@ namespace Opc.Ua.Server.UserManagement
                         {
                             // Counted in SessionAbortCount and audited as a server termination.
                             await m_server.TerminateSessionAsync(
-                                session.Id, deleteSubscriptions: true, m_logger, CancellationToken.None)
+                                session, deleteSubscriptions: true, m_logger, CancellationToken.None)
                                 .ConfigureAwait(false);
                         }
                         catch (Exception ex)

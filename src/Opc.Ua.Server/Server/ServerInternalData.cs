@@ -1051,7 +1051,7 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            await TryCloseSessionAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+            await TryCloseSessionAsync(context, sessionId, deleteSubscriptions, false, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -1061,6 +1061,9 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        /// <param name="alreadyClaimed">
+        /// <c>true</c> when the caller has already marked the session closing itself.
+        /// </param>
         /// <param name="cancellationToken">The cancellationToken</param>
         /// <returns>
         /// <c>false</c> when another close of the same session was already in progress.
@@ -1069,11 +1072,12 @@ namespace Opc.Ua.Server
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
+            bool alreadyClaimed = false,
             CancellationToken cancellationToken = default)
         {
             // Only the first caller to mark the session closing performs the teardown. If the
             // session is already closing another close is in progress, so return without racing it.
-            if (!MarkSessionClosing(sessionId))
+            if (!alreadyClaimed && !MarkSessionClosing(sessionId))
             {
                 return false;
             }
@@ -1143,7 +1147,7 @@ namespace Opc.Ua.Server
             {
                 if (session.Id == sessionId)
                 {
-                    return (session as Session)?.MarkClosing() ?? true;
+                    return SessionTermination.TryClaimClose(session);
                 }
             }
 

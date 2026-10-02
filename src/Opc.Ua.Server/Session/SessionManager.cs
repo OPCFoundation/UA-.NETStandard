@@ -309,7 +309,7 @@ namespace Opc.Ua.Server
             // Part 4 5.7.2.1: at the cap, the oldest Session that was never
             // activated is closed to make room, so Sessions that are created
             // and abandoned cannot lock legitimate Clients out.
-            await EvictNonActivatedSessionsAtCapAsync().ConfigureAwait(false);
+            await EvictNonActivatedSessionsAtCapAsync(cancellationToken).ConfigureAwait(false);
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -615,7 +615,7 @@ namespace Opc.Ua.Server
                 if (sessionExpired)
                 {
                     // Close re-enters this manager, so it must run outside the global gate.
-                    // The shared timeout claim also prevents duplicate audit and diagnostic updates.
+                    // The shared close claim also prevents duplicate audit and diagnostic updates.
                     await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
@@ -1305,14 +1305,16 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException sre)
             {
-                if (sre.StatusCode == StatusCodes.BadSessionClosed &&
+                if ((sre.StatusCode == StatusCodes.BadSessionClosed ||
+                        sre.StatusCode == StatusCodes.BadSessionNotActivated) &&
                     session != null &&
                     !session.IsClosing &&
                     session.HasExpired)
                 {
                     // The request found the session timed out before the session monitor
                     // did: terminate it now (OPC 10000-4 5.7.2.1), as ActivateSession does.
-                    // The shared timeout claim keeps the count and audit single-shot.
+                    // A never-activated session that has also expired is a timeout too.
+                    // The shared close claim keeps the count and audit single-shot.
                     await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
                 }
                 else if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
@@ -1847,33 +1849,34 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Counts, audits and closes a session whose timeout has elapsed. Only the first
-        /// caller for a session does so; ActivateSession and the session monitor can both
-        /// observe the same expiry before the session is removed.
+        /// Closes, counts and audits a session whose timeout has elapsed. Only the caller
+        /// that claims the close does so; ActivateSession, request validation and the
+        /// session monitor can all observe the same expiry, and a client close, a
+        /// termination or a cap eviction may already be closing the session.
         /// </summary>
         private async ValueTask CloseTimedOutSessionAsync(ISession session)
         {
-            SessionActivationState state = m_sessionActivationStates.GetValue(
-                session,
-                _ => new SessionActivationState(
-                    default,
-                    SecurityPolicies.None,
-                    MessageSecurityMode.None));
-            if (!state.TryClaimTimeout())
+            if (session.IsClosing || !SessionTermination.TryClaimClose(session))
             {
                 return;
             }
 
-            // update diagnostics.
-            m_server.UpdateServerDiagnostics(diagnostics => diagnostics.SessionTimeoutCount++);
+            try
+            {
+                // Deliberately not cancellable: a close already under way must finish so the
+                // session is torn down cleanly even when shutdown has cancelled the monitor loop.
+                await m_server.CloseClaimedSessionAsync(session, false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                // update diagnostics; the session is removed even when a part of its
+                // teardown fails.
+                m_server.UpdateServerDiagnostics(diagnostics => diagnostics.SessionTimeoutCount++);
 
-            // raise audit event for session closed because of timeout
-            m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
-
-            // Deliberately not cancellable: a close already under way must finish so the
-            // session is torn down cleanly even when shutdown has cancelled the monitor loop.
-            await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
-                .ConfigureAwait(false);
+                // raise audit event for session closed because of timeout
+                m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
+            }
         }
 
         /// <summary>
@@ -1883,10 +1886,14 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// Runs before the session-manager lock is taken, because closing a Session
-        /// takes its activation lock first. Concurrent creators can pick the same
-        /// victim, so the check is repeated a bounded number of times.
+        /// takes its activation lock first. A Session whose ActivateSession is in
+        /// flight is not a victim: it may be about to become activated, and closing it
+        /// would wait for its activation (and authentication) to finish. Each victim is
+        /// claimed under the bindings lock, so an activation that has not committed yet
+        /// fails in CommitSessionBinding and concurrent creators never close the same
+        /// Session twice; the check is repeated a bounded number of times.
         /// </remarks>
-        private async ValueTask EvictNonActivatedSessionsAtCapAsync()
+        private async ValueTask EvictNonActivatedSessionsAtCapAsync(CancellationToken cancellationToken)
         {
             for (int attempt = 0;
                 attempt < kMaxCapEvictionAttempts &&
@@ -1894,15 +1901,16 @@ namespace Opc.Ua.Server
                     m_sessions.Count >= m_maxSessionCount;
                 attempt++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 ISession? victim = null;
                 DateTimeUtc victimConnectionTime = DateTimeUtc.MaxValue;
                 foreach (KeyValuePair<NodeId, ISession> entry in m_sessions)
                 {
                     ISession candidate = entry.Value;
                     if (candidate == null ||
-                        candidate.Activated ||
-                        candidate.IsClosing ||
-                        candidate.Id.IsNull)
+                        candidate.Id.IsNull ||
+                        !IsCapEvictionCandidate(candidate))
                     {
                         continue;
                     }
@@ -1919,14 +1927,42 @@ namespace Opc.Ua.Server
                     return;
                 }
 
+                // Re-checked and claimed under the lock CommitSessionBinding re-checks
+                // IsClosing under, without taking a Session lock while it is held.
+                lock (m_bindingsLock)
+                {
+                    if (!IsCapEvictionCandidate(victim) ||
+                        !SessionTermination.TryClaimClose(victim))
+                    {
+                        continue;
+                    }
+                }
+
                 m_logger.ClosingNonActivatedSessionAtCap(victim.Id, m_maxSessionCount);
-                m_server.ReportAuditCloseSessionEvent(null!, victim, m_logger, "Session/Terminated");
 
                 // Not cancellable for the same reason as a timed-out close: a close
-                // that started must finish so the slot is really released.
-                await m_server.CloseSessionAsync(null!, victim.Id, true, CancellationToken.None)
-                    .ConfigureAwait(false);
+                // that started must finish so the slot is really released. Counted and
+                // audited once, as a termination by the server.
+                await m_server.TerminateClaimedSessionAsync(
+                    victim,
+                    deleteSubscriptions: true,
+                    m_logger,
+                    CancellationToken.None).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Whether the session may be closed to make room at the session cap: it was never
+        /// activated, is not closing and has no ActivateSession in flight. Takes no Session
+        /// lock, so it can be called under the bindings lock.
+        /// </summary>
+        private bool IsCapEvictionCandidate(ISession session)
+        {
+            return !session.Activated &&
+                !session.IsClosing &&
+                m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state) &&
+                !state.IsCommitting &&
+                state.Lock.CurrentCount != 0;
         }
 
         /// <summary>
@@ -2115,16 +2151,6 @@ namespace Opc.Ua.Server
             }
 
             private ImpersonatedIdentity? m_impersonated;
-
-            /// <summary>
-            /// Claims the timeout of the session; returns <c>true</c> for the first caller only.
-            /// </summary>
-            public bool TryClaimTimeout()
-            {
-                return Interlocked.Exchange(ref m_timeoutClaimed, 1) == 0;
-            }
-
-            private int m_timeoutClaimed;
         }
 
         /// <inheritdoc/>
@@ -2499,7 +2525,7 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId sessionId);
 
-        [LoggerMessage(EventId = ServerEventIds.SessionManager + 30, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 11, Level = LogLevel.Information,
             Message = "Server - Closing non-activated session {SessionId}: the session limit of " +
                 "{MaxSessionCount} is reached.")]
         public static partial void ClosingNonActivatedSessionAtCap(
