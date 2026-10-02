@@ -1250,10 +1250,12 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
+                        // post-commit: not bound to the request token, a cancellation
+                        // could only abort the work while the client still gets Good.
                         await ServerInternal.NodeManager.SessionActivatedAsync(
                             context,
                             session.Id,
-                            requestLifetime.CancellationToken).ConfigureAwait(false);
+                            CancellationToken.None).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
