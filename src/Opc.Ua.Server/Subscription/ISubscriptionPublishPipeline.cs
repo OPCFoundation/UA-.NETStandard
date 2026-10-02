@@ -56,9 +56,19 @@ namespace Opc.Ua.Server
         void EventQueueOverflowHandler();
 
         /// <summary>
-        /// Checks if the subscription is ready to publish.
+        /// Checks if the subscription is ready to publish. Used where no Publish request can
+        /// be queued for the subscription (abandoned or restored without a session).
         /// </summary>
         PublishingState PublishTimerExpired();
+
+        /// <summary>
+        /// Checks if the subscription is ready to publish.
+        /// </summary>
+        /// <param name="publishRequestQueued">
+        /// Whether a Publish request of the owning session is queued (PublishingReqQueued in
+        /// OPC 10000-4 §5.14.1.3); the lifetime counter is reset instead of advanced then.
+        /// </param>
+        PublishingState PublishTimerExpired(bool publishRequestQueued);
 
         /// <summary>
         /// Returns the available sequence numbers for retransmission
@@ -138,6 +148,29 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sourceSession">The source session that still owns the subscription.</param>
         void AbortTransfer(ISession? sourceSession);
+
+        /// <summary>
+        /// Adds monitored items to the subscription and records every item that becomes
+        /// part of the subscription in <paramref name="countChange"/> under the
+        /// subscription lock.
+        /// </summary>
+        ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Deletes monitored items from the subscription and records every item that is
+        /// removed from the subscription in <paramref name="countChange"/>, whatever
+        /// status the NodeManager reports for it.
+        /// </summary>
+        ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+            OperationContext context,
+            ArrayOf<uint> monitoredItemIds,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Restores ownership if a transfer failed after assigning its destination.

@@ -181,15 +181,41 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public void FillAvailableSequenceNumbersReturnsUpToCursor()
+        public void FillAvailableSequenceNumbersReturnsOnlySentMessages()
         {
+            // 8 and 9 are still queued for a Publish response and not yet retransmittable.
             SentMessageQueue queue = NewRestoredQueue(
                 Messages(7, 8, 9), nextSequenceNumber: 10, lastSentMessage: 1);
             var available = new List<uint>();
 
             queue.FillAvailableSequenceNumbers(available);
 
-            Assert.That(available, Is.EqualTo(new List<uint> { 7, 8 }));
+            Assert.That(available, Is.EqualTo(new List<uint> { 7 }));
+            Assert.That(queue.KeepAliveSequenceNumber, Is.EqualTo(8u));
+        }
+
+        [Test]
+        public void KeepAliveSequenceNumberIsTheNextNumberWhenEverythingWasSent()
+        {
+            SentMessageQueue queue = NewRestoredQueue(
+                Messages(7, 8, 9), nextSequenceNumber: 10, lastSentMessage: 3);
+            var available = new List<uint>();
+
+            queue.FillAvailableSequenceNumbers(available);
+
+            Assert.That(available, Is.EqualTo(new List<uint> { 7, 8, 9 }));
+            Assert.That(queue.KeepAliveSequenceNumber, Is.EqualTo(10u));
+        }
+
+        [Test]
+        public void FindForRepublishDoesNotReturnUnsentMessages()
+        {
+            SentMessageQueue queue = NewRestoredQueue(
+                Messages(7, 8, 9), nextSequenceNumber: 10, lastSentMessage: 1);
+
+            Assert.That(queue.FindForRepublish(7), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(8), Is.Null);
+            Assert.That(queue.FindForRepublish(9), Is.Null);
         }
 
         [Test]
@@ -259,7 +285,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(discarded, Is.EqualTo(5u));
             Assert.That(queue.SentCount, Is.EqualTo(2));
             Assert.That(queue.FindForRepublish(6), Is.Not.Null);
-            Assert.That(queue.FindForRepublish(7), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(7), Is.Null, "7 is still queued for a Publish response.");
         }
 
         [Test]
@@ -279,7 +305,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.FindForRepublish(1), Is.Null);
             Assert.That(queue.FindForRepublish(2), Is.Null);
             Assert.That(queue.FindForRepublish(3), Is.Not.Null);
-            Assert.That(queue.FindForRepublish(4), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(4), Is.Null, "4 is still queued for a Publish response.");
         }
 
         /// <summary>
@@ -302,7 +328,8 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.FindForRepublish(1), Is.Null);
             Assert.That(queue.FindForRepublish(2), Is.Not.Null);
             Assert.That(queue.FindForRepublish(3), Is.Not.Null);
-            Assert.That(queue.FindForRepublish(6), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(5), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(6), Is.Null, "6 is still queued for a Publish response.");
         }
 
         [Test]
@@ -378,17 +405,18 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public void AvailableSequenceNumbersForRetransmissionReturnsAll()
+        public void AvailableSequenceNumbersForRetransmissionReturnsAllSentMessages()
         {
             SentMessageQueue queue = NewRestoredQueue(
-                Messages(4, 5, 6), nextSequenceNumber: 7, lastSentMessage: 1);
+                Messages(4, 5, 6), nextSequenceNumber: 7, lastSentMessage: 2);
 
             ArrayOf<uint> result = queue.AvailableSequenceNumbersForRetransmission();
 
-            Assert.That(result.Count, Is.EqualTo(3));
+            // 6 is still queued for a Publish response; offering it for republish
+            // would deliver the sequence number twice.
+            Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0], Is.EqualTo(4u));
             Assert.That(result[1], Is.EqualTo(5u));
-            Assert.That(result[2], Is.EqualTo(6u));
         }
 
         [Test]

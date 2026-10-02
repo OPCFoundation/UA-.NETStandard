@@ -740,6 +740,17 @@ namespace Opc.Ua.Server
         /// </summary>
         PublishingState ISubscriptionPublishPipeline.PublishTimerExpired()
         {
+            return PublishTimerExpired(publishRequestQueued: false);
+        }
+
+        /// <inheritdoc/>
+        PublishingState ISubscriptionPublishPipeline.PublishTimerExpired(bool publishRequestQueued)
+        {
+            return PublishTimerExpired(publishRequestQueued);
+        }
+
+        private PublishingState PublishTimerExpired(bool publishRequestQueued)
+        {
             lock (m_lock)
             {
                 // OPC 10000-4 §5.14.1.2, Table 79 handles TransferSubscriptions as a single transition
@@ -769,13 +780,22 @@ namespace Opc.Ua.Server
                     m_publishTimerExpiry += (long)m_publishingInterval;
                 }
 
-                // OPC 10000-4 §5.14.1.4 StartPublishingTimer(): every publishing timer expiry
-                // advances the lifetime counter, in the NORMAL, LATE and KEEPALIVE states alike.
-                // The counter is reset when a NotificationMessage or keep-alive is sent
-                // (ResetLifetimeCounter() in the §5.14.1.2 state table) or a request
-                // acknowledges a message, so it only reaches MaxLifetimeCount when the client
-                // has stopped sending Publish requests.
-                m_lifetimeCounter++;
+                // OPC 10000-4 §5.14.1.2 row 27: the LifetimeCounter is decremented when the
+                // publishing timer expires while no Publish request is queued
+                // (PublishingReqQueued == FALSE) and reset while one is queued, in the NORMAL,
+                // LATE and KEEPALIVE states alike. It is also reset when a NotificationMessage
+                // or keep-alive is sent or a request acknowledges a message, so it only
+                // reaches MaxLifetimeCount when the client has stopped sending Publish
+                // requests. A subscription already waiting for a request (LATE) did not get
+                // the queued one, so it keeps counting.
+                if (publishRequestQueued && !m_waitingForPublish)
+                {
+                    m_lifetimeCounter = 0;
+                }
+                else
+                {
+                    m_lifetimeCounter++;
+                }
 
                 // A subscription that was already waiting for a Publish request when the
                 // timer expired has entered the LATE state; count the entry only once per
@@ -860,7 +880,7 @@ namespace Opc.Ua.Server
                 IMonitoredItem monitoredItem = current.Value;
 
                 // check if the item is ready to publish.
-                if (monitoredItem.IsResendData || monitoredItem.IsReadyToPublish)
+                if (IsReadyToReport(monitoredItem))
                 {
                     m_itemsToCheck.Remove(current);
                     m_itemsToPublish.AddLast(current);
@@ -885,7 +905,7 @@ namespace Opc.Ua.Server
                     LinkedListNode<IMonitoredItem>? next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
 
-                    if (monitoredItem.IsReadyToPublish)
+                    if (IsReadyToReport(monitoredItem))
                     {
                         m_itemsToCheck.Remove(current);
                         m_itemsToPublish.AddLast(current);
@@ -893,6 +913,26 @@ namespace Opc.Ua.Server
 
                     current = next;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Returns whether a monitored item has notifications to report. A DISABLED item
+        /// reports nothing and a SAMPLING item only reports when it was triggered (OPC
+        /// 10000-4 §5.12.1.3, §5.13.1.6), so a pending resend (ResendData, a transfer with
+        /// initial values) only counts for a REPORTING item. Applied by the pipeline so the
+        /// rule holds for every <see cref="IMonitoredItem"/> implementation.
+        /// </summary>
+        private static bool IsReadyToReport(IMonitoredItem monitoredItem)
+        {
+            switch (monitoredItem.MonitoringMode)
+            {
+                case MonitoringMode.Reporting:
+                    return monitoredItem.IsResendData || monitoredItem.IsReadyToPublish;
+                case MonitoringMode.Sampling:
+                    return monitoredItem.IsReadyToPublish;
+                default:
+                    return false;
             }
         }
 
@@ -939,7 +979,7 @@ namespace Opc.Ua.Server
                         triggeredItems[ii].Id,
                         out LinkedListNode<IMonitoredItem>? triggeredNode) &&
                     ReferenceEquals(triggeredNode.List, m_itemsToCheck) &&
-                    triggeredNode.Value.IsReadyToPublish)
+                    IsReadyToReport(triggeredNode.Value))
                 {
                     m_itemsToCheck.Remove(triggeredNode);
                     m_itemsToPublish.AddLast(triggeredNode);
@@ -1714,6 +1754,20 @@ namespace Opc.Ua.Server
                     TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
 
                     LinkedListNode<IMonitoredItem>? next = current.Next;
+
+                    // An item that left REPORTING after it was queued for publishing must
+                    // not report: a DISABLED item never, a SAMPLING item only when
+                    // triggered, and a pending resend does not count for either.
+                    MonitoringMode monitoringMode = monitoredItem.MonitoringMode;
+                    if (monitoringMode == MonitoringMode.Disabled ||
+                        (monitoringMode == MonitoringMode.Sampling && !monitoredItem.IsReadyToPublish))
+                    {
+                        m_itemsToPublish.Remove(current);
+                        m_itemsToCheck.AddLast(current);
+                        current = next;
+                        continue;
+                    }
+
                     bool hasMoreValuesToPublish;
                     uint notificationLimit = maxNotificationsPerMonitoredItem;
                     if (m_maxNotificationsPerPublish > 0)
@@ -1840,25 +1894,11 @@ namespace Opc.Ua.Server
                 var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
                 message.PublishTime = DateTimeUtc.Now;
 
-                int lastSentMessage = m_messageQueue.LastSentMessage;
-                if (lastSentMessage < m_messageQueue.SentCount)
-                {
-                    // Messages held back while publishing is disabled are sent next, so the
-                    // keep-alive carries the first of them as the next sequence number and
-                    // only advertises the messages already sent for republish.
-                    message.SequenceNumber = m_messageQueue.SentMessages[lastSentMessage].SequenceNumber;
-                    for (int ii = 0; ii < lastSentMessage; ii++)
-                    {
-                        availableSequenceNumberList.Add(m_messageQueue.SentMessages[ii].SequenceNumber);
-                    }
-                }
-                else
-                {
-                    message.SequenceNumber = m_messageQueue.NextSequenceNumber;
-
-                    // return the available sequence numbers.
-                    m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
-                }
+                // Messages held back while publishing is disabled are sent next, so the
+                // keep-alive carries the first of them as the next sequence number and
+                // only advertises the messages already sent for republish.
+                message.SequenceNumber = m_messageQueue.KeepAliveSequenceNumber;
+                m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
 
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH KEEPALIVE");
                 availableSequenceNumbers = availableSequenceNumberList;
@@ -2339,11 +2379,42 @@ namespace Opc.Ua.Server
         /// Adds monitored items to a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
+        {
+            return CreateMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToCreate,
+                null,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<CreateMonitoredItemsResponse> ISubscriptionPublishPipeline.CreateMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken)
+        {
+            return CreateMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToCreate,
+                countChange,
+                cancellationToken);
+        }
+
+        private async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsCoreAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            MonitoredItemCountChange? countChange,
+            CancellationToken cancellationToken)
         {
             if (context == null)
             {
@@ -2425,6 +2496,7 @@ namespace Opc.Ua.Server
 
                                 LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
                                 m_monitoredItems.Add(monitoredItem.Id, node);
+                                countChange?.Increment();
 
                                 errors[ii] = monitoredItem.GetCreateResult(out result);
 
@@ -2769,10 +2841,28 @@ namespace Opc.Ua.Server
         /// Deletes the monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
+        {
+            return DeleteMonitoredItemsCoreAsync(context, monitoredItemIds, null);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<DeleteMonitoredItemsResponse> ISubscriptionPublishPipeline.DeleteMonitoredItemsAsync(
+            OperationContext context,
+            ArrayOf<uint> monitoredItemIds,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken)
+        {
+            return DeleteMonitoredItemsCoreAsync(context, monitoredItemIds, countChange);
+        }
+
+        private async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsCoreAsync(
+            OperationContext context,
+            ArrayOf<uint> monitoredItemIds,
+            MonitoredItemCountChange? countChange)
         {
             if (context == null)
             {
@@ -2836,6 +2926,7 @@ namespace Opc.Ua.Server
 
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
+                    countChange?.Decrement();
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
                     {
@@ -3360,7 +3451,12 @@ namespace Opc.Ua.Server
                 // clear lifetime counter.
                 ResetLifetimeCount();
 
-                m_maxLifetimeCount = maxLifetimeCount;
+                // the lifetime must be at least three keep-alive intervals (Part 4
+                // 5.14.2.2), or the subscription expires before its keep-alive is due.
+                ulong minimumLifetimeCount = 3UL * m_maxKeepAliveCount;
+                m_maxLifetimeCount = (uint)Math.Min(
+                    uint.MaxValue,
+                    Math.Max(maxLifetimeCount, minimumLifetimeCount));
 
                 // update diagnostics
                 lock (m_diagnosticsLock)

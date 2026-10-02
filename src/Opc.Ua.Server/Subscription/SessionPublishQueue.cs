@@ -622,6 +622,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns whether a Publish request of the session is queued and still waiting.
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private bool HasQueuedRequestNoLock()
+        {
+            foreach (QueuedPublishRequest request in m_queuedRequests)
+            {
+                if (!request.Tcs.Task.IsCompleted)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Checks the state of the subscriptions.
         /// </summary>
         public void PublishTimerExpired()
@@ -650,6 +666,14 @@ namespace Opc.Ua.Server
             var subscriptionsToDelete = new List<ISubscriptionPublishPipeline>();
             List<QueuedSubscription>? notifyingSubscriptions = null;
 
+            // PublishingReqQueued (OPC 10000-4 §5.14.1.3) holds the subscriptions' lifetime
+            // counters at their reset value for this pass.
+            bool publishRequestQueued;
+            lock (m_lock)
+            {
+                publishRequestQueued = HasQueuedRequestNoLock();
+            }
+
             // check each available subscription.
             for (int ii = 0; ii < queuedSubscriptions.Count; ii++)
             {
@@ -659,7 +683,8 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                PublishingState state = subscription.Subscription.PublishTimerExpired();
+                PublishingState state = subscription.Subscription.PublishTimerExpired(
+                    publishRequestQueued);
 
                 // check for expired subscription.
                 if (state == PublishingState.Expired)
