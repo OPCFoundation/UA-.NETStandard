@@ -505,6 +505,30 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// PR review 4168294669: a CreateSession that is rejected with Bad_NonceInvalid
+        /// for reusing another Session's clientNonce does not close the oldest
+        /// non-activated Session at the cap to make room for itself.
+        /// </summary>
+        [Test]
+        public async Task DuplicateClientNonceAtCapDoesNotEvictAsync()
+        {
+            using var harness = new Harness(maxSessionCount: 2, securityMode: MessageSecurityMode.SignAndEncrypt);
+            ByteString firstNonce = Nonce.CreateRandomNonceData(32).ToByteString();
+            ByteString secondNonce = Nonce.CreateRandomNonceData(32).ToByteString();
+            CreateSessionResult first = await harness.CreateSessionAsync(firstNonce).ConfigureAwait(false);
+            CreateSessionResult second = await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
+            Assert.That(harness.Manager.GetSession(first.AuthenticationToken), Is.SameAs(first.Session));
+            Assert.That(harness.Manager.GetSession(second.AuthenticationToken), Is.SameAs(second.Session));
+            Assert.That(first.Session.IsClosing, Is.False);
+            Assert.That(harness.Diagnostics.SessionAbortCount, Is.Zero);
+        }
+
+        /// <summary>
         /// PR review 4168294838: a custom <see cref="ISession"/> has no closing mark the
         /// server can set, so a close that claimed it is recorded beside it. Request
         /// admission still rejects it with Bad_SessionClosed, like a closing Session.
@@ -570,7 +594,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private sealed class Harness : IDisposable
         {
-            public Harness(bool recordOrder = false, int maxSessionCount = 10, bool auditing = false)
+            public Harness(
+                bool recordOrder = false,
+                int maxSessionCount = 10,
+                bool auditing = false,
+                MessageSecurityMode securityMode = MessageSecurityMode.None)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 Server.Setup(s => s.Telemetry).Returns(telemetry);
@@ -656,8 +684,10 @@ namespace Opc.Ua.Server.Tests
                 Endpoint = new EndpointDescription
                 {
                     EndpointUrl = "opc.tcp://localhost/lifecycle",
-                    SecurityPolicyUri = SecurityPolicies.None,
-                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = securityMode == MessageSecurityMode.None
+                        ? SecurityPolicies.None
+                        : SecurityPolicies.Basic256Sha256,
+                    SecurityMode = securityMode,
                     UserIdentityTokens =
                     [
                         new UserTokenPolicy
@@ -688,7 +718,7 @@ namespace Opc.Ua.Server.Tests
 
             public GatedAnonymousAuthenticator Authenticator { get; } = new();
 
-            public async Task<CreateSessionResult> CreateSessionAsync()
+            public async Task<CreateSessionResult> CreateSessionAsync(ByteString clientNonce = default)
             {
                 // The session owns the client certificate once created; a rejected
                 // CreateSession leaves it with the caller.
@@ -700,7 +730,7 @@ namespace Opc.Ua.Server.Tests
                         CreateContext(RequestType.CreateSession),
                         m_certificate,
                         "lifecycle-regression",
-                        ByteString.From(new byte[32]),
+                        clientNonce.IsEmpty ? ByteString.From(new byte[32]) : clientNonce,
                         new ApplicationDescription
                         {
                             ApplicationUri = "urn:opcfoundation:test:session-lifecycle"

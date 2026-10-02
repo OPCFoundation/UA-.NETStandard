@@ -314,6 +314,12 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             bool reserved = false;
 
+            // A request that is rejected for a duplicate clientNonce must not close
+            // another Session to make room for itself, so the nonce is checked before
+            // the cap eviction. The check under the lock below stays authoritative
+            // for concurrent creations.
+            ThrowIfClientNonceInUse(context, clientNonce);
+
             // Part 4 5.7.2.1: at the cap, the oldest Session that was never
             // activated is closed to make room, so Sessions that are created
             // and abandoned cannot lock legitimate Clients out.
@@ -328,23 +334,8 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
 
-                // check for same Nonce in another session. A None channel does
-                // not require a random nonce, so a client reusing one there is
-                // not rejected.
-                if (!clientNonce.IsEmpty &&
-                    context.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.None)
-                {
-                    // iterate over key/value pairs in the dictionary with a thread safe iterator
-                    foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
-                    {
-                        ByteString sessionClientNonce =
-                            sessionKeyValueIterator.Value?.ClientNonce ?? default;
-                        if (sessionClientNonce == clientNonce)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadNonceInvalid);
-                        }
-                    }
-                }
+                // check for same Nonce in another session.
+                ThrowIfClientNonceInUse(context, clientNonce);
 
                 // always assign a hard-to-guess id. A secure channel id does not
                 // make a sequential token safe: HTTPS (and the HTTPS hosted
@@ -506,6 +497,31 @@ namespace Opc.Ua.Server
                 RevisedSessionTimeout = revisedSessionTimeout,
                 ServerNonce = serverNonce
             };
+        }
+
+        /// <summary>
+        /// Rejects a clientNonce that another Session already uses with
+        /// Bad_NonceInvalid (Part 4 5.7.2.2). A None channel does not require a
+        /// random nonce, so a client reusing one there is not rejected.
+        /// </summary>
+        private void ThrowIfClientNonceInUse(OperationContext context, ByteString clientNonce)
+        {
+            if (clientNonce.IsEmpty ||
+                context.ChannelContext?.EndpointDescription?.SecurityMode == MessageSecurityMode.None)
+            {
+                return;
+            }
+
+            // iterate over key/value pairs in the dictionary with a thread safe iterator
+            foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
+            {
+                ByteString sessionClientNonce =
+                    sessionKeyValueIterator.Value?.ClientNonce ?? default;
+                if (sessionClientNonce == clientNonce)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                }
+            }
         }
 
         /// <summary>
