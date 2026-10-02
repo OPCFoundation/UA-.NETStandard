@@ -338,11 +338,12 @@ namespace Opc.Ua.Subscriptions.Tests
             SentMessageQueue queue = NewQueue(maxMessageCount: 10);
             queue.Enqueue(Messages(1, 2, 3), [], out _, out _);
 
-            bool acknowledged = queue.TryAcknowledge(2);
+            // Enqueue returns message 1; only a sent message can be acknowledged.
+            bool acknowledged = queue.TryAcknowledge(1);
 
             Assert.That(acknowledged, Is.True);
             Assert.That(queue.SentCount, Is.EqualTo(2));
-            Assert.That(queue.FindForRepublish(2), Is.Null);
+            Assert.That(queue.FindForRepublish(1), Is.Null);
         }
 
         [Test]
@@ -359,16 +360,17 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public void TryAcknowledgeKeepsCursorWhenAtOrAfterIt()
+        public void TryAcknowledgeRejectsUnsentMessageAndKeepsCursor()
         {
             SentMessageQueue queue = NewRestoredQueue(
                 Messages(1, 2, 3), nextSequenceNumber: 4, lastSentMessage: 1);
 
+            // 3 is still queued for Publish: unknown to the client, so it is kept.
             bool acknowledged = queue.TryAcknowledge(3);
 
-            Assert.That(acknowledged, Is.True);
+            Assert.That(acknowledged, Is.False);
             Assert.That(queue.LastSentMessage, Is.EqualTo(1));
-            Assert.That(queue.SentCount, Is.EqualTo(2));
+            Assert.That(queue.SentCount, Is.EqualTo(3));
         }
 
         [Test]
