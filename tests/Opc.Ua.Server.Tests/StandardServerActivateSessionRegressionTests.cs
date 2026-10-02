@@ -150,6 +150,43 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// PR review 4166517507: the activation gate is released before the post-commit
+        /// steps, so a close can start while they run. The activation must then fail
+        /// with Bad_SessionClosed instead of reporting Good for a closed session.
+        /// </summary>
+        [Test]
+        public async Task CloseDuringPostCommitStepsFailsWithSessionClosedAsync()
+        {
+            var fixture = new ServerFixture<ActivateTestServer>(
+                telemetry => new ActivateTestServer(telemetry))
+            {
+                SecurityNone = true
+            };
+            try
+            {
+                ActivateTestServer server = await fixture.StartAsync().ConfigureAwait(false);
+                SecureChannelContext channel = CreateChannel(server, "post-commit-close");
+                NodeId token = await CreateSessionAsync(server, channel).ConfigureAwait(false);
+                NodeId sessionId = server.CurrentInstance.SessionManager.GetSession(token)!.Id;
+                server.CloseDuringPostCommit = () => server.CurrentInstance.SessionManager
+                    .CloseSessionAsync(sessionId).AsTask().GetAwaiter().GetResult();
+
+                using var lifetime = new RequestLifetime();
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await server.ActivateSessionAsync(
+                        channel, new RequestHeader { AuthenticationToken = token }, null, default, default,
+                        default, null, lifetime).ConfigureAwait(false));
+
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+                Assert.That(server.CurrentInstance.SessionManager.GetSession(token), Is.Null);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
         private static SecureChannelContext CreateChannel(StandardServer server, string channelId)
         {
             EndpointDescription endpoint = server.GetEndpoints().Find(
@@ -180,6 +217,8 @@ namespace Opc.Ua.Server.Tests
 
             public CancellationToken? ActivatedCallbackToken { get; set; }
 
+            public Action CloseDuringPostCommit { get; set; }
+
             protected override ISessionManager CreateSessionManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration)
@@ -195,6 +234,9 @@ namespace Opc.Ua.Server.Tests
                 {
                     throw new ObjectDisposedException(nameof(Session));
                 }
+                Action close = CloseDuringPostCommit;
+                CloseDuringPostCommit = null;
+                close?.Invoke();
                 return base.ActivateSessionProcessAdditionalParameters(session, additionalHeader);
             }
         }

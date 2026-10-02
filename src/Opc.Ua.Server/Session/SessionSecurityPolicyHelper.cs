@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -104,14 +106,13 @@ namespace Opc.Ua.Server
                     .GetInfo(policyUri);
 
                 if (securityPolicy != null &&
-                    securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                    securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None &&
+                    TrySwitchEphemeralKeyPolicy(session, policyUri, out EphemeralKeyType? key))
                 {
-                    session.SetUserTokenSecurityPolicy(policyUri);
-                    EphemeralKeyType? key = session.GetNewEphemeralKey();
                     responseParameters.Add(new KeyValuePair
                     {
                         Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                        Value = new ExtensionObject(key!)
+                        Value = new ExtensionObject(key)
                     });
                     continue;
                 }
@@ -141,6 +142,16 @@ namespace Opc.Ua.Server
         /// request (it cannot be accepted again); otherwise it returns nothing and
         /// retains the previous key. The response carries only the parameters the
         /// Server produces; the request parameters are not echoed back.
+        /// <para>
+        /// A policy that is registered but cannot be served with the session's server
+        /// certificate is rejected like an unknown one, before the working key is
+        /// changed. When the request is rejected and the activation replaced a key the
+        /// identity token used, the replacement stays installed and pending: the
+        /// response carries only Bad_SecurityPolicyRejected for the ECDHKey, as 6.8.2
+        /// requires, and the pending key is returned by the next ActivateSession that
+        /// does not request another policy (from the Client's view the key it last
+        /// received was used and not yet replaced).
+        /// </para>
         /// </remarks>
         public static AdditionalParametersType ProcessActivateSessionAdditionalParameters(
             ISession session,
@@ -151,6 +162,7 @@ namespace Opc.Ua.Server
             var responseParameters = new List<KeyValuePair>();
             bool policyRequested = false;
             bool policyAccepted = false;
+            EphemeralKeyType? acceptedKey = null;
             if (parameters != null)
             {
                 foreach (KeyValuePair parameter in parameters.Parameters)
@@ -169,9 +181,9 @@ namespace Opc.Ua.Server
                         .GetInfo(policyUri);
 
                     if (securityPolicy != null &&
-                        securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                        securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None &&
+                        TrySwitchEphemeralKeyPolicy(session, policyUri, out acceptedKey))
                     {
-                        session.SetUserTokenSecurityPolicy(policyUri);
                         policyAccepted = true;
                         continue;
                     }
@@ -185,16 +197,17 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // The key the activation installed for a used key; taken in every case
-            // so a later activation cannot return it.
-            EphemeralKeyType? unsentKey = (session as Session)?.TakeUnsentEphemeralKey();
-
             if (!policyRequested || policyAccepted)
             {
+                // The key the activation installed for a used key; taken here so a
+                // later activation cannot return it. A rejected policy request leaves
+                // it pending (see remarks).
+                EphemeralKeyType? unsentKey = (session as Session)?.TakeUnsentEphemeralKey();
+
                 EphemeralKeyType? key;
                 if (policyAccepted)
                 {
-                    key = session.GetNewEphemeralKey();
+                    key = acceptedKey;
                 }
                 else if (session is Session)
                 {
@@ -221,6 +234,38 @@ namespace Opc.Ua.Server
             {
                 Parameters = responseParameters
             };
+        }
+
+        /// <summary>
+        /// Switches the session's EphemeralKey to the requested policy and creates a
+        /// key for it. A policy the session's server certificate cannot sign for (e.g.
+        /// an ECC policy on an RSA certificate session) is detected before the working
+        /// key is discarded and reported as not accepted.
+        /// </summary>
+        private static bool TrySwitchEphemeralKeyPolicy(
+            ISession session,
+            string policyUri,
+            [NotNullWhen(true)] out EphemeralKeyType? key)
+        {
+            key = null;
+            if (session is Session serverSession &&
+                !serverSession.CanCreateEphemeralKey(policyUri))
+            {
+                return false;
+            }
+
+            try
+            {
+                session.SetUserTokenSecurityPolicy(policyUri);
+                key = session.GetNewEphemeralKey();
+            }
+            catch (Exception e) when (e is not ObjectDisposedException)
+            {
+                // a session implementation without the pre-check: the key cannot be
+                // kept, but the client is still told the policy was rejected.
+                key = null;
+            }
+            return key != null;
         }
     }
 

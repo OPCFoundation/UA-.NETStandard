@@ -818,9 +818,11 @@ namespace Opc.Ua.Server
 
                 session = result.Session;
 
-                if (clientCertificateErrorAccepted && session is Session serverSession)
+                // recorded for every ISession implementation, so a session from a
+                // custom CreateSession factory is not treated as a trusted application.
+                if (clientCertificateErrorAccepted)
                 {
-                    serverSession.ClientCertificateValidated = false;
+                    ClientCertificateProvenance.SetValidated(session, false);
                 }
 
                 // Part 5 12.11: SessionDiagnostics.ServerUri reports the serverUri of
@@ -1185,12 +1187,14 @@ namespace Opc.Ua.Server
             ISession session,
             AdditionalParametersType? parameters)
         {
-            if (session is not Session serverSession ||
-                serverSession.TakeUnsentEphemeralKey() is not EphemeralKeyType key)
+            if (session is not Session serverSession)
             {
                 return parameters;
             }
 
+            // An ECDHKey entry is already the answer: a new key, or a rejected
+            // ECDHPolicyUri (Bad_SecurityPolicyRejected), for which a pending
+            // replacement stays with the session for a later activation.
             if (parameters != null)
             {
                 foreach (KeyValuePair parameter in parameters.Parameters)
@@ -1202,6 +1206,11 @@ namespace Opc.Ua.Server
                 }
             }
 
+            if (serverSession.TakeUnsentEphemeralKey() is not EphemeralKeyType key)
+            {
+                return parameters;
+            }
+
             var entry = new KeyValuePair
             {
                 Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
@@ -1211,6 +1220,20 @@ namespace Opc.Ua.Server
             {
                 Parameters = parameters == null ? [entry] : [.. parameters.Parameters, entry]
             };
+        }
+
+        /// <summary>
+        /// Looks up a session whose activation committed; a session that was removed
+        /// or started closing since then fails with Bad_SessionClosed.
+        /// </summary>
+        private ISession GetActivatedSessionOrThrowClosed(NodeId authenticationToken)
+        {
+            ISession? session = ServerInternal.SessionManager.GetSession(authenticationToken);
+            if (session == null || session.IsClosing)
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
+            return session;
         }
 
         /// <inheritdoc/>
@@ -1259,10 +1282,11 @@ namespace Opc.Ua.Server
                 // carries (Part 4 5.7.3.1). The steps below are therefore best-effort:
                 // turning their failure into a fault would leave the client with a
                 // nonce the server no longer accepts. Only a session that was closed
-                // concurrently still fails the request; its nonce is moot.
-                ISession? session = ServerInternal.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken)
-                    ?? throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                // concurrently still fails the request with Bad_SessionClosed; its
+                // nonce is moot. The activation gate is already released, so a close
+                // can also start during the steps below; it is checked again after
+                // them.
+                ISession session = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
 
                 if (identityChanged)
                 {
@@ -1299,6 +1323,15 @@ namespace Opc.Ua.Server
                 // encrypted with it (OPC 10000-6 6.8.2). Return it when the processing
                 // above failed or an override did not hand it out.
                 parameters = AppendUnsentEphemeralKey(session, parameters);
+
+                // a close that started during the awaited callbacks above must not be
+                // reported as a successful activation of a closing or removed session.
+                if (!ReferenceEquals(
+                        GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken),
+                        session))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
 
                 m_logger.ServerSESSIONACTIVATED(session.Id);
 
