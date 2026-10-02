@@ -37,11 +37,13 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
     /// <summary>
-    /// Verifies receiver-side sequence-number acceptance across repeated rollovers.
+    /// Verifies receiver-side sequence-number acceptance: exactly the next number, valid
+    /// wrap arounds, and gaps only on a reconnect.
     /// </summary>
     /// <remarks>
-    /// OPC 10000-6 does not cap a SecureChannel at a single wrap, so a long-lived
-    /// busy channel must keep accepting later legal rollovers.
+    /// OPC 10000-6 6.7.2.4 increments the SequenceNumber by exactly one per chunk and does not
+    /// cap a SecureChannel at a single wrap; OPC 10000-2 5.1.14 closes the channel when a
+    /// SequenceNumber is missed.
     /// </remarks>
     [TestFixture]
     [Category("Transport")]
@@ -49,7 +51,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     public sealed class UaSCBinaryChannelSequenceRolloverTests
     {
         /// <summary>
-        /// Verifies that a second legal rollover is accepted once the counter left the window.
+        /// Verifies that repeated legal legacy rollovers are accepted.
         /// </summary>
         [Test]
         public void RepeatedLegalRolloversAreAccepted()
@@ -60,23 +62,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(channel.Verify(TcpMessageLimits.MinSequenceNumber + 1), Is.True);
                 Assert.That(channel.Verify(0), Is.True, "the first wrap is legal.");
+                Assert.That(channel.Verify(1), Is.True);
 
-                // Leave the rollover window through the normal range so the next wrap is fresh.
-                Assert.That(channel.Verify(TcpMessageLimits.MaxRolloverSequenceNumber), Is.True);
-                Assert.That(channel.Verify(TcpMessageLimits.MinSequenceNumber + 1), Is.True);
-
+                // a long-lived busy channel reaches the next wrap.
+                channel.Reset(TcpMessageLimits.MinSequenceNumber + 5);
+                Assert.That(channel.Verify(TcpMessageLimits.MinSequenceNumber + 6), Is.True);
                 Assert.That(
-                    channel.Verify(0),
+                    channel.Verify(3),
                     Is.True,
                     "a later wrap on a long-lived channel is legal and must not fault it.");
             });
         }
 
         /// <summary>
-        /// Verifies that a replayed low number inside the rollover window is still rejected.
+        /// Verifies that a replayed number after a wrap is rejected.
         /// </summary>
         [Test]
-        public void SecondRolloverInsideTheSameWindowIsRejected()
+        public void ReplayAfterRolloverIsRejected()
         {
             using SequenceProbe channel = CreateChannel();
 
@@ -84,14 +86,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(channel.Verify(TcpMessageLimits.MinSequenceNumber + 1), Is.True);
                 Assert.That(channel.Verify(0), Is.True);
-
-                // A jump straight back to the top of the range never traverses the normal
-                // range, so the one-wrap-per-window guard stays armed.
-                Assert.That(channel.Verify(TcpMessageLimits.MinSequenceNumber + 2), Is.True);
+                Assert.That(channel.Verify(0), Is.False, "a repeated low number is a replay.");
                 Assert.That(
-                    channel.Verify(0),
+                    channel.Verify(TcpMessageLimits.MinSequenceNumber + 2),
                     Is.False,
-                    "repeated wraps without leaving the window remain a replay and must be rejected.");
+                    "jumping back to the top of the range is a replay.");
+                Assert.That(channel.Verify(1), Is.True);
             });
         }
 
@@ -112,12 +112,120 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             });
         }
 
+        /// <summary>
+        /// OPC 10000-2 5.1.14: a missed SequenceNumber (a suppressed chunk) is rejected.
+        /// </summary>
+        [Test]
+        public void SequenceNumberGapIsRejected()
+        {
+            using SequenceProbe channel = CreateChannel();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.Verify(10), Is.True);
+                Assert.That(channel.Verify(12), Is.False, "a skipped number means a chunk was suppressed.");
+                Assert.That(channel.Verify(11), Is.True);
+
+                // a legacy wrap may only start from the top of the range.
+                Assert.That(channel.Verify(0), Is.False);
+            });
+        }
+
+        /// <summary>
+        /// OPC 10000-6 6.7.2.4: with the non-legacy rules the first number is 0 and the number after
+        /// UInt32.MaxValue is 0.
+        /// </summary>
+        [Test]
+        public void NonLegacyRolloverIsExactlyFromMaxValueToZero()
+        {
+            using SequenceProbe? channel = CreateChannel(SecurityPolicies.ECC_nistP256);
+            if (channel == null)
+            {
+                Assert.Ignore("ECC_nistP256 is not supported on this platform.");
+                return;
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.Verify(1), Is.False, "the first number is 0.");
+                Assert.That(channel.Verify(0), Is.True);
+
+                channel.Reset(uint.MaxValue - 1);
+                Assert.That(channel.Verify(0), Is.False, "the wrap only follows UInt32.MaxValue.");
+                Assert.That(channel.Verify(uint.MaxValue), Is.True);
+                Assert.That(channel.Verify(1), Is.False, "the first number after the wrap is 0.");
+                Assert.That(channel.Verify(0), Is.True);
+                Assert.That(channel.Verify(1), Is.True);
+            });
+        }
+
+        /// <summary>
+        /// A reconnect on a new socket may skip the numbers of chunks lost on the dropped connection,
+        /// but may not go back.
+        /// </summary>
+        [Test]
+        public void ReconnectMaySkipAheadButNotBack()
+        {
+            using SequenceProbe channel = CreateChannel();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.Verify(10), Is.True);
+                Assert.That(channel.VerifyReconnect(10), Is.False);
+                Assert.That(channel.VerifyReconnect(9), Is.False);
+                Assert.That(channel.VerifyReconnect(15), Is.True);
+                Assert.That(channel.Verify(16), Is.True);
+                Assert.That(channel.Verify(18), Is.False);
+            });
+        }
+
+        /// <summary>
+        /// After the counter wrapped, a reconnect may still skip ahead across the
+        /// wrap but must not accept a number from before the wrap again.
+        /// </summary>
+        [Test]
+        public void ReconnectAfterRolloverRejectsPreWrapNumbers()
+        {
+            using SequenceProbe channel = CreateChannel();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.Verify(TcpMessageLimits.MinSequenceNumber + 1), Is.True);
+                Assert.That(channel.Verify(10), Is.True, "the legacy wrap is legal.");
+                Assert.That(channel.VerifyReconnect(uint.MaxValue), Is.False, "a pre-wrap number is a replay.");
+                Assert.That(
+                    channel.VerifyReconnect(TcpMessageLimits.MinSequenceNumber + 2),
+                    Is.False,
+                    "a pre-wrap number is a replay.");
+                Assert.That(channel.VerifyReconnect(20), Is.True);
+
+                // a reconnect may itself skip across a wrap.
+                channel.Reset(uint.MaxValue - 5);
+                Assert.That(channel.VerifyReconnect(3), Is.True);
+            });
+        }
+
         private static SequenceProbe CreateChannel()
         {
+            return CreateChannel(SecurityPolicies.None)!;
+        }
+
+        private static SequenceProbe? CreateChannel(string policyUri)
+        {
+            if (SecurityPolicies.Default.GetInfo(policyUri) == null)
+            {
+                return null;
+            }
+
             var telemetry = new Mock<ITelemetryContext>();
             var context = ServiceMessageContext.Create(telemetry.Object);
             var buffers = new BufferManager("sequence-rollover", 65536, telemetry.Object);
-            return new SequenceProbe(buffers, new ChannelQuotas(context), telemetry.Object);
+            return new SequenceProbe(
+                buffers,
+                new ChannelQuotas(context),
+                policyUri == SecurityPolicies.None ? MessageSecurityMode.None : MessageSecurityMode.Sign,
+                policyUri,
+                telemetry.Object);
         }
 
         /// <summary>
@@ -128,15 +236,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// <summary>
             /// Creates a probe channel that performs no security processing.
             /// </summary>
-            public SequenceProbe(BufferManager buffers, ChannelQuotas quotas, ITelemetryContext telemetry)
+            public SequenceProbe(
+                BufferManager buffers,
+                ChannelQuotas quotas,
+                MessageSecurityMode mode,
+                string policyUri,
+                ITelemetryContext telemetry)
                 : base(
                     "sequence-rollover",
                     buffers,
                     quotas,
                     (Certificate?)null,
                     null,
-                    MessageSecurityMode.None,
-                    SecurityPolicies.None,
+                    mode,
+                    policyUri,
                     telemetry)
             {
             }
@@ -149,6 +262,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public bool Verify(uint sequenceNumber)
             {
                 return VerifySequenceNumber(sequenceNumber, "test");
+            }
+
+            /// <summary>
+            /// Runs the receiver-side sequence-number check for a reconnect.
+            /// </summary>
+            /// <param name="sequenceNumber">The received sequence number.</param>
+            /// <returns>Whether the number was accepted.</returns>
+            public bool VerifyReconnect(uint sequenceNumber)
+            {
+                return VerifySequenceNumberCore(sequenceNumber, "test", true);
+            }
+
+            /// <summary>
+            /// Sets the last received sequence number.
+            /// </summary>
+            /// <param name="sequenceNumber">The last received sequence number.</param>
+            public void Reset(uint sequenceNumber)
+            {
+                ResetSequenceNumber(sequenceNumber);
             }
         }
     }

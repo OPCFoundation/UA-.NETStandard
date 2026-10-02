@@ -211,6 +211,13 @@ namespace Opc.Ua
                             StatusCodes.BadCommunicationError);
                     }
 
+                    // a completion processed after the deadline but before the timer
+                    // fired is still a completion.
+                    if (IsCompleted)
+                    {
+                        return true;
+                    }
+
                     if (m_timeoutMs > 0)
                     {
                         TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_startTimestamp);
@@ -220,11 +227,6 @@ namespace Opc.Ua
                             return false;
                         }
                         timeout = (int)Math.Min(int.MaxValue, remaining);
-                    }
-
-                    if (IsCompleted)
-                    {
-                        return true;
                     }
 
                     m_waitHandle ??= new ManualResetEvent(false);
@@ -284,10 +286,57 @@ namespace Opc.Ua
         /// <summary>
         /// Called to invoke the callback after the asynchronous operation completes.
         /// </summary>
+        /// <remarks>
+        /// The operation completes once: when it already completed (for example because
+        /// it timed out) the call is ignored and the callback is not invoked again.
+        /// </remarks>
         public void OperationCompleted()
+        {
+            if (!TryMarkCompleted(setException: false, null))
+            {
+                return;
+            }
+
+            // the timeout can no longer apply.
+            DisposeTimer();
+
+            // invoke callback.
+            m_callback?.Invoke(this);
+        }
+
+        /// <summary>
+        /// Completes the operation with the supplied outcome unless it already completed.
+        /// Unlike setting <see cref="Exception"/> before <see cref="OperationCompleted"/>,
+        /// a late completion cannot overwrite the outcome of an earlier one.
+        /// </summary>
+        /// <returns><c>true</c> if this call completed the operation.</returns>
+        internal bool TryComplete(Exception? exception)
+        {
+            if (!TryMarkCompleted(setException: true, exception))
+            {
+                return false;
+            }
+            DisposeTimer();
+            m_callback?.Invoke(this);
+            return true;
+        }
+
+        /// <summary>
+        /// Records the outcome and signals waiters exactly once.
+        /// </summary>
+        private bool TryMarkCompleted(bool setException, Exception? exception)
         {
             lock (Lock)
             {
+                if (IsCompleted)
+                {
+                    return false;
+                }
+
+                if (setException)
+                {
+                    Exception = exception;
+                }
                 IsCompleted = true;
 
                 // signal an waiting threads.
@@ -301,9 +350,7 @@ namespace Opc.Ua
                     m_logger.AsyncResultBaseLogMessage0(ode);
                 }
             }
-
-            // invoke callback.
-            m_callback?.Invoke(this);
+            return true;
         }
 
         /// <summary>
@@ -360,9 +407,14 @@ namespace Opc.Ua
         {
             try
             {
-                Exception = new TimeoutException();
+                // a completion that already happened wins over the timeout.
+                if (!TryMarkCompleted(setException: true, new TimeoutException()))
+                {
+                    return;
+                }
                 m_cts?.Cancel();
-                OperationCompleted();
+                DisposeTimer();
+                m_callback?.Invoke(this);
             }
             catch (Exception e)
             {

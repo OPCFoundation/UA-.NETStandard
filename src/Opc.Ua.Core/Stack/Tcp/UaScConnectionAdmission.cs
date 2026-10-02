@@ -63,7 +63,8 @@ namespace Opc.Ua.Bindings
             IServerResourceIsolationProvider? provider = null,
             TimeSpan? handshakeTimeout = null,
             TimeProvider? timeProvider = null,
-            ITelemetryContext? telemetry = null)
+            ITelemetryContext? telemetry = null,
+            bool limitPendingHandshakesOnly = false)
         {
             TimeSpan timeout = handshakeTimeout ?? TimeSpan.FromMinutes(2);
             if (timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(2))
@@ -77,6 +78,7 @@ namespace Opc.Ua.Bindings
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_telemetry = telemetry;
             m_logger = telemetry?.CreateLogger<UaScConnectionAdmission>();
+            m_limitPendingHandshakesOnly = limitPendingHandshakesOnly;
         }
 
         /// <summary>
@@ -85,7 +87,8 @@ namespace Opc.Ua.Bindings
         public UaScConnectionAdmission CreateIndependentScope()
         {
             return new UaScConnectionAdmission(
-                m_maxChannelCount, m_limiter, m_provider, m_handshakeTimeout, m_timeProvider, m_telemetry);
+                m_maxChannelCount, m_limiter, m_provider, m_handshakeTimeout, m_timeProvider, m_telemetry,
+                m_limitPendingHandshakesOnly);
         }
 
         /// <summary>
@@ -154,7 +157,8 @@ namespace Opc.Ua.Bindings
                     {
                         lock (m_lock)
                         {
-                            if (m_stopped || (m_maxChannelCount > 0 && m_leases.Count >= m_maxChannelCount))
+                            int counted = m_limitPendingHandshakesOnly ? m_pendingHandshakes : m_leases.Count;
+                            if (m_stopped || (m_maxChannelCount > 0 && counted >= m_maxChannelCount))
                             {
                                 return false;
                             }
@@ -166,6 +170,7 @@ namespace Opc.Ua.Bindings
                             }
                             lease = new Lease(this, connection, handshake, m_timeProvider.GetTimestamp());
                             m_leases.Add(lease);
+                            m_pendingHandshakes++;
                             connection = null;
                             handshake = null;
                             return true;
@@ -334,7 +339,7 @@ namespace Opc.Ua.Bindings
                 IDisposable? handshake;
                 lock (m_lock)
                 {
-                    if (m_closed || m_expired)
+                    if (m_closed || m_expired || m_handshakeCompleted)
                     {
                         return;
                     }
@@ -342,6 +347,7 @@ namespace Opc.Ua.Bindings
                     handshake = m_handshake;
                     m_handshake = null;
                 }
+                m_owner.CompletePendingHandshake();
                 handshake?.Dispose();
             }
 
@@ -411,6 +417,7 @@ namespace Opc.Ua.Bindings
                 Action? abort;
                 IDisposable? connection;
                 IDisposable? handshake;
+                bool pending;
                 lock (m_lock)
                 {
                     if (m_closed)
@@ -418,6 +425,7 @@ namespace Opc.Ua.Bindings
                         return;
                     }
                     m_closed = true;
+                    pending = !m_handshakeCompleted;
                     transport = m_transport;
                     abort = m_abort;
                     connection = m_connection;
@@ -451,7 +459,7 @@ namespace Opc.Ua.Bindings
                         }
                         finally
                         {
-                            m_owner.Release(this);
+                            m_owner.Release(this, pending);
                             m_completion.TrySetResult(true);
                         }
                     }
@@ -562,12 +570,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Removes a closed lease and disposes the deadline timer when the scope becomes empty.
         /// </summary>
-        private void Release(Lease lease)
+        private void Release(Lease lease, bool pendingHandshake)
         {
             ITimer? timer = null;
             lock (m_lock)
             {
-                m_leases.Remove(lease);
+                if (m_leases.Remove(lease) && pendingHandshake)
+                {
+                    m_pendingHandshakes--;
+                }
                 if (m_leases.Count == 0)
                 {
                     timer = m_deadlineTimer;
@@ -575,6 +586,17 @@ namespace Opc.Ua.Bindings
                 }
             }
             timer?.Dispose();
+        }
+
+        /// <summary>
+        /// Stops counting a lease whose handshake completed against the pending-handshake ceiling.
+        /// </summary>
+        private void CompletePendingHandshake()
+        {
+            lock (m_lock)
+            {
+                m_pendingHandshakes--;
+            }
         }
 
         /// <summary>
@@ -614,6 +636,17 @@ namespace Opc.Ua.Bindings
         /// Per-scope connection ceiling; nonpositive values disable this local ceiling.
         /// </summary>
         private readonly int m_maxChannelCount;
+
+        /// <summary>
+        /// Applies the ceiling only to connections whose startup handshake is
+        /// still pending, so handed-off reverse connections do not hold a slot.
+        /// </summary>
+        private readonly bool m_limitPendingHandshakesOnly;
+
+        /// <summary>
+        /// Tracked connections whose startup handshake has not completed.
+        /// </summary>
+        private int m_pendingHandshakes;
 
         /// <summary>
         /// Borrowed host policy that meters admissions without refunding on close.

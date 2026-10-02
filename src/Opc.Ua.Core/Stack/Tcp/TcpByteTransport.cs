@@ -294,40 +294,61 @@ namespace Opc.Ua.Bindings
         {
             Socket socket = RequireConnectedSocket();
             int receiveBufferSize = Volatile.Read(ref m_receiveBufferSize);
-            byte[] buffer = m_bufferManager.TakeBuffer(
-                receiveBufferSize,
-                nameof(ReceiveChunkAsync),
-                ct);
+
+            // Read the 8-byte UASC chunk header (message type + chunk size) before
+            // renting the receive buffer: an idle or silent peer must not hold a
+            // full receive buffer (and its share of a process-wide memory budget)
+            // while the transport waits for the next chunk.
+            byte[] header = Interlocked.Exchange(ref m_receiveHeader, null) ??
+                new byte[TcpMessageLimits.MessageTypeAndSize];
+            int messageSize;
+            byte[] buffer;
+            try
+            {
+                await ReadExactAsync(socket, header, 0, TcpMessageLimits.MessageTypeAndSize, ct)
+                    .ConfigureAwait(false);
+
+                uint messageType = BitConverter.ToUInt32(header, 0);
+                if (!TcpMessageType.IsValid(messageType))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpMessageTypeInvalid,
+                        "Message type 0x{0:X8} is invalid.",
+                        messageType);
+                }
+
+                messageSize = BitConverter.ToInt32(header, 4);
+                if (messageSize <= TcpMessageLimits.MessageTypeAndSize ||
+                    messageSize > receiveBufferSize)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpMessageTooLarge,
+                        "Message size {0} bytes is invalid (buffer size {1}).",
+                        messageSize,
+                        receiveBufferSize);
+                }
+
+                // Rent for this chunk rather than for the largest one the
+                // channel accepts (as PipeByteTransport does): a small chunk,
+                // in particular one kept for an incomplete message, must not
+                // hold a whole receive buffer of memory budget.
+                buffer = m_bufferManager.TakeBuffer(
+                    messageSize,
+                    nameof(ReceiveChunkAsync),
+                    ct);
+                Buffer.BlockCopy(header, 0, buffer, 0, TcpMessageLimits.MessageTypeAndSize);
+            }
+            finally
+            {
+                Volatile.Write(ref m_receiveHeader, header);
+            }
+
             try
             {
                 m_bufferManager.Lock(buffer);
                 try
                 {
-                    // Read the 8-byte UASC chunk header (message type + chunk size).
-                    await ReadExactAsync(socket, buffer, 0, TcpMessageLimits.MessageTypeAndSize, ct)
-                        .ConfigureAwait(false);
-
-                    uint messageType = BitConverter.ToUInt32(buffer, 0);
-                    if (!TcpMessageType.IsValid(messageType))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadTcpMessageTypeInvalid,
-                            "Message type 0x{0:X8} is invalid.",
-                            messageType);
-                    }
-
-                    int messageSize = BitConverter.ToInt32(buffer, 4);
-                    if (messageSize <= TcpMessageLimits.MessageTypeAndSize ||
-                        messageSize > receiveBufferSize)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadTcpMessageTooLarge,
-                            "Message size {0} bytes is invalid (buffer size {1}).",
-                            messageSize,
-                            receiveBufferSize);
-                    }
-
-                    // Read the remaining bytes (chunk body) directly into the same buffer.
+                    // Read the remaining bytes (chunk body) directly after the header.
                     await ReadExactAsync(
                             socket,
                             buffer,
@@ -547,6 +568,11 @@ namespace Opc.Ua.Bindings
 
         private readonly BufferManager m_bufferManager;
         private int m_receiveBufferSize;
+
+        /// <summary>
+        /// Reusable chunk-header buffer; taken for the duration of a header read.
+        /// </summary>
+        private byte[]? m_receiveHeader;
         private readonly ILogger m_logger;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage(

@@ -133,6 +133,14 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// A connection that has not sent its ReverseHello yet may be closed to make
+        /// room for another one when the listener is at its channel limit, so silent
+        /// connections cannot hold every slot until the handshake deadline and lock
+        /// out real servers. Once the ReverseHello arrived the connection is kept.
+        /// </summary>
+        private protected override bool IsReclaimableWhileConnecting => !m_messageReceived;
+
+        /// <summary>
         /// Processes an incoming message.
         /// </summary>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
@@ -143,6 +151,7 @@ namespace Opc.Ua.Bindings
         {
             using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
+                m_messageReceived = true;
                 SetResponseRequired(true);
 
                 try
@@ -261,6 +270,11 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Set under the gate once the first complete message arrived.
+        /// </summary>
+        private bool m_messageReceived;
     }
 
     /// <summary>
