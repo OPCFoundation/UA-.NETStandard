@@ -59,6 +59,7 @@ namespace Opc.Ua.Server.Tests
                 StandardServer server = fixture.Server;
                 CreateSessionResponse first = await CreateAsync(server, "cap-1").ConfigureAwait(false);
                 CreateSessionResponse second = await CreateAsync(server, "cap-2").ConfigureAwait(false);
+                uint abortsBefore = ((ServerInternalData)server.CurrentInstance).ServerDiagnostics.SessionAbortCount;
 
                 CreateSessionResponse third = await CreateAsync(server, "cap-3").ConfigureAwait(false);
 
@@ -67,6 +68,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(ids, Does.Not.Contain(first.SessionId));
                 Assert.That(ids, Does.Contain(second.SessionId));
                 Assert.That(ids, Does.Contain(third.SessionId));
+                // K4: the eviction is a termination by the server (OPC 10000-5 12.9).
+                Assert.That(
+                    ((ServerInternalData)server.CurrentInstance).ServerDiagnostics.SessionAbortCount,
+                    Is.EqualTo(abortsBefore + 1));
             }
             finally
             {

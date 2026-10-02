@@ -53,6 +53,8 @@ namespace Opc.Ua.Server.Tests
     public sealed class SessionLifecycleRegressionTests
     {
         private const string kChannelId = "lc-channel";
+        private static readonly string[] s_timeoutAudit = ["Session/Timeout"];
+        private static readonly string[] s_terminatedAudit = ["Session/Terminated"];
 
         /// <summary>
         /// LC-1: a request arriving after the session timeout must not revive the
@@ -277,19 +279,201 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// K16: through ServerInternalData, concurrent terminations of one session close,
+        /// count and audit it once, and terminating a session that another close has
+        /// already claimed, or that no longer exists, counts nothing.
+        /// </summary>
+        [Test]
+        public async Task TerminateSessionThroughServerInternalDataCountsOnceAsync()
+        {
+            var fixture = new Opc.Ua.Server.TestFramework.ServerFixture<StandardServer>(t => new StandardServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                var serverInternal = (ServerInternalData)server.CurrentInstance;
+                Microsoft.Extensions.Logging.ILogger logger =
+                    serverInternal.Telemetry.CreateLogger<SessionLifecycleRegressionTests>();
+                await Opc.Ua.Server.TestFramework.ServerFixtureUtils
+                    .CreateAndActivateSessionAsync(server, "Terminate1")
+                    .ConfigureAwait(false);
+                await Opc.Ua.Server.TestFramework.ServerFixtureUtils
+                    .CreateAndActivateSessionAsync(server, "Terminate2")
+                    .ConfigureAwait(false);
+                ISession[] sessions = [.. serverInternal.SessionManager.GetSessions()];
+                Assert.That(sessions, Has.Length.EqualTo(2));
+                uint abortsBefore = serverInternal.ServerDiagnostics.SessionAbortCount;
+
+                await Task.WhenAll(
+                    serverInternal.TerminateSessionAsync(sessions[0].Id, false, logger).AsTask(),
+                    serverInternal.TerminateSessionAsync(sessions[0].Id, false, logger).AsTask())
+                    .ConfigureAwait(false);
+                await serverInternal.TerminateSessionAsync(sessions[0].Id, false, logger).ConfigureAwait(false);
+
+                Assert.That(sessions[0].IsClosing, Is.True);
+                Assert.That(serverInternal.SessionManager.GetSessions(), Does.Not.Contain(sessions[0]));
+                Assert.That(serverInternal.ServerDiagnostics.SessionAbortCount, Is.EqualTo(abortsBefore + 1));
+
+                // Another close has claimed the second session: the termination stays out of it.
+                Assert.That(SessionTermination.TryClaimClose(sessions[1]), Is.True);
+                await serverInternal.TerminateSessionAsync(sessions[1].Id, false, logger).ConfigureAwait(false);
+                Assert.That(serverInternal.ServerDiagnostics.SessionAbortCount, Is.EqualTo(abortsBefore + 1));
+                await serverInternal.CloseClaimedSessionAsync(sessions[1], false).ConfigureAwait(false);
+                Assert.That(serverInternal.SessionManager.GetSessions(), Is.Empty);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// K17: a never-activated session whose timeout has also elapsed is closed as a
+        /// timeout, counted and audited once, not as an abort.
+        /// </summary>
+        [Test]
+        public async Task RequestOnExpiredNeverActivatedSessionIsCountedAsATimeoutAsync()
+        {
+            using var harness = new Harness(auditing: true);
+            CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
+            harness.Clock.Advance(TimeSpan.FromSeconds(2));
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
+            Assert.That(harness.Manager.GetSession(created.AuthenticationToken), Is.Null);
+            Assert.That(harness.Diagnostics.SessionTimeoutCount, Is.EqualTo(1u));
+            Assert.That(harness.Diagnostics.SessionAbortCount, Is.Zero);
+            Assert.That(harness.Audits, Is.EqualTo(s_timeoutAudit));
+        }
+
+        /// <summary>
+        /// K17: a session that another close has already claimed is not also counted
+        /// and audited as a timeout when its expiry is observed.
+        /// </summary>
+        [Test]
+        public async Task ExpiryOfAClosingSessionIsNotCountedAsATimeoutAsync()
+        {
+            using var harness = new Harness(auditing: true);
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            harness.Audits.Clear();
+            Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
+            harness.Clock.Advance(TimeSpan.FromSeconds(2));
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+            Assert.That(harness.Diagnostics.SessionTimeoutCount, Is.Zero);
+            Assert.That(harness.Audits, Is.Empty);
+        }
+
+        /// <summary>
+        /// K4: closing the oldest non-activated session at the cap (Part 4 5.7.2.1) is a
+        /// termination by the server: counted in SessionAbortCount and audited once.
+        /// </summary>
+        [Test]
+        public async Task CapEvictionIsCountedAndAuditedOnceAsync()
+        {
+            using var harness = new Harness(maxSessionCount: 1, auditing: true);
+            CreateSessionResult first = await harness.CreateSessionAsync().ConfigureAwait(false);
+
+            CreateSessionResult second = await harness.CreateSessionAsync().ConfigureAwait(false);
+
+            Assert.That(harness.Manager.GetSession(first.AuthenticationToken), Is.Null);
+            Assert.That(harness.Manager.GetSession(second.AuthenticationToken), Is.Not.Null);
+            Assert.That(harness.Diagnostics.SessionAbortCount, Is.EqualTo(1u));
+            Assert.That(harness.Audits, Is.EqualTo(s_terminatedAudit));
+        }
+
+        /// <summary>
+        /// K5 / K6: a session whose ActivateSession is in flight is not evicted at the
+        /// cap. CreateSession neither waits for the (possibly slow) authentication nor
+        /// turns the activation into a Good response for a session it then closes.
+        /// </summary>
+        [Test]
+        public async Task CapEvictionSkipsASessionWithAnActivationInFlightAsync()
+        {
+            using var harness = new Harness(maxSessionCount: 1);
+            CreateSessionResult first = await harness.CreateSessionAsync().ConfigureAwait(false);
+            harness.Authenticator.Gate = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task activation = harness.ActivateAsync(first.AuthenticationToken);
+            Assert.That(
+                await Task.WhenAny(harness.Authenticator.Entered.Task, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false),
+                Is.SameAs(harness.Authenticator.Entered.Task));
+
+            Task<CreateSessionResult> create = harness.CreateSessionAsync();
+            Task completed = await Task.WhenAny(create, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            harness.Authenticator.Gate.TrySetResult(true);
+
+            Assert.That(completed, Is.SameAs(create), "CreateSession waited for the activation.");
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await create.ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManySessions));
+            await activation.ConfigureAwait(false);
+            Assert.That(first.Session.Activated, Is.True);
+            Assert.That(harness.Manager.GetSession(first.AuthenticationToken), Is.SameAs(first.Session));
+        }
+
+        /// <summary>
+        /// Accepts anonymous tokens like <see cref="AnonymousAuthenticator"/>, optionally
+        /// holding the authentication until the test opens the gate.
+        /// </summary>
+        private sealed class GatedAnonymousAuthenticator : IUserTokenAuthenticator
+        {
+            public UserTokenType TokenType => UserTokenType.Anonymous;
+
+            public string? IssuedTokenProfileUri => null;
+
+            public TaskCompletionSource<bool>? Gate { get; set; }
+
+            public TaskCompletionSource<bool> Entered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public async ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                Entered.TrySetResult(true);
+                if (Gate is TaskCompletionSource<bool> gate)
+                {
+                    await gate.Task.ConfigureAwait(false);
+                }
+                return await m_inner.AuthenticateAsync(context, ct).ConfigureAwait(false);
+            }
+
+            private readonly AnonymousAuthenticator m_inner = new();
+        }
+
+        /// <summary>
         /// A session manager over a mocked server whose clock, diagnostics and close path
         /// are observable.
         /// </summary>
         private sealed class Harness : IDisposable
         {
-            public Harness(bool recordOrder = false)
+            public Harness(bool recordOrder = false, int maxSessionCount = 10, bool auditing = false)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 Server.Setup(s => s.Telemetry).Returns(telemetry);
                 Server.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
                 Server.Setup(s => s.MessageContext).Returns(ServiceMessageContext.CreateEmpty(telemetry));
                 Server.Setup(s => s.IdentityRegistry)
-                    .Returns(new ServerIdentityRegistry(new AnonymousAuthenticator()));
+                    .Returns(new ServerIdentityRegistry(Authenticator));
+                if (auditing)
+                {
+                    Server.Setup(s => s.Auditing).Returns(true);
+                    Server.Setup(s => s.DefaultAuditContext).Returns(() => Server.Object.DefaultSystemContext);
+                    Server.Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                        .Callback<ISystemContext, AuditEventState>((_, e) =>
+                        {
+                            lock (Audits)
+                            {
+                                Audits.Add(e.SourceName?.Value ?? string.Empty);
+                            }
+                        });
+                }
                 Server.Setup(s => s.UpdateServerDiagnostics(It.IsAny<Action<ServerDiagnosticsSummaryDataType>>()))
                     .Callback<Action<ServerDiagnosticsSummaryDataType>>(update =>
                     {
@@ -324,7 +508,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         MinSessionTimeout = 1_000,
                         MaxSessionTimeout = 60_000,
-                        MaxSessionCount = 10,
+                        MaxSessionCount = maxSessionCount,
                         MaxBrowseContinuationPoints = 10,
                         MaxHistoryContinuationPoints = 10
                     }
@@ -383,23 +567,39 @@ namespace Opc.Ua.Server.Tests
 
             public List<string> Order { get; } = [];
 
+            public List<string> Audits { get; } = [];
+
+            public GatedAnonymousAuthenticator Authenticator { get; } = new();
+
             public async Task<CreateSessionResult> CreateSessionAsync()
             {
-                CreateSessionResult created = await Manager.CreateSessionAsync(
-                    CreateContext(RequestType.CreateSession),
-                    m_certificate,
-                    "lifecycle-regression",
-                    ByteString.From(new byte[32]),
-                    new ApplicationDescription
-                    {
-                        ApplicationUri = "urn:opcfoundation:test:session-lifecycle"
-                    },
-                    Endpoint.EndpointUrl,
-                    m_certificate.AddRef(),
-                    [],
-                    1_000,
-                    64 * 1024,
-                    CancellationToken.None).ConfigureAwait(false);
+                // The session owns the client certificate once created; a rejected
+                // CreateSession leaves it with the caller.
+                Certificate clientCertificate = m_certificate.AddRef();
+                CreateSessionResult created;
+                try
+                {
+                    created = await Manager.CreateSessionAsync(
+                        CreateContext(RequestType.CreateSession),
+                        m_certificate,
+                        "lifecycle-regression",
+                        ByteString.From(new byte[32]),
+                        new ApplicationDescription
+                        {
+                            ApplicationUri = "urn:opcfoundation:test:session-lifecycle"
+                        },
+                        Endpoint.EndpointUrl,
+                        clientCertificate,
+                        [],
+                        1_000,
+                        64 * 1024,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                    clientCertificate.Dispose();
+                    throw;
+                }
                 // SessionManager leaves CurrentSessionCount to its caller.
                 Diagnostics.CurrentSessionCount++;
                 return created;
