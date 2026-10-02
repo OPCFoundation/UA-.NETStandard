@@ -990,8 +990,10 @@ namespace Opc.Ua.Server
         /// Event fields are resolved when the event is queued, but the client decodes every
         /// EventFieldList it receives after the modification with the new select clauses
         /// (Part 4, 7.25.3). Queued events are therefore resolved again from their filter
-        /// target; an event without one can no longer be delivered correctly and is dropped,
-        /// which is reported to the client as an event queue overflow.
+        /// target. An event without one (restored from a durable or redundant queue) keeps
+        /// the values of the clauses selected before and reports the new ones as null; only
+        /// an event none of whose fields is still selected is dropped, which is reported to
+        /// the client as an event queue overflow.
         /// </remarks>
         private void RebuildQueuedEventFields(
             MonitoringFilter? previousFilter,
@@ -1030,11 +1032,18 @@ namespace Opc.Ua.Server
                 Session?.PreferredLocales!,
                 m_server.Telemetry);
 
+            // where each new select clause was in the previous layout, for the events
+            // without a filter target, e.g. restored from a durable queue.
+            int[]? previousIndexes = null;
+
             m_eventQueueHandler.RebuildQueuedEvents(fields =>
             {
                 if (fields.Handle is not IFilterTarget target)
                 {
-                    return null;
+                    previousIndexes ??= MapSelectClauses(
+                        (previousFilter as EventFilter)?.SelectClauses ?? default,
+                        filter.SelectClauses);
+                    return ProjectEventFields(fields, previousIndexes, clientHandle);
                 }
 
                 // a trailing filtered retain event keeps its FilteredRetainTarget handle,
@@ -1043,6 +1052,73 @@ namespace Opc.Ua.Server
                 rebuilt.ClientHandle = clientHandle;
                 return rebuilt;
             });
+        }
+
+        /// <summary>
+        /// Returns for every current select clause the index of the identical previous
+        /// clause, or -1 when the clause is new.
+        /// </summary>
+        private static int[] MapSelectClauses(
+            ArrayOf<SimpleAttributeOperand> previous,
+            ArrayOf<SimpleAttributeOperand> current)
+        {
+            int[] previousIndexes = new int[current.Count];
+            for (int ii = 0; ii < current.Count; ii++)
+            {
+                previousIndexes[ii] = -1;
+                if (current[ii] == null)
+                {
+                    continue;
+                }
+
+                for (int jj = 0; jj < previous.Count; jj++)
+                {
+                    if (Utils.IsEqual(previous[jj], current[ii]))
+                    {
+                        previousIndexes[ii] = jj;
+                        break;
+                    }
+                }
+            }
+
+            return previousIndexes;
+        }
+
+        /// <summary>
+        /// Moves the fields of a queued event that cannot be resolved again onto the new
+        /// select clauses: a field selected before keeps its value, a new one is null. An
+        /// event none of whose fields is selected any more is dropped.
+        /// </summary>
+        private static EventFieldList? ProjectEventFields(
+            EventFieldList fields,
+            int[] previousIndexes,
+            uint clientHandle)
+        {
+            var eventFields = new List<Variant>(previousIndexes.Length);
+            bool anyMapped = false;
+            foreach (int previousIndex in previousIndexes)
+            {
+                if (previousIndex >= 0 && previousIndex < fields.EventFields.Count)
+                {
+                    eventFields.Add(fields.EventFields[previousIndex]);
+                    anyMapped = true;
+                }
+                else
+                {
+                    eventFields.Add(Variant.Null);
+                }
+            }
+
+            if (!anyMapped)
+            {
+                return null;
+            }
+
+            return new EventFieldList
+            {
+                ClientHandle = clientHandle,
+                EventFields = eventFields
+            };
         }
 
         private static bool AreSelectClausesEqual(

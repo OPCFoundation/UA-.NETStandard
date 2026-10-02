@@ -377,8 +377,49 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A queued event that cannot be resolved again after the select clauses change is
-        /// dropped and reported as an event queue overflow.
+        /// A queued event without a filter target (restored from a durable or redundant
+        /// queue) keeps the fields still selected after the select clauses change; the new
+        /// ones are null.
+        /// </summary>
+        [Test]
+        public void ModifySelectClausesProjectsEventsWithoutTarget()
+        {
+            using var harness = new Harness();
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A"), CreateSelectClause("B")],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+            item.QueueEvent(new EventFieldList
+            {
+                ClientHandle = 5,
+                EventFields = [Variant.From("a"), Variant.From("b")]
+            });
+
+            var modified = new EventFilter
+            {
+                SelectClauses =
+                [
+                    CreateSelectClause("C"),
+                    CreateSelectClause("B"),
+                    CreateSelectClause("A")
+                ],
+                WhereClause = new ContentFilter()
+            };
+            ModifyEventItem(item, modified, clientHandle: 7);
+
+            List<EventFieldList> published = PublishEvents(item);
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(published[0].ClientHandle, Is.EqualTo(7u));
+            Assert.That(
+                published[0].EventFields.ToArray(),
+                Is.EqualTo(new[] { Variant.Null, Variant.From("b"), Variant.From("a") }));
+        }
+
+        /// <summary>
+        /// A queued event without a filter target none of whose fields is still selected
+        /// is dropped and reported as an event queue overflow.
         /// </summary>
         [Test]
         public void ModifySelectClausesDropsEventsWithoutTarget()
@@ -398,7 +439,7 @@ namespace Opc.Ua.Server.Tests
 
             var modified = new EventFilter
             {
-                SelectClauses = [CreateSelectClause("B"), CreateSelectClause("A")],
+                SelectClauses = [CreateSelectClause("B"), CreateSelectClause("C")],
                 WhereClause = new ContentFilter()
             };
             ModifyEventItem(item, modified, clientHandle: 5);
