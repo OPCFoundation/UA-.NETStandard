@@ -459,6 +459,18 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     removed = m_history?.Remove(local) == true;
+
+                    // The point consumed the slot its request reserved to continue an operation;
+                    // give it back in the same step, so a concurrent save cannot take it before
+                    // the request restores the continuation it claimed (Part 4 §7.9). A request
+                    // that has already ended released its reservations and gets nothing back.
+                    HistoryRequestScope? reservedBy = local.ReservedBy;
+                    local.ReservedBy = null;
+                    if (removed && reservedBy != null && !reservedBy.Ended)
+                    {
+                        reservedBy.Reservations++;
+                        m_reservedHistory++;
+                    }
                 }
                 if (removed)
                 {
@@ -794,6 +806,7 @@ namespace Opc.Ua.Server
                     {
                         current.Reservations--;
                         m_reservedHistory--;
+                        stored.ReservedBy = current;
                     }
                     current.Pin(stored);
                     current.RecordSaved(stored);
@@ -814,6 +827,7 @@ namespace Opc.Ua.Server
                 }
                 continuationPoint.Portable = portable;
                 continuationPoint.PendingPersistence = false;
+                continuationPoint.ReservedBy = null;
                 return true;
             }
         }
@@ -1358,6 +1372,12 @@ namespace Opc.Ua.Server
             public int Pins;
             public IHistoryContinuationPoint Value = null!;
             public DateTime Timestamp;
+
+            /// <summary>
+            /// The request whose reserved slot this point consumed when it was saved, so the
+            /// reservation can be given back if the point is dropped because persisting it failed.
+            /// </summary>
+            public HistoryRequestScope? ReservedBy;
         }
 
         private readonly Func<NodeId> m_sessionIdProvider;
