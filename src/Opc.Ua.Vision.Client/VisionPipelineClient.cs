@@ -72,6 +72,9 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ServiceResultException">
+        /// A published pipeline member has a non-Good status or the wrong data type.
+        /// </exception>
         public async Task<VisionPipelineSnapshot> ReadAsync(
             CancellationToken cancellationToken = default)
         {
@@ -96,40 +99,40 @@ namespace Opc.Ua.Vision.Client
             }
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
                 toRead, cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(values);
             int cursor = 0;
             string? pipelineId = null;
             if (!nodes[0].IsNull)
             {
-                pipelineId = VisionClientOperations.ReadString(values[cursor++]);
+                pipelineId = values[cursor++].WrappedValue.TryGetValue(out string? id) ? id :
+                    throw VisionClientOperations.InvalidMember();
             }
             NodeId sensorId = NodeId.Null;
-            if (!nodes[1].IsNull)
+            if (!nodes[1].IsNull && !values[cursor++].WrappedValue.TryGetValue(out sensorId))
             {
-                VisionClientOperations.TryReadNodeId(values[cursor++], out sensorId);
+                throw VisionClientOperations.InvalidMember();
             }
             NodeId deploymentId = NodeId.Null;
-            if (!nodes[2].IsNull)
+            if (!nodes[2].IsNull && !values[cursor++].WrappedValue.TryGetValue(out deploymentId))
             {
-                VisionClientOperations.TryReadNodeId(values[cursor++], out deploymentId);
+                throw VisionClientOperations.InvalidMember();
             }
             VisionEndpointStateEnum state = default;
-            if (!nodes[3].IsNull)
+            if (!nodes[3].IsNull && !VisionClientOperations.TryReadEnum(values[cursor++], out state))
             {
-                VisionClientOperations.TryReadEnum(values[cursor++], out state);
+                throw VisionClientOperations.InvalidMember();
             }
             bool continuous = false;
             if (!nodes[4].IsNull)
             {
                 DataValue value = values[cursor++];
-                if (value.WrappedValue.TryGetValue(out bool b))
-                {
-                    continuous = b;
-                }
+                continuous = value.WrappedValue.TryGetValue(out bool b) ? b :
+                    throw VisionClientOperations.InvalidMember();
             }
             NodeId learningJobId = NodeId.Null;
-            if (!nodes[5].IsNull)
+            if (!nodes[5].IsNull && !values[cursor++].WrappedValue.TryGetValue(out learningJobId))
             {
-                VisionClientOperations.TryReadNodeId(values[cursor++], out learningJobId);
+                throw VisionClientOperations.InvalidMember();
             }
             return new VisionPipelineSnapshot
             {
@@ -150,6 +153,9 @@ namespace Opc.Ua.Vision.Client
         /// <param name="cancellationToken">
         /// Cancels the operation.
         /// </param>
+        /// <exception cref="ServiceResultException">
+        /// The published pipeline state has a non-Good status or the wrong data type.
+        /// </exception>
         public async Task<VisionEndpointStateEnum> ReadStateAsync(
             CancellationToken cancellationToken = default)
         {
@@ -161,10 +167,11 @@ namespace Opc.Ua.Vision.Client
             }
             DataValue value = await m_operations.ReadValueAsync(
                 node, cancellationToken).ConfigureAwait(false);
+            VisionClientOperations.RequireGood(value);
             return VisionClientOperations.TryReadEnum(
                 value, out VisionEndpointStateEnum result)
                 ? result
-                : default;
+                : throw VisionClientOperations.InvalidMember();
         }
 
         /// <summary>

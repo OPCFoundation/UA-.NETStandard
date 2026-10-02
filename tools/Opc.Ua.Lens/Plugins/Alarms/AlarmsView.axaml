@@ -1,0 +1,253 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.Alarms"
+             x:Class="UaLens.Plugins.Alarms.AlarmsView"
+             x:DataType="vm:AlarmsPlugin"
+             Background="{DynamicResource SurfaceBg}"
+             Foreground="{DynamicResource TextPrimary}">
+  <UserControl.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+    <Style Selector="TextBlock.caption">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.cell">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.action">
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="Margin" Value="0,0,6,4" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Margin="8" RowDefinitions="Auto,*,Auto" RowSpacing="8">
+    <Border Grid.Row="0" Classes="panel">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="*,180" ColumnSpacing="8">
+          <StackPanel>
+            <TextBlock Text="Event source (one per document; namespace URI is saved)" Classes="caption" />
+            <TextBox x:Name="AlarmSourceIdInput"
+                     Text="{CompiledBinding SourceId, Mode=TwoWay}"
+                     MaxLength="4096"
+                     IsEnabled="{CompiledBinding CanConfigure}"
+                     PlaceholderText="i=2253 or nsu=urn:your:model;s=Notifier" />
+          </StackPanel>
+          <StackPanel Grid.Column="1">
+            <TextBlock Text="Requested publish interval (ms)" Classes="caption" />
+            <NumericUpDown Value="{CompiledBinding PublishingInterval, Mode=TwoWay}"
+                           Minimum="50" Maximum="60000" Increment="50"
+                           IsEnabled="{CompiledBinding CanConfigure}" />
+          </StackPanel>
+        </Grid>
+        <WrapPanel>
+          <Button Classes="action" Content="Use selected Object / View"
+                  Command="{CompiledBinding UseSelectedSourceCommand}" />
+          <Button Classes="action" Content="Use Server"
+                  Command="{CompiledBinding UseServerSourceCommand}" />
+          <Button x:Name="AlarmObserveButton" Classes="action" Content="Observe"
+                  Command="{CompiledBinding ObserveCommand}" />
+          <Button x:Name="AlarmStopButton" Classes="action" Content="Stop"
+                  Command="{CompiledBinding StopCommand}" />
+          <Button x:Name="AlarmRefreshButton" Classes="action" Content="Condition refresh"
+                  Command="{CompiledBinding RefreshCommand}" />
+          <CheckBox Content="Retained only" Margin="4,0,0,4"
+                    IsChecked="{CompiledBinding RetainedOnly, Mode=TwoWay}" />
+        </WrapPanel>
+        <TextBox x:Name="AlarmSourceNameInput"
+                 Text="{CompiledBinding SourceName, Mode=TwoWay}"
+                 IsEnabled="{CompiledBinding CanConfigure}"
+                 MaxLength="256" PlaceholderText="Source display name" />
+        <TextBlock Classes="caption" Text="{CompiledBinding SubscriptionStatus}" />
+        <TextBlock x:Name="AlarmRefreshStatus" Text="{CompiledBinding RefreshStatus}"
+                   TextWrapping="Wrap" FontWeight="SemiBold" />
+        <TextBlock Classes="caption" IsVisible="{CompiledBinding IsOffline}"
+                   Text="Offline: configuration is retained. Connect the primary server and select Observe." />
+        <TextBlock Classes="caption" IsVisible="{CompiledBinding IsOffline}"
+                   Text="Restore never starts listeners or operator commands." />
+      </StackPanel>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,5,360">
+      <Grid Grid.Column="0" RowDefinitions="*,180" RowSpacing="8">
+        <Border Grid.Row="0" Classes="panel">
+          <Grid RowDefinitions="Auto,*">
+            <TextBlock Text="Condition branches — select a row for identity, timestamps and explicit actions"
+                       Classes="caption" Margin="0,0,0,6" />
+            <ListBox x:Name="AlarmConditionsList" Grid.Row="1"
+                     ItemsSource="{CompiledBinding Conditions}"
+                     SelectedItem="{CompiledBinding SelectedCondition, Mode=TwoWay}"
+                     Background="Transparent" BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:AlarmRow">
+                  <StackPanel Spacing="3" Margin="2,4">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                      <TextBlock Text="{CompiledBinding Name}" FontWeight="SemiBold"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1" Text="{CompiledBinding Severity, StringFormat='Severity {0}'}" />
+                    </Grid>
+                    <TextBlock Text="{CompiledBinding Message}" TextWrapping="Wrap" MaxLines="2" />
+                    <WrapPanel>
+                      <TextBlock Classes="cell" Margin="0,0,10,0"
+                                 Text="{CompiledBinding Active, StringFormat='Active: {0}'}" />
+                      <TextBlock Classes="cell" Margin="0,0,10,0"
+                                 Text="{CompiledBinding Enabled, StringFormat='Enabled: {0}'}" />
+                      <TextBlock Classes="cell" Margin="0,0,10,0"
+                                 Text="{CompiledBinding Acknowledged, StringFormat='Acked: {0}'}" />
+                      <TextBlock Classes="cell" Margin="0,0,10,0"
+                                 Text="{CompiledBinding Confirmed, StringFormat='Confirmed: {0}'}" />
+                      <TextBlock Classes="cell" Margin="0,0,10,0"
+                                 Text="{CompiledBinding Retain, StringFormat='Retain: {0}'}" />
+                      <TextBlock Classes="cell" Text="{CompiledBinding Quality, StringFormat='Quality: {0}'}" />
+                    </WrapPanel>
+                    <TextBlock Classes="caption" Text="{CompiledBinding Source, StringFormat='Source: {0}'}" />
+                    <TextBlock Classes="caption" Text="{CompiledBinding BranchId, StringFormat='Branch: {0}'}" />
+                    <TextBlock Classes="caption" Text="{CompiledBinding Time}" />
+                    <TextBlock Text="{CompiledBinding Freshness}" FontSize="11" FontWeight="SemiBold" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </Border>
+        <Border Grid.Row="1" Classes="panel">
+          <Grid RowDefinitions="Auto,*">
+            <TextBlock Classes="caption" Text="Bounded event and operation history (latest 256; not persisted)"
+                       Margin="0,0,0,4" />
+            <ListBox Grid.Row="1" ItemsSource="{CompiledBinding History}"
+                     Background="Transparent" BorderThickness="0">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:AlarmHistoryEntry">
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="caption" Text="{CompiledBinding Time, StringFormat='{}{0:O}'}" />
+                    <TextBlock Text="{CompiledBinding Detail}" FontSize="11" TextWrapping="Wrap" MaxLines="3" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </Border>
+      </Grid>
+      <GridSplitter Grid.Column="1" Width="5" ResizeDirection="Columns"
+                    Background="{DynamicResource SeparatorBrush}" ResizeBehavior="PreviousAndNext" />
+      <Border Grid.Column="2" Classes="panel">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Selected condition / branch" FontWeight="SemiBold" />
+            <TextBlock Classes="caption"
+                       Text="ConditionId identifies the condition; SourceNode is never a command target." />
+            <TextBlock Classes="caption" Text="ConditionId" />
+            <SelectableTextBlock Text="{CompiledBinding SelectedCondition.ConditionId}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="BranchId" />
+            <SelectableTextBlock Text="{CompiledBinding SelectedCondition.BranchId}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="SourceNode" />
+            <SelectableTextBlock Text="{CompiledBinding SelectedCondition.SourceNode}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption" Text="Latest exact EventId (Base64)" />
+            <SelectableTextBlock Text="{CompiledBinding SelectedCondition.EventId}"
+                                 TextWrapping="Wrap" MaxHeight="90" />
+            <TextBlock Classes="caption" Text="Event / receive timestamps (UTC)" />
+            <TextBlock Text="{CompiledBinding SelectedCondition.Time}" TextWrapping="Wrap" FontSize="11" />
+            <TextBlock Text="{CompiledBinding SelectedCondition.ReceiveTime}" TextWrapping="Wrap" FontSize="11" />
+            <TextBlock Classes="caption"
+                       Text="{CompiledBinding SelectedCondition.Suppressed, StringFormat='Suppressed: {0}'}" />
+            <TextBlock Classes="caption"
+                       Text="{CompiledBinding SelectedCondition.Latched, StringFormat='Latched: {0}'}" />
+
+            <TextBlock Text="Operator comment" FontWeight="SemiBold" />
+            <TextBox x:Name="AlarmCommentInput" Text="{CompiledBinding Comment, Mode=TwoWay}"
+                     MaxLength="2048" AcceptsReturn="True" MinHeight="60" MaxHeight="120"
+                     PlaceholderText="Explicit acknowledge / confirm comment, or a required comment for Add comment" />
+            <WrapPanel>
+              <Button x:Name="AlarmAcknowledgeButton" Classes="action" Content="Acknowledge"
+                      Command="{CompiledBinding AcknowledgeCommand}" />
+              <Button x:Name="AlarmConfirmButton" Classes="action" Content="Confirm"
+                      Command="{CompiledBinding ConfirmCommand}" />
+              <Button x:Name="AlarmAddCommentButton" Classes="action" Content="Add comment"
+                      Command="{CompiledBinding AddCommentCommand}" />
+            </WrapPanel>
+            <TextBlock Classes="caption"
+                       Text="Commands use this branch's latest EventId. Rejected commands are never retried." />
+
+            <Expander Header="Advanced condition actions" IsExpanded="False"
+                      HorizontalContentAlignment="Stretch">
+              <StackPanel Spacing="6">
+                <Button Classes="action" Content="Check supported operations"
+                        Command="{CompiledBinding CheckOperationsCommand}" />
+                <ComboBox x:Name="AlarmAdvancedOperationPicker"
+                          ItemsSource="{CompiledBinding Operations}"
+                          SelectedItem="{CompiledBinding SelectedOperation, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AlarmOperation">
+                      <TextBlock Text="{CompiledBinding Label}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Classes="caption" Text="{CompiledBinding SelectedOperationReason}" />
+                <TextBlock Classes="caption" Text="Timed shelving duration (ms; also limited by the server)" />
+                <NumericUpDown Value="{CompiledBinding ShelvingMilliseconds, Mode=TwoWay}"
+                               Minimum="1" Maximum="86400000" Increment="1000" />
+                <StackPanel IsVisible="{CompiledBinding HasDialogResponses}" Spacing="4">
+                  <TextBlock Text="{CompiledBinding SelectedCondition.Condition.Prompt}" TextWrapping="Wrap" />
+                  <ComboBox ItemsSource="{CompiledBinding DialogResponses}"
+                            SelectedIndex="{CompiledBinding ResponseIndex, Mode=TwoWay}"
+                            HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <Button x:Name="AlarmExecuteAdvancedButton" Classes="action"
+                        Content="Execute selected action"
+                        Command="{CompiledBinding ExecuteAdvancedCommand}" />
+                <TextBlock Classes="caption"
+                           Text="Advanced actions require supported instance methods and the current branch." />
+                <TextBlock Classes="caption"
+                           Text="Use Add comment separately; advanced actions do not consume the comment." />
+              </StackPanel>
+            </Expander>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <Border Grid.Row="2" Classes="panel">
+      <StackPanel Spacing="4">
+        <TextBlock x:Name="AlarmActionStatus" Text="{CompiledBinding ActionStatus}" TextWrapping="Wrap" />
+        <TextBlock Classes="caption" Text="{CompiledBinding Status}" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

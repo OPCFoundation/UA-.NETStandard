@@ -377,7 +377,11 @@ namespace Opc.Ua.PubSub.Application
             ConfigurationVersion = ResolveConfigurationVersion(snapshot);
 
             var validator = new PubSubConfigurationValidator(
-                m_factories.Select(factory => factory.TransportProfileUri));
+                m_factories.Select(factory => factory.TransportProfileUri))
+            {
+                RegisteredSecurityGroupIds = m_securityWrapperResolver is IPubSubSecurityKeyProviderCatalog catalog
+                    ? catalog.SecurityGroupIds : default
+            };
             PubSubConfigurationValidationResult result =
                 validator.Validate(snapshot.Configuration);
             result.ThrowIfInvalid();
@@ -2522,7 +2526,11 @@ namespace Opc.Ua.PubSub.Application
             var snapshot =
                 PubSubConfigurationSnapshot.Create(configuration, m_timeProvider);
             var validator = new PubSubConfigurationValidator(
-                m_factories.Select(factory => factory.TransportProfileUri));
+                m_factories.Select(factory => factory.TransportProfileUri))
+            {
+                RegisteredSecurityGroupIds = m_securityWrapperResolver is IPubSubSecurityKeyProviderCatalog catalog
+                    ? catalog.SecurityGroupIds : default
+            };
             PubSubConfigurationValidationResult validationResult =
                 validator.Validate(snapshot.Configuration);
             validationResult.ThrowIfInvalid();

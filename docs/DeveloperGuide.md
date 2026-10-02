@@ -361,7 +361,14 @@ The verdict comes from the emitted TRX rather than from the `dotnet test` exit c
 
 ### Test tiers
 
-The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`. The tiers those filters leave out run elsewhere:
+The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`.
+
+Linux UaLens tests require the agent's installed `xvfb-run` and run under a virtual X server. The shared
+GitHub batch executor retains the normal test selection, coverage, diagnostics,
+and result gates, and fails explicitly if Xvfb is unavailable. The GitHub executor includes the virtual display
+in the existing per-project timeout and process-tree cleanup.
+
+The tiers those filters leave out run elsewhere:
 
 | Tier | Where it runs |
 | --- | --- |
@@ -460,7 +467,7 @@ Keep the `ignore` list in `codecov.yml` in step with the one in `coverage-thresh
 
 #### Where the numbers appear
 
-The script renders a markdown summary, so you never have to open a raw log to see why coverage moved. It is appended to the run's job summary and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written. The merged HTML report is published as a `coverage-report` artifact.
+The script renders a markdown summary, so you never have to open a raw log to see why coverage moved. It is appended to the run's job summary and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork or Dependabot** the token is read-only, so the comment is skipped and only the job summary is written. The merged HTML report is published as a `coverage-report` artifact.
 
 > A full-scope `nightly.yml` run reports different numbers from a pull-request run, and that is expected: it merges a different set of profiles.
 

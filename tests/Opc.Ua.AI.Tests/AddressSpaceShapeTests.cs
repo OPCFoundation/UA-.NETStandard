@@ -79,6 +79,31 @@ namespace Opc.Ua.AI.Tests
                 "the entry point must be the one the model declares");
         }
 
+        [TestCase("Invoke")]
+        [TestCase("InvokeAsync")]
+        [TestCase("GetCapabilities")]
+        [TestCase("BeginTransfer")]
+        public async Task DeploymentMethodsResolveTheirDeclarationsToTheBoundInstance(string name)
+        {
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
+            DeploymentState deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+            MethodState method = deployment.FindChild(nm.SystemContext, new QualifiedName(name, nm.NamespaceIndex)) as
+                MethodState
+                ?? throw new AssertionException("The deployment method is missing.");
+            ExpandedNodeId declaration = name switch
+            {
+                "Invoke" => MethodIds.DeploymentType_Invoke,
+                "InvokeAsync" => MethodIds.DeploymentType_InvokeAsync,
+                "GetCapabilities" => MethodIds.DeploymentType_GetCapabilities,
+                "BeginTransfer" => MethodIds.DeploymentType_BeginTransfer,
+                _ => throw new ArgumentOutOfRangeException(nameof(name))
+            };
+            var expected = ExpandedNodeId.ToNodeId(declaration, nm.SystemContext.NamespaceUris);
+
+            Assert.That(method.MethodDeclarationId, Is.EqualTo(expected));
+            Assert.That(deployment.FindMethod(nm.SystemContext, expected), Is.SameAs(method));
+        }
+
         [Test]
         public async Task DynamicNodeIdsCannotCollideWithTheModelsOwnAsync()
         {

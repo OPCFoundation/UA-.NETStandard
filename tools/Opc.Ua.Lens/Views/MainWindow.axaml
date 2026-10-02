@@ -1,0 +1,404 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        xmlns:vm="using:UaLens.ViewModels"
+        x:Class="UaLens.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="UaLens — OPC UA Lens"
+        Icon="avares://UaLens/Assets/app-icon.png"
+        Width="1400" Height="900"
+        MinWidth="980" MinHeight="640"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}"
+        FontFamily="Inter, Segoe UI, sans-serif">
+  <Window.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+    </Style>
+    <Style Selector="Border.strip">
+      <Setter Property="Background" Value="{DynamicResource ToolbarBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinHeight" Value="28" />
+    </Style>
+    <Style Selector="Button.node">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+    </Style>
+    <Style Selector="Button.node:disabled">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
+    <Style Selector="ListBoxItem.compact">
+      <Setter Property="Padding" Value="4,0" />
+      <Setter Property="MinHeight" Value="14" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- Compact, stable menu bar: File / View / Tools / Help. -->
+    <Menu x:Name="MainMenu" DockPanel.Dock="Top" Background="{DynamicResource PanelBg}">
+      <MenuItem Header="_File">
+        <MenuItem x:Name="MenuExport"    Header="_Export NodeSet2…"    InputGesture="Ctrl+E" />
+        <MenuItem x:Name="MenuExportTab" Header="Export _Document Data…" InputGesture="Ctrl+Shift+E" />
+        <Separator />
+        <MenuItem x:Name="MenuOpenWorkspace" Header="_Open Workspace…" InputGesture="Ctrl+O" />
+        <MenuItem x:Name="MenuSaveWorkspace" Header="_Save Workspace…" InputGesture="Ctrl+S" />
+        <Separator />
+        <MenuItem x:Name="MenuCertificates" Header="Manage _Certificates…" InputGesture="Ctrl+K" />
+        <Separator />
+        <MenuItem x:Name="MenuQuit" Header="_Quit" InputGesture="Ctrl+Q" />
+      </MenuItem>
+      <MenuItem Header="_View">
+        <MenuItem x:Name="MenuToggleAddressSpace" Header="_Address Space"
+                  ToggleType="CheckBox" IsChecked="True" InputGesture="Ctrl+B" />
+        <MenuItem x:Name="MenuToggleFilters" Header="Address-Space _Filters"
+                  ToggleType="CheckBox" InputGesture="Ctrl+Shift+F" />
+        <MenuItem Header="_Inspector">
+          <MenuItem x:Name="MenuToggleAttrs" Header="A_ttributes" ToggleType="CheckBox" />
+          <MenuItem x:Name="MenuToggleRefs"  Header="_References" ToggleType="CheckBox" />
+          <Separator />
+          <MenuItem x:Name="MenuCycleInspector" Header="_Cycle Inspector" InputGesture="Ctrl+Alt+I" />
+        </MenuItem>
+        <Separator />
+        <MenuItem x:Name="MenuToggleDiag" Header="_Diagnostics" ToggleType="CheckBox" InputGesture="Ctrl+Shift+G" />
+        <MenuItem x:Name="MenuToggleLog"  Header="_Log"         ToggleType="CheckBox" InputGesture="Ctrl+L" />
+        <Separator />
+        <MenuItem Header="_Appearance">
+          <MenuItem x:Name="MenuThemeSystem"   Header="_System" ToggleType="Radio" GroupName="Theme" />
+          <MenuItem x:Name="MenuThemeLight"    Header="_Light"  ToggleType="Radio" GroupName="Theme" />
+          <MenuItem x:Name="MenuThemeDark"     Header="_Dark"   ToggleType="Radio" GroupName="Theme" />
+          <MenuItem x:Name="MenuThemeDarkNavy" Header="Dark _Navy" ToggleType="Radio" GroupName="Theme"
+                    IsVisible="False" />
+        </MenuItem>
+      </MenuItem>
+      <MenuItem Header="_Tools">
+        <MenuItem x:Name="MenuAddTool" Header="_Add Tool…" InputGesture="Ctrl+T" />
+        <MenuItem x:Name="MenuOpenTool" Header="_Open Tool" />
+        <Separator />
+        <MenuItem x:Name="MenuActiveToolActions" Header="Active Tool _Actions" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem x:Name="MenuAbout"       Header="_Cheat sheet" InputGesture="F1" />
+        <MenuItem x:Name="MenuAboutDialog" Header="_About…" />
+      </MenuItem>
+    </Menu>
+
+    <!-- Persistent connection strip. -->
+    <Border DockPanel.Dock="Top" Classes="strip">
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
+                   Foreground="{DynamicResource TextSecondary}" Text="Server" />
+        <TextBox Grid.Column="1" x:Name="EndpointBox" VerticalAlignment="Center"
+                 MinWidth="180" PlaceholderText="opc.tcp://host:port/path"
+                 Text="{CompiledBinding EndpointUrl, Mode=TwoWay}" />
+        <Button Grid.Column="2" x:Name="EndpointHistoryButton" Classes="tonal"
+                Margin="4,0,0,0" MinWidth="0" Padding="8,4" Content="▾"
+                ToolTip.Tip="Recent and favourite endpoints" />
+        <Button Grid.Column="3" x:Name="FavoriteToggle" Classes="tonal"
+                Margin="4,0,10,0" MinWidth="0" Padding="8,4" Content="★"
+                ToolTip.Tip="Add or remove this endpoint from favourites" />
+        <Grid Grid.Row="1" Grid.ColumnSpan="6" ColumnDefinitions="Auto,*" Margin="0,8,0,0">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,14,0">
+            <Ellipse x:Name="ConnectionDot" Width="10" Height="10" Fill="{DynamicResource TextDim}"
+                     VerticalAlignment="Center" />
+            <TextBlock x:Name="ConnectionDotLabel" VerticalAlignment="Center" Classes="mono"
+                       Text="disconnected" />
+          </StackPanel>
+          <TextBlock Grid.Column="1" x:Name="ConnectionSecurityText" VerticalAlignment="Center"
+                     Classes="mono" Text="—" TextWrapping="Wrap"
+                     ToolTip.Tip="Security policy · identity of the primary connection" />
+        </Grid>
+        <Button Grid.Column="4" x:Name="ConnectButton" Classes="primary"
+                MinWidth="110" Content="Connect" Command="{CompiledBinding ConnectCommand}" />
+        <Button Grid.Column="5" x:Name="ConnectionSettingsButton" Classes="tonal"
+                Margin="6,0,0,0" MinWidth="0" Padding="8,4" Content="⚙"
+                ToolTip.Tip="Connection settings (engine, locales, identity, reconnect)" />
+      </Grid>
+    </Border>
+
+    <!-- Persistent, non-dismissable error surface (survives diagnostics collapse). -->
+    <Border DockPanel.Dock="Top" x:Name="OperationErrorBanner" IsVisible="False"
+            Padding="12,8" Background="{DynamicResource HighlightBg}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" x:Name="OperationErrorDismiss" Classes="quiet"
+                Content="Dismiss" Foreground="{DynamicResource TextSecondary}" />
+        <TextBlock x:Name="OperationErrorText" TextWrapping="Wrap" VerticalAlignment="Center"
+                   Foreground="{DynamicResource AccentRed}" />
+      </DockPanel>
+    </Border>
+
+    <!-- Bottom status bar (one concise line + collapse toggles). -->
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}"
+            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,1,0,0" Padding="10,4">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+        <TextBlock Grid.Column="0" x:Name="StatusConnectionText" VerticalAlignment="Center"
+                   Foreground="{DynamicResource TextSecondary}"
+                   Text="{CompiledBinding ConnectionStatus}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="2" x:Name="StatusWarningText" VerticalAlignment="Center"
+                   Margin="10,0" Classes="mono" Foreground="{DynamicResource AccentYellowLight}"
+                   IsVisible="False" />
+        <ToggleButton Grid.Column="3" x:Name="ToggleDiagButton" Classes="tonal" Margin="4,0,0,0"
+                      MinHeight="24" Padding="8,2" Content="Diagnostics" />
+        <ToggleButton Grid.Column="4" x:Name="ToggleLogButton" Classes="tonal" Margin="6,0,0,0"
+                      MinHeight="24" Padding="8,2" Content="Log" />
+      </Grid>
+    </Border>
+
+    <!-- Collapsible log (raw traces off by default). -->
+    <Border DockPanel.Dock="Bottom" x:Name="LogPanel" Classes="panel"
+            Margin="10,6,10,8" Height="180" IsVisible="False">
+      <Grid RowDefinitions="Auto,Auto,*">
+        <DockPanel Grid.Row="0">
+          <TextBlock DockPanel.Dock="Right" x:Name="ResourceStatusText" Classes="mono"
+                     Text="{CompiledBinding ResourceStatus}" VerticalAlignment="Center" />
+          <TextBlock Classes="h" Text="Log" />
+        </DockPanel>
+        <TextBlock Grid.Row="1" x:Name="SubscriptionCountersText" Classes="mono"
+                   Margin="0,0,0,4" Text="—" />
+        <ListBox Grid.Row="2" x:Name="LogList" ItemsSource="{CompiledBinding LogLines}"
+                 Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextSecondaryAlt}"
+                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11" BorderThickness="0">
+          <ListBox.ItemContainerTheme>
+            <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+              <Setter Property="Padding"   Value="6,0" />
+              <Setter Property="MinHeight" Value="14" />
+            </ControlTheme>
+          </ListBox.ItemContainerTheme>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <!-- Diagnostics panel (docked right, hidden by default). -->
+    <v:DiagnosticsView DockPanel.Dock="Right" x:Name="DiagnosticsPanel" IsVisible="False" />
+
+    <!-- Main body: resizable address-space explorer ⇿ document area. -->
+    <Grid x:Name="MainBody" Margin="10,8,10,6" ClipToBounds="True">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="360" MinWidth="0" />
+        <ColumnDefinition Width="4" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <!-- LEFT: address-space explorer + node actions + contextual inspector. -->
+      <Border Grid.Column="0" x:Name="AddressSpaceColumn" Classes="panel">
+        <Grid x:Name="LeftStackGrid" MinHeight="320">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="4" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="4" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <DockPanel Grid.Row="0">
+            <Button x:Name="RefreshAddressSpaceBtn" Classes="tonal"
+                    DockPanel.Dock="Right" Content="Refresh"
+                    ToolTip.Tip="Refresh address space" Padding="8,2" MinWidth="0"
+                    VerticalAlignment="Center" />
+            <ToggleButton x:Name="ToggleFiltersBtn" Classes="tonal"
+                    DockPanel.Dock="Right" Content="Filters"
+                    ToolTip.Tip="Show/hide filters and view selector (Ctrl+Shift+F)"
+                    Padding="8,2" MinWidth="0" Margin="0,0,4,0" MinHeight="28"
+                    VerticalAlignment="Center" />
+            <TextBlock Classes="h" Text="Address space" VerticalAlignment="Center" Margin="0" />
+          </DockPanel>
+          <!-- Primary node actions, reachable without opening a menu. -->
+          <Border Grid.Row="1" Margin="0,6,0,6" Padding="0,0,0,6"
+                  BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Vertical" Spacing="4">
+              <WrapPanel Orientation="Horizontal">
+                <Button x:Name="NodeMonitorBtn" Classes="node" Content="Monitor"
+                        IsEnabled="{CompiledBinding CanAddSelectedItem}" />
+                <Button x:Name="NodeWriteBtn" Classes="node" Content="Write"
+                        IsEnabled="{CompiledBinding CanWriteVariable}" />
+                <Button x:Name="NodeCallBtn" Classes="node" Content="Call"
+                        IsEnabled="{CompiledBinding CanCallMethod}" />
+                <Button x:Name="NodeEventsBtn" Classes="node" Content="Events"
+                        IsEnabled="{CompiledBinding SelectionHasEvents}" />
+                <Button x:Name="NodeHistoryBtn" Classes="node" Content="History" />
+                <Button x:Name="NodeInspectBtn" Classes="node" Content="Inspect" Margin="0" />
+              </WrapPanel>
+              <TextBlock x:Name="NodeSelectionStatus" Classes="mono" TextWrapping="Wrap"
+                         Text="{CompiledBinding SelectedItemStatus}" />
+            </StackPanel>
+          </Border>
+          <v:AddressSpaceView Grid.Row="2" x:Name="LiveTree" DataContext="{CompiledBinding Browser}" />
+          <GridSplitter Grid.Row="3" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                        Background="{DynamicResource SeparatorBrush}"
+                        IsVisible="{CompiledBinding ShowAttributes}" />
+          <ContentControl Grid.Row="4" x:Name="AttrsPanel" IsVisible="{CompiledBinding ShowAttributes}">
+            <v:NodeAttributesView DataContext="{CompiledBinding Attributes}" />
+          </ContentControl>
+          <GridSplitter Grid.Row="5" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                        Background="{DynamicResource SeparatorBrush}"
+                        IsVisible="{CompiledBinding ShowReferences}" />
+          <ContentControl Grid.Row="6" x:Name="RefsPanel" IsVisible="{CompiledBinding ShowReferences}">
+            <v:ReferencesView DataContext="{CompiledBinding References}" />
+          </ContentControl>
+        </Grid>
+      </Border>
+
+      <GridSplitter Grid.Column="1" x:Name="MainSplitter" Width="4" Margin="2,0,2,0"
+                    HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                    Background="{DynamicResource SeparatorBrush}" />
+
+      <!-- RIGHT: document tab strip + single document host. -->
+      <Border Grid.Column="2" Classes="panel" ClipToBounds="True">
+        <Grid RowDefinitions="Auto,Auto,*,Auto">
+          <DockPanel Grid.Row="0">
+            <Button DockPanel.Dock="Right" x:Name="AddToolButton" Classes="tonal"
+                    Content="+ Add tool" Padding="10,4" MinWidth="0"
+                    ToolTip.Tip="Open the tool catalog (Ctrl+T)" />
+            <ListBox x:Name="TabStrip"
+                     ItemsSource="{CompiledBinding Tabs}"
+                     SelectedItem="{CompiledBinding SelectedTab, Mode=TwoWay}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     Background="Transparent" BorderThickness="0">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+              <ListBox.ItemContainerTheme>
+                <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                  <Setter Property="Padding"   Value="8,4" />
+                  <Setter Property="Margin"    Value="0,0,4,0" />
+                  <Setter Property="MinHeight" Value="24" />
+                </ControlTheme>
+              </ListBox.ItemContainerTheme>
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:IPlugin">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <StackPanel.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem x:Name="TabMenuRename"    Header="_Rename…" />
+                        <MenuItem x:Name="TabMenuDuplicate" Header="_Duplicate"
+                                  IsEnabled="{CompiledBinding SupportsDuplicate}" />
+                        <Separator />
+                        <MenuItem x:Name="TabMenuClose"     Header="_Close" />
+                      </ContextMenu>
+                    </StackPanel.ContextMenu>
+                    <TextBlock Text="{CompiledBinding Title}" VerticalAlignment="Center"
+                               IsVisible="{CompiledBinding !IsRenaming}" x:Name="TabTitleText" />
+                    <TextBox Text="{CompiledBinding Title, Mode=TwoWay}" VerticalAlignment="Center"
+                             MinWidth="80" Padding="2,0"
+                             IsVisible="{CompiledBinding IsRenaming}" x:Name="TabTitleEdit" />
+                    <Button x:Name="CloseTabButton" Content="×" Width="20" Padding="0"
+                            VerticalAlignment="Center" Background="Transparent" BorderThickness="0"
+                            AutomationProperties.Name="{CompiledBinding Title, StringFormat='Close {0}'}"
+                            Tag="{CompiledBinding}" ToolTip.Tip="Close document" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+
+          <ContentControl Grid.Row="1" x:Name="DocumentHeaderToolbar"
+                          Content="{CompiledBinding SelectedTab.HeaderToolbar}" />
+
+          <Border Grid.Row="2" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1"
+                  CornerRadius="4" Background="{DynamicResource SurfaceBg}" Margin="0,4,0,0">
+            <Grid>
+              <!-- One document host used by EVERY tool (SelectedTab.View). -->
+              <ContentControl x:Name="DocumentHost" Content="{CompiledBinding SelectedTab.View}" />
+
+              <!-- Welcome area shown only when no documents are open. Not a tab,
+                   available offline (Connect / recent / workspace / local tools). -->
+              <ScrollViewer x:Name="WelcomePanel" HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                <Border Classes="card" MaxWidth="560" Margin="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <StackPanel Orientation="Vertical" Spacing="12">
+                    <TextBlock Classes="heading" Text="Welcome to UaLens" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                               Text="Connect to a server to browse, read, write and monitor. Discovery and local certificate stores work offline." />
+                    <WrapPanel Orientation="Horizontal">
+                      <Button x:Name="WelcomeConnectBtn" Classes="primary" Content="Connect…"
+                              Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeOpenWorkspaceBtn" Classes="tonal" Content="Open Workspace…"
+                              Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeDiscoveryBtn" Classes="tonal" Content="Discovery"
+                              Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeCertificatesBtn" Classes="tonal" Content="Certificates"
+                              Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeAddToolBtn" Classes="tonal" Content="Add Tool…"
+                              Margin="0,0,0,8" />
+                    </WrapPanel>
+                    <TextBlock Classes="h" Text="Recent &amp; favourites" Margin="0,4,0,0" />
+                    <ListBox x:Name="WelcomeRecentList" MaxHeight="200"
+                             Background="Transparent" BorderThickness="0">
+                      <ListBox.ItemContainerTheme>
+                        <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                          <Setter Property="Padding"   Value="6,3" />
+                          <Setter Property="MinHeight" Value="24" />
+                        </ControlTheme>
+                      </ListBox.ItemContainerTheme>
+                    </ListBox>
+                  </StackPanel>
+                </Border>
+              </ScrollViewer>
+            </Grid>
+          </Border>
+
+          <TextBlock Grid.Row="3" Margin="0,6,0,0" Classes="mono"
+                     Foreground="{DynamicResource TextSecondary}"
+                     Text="{CompiledBinding SelectedTab.Status, FallbackValue='No document open'}" />
+        </Grid>
+      </Border>
+    </Grid>
+  </DockPanel>
+</Window>

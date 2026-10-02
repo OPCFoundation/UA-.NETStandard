@@ -65,6 +65,9 @@ Run a client and server, then learn the terms that the other guides use.
   started server, then read, write, and call it from the client.
 - [Sample catalogue](Samples.md) — minimal, reference, PubSub, and
   companion-model applications.
+- [UaLens desktop engineering workspace](UaLens.md) — connection, exploration,
+  monitoring, administration and saved workspaces, with guided companion
+  workflows, configuration prerequisites and safety limits.
 - [Packages and supported platforms](DeveloperGuide.md#packages-platform-support-and-versioning)
   — choose packages and target frameworks.
 

@@ -253,7 +253,7 @@ namespace Opc.Ua.Aot.Tests
                 unsignedEnums ? Variant.From(4u) : Variant.From(4));
             harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.DataJurisdiction, "EU");
             harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.EgressPermitted, unsignedEnums);
-            harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.MaxInlinePayloadSize, 8192UL);
+            harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.MaxInlinePayloadSize, 8192u);
             harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.EndpointUri, "urn:ai-aot:in-process");
             harness.Channel.AddBrowse(s_deploymentId, new NodeId(Ai.ReferenceTypes.UsesModel, kAiNamespaceIndex),
                 [Reference(s_modelId, "Inspection model", Ai.ObjectTypes.ModelType)]);

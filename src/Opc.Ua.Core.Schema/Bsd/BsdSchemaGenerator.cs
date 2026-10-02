@@ -286,7 +286,7 @@ namespace Opc.Ua.Schema.Bsd
 
             private XmlQualifiedName ResolveType(NodeId dataType)
             {
-                BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType);
+                BuiltInType builtInType = SchemaTypeInfo.GetFieldEncodingType(dataType);
                 if (builtInType != BuiltInType.Null)
                 {
                     return BuiltInTypeName(builtInType);
