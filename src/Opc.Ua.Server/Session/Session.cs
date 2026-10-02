@@ -684,7 +684,9 @@ namespace Opc.Ua.Server
                 // elapsed, is terminated and serves no further requests. The expiry check and
                 // the contact refresh are one step under the diagnostics lock, so a request
                 // cannot revive a Session that the session monitor has already seen expire.
-                if (IsClosing || !TryRefreshLastContact())
+                // CloseSession on an expired Session that is not closing yet is still the
+                // client's close, so the requested DeleteSubscriptions is honoured.
+                if (IsClosing || (!TryRefreshLastContact() && requestType != RequestType.CloseSession))
                 {
                     UpdateDiagnosticCounters(requestType, true, false);
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);

@@ -418,6 +418,43 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// SWEEP-2: CloseSession on a session whose timeout elapsed before the session
+        /// monitor swept it is the client's close, not a timeout: it is admitted so the
+        /// requested DeleteSubscriptions is honoured. Other requests are still rejected.
+        /// </summary>
+        [Test]
+        public async Task CloseSessionOnAnExpiredSessionIsAdmittedAsync()
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            harness.Clock.Advance(TimeSpan.FromSeconds(2));
+
+            using OperationContext context = await harness.ValidateAsync(
+                created.AuthenticationToken,
+                RequestType.CloseSession).ConfigureAwait(false);
+
+            Assert.That(context.Session, Is.SameAs(created.Session));
+            Assert.That(harness.Diagnostics.SessionTimeoutCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// SWEEP-2: CloseSession on a session that is already closing is still rejected.
+        /// </summary>
+        [Test]
+        public async Task CloseSessionOnAClosingSessionIsRejectedAsync()
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.CloseSession)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+        }
+
+        /// <summary>
         /// Accepts anonymous tokens like <see cref="AnonymousAuthenticator"/>, optionally
         /// holding the authentication until the test opens the gate.
         /// </summary>
