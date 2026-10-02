@@ -1146,7 +1146,7 @@ namespace Opc.Ua
             {
                 return 0;
             }
-            if (!ValueIsValueType && ValueIsDefaultOrNull)
+            if (IsAbsent)
             {
                 // A typed null payload (null array, matrix, byte string,
                 // qualified name, ...) equals Variant.Null and must
@@ -7715,8 +7715,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(Variant other)
         {
-            if (IsNull && other.IsNull)
+            if (IsAbsent && other.IsAbsent)
             {
+                // Ordered the way Equals decides it: every absent value is
+                // the same, whatever its type.
                 return 0;
             }
             if (IsNull || other.IsNull)
@@ -7727,11 +7729,6 @@ namespace Opc.Ua
                 // every zero valued scalar, so a SortedSet or a
                 // SortedDictionary collapsed Variant.Null and Variant(0) into
                 // one entry even though Equals tells them apart.
-                Variant typed = IsNull ? other : this;
-                if (!typed.ValueIsValueType && typed.ValueIsDefaultOrNull)
-                {
-                    return 0;
-                }
                 return IsNull ? -1 : +1;
             }
             TypeInfo ourTypeInfo = TypeInfo;
@@ -7887,8 +7884,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(Variant other)
         {
-            if (IsNull && other.IsNull)
+            if (IsAbsent && other.IsAbsent)
             {
+                // Variant.Null and every typed variant whose reference payload
+                // is absent (a null array, matrix, string, byte string, ...)
+                // are the same absent value, whatever the type, so equality
+                // stays transitive and agrees with GetHashCode (all hash 0).
+                // OPC 10000-6 5.1.11 treats a null array like an empty one.
                 return true;
             }
             if (IsNull || other.IsNull)
@@ -7905,8 +7907,7 @@ namespace Opc.Ua
                 // must stay unequal: it hashes to zero like the null variant, so
                 // letting it compare equal collapses both into one bucket of
                 // every Dictionary and HashSet keyed on Variant.
-                Variant typed = IsNull ? other : this;
-                return !typed.ValueIsValueType && typed.ValueIsDefaultOrNull;
+                return false;
             }
 
             TypeInfo ourTypeInfo = m_typeInfo;
@@ -8414,6 +8415,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// True for <see cref="Null"/> and for a typed variant whose reference
+        /// payload is absent (a null array, matrix, string, byte string, ...).
+        /// All absent variants are equal, compare as 0 and hash like Null. A
+        /// numeric, boolean or status code zero is a value, not an absent one.
+        /// </summary>
+        private bool IsAbsent => IsNull || (!ValueIsValueType && ValueIsDefaultOrNull);
+
+        /// <summary>
         /// Returns true if the variant holds an array or matrix without
         /// elements. A null array counts as empty because OPC 10000-6
         /// 5.1.11 treats null, empty and zero-length arrays as semantically
@@ -8433,6 +8442,23 @@ namespace Opc.Ua
             if (typeInfo == TypeInfo.Scalars.Variant)
             {
                 return default;
+            }
+            // OPC 10000-6 5.1.6: a value of the abstract Number, Integer or
+            // UInteger type is encoded as a Variant, so its default is the
+            // default of a Variant. A null typed with the abstract type
+            // itself cannot be encoded.
+            if (typeInfo.BuiltInType is BuiltInType.Number or
+                BuiltInType.Integer or
+                BuiltInType.UInteger)
+            {
+                if (typeInfo.IsScalar)
+                {
+                    return default;
+                }
+                return new Variant(
+                    default,
+                    typeInfo.WithBuiltInType(BuiltInType.Variant),
+                    null);
             }
             return new Variant(default, typeInfo, null);
         }

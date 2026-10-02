@@ -793,7 +793,10 @@ namespace Opc.Ua
 
                 EndField(fieldName);
 
+                // Part 6 5.2.2.10: an ExpandedNodeId with a NamespaceUri has no
+                // NamespaceIndex to map, and WithNamespaceIndex would drop the uri.
                 if (m_namespaceMappings != null &&
+                    string.IsNullOrEmpty(value.NamespaceUri) &&
                     m_namespaceMappings.Length > value.NamespaceIndex &&
                     !value.IsNull)
                 {
@@ -1006,9 +1009,11 @@ namespace Opc.Ua
             // read body.
             if (!BeginField("Body", true))
             {
-                // read end of extension object.
-                EndField(fieldName);
+                // read end of extension object. The field element is in the
+                // namespace of the enclosing structure, not in Types.xsd, so
+                // the namespace pushed for TypeId/Body is popped first.
                 PopNamespace();
+                EndField(fieldName);
 
                 return new ExtensionObject(absoluteId);
             }
@@ -2028,6 +2033,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo)
         {
+            typeInfo = XmlDecoder.AsVariantIfAbstractNumber(typeInfo);
             CheckAndIncrementNestingLevel();
 
             try

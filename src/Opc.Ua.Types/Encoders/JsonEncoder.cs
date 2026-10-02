@@ -2031,6 +2031,12 @@ namespace Opc.Ua
         private void WriteEncodeable<T>(T value)
             where T : IEncodeable
         {
+            // Part 6 5.4.5: a NULL array element is the JSON literal null.
+            if (value is null)
+            {
+                m_writer.WriteNullValue();
+                return;
+            }
             StartObject();
             value.Encode(this);
             EndObject();
@@ -2042,6 +2048,12 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         private void WriteEncodeableAsExtensionObject<T>(T value) where T : IEncodeable
         {
+            // Part 6 5.4.5: a NULL array element is the JSON literal null.
+            if (value is null)
+            {
+                m_writer.WriteNullValue();
+                return;
+            }
             StartObject();
             // Disregard RawDataMode as per 5.4.1 (encoding of Structure or Variant)
             if (CanWriteUaTypeId(value.TypeId))
