@@ -310,7 +310,6 @@ namespace Opc.Ua.Server
             AlwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
             m_lastError = storedMonitoredItem.LastError;
             m_lastValue = storedMonitoredItem.LastValue;
-            m_valueQueued = !m_lastValue.IsNull;
             MonitoredItemType = storedMonitoredItem.TypeMask;
             // without this the first transition out of filter scope after a restart is
             // dropped, because the item would not know the client had been told about the
@@ -1447,7 +1446,6 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
             m_readyToTrigger = true;
-            m_valueQueued = true;
         }
 
         /// <summary>
@@ -1461,15 +1459,11 @@ namespace Opc.Ua.Server
                 overflow = m_dataChangeQueueHandler!.QueueValue(value, error);
             }
 
-            // the value queued when the item is created cannot trigger, because no
-            // triggering link exists yet (Part 4, 5.13.1.6). Every later notification,
-            // including the first one after leaving DISABLED, triggers the linked items.
-            if (m_valueQueued)
-            {
-                m_readyToTrigger = true;
-            }
-
-            m_valueQueued = true;
+            // every notification triggers the linked items, including the first one after
+            // leaving DISABLED. A notification queued before the first triggering link was
+            // created must not trigger (Part 4, 5.13.1.6); SetTriggering discards the flag
+            // when it creates that link.
+            m_readyToTrigger = true;
 
             // save last value received.
             m_lastValue = value;
@@ -2740,7 +2734,6 @@ namespace Opc.Ua.Server
         private ServiceResult? m_samplingError;
         private bool m_triggered;
         private bool m_resendData;
-        private bool m_valueQueued;
         private HashSet<string>? m_filteredRetainConditionIds;
         private RejectedSelectClauses? m_rejectedSelectClauses;
         private bool m_isDetached;

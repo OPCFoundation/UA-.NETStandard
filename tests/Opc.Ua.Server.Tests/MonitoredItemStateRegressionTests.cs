@@ -115,7 +115,8 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// The first value queued after a triggering item leaves DISABLED must trigger its
-        /// linked items, while the value queued at creation still does not.
+        /// linked items. (A value queued before the first link exists is discarded by
+        /// Subscription.SetTriggering, see SetTriggeringDiscardsTriggerQueuedBeforeFirstLink.)
         /// </summary>
         [Test]
         public void FirstValueAfterReenableIsReadyToTrigger()
@@ -124,10 +125,31 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = harness.CreateDataItem(queueSize: 1, samplingInterval: 0);
 
             item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
-            Assert.That(item.IsReadyToTrigger, Is.False, "creation value must not trigger");
             _ = PublishData(harness, item);
 
             item.SetMonitoringMode(MonitoringMode.Disabled);
+            item.SetMonitoringMode(MonitoringMode.Reporting);
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+
+            Assert.That(item.IsReadyToTrigger, Is.True);
+        }
+
+        /// <summary>
+        /// An item created DISABLED queues nothing until it is enabled. The first value it
+        /// queues then must trigger the items linked to it in the meantime.
+        /// </summary>
+        [Test]
+        public void FirstValueOfItemCreatedDisabledIsReadyToTrigger()
+        {
+            using var harness = new Harness();
+            using MonitoredItem item = harness.CreateDataItem(
+                queueSize: 1,
+                MonitoringMode.Disabled,
+                samplingInterval: 0);
+
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            Assert.That(item.IsReadyToTrigger, Is.False, "a disabled item queues nothing");
+
             item.SetMonitoringMode(MonitoringMode.Reporting);
             item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
 
