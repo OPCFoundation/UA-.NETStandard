@@ -394,6 +394,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the sampling interval a sampled item with the revised sampling interval
+        /// gets once it is assigned to a sampling group.
+        /// </summary>
+        internal double GetGroupSamplingInterval(double samplingInterval)
+        {
+            return SamplingGroup.AdjustSamplingInterval(m_samplingRates, samplingInterval);
+        }
+
+        /// <summary>
         /// Records that the caller queues the initial value of the item itself, so the
         /// next <see cref="StartMonitoring"/> of the item (directly or through
         /// <see cref="ModifyMonitoring"/>) does not take an additional immediate sample.

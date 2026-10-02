@@ -3313,6 +3313,118 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The revised processing interval of an aggregate item is at least twice the sampling
+        /// interval the item reports, including the rounding a sampling group applies
+        /// (Part 4 7.22.4), on create and on modify.
+        /// </summary>
+        [Test]
+        public async Task AggregateProcessingIntervalIsTwiceTheRevisedSamplingIntervalAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var aggregateId = new NodeId("SupportedAggregate", nsIdx);
+            using AggregateManager aggregateManager =
+                CreateAndSetupAggregateManager(aggregateId, minimumProcessingInterval: 100);
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("RoundedSamplingVariable", nsIdx);
+            variable.BrowseName = new QualifiedName("RoundedSamplingVariable", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentRead;
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            // with the default sampling rates the group (500, 250, 2) rounds 800 ms up to 1000 ms.
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId
+                {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value
+                },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 800,
+                    QueueSize = 4,
+                    Filter = new ExtensionObject(new AggregateFilter
+                    {
+                        AggregateType = aggregateId,
+                        StartTime = DateTime.UtcNow,
+                        ProcessingInterval = 1000,
+                        AggregateConfiguration = new AggregateConfiguration()
+                    })
+                }
+            };
+            var createErrors = new List<ServiceResult> { null };
+            var createFilterErrors = new List<MonitoringFilterResult> { null };
+            var monitoredItems = new List<IMonitoredItem> { null };
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                [itemToCreate],
+                createErrors,
+                createFilterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            var item = (ISampledDataChangeMonitoredItem)monitoredItems[0];
+            Assert.That(createFilterErrors[0], Is.InstanceOf<AggregateFilterResult>());
+            Assert.That(
+                ((AggregateFilterResult)createFilterErrors[0]).RevisedProcessingInterval,
+                Is.GreaterThanOrEqualTo(2 * item.SamplingInterval));
+            if (m_useSamplingGroups)
+            {
+                Assert.That(item.SamplingInterval, Is.EqualTo(1000));
+            }
+
+            var itemToModify = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 800,
+                    QueueSize = 4,
+                    Filter = new ExtensionObject(new AggregateFilter
+                    {
+                        AggregateType = aggregateId,
+                        StartTime = DateTime.UtcNow,
+                        ProcessingInterval = 1000,
+                        AggregateConfiguration = new AggregateConfiguration()
+                    })
+                }
+            };
+            var modifyErrors = new List<ServiceResult> { null };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+            await manager.ModifyMonitoredItemsAsync(
+                new OperationContext(
+                    new RequestHeader(),
+                    null,
+                    RequestType.ModifyMonitoredItems,
+                    RequestLifetime.None,
+                    m_mockSession.Object),
+                TimestampsToReturn.Both,
+                monitoredItems,
+                [itemToModify],
+                modifyErrors,
+                modifyFilterErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(modifyErrors[0]), Is.True);
+            Assert.That(modifyFilterErrors[0], Is.InstanceOf<AggregateFilterResult>());
+            Assert.That(
+                ((AggregateFilterResult)modifyFilterErrors[0]).RevisedProcessingInterval,
+                Is.GreaterThanOrEqualTo(2 * item.SamplingInterval));
+        }
+
+        /// <summary>
         /// Verifies that average-aggregate priming deduplicates overlapping history pages before replaying live values.
         /// </summary>
         [Test]

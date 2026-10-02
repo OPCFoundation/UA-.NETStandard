@@ -222,6 +222,21 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Returns the sampling interval a data item created or modified with the revised
+        /// sampling interval reports once its sampling group rounds it to a supported rate.
+        /// </summary>
+        internal double GetGroupSamplingInterval(double samplingInterval)
+        {
+            // the same minimum the create path applies.
+            if (samplingInterval.CompareTo(0.0) == 0)
+            {
+                samplingInterval = 1;
+            }
+
+            return m_samplingGroupManager.GetGroupSamplingInterval(samplingInterval);
+        }
+
         /// <inheritdoc/>
         public void ApplyChanges()
         {

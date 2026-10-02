@@ -496,9 +496,20 @@ namespace Opc.Ua.Server
         /// </summary>
         private double AdjustSamplingInterval(double samplingInterval)
         {
+            return AdjustSamplingInterval(m_samplingRates, samplingInterval);
+        }
+
+        /// <summary>
+        /// Lines the requested sampling interval up with one of the supported sampling rates,
+        /// which is the sampling interval an item gets in the group.
+        /// </summary>
+        internal static double AdjustSamplingInterval(
+            List<SamplingRateGroup> samplingRates,
+            double samplingInterval)
+        {
             samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                 samplingInterval, 0, MinimumSamplingIntervals.Continuous, 0);
-            foreach (SamplingRateGroup samplingRate in m_samplingRates)
+            foreach (SamplingRateGroup samplingRate in samplingRates)
             {
                 if (double.IsNaN(samplingRate.Start) || double.IsInfinity(samplingRate.Start) || samplingRate.Start < 0)
                 {
