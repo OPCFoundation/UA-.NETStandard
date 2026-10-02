@@ -244,6 +244,7 @@ namespace Opc.Ua.Server.Tests
             ResetKeepAlive(subscription);
 
             var triggering = new Mock<IMonitoredItem>();
+            triggering.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             triggering.SetupGet(i => i.Id).Returns(1);
             triggering.SetupProperty(i => i.IsReadyToTrigger, true);
             (Mock<IDataChangeMonitoredItem> linked, Mock<ITriggeredMonitoredItem> linkedTrigger) =
@@ -360,6 +361,7 @@ namespace Opc.Ua.Server.Tests
             var observations = new List<(string Event, bool Rejected)>();
 
             var eventItem = new Mock<IEventMonitoredItem>();
+            eventItem.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             eventItem.SetupGet(i => i.Id).Returns(1);
             eventItem.SetupGet(i => i.EventFilter).Returns(new EventFilter());
             eventItem
@@ -424,6 +426,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription(new FakeTimeProvider(), 1000, 10);
             using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
             var eventItem = new Mock<IEventMonitoredItem>();
+            eventItem.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             eventItem.SetupGet(i => i.Id).Returns(1);
             eventItem.SetupGet(i => i.EventFilter).Returns(new EventFilter());
             AddMonitoredItem(subscription, eventItem.Object);
@@ -437,6 +440,101 @@ namespace Opc.Ua.Server.Tests
             Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await subscription.ConditionRefreshAsync().ConfigureAwait(false));
             Assert.DoesNotThrow(() => subscription.ValidateConditionRefresh(context));
+        }
+
+        /// <summary>
+        /// Review U20: the pipeline applies the reporting rule to every IMonitoredItem
+        /// implementation. A pending resend of a DISABLED or SAMPLING item is not
+        /// published (OPC 10000-4 §5.12.1.3), a triggered SAMPLING item is.
+        /// </summary>
+        [TestCase(MonitoringMode.Disabled, false, false)]
+        [TestCase(MonitoringMode.Sampling, false, false)]
+        [TestCase(MonitoringMode.Disabled, true, false)]
+        [TestCase(MonitoringMode.Sampling, true, true)]
+        [TestCase(MonitoringMode.Reporting, false, true)]
+        public void PipelinePublishesAResendOnlyForReportingItems(
+            MonitoringMode mode,
+            bool readyToPublish,
+            bool expectPublished)
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(clock, 1000, 10);
+            Mock<IDataChangeMonitoredItem> item = CreateResendItem(1, () => mode, readyToPublish);
+            AddMonitoredItem(subscription, item.Object);
+            using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+
+            clock.Advance(TimeSpan.FromMilliseconds(101));
+            subscription.PublishTimerExpired();
+            NotificationMessage message = subscription.Publish(context, out _, out _);
+
+            Assert.That(message?.NotificationData.Count ?? 0, Is.EqualTo(expectPublished ? 1 : 0));
+            VerifyPublished(item, expectPublished ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
+        /// Review U20: an item that leaves REPORTING after it was queued for publishing
+        /// does not report its pending resend.
+        /// </summary>
+        [TestCase(MonitoringMode.Disabled)]
+        [TestCase(MonitoringMode.Sampling)]
+        public void ItemLeavingReportingAfterItWasQueuedIsNotPublished(MonitoringMode newMode)
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(clock, 1000, 10);
+            MonitoringMode mode = MonitoringMode.Reporting;
+            Mock<IDataChangeMonitoredItem> item = CreateResendItem(1, () => mode, readyToPublish: false);
+            AddMonitoredItem(subscription, item.Object);
+            using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+
+            clock.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable));
+
+            mode = newMode;
+            NotificationMessage message = subscription.Publish(context, out _, out _);
+
+            Assert.That(message == null || message.NotificationData.Count == 0, Is.True);
+            VerifyPublished(item, Times.Never());
+        }
+
+        private static Mock<IDataChangeMonitoredItem> CreateResendItem(
+            uint id,
+            Func<MonitoringMode> mode,
+            bool readyToPublish)
+        {
+            // like the sample DataChangeMonitoredItem: the resend flag survives a mode
+            // change and Publish reports the last value whenever it is set.
+            var item = new Mock<IDataChangeMonitoredItem>();
+            item.SetupGet(i => i.Id).Returns(id);
+            item.SetupGet(i => i.MonitoringMode).Returns(mode);
+            item.SetupGet(i => i.IsResendData).Returns(true);
+            item.SetupGet(i => i.IsReadyToPublish).Returns(readyToPublish);
+            item.SetupGet(i => i.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+            item.Setup(i => i.Publish(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<Queue<MonitoredItemNotification>>(),
+                    It.IsAny<Queue<DiagnosticInfo>>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ILogger>()))
+                .Returns<OperationContext, Queue<MonitoredItemNotification>, Queue<DiagnosticInfo>, uint, ILogger>(
+                    (_, notifications, diagnostics, _, _) =>
+                    {
+                        notifications.Enqueue(new MonitoredItemNotification { ClientHandle = id, Value = new DataValue(1) });
+                        diagnostics.Enqueue(new DiagnosticInfo());
+                        return false;
+                    });
+            return item;
+        }
+
+        private static void VerifyPublished(Mock<IDataChangeMonitoredItem> item, Times times)
+        {
+            item.Verify(
+                i => i.Publish(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<Queue<MonitoredItemNotification>>(),
+                    It.IsAny<Queue<DiagnosticInfo>>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ILogger>()),
+                times);
         }
 
         /// <summary>
@@ -492,6 +590,7 @@ namespace Opc.Ua.Server.Tests
             using (Subscription subscription = CreateSubscription(new FakeTimeProvider(), 1000, 10))
             {
                 var triggering = new Mock<IMonitoredItem>();
+                triggering.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
                 triggering.SetupGet(i => i.Id).Returns(1);
                 triggering.Setup(i => i.ToStorableMonitoredItem())
                     .Returns(new StoredMonitoredItem { Id = 1, SubscriptionId = 1 });
@@ -510,6 +609,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(stored.TriggeringLinks[1], Is.EqualTo(new uint[] { 2 }));
 
             var restoredTriggering = new Mock<IMonitoredItem>();
+            restoredTriggering.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             restoredTriggering.SetupGet(i => i.Id).Returns(1);
             (Mock<IDataChangeMonitoredItem> restoredLinked, _) = CreateTriggeredItem(2);
             m_nodeManagerMock
@@ -560,6 +660,7 @@ namespace Opc.Ua.Server.Tests
                 TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>> { [1] = [2u] }
             };
             var restoredTriggering = new Mock<IMonitoredItem>();
+            restoredTriggering.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             restoredTriggering.SetupGet(i => i.Id).Returns(1);
             m_nodeManagerMock
                 .Setup(n => n.RestoreMonitoredItemsAsync(
@@ -601,6 +702,7 @@ namespace Opc.Ua.Server.Tests
         private static Mock<IDataChangeMonitoredItem> CreateDataChangeItem(uint id, int notificationCount)
         {
             var item = new Mock<IDataChangeMonitoredItem>();
+            item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             var pending = new Queue<MonitoredItemNotification>();
             for (int index = 0; index < notificationCount; index++)
             {
@@ -632,6 +734,7 @@ namespace Opc.Ua.Server.Tests
             CreateTriggeredItem(uint id)
         {
             var item = new Mock<IDataChangeMonitoredItem>();
+            item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             item.SetupGet(i => i.Id).Returns(id);
             item.SetupGet(i => i.IsReadyToPublish).Returns(false);
             item.SetupGet(i => i.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);

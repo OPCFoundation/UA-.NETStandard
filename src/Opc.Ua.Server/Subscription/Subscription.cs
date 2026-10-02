@@ -860,7 +860,7 @@ namespace Opc.Ua.Server
                 IMonitoredItem monitoredItem = current.Value;
 
                 // check if the item is ready to publish.
-                if (monitoredItem.IsResendData || monitoredItem.IsReadyToPublish)
+                if (IsReadyToReport(monitoredItem))
                 {
                     m_itemsToCheck.Remove(current);
                     m_itemsToPublish.AddLast(current);
@@ -885,7 +885,7 @@ namespace Opc.Ua.Server
                     LinkedListNode<IMonitoredItem>? next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
 
-                    if (monitoredItem.IsReadyToPublish)
+                    if (IsReadyToReport(monitoredItem))
                     {
                         m_itemsToCheck.Remove(current);
                         m_itemsToPublish.AddLast(current);
@@ -893,6 +893,26 @@ namespace Opc.Ua.Server
 
                     current = next;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Returns whether a monitored item has notifications to report. A DISABLED item
+        /// reports nothing and a SAMPLING item only reports when it was triggered (OPC
+        /// 10000-4 §5.12.1.3, §5.13.1.6), so a pending resend (ResendData, a transfer with
+        /// initial values) only counts for a REPORTING item. Applied by the pipeline so the
+        /// rule holds for every <see cref="IMonitoredItem"/> implementation.
+        /// </summary>
+        private static bool IsReadyToReport(IMonitoredItem monitoredItem)
+        {
+            switch (monitoredItem.MonitoringMode)
+            {
+                case MonitoringMode.Reporting:
+                    return monitoredItem.IsResendData || monitoredItem.IsReadyToPublish;
+                case MonitoringMode.Sampling:
+                    return monitoredItem.IsReadyToPublish;
+                default:
+                    return false;
             }
         }
 
@@ -939,7 +959,7 @@ namespace Opc.Ua.Server
                         triggeredItems[ii].Id,
                         out LinkedListNode<IMonitoredItem>? triggeredNode) &&
                     ReferenceEquals(triggeredNode.List, m_itemsToCheck) &&
-                    triggeredNode.Value.IsReadyToPublish)
+                    IsReadyToReport(triggeredNode.Value))
                 {
                     m_itemsToCheck.Remove(triggeredNode);
                     m_itemsToPublish.AddLast(triggeredNode);
@@ -1714,6 +1734,20 @@ namespace Opc.Ua.Server
                     TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
 
                     LinkedListNode<IMonitoredItem>? next = current.Next;
+
+                    // An item that left REPORTING after it was queued for publishing must
+                    // not report: a DISABLED item never, a SAMPLING item only when
+                    // triggered, and a pending resend does not count for either.
+                    MonitoringMode monitoringMode = monitoredItem.MonitoringMode;
+                    if (monitoringMode == MonitoringMode.Disabled ||
+                        (monitoringMode == MonitoringMode.Sampling && !monitoredItem.IsReadyToPublish))
+                    {
+                        m_itemsToPublish.Remove(current);
+                        m_itemsToCheck.AddLast(current);
+                        current = next;
+                        continue;
+                    }
+
                     bool hasMoreValuesToPublish;
                     uint notificationLimit = maxNotificationsPerMonitoredItem;
                     if (m_maxNotificationsPerPublish > 0)

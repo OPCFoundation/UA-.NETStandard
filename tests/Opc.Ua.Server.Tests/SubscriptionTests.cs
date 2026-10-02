@@ -189,6 +189,7 @@ namespace Opc.Ua.Server.Tests
             using var cancellation = new CancellationTokenSource();
             using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
             var item = new Mock<IMonitoredItem>();
+            item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             item.SetupGet(value => value.Id).Returns(77);
             var created = new MonitoredItemCreateResult { MonitoredItemId = 77, RevisedSamplingInterval = 1000 };
             item.Setup(value => value.GetCreateResult(out created)).Returns(ServiceResult.Good);
@@ -740,6 +741,7 @@ namespace Opc.Ua.Server.Tests
 
             // Mock Monitored Item
             var itemMock = new Mock<IMonitoredItem>();
+            itemMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             itemMock.Setup(i => i.Id).Returns(1);
             itemMock.Setup(i => i.IsReadyToPublish).Returns(true);
 
@@ -760,6 +762,7 @@ namespace Opc.Ua.Server.Tests
 
             // Mock Monitored Item
             var itemMock = new Mock<IMonitoredItem>();
+            itemMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             itemMock.Setup(i => i.Id).Returns(1);
             itemMock.Setup(i => i.IsReadyToPublish).Returns(false);
 
@@ -830,6 +833,7 @@ namespace Opc.Ua.Server.Tests
 
             // Item A: Triggering item. Ready to publish, Ready to trigger.
             var itemAMock = new Mock<IMonitoredItem>();
+            itemAMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             itemAMock.Setup(i => i.Id).Returns(1);
             itemAMock.Setup(i => i.IsReadyToPublish).Returns(true);
             itemAMock.SetupProperty(i => i.IsReadyToTrigger, true); // Use property behavior so it can be set to false by Subscription
@@ -837,6 +841,7 @@ namespace Opc.Ua.Server.Tests
             // Item B: Triggered item. Initially NOT ready to publish.
             // B must implement ITriggeredMonitoredItem as well.
             var itemBMock = new Mock<IMonitoredItem>();
+            itemBMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             itemBMock.As<ITriggeredMonitoredItem>();
             Mock<ITriggeredMonitoredItem> triggeredItemB = itemBMock.As<ITriggeredMonitoredItem>();
 
@@ -888,6 +893,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var subscription = new Subscription(m_serverMock.Object, m_sessionMock.Object, 1, 100, 1000, 10, 1, 0, true, 2);
             var itemMock = new Mock<IDataChangeMonitoredItem2>();
+            itemMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
 
             var values = new List<MonitoredItemNotification>
             {
@@ -3094,6 +3100,7 @@ namespace Opc.Ua.Server.Tests
             List<uint> publishLimits)
         {
             var item = new Mock<IEventMonitoredItem>();
+            item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             var pending = new Queue<EventFieldList>();
             for (int index = 0; index < notificationCount; index++)
             {
@@ -3133,6 +3140,7 @@ namespace Opc.Ua.Server.Tests
             List<uint> publishLimits)
         {
             var item = new Mock<IDataChangeMonitoredItem>();
+            item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             var pending = new Queue<MonitoredItemNotification>();
             for (int index = 0; index < notificationCount; index++)
             {
