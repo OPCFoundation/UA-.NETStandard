@@ -316,7 +316,19 @@ namespace Opc.Ua.Redundancy.Server
                     messages.Add(message);
                 }
             }
-            messages.Sort(static (left, right) => left.SequenceNumber.CompareTo(right.SequenceNumber));
+            // oldest first: sequence numbers roll over (Part 4 7.38), so order them by their
+            // distance below the next sequence number rather than by value.
+            uint nextSequenceNumber = state.NextSequenceNumber;
+            if (nextSequenceNumber != 0)
+            {
+                messages.Sort((left, right) =>
+                    unchecked(nextSequenceNumber - right.SequenceNumber).CompareTo(
+                        unchecked(nextSequenceNumber - left.SequenceNumber)));
+            }
+            else
+            {
+                messages.Sort(static (left, right) => left.SequenceNumber.CompareTo(right.SequenceNumber));
+            }
             state.SentMessages = [.. messages];
             return state;
         }

@@ -1106,6 +1106,30 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// Retained messages are restored oldest first across a sequence number rollover,
+        /// so the sent/unsent boundary derived from their order stays correct.
+        /// </summary>
+        [Test]
+        public async Task RetransmissionMessagesAreRestoredOldestFirstAcrossRolloverAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+
+            primary.StoreRetransmissionState(
+                705,
+                3,
+                [NewNotification(uint.MaxValue), NewNotification(1), NewNotification(2)]);
+            await primary.FlushAsync().ConfigureAwait(false);
+            SubscriptionRetransmissionState? state = await backup.LoadRetransmissionStateAsync(705).ConfigureAwait(false);
+
+            Assert.That(state, Is.Not.Null);
+            Assert.That(
+                state!.SentMessages.Memory.ToArray().Select(m => m.SequenceNumber),
+                Is.EqualTo(new uint[] { uint.MaxValue, 1, 2 }));
+        }
+
+        /// <summary>
         /// Verifies that acknowledging a retransmission evicts its mirrored notification.
         /// </summary>
         [Test]
