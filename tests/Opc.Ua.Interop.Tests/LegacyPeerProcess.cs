@@ -69,7 +69,7 @@ namespace Opc.Ua.Interop.Tests
         private readonly List<string> m_lines = [];
         private readonly TaskCompletionSource<int> m_exited =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
 
         private LegacyPeerProcess(Process process)
         {

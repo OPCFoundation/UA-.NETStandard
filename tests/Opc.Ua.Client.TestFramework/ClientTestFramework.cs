@@ -300,10 +300,7 @@ namespace Opc.Ua.Client.TestFramework
             string customUrl = ExternalServerUrl;
             if (customUrl != null)
             {
-                if (m_logger.IsEnabled(LogLevel.Information))
-                {
-                    m_logger.LogInformation("Using the external Server Url {Url}", customUrl);
-                }
+                m_logger.UsingExternalServerUrl(customUrl);
             }
             // The parameters are read from the .runsettings file
             else if (SupportsExternalServerUrl)
@@ -311,10 +308,7 @@ namespace Opc.Ua.Client.TestFramework
                 customUrl = TestContext.Parameters["ServerUrl"];
                 if (customUrl?.StartsWith(UriScheme, StringComparison.Ordinal) == true)
                 {
-                    if (m_logger.IsEnabled(LogLevel.Information))
-                    {
-                        m_logger.LogInformation("Using the external Server Url {Url}", customUrl);
-                    }
+                    m_logger.UsingExternalServerUrl(customUrl);
 
                     // load custom test sets
                     TestSetStatic = ReadCustomTestSet("TestSetStatic");
@@ -896,5 +890,14 @@ namespace Opc.Ua.Client.TestFramework
             }
             return list;
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages of <see cref="ClientTestFramework"/>.
+    /// </summary>
+    internal static partial class ClientTestFrameworkLog
+    {
+        [LoggerMessage(Level = LogLevel.Information, Message = "Using the external Server Url {Url}")]
+        public static partial void UsingExternalServerUrl(this ILogger logger, string url);
     }
 }
