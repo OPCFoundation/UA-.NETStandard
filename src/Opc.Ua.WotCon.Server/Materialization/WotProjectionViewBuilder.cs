@@ -657,7 +657,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private static byte[] Sha256(byte[] content)
         {
             // TODO: SHA256.HashData is only available on .NET 5+; this project
-            // also targets net472/net48/netstandard2.x, where the instance
+            // also targets net48, where the instance
             // ComputeHash API is the portable equivalent.
 #pragma warning disable CA1850
             using var sha = SHA256.Create();

@@ -328,7 +328,7 @@ namespace Opc.Ua
             m_writer.WriteStringValue(value.ToBase64());
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         /// <inheritdoc/>
         public void WriteByteString(string? fieldName, ReadOnlySpan<byte> value)
         {
@@ -1151,7 +1151,7 @@ namespace Opc.Ua
             }
             else
             {
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
                 Span<char> valueString = stackalloc char[DateTimeHelper.DateTimeRoundTripKindLength];
                 DateTimeHelper.ConvertUniversalTimeToString((DateTime)value, valueString, out int charsWritten);
                 m_writer.WriteStringValue(valueString[..charsWritten]);
@@ -1838,7 +1838,7 @@ namespace Opc.Ua
                 return;
             }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
             // Avoid the per node id string allocation for the common cases that
             // fit into a stack buffer (numeric/guid/string in the default
             // namespace or any non namespace-uri form).
@@ -2031,6 +2031,12 @@ namespace Opc.Ua
         private void WriteEncodeable<T>(T value)
             where T : IEncodeable
         {
+            // Part 6 5.4.5: a NULL array element is the JSON literal null.
+            if (value is null)
+            {
+                m_writer.WriteNullValue();
+                return;
+            }
             StartObject();
             value.Encode(this);
             EndObject();
@@ -2042,6 +2048,12 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         private void WriteEncodeableAsExtensionObject<T>(T value) where T : IEncodeable
         {
+            // Part 6 5.4.5: a NULL array element is the JSON literal null.
+            if (value is null)
+            {
+                m_writer.WriteNullValue();
+                return;
+            }
             StartObject();
             // Disregard RawDataMode as per 5.4.1 (encoding of Structure or Variant)
             if (CanWriteUaTypeId(value.TypeId))

@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETFRAMEWORK || NET_STANDARD_TESTS
+#if NETFRAMEWORK
 using System;
 using System.Net;
 using System.Net.Sockets;

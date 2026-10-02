@@ -434,7 +434,7 @@ binding registered via `AddCustomTransport<TListener, TChannel>()`.
 The package targets net8.0+ only (the ASP.NET Core `ConnectionContext`
 API surface used to bridge `Socket`-like semantics — `LocalEndPoint`,
 `RemoteEndPoint`, `ConnectionClosed` — is not consistently available
-on older TFMs). Consumers on net472 / netstandard2.x continue to use
+on older TFMs). Consumers on net48 continue to use
 the raw-socket default.
 
 ## Implementing a custom byte transport

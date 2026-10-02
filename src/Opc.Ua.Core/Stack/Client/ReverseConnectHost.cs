@@ -29,7 +29,9 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Threading;
+using System.Threading.RateLimiting;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
@@ -218,6 +220,14 @@ namespace Opc.Ua
 
                 try
                 {
+                    // Anyone who can reach the port can open connections here
+                    // before sending a ReverseHello, so bound how many may be
+                    // pending and how fast they may arrive, as a server
+                    // listener does by default. Handed-off connections leave
+                    // the listener and do not count against the limit.
+                    m_connectionRateLimiter ??= new TokenBucketRateLimiterAdapter(
+                        kDefaultConnectionsPerSecond,
+                        kDefaultConnectionBurst);
                     var settings = new TransportListenerSettings
                     {
                         Descriptions = null,
@@ -227,7 +237,8 @@ namespace Opc.Ua
                         Factory = null,
                         ServerCertificates = m_serverCertificates,
                         ReverseConnectListener = true,
-                        MaxChannelCount = 0
+                        MaxChannelCount = kDefaultMaxChannelCount,
+                        ConnectionRateLimiter = m_connectionRateLimiter
                     };
 
                     m_logger.ReverseConnectHostLogMessage0(Url);
@@ -420,6 +431,9 @@ namespace Opc.Ua
                         await listener.DisposeAsync().ConfigureAwait(false);
                     }
                 }
+
+                m_connectionRateLimiter?.Dispose();
+                m_connectionRateLimiter = null;
             }
             finally
             {
@@ -427,7 +441,72 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// The most connections the reverse connect listener keeps pending
+        /// before they sent their ReverseHello and were handed off; the
+        /// default of a server's listener.
+        /// </summary>
+        internal const int kDefaultMaxChannelCount = 1000;
+
+        /// <summary>
+        /// The sustained rate of connections the reverse connect listener
+        /// admits; the default of a server's listener.
+        /// </summary>
+        internal const int kDefaultConnectionsPerSecond = 500;
+
+        /// <summary>
+        /// The burst of connections the reverse connect listener admits; the
+        /// default of a server's listener.
+        /// </summary>
+        internal const int kDefaultConnectionBurst = 1000;
+
+        /// <summary>
+        /// Admits connections at the rate of a token bucket.
+        /// </summary>
+        private sealed class TokenBucketRateLimiterAdapter : IConnectionRateLimiter
+        {
+            public TokenBucketRateLimiterAdapter(int connectionsPerSecond, int burst)
+            {
+                m_limiter = new TokenBucketRateLimiter(
+                    new TokenBucketRateLimiterOptions
+                    {
+                        TokenLimit = burst,
+                        TokensPerPeriod = connectionsPerSecond,
+                        ReplenishmentPeriod = TimeSpan.FromSeconds(1),
+                        QueueLimit = 0,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        AutoReplenishment = true
+                    });
+            }
+
+            /// <inheritdoc/>
+            public bool TryAdmitConnection(EndPoint? remoteEndPoint, out TimeSpan? retryAfter)
+            {
+                // an acquired token-bucket lease does not return its token.
+                using RateLimitLease lease = m_limiter.AttemptAcquire(1);
+                if (lease.IsAcquired)
+                {
+                    retryAfter = null;
+                    return true;
+                }
+
+                retryAfter = lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan value)
+                    ? value
+                    : null;
+                return false;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                m_limiter.Dispose();
+            }
+
+            private readonly TokenBucketRateLimiter m_limiter;
+        }
+
         private ITransportListener? m_listener;
+        private TokenBucketRateLimiterAdapter? m_connectionRateLimiter;
         private ConnectionWaitingHandlerAsync? m_onConnectionWaiting;
         private EventHandler<ConnectionStatusEventArgs>? m_onConnectionStatusChanged;
         private ICertificateRegistry? m_serverCertificates;

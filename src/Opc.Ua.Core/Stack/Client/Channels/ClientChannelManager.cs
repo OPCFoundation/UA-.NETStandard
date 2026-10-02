@@ -426,20 +426,23 @@ namespace Opc.Ua
                 Server = ToChannelKey(token.ServerInitializationVector,
                     token.ServerEncryptingKey, token.ServerSigningKey)
             });
+        }
 
-            static ChannelKey? ToChannelKey(byte[]? iv, byte[]? key, byte[]? sk)
+        /// <summary>
+        /// Creates the diagnostic key record of one side of a token, or null for a token
+        /// without complete keys. Sign-only channels of policies that derive no encrypting
+        /// key and IV (OPC 10000-6 6.8.1) still have a signing key and get a record with an
+        /// empty key and IV.
+        /// </summary>
+        internal static ChannelKey? ToChannelKey(byte[]? iv, byte[]? key, byte[]? sk)
+        {
+            int ivLength = iv?.Length ?? 0;
+            int keyLength = key?.Length ?? 0;
+            if (sk == null || sk.Length == 0 || (ivLength == 0) != (keyLength == 0))
             {
-                if (iv == null ||
-                    key == null ||
-                    sk == null ||
-                    iv.Length == 0 ||
-                    key.Length == 0 ||
-                    sk.Length == 0)
-                {
-                    return null;
-                }
-                return new ChannelKey(iv, key, sk.Length);
+                return null;
             }
+            return new ChannelKey(iv ?? [], key ?? [], sk.Length);
         }
 
         /// <summary>
@@ -953,7 +956,7 @@ namespace Opc.Ua
 
         private TimeSpan GetReconnectPolicyDelay(int attempt)
         {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return ReconnectPolicy.GetDelay(attempt, budget: null);
 #else
             return ChannelReconnectPolicyBudget.GetDelay(

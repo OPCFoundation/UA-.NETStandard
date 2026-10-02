@@ -1019,7 +1019,7 @@ namespace Opc.Ua
                         return false;
                     }
 
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
                     TimeSpan delay = OwnerManager.ReconnectPolicy.GetDelay(attempt, budget);
 #else
                     TimeSpan delay = ChannelReconnectPolicyBudget.GetDelay(
@@ -1750,7 +1750,7 @@ namespace Opc.Ua
             {
                 timeout = timeoutPolicy.ParticipantTimeout;
             }
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             else
             {
                 timeout = policy.ParticipantTimeout;
@@ -1773,7 +1773,7 @@ namespace Opc.Ua
             {
                 return aware.RecreateAsync(ct);
             }
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return participant.RecreateAsync(ct);
 #else
             return new ValueTask();

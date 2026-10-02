@@ -40,9 +40,7 @@ using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Runtime.InteropServices;
-#endif
 
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -759,12 +757,10 @@ namespace Opc.Ua
 
                                 X509KeyStorageFlags defaultStorageSet
                                     = X509KeyStorageFlags.DefaultKeySet;
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
                                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                                 {
                                     defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
                                 }
-#endif
                                 // By default keys are not persisted
                                 defaultStorageSet |= X509KeyStorageFlags.Exportable;
 
@@ -1625,11 +1621,6 @@ namespace Opc.Ua
                         directory.FullName,
                         UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                 }
-#elif NETSTANDARD2_1
-                else
-                {
-                    UnixFileModeShim.SetMode(directory.FullName, UnixFileModeShim.UserReadWriteExecute);
-                }
 #endif
             }
             catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(directory))
@@ -1650,11 +1641,6 @@ namespace Opc.Ua
                 else
                 {
                     File.SetUnixFileMode(file.FullName, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-                }
-#elif NETSTANDARD2_1
-                else
-                {
-                    UnixFileModeShim.SetMode(file.FullName, UnixFileModeShim.UserReadWrite);
                 }
 #endif
             }
@@ -1683,7 +1669,7 @@ namespace Opc.Ua
                     ? HasPrivateWindowsAccess(directory.GetAccessControl(), isDirectory: true)
                     : HasPrivateWindowsAccess(((FileInfo)path).GetAccessControl(), isDirectory: false);
             }
-            // netstandard2.1 cannot read Unix modes portably (the stat layout is platform
+            // .NET Framework cannot read Unix modes portably (the stat layout is platform
             // specific), so it fails closed. chmod only fails for a caller that neither owns
             // the path nor is root, and such a caller could not use a 0700 path anyway.
             return false;
@@ -1778,7 +1764,7 @@ namespace Opc.Ua
             {
                 using (var stream = new FileStream(temporaryFile, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     await stream.WriteAsync(contents.AsMemory(), ct).ConfigureAwait(false);
 #else
                     await stream.WriteAsync(contents, 0, contents.Length, ct).ConfigureAwait(false);

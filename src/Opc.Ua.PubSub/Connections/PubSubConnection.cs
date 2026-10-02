@@ -678,7 +678,7 @@ namespace Opc.Ua.PubSub.Connections
         private static int NextJitterMilliseconds(int minInclusive, int maxExclusive)
         {
             // Down-level-safe replacement for RandomNumberGenerator.GetInt32, which is
-            // unavailable on net472/net48/netstandard2.0. Used only for non-deterministic
+            // unavailable on net48. Used only for non-deterministic
             // discovery probe jitter (Part 14 §7.2.4.6.12.2).
             uint range = (uint)(maxExclusive - minInclusive);
             byte[] buffer = new byte[4];

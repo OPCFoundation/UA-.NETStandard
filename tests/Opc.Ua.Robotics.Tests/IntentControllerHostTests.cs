@@ -1001,7 +1001,11 @@ namespace Opc.Ua.Robotics.Tests
             host.SubmitIntent(m_context, null, Move("c"));
             await WaitForTerminalAsync("c").ConfigureAwait(false);
 
-            Assert.That(RemovedIntentIds(removed), Does.Contain("a"));
+            // "c" turns terminal while it is still the pump's current entry, which
+            // pruning skips; "a" is pruned once the pump releases "c", so wait for it.
+            await WaitAsync(
+                () => RemovedIntentIds(removed).Contains("a"),
+                "the oldest terminal operation to be pruned").ConfigureAwait(false);
 
             host.BeforeExecuteAsync = (intentId, _) =>
             {

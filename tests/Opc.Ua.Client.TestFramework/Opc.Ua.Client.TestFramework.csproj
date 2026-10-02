@@ -11,9 +11,6 @@
     <RootNamespace>Opc.Ua.Client.TestFramework</RootNamespace>
     <Nullable>annotations</Nullable>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
-    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
     <PackageReference Include="Moq" />
