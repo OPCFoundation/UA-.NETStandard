@@ -3552,6 +3552,17 @@ namespace Opc.Ua.Server
                     context.SessionId);
             }
 
+            // An ActivateSession runs without a Session context, so record which Session it
+            // targets: closing that Session aborts the activation like any other of its
+            // outstanding requests (OPC 10000-4 5.7.2.1) instead of waiting for it to finish.
+            // A close that marked the Session closing before this registration is seen by the
+            // activation itself once it holds the Session's activation gate.
+            if (requestType == RequestType.ActivateSession && context.Session == null)
+            {
+                context.ActivationTargetSessionId = serverInternal.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken)?.Id ?? default;
+            }
+
             // Hand the validated request over to its execution scope. The context owns the scope
             // from here, so disposing the context completes the request.
             context.AttachRequestScope(requestManager.EnterRequestScope(context));

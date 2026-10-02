@@ -194,6 +194,61 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Closing a Session aborts an in-flight ActivateSession of that Session with
+        /// Bad_SessionClosed, so the close does not wait on an authenticator that waits for
+        /// the request to be cancelled (OPC 10000-4 5.7.2.1).
+        /// </summary>
+        [Test]
+        public async Task CloseSessionAbortsAnInFlightActivateSessionAsync()
+        {
+            var fixture = new ServerFixture<AdmissionServer>(t => new AdmissionServer(t));
+            AdmissionServer server = await fixture.StartAsync().ConfigureAwait(false);
+            using var lifetime = new RequestLifetime();
+            try
+            {
+                (RequestHeader requestHeader, SecureChannelContext secureChannelContext) =
+                    await server.CreateAndActivateSessionAsync("ActivationClose").ConfigureAwait(false);
+                var serverInternal = (ServerInternalData)server.CurrentInstance;
+                var sessionManager = (ClosingWindowSessionManager)serverInternal.SessionManager;
+                ISession? session = sessionManager.GetSession(requestHeader.AuthenticationToken);
+                Assert.That(session, Is.Not.Null);
+
+                sessionManager.BlockAuthentication = true;
+                Task<ActivateSessionResponse> activation = server.ActivateSessionAsync(
+                    secureChannelContext,
+                    new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
+                    null,
+                    [],
+                    [],
+                    default,
+                    null,
+                    lifetime).AsTask();
+                Task entered = sessionManager.AuthenticationEntered.Task;
+                Assert.That(
+                    await Task.WhenAny(entered, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false),
+                    Is.SameAs(entered),
+                    "The activation must reach the authenticator.");
+
+                Task close = serverInternal.CloseSessionAsync(null!, session!.Id, true).AsTask();
+                Assert.That(
+                    await Task.WhenAny(close, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false),
+                    Is.SameAs(close),
+                    "The close must not wait for the in-flight activation.");
+                await close.ConfigureAwait(false);
+
+                Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+                Assert.That(() => activation, Throws.Exception);
+                Assert.That(sessionManager.GetSession(requestHeader.AuthenticationToken), Is.Null);
+            }
+            finally
+            {
+                // releases a blocked authenticator when the close did not abort it.
+                lifetime.TryCancel(StatusCodes.BadShutdown);
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// A CreateSession rejected by request validation is one rejected session
         /// establishment request, counted once in each counter (OPC 10000-5 12.9).
         /// </summary>
@@ -270,6 +325,36 @@ namespace Opc.Ua.Server.Tests
             }
 
             public bool MarkClosingAfterAdmission { get; set; }
+
+            public bool BlockAuthentication { get; set; }
+
+            public TaskCompletionSource<bool> AuthenticationEntered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            protected override async ValueTask<(
+                IUserIdentity? Identity,
+                IUserIdentity? EffectiveIdentity,
+                ServiceResult? Error)> AuthenticateUserIdentityAsync(
+                    ISession session,
+                    IUserIdentityTokenHandler newIdentity,
+                    UserTokenPolicy? userTokenPolicy,
+                    EndpointDescription endpointDescription,
+                    CancellationToken cancellationToken)
+            {
+                if (BlockAuthentication)
+                {
+                    // an authenticator that only finishes when the request is cancelled.
+                    AuthenticationEntered.TrySetResult(true);
+                    await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                }
+
+                return await base.AuthenticateUserIdentityAsync(
+                    session,
+                    newIdentity,
+                    userTokenPolicy,
+                    endpointDescription,
+                    cancellationToken).ConfigureAwait(false);
+            }
 
             protected override void ReevaluateIdentityIfStale(
                 ISession session,
