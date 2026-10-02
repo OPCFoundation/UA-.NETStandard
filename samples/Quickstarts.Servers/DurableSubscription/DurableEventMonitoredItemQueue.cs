@@ -304,7 +304,7 @@ namespace Quickstarts.Servers
             for (int i = events.Count - 1; i >= 0 && remaining > 0; i--, remaining--)
             {
                 if (events[i] is EventFieldList queuedEvent &&
-                    ReferenceEquals(instance, queuedEvent.Handle))
+                    EventMonitoredItemQueue.IsEventRaisedFor(queuedEvent, instance))
                 {
                     return true;
                 }

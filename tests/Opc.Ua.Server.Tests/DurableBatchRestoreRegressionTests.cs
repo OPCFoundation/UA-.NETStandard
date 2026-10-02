@@ -140,6 +140,24 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A trailing filtered-retain event is queued with a wrapper of the event instance as
+        /// its handle; the duplicate check must still match the instance.
+        /// </summary>
+        [Test]
+        public void DuplicateCheckMatchesWrappedFilteredRetainEvent()
+        {
+            var persistor = new Mock<IBatchPersistor>();
+            using var queue = new DurableEventMonitoredItemQueue(
+                true, 1, persistor.Object, NUnitTelemetryContext.Create());
+            queue.SetQueueSize(10, false);
+            IFilterTarget instance = new Mock<IFilterTarget>().Object;
+            queue.Enqueue(new EventFieldList { ClientHandle = 1, Handle = new FilteredRetainTarget(instance) });
+
+            Assert.That(queue.IsEventContainedInQueue(instance), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(new Mock<IFilterTarget>().Object), Is.False);
+        }
+
+        /// <summary>
         /// Verifies that an event queue restored from its stored form reports and delivers
         /// every stored event once, in order.
         /// </summary>

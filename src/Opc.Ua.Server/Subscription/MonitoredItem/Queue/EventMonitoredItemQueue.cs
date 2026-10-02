@@ -128,16 +128,33 @@ namespace Opc.Ua.Server
 
             for (int i = m_events.Count - 1; i >= lowestIndex; i--)
             {
-                // a trailing filtered retain event is queued with a wrapper as its handle.
                 if (m_events[i] is EventFieldList processedEvent &&
-                    (ReferenceEquals(instance, processedEvent.Handle) ||
-                    (processedEvent.Handle is FilteredRetainTarget wrapper &&
-                        ReferenceEquals(instance, wrapper.Target))))
+                    IsEventRaisedFor(processedEvent, instance))
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Returns true when the queued event was raised for <paramref name="instance"/>, for
+        /// the duplicate check of <see cref="IEventMonitoredItemQueue.IsEventContainedInQueue"/>
+        /// implementations. A trailing event of a condition that left the filter is queued
+        /// with a wrapper of the instance as its handle, which is unwrapped here.
+        /// </summary>
+        /// <param name="queuedEvent">The queued event.</param>
+        /// <param name="instance">The event instance being queued.</param>
+        public static bool IsEventRaisedFor(EventFieldList queuedEvent, IFilterTarget instance)
+        {
+            if (queuedEvent == null)
+            {
+                return false;
+            }
+
+            object? handle = queuedEvent.Handle;
+            return ReferenceEquals(instance, handle) ||
+                (handle is FilteredRetainTarget wrapper && ReferenceEquals(instance, wrapper.Target));
         }
 
         /// <inheritdoc/>
