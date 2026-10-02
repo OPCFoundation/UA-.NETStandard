@@ -585,6 +585,73 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void CancelRequestsDoesNotCountOrReportARequestAnotherCancellationClaimed()
+        {
+            // A request that a timeout (or a Session close) already cancelled was not cancelled
+            // by the Cancel call: it is neither counted in CancelCount nor reported with
+            // Bad_RequestCancelledByClient, and keeps the status it was cancelled with.
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            using var claimedLifetime = new RequestLifetime();
+            using var openLifetime = new RequestLifetime();
+            var claimed = new OperationContext(
+                new RequestHeader { RequestHandle = 42 }, null, RequestType.Read, claimedLifetime, session.Object);
+            var open = new OperationContext(
+                new RequestHeader { RequestHandle = 42 }, null, RequestType.Browse, openLifetime, session.Object);
+            m_requestManager.RequestReceived(claimed);
+            m_requestManager.RequestReceived(open);
+            Assert.That(claimedLifetime.TryCancel(StatusCodes.BadTimeout), Is.True);
+
+            var reported = new System.Collections.Generic.List<(uint RequestId, StatusCode Status)>();
+            m_requestManager.RequestCancelled += (_, reqId, status) => reported.Add((reqId, status));
+
+            m_requestManager.CancelRequests(claimed.SessionId, 42, out uint cancelCount);
+
+            Assert.That(cancelCount, Is.EqualTo(1));
+            Assert.That(reported, Is.EqualTo(new[] { (open.RequestId, (StatusCode)StatusCodes.BadRequestCancelledByClient) }));
+            Assert.That(claimed.OperationStatus.Code, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(open.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+        }
+
+        [Test]
+        public void TimerDoesNotReportTimeoutForARequestAnotherCancellationClaimed()
+        {
+            // The expiry timer only reports Bad_Timeout for requests it cancelled itself; one
+            // the client already cancelled keeps Bad_RequestCancelledByClient.
+            var timeProvider = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UtcNow);
+            using var requestManager = new RequestManager(m_mockServer.Object, timeProvider);
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            using var claimedLifetime = new RequestLifetime();
+            using var expiredLifetime = new RequestLifetime();
+            var claimed = new OperationContext(
+                new RequestHeader { RequestHandle = 1, TimeoutHint = 100 },
+                null,
+                RequestType.Read,
+                claimedLifetime,
+                session.Object);
+            var expired = new OperationContext(
+                new RequestHeader { RequestHandle = 2, TimeoutHint = 100 },
+                null,
+                RequestType.Read,
+                expiredLifetime,
+                session.Object);
+            requestManager.RequestReceived(claimed);
+            requestManager.RequestReceived(expired);
+            Assert.That(claimedLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient), Is.True);
+
+            var reported = new System.Collections.Generic.List<(uint RequestId, StatusCode Status)>();
+            requestManager.RequestCancelled += (_, reqId, status) => reported.Add((reqId, status));
+
+            // the timer callback runs inline on Advance.
+            timeProvider.Advance(TimeSpan.FromSeconds(2));
+
+            Assert.That(reported, Is.EqualTo(new[] { (expired.RequestId, (StatusCode)StatusCodes.BadTimeout) }));
+            Assert.That(claimed.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+            Assert.That(expired.OperationStatus.Code, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        [Test]
         public void DisposeCancelsPendingRequests()
         {
             // Arrange
