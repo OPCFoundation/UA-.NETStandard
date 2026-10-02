@@ -250,9 +250,11 @@ namespace Opc.Ua.Robotics.Client
             LoadTypeClient? flangeLoad = await proxy.GetFlangeLoadAsync(Telemetry, cancellationToken)
                 .ConfigureAwait(false);
             NodeId category = await ResolveChildAsync(
-                motionDevice, RoboticsBrowseNames.MotionDeviceCategory, cancellationToken).ConfigureAwait(false);
+                motionDevice, MemberPath(RoboticsBrowseNames.MotionDeviceCategory), cancellationToken)
+                .ConfigureAwait(false);
             NodeId speed = await ResolveChildAsync(
-                motionDevice, RoboticsBrowseNames.SpeedOverride, cancellationToken).ConfigureAwait(false);
+                motionDevice, ParameterPath(RoboticsBrowseNames.SpeedOverride), cancellationToken)
+                .ConfigureAwait(false);
             return new MotionDeviceSnapshot
             {
                 Identification = await ReadIdentificationAsync(motionDevice, cancellationToken).ConfigureAwait(false),
@@ -283,7 +285,7 @@ namespace Opc.Ua.Robotics.Client
             LoadTypeClient? load = await proxy.GetAdditionalLoadAsync(Telemetry, cancellationToken)
                 .ConfigureAwait(false);
             NodeId motionProfile = await ResolveChildAsync(
-                axis, RoboticsBrowseNames.MotionProfile, cancellationToken).ConfigureAwait(false);
+                axis, MemberPath(RoboticsBrowseNames.MotionProfile), cancellationToken).ConfigureAwait(false);
             return new AxisSnapshot
             {
                 Identification = await ReadIdentificationAsync(axis, cancellationToken).ConfigureAwait(false),
@@ -310,11 +312,14 @@ namespace Opc.Ua.Robotics.Client
             {
                 Identification = await ReadIdentificationAsync(safetyState, cancellationToken).ConfigureAwait(false),
                 EmergencyStop = await ReadChildValueAsync(
-                    safetyState, RoboticsBrowseNames.EmergencyStop, cancellationToken).ConfigureAwait(false),
+                    safetyState, ParameterPath(RoboticsBrowseNames.EmergencyStop), cancellationToken)
+                    .ConfigureAwait(false),
                 OperationalMode = await ReadChildValueAsync(
-                    safetyState, RoboticsBrowseNames.OperationalMode, cancellationToken).ConfigureAwait(false),
+                    safetyState, ParameterPath(RoboticsBrowseNames.OperationalMode), cancellationToken)
+                    .ConfigureAwait(false),
                 ProtectiveStop = await ReadChildValueAsync(
-                    safetyState, RoboticsBrowseNames.ProtectiveStop, cancellationToken).ConfigureAwait(false),
+                    safetyState, ParameterPath(RoboticsBrowseNames.ProtectiveStop), cancellationToken)
+                    .ConfigureAwait(false),
                 EmergencyStopFunctions = emergency == null
                     ? []
                     : await ReadSafetyFunctionsAsync(emergency.ObjectId, cancellationToken).ConfigureAwait(false),
@@ -340,11 +345,14 @@ namespace Opc.Ua.Robotics.Client
             {
                 Identification = await ReadIdentificationAsync(taskControl, cancellationToken).ConfigureAwait(false),
                 ExecutionMode = await ReadChildValueAsync(
-                    taskControl, RoboticsBrowseNames.ExecutionMode, cancellationToken).ConfigureAwait(false),
+                    taskControl, ParameterPath(RoboticsBrowseNames.ExecutionMode), cancellationToken)
+                    .ConfigureAwait(false),
                 TaskProgramLoaded = await ReadChildValueAsync(
-                    taskControl, RoboticsBrowseNames.TaskProgramLoaded, cancellationToken).ConfigureAwait(false),
+                    taskControl, ParameterPath(RoboticsBrowseNames.TaskProgramLoaded), cancellationToken)
+                    .ConfigureAwait(false),
                 TaskProgramName = await ReadChildValueAsync(
-                    taskControl, RoboticsBrowseNames.TaskProgramName, cancellationToken).ConfigureAwait(false),
+                    taskControl, ParameterPath(RoboticsBrowseNames.TaskProgramName), cancellationToken)
+                    .ConfigureAwait(false),
                 TaskControlOperationId = operation?.ObjectId ?? NodeId.Null,
                 TaskModuleIds = modules == null
                     ? []
@@ -354,7 +362,7 @@ namespace Opc.Ua.Robotics.Client
 
         private async Task<LoadSnapshot> ReadLoadAsync(NodeId load, CancellationToken cancellationToken)
         {
-            NodeId mass = await ResolveChildAsync(load, RoboticsBrowseNames.Mass, cancellationToken)
+            NodeId mass = await ResolveChildAsync(load, MemberPath(RoboticsBrowseNames.Mass), cancellationToken)
                 .ConfigureAwait(false);
             return new LoadSnapshot
             {
@@ -362,8 +370,8 @@ namespace Opc.Ua.Robotics.Client
                 Mass = mass.IsNull ? DataValue.Null : await Session.ReadValueAsync(mass, cancellationToken)
                     .ConfigureAwait(false),
                 CenterOfMass = await ReadChildValueAsync(
-                    load, RoboticsBrowseNames.CenterOfMass, cancellationToken).ConfigureAwait(false),
-                Inertia = await ReadChildValueAsync(load, RoboticsBrowseNames.Inertia, cancellationToken)
+                    load, MemberPath(RoboticsBrowseNames.CenterOfMass), cancellationToken).ConfigureAwait(false),
+                Inertia = await ReadChildValueAsync(load, MemberPath(RoboticsBrowseNames.Inertia), cancellationToken)
                     .ConfigureAwait(false)
             };
         }
@@ -461,7 +469,7 @@ namespace Opc.Ua.Robotics.Client
             return new GearSnapshot
             {
                 Identification = await ReadIdentificationAsync(gear, cancellationToken).ConfigureAwait(false),
-                Pitch = await ReadChildValueAsync(gear, RoboticsBrowseNames.Pitch, cancellationToken)
+                Pitch = await ReadChildValueAsync(gear, MemberPath(RoboticsBrowseNames.Pitch), cancellationToken)
                     .ConfigureAwait(false)
             };
         }
@@ -481,11 +489,12 @@ namespace Opc.Ua.Robotics.Client
             return new TaskModuleSnapshot
             {
                 NodeId = taskModule,
-                Name = await ReadChildStringAsync(taskModule, RoboticsBrowseNames.Name, cancellationToken)
+                Name = await ReadChildStringAsync(taskModule, MemberPath(RoboticsBrowseNames.Name), cancellationToken)
                     .ConfigureAwait(false),
-                Version = await ReadChildStringAsync(taskModule, "Version", cancellationToken).ConfigureAwait(false),
+                Version = await ReadChildStringAsync(
+                    taskModule, MemberPath(RoboticsBrowseNames.Version), cancellationToken).ConfigureAwait(false),
                 IsReferenced = await ReadChildValueAsync(
-                    taskModule, RoboticsBrowseNames.IsReferenced, cancellationToken).ConfigureAwait(false)
+                    taskModule, MemberPath(RoboticsBrowseNames.IsReferenced), cancellationToken).ConfigureAwait(false)
             };
         }
 
@@ -517,16 +526,14 @@ namespace Opc.Ua.Robotics.Client
             IStreamingSubscription streaming,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            ArrayOf<NodeId> nodes = await ResolveChildrenAsync(
-                axis,
-                [
-                    RoboticsBrowseNames.ActualPosition,
-                    RoboticsBrowseNames.ActualSpeed,
-                    RoboticsBrowseNames.ActualAcceleration
-                ],
-                cancellationToken).ConfigureAwait(false);
+            List<NodeId> nodes = Resolved(await ResolveChildrenAsync(axis, AxisStatePaths(), cancellationToken)
+                .ConfigureAwait(false));
+            if (nodes.Count == 0)
+            {
+                yield break;
+            }
             await foreach (DataValueChange _ in streaming.SubscribeDataChangesAsync(
-                nodes.ToList(), null, cancellationToken).ConfigureAwait(false))
+                nodes, null, cancellationToken).ConfigureAwait(false))
             {
                 yield return await ReadAxisStateAsync(axis, cancellationToken).ConfigureAwait(false);
             }
@@ -540,16 +547,20 @@ namespace Opc.Ua.Robotics.Client
             IStreamingSubscription streaming,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            ArrayOf<NodeId> nodes = await ResolveChildrenAsync(
+            List<NodeId> nodes = Resolved(await ResolveChildrenAsync(
                 safetyState,
                 [
-                    RoboticsBrowseNames.EmergencyStop,
-                    RoboticsBrowseNames.OperationalMode,
-                    RoboticsBrowseNames.ProtectiveStop
+                    ParameterPath(RoboticsBrowseNames.EmergencyStop),
+                    ParameterPath(RoboticsBrowseNames.OperationalMode),
+                    ParameterPath(RoboticsBrowseNames.ProtectiveStop)
                 ],
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken).ConfigureAwait(false));
+            if (nodes.Count == 0)
+            {
+                yield break;
+            }
             await foreach (DataValueChange _ in streaming.SubscribeDataChangesAsync(
-                nodes.ToList(), null, cancellationToken).ConfigureAwait(false))
+                nodes, null, cancellationToken).ConfigureAwait(false))
             {
                 yield return await ReadSafetyStateAsync(safetyState, cancellationToken).ConfigureAwait(false);
             }
@@ -585,14 +596,8 @@ namespace Opc.Ua.Robotics.Client
             NodeId axis,
             CancellationToken cancellationToken)
         {
-            ArrayOf<NodeId> nodes = await ResolveChildrenAsync(
-                axis,
-                [
-                    RoboticsBrowseNames.ActualPosition,
-                    RoboticsBrowseNames.ActualSpeed,
-                    RoboticsBrowseNames.ActualAcceleration
-                ],
-                cancellationToken).ConfigureAwait(false);
+            ArrayOf<NodeId> nodes = await ResolveChildrenAsync(axis, AxisStatePaths(), cancellationToken)
+                .ConfigureAwait(false);
             ArrayOf<DataValue> values = await ReadValuesAsync(nodes.ToList(), cancellationToken)
                 .ConfigureAwait(false);
             return new AxisStateSnapshot
@@ -617,11 +622,11 @@ namespace Opc.Ua.Robotics.Client
                 {
                     NodeId = functionId,
                     Name = await ReadChildStringAsync(
-                        functionId, RoboticsBrowseNames.Name, cancellationToken).ConfigureAwait(false),
+                        functionId, MemberPath(RoboticsBrowseNames.Name), cancellationToken).ConfigureAwait(false),
                     Active = await ReadChildValueAsync(
-                        functionId, RoboticsBrowseNames.Active, cancellationToken).ConfigureAwait(false),
+                        functionId, MemberPath(RoboticsBrowseNames.Active), cancellationToken).ConfigureAwait(false),
                     Enabled = await ReadChildValueAsync(
-                        functionId, RoboticsBrowseNames.Enabled, cancellationToken).ConfigureAwait(false)
+                        functionId, MemberPath(RoboticsBrowseNames.Enabled), cancellationToken).ConfigureAwait(false)
                 });
             }
             return snapshots.ToArrayOf();
@@ -634,13 +639,13 @@ namespace Opc.Ua.Robotics.Client
             ArrayOf<NodeId> properties = await ResolveChildrenAsync(
                 nodeId,
                 [
-                    DiBrowseNames.ComponentName,
-                    DiBrowseNames.AssetId,
-                    DiBrowseNames.Manufacturer,
-                    DiBrowseNames.Model,
-                    DiBrowseNames.ProductCode,
-                    DiBrowseNames.SerialNumber,
-                    DiBrowseNames.DeviceManual
+                    DiPropertyPath(DiBrowseNames.ComponentName),
+                    DiPropertyPath(DiBrowseNames.AssetId),
+                    DiPropertyPath(DiBrowseNames.Manufacturer),
+                    DiPropertyPath(DiBrowseNames.Model),
+                    DiPropertyPath(DiBrowseNames.ProductCode),
+                    DiPropertyPath(DiBrowseNames.SerialNumber),
+                    DiPropertyPath(DiBrowseNames.DeviceManual)
                 ],
                 cancellationToken).ConfigureAwait(false);
             var readIds = new List<ReadValueId>
@@ -779,11 +784,11 @@ namespace Opc.Ua.Robotics.Client
 
         private async Task<ArrayOf<NodeId>> ResolveChildrenAsync(
             NodeId parent,
-            IReadOnlyList<string> browseNames,
+            QualifiedName[][] browseNames,
             CancellationToken cancellationToken)
         {
-            var paths = new List<BrowsePath>(browseNames.Count);
-            for (int ii = 0; ii < browseNames.Count; ii++)
+            var paths = new List<BrowsePath>(browseNames.Length);
+            for (int ii = 0; ii < browseNames.Length; ii++)
             {
                 paths.Add(CreateBrowsePath(parent, browseNames[ii]));
             }
@@ -791,7 +796,7 @@ namespace Opc.Ua.Robotics.Client
                 null,
                 paths.ToArrayOf(),
                 cancellationToken).ConfigureAwait(false);
-            var results = new List<NodeId>(browseNames.Count);
+            var results = new List<NodeId>(browseNames.Length);
             for (int ii = 0; ii < response.Results.Count; ii++)
             {
                 BrowsePathResult result = response.Results[ii];
@@ -799,7 +804,7 @@ namespace Opc.Ua.Robotics.Client
                     ? ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris)
                     : NodeId.Null);
             }
-            while (results.Count < browseNames.Count)
+            while (results.Count < browseNames.Length)
             {
                 results.Add(NodeId.Null);
             }
@@ -808,41 +813,108 @@ namespace Opc.Ua.Robotics.Client
 
         private async ValueTask<NodeId> ResolveChildAsync(
             NodeId parent,
-            string browseName,
+            QualifiedName[] browseNames,
             CancellationToken cancellationToken)
         {
-            ArrayOf<NodeId> nodes = await ResolveChildrenAsync(parent, [browseName], cancellationToken)
+            ArrayOf<NodeId> nodes = await ResolveChildrenAsync(parent, [browseNames], cancellationToken)
                 .ConfigureAwait(false);
             return nodes.Count > 0 ? nodes[0] : NodeId.Null;
         }
 
-        private BrowsePath CreateBrowsePath(NodeId parent, string browseName)
+        private static BrowsePath CreateBrowsePath(NodeId parent, QualifiedName[] browseNames)
         {
+            var elements = new RelativePathElement[browseNames.Length];
+            for (int ii = 0; ii < browseNames.Length; ii++)
+            {
+                elements[ii] = new RelativePathElement
+                {
+                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    IsInverse = false,
+                    IncludeSubtypes = true,
+                    TargetName = browseNames[ii]
+                };
+            }
             return new BrowsePath
             {
                 StartingNode = parent,
-                RelativePath = new RelativePath
-                {
-                    Elements =
-                    [
-                        new RelativePathElement
-                        {
-                            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
-                            IsInverse = false,
-                            IncludeSubtypes = true,
-                            TargetName = new QualifiedName(browseName)
-                        }
-                    ]
-                }
+                RelativePath = new RelativePath { Elements = elements.ToArrayOf() }
             };
+        }
+
+        /// <summary>
+        /// The path of a DI identification property (<c>Manufacturer</c>,
+        /// <c>SerialNumber</c>, ...), which hangs directly below its component.
+        /// </summary>
+        private QualifiedName[] DiPropertyPath(string diBrowseName)
+        {
+            return [new QualifiedName(diBrowseName, NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi))];
+        }
+
+        /// <summary>
+        /// The path of a Robotics member that hangs directly below its component
+        /// (<c>MotionProfile</c>, <c>Pitch</c>, <c>Name</c>, ...).
+        /// </summary>
+        private QualifiedName[] MemberPath(string roboticsBrowseName)
+        {
+            return
+            [
+                new QualifiedName(roboticsBrowseName, NamespaceIndexOf(global::Opc.Ua.Robotics.Namespaces.Robotics))
+            ];
+        }
+
+        /// <summary>
+        /// The path of a process value (<c>ActualPosition</c>, <c>EmergencyStop</c>,
+        /// <c>TaskProgramName</c>, ...), which OPC 40010-1 places below the DI
+        /// <c>ParameterSet</c> of its component.
+        /// </summary>
+        private QualifiedName[] ParameterPath(string roboticsBrowseName)
+        {
+            return
+            [
+                new QualifiedName(DiBrowseNames.ParameterSet, NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi)),
+                new QualifiedName(roboticsBrowseName, NamespaceIndexOf(global::Opc.Ua.Robotics.Namespaces.Robotics))
+            ];
+        }
+
+        private QualifiedName[][] AxisStatePaths()
+        {
+            return
+            [
+                ParameterPath(RoboticsBrowseNames.ActualPosition),
+                ParameterPath(RoboticsBrowseNames.ActualSpeed),
+                ParameterPath(RoboticsBrowseNames.ActualAcceleration)
+            ];
+        }
+
+        /// <summary>
+        /// The session's index of a namespace; an index no server uses when the
+        /// namespace is unknown, so paths through it resolve to nothing.
+        /// </summary>
+        private ushort NamespaceIndexOf(string namespaceUri)
+        {
+            int index = Session.NamespaceUris.GetIndex(namespaceUri);
+            return index < 0 ? ushort.MaxValue : (ushort)index;
+        }
+
+        private static List<NodeId> Resolved(ArrayOf<NodeId> nodes)
+        {
+            var resolved = new List<NodeId>(nodes.Count);
+            for (int ii = 0; ii < nodes.Count; ii++)
+            {
+                if (!nodes[ii].IsNull)
+                {
+                    resolved.Add(nodes[ii]);
+                }
+            }
+            return resolved;
         }
 
         private async Task<DataValue> ReadChildValueAsync(
             NodeId parent,
-            string browseName,
+            QualifiedName[] browseNames,
             CancellationToken cancellationToken)
         {
-            NodeId nodeId = await ResolveChildAsync(parent, browseName, cancellationToken).ConfigureAwait(false);
+            NodeId nodeId = await ResolveChildAsync(parent, browseNames, cancellationToken).ConfigureAwait(false);
             return nodeId.IsNull
                 ? DataValue.Null
                 : await Session.ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
@@ -850,10 +922,10 @@ namespace Opc.Ua.Robotics.Client
 
         private async Task<string?> ReadChildStringAsync(
             NodeId parent,
-            string browseName,
+            QualifiedName[] browseNames,
             CancellationToken cancellationToken)
         {
-            DataValue value = await ReadChildValueAsync(parent, browseName, cancellationToken).ConfigureAwait(false);
+            DataValue value = await ReadChildValueAsync(parent, browseNames, cancellationToken).ConfigureAwait(false);
             return value.WrappedValue.TryGetValue(out string text) ? text : null;
         }
 

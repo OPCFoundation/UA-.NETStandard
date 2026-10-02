@@ -243,6 +243,7 @@ namespace Opc.Ua.Machinery.Server.Builders
                 control,
                 m_catalog?.MaxDownloadableJobOrders ?? 0);
             control.JobOrderList!.OnSimpleReadValue = ReadJobOrderList;
+            m_jobOrderList = control.JobOrderList;
 
             IIsa95JobResponseProviderV2? responseProvider = m_responseProvider ?? (ownProvider
                 ? FirstOf<IIsa95JobResponseProviderV2>(m_receiver, m_catalog)
@@ -264,6 +265,7 @@ namespace Opc.Ua.Machinery.Server.Builders
                 {
                     responseList.Value = [];
                     responseList.OnSimpleReadValue = ReadJobOrderResponseList;
+                    m_jobResponseList = responseList;
                 }
             }
 
@@ -489,6 +491,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             long generation = Interlocked.Increment(ref m_refreshGeneration);
             ArrayOf<V2.ISA95JobOrderAndStateDataType> orders = m_binder.NormalizeJobOrders(
                 await catalog.GetJobOrdersV2Async(cancellationToken).ConfigureAwait(false));
+            BaseVariableState? list = m_jobOrderList;
             lock (m_refreshLock)
             {
                 if (generation <= m_appliedGeneration)
@@ -497,7 +500,9 @@ namespace Opc.Ua.Machinery.Server.Builders
                 }
                 m_jobOrders = orders;
                 m_appliedGeneration = generation;
+                MarkChanged(list);
             }
+            ReportChange(list);
         }
 
         private ServiceResult ReadJobOrderList(
@@ -524,6 +529,7 @@ namespace Opc.Ua.Machinery.Server.Builders
             long generation = Interlocked.Increment(ref m_responseRefreshGeneration);
             ArrayOf<V2.ISA95JobResponseDataType> responses = m_binder.NormalizeResponses(
                 await catalog.GetJobResponsesV2Async(cancellationToken).ConfigureAwait(false));
+            BaseVariableState? list = m_jobResponseList;
             lock (m_refreshLock)
             {
                 if (generation <= m_appliedResponseGeneration)
@@ -532,7 +538,35 @@ namespace Opc.Ua.Machinery.Server.Builders
                 }
                 m_jobResponses = responses;
                 m_appliedResponseGeneration = generation;
+                MarkChanged(list);
             }
+            ReportChange(list);
+        }
+
+        /// <summary>
+        /// Marks a published list as changed. The lists serve their value from
+        /// a snapshot, so nothing else sets the Value change mask. The new
+        /// source timestamp sets it only when it differs from the last one,
+        /// which two refreshes within one clock tick do not, so the mask is
+        /// set explicitly.
+        /// </summary>
+        private static void MarkChanged(BaseVariableState? list)
+        {
+            if (list != null)
+            {
+                list.Timestamp = DateTimeUtc.Now;
+                list.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+        }
+
+        /// <summary>
+        /// Reports a marked list to its monitored items. Called outside the
+        /// refresh lock: their change handlers read the list back through the
+        /// read callbacks, which take the same lock.
+        /// </summary>
+        private void ReportChange(BaseVariableState? list)
+        {
+            list?.ClearChangeMasks(m_scope.Context, includeChildren: false);
         }
 
         private ServiceResult ReadJobOrderResponseList(
@@ -559,6 +593,8 @@ namespace Opc.Ua.Machinery.Server.Builders
         private IIsa95JobResponseCatalog? m_responseCatalog;
         private ArrayOf<V2.ISA95JobOrderAndStateDataType> m_jobOrders = [];
         private ArrayOf<V2.ISA95JobResponseDataType> m_jobResponses = [];
+        private BaseVariableState? m_jobOrderList;
+        private BaseVariableState? m_jobResponseList;
         private bool m_predefinedParameters;
         private long m_refreshGeneration;
         private long m_appliedGeneration;

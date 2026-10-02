@@ -224,34 +224,10 @@ namespace Opc.Ua.Bindings
                     cts.Token).ConfigureAwait(false);
 #endif
 
-                byte[] responseBytes;
-                using (var memory = new MemoryStream())
-                {
-                    byte[] receiveBuffer = new byte[8192];
-                    while (true)
-                    {
-                        WebSocketReceiveResult result = await ws
-                            .ReceiveAsync(
-                                new ArraySegment<byte>(receiveBuffer),
-                                cts.Token)
-                            .ConfigureAwait(false);
-                        if (result.MessageType == WebSocketMessageType.Close)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadConnectionClosed,
-                                "Server closed the WebSocket before sending a response.");
-                        }
-                        if (result.Count > 0)
-                        {
-                            memory.Write(receiveBuffer, 0, result.Count);
-                        }
-                        if (result.EndOfMessage)
-                        {
-                            break;
-                        }
-                    }
-                    responseBytes = memory.ToArray();
-                }
+                byte[] responseBytes = await ReceiveMessageAsync(
+                    ws,
+                    m_messageContext.MaxMessageSize,
+                    cts.Token).ConfigureAwait(false);
 
                 return JsonDecoder.DecodeMessage<IServiceResponse>(responseBytes, m_messageContext);
             }
@@ -307,6 +283,79 @@ namespace Opc.Ua.Bindings
                 NamespaceUris = settings.NamespaceUris!,
                 ServerUris = new StringTable()
             };
+        }
+
+        /// <summary>
+        /// Receives one WebSocket message. The size is checked against
+        /// <paramref name="maxMessageSize"/> (zero means unlimited) while the
+        /// frames arrive, so a peer that never ends its message cannot grow
+        /// the buffer beyond the limit before the decoder rejects it.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static async Task<byte[]> ReceiveMessageAsync(
+            WebSocket ws,
+            int maxMessageSize,
+            CancellationToken ct)
+        {
+            using var memory = new MemoryStream();
+            byte[] receiveBuffer = new byte[8192];
+            while (true)
+            {
+                WebSocketReceiveResult result = await ws
+                    .ReceiveAsync(
+                        new ArraySegment<byte>(receiveBuffer),
+                        ct)
+                    .ConfigureAwait(false);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "Server closed the WebSocket before sending a response.");
+                }
+                if (maxMessageSize > 0 && memory.Length + result.Count > maxMessageSize)
+                {
+                    // OPC 10000-6 §7.5.2: close with status 1009 (MessageTooBig).
+                    // Only the Close frame is sent, briefly bounded, and the socket
+                    // is then aborted instead of waiting for a handshake the peer
+                    // may never answer.
+                    await CloseMessageTooBigAsync(ws).ConfigureAwait(false);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxMessageSize {0} < {1}",
+                        maxMessageSize,
+                        memory.Length + result.Count);
+                }
+                if (result.Count > 0)
+                {
+                    memory.Write(receiveBuffer, 0, result.Count);
+                }
+                if (result.EndOfMessage)
+                {
+                    return memory.ToArray();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends a Close frame with status 1009 (MessageTooBig), waiting at most
+        /// <see cref="kMessageTooBigCloseTimeout"/> milliseconds, then aborts
+        /// the socket.
+        /// </summary>
+        private static async Task CloseMessageTooBigAsync(WebSocket ws)
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(kMessageTooBigCloseTimeout);
+                await ws.CloseOutputAsync(
+                    WebSocketCloseStatus.MessageTooBig,
+                    "Response exceeds MaxMessageSize.",
+                    cts.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best-effort: the socket is aborted either way.
+            }
+            ws.Abort();
         }
 
         private static Uri NormalizeUrl(Uri url)
@@ -395,6 +444,7 @@ namespace Opc.Ua.Bindings
                 nameof(WssJsonTransportChannel));
         }
 
+        private const int kMessageTooBigCloseTimeout = 1000;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private Uri? m_url;

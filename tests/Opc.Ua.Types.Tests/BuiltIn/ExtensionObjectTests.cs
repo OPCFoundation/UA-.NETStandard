@@ -555,6 +555,72 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(actual, Is.Null);
         }
 
+        [Test]
+        public void TryGetValueReturnsFalseWhenTheBinaryBodyHasTrailingBytes()
+        {
+            // The eager decoder rejects a body its encodeable does not consume
+            // exactly; the lazy path must not accept it later.
+            IServiceMessageContext context = CreateMessageContext();
+            var argument = new Argument();
+            ExtensionObject complete = CreateBinaryArgument(
+                context, "Trailing", argument.BinaryEncodingId);
+            Assert.That(complete.TryGetAsBinary(out ByteString binary), Is.True);
+            byte[] padded = new byte[binary.Length + 3];
+            binary.Span.CopyTo(padded);
+            var trailing = new ExtensionObject(argument.BinaryEncodingId, ByteString.From(padded));
+
+            bool success = trailing.TryGetValue(out Argument actual, context);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetValueReturnsFalseWhenTheEncodeableThrowsAnyException()
+        {
+            ServiceMessageContext context = CreateMessageContext();
+            context.Factory.AddEncodeableType(typeof(ThrowingEncodeable));
+            Assert.That(context.Factory.TryGetEncodeableType(
+                new ThrowingEncodeable().BinaryEncodingId, out _), Is.True);
+            var extension = new ExtensionObject(
+                new ThrowingEncodeable().BinaryEncodingId,
+                ByteString.From([1, 2, 3, 4]));
+
+            bool success = false;
+            Assert.DoesNotThrow(() => success = extension.TryGetValue(out IEncodeable _, context));
+            Assert.That(success, Is.False);
+        }
+
+        /// <summary>
+        /// An encodeable whose decoding fails with an exception that is not
+        /// one of the decoders' own.
+        /// </summary>
+        private sealed class ThrowingEncodeable : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(500000);
+            public ExpandedNodeId BinaryEncodingId => new(500001);
+            public ExpandedNodeId XmlEncodingId => new(500002);
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                throw new ArgumentOutOfRangeException(nameof(decoder));
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is ThrowingEncodeable;
+            }
+
+            public object Clone()
+            {
+                return new ThrowingEncodeable();
+            }
+        }
+
         private static ServiceMessageContext CreateMessageContext()
         {
             return ServiceMessageContext.Create(NUnitTelemetryContext.Create());

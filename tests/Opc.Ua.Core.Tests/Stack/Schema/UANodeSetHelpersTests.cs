@@ -103,6 +103,69 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         }
 
         /// <summary>
+        /// The value element was copied with ImportNode(deep), which recurses
+        /// once per element level, so a deeply nested XmlElement value in a
+        /// NodeSet exhausted the stack. The copy no longer recurses and the
+        /// decoder bounds the element depth.
+        /// </summary>
+        [Test]
+        public void ImportRejectsDeeplyNestedXmlElementValue()
+        {
+            string nested = string.Concat(Enumerable.Repeat("<a>", 100_000)) +
+                string.Concat(Enumerable.Repeat("</a>", 100_000));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => ImportXmlElementValue(nested));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ImportRestoresXmlElementValue()
+        {
+            BaseVariableState variable = ImportXmlElementValue("<a x='1'><b>text</b></a>");
+
+            Assert.That(variable.WrappedValue.TryGetValue(out XmlElement value), Is.True);
+            // the content inherits the default namespace of the NodeSet.
+            Assert.That(value, Is.EqualTo(XmlElement.From(
+                "<a x=\"1\" xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
+                "<b>text</b></a>")));
+        }
+
+        private static BaseVariableState ImportXmlElementValue(string content)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string nodeSetXml = @"
+                <UANodeSet xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>urn:test:values</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='XmlElement'>i=16</Alias>
+                  </Aliases>
+                  <UAVariable NodeId='ns=1;s=Xml' BrowseName='1:Xml' DataType='XmlElement'>
+                    <DisplayName>Xml</DisplayName>
+                    <Value>
+                      <uax:XmlElement xmlns:uax='http://opcfoundation.org/UA/2008/02/Types.xsd'>" +
+                content +
+                @"</uax:XmlElement>
+                    </Value>
+                  </UAVariable>
+                </UANodeSet>";
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml));
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
+            var context = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in nodeSet.NamespaceUris)
+            {
+                context.NamespaceUris.Append(namespaceUri);
+            }
+            var imported = new NodeStateCollection();
+
+            nodeSet.Import(context, imported);
+
+            return imported.OfType<BaseVariableState>().Single();
+        }
+
+        /// <summary>
         /// Test Structure Field ArrayDimensions attribute is correctly imported respectively exported
         /// </summary>
         [Test]

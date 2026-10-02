@@ -442,22 +442,38 @@ namespace Opc.Ua.ISA95.Server
                     await catalog.GetJobOrdersV2Async(ct).ConfigureAwait(false));
             }
 
+            BaseVariableState? v1List = updateV1 ? m_v1OrderReceiver!.JobOrderList : null;
+            BaseVariableState? v2List = updateV2 ? m_v2OrderReceiver!.JobOrderList : null;
             lock (m_jobOrderRefreshLock)
             {
                 if (generation <= m_jobOrderAppliedGeneration)
                 {
                     return;
                 }
+                // The lists serve their value from these snapshots, so nothing
+                // else sets the Value change mask. The new source timestamp
+                // sets it only when it differs from the last one, which two
+                // refreshes within one clock tick do not, so mark it explicitly.
+                DateTimeUtc now = DateTimeUtc.Now;
                 if (updateV1)
                 {
                     m_v1JobOrders = v1Orders;
+                    v1List!.Timestamp = now;
+                    v1List.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 }
                 if (updateV2)
                 {
                     m_v2JobOrders = v2Orders;
+                    v2List!.Timestamp = now;
+                    v2List.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 }
                 m_jobOrderAppliedGeneration = generation;
             }
+
+            // Outside the lock: the change handlers of monitored items read the
+            // lists back through the read callbacks, which take the same lock.
+            v1List?.ClearChangeMasks(SystemContext, includeChildren: false);
+            v2List?.ClearChangeMasks(SystemContext, includeChildren: false);
         }
 
         private ServiceResult ReadV1JobOrderList(

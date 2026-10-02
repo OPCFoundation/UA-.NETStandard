@@ -191,8 +191,13 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ActivateToken(ChannelToken token)
         {
-            // compute the keys for the token.
-            ComputeKeys(token);
+            // compute the keys for the token, unless ReadSymmetricMessage already
+            // did so to verify the first chunk secured with it.
+            if (!ReferenceEquals(token, m_renewedTokenWithKeys))
+            {
+                ComputeKeys(token);
+            }
+            m_renewedTokenWithKeys = null;
 
             PreviousToken?.Dispose();
             PreviousToken = CurrentToken;
@@ -736,48 +741,65 @@ namespace Opc.Ua.Bindings
                     ChannelId);
             }
 
-            // check for a message secured with the new token.
-            if (RenewedToken != null && RenewedToken.TokenId == tokenId)
+            // check for a message secured with the new token. The token id in
+            // the header is not authenticated, so the new token only becomes
+            // current once the chunk has been verified with it (below).
+            ChannelToken? renewedToken = RenewedToken;
+            ChannelToken? tokenToActivate = null;
+            if (renewedToken != null && renewedToken.TokenId == tokenId)
             {
-                ActivateToken(RenewedToken);
+                tokenToActivate = renewedToken;
             }
 
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null &&
+            else if (renewedToken != null &&
                 CurrentToken != null &&
                 CurrentToken.IsActivationRequired(TimeProvider))
             {
-                ActivateToken(RenewedToken);
+                ActivateToken(renewedToken);
                 m_logger.UaSCChannelLog12(Id, CurrentToken.TokenId);
             }
 
-            // check for valid token.
-            ChannelToken currentToken =
-                CurrentToken ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelClosed,
-                    "Channel{0}: Token missing to read symmetric messagee.", Id);
-
-            // find the token.
-            if (currentToken.TokenId != tokenId &&
-                (PreviousToken == null || PreviousToken.TokenId != tokenId))
+            if (tokenToActivate != null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTcpSecureChannelUnknown,
-                    "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
-                    Id,
-                    channelId,
-                    tokenId,
-                    currentToken.TokenId,
-                    PreviousToken != null ? (int)PreviousToken.TokenId : -1);
+                // the keys are needed to verify the chunk; computed once per token.
+                if (!ReferenceEquals(tokenToActivate, m_renewedTokenWithKeys))
+                {
+                    ComputeKeys(tokenToActivate);
+                    m_renewedTokenWithKeys = tokenToActivate;
+                }
+                token = tokenToActivate;
             }
-
-            token = currentToken;
-
-            // check for a message secured with the token before it expired.
-            if (PreviousToken != null && PreviousToken.TokenId == tokenId)
+            else
             {
-                token = PreviousToken;
+                // check for valid token.
+                ChannelToken currentToken =
+                    CurrentToken ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel{0}: Token missing to read symmetric messagee.", Id);
+
+                // find the token.
+                if (currentToken.TokenId != tokenId &&
+                    (PreviousToken == null || PreviousToken.TokenId != tokenId))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpSecureChannelUnknown,
+                        "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
+                        Id,
+                        channelId,
+                        tokenId,
+                        currentToken.TokenId,
+                        PreviousToken != null ? (int)PreviousToken.TokenId : -1);
+                }
+
+                token = currentToken;
+
+                // check for a message secured with the token before it expired.
+                if (PreviousToken != null && PreviousToken.TokenId == tokenId)
+                {
+                    token = PreviousToken;
+                }
             }
 
             // check if token has expired.
@@ -814,6 +836,12 @@ namespace Opc.Ua.Bindings
                     isRequest);
             }
 
+            // the chunk was secured with the new token: it becomes current.
+            if (tokenToActivate != null && ReferenceEquals(RenewedToken, tokenToActivate))
+            {
+                ActivateToken(tokenToActivate);
+            }
+
             // extract request id and sequence number.
             sequenceNumber = decoder.ReadUInt32(null);
             requestId = decoder.ReadUInt32(null);
@@ -848,6 +876,12 @@ namespace Opc.Ua.Bindings
 
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");
         private static readonly byte[] s_hkdfServerLabel = Encoding.UTF8.GetBytes("opcua-server");
+
+        /// <summary>
+        /// The renewed token whose keys were computed to verify a chunk before it
+        /// was activated.
+        /// </summary>
+        private ChannelToken? m_renewedTokenWithKeys;
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
         private ISymmetricCryptoProvider? m_symmetricProvider;

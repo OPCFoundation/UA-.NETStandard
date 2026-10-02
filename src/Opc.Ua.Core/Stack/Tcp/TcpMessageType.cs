@@ -226,9 +226,10 @@ namespace Opc.Ua.Bindings
         public const int MaxCertificateSize = 7500;
 
         /// <summary>
-        /// The maximum length for an a security policy uri.
+        /// The maximum length, in bytes, of a security policy uri
+        /// (OPC 10000-6 §6.7.2.3 SecurityPolicyUriLength).
         /// </summary>
-        public const int MaxSecurityPolicyUriSize = 256;
+        public const int MaxSecurityPolicyUriSize = 255;
 
         /// <summary>
         /// The length of the base message header.

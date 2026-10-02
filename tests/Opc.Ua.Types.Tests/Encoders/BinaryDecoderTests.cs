@@ -659,7 +659,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable();
 
             // Act / Assert
-            Assert.Throws<ArgumentNullException>(() => decoder.LoadStringTable(stringTable));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.LoadStringTable(stringTable));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]

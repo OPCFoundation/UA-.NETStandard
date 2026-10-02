@@ -193,13 +193,13 @@ namespace Opc.Ua.Fuzzing
                 () => FuzzableCode.FuzzJsonDecoderCore(json, throwAll: true),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError)
-                    .And.Message.EqualTo("Parsing encountered invalid information. " + json)
+                    .And.Message.StartsWith("Parsing encountered invalid information. ")
                     .And.Property(nameof(Exception.InnerException)).Null);
             TestContext.Out.WriteLine(
                 $"GAP: {messageName}.json, unsupported TypeId/Body legacy envelope; " +
                 "strict decoder throws ServiceResultException, BadDecodingError (0x80070000). " +
                 "All 14 applicable JSON callbacks remain without positive original-byte coverage.\n" +
-                "Message: Parsing encountered invalid information. " + json);
+                "Input: " + json);
         }
 
         private static IEnumerable<TestCaseData> OriginalCases()

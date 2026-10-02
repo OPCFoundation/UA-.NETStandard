@@ -290,5 +290,54 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 };
             }
         }
+
+        [Test]
+        public async Task EnumerateSubCategoriesAsyncIncludesSubtypesOfAliasNameCategoryTypeAsync()
+        {
+            var harness = AliasNameSessionHarness.Create();
+            var vendorCategoryType = new ExpandedNodeId(new NodeId("VendorCategoryType", 2));
+            var derivedCategoryType = new ExpandedNodeId(new NodeId("DerivedCategoryType", 2));
+            harness.Supertypes[vendorCategoryType] = ObjectTypeIds.AliasNameCategoryType;
+            harness.Supertypes[derivedCategoryType] = vendorCategoryType;
+
+            harness.BrowseHandler = _ => new BrowseResult
+            {
+                StatusCode = StatusCodes.Good,
+                ContinuationPoint = ByteString.Empty,
+                References = new[]
+                {
+                    CreateReference("Standard", ObjectTypeIds.AliasNameCategoryType),
+                    CreateReference("Vendor", vendorCategoryType),
+                    CreateReference("Derived", derivedCategoryType),
+                    CreateReference("Folder", ObjectTypeIds.FolderType),
+                    CreateReference("Untyped", ExpandedNodeId.Null)
+                }.ToArrayOf()
+            };
+
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var names = new List<string>();
+
+            await foreach (AliasNameSubCategoryInfo info in
+                client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
+            {
+                names.Add(info.BrowseName.Name);
+            }
+
+            string[] expectedNames = ["Standard", "Vendor", "Derived"];
+            Assert.That(names, Is.EqualTo(expectedNames));
+
+            static ReferenceDescription CreateReference(
+                string name,
+                ExpandedNodeId typeDefinition)
+            {
+                return new ReferenceDescription
+                {
+                    NodeId = new ExpandedNodeId(new NodeId(name, 2)),
+                    BrowseName = new QualifiedName(name, 2),
+                    DisplayName = new LocalizedText(name),
+                    TypeDefinition = typeDefinition
+                };
+            }
+        }
     }
 }

@@ -323,10 +323,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             if ((mask & JsonDataSetMessageContentMask.Status) != 0)
             {
                 // Part 14 Table 185 makes DataSetMessage Status presence
-                // depend on the JsonDataSetMessageContentMask; only
-                // field-level DataValue Status is omitted when Code is 0
-                // in the §7.2.5.4.2 example.
-                writer.WriteNumber("Status", dsm.Status.Code);
+                // depend on the JsonDataSetMessageContentMask; its value is
+                // a Part 6 §5.4.2.12 StatusCode object.
+                WriteStatusCode(writer, "Status", dsm.Status, Mode == JsonEncodingMode.Verbose);
             }
             if ((mask & JsonDataSetMessageContentMask.MessageType) != 0)
             {
@@ -354,14 +353,44 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
+        /// Writes a <see cref="StatusCode"/> as the Part 6 §5.4.2.12 JSON
+        /// object: <c>Code</c> is omitted for Good, <c>Symbol</c> is
+        /// written only in VerboseEncoding and only for a known, non-Good
+        /// code.
+        /// </summary>
+        /// <param name="writer">Destination writer.</param>
+        /// <param name="propertyName">Property name.</param>
+        /// <param name="status">Status code.</param>
+        /// <param name="verbose">Whether VerboseEncoding is used.</param>
+        private static void WriteStatusCode(
+            Utf8JsonWriter writer,
+            string propertyName,
+            StatusCode status,
+            bool verbose)
+        {
+            writer.WritePropertyName(propertyName);
+            writer.WriteStartObject();
+            if (status.Code != 0)
+            {
+                writer.WriteNumber("Code", status.Code);
+                string? symbol = status.SymbolicId;
+                if (verbose && !string.IsNullOrEmpty(symbol))
+                {
+                    writer.WriteString("Symbol", symbol);
+                }
+            }
+            writer.WriteEndObject();
+        }
+
+        /// <summary>
         /// Encodes a <see cref="JsonMetaDataMessage"/> (<c>ua-metadata</c>
-        /// envelope) per Part 14 §7.2.5.5.
+        /// envelope) per Part 14 §7.2.5.5.2 Table 188.
         /// </summary>
         /// <param name="message">Source metadata message.</param>
         /// <param name="context">Encoder context.</param>
         /// <returns>Encoded UTF-8 frame.</returns>
         /// <exception cref="ArgumentException"></exception>
-        private ReadOnlyMemory<byte> EncodeMetaData(
+        private static ReadOnlyMemory<byte> EncodeMetaData(
             JsonMetaDataMessage message,
             PubSubNetworkMessageContext context)
         {
@@ -370,6 +399,176 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 ?? throw new ArgumentException(
                     "MetaData payload missing from JsonMetaDataMessage.",
                     nameof(message));
+            return EncodeDiscoveryEnvelope(
+                message.MessageId,
+                JsonNetworkMessage.MessageTypeMetaData,
+                message.PublisherId,
+                writer => WriteMetaDataBody(
+                    writer,
+                    message.DataSetWriterId,
+                    message.WriterGroupName,
+                    message.DataSetWriterName,
+                    ResolveTimestamp(message.Timestamp, context),
+                    meta,
+                    context));
+        }
+
+        /// <summary>
+        /// Writes the <c>ua-metadata</c> fields that follow the
+        /// PublisherId in Part 14 §7.2.5.5.2 Table 188. All fields use
+        /// CompactEncoding.
+        /// </summary>
+        private static void WriteMetaDataBody(
+            Utf8JsonWriter writer,
+            ushort dataSetWriterId,
+            string writerGroupName,
+            string dataSetWriterName,
+            DateTimeUtc timestamp,
+            DataSetMetaDataType metaData,
+            PubSubNetworkMessageContext context)
+        {
+            writer.WriteNumber("DataSetWriterId", dataSetWriterId);
+            writer.WriteString("WriterGroupName", writerGroupName ?? string.Empty);
+            writer.WriteString("DataSetWriterName", dataSetWriterName ?? string.Empty);
+            WriteTimestamp(writer, "Timestamp", timestamp);
+            JsonMetaDataEncoder.WriteMetaData(
+                writer,
+                "MetaData",
+                metaData,
+                JsonEncodingMode.Compact,
+                context.MessageContext);
+        }
+
+        /// <summary>
+        /// Encodes a <see cref="JsonDiscoveryMessage"/> per
+        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.5">
+        /// Part 14 §7.2.5.5</see>: <c>ua-application</c> (Table 189),
+        /// <c>ua-endpoints</c> (Table 190), <c>ua-status</c> (Table 191),
+        /// <c>ua-connection</c> (Table 192) and <c>ua-metadata</c>
+        /// (Table 188). All fields use CompactEncoding.
+        /// </summary>
+        /// <param name="message">Source discovery message.</param>
+        /// <param name="context">Encoder context.</param>
+        /// <returns>Encoded UTF-8 frame.</returns>
+        /// <exception cref="ArgumentException">The discovery type has no
+        /// JSON discovery message.</exception>
+        private static ReadOnlyMemory<byte> EncodeDiscovery(
+            JsonDiscoveryMessage message,
+            PubSubNetworkMessageContext context)
+        {
+            DateTimeUtc timestamp = ResolveTimestamp(message.Timestamp, context);
+            switch (message.DiscoveryType)
+            {
+                case Uadp.UadpDiscoveryType.ApplicationInformation
+                    when message.ApplicationStatus is not null:
+                    Uadp.UadpApplicationStatus status = message.ApplicationStatus;
+                    return EncodeDiscoveryEnvelope(
+                        message.MessageId,
+                        JsonDiscoveryMessage.MessageTypeStatus,
+                        message.PublisherId,
+                        writer =>
+                        {
+                            // Timestamp and NextReportTime are omitted if IsCyclic=FALSE.
+                            if (status.IsCyclic)
+                            {
+                                WriteTimestamp(
+                                    writer,
+                                    "Timestamp",
+                                    status.Timestamp == DateTimeUtc.MinValue ? timestamp : status.Timestamp);
+                            }
+                            writer.WriteBoolean("IsCyclic", status.IsCyclic);
+                            writer.WriteNumber("Status", (int)status.Status);
+                            if (status.IsCyclic)
+                            {
+                                WriteTimestamp(writer, "NextReportTime", status.NextReportTime);
+                            }
+                        });
+                case Uadp.UadpDiscoveryType.ApplicationInformation:
+                    ApplicationDescription description = message.Description
+                        ?? ToApplicationDescription(message.ApplicationInformation);
+                    ArrayOf<string> capabilities = message.ApplicationInformation?.Capabilities ?? [];
+                    return EncodeDiscoveryEnvelope(
+                        message.MessageId,
+                        JsonDiscoveryMessage.MessageTypeApplication,
+                        message.PublisherId,
+                        writer =>
+                        {
+                            WriteTimestamp(writer, "Timestamp", timestamp);
+                            WriteEncodeableProperty(
+                                writer,
+                                "Description",
+                                description,
+                                context.MessageContext);
+                            writer.WritePropertyName("ServerCapabilities");
+                            WriteStringArray(writer, capabilities);
+                        });
+                case Uadp.UadpDiscoveryType.PublisherEndpoints:
+                    return EncodeDiscoveryEnvelope(
+                        message.MessageId,
+                        JsonDiscoveryMessage.MessageTypeEndpoints,
+                        message.PublisherId,
+                        writer =>
+                        {
+                            WriteTimestamp(writer, "Timestamp", timestamp);
+                            WriteEndpointsProperty(
+                                writer,
+                                "Endpoints",
+                                message.PublisherEndpoints,
+                                context.MessageContext);
+                        });
+                case Uadp.UadpDiscoveryType.PubSubConnection:
+                    return EncodeDiscoveryEnvelope(
+                        message.MessageId,
+                        JsonDiscoveryMessage.MessageTypeConnection,
+                        message.PublisherId,
+                        writer =>
+                        {
+                            WriteTimestamp(writer, "Timestamp", timestamp);
+                            WriteEncodeableProperty(
+                                writer,
+                                "Connection",
+                                message.Connection,
+                                context.MessageContext);
+                        });
+                case Uadp.UadpDiscoveryType.DataSetMetaData when message.MetaData is not null:
+                    return EncodeDiscoveryEnvelope(
+                        message.MessageId,
+                        JsonNetworkMessage.MessageTypeMetaData,
+                        message.PublisherId,
+                        writer => WriteMetaDataBody(
+                            writer,
+                            message.DataSetWriterId,
+                            string.Empty,
+                            string.Empty,
+                            timestamp,
+                            message.MetaData,
+                            context));
+                default:
+                    throw new ArgumentException(
+                        "Part 14 §7.2.5.5 defines no JSON discovery message for " +
+                        message.DiscoveryType.ToString() + ".",
+                        nameof(message));
+            }
+        }
+
+        /// <summary>
+        /// Writes the <c>MessageId</c>, <c>MessageType</c> and
+        /// <c>PublisherId</c> that start every JSON discovery message and
+        /// then the message specific fields.
+        /// </summary>
+        /// <param name="messageId">MessageId; a new globally unique
+        /// identifier is used when empty because the field is
+        /// mandatory.</param>
+        /// <param name="messageType">MessageType wire literal.</param>
+        /// <param name="publisherId">PublisherId.</param>
+        /// <param name="writeBody">Writes the message specific fields.</param>
+        /// <returns>Encoded UTF-8 frame.</returns>
+        private static ReadOnlyMemory<byte> EncodeDiscoveryEnvelope(
+            string messageId,
+            string messageType,
+            PublisherId publisherId,
+            Action<Utf8JsonWriter> writeBody)
+        {
             using JsonBufferWriter buffer = new(1024);
             using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
             {
@@ -378,181 +577,63 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }))
             {
                 writer.WriteStartObject();
-                if (!string.IsNullOrEmpty(message.MessageId))
-                {
-                    writer.WriteString("MessageId", message.MessageId);
-                }
                 writer.WriteString(
-                    "MessageType",
-                    JsonNetworkMessage.MessageTypeMetaData);
-                WritePublisherId(writer, "PublisherId", message.PublisherId);
-                if (message.DataSetWriterId != 0)
-                {
-                    writer.WriteNumber("DataSetWriterId", message.DataSetWriterId);
-                }
-                if (message.DataSetClassId.Guid != Guid.Empty)
-                {
-                    writer.WriteString(
-                        "DataSetClassId",
-                        message.DataSetClassId.ToString());
-                }
-                JsonMetaDataEncoder.WriteMetaData(
-                    writer,
-                    "MetaData",
-                    meta,
-                    Mode,
-                    context.MessageContext);
+                    "MessageId",
+                    string.IsNullOrEmpty(messageId)
+                        ? Guid.NewGuid().ToString("D", CultureInfo.InvariantCulture)
+                        : messageId);
+                writer.WriteString("MessageType", messageType);
+                WritePublisherId(writer, "PublisherId", publisherId);
+                writeBody(writer);
                 writer.WriteEndObject();
             }
             return buffer.GetWritten();
         }
 
         /// <summary>
-        /// Encodes a <see cref="JsonDiscoveryMessage"/>
-        /// per
-        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.5">
-        /// Part 14 §7.2.5.5</see>.
+        /// Returns <paramref name="timestamp"/>, or the current time of the
+        /// context clock when it is not set, for the mandatory discovery
+        /// <c>Timestamp</c> ("when the message was first sent to the
+        /// middleware").
         /// </summary>
-        /// <param name="message">Source discovery message.</param>
-        /// <param name="context">Encoder context.</param>
-        /// <returns>Encoded UTF-8 frame.</returns>
-        private ReadOnlyMemory<byte> EncodeDiscovery(
-            JsonDiscoveryMessage message,
+        private static DateTimeUtc ResolveTimestamp(
+            DateTimeUtc timestamp,
             PubSubNetworkMessageContext context)
         {
-            using JsonBufferWriter buffer = new(1024);
-            using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
-            {
-                SkipValidation = true,
-                Indented = false
-            }))
-            {
-                writer.WriteStartObject();
-                if (!string.IsNullOrEmpty(message.MessageId))
-                {
-                    writer.WriteString("MessageId", message.MessageId);
-                }
-                writer.WriteString("MessageType", GetDiscoveryMessageType(message.DiscoveryType));
-                WritePublisherId(writer, "PublisherId", message.PublisherId);
-                if (message.DataSetWriterId != 0)
-                {
-                    writer.WriteNumber("DataSetWriterId", message.DataSetWriterId);
-                }
-                if (message.Status.Code != StatusCodes.Good)
-                {
-                    writer.WriteNumber("Status", message.Status.Code);
-                }
-                switch (message.DiscoveryType)
-                {
-                    case Uadp.UadpDiscoveryType.ApplicationInformation:
-                        if (message.ApplicationStatus is not null)
-                        {
-                            WriteApplicationStatus(writer, message.ApplicationStatus);
-                        }
-                        else
-                        {
-                            WriteApplicationInformation(
-                                writer,
-                                message.ApplicationInformation
-                                ?? new Uadp.UadpApplicationInformation());
-                        }
-                        break;
-                    case Uadp.UadpDiscoveryType.PubSubConnection:
-                        WriteEncodeableProperty(
-                            writer,
-                            "Connection",
-                            message.Connection,
-                            context.MessageContext);
-                        break;
-                    case Uadp.UadpDiscoveryType.DataSetMetaData:
-                        if (message.MetaData is not null)
-                        {
-                            JsonMetaDataEncoder.WriteMetaData(
-                                writer,
-                                "MetaData",
-                                message.MetaData,
-                                Mode,
-                                context.MessageContext);
-                        }
-                        break;
-                    case Uadp.UadpDiscoveryType.DataSetWriterConfiguration:
-                        WriteUInt16Array(
-                            writer,
-                            "DataSetWriterIds",
-                            message.DataSetWriterIds);
-                        WriteEncodeableProperty(
-                            writer,
-                            "WriterConfiguration",
-                            message.WriterConfiguration,
-                            context.MessageContext);
-                        break;
-                    case Uadp.UadpDiscoveryType.PublisherEndpoints:
-                        WriteEndpointsProperty(
-                            writer,
-                            "PublisherEndpoints",
-                            message.PublisherEndpoints,
-                            context.MessageContext);
-                        break;
-                }
-                writer.WriteEndObject();
-            }
-            return buffer.GetWritten();
+            return timestamp == DateTimeUtc.MinValue
+                ? (DateTimeUtc)context.TimeProvider.GetUtcNow().UtcDateTime
+                : timestamp;
         }
 
-        private static string GetDiscoveryMessageType(Uadp.UadpDiscoveryType discoveryType)
+        /// <summary>
+        /// Writes a UtcTime as an ISO 8601 UTC string (Part 6 §5.4.2.6).
+        /// </summary>
+        private static void WriteTimestamp(
+            Utf8JsonWriter writer,
+            string propertyName,
+            DateTimeUtc timestamp)
         {
-            return discoveryType switch
+            writer.WriteString(
+                propertyName,
+                ((DateTime)timestamp).ToString("o", CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>
+        /// Builds the <c>ua-application</c> Description from the UADP
+        /// application information model.
+        /// </summary>
+        private static ApplicationDescription ToApplicationDescription(
+            Uadp.UadpApplicationInformation? info)
+        {
+            info ??= new Uadp.UadpApplicationInformation();
+            return new ApplicationDescription
             {
-                Uadp.UadpDiscoveryType.ApplicationInformation
-                    => JsonDiscoveryMessage.MessageTypeApplication,
-                Uadp.UadpDiscoveryType.PublisherEndpoints
-                    => JsonDiscoveryMessage.MessageTypeEndpoints,
-                Uadp.UadpDiscoveryType.PubSubConnection
-                    => JsonDiscoveryMessage.MessageTypeConnection,
-                Uadp.UadpDiscoveryType.DataSetMetaData
-                    => JsonNetworkMessage.MessageTypeMetaData,
-                _ => JsonDiscoveryMessage.MessageTypeStatus
+                ApplicationUri = info.ApplicationUri,
+                ProductUri = info.ProductUri,
+                ApplicationName = info.ApplicationName,
+                ApplicationType = info.ApplicationType
             };
         }
-
-        private static void WriteApplicationInformation(
-            Utf8JsonWriter writer,
-            Uadp.UadpApplicationInformation info)
-        {
-            writer.WritePropertyName("ApplicationInformation");
-            writer.WriteStartObject();
-            writer.WriteString("ApplicationName",
-                info.ApplicationName.Text ?? string.Empty);
-            writer.WriteString("ApplicationLocale",
-                info.ApplicationName.Locale ?? string.Empty);
-            writer.WriteString("ApplicationUri", info.ApplicationUri);
-            writer.WriteString("ProductUri", info.ProductUri);
-            writer.WriteNumber("ApplicationType", (uint)info.ApplicationType);
-            writer.WritePropertyName("Capabilities");
-            WriteStringArray(writer, info.Capabilities);
-            writer.WritePropertyName("SupportedTransportProfiles");
-            WriteStringArray(writer, info.SupportedTransportProfiles);
-            writer.WritePropertyName("SupportedSecurityPolicies");
-            WriteStringArray(writer, info.SupportedSecurityPolicies);
-            writer.WriteEndObject();
-        }
-
-        private static void WriteApplicationStatus(
-            Utf8JsonWriter writer,
-            Uadp.UadpApplicationStatus status)
-        {
-            writer.WritePropertyName("ApplicationStatus");
-            writer.WriteStartObject();
-            writer.WriteBoolean("IsCyclic", status.IsCyclic);
-            writer.WriteNumber("Status", (uint)status.Status);
-            if (status.IsCyclic)
-            {
-                writer.WriteString("NextReportTime", status.NextReportTime.ToDateTime());
-                writer.WriteString("Timestamp", status.Timestamp.ToDateTime());
-            }
-            writer.WriteEndObject();
-        }
-
         private static void WriteStringArray(
             Utf8JsonWriter writer,
             ArrayOf<string> values)
@@ -561,20 +642,6 @@ namespace Opc.Ua.PubSub.Encoding.Json
             foreach (string value in values)
             {
                 writer.WriteStringValue(value ?? string.Empty);
-            }
-            writer.WriteEndArray();
-        }
-
-        private static void WriteUInt16Array(
-            Utf8JsonWriter writer,
-            string propertyName,
-            ArrayOf<ushort> values)
-        {
-            writer.WritePropertyName(propertyName);
-            writer.WriteStartArray();
-            foreach (ushort value in values)
-            {
-                writer.WriteNumberValue(value);
             }
             writer.WriteEndArray();
         }
@@ -592,7 +659,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return;
             }
             using JsonBufferWriter buffer = new(1024);
-            using (Ua.JsonEncoder encoder = new(buffer, context))
+            using (Ua.JsonEncoder encoder = new(buffer, context, JsonEncoderOptions.Compact))
             {
                 encoder.WriteEncodeable(propertyName, encodeable, ExpandedNodeId.Null);
             }
@@ -619,7 +686,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             foreach (EndpointDescription endpoint in endpoints)
             {
                 using JsonBufferWriter buffer = new(512);
-                using (Ua.JsonEncoder encoder = new(buffer, context))
+                using (Ua.JsonEncoder encoder = new(buffer, context, JsonEncoderOptions.Compact))
                 {
                     encoder.WriteEncodeable("Endpoint", endpoint);
                 }

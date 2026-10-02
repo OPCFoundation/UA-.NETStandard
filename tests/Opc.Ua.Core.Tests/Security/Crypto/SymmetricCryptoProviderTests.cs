@@ -701,6 +701,73 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         }
 
         /// <summary>
+        /// OPC 10000-6 §6.7.2.5.1: CBC encrypted data is a whole number of cipher
+        /// blocks, so a misaligned length is rejected before decrypting.
+        /// </summary>
+        [Test]
+        public void DecryptRejectsCbcDataThatIsNotBlockAligned()
+        {
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
+
+            byte[] encryptingKey = new byte[policy.SymmetricEncryptionKeyLength];
+            byte[] iv = new byte[policy.InitializationVectorLength];
+            FillRandom(encryptingKey);
+            FillRandom(iv);
+
+            byte[] buffer = new byte[kHeaderSize + 70];
+            FillRandom(buffer);
+
+            Assert.That(
+                () => CryptoUtils.SymmetricDecryptAndVerify(
+                    new ArraySegment<byte>(buffer, kHeaderSize, 70),
+                    policy, encryptingKey, iv, null, false, 1, 1, null, null),
+                Throws.TypeOf<CryptographicException>());
+        }
+
+        /// <summary>
+        /// Counter mode is a stream cipher: its data need not be a whole number of
+        /// blocks, so the CBC block alignment check must not reject it.
+        /// </summary>
+        [Test]
+        public void DecryptAcceptsCounterModeDataThatIsNotBlockAligned()
+        {
+            var policy = new SecurityPolicyInfo(
+                SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!)
+            {
+                SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Ctr
+            };
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+
+            byte[] key = new byte[32];
+            byte[] nonce = new byte[12];
+            // Deliberately not a whole number of blocks nor of the nonce length.
+            byte[] plaintext = new byte[70];
+            FillRandom(key);
+            FillRandom(nonce);
+            FillRandom(plaintext);
+            // A PaddingSize byte of zero: no padding follows the body.
+            plaintext[plaintext.Length - 1] = 0;
+
+            byte[] buffer = new byte[kHeaderSize + plaintext.Length];
+            provider.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes256Ctr,
+                key,
+                nonce,
+                plaintext,
+                buffer.AsSpan(kHeaderSize, plaintext.Length));
+
+            ArraySegment<byte> recovered = CryptoUtils.SymmetricDecryptAndVerify(
+                new ArraySegment<byte>(buffer, kHeaderSize, plaintext.Length),
+                policy, key, nonce, null, false, 1, 1, null, provider);
+
+            // The result starts at the header; the PaddingSize byte is stripped.
+            Assert.That(recovered, Has.Count.EqualTo(kHeaderSize + plaintext.Length - 1));
+            Assert.That(
+                recovered.Array.AsSpan(kHeaderSize, plaintext.Length - 1).ToArray(),
+                Is.EqualTo(plaintext.AsSpan(0, plaintext.Length - 1).ToArray()));
+        }
+
+        /// <summary>
         /// A message secured by the platform must be readable through a provider
         /// and back, or a validated module could not interoperate.
         /// </summary>

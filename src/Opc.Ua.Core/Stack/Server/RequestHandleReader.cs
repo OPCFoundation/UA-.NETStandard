@@ -104,7 +104,8 @@ namespace Opc.Ua
 
         /// <summary>
         /// Reads the RequestHandle from a JSON encoded request message, the
-        /// <c>UaBody.RequestHeader.RequestHandle</c> member (OPC 10000-6 §5.4.1).
+        /// <c>RequestHeader.RequestHandle</c> member of the body, which follows
+        /// the UaTypeId inline (OPC 10000-6 §5.4.9, §5.4.2.16).
         /// Reading stops at the first malformed token.
         /// </summary>
         /// <param name="message">The UTF-8 encoded message.</param>
@@ -115,7 +116,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads the RequestHandle from the leading UaBody.ResponseHeader of a JSON response.
+        /// Reads the RequestHandle from the ResponseHeader of a JSON response.
         /// </summary>
         public static uint FromJsonResponse(ReadOnlySpan<byte> message)
         {
@@ -132,9 +133,9 @@ namespace Opc.Ua
                     CommentHandling = JsonCommentHandling.Skip
                 });
 
-                // The object at each of the first three nesting levels:
-                // kMessage, kBody, kRequestHeader or kOther.
-                Span<int> scopes = stackalloc int[3];
+                // The object at each of the first two nesting levels:
+                // kMessage, kRequestHeader or kOther.
+                Span<int> scopes = stackalloc int[2];
                 int depth = -1;
                 int nextScope = kOther;
 
@@ -164,11 +165,7 @@ namespace Opc.Ua
                             {
                                 break;
                             }
-                            if (scopes[depth] == kMessage && reader.ValueTextEquals("UaBody"))
-                            {
-                                nextScope = kBody;
-                            }
-                            else if (scopes[depth] == kBody && reader.ValueTextEquals(headerName))
+                            if (scopes[depth] == kMessage && reader.ValueTextEquals(headerName))
                             {
                                 nextScope = kRequestHeader;
                             }
@@ -268,7 +265,6 @@ namespace Opc.Ua
 
         private const int kOther = 0;
         private const int kMessage = 1;
-        private const int kBody = 2;
-        private const int kRequestHeader = 3;
+        private const int kRequestHeader = 2;
     }
 }

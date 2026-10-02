@@ -621,7 +621,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(xml, Does.Not.Contain("<?xml version=\"1.0\" encoding=\"utf-8\"?><a"));
-                Assert.That(xml, Does.Contain("<a x=\"1\""));
+                // the body is in no namespace, not in the default namespace in scope.
+                Assert.That(xml, Does.Contain("<a xmlns=\"\" x=\"1\""));
 
                 // and the result is parseable, which is the point of the check.
                 Assert.DoesNotThrow(() => XDocument.Parse(xml));
