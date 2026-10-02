@@ -739,6 +739,82 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an in-flight HistoryRead does not keep the points of another, already
+        /// completed request of the session from being freed: at the limit a new request evicts
+        /// the prior request's point instead of failing with Bad_NoContinuationPoints (Part 4 §7.9).
+        /// </summary>
+        [Test]
+        public async Task InFlightHistoryRequestDoesNotPinPointsOfCompletedRequestsAsync()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var completedRead = new TrackingDisposable();
+            var newRead = new TrackingDisposable();
+
+            // request A stays in flight on its own asynchronous flow (e.g. a slow historian).
+            IDisposable slowRequest = await Task.Run(
+                () => holder.BeginHistoryRequest([new HistoryReadValueId()])).ConfigureAwait(false);
+            try
+            {
+                // request B saves a point and returns its response.
+                await Task.Run(() =>
+                {
+                    using (holder.BeginHistoryRequest([new HistoryReadValueId()]))
+                    {
+                        holder.SaveHistory(completedRead);
+                    }
+                }).ConfigureAwait(false);
+
+                // request C needs a slot: B's point is from a prior request and is freed.
+                await Task.Run(() =>
+                {
+                    using (holder.BeginHistoryRequest([new HistoryReadValueId()]))
+                    {
+                        holder.SaveHistory(newRead);
+                    }
+                }).ConfigureAwait(false);
+
+                Assert.That(completedRead.Disposed, Is.True);
+                Assert.That(newRead.Disposed, Is.False);
+                Assert.That(holder.RestoreHistory(ToByteString(newRead.Id)), Is.SameAs(newRead));
+            }
+            finally
+            {
+                slowRequest.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a point saved after its HistoryRead has returned (e.g. by background
+        /// work of a node manager) is not pinned by the ended request and stays evictable.
+        /// </summary>
+        [Test]
+        public async Task SaveAfterHistoryRequestEndedIsNotPinnedAsync()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var lateSave = new TrackingDisposable();
+            var next = new TrackingDisposable();
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task background;
+
+            using (holder.BeginHistoryRequest([new HistoryReadValueId()]))
+            {
+                // the background work captures the request's execution context.
+                background = Task.Run(async () =>
+                {
+                    await release.Task.ConfigureAwait(false);
+                    holder.SaveHistory(lateSave);
+                });
+            }
+
+            release.SetResult(true);
+            await background.ConfigureAwait(false);
+
+            holder.SaveHistory(next);
+            Assert.That(lateSave.Disposed, Is.True);
+            Assert.That(holder.RestoreHistory(ToByteString(next.Id)), Is.SameAs(next));
+        }
+
         private static SessionContinuationPoints NewHolder(
             int maxBrowse = 10,
             int maxHistory = 10,
