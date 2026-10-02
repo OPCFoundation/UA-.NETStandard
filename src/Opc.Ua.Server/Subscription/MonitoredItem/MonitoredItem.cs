@@ -1490,6 +1490,50 @@ namespace Opc.Ua.Server
         public bool MonitoringAllEvents => NodeId == ObjectIds.Server;
 
         /// <summary>
+        /// Returns which select clauses of <paramref name="filter"/> are rejected. They are
+        /// determined once per filter, because a rejected clause stays unvalidated and
+        /// validating it again for every event would repeat the failing (and possibly
+        /// throwing) validation for every event the item receives. Clauses restored without
+        /// validation are validated here.
+        /// </summary>
+        private bool[] GetRejectedSelectClauses(IFilterContext context, EventFilter filter)
+        {
+            RejectedSelectClauses? cached = m_rejectedSelectClauses;
+            if (cached != null && ReferenceEquals(cached.Filter, filter))
+            {
+                return cached.Rejected;
+            }
+
+            ArrayOf<SimpleAttributeOperand> clauses = filter.SelectClauses;
+            bool[] rejected = new bool[clauses.Count];
+            for (int ii = 0; ii < rejected.Length; ii++)
+            {
+                SimpleAttributeOperand clause = clauses[ii];
+                rejected[ii] = clause == null ||
+                    (!clause.Validated && ServiceResult.IsBad(clause.Validate(context, 0)));
+            }
+
+            m_rejectedSelectClauses = new RejectedSelectClauses(filter, rejected);
+            return rejected;
+        }
+
+        /// <summary>
+        /// The rejected select clauses of one event filter.
+        /// </summary>
+        private sealed class RejectedSelectClauses
+        {
+            public RejectedSelectClauses(EventFilter filter, bool[] rejected)
+            {
+                Filter = filter;
+                Rejected = rejected;
+            }
+
+            public EventFilter Filter { get; }
+
+            public bool[] Rejected { get; }
+        }
+
+        /// <summary>
         /// Fetches the event fields from the event.
         /// </summary>
         private EventFieldList GetEventFields(
@@ -1498,17 +1542,19 @@ namespace Opc.Ua.Server
             IFilterTarget instance)
         {
             // fetch the event fields.
-            var eventFieldValues = new List<Variant>();
-            foreach (SimpleAttributeOperand clause in filter.SelectClauses)
+            bool[] rejected = GetRejectedSelectClauses(context, filter);
+            var eventFieldValues = new List<Variant>(rejected.Length);
+            for (int ii = 0; ii < rejected.Length; ii++)
             {
                 // a select clause rejected in the EventFilterResult returns a null field
-                // (Part 4 §7.22.3). Clauses restored without validation are validated here.
-                if (clause == null ||
-                    (!clause.Validated && ServiceResult.IsBad(clause.Validate(context, 0))))
+                // (Part 4 §7.22.3).
+                if (rejected[ii])
                 {
                     eventFieldValues.Add(Variant.Null);
                     continue;
                 }
+
+                SimpleAttributeOperand clause = filter.SelectClauses[ii];
 
                 // get the value of the attribute (apply localization).
                 Variant value = instance.GetAttributeValue(
@@ -2696,6 +2742,7 @@ namespace Opc.Ua.Server
         private bool m_resendData;
         private bool m_valueQueued;
         private HashSet<string>? m_filteredRetainConditionIds;
+        private RejectedSelectClauses? m_rejectedSelectClauses;
         private bool m_isDetached;
         private bool m_isDeleted;
     }

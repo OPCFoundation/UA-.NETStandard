@@ -498,6 +498,55 @@ namespace Opc.Ua.Server.Tests
             Assert.That(published[0].EventFields.ToArray(), Is.EqualTo(new[] { Variant.From("A") }));
         }
 
+        /// <summary>
+        /// A rejected select clause returns a null field. It is rejected once for the
+        /// filter, not validated again (and failing again) for every event.
+        /// </summary>
+        [Test]
+        public void RejectedSelectClauseIsValidatedOnce()
+        {
+            using var harness = new Harness();
+            SimpleAttributeOperand invalid = CreateSelectClause("B");
+            invalid.IndexRange = "not a range";
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A"), invalid],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+
+            int testThread = Environment.CurrentManagedThreadId;
+            int failedValidations = 0;
+            void OnFirstChance(object sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
+            {
+                if (Environment.CurrentManagedThreadId == testThread &&
+                    e.Exception is ServiceResultException)
+                {
+                    failedValidations++;
+                }
+            }
+
+            AppDomain.CurrentDomain.FirstChanceException += OnFirstChance;
+            try
+            {
+                for (int ii = 0; ii < 5; ii++)
+                {
+                    item.QueueEvent(new NamedFieldTarget());
+                }
+            }
+            finally
+            {
+                AppDomain.CurrentDomain.FirstChanceException -= OnFirstChance;
+            }
+
+            Assert.That(failedValidations, Is.EqualTo(1));
+            List<EventFieldList> published = PublishEvents(item);
+            Assert.That(published, Has.Count.EqualTo(5));
+            Assert.That(
+                published[4].EventFields.ToArray(),
+                Is.EqualTo(new[] { Variant.From("A"), Variant.Null }));
+        }
+
         private static void ModifyEventItem(MonitoredItem item, EventFilter filter, uint clientHandle)
         {
             ServiceResult result = item.ModifyAttributes(
