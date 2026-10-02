@@ -128,8 +128,11 @@ namespace Opc.Ua.Server
 
             for (int i = m_events.Count - 1; i >= lowestIndex; i--)
             {
+                // a trailing filtered retain event is queued with a wrapper as its handle.
                 if (m_events[i] is EventFieldList processedEvent &&
-                    ReferenceEquals(instance, processedEvent.Handle))
+                    (ReferenceEquals(instance, processedEvent.Handle) ||
+                    (processedEvent.Handle is FilteredRetainTarget wrapper &&
+                        ReferenceEquals(instance, wrapper.Target))))
                 {
                     return true;
                 }

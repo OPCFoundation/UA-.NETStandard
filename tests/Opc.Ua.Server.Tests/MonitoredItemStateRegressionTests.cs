@@ -116,7 +116,8 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// The first value queued after a triggering item leaves DISABLED must trigger its
-        /// linked items, while the value queued at creation still does not.
+        /// linked items. (A value queued before the first link exists is discarded by
+        /// Subscription.SetTriggering, see SetTriggeringDiscardsTriggerQueuedBeforeFirstLink.)
         /// </summary>
         [Test]
         public void FirstValueAfterReenableIsReadyToTrigger()
@@ -125,10 +126,31 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = harness.CreateDataItem(queueSize: 1, samplingInterval: 0);
 
             item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
-            Assert.That(item.IsReadyToTrigger, Is.False, "creation value must not trigger");
             _ = PublishData(harness, item);
 
             item.SetMonitoringMode(MonitoringMode.Disabled);
+            item.SetMonitoringMode(MonitoringMode.Reporting);
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+
+            Assert.That(item.IsReadyToTrigger, Is.True);
+        }
+
+        /// <summary>
+        /// An item created DISABLED queues nothing until it is enabled. The first value it
+        /// queues then must trigger the items linked to it in the meantime.
+        /// </summary>
+        [Test]
+        public void FirstValueOfItemCreatedDisabledIsReadyToTrigger()
+        {
+            using var harness = new Harness();
+            using MonitoredItem item = harness.CreateDataItem(
+                queueSize: 1,
+                MonitoringMode.Disabled,
+                samplingInterval: 0);
+
+            item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            Assert.That(item.IsReadyToTrigger, Is.False, "a disabled item queues nothing");
+
             item.SetMonitoringMode(MonitoringMode.Reporting);
             item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
 
@@ -379,6 +401,53 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Values queued before a restart trigger the linked items of a restored reporting
+        /// item, but not those of a sampling item, whose queue holds nothing new.
+        /// </summary>
+        [TestCase(MonitoringMode.Reporting, true)]
+        [TestCase(MonitoringMode.Sampling, false)]
+        public void RestoredItemWithQueuedValuesTriggersOnlyWhenReporting(
+            MonitoringMode monitoringMode,
+            bool readyToTrigger)
+        {
+            using var harness = new Harness();
+            IDataChangeMonitoredItemQueue queue = harness.QueueFactory.CreateDataChangeQueue(false, 2);
+            queue.ResetQueue(10, false);
+            queue.Enqueue(new DataValue(Variant.From(7)), ServiceResult.Good);
+            var filter = new DataChangeFilter { Trigger = DataChangeTrigger.StatusValue };
+            var stored = new StoredMonitoredItem
+            {
+                Id = 2,
+                SubscriptionId = 1,
+                TypeMask = MonitoredItemTypeMask.DataChange,
+                MonitoringMode = monitoringMode,
+                NodeId = new NodeId("V", 1),
+                AttributeId = Attributes.Value,
+                ClientHandle = 3,
+                QueueSize = 10,
+                DiscardOldest = true,
+                SamplingInterval = 0,
+                TimestampsToReturn = TimestampsToReturn.Both,
+                DiagnosticsMasks = DiagnosticsMasks.None,
+                OriginalFilter = filter,
+                FilterToUse = filter,
+                IndexRange = string.Empty,
+                ParsedIndexRange = NumericRange.Null,
+                LastValue = new DataValue(Variant.From(7)),
+                RestoredDataChangeQueue = queue
+            };
+
+            using var item = new MonitoredItem(
+                harness.ServerMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                stored,
+                harness.TimeProvider);
+
+            Assert.That(item.IsReadyToTrigger, Is.EqualTo(readyToTrigger));
+        }
+
+        /// <summary>
         /// Events queued before a modification of the select clauses are published in the
         /// new field layout and with the new client handle.
         /// </summary>
@@ -442,8 +511,49 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A queued event that cannot be resolved again after the select clauses change is
-        /// dropped and reported as an event queue overflow.
+        /// A queued event without a filter target (restored from a durable or redundant
+        /// queue) keeps the fields still selected after the select clauses change; the new
+        /// ones are null.
+        /// </summary>
+        [Test]
+        public void ModifySelectClausesProjectsEventsWithoutTarget()
+        {
+            using var harness = new Harness();
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A"), CreateSelectClause("B")],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+            item.QueueEvent(new EventFieldList
+            {
+                ClientHandle = 5,
+                EventFields = [Variant.From("a"), Variant.From("b")]
+            });
+
+            var modified = new EventFilter
+            {
+                SelectClauses =
+                [
+                    CreateSelectClause("C"),
+                    CreateSelectClause("B"),
+                    CreateSelectClause("A")
+                ],
+                WhereClause = new ContentFilter()
+            };
+            ModifyEventItem(item, modified, clientHandle: 7);
+
+            List<EventFieldList> published = PublishEvents(item);
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(published[0].ClientHandle, Is.EqualTo(7u));
+            Assert.That(
+                published[0].EventFields.ToArray(),
+                Is.EqualTo(new[] { Variant.Null, Variant.From("b"), Variant.From("a") }));
+        }
+
+        /// <summary>
+        /// A queued event without a filter target none of whose fields is still selected
+        /// is dropped and reported as an event queue overflow.
         /// </summary>
         [Test]
         public void ModifySelectClausesDropsEventsWithoutTarget()
@@ -463,7 +573,7 @@ namespace Opc.Ua.Server.Tests
 
             var modified = new EventFilter
             {
-                SelectClauses = [CreateSelectClause("B"), CreateSelectClause("A")],
+                SelectClauses = [CreateSelectClause("B"), CreateSelectClause("C")],
                 WhereClause = new ContentFilter()
             };
             ModifyEventItem(item, modified, clientHandle: 5);
@@ -473,6 +583,102 @@ namespace Opc.Ua.Server.Tests
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].Handle, Is.AssignableTo<EventQueueOverflowEventState>());
             Assert.That(published[0].EventFields.Count, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// A modification whose rebuild of the queued events fails must neither lose those
+        /// events nor leave the item half modified.
+        /// </summary>
+        [Test]
+        public void FailedRebuildKeepsQueuedEventsAndLeavesItemUnmodified()
+        {
+            using var harness = new Harness();
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+            var first = new NamedFieldTarget();
+            var second = new NamedFieldTarget();
+            item.QueueEvent(first);
+            item.QueueEvent(second);
+
+            var modified = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause(NamedFieldTarget.Failing), CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            Assert.Throws<InvalidOperationException>(
+                () => item.ModifyAttributes(
+                    DiagnosticsMasks.None,
+                    TimestampsToReturn.Both,
+                    9,
+                    modified,
+                    modified,
+                    null,
+                    0,
+                    1,
+                    discardOldest: true));
+
+            Assert.That(item.ClientHandle, Is.EqualTo(5u));
+            Assert.That(item.Filter, Is.SameAs(filter));
+            Assert.That(item.QueueSize, Is.EqualTo(10u));
+            List<EventFieldList> published = PublishEvents(item);
+            Assert.That(published, Has.Count.EqualTo(2));
+            Assert.That(published[0].Handle, Is.SameAs(first));
+            Assert.That(published[1].Handle, Is.SameAs(second));
+            Assert.That(published[0].ClientHandle, Is.EqualTo(5u));
+            Assert.That(published[0].EventFields.ToArray(), Is.EqualTo(new[] { Variant.From("A") }));
+        }
+
+        /// <summary>
+        /// A rejected select clause returns a null field. It is rejected once for the
+        /// filter, not validated again (and failing again) for every event.
+        /// </summary>
+        [Test]
+        public void RejectedSelectClauseIsValidatedOnce()
+        {
+            using var harness = new Harness();
+            SimpleAttributeOperand invalid = CreateSelectClause("B");
+            invalid.IndexRange = "not a range";
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A"), invalid],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+
+            int testThread = Environment.CurrentManagedThreadId;
+            int failedValidations = 0;
+            void OnFirstChance(object sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
+            {
+                if (Environment.CurrentManagedThreadId == testThread &&
+                    e.Exception is ServiceResultException)
+                {
+                    failedValidations++;
+                }
+            }
+
+            AppDomain.CurrentDomain.FirstChanceException += OnFirstChance;
+            try
+            {
+                for (int ii = 0; ii < 5; ii++)
+                {
+                    item.QueueEvent(new NamedFieldTarget());
+                }
+            }
+            finally
+            {
+                AppDomain.CurrentDomain.FirstChanceException -= OnFirstChance;
+            }
+
+            Assert.That(failedValidations, Is.EqualTo(1));
+            List<EventFieldList> published = PublishEvents(item);
+            Assert.That(published, Has.Count.EqualTo(5));
+            Assert.That(
+                published[4].EventFields.ToArray(),
+                Is.EqualTo(new[] { Variant.From("A"), Variant.Null }));
         }
 
         private static void ModifyEventItem(MonitoredItem item, EventFilter filter, uint clientHandle)
@@ -505,6 +711,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private sealed class NamedFieldTarget : IFilterTarget
         {
+            /// <summary>
+            /// A field name the target fails to resolve with an exception.
+            /// </summary>
+            public const string Failing = "Failing";
+
             public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
             {
                 return true;
@@ -517,6 +728,10 @@ namespace Opc.Ua.Server.Tests
                 uint attributeId,
                 NumericRange indexRange)
             {
+                if (relativePath[0].Name == Failing)
+                {
+                    throw new InvalidOperationException("The field cannot be resolved.");
+                }
                 return Variant.From(relativePath[0].Name);
             }
         }

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -311,7 +310,6 @@ namespace Opc.Ua.Server
             AlwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
             m_lastError = storedMonitoredItem.LastError;
             m_lastValue = storedMonitoredItem.LastValue;
-            m_valueQueued = !m_lastValue.IsNull;
             MonitoredItemType = storedMonitoredItem.TypeMask;
             // without this the first transition out of filter scope after a restart is
             // dropped, because the item would not know the client had been told about the
@@ -346,11 +344,14 @@ namespace Opc.Ua.Server
             RestoreQueue();
 
             // notifications that were queued before the restart are still owed to the
-            // client, so the item is ready without waiting for the next change.
+            // client, so the item is ready without waiting for the next change. Only a
+            // reporting item delivers them and triggers its linked items with them: the
+            // queue of a sampling item keeps its samples until it is triggered itself, so
+            // it holds nothing new since the restart.
             if (ItemsInQueue > 0)
             {
                 m_readyToPublish = true;
-                m_readyToTrigger = true;
+                m_readyToTrigger = MonitoringMode == MonitoringMode.Reporting;
             }
 
             m_isDeleted = storedMonitoredItem.IsDeleted;
@@ -939,6 +940,14 @@ namespace Opc.Ua.Server
                 }
                 AggregationFilterHandler.Modification? aggregateChange = aggregateFilter?.PrepareChange(filterToUse);
 
+                // the queued events are rebuilt before anything is committed: when that
+                // fails the queue is restored and the item stays unmodified.
+                RebuildQueuedEventFields(
+                    previousFilterToUse,
+                    filterToUse,
+                    previousClientHandle,
+                    clientHandle);
+
                 DiagnosticsMasks = diagnosticsMasks;
                 m_timestampsToReturn = timestampsToReturn;
                 ClientHandle = clientHandle;
@@ -971,8 +980,6 @@ namespace Opc.Ua.Server
 
                 InitializeQueue();
 
-                RebuildQueuedEventFields(previousFilterToUse, previousClientHandle);
-
                 return null;
             }
         }
@@ -985,16 +992,20 @@ namespace Opc.Ua.Server
         /// Event fields are resolved when the event is queued, but the client decodes every
         /// EventFieldList it receives after the modification with the new select clauses
         /// (Part 4, 7.25.3). Queued events are therefore resolved again from their filter
-        /// target; an event without one can no longer be delivered correctly and is dropped,
-        /// which is reported to the client as an event queue overflow.
+        /// target. An event without one (restored from a durable or redundant queue) keeps
+        /// the values of the clauses selected before and reports the new ones as null; only
+        /// an event none of whose fields is still selected is dropped, which is reported to
+        /// the client as an event queue overflow.
         /// </remarks>
         private void RebuildQueuedEventFields(
             MonitoringFilter? previousFilter,
-            uint previousClientHandle)
+            MonitoringFilter? newFilter,
+            uint previousClientHandle,
+            uint clientHandle)
         {
             if (m_eventQueueHandler == null ||
                 m_eventQueueHandler.ItemsInQueue == 0 ||
-                FilterToUse is not EventFilter filter)
+                newFilter is not EventFilter filter)
             {
                 return;
             }
@@ -1005,11 +1016,11 @@ namespace Opc.Ua.Server
 
             if (!selectClausesChanged)
             {
-                if (previousClientHandle != ClientHandle)
+                if (previousClientHandle != clientHandle)
                 {
                     m_eventQueueHandler.RebuildQueuedEvents(fields =>
                     {
-                        fields.ClientHandle = ClientHandle;
+                        fields.ClientHandle = clientHandle;
                         return fields;
                     });
                 }
@@ -1023,28 +1034,93 @@ namespace Opc.Ua.Server
                 Session?.PreferredLocales!,
                 m_server.Telemetry);
 
+            // where each new select clause was in the previous layout, for the events
+            // without a filter target, e.g. restored from a durable queue.
+            int[]? previousIndexes = null;
+
             m_eventQueueHandler.RebuildQueuedEvents(fields =>
             {
                 if (fields.Handle is not IFilterTarget target)
                 {
-                    return null;
+                    previousIndexes ??= MapSelectClauses(
+                        (previousFilter as EventFilter)?.SelectClauses ?? default,
+                        filter.SelectClauses);
+                    return ProjectEventFields(fields, previousIndexes, clientHandle);
                 }
 
-                bool overrideRetain = m_filteredRetainEvents != null &&
-                    m_filteredRetainEvents.TryGetValue(fields, out _);
-                EventFieldList rebuilt = GetEventFields(
-                    context,
-                    filter,
-                    overrideRetain ? new FilteredRetainTarget(target) : target);
-                rebuilt.Handle = target;
-
-                if (overrideRetain)
-                {
-                    m_filteredRetainEvents!.Add(rebuilt, s_filteredRetainMarker);
-                }
-
+                // a trailing filtered retain event keeps its FilteredRetainTarget handle,
+                // so the rebuilt fields report the same Retain override.
+                EventFieldList rebuilt = GetEventFields(context, filter, target);
+                rebuilt.ClientHandle = clientHandle;
                 return rebuilt;
             });
+        }
+
+        /// <summary>
+        /// Returns for every current select clause the index of the identical previous
+        /// clause, or -1 when the clause is new.
+        /// </summary>
+        private static int[] MapSelectClauses(
+            ArrayOf<SimpleAttributeOperand> previous,
+            ArrayOf<SimpleAttributeOperand> current)
+        {
+            int[] previousIndexes = new int[current.Count];
+            for (int ii = 0; ii < current.Count; ii++)
+            {
+                previousIndexes[ii] = -1;
+                if (current[ii] == null)
+                {
+                    continue;
+                }
+
+                for (int jj = 0; jj < previous.Count; jj++)
+                {
+                    if (Utils.IsEqual(previous[jj], current[ii]))
+                    {
+                        previousIndexes[ii] = jj;
+                        break;
+                    }
+                }
+            }
+
+            return previousIndexes;
+        }
+
+        /// <summary>
+        /// Moves the fields of a queued event that cannot be resolved again onto the new
+        /// select clauses: a field selected before keeps its value, a new one is null. An
+        /// event none of whose fields is selected any more is dropped.
+        /// </summary>
+        private static EventFieldList? ProjectEventFields(
+            EventFieldList fields,
+            int[] previousIndexes,
+            uint clientHandle)
+        {
+            var eventFields = new List<Variant>(previousIndexes.Length);
+            bool anyMapped = false;
+            foreach (int previousIndex in previousIndexes)
+            {
+                if (previousIndex >= 0 && previousIndex < fields.EventFields.Count)
+                {
+                    eventFields.Add(fields.EventFields[previousIndex]);
+                    anyMapped = true;
+                }
+                else
+                {
+                    eventFields.Add(Variant.Null);
+                }
+            }
+
+            if (!anyMapped)
+            {
+                return null;
+            }
+
+            return new EventFieldList
+            {
+                ClientHandle = clientHandle,
+                EventFields = eventFields
+            };
         }
 
         private static bool AreSelectClausesEqual(
@@ -1373,7 +1449,6 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
             m_readyToTrigger = true;
-            m_valueQueued = true;
         }
 
         /// <summary>
@@ -1387,15 +1462,11 @@ namespace Opc.Ua.Server
                 overflow = m_dataChangeQueueHandler!.QueueValue(value, error);
             }
 
-            // the value queued when the item is created cannot trigger, because no
-            // triggering link exists yet (Part 4, 5.13.1.6). Every later notification,
-            // including the first one after leaving DISABLED, triggers the linked items.
-            if (m_valueQueued)
-            {
-                m_readyToTrigger = true;
-            }
-
-            m_valueQueued = true;
+            // every notification triggers the linked items, including the first one after
+            // leaving DISABLED. A notification queued before the first triggering link was
+            // created must not trigger (Part 4, 5.13.1.6); SetTriggering discards the flag
+            // when it creates that link.
+            m_readyToTrigger = true;
 
             // save last value received.
             m_lastValue = value;
@@ -1416,6 +1487,50 @@ namespace Opc.Ua.Server
         public bool MonitoringAllEvents => NodeId == ObjectIds.Server;
 
         /// <summary>
+        /// Returns which select clauses of <paramref name="filter"/> are rejected. They are
+        /// determined once per filter, because a rejected clause stays unvalidated and
+        /// validating it again for every event would repeat the failing (and possibly
+        /// throwing) validation for every event the item receives. Clauses restored without
+        /// validation are validated here.
+        /// </summary>
+        private bool[] GetRejectedSelectClauses(IFilterContext context, EventFilter filter)
+        {
+            RejectedSelectClauses? cached = m_rejectedSelectClauses;
+            if (cached != null && ReferenceEquals(cached.Filter, filter))
+            {
+                return cached.Rejected;
+            }
+
+            ArrayOf<SimpleAttributeOperand> clauses = filter.SelectClauses;
+            bool[] rejected = new bool[clauses.Count];
+            for (int ii = 0; ii < rejected.Length; ii++)
+            {
+                SimpleAttributeOperand clause = clauses[ii];
+                rejected[ii] = clause == null ||
+                    (!clause.Validated && ServiceResult.IsBad(clause.Validate(context, 0)));
+            }
+
+            m_rejectedSelectClauses = new RejectedSelectClauses(filter, rejected);
+            return rejected;
+        }
+
+        /// <summary>
+        /// The rejected select clauses of one event filter.
+        /// </summary>
+        private sealed class RejectedSelectClauses
+        {
+            public RejectedSelectClauses(EventFilter filter, bool[] rejected)
+            {
+                Filter = filter;
+                Rejected = rejected;
+            }
+
+            public EventFilter Filter { get; }
+
+            public bool[] Rejected { get; }
+        }
+
+        /// <summary>
         /// Fetches the event fields from the event.
         /// </summary>
         private EventFieldList GetEventFields(
@@ -1424,17 +1539,19 @@ namespace Opc.Ua.Server
             IFilterTarget instance)
         {
             // fetch the event fields.
-            var eventFieldValues = new List<Variant>();
-            foreach (SimpleAttributeOperand clause in filter.SelectClauses)
+            bool[] rejected = GetRejectedSelectClauses(context, filter);
+            var eventFieldValues = new List<Variant>(rejected.Length);
+            for (int ii = 0; ii < rejected.Length; ii++)
             {
                 // a select clause rejected in the EventFilterResult returns a null field
-                // (Part 4 §7.22.3). Clauses restored without validation are validated here.
-                if (clause == null ||
-                    (!clause.Validated && ServiceResult.IsBad(clause.Validate(context, 0))))
+                // (Part 4 §7.22.3).
+                if (rejected[ii])
                 {
                     eventFieldValues.Add(Variant.Null);
                     continue;
                 }
+
+                SimpleAttributeOperand clause = filter.SelectClauses[ii];
 
                 // get the value of the attribute (apply localization).
                 Variant value = instance.GetAttributeValue(
@@ -1539,20 +1656,12 @@ namespace Opc.Ua.Server
 
                 // fetch the event fields. The trailing filtered retain event reads them
                 // through a wrapper that reports Retain = false to this client only. The
-                // queue keeps the original handle: duplicate detection compares handles by
-                // reference, and node managers map the handle back onto the event state.
+                // wrapper stays the handle of the queued event, so a later change of the
+                // select clauses rebuilds its fields with the same Retain override.
                 IFilterTarget fieldSource = overrideRetain
                     ? new FilteredRetainTarget(instance)
                     : instance;
-                EventFieldList fields = GetEventFields(context, filter, fieldSource);
-                fields.Handle = instance;
-                if (overrideRetain)
-                {
-                    // remembered so a later change of the select clauses can rebuild the
-                    // fields of this queued event with the same Retain override.
-                    (m_filteredRetainEvents ??= new()).Add(fields, s_filteredRetainMarker);
-                }
-                QueueEvent(fields);
+                QueueEvent(GetEventFields(context, filter, fieldSource));
             }
         }
 
@@ -1840,17 +1949,18 @@ namespace Opc.Ua.Server
                         EventQueueOverflowReported();
                         maxNotificationsPerPublish--;
                     }
-                    uint notificationCount = m_eventQueueHandler.Publish(
+                    m_eventQueueHandler.Publish(
                         context,
                         notifications,
-                        maxNotificationsPerPublish);
+                        maxNotificationsPerPublish,
+                        out bool overflowEventDue);
 
                     moreValuesToPublish = m_eventQueueHandler?.ItemsInQueue > 0;
 
-                    // place overflow event at the end of the queue if queue is empty.
+                    // place overflow event after the events queued before the loss.
                     if (overflowEvent != null && !m_discardOldest)
                     {
-                        if (notificationCount < maxNotificationsPerPublish)
+                        if (overflowEventDue)
                         {
                             notifications.Enqueue(overflowEvent);
                             EventQueueOverflowReported();
@@ -2627,10 +2737,8 @@ namespace Opc.Ua.Server
         private ServiceResult? m_samplingError;
         private bool m_triggered;
         private bool m_resendData;
-        private bool m_valueQueued;
         private HashSet<string>? m_filteredRetainConditionIds;
-        private ConditionalWeakTable<EventFieldList, object>? m_filteredRetainEvents;
-        private static readonly object s_filteredRetainMarker = new();
+        private RejectedSelectClauses? m_rejectedSelectClauses;
         private bool m_isDetached;
         private bool m_isDeleted;
     }

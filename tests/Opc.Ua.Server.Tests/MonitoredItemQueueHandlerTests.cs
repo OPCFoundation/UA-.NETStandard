@@ -284,9 +284,104 @@ namespace Opc.Ua.Server.Tests
             Assert.That(second.StatusCode.Overflow, Is.True);
         }
 
+        /// <summary>
+        /// A durable queue transiently returns no event while it restores a persisted batch.
+        /// A rebuild must keep going instead of treating that as the end of the queue, which
+        /// would publish the remaining events in the old layout ahead of the rebuilt ones.
+        /// </summary>
+        [Test]
+        public void EventRebuildRetriesTransientlyFailingDequeue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new FlakyEventQueue(telemetry);
+            queue.SetQueueSize(10, true);
+            using var handler = new EventQueueHandler(queue, true, telemetry);
+            for (int i = 0; i < 4; i++)
+            {
+                handler.QueueEvent(NewEvent(i));
+            }
+
+            queue.FailEveryOtherDequeue = true;
+            handler.RebuildQueuedEvents(fields => NewEvent(fields.EventFields[0].GetInt32() + 10));
+            queue.FailEveryOtherDequeue = false;
+
+            var notifications = new Queue<EventFieldList>();
+            Assert.That(handler.Publish(null!, notifications, 10), Is.EqualTo(4u));
+            Assert.That(
+                notifications.Select(n => n.EventFields[0].GetInt32()),
+                Is.EqualTo(new[] { 10, 11, 12, 13 }));
+            Assert.That(handler.Overflow, Is.False);
+        }
+
+        /// <summary>
+        /// With discardOldest FALSE the overflow event follows the events queued before the
+        /// loss. A dequeue that transiently fails must not hand it out ahead of them.
+        /// </summary>
+        [Test]
+        public void EventOverflowStaysBehindTransientlyFailingDequeue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new FlakyEventQueue(telemetry);
+            queue.SetQueueSize(2, false);
+            using var handler = new EventQueueHandler(queue, false, telemetry);
+            handler.QueueEvent(NewEvent(1));
+            handler.QueueEvent(NewEvent(2));
+            Assert.That(handler.SetQueueOverflowIfFull(), Is.True);
+
+            queue.FailedDequeues = 1;
+            var notifications = new Queue<EventFieldList>();
+            Assert.That(handler.Publish(null!, notifications, 10, out bool due), Is.Zero);
+            Assert.That(due, Is.False, "the events queued before the loss are still queued");
+            Assert.That(handler.Overflow, Is.True);
+
+            Assert.That(handler.Publish(null!, notifications, 10, out due), Is.EqualTo(2u));
+            Assert.That(due, Is.True);
+            Assert.That(handler.Overflow, Is.False);
+        }
+
         private static EventFieldList NewEvent(int value)
         {
             return new EventFieldList { EventFields = [new Variant(value)] };
+        }
+
+        /// <summary>
+        /// An in-memory event queue whose dequeue fails on demand, the way a durable queue
+        /// does while it restores a persisted batch.
+        /// </summary>
+        private sealed class FlakyEventQueue : EventMonitoredItemQueue
+        {
+            public FlakyEventQueue(ITelemetryContext telemetry)
+                : base(false, 1, telemetry)
+            {
+            }
+
+            public int FailedDequeues { get; set; }
+
+            public bool FailEveryOtherDequeue { get; set; }
+
+            public override bool Dequeue(out EventFieldList value)
+            {
+                if (FailedDequeues > 0)
+                {
+                    FailedDequeues--;
+                    value = null!;
+                    return false;
+                }
+
+                if (FailEveryOtherDequeue)
+                {
+                    m_failNext = !m_failNext;
+                    if (m_failNext)
+                    {
+                        value = null!;
+                        return false;
+                    }
+                }
+
+                return base.Dequeue(out value);
+            }
+
+            private bool m_failNext;
         }
 
         private static MonitoredItem CreateEventMonitoredItem(
