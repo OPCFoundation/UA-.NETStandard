@@ -873,6 +873,22 @@ namespace Opc.Ua
         /// <summary>
         /// Validates the object.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="Result.Status"/> is Bad_EventFilterInvalid only when the filter has no
+        /// select clauses, no valid select clause, or an invalid where clause. A filter
+        /// with at least one valid select clause and some invalid ones returns a Good
+        /// <see cref="Result.Status"/> and reports the rejected clauses in
+        /// <see cref="Result.SelectClauseResults"/> (Part 4 §7.22.3: a monitored item is
+        /// created and the rejected fields are returned as null).
+        /// </para>
+        /// <para>
+        /// Callers that cannot return per-clause results (for example HistoryRead or
+        /// HistoryUpdate of events, or a custom event store) must also check
+        /// <see cref="Result.HasSelectClauseErrors"/> to keep rejecting such a filter.
+        /// Up to 1.5.x any invalid select clause made <see cref="Result.Status"/> Bad.
+        /// </para>
+        /// </remarks>
         public Result Validate(IFilterContext context)
         {
             var result = new Result();
