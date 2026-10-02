@@ -946,6 +946,13 @@ namespace Opc.Ua.Server
 
             lock (m_diagnosticsLock)
             {
+                // The diagnostics are created with the server object during startup; a request
+                // rejected before that (e.g. Bad_ServerHalted) has nothing to count yet.
+                if (ServerDiagnostics == null)
+                {
+                    return;
+                }
+
                 update.Invoke(ServerDiagnostics);
 
                 // mark diagnostic nodes dirty

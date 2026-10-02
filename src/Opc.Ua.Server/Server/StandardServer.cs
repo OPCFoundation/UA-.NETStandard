@@ -1024,18 +1024,26 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            server.ReportAuditCreateSessionEvent(
-                auditEntryId!,
-                null,
-                secureChannelId,
-                clientCertificate,
-                null,
-                0,
-                m_logger,
-                exception);
-            CountRejectedSession(
-                server,
-                exception is ServiceResultException sre ? sre.StatusCode : StatusCodes.BadUnexpectedError);
+            // Reporting is best effort: it must never replace the rejection the client gets.
+            try
+            {
+                server.ReportAuditCreateSessionEvent(
+                    auditEntryId!,
+                    null,
+                    secureChannelId,
+                    clientCertificate,
+                    null,
+                    0,
+                    m_logger,
+                    exception);
+                CountRejectedSession(
+                    server,
+                    exception is ServiceResultException sre ? sre.StatusCode : StatusCodes.BadUnexpectedError);
+            }
+            catch (Exception e)
+            {
+                m_logger.ReportingRejectedCreateSessionFailed(e);
+            }
         }
 
         /// <summary>
@@ -6065,6 +6073,13 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             string? errorMessage);
+
+        /// <summary>
+        /// Logs a failure to audit or count a rejected CreateSession.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 36, Level = LogLevel.Warning,
+            Message = "Server - reporting a rejected CreateSession failed; the rejection stands.")]
+        public static partial void ReportingRejectedCreateSessionFailed(this ILogger logger, Exception ex);
 
         /// <summary>
         /// Logs a failed best-effort step after an ActivateSession committed.
