@@ -179,6 +179,32 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             });
         }
 
+        /// <summary>
+        /// After the counter wrapped, a reconnect may still skip ahead across the
+        /// wrap but must not accept a number from before the wrap again.
+        /// </summary>
+        [Test]
+        public void ReconnectAfterRolloverRejectsPreWrapNumbers()
+        {
+            using SequenceProbe channel = CreateChannel();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.Verify(TcpMessageLimits.MinSequenceNumber + 1), Is.True);
+                Assert.That(channel.Verify(10), Is.True, "the legacy wrap is legal.");
+                Assert.That(channel.VerifyReconnect(uint.MaxValue), Is.False, "a pre-wrap number is a replay.");
+                Assert.That(
+                    channel.VerifyReconnect(TcpMessageLimits.MinSequenceNumber + 2),
+                    Is.False,
+                    "a pre-wrap number is a replay.");
+                Assert.That(channel.VerifyReconnect(20), Is.True);
+
+                // a reconnect may itself skip across a wrap.
+                channel.Reset(uint.MaxValue - 5);
+                Assert.That(channel.VerifyReconnect(3), Is.True);
+            });
+        }
+
         private static SequenceProbe CreateChannel()
         {
             return CreateChannel(SecurityPolicies.None)!;

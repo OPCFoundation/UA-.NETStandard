@@ -253,6 +253,47 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// A KeyData longer than the keys of the policy need is rejected with the same status as
+        /// any other KeyData failure, before a private-key operation is spent on the extra blocks.
+        /// </summary>
+        [Test]
+        public void TryDecryptRsaRejectsKeyDataWithExtraBlocks()
+        {
+            EncryptedSecret encryptedSecret = CreateRsa();
+            byte[] nonce = NonceBytes();
+            byte[] encoded = encryptedSecret.EncryptRsa(SecretBytes(), nonce);
+
+            using var decoder = new BinaryDecoder(encoded, m_context);
+            decoder.ReadNodeId(null);
+            decoder.ReadByte(null);
+            int lengthPosition = decoder.Position;
+            decoder.ReadUInt32(null);
+            decoder.ReadString(null);
+            decoder.ReadByteString(null);
+            decoder.ReadDateTime(null);
+            int keyDataLengthPosition = decoder.Position;
+            int keyDataLength = decoder.ReadUInt16(null);
+            int keyDataEnd = decoder.Position + keyDataLength;
+
+            using RSA rsa = m_certificate.GetRSAPublicKey();
+            int blockSize = rsa.KeySize / 8;
+            byte[] extraBlock = rsa.Encrypt([1, 2, 3], RSAEncryptionPadding.OaepSHA1);
+            byte[] padded = new byte[encoded.Length + blockSize];
+            Buffer.BlockCopy(encoded, 0, padded, 0, keyDataEnd);
+            Buffer.BlockCopy(extraBlock, 0, padded, keyDataEnd, blockSize);
+            Buffer.BlockCopy(encoded, keyDataEnd, padded, keyDataEnd + blockSize, encoded.Length - keyDataEnd);
+            BitConverter.GetBytes((ushort)(keyDataLength + blockSize)).CopyTo(padded, keyDataLengthPosition);
+            uint secretLength = BitConverter.ToUInt32(encoded, lengthPosition);
+            BitConverter.GetBytes(secretLength + (uint)blockSize).CopyTo(padded, lengthPosition);
+
+            Assert.That(
+                () => encryptedSecret.TryDecryptRsa(padded, nonce, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        /// <summary>
         /// A multi-block KeyData whose first block fails RSA unpadding must still run one private-key
         /// operation per block, so the operation count does not reveal which block was bad.
         /// </summary>

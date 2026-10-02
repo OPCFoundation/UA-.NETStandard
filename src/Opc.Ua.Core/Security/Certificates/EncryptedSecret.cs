@@ -1098,7 +1098,37 @@ namespace Opc.Ua
         {
             using RSA rsa = ReceiverCertificate.GetRSAPrivateKey()
                 ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-            return TransformRsaBlocks(cipherText, rsa, GetRsaEncryptionPadding(), encrypt: false);
+            RSAEncryptionPadding padding = GetRsaEncryptionPadding();
+
+            // The KeyData holds the signing key, the encrypting key and the IV, each as
+            // a ByteString, so its encrypted size follows from the policy and the
+            // receiver key alone. Rejecting any other length before a private-key
+            // operation bounds the work a sender can force, and the length is public.
+            int cipherTextBlockSize = rsa.KeySize / 8;
+            int plainTextLength = (3 * sizeof(int)) +
+                SecurityPolicy.DerivedSignatureKeyLength +
+                SecurityPolicy.SymmetricEncryptionKeyLength +
+                SecurityPolicy.InitializationVectorLength;
+            int plainTextBlockSize = GetRsaPlainTextBlockSize(cipherTextBlockSize, padding);
+            int expectedLength =
+                (plainTextLength + plainTextBlockSize - 1) / plainTextBlockSize * cipherTextBlockSize;
+            if (cipherText.Count != expectedLength)
+            {
+                throw new CryptographicException("Unexpected KeyData length.");
+            }
+
+            return TransformRsaBlocks(cipherText, rsa, padding, encrypt: false);
+        }
+
+        private static int GetRsaPlainTextBlockSize(int cipherTextBlockSize, RSAEncryptionPadding padding)
+        {
+            return padding.Mode switch
+            {
+                RSAEncryptionPaddingMode.Pkcs1 => cipherTextBlockSize - 11,
+                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA1 => cipherTextBlockSize - 42,
+                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA256 => cipherTextBlockSize - 66,
+                _ => throw new NotSupportedException($"Unsupported RSA padding mode '{padding.Mode}'.")
+            };
         }
 
         private RSAEncryptionPadding GetRsaEncryptionPadding()
@@ -1118,13 +1148,7 @@ namespace Opc.Ua
             bool encrypt)
         {
             int cipherTextBlockSize = rsa.KeySize / 8;
-            int plainTextBlockSize = padding.Mode switch
-            {
-                RSAEncryptionPaddingMode.Pkcs1 => cipherTextBlockSize - 11,
-                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA1 => cipherTextBlockSize - 42,
-                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA256 => cipherTextBlockSize - 66,
-                _ => throw new NotSupportedException($"Unsupported RSA padding mode '{padding.Mode}'.")
-            };
+            int plainTextBlockSize = GetRsaPlainTextBlockSize(cipherTextBlockSize, padding);
             int inputBlockSize = encrypt ? plainTextBlockSize : cipherTextBlockSize;
 
             if (!encrypt && input.Length % cipherTextBlockSize != 0)

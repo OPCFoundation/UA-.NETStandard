@@ -549,11 +549,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Whether the number lies ahead of the last received one, allowing for a wrap around.
         /// </summary>
+        /// <remarks>
+        /// Serial number arithmetic (RFC 1982): the number is ahead when its forward
+        /// distance from the last one is less than half the range, so a number from
+        /// before a wrap around is not accepted again after the counter wrapped.
+        /// </remarks>
         private bool IsLaterSequenceNumber(uint sequenceNumber)
         {
-            return sequenceNumber > m_remoteSequenceNumber ||
-                (m_remoteSequenceNumber >= TcpMessageLimits.MinSequenceNumber &&
-                    sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber);
+            uint distance = unchecked(sequenceNumber - m_remoteSequenceNumber);
+            return distance != 0 && distance < 0x80000000u;
         }
 
         /// <summary>
