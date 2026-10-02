@@ -649,6 +649,47 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.MonitoredItemCount, Is.EqualTo(100));
         }
 
+        /// <summary>
+        /// The revised lifetime never exceeds MaxSubscriptionLifetime, also when the
+        /// requested publishing interval is longer than a third of it (review U22).
+        /// </summary>
+        [TestCase(3_600_000.0, 10u, 0u)]
+        [TestCase(2_000_000.0, 10u, 0u)]
+        [TestCase(1_300_000.0, 3u, 1u)]
+        [TestCase(7_000.0, 1_000u, 10u)]
+        [TestCase(1_000.0, 10_000u, 10u)]
+        public async Task RevisedLifetimeStaysWithinMaxSubscriptionLifetimeAsync(
+            double requestedPublishingInterval,
+            uint requestedLifetimeCount,
+            uint requestedMaxKeepAliveCount)
+        {
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration
+            {
+                MinPublishingInterval = 100,
+                MaxPublishingInterval = 3_600_000,
+                PublishingResolution = 50,
+                MinSubscriptionLifetime = 0,
+                MaxSubscriptionLifetime = 3_600_000
+            });
+            TestSession session = CreateSession();
+            using var context = new OperationContext(session.Mock.Object, DiagnosticsMasks.None);
+
+            CreateSubscriptionResponse created = await manager.CreateSubscriptionAsync(
+                context,
+                requestedPublishingInterval,
+                requestedLifetimeCount,
+                requestedMaxKeepAliveCount,
+                maxNotificationsPerPublish: 0,
+                publishingEnabled: true,
+                priority: 0).ConfigureAwait(false);
+
+            Assert.That(
+                created.RevisedPublishingInterval * created.RevisedLifetimeCount,
+                Is.LessThanOrEqualTo(3_600_000));
+            Assert.That(created.RevisedLifetimeCount, Is.GreaterThanOrEqualTo(3 * created.RevisedMaxKeepAliveCount));
+            Assert.That(created.RevisedPublishingInterval % 50, Is.Zero);
+        }
+
         private void SetupNodeManagerCreate(StatusCode createResult)
         {
             int nextId = 1000;

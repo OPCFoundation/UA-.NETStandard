@@ -495,8 +495,9 @@ namespace Opc.Ua.Server
             }
 
             // calculate publishing interval.
-            storedSubscription.PublishingInterval = CalculatePublishingInterval(
-                storedSubscription.PublishingInterval);
+            storedSubscription.PublishingInterval = LimitPublishingIntervalToLifetime(
+                CalculatePublishingInterval(storedSubscription.PublishingInterval),
+                storedSubscription.IsDurable);
 
             // calculate the keep alive count.
             storedSubscription.MaxKeepaliveCount = CalculateKeepAliveCount(
@@ -928,7 +929,9 @@ namespace Opc.Ua.Server
             subscriptionId = Utils.IncrementIdentifier(ref m_lastSubscriptionId);
 
             // calculate publishing interval.
-            revisedPublishingInterval = CalculatePublishingInterval(requestedPublishingInterval);
+            revisedPublishingInterval = LimitPublishingIntervalToLifetime(
+                CalculatePublishingInterval(requestedPublishingInterval),
+                isDurableSubscription: false);
 
             // calculate the keep alive count.
             revisedMaxKeepAliveCount = CalculateKeepAliveCount(
@@ -1438,7 +1441,9 @@ namespace Opc.Ua.Server
             _ = subscription.PublishingInterval;
 
             // calculate publishing interval.
-            revisedPublishingInterval = CalculatePublishingInterval(requestedPublishingInterval);
+            revisedPublishingInterval = LimitPublishingIntervalToLifetime(
+                CalculatePublishingInterval(requestedPublishingInterval),
+                subscription.IsDurable);
 
             // calculate the keep alive count.
             revisedMaxKeepAliveCount = CalculateKeepAliveCount(
@@ -2647,6 +2652,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Revises the publishing interval down so that three publishing intervals fit in
+        /// the maximum subscription lifetime. The lifetime is at least three keep-alive
+        /// intervals (Part 4 5.14.2.2) and a keep-alive interval at least one publishing
+        /// interval, so a longer publishing interval would make the revised lifetime exceed
+        /// the configured maximum.
+        /// </summary>
+        private double LimitPublishingIntervalToLifetime(
+            double publishingInterval,
+            bool isDurableSubscription)
+        {
+            double maxPublishingInterval =
+                GetMaximumLifetimeMilliseconds(isDurableSubscription) / 3.0;
+            if (publishingInterval <= maxPublishingInterval)
+            {
+                return publishingInterval;
+            }
+
+            // round down to the resolution; a configuration that leaves no valid interval
+            // keeps the smallest one the other limits allow.
+            double limited = Math.Floor(maxPublishingInterval / m_publishingResolution) *
+                m_publishingResolution;
+            return Math.Max(limited, Math.Max(m_minPublishingInterval, m_publishingResolution));
+        }
+
+        /// <summary>
         /// Calculates the keep alive count.
         /// </summary>
         protected virtual uint CalculateKeepAliveCount(
@@ -2702,16 +2732,11 @@ namespace Opc.Ua.Server
 
             double lifetimeInterval = lifetimeCount * publishingInterval;
 
-            // lifetime cannot be longer than the max subscription lifetime.
+            // lifetime cannot be longer than the max subscription lifetime: round down
+            // so that the revised lifetime does not overshoot it.
             if (lifetimeInterval > maxSubscriptionLifetime)
             {
-                lifetimeCount = (uint)(maxSubscriptionLifetime / publishingInterval);
-
-                if (lifetimeCount < uint.MaxValue &&
-                    maxSubscriptionLifetime % publishingInterval != 0)
-                {
-                    lifetimeCount++;
-                }
+                lifetimeCount = Math.Max(1u, (uint)(maxSubscriptionLifetime / publishingInterval));
             }
 
             // the lifetime must be greater than the keepalive.
