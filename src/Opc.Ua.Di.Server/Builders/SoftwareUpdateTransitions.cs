@@ -42,6 +42,8 @@ namespace Opc.Ua.Di.Server.Builders
     /// <c>Installation.Resume</c> only from <c>Error</c>.
     /// Each check of the current state and the move that follows it happen
     /// under one lock, so two concurrent calls cannot both pass the check.
+    /// The installation machine's moves into and out of <c>Installing</c> use
+    /// the same lock, so <c>Resume</c> cannot pass while an installation starts.
     /// </para>
     /// <para>
     /// <c>Prepare</c> runs the application's handler inside the method call.
@@ -240,6 +242,61 @@ namespace Opc.Ua.Di.Server.Builders
                     SoftwareUpdateStateMachineDispatcher.Installation_Idle,
                     SoftwareUpdateStateMachineDispatcher.Installation_ErrorToIdle);
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Moves <c>Installation</c> from <c>Idle</c> to <c>Installing</c>.
+        /// </summary>
+        /// <remarks>
+        /// The move shares the lock of <see cref="TryResume"/>, so a
+        /// <c>Resume</c> that has seen no installation cannot be overtaken
+        /// by an installation that starts before it moves the machine.
+        /// </remarks>
+        /// <param name="machine">The Installation state machine.</param>
+        /// <returns>
+        /// <see langword="false"/> when the machine is not <c>Idle</c>.
+        /// </returns>
+        public bool TryBeginInstall(InstallationStateMachineState machine)
+        {
+            lock (m_lock)
+            {
+                if (!IsIn(machine, SoftwareUpdateStateMachineDispatcher.Installation_Idle))
+                {
+                    return false;
+                }
+                Move(
+                    machine,
+                    SoftwareUpdateStateMachineDispatcher.Installation_Installing,
+                    SoftwareUpdateStateMachineDispatcher.Installation_IdleToInstalling);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Moves <c>Installation</c> from <c>Installing</c> to <c>Idle</c>
+        /// when the installation succeeded, or to <c>Error</c> when it failed.
+        /// </summary>
+        /// <param name="machine">The Installation state machine.</param>
+        /// <param name="succeeded">Whether the installation completed.</param>
+        public void EndInstall(InstallationStateMachineState machine, bool succeeded)
+        {
+            lock (m_lock)
+            {
+                if (succeeded)
+                {
+                    Move(
+                        machine,
+                        SoftwareUpdateStateMachineDispatcher.Installation_Idle,
+                        SoftwareUpdateStateMachineDispatcher.Installation_InstallingToIdle);
+                }
+                else
+                {
+                    Move(
+                        machine,
+                        SoftwareUpdateStateMachineDispatcher.Installation_Error,
+                        SoftwareUpdateStateMachineDispatcher.Installation_InstallingToError);
+                }
             }
         }
 

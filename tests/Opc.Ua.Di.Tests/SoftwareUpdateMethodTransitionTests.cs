@@ -269,6 +269,87 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task AnInstallationCannotStartWhileResumeIsMovingThePreparationAsync()
+        {
+            var installing = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            SoftwareUpdateNodes nodes = await CreateAsync("ResumeRacesInstall", su => su
+                .OnInstall((_, _, _) =>
+                {
+                    installing.TrySetResult(true);
+                    return default;
+                })).ConfigureAwait(false);
+            Assert.That(
+                await CallAsync(nodes.Prepare.Prepare, nodes).ConfigureAwait(false),
+                Is.EqualTo(ServiceResult.Good));
+
+            // Resume has passed its "no installation running" check when it
+            // writes the move to Resuming. Start an installation from that
+            // very moment and see whether it gets to run before Resume is done.
+            Task<ServiceResult>? install = null;
+            bool installRanDuringResume = false;
+            int started = 0;
+            nodes.Prepare.CurrentState!.OnStateChanged = (_, _, _) =>
+            {
+                if (Interlocked.Exchange(ref started, 1) == 0)
+                {
+                    install = Task.Run(() => CallAsync(
+                        nodes.Installation.InstallSoftwarePackage, nodes, InstallInputs()));
+                    installRanDuringResume = installing.Task.Wait(TimeSpan.FromMilliseconds(500));
+                }
+            };
+
+            ServiceResult resume = await CallAsync(nodes.Prepare.Resume, nodes).ConfigureAwait(false);
+            nodes.Prepare.CurrentState.OnStateChanged = null;
+
+            Assert.That(resume, Is.EqualTo(ServiceResult.Good));
+            Assert.That(install, Is.Not.Null);
+            Assert.That(
+                installRanDuringResume, Is.False,
+                "An installation must not start between the check of Resume and its move.");
+            Assert.That(await CompletesAsync(install!).ConfigureAwait(false), Is.True);
+            Assert.That(await install!.ConfigureAwait(false), Is.EqualTo(ServiceResult.Good));
+            Assert.That(nodes.Installation.CurrentState!.Value.Text, Is.EqualTo("Idle"));
+        }
+
+        [Test]
+        public async Task AnInstallationIsRejectedUnlessIdleAsync()
+        {
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var installing = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int installCalls = 0;
+            SoftwareUpdateNodes nodes = await CreateAsync("InstallTwice", su => su
+                .OnInstall(async (_, _, _) =>
+                {
+                    Interlocked.Increment(ref installCalls);
+                    installing.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                })).ConfigureAwait(false);
+
+            Task<ServiceResult> first = CallAsync(
+                nodes.Installation.InstallSoftwarePackage, nodes, InstallInputs());
+            Assert.That(await CompletesAsync(installing.Task).ConfigureAwait(false), Is.True);
+            Task<ServiceResult> secondCall = CallAsync(
+                nodes.Installation.InstallSoftwarePackage, nodes, InstallInputs());
+            bool secondRejected;
+            try
+            {
+                secondRejected = await Task.WhenAny(secondCall, Task.Delay(TimeSpan.FromSeconds(5)))
+                    .ConfigureAwait(false) == secondCall;
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+
+            Assert.That(secondRejected, Is.True, "The second installation must be rejected, not run.");
+            ServiceResult second = await secondCall.ConfigureAwait(false);
+            Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(await first.ConfigureAwait(false), Is.EqualTo(ServiceResult.Good));
+            Assert.That(Volatile.Read(ref installCalls), Is.EqualTo(1));
+            Assert.That(nodes.Installation.CurrentState!.Value.Text, Is.EqualTo("Idle"));
+        }
+
+        [Test]
         public async Task InstallationResumeLeavesErrorForIdleAsync()
         {
             SoftwareUpdateNodes nodes = await CreateAsync("InstallResume", su => su

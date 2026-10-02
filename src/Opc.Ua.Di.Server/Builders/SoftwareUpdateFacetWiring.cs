@@ -347,7 +347,7 @@ namespace Opc.Ua.Di.Server.Builders
             installPkg.OnCallMethod2Async =
                 (ctx, m, oid, ins, outs, ct) =>
                     InvokeInstallSoftwarePackageAsync(
-                        config, callbackContext, sm, diNs, logger, ins, ct);
+                        config, callbackContext, sm, transitions, logger, ins, ct);
 
             var installFilesBn = new QualifiedName("InstallFiles", diNs);
             InstallFilesMethodState installFiles =
@@ -358,7 +358,7 @@ namespace Opc.Ua.Di.Server.Builders
             sm.InstallFiles = installFiles;
             installFiles.OnCallMethod2Async =
                 (ctx, m, oid, ins, outs, ct) =>
-                    InvokeInstallFilesAsync(config, callbackContext, sm, diNs, logger, ct);
+                    InvokeInstallFilesAsync(config, callbackContext, sm, transitions, logger, ct);
 
             var uninstallBn = new QualifiedName("Uninstall", diNs);
             MethodState uninstall =
@@ -367,7 +367,7 @@ namespace Opc.Ua.Di.Server.Builders
             sm.Uninstall = uninstall;
             uninstall.OnCallMethod2Async =
                 (ctx, m, oid, ins, outs, ct) =>
-                    InvokeUninstallAsync(config, callbackContext, sm, diNs, logger, ct);
+                    InvokeUninstallAsync(config, callbackContext, sm, transitions, logger, ct);
 
             if (sm.Resume != null)
             {
@@ -588,18 +588,16 @@ namespace Opc.Ua.Di.Server.Builders
             SoftwareUpdateBuilder config,
             SoftwareUpdateContext context,
             InstallationStateMachineState sm,
-            ushort diNs,
+            SoftwareUpdateTransitions transitions,
             ILogger logger,
             ArrayOf<Variant> inputs,
             CancellationToken cancellationToken)
         {
             ISystemContext sys = context.SystemContext;
-            SoftwareUpdateStateMachineDispatcher.Move(
-                sm,
-                SoftwareUpdateStateMachineDispatcher.Installation_Installing,
-                SoftwareUpdateStateMachineDispatcher.Installation_IdleToInstalling,
-                diNs,
-                sys);
+            if (!transitions.TryBeginInstall(sm))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
             SoftwareUpdateStateMachineDispatcher.SetPercentComplete(sm, 0, sys);
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
                 config.InstallationStateChanged, context,
@@ -646,12 +644,7 @@ namespace Opc.Ua.Di.Server.Builders
                 }
 
                 SoftwareUpdateStateMachineDispatcher.SetPercentComplete(sm, 100, sys);
-                SoftwareUpdateStateMachineDispatcher.Move(
-                    sm,
-                    SoftwareUpdateStateMachineDispatcher.Installation_Idle,
-                    SoftwareUpdateStateMachineDispatcher.Installation_InstallingToIdle,
-                    diNs,
-                    sys);
+                transitions.EndInstall(sm, succeeded: true);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
                     config.InstallationStateChanged, context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, 100),
@@ -662,12 +655,7 @@ namespace Opc.Ua.Di.Server.Builders
             }
             catch (Exception ex)
             {
-                SoftwareUpdateStateMachineDispatcher.Move(
-                    sm,
-                    SoftwareUpdateStateMachineDispatcher.Installation_Error,
-                    SoftwareUpdateStateMachineDispatcher.Installation_InstallingToError,
-                    diNs,
-                    sys);
+                transitions.EndInstall(sm, succeeded: false);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
                     config.InstallationStateChanged, context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, ex.Message, null),
@@ -682,17 +670,15 @@ namespace Opc.Ua.Di.Server.Builders
             SoftwareUpdateBuilder config,
             SoftwareUpdateContext context,
             InstallationStateMachineState sm,
-            ushort diNs,
+            SoftwareUpdateTransitions transitions,
             ILogger logger,
             CancellationToken cancellationToken)
         {
             ISystemContext sys = context.SystemContext;
-            SoftwareUpdateStateMachineDispatcher.Move(
-                sm,
-                SoftwareUpdateStateMachineDispatcher.Installation_Installing,
-                SoftwareUpdateStateMachineDispatcher.Installation_IdleToInstalling,
-                diNs,
-                sys);
+            if (!transitions.TryBeginInstall(sm))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
             SoftwareUpdateStateMachineDispatcher.SetPercentComplete(sm, 0, sys);
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
                 config.InstallationStateChanged, context,
@@ -722,12 +708,7 @@ namespace Opc.Ua.Di.Server.Builders
                 }
 
                 SoftwareUpdateStateMachineDispatcher.SetPercentComplete(sm, 100, sys);
-                SoftwareUpdateStateMachineDispatcher.Move(
-                    sm,
-                    SoftwareUpdateStateMachineDispatcher.Installation_Idle,
-                    SoftwareUpdateStateMachineDispatcher.Installation_InstallingToIdle,
-                    diNs,
-                    sys);
+                transitions.EndInstall(sm, succeeded: true);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
                     config.InstallationStateChanged, context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, 100),
@@ -738,12 +719,7 @@ namespace Opc.Ua.Di.Server.Builders
             }
             catch (Exception ex)
             {
-                SoftwareUpdateStateMachineDispatcher.Move(
-                    sm,
-                    SoftwareUpdateStateMachineDispatcher.Installation_Error,
-                    SoftwareUpdateStateMachineDispatcher.Installation_InstallingToError,
-                    diNs,
-                    sys);
+                transitions.EndInstall(sm, succeeded: false);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
                     config.InstallationStateChanged, context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, ex.Message, null),
@@ -807,17 +783,14 @@ namespace Opc.Ua.Di.Server.Builders
             SoftwareUpdateBuilder config,
             SoftwareUpdateContext context,
             InstallationStateMachineState sm,
-            ushort diNs,
+            SoftwareUpdateTransitions transitions,
             ILogger logger,
             CancellationToken cancellationToken)
         {
-            ISystemContext sys = context.SystemContext;
-            SoftwareUpdateStateMachineDispatcher.Move(
-                sm,
-                SoftwareUpdateStateMachineDispatcher.Installation_Installing,
-                SoftwareUpdateStateMachineDispatcher.Installation_IdleToInstalling,
-                diNs,
-                sys);
+            if (!transitions.TryBeginInstall(sm))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidState);
+            }
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
                 config.InstallationStateChanged, context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, "Uninstall", null),
@@ -832,12 +805,7 @@ namespace Opc.Ua.Di.Server.Builders
                         .ConfigureAwait(false);
                 }
 
-                SoftwareUpdateStateMachineDispatcher.Move(
-                    sm,
-                    SoftwareUpdateStateMachineDispatcher.Installation_Idle,
-                    SoftwareUpdateStateMachineDispatcher.Installation_InstallingToIdle,
-                    diNs,
-                    sys);
+                transitions.EndInstall(sm, succeeded: true);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
                     config.InstallationStateChanged, context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, "Uninstall", null),
@@ -848,12 +816,7 @@ namespace Opc.Ua.Di.Server.Builders
             }
             catch (Exception ex)
             {
-                SoftwareUpdateStateMachineDispatcher.Move(
-                    sm,
-                    SoftwareUpdateStateMachineDispatcher.Installation_Error,
-                    SoftwareUpdateStateMachineDispatcher.Installation_InstallingToError,
-                    diNs,
-                    sys);
+                transitions.EndInstall(sm, succeeded: false);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
                     config.InstallationStateChanged, context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, ex.Message, null),
