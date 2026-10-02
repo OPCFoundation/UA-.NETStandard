@@ -137,19 +137,24 @@ namespace Opc.Ua.Robotics.Client
         /// <summary>
         /// Resets execution to the start of the loaded program.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The task control does not expose a ReadySubstateMachine (<c>BadNotFound</c>).
+        /// </exception>
         public async ValueTask<int> ResetToProgramStartAsync(CancellationToken cancellationToken = default)
         {
             TaskControlStateMachineTypeClient stateMachine = await StateMachineAsync(cancellationToken)
                 .ConfigureAwait(false);
-            StateTypeClient? ready = await stateMachine.GetReadyAsync(Telemetry, cancellationToken)
+            // ResetToProgramStart belongs to the ReadySubstateMachine, a sibling
+            // of the Ready state below TaskControlStateMachine (OPC 40010-1).
+            ReadySubstateMachineTypeClient? readySubstate = await stateMachine
+                .GetReadySubstateMachineAsync(Telemetry, cancellationToken)
                 .ConfigureAwait(false);
-            if (ready == null)
+            if (readySubstate == null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNotFound,
-                    $"TaskControl '{TaskControlNodeId}' does not expose Ready.");
+                    $"TaskControl '{TaskControlNodeId}' does not expose ReadySubstateMachine.");
             }
-            ReadySubstateMachineTypeClient readySubstate = new(Session, ready.ObjectId, Telemetry);
             return await readySubstate.ResetToProgramStartAsync(cancellationToken).ConfigureAwait(false);
         }
 

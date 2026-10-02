@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -38,6 +39,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.StateMachines;
+using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Di.Server;
@@ -127,6 +129,17 @@ namespace Opc.Ua.Machinery.Tests.Integration
         {
             return RunAgainstPressAsync((machinery, _, jobProvider, _, ct) =>
                 AssertJobControlLifecycleAsync(machinery, jobProvider, ct));
+        }
+
+        /// <summary>
+        /// Subscribes to a machine's job lists over the wire and checks that
+        /// every change of the lists reaches the monitored items.
+        /// </summary>
+        [Test]
+        public Task TheJobListsNotifySubscribedClientsAsync()
+        {
+            return RunAgainstPressAsync((machinery, _, jobProvider, session, ct) =>
+                AssertJobListNotificationsAsync(machinery, jobProvider, session, ct));
         }
 
         private static async Task RunAgainstPressAsync(
@@ -688,39 +701,16 @@ namespace Opc.Ua.Machinery.Tests.Integration
         }
 
         /// <summary>
-        /// Reads the <c>JobOrderList</c> the receiver publishes. The typed
-        /// proxy exposes the verbs but not the list variable, so it is read
-        /// by browse path.
+        /// Reads the <c>JobOrderList</c> the receiver publishes.
         /// </summary>
         private static async Task<ArrayOf<V2.ISA95JobOrderAndStateDataType>>
             ReadJobOrderListAsync(Isa95JobControlV2Client jobs, CancellationToken ct)
         {
-            int namespaceIndex = jobs.Session.NamespaceUris.GetIndex(
-                V2.Namespaces.ISA95JobControlV2);
-            Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
-            var path = new BrowsePath
-            {
-                StartingNode = jobs.JobOrderReceiverId,
-                RelativePath = new RelativePath
-                {
-                    Elements =
-                    [
-                        new RelativePathElement
-                        {
-                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                            IncludeSubtypes = true,
-                            TargetName = new QualifiedName(
-                                V2.BrowseNames.JobOrderList,
-                                (ushort)namespaceIndex)
-                        }
-                    ]
-                }
-            };
-            TranslateBrowsePathsToNodeIdsResponse translated = await jobs.Session
-                .TranslateBrowsePathsToNodeIdsAsync(null, new[] { path }.ToArrayOf(), ct)
-                .ConfigureAwait(false);
-            Assert.That(translated.Results[0].Targets, Is.Not.Empty);
-
+            NodeId list = await ResolveJobListAsync(
+                jobs.Session,
+                jobs.JobOrderReceiverId,
+                V2.BrowseNames.JobOrderList,
+                ct).ConfigureAwait(false);
             ReadResponse read = await jobs.Session.ReadAsync(
                 requestHeader: null,
                 maxAge: 0,
@@ -729,9 +719,7 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 {
                     new ReadValueId
                     {
-                        NodeId = ExpandedNodeId.ToNodeId(
-                            translated.Results[0].Targets[0].TargetId,
-                            jobs.Session.NamespaceUris),
+                        NodeId = list,
                         AttributeId = Attributes.Value
                     }
                 }.ToArrayOf(),
@@ -741,6 +729,232 @@ namespace Opc.Ua.Machinery.Tests.Integration
                     out ArrayOf<V2.ISA95JobOrderAndStateDataType> orders),
                 Is.True);
             return orders;
+        }
+
+        /// <summary>
+        /// Resolves a list the receiver or the response provider publishes.
+        /// The typed proxy exposes the verbs but not the list variables, so
+        /// they are resolved by browse path.
+        /// </summary>
+        private static async Task<NodeId> ResolveJobListAsync(
+            ClientSession session,
+            NodeId parent,
+            string browseName,
+            CancellationToken ct)
+        {
+            int namespaceIndex = session.NamespaceUris.GetIndex(V2.Namespaces.ISA95JobControlV2);
+            Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
+            var path = new BrowsePath
+            {
+                StartingNode = parent,
+                RelativePath = new RelativePath
+                {
+                    Elements =
+                    [
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName(browseName, (ushort)namespaceIndex)
+                        }
+                    ]
+                }
+            };
+            TranslateBrowsePathsToNodeIdsResponse translated = await session
+                .TranslateBrowsePathsToNodeIdsAsync(null, new[] { path }.ToArrayOf(), ct)
+                .ConfigureAwait(false);
+            Assert.That(translated.Results[0].Targets, Is.Not.Empty);
+            return ExpandedNodeId.ToNodeId(
+                translated.Results[0].Targets[0].TargetId,
+                session.NamespaceUris);
+        }
+
+        /// <summary>
+        /// Subscribes to the machine's <c>JobOrderList</c> and
+        /// <c>JobOrderResponseList</c> and changes both, once and then twice in
+        /// quick succession. Every change has to reach the monitored items:
+        /// the lists serve their value from a snapshot, so a change is only
+        /// published when the machine reports it, and the second of two quick
+        /// refreshes can stamp the same source timestamp as the first.
+        /// </summary>
+        private static async Task AssertJobListNotificationsAsync(
+            MachineryClient machinery,
+            InMemoryIsa95JobControlProvider jobProvider,
+            ClientSession session,
+            CancellationToken ct)
+        {
+            ArrayOf<NodeId> machines = await machinery.DiscoverMachinesAsync(ct)
+                .ConfigureAwait(false);
+            Isa95JobControlV2Client? jobs = await machinery
+                .JobManagementAsync(machines[0], ct)
+                .ConfigureAwait(false);
+            Assert.That(jobs, Is.Not.Null);
+            NodeId orderListId = await ResolveJobListAsync(
+                session,
+                jobs!.JobOrderReceiverId,
+                V2.BrowseNames.JobOrderList,
+                ct).ConfigureAwait(false);
+            NodeId responseListId = await ResolveJobListAsync(
+                session,
+                jobs.JobResponseProviderId,
+                V2.BrowseNames.JobOrderResponseList,
+                ct).ConfigureAwait(false);
+
+            Assert.That(
+                session.TryGetSubscriptionManager(
+                    out ClientSubscriptionManager? subscriptionManager),
+                Is.True);
+            var orderLists = new ConcurrentQueue<DataValue>();
+            var responseLists = new ConcurrentQueue<DataValue>();
+            var streaming = new StreamingSubscription(subscriptionManager!);
+            using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            Task orderStream = CollectAsync(
+                streaming.SubscribeDataChangesAsync(orderListId, ct: streamCts.Token),
+                orderLists);
+            Task responseStream = CollectAsync(
+                streaming.SubscribeDataChangesAsync(responseListId, ct: streamCts.Token),
+                responseLists);
+            try
+            {
+                // A monitored item reports the current value first; only what
+                // follows shows that the machine reports changes.
+                Assert.That(
+                    await WaitForAsync(
+                        () => !orderLists.IsEmpty && !responseLists.IsEmpty,
+                        TimeSpan.FromSeconds(20),
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The job list monitored items have to report their current value.");
+
+                Assert.That(
+                    await jobs.StoreAsync(
+                        new V2.ISA95JobOrderDataType { JobOrderID = "E2E-N1" },
+                        ct: ct).ConfigureAwait(false),
+                    Is.EqualTo(Isa95JobReturnStatus.Success));
+                await AssertNotifiedAsync(orderLists, ListsJobOrder, "E2E-N1", ct)
+                    .ConfigureAwait(false);
+                await ReceiveResponseAsync(jobProvider, "E2E-N1", ct).ConfigureAwait(false);
+                await AssertNotifiedAsync(responseLists, ListsJobResponse, "E2E-N1-R", ct)
+                    .ConfigureAwait(false);
+
+                // Back to back, so both refreshes can fall into one clock tick.
+                await StoreExternallyAsync(jobProvider, "E2E-N2", ct).ConfigureAwait(false);
+                await StoreExternallyAsync(jobProvider, "E2E-N3", ct).ConfigureAwait(false);
+                await AssertNotifiedAsync(orderLists, ListsJobOrder, "E2E-N3", ct)
+                    .ConfigureAwait(false);
+                await ReceiveResponseAsync(jobProvider, "E2E-N2", ct).ConfigureAwait(false);
+                await ReceiveResponseAsync(jobProvider, "E2E-N3", ct).ConfigureAwait(false);
+                await AssertNotifiedAsync(responseLists, ListsJobResponse, "E2E-N3-R", ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                streamCts.Cancel();
+                await streaming.DisposeAsync().ConfigureAwait(false);
+                await Task.WhenAll(orderStream, responseStream).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task StoreExternallyAsync(
+            InMemoryIsa95JobControlProvider jobProvider,
+            string jobOrderId,
+            CancellationToken ct)
+        {
+            Isa95JobOrderReceiptV2 receipt = await jobProvider.ReceiveJobOrderAsync(
+                Isa95JobOrderOperationV2.Store,
+                new V2.ISA95JobOrderDataType { JobOrderID = jobOrderId },
+                cancellationToken: ct).ConfigureAwait(false);
+            Assert.That(receipt.ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
+        }
+
+        private static async Task ReceiveResponseAsync(
+            InMemoryIsa95JobControlProvider jobProvider,
+            string jobOrderId,
+            CancellationToken ct)
+        {
+            Isa95JobResponseReceiptV2 receipt = await jobProvider.ReceiveJobResponseAsync(
+                new V2.ISA95JobResponseDataType
+                {
+                    JobResponseID = jobOrderId + "-R",
+                    JobOrderID = jobOrderId,
+                    JobState = new[]
+                    {
+                        new V2.ISA95StateDataType
+                        {
+                            BrowsePath = new RelativePath(),
+                            StateText = new LocalizedText("Running"),
+                            StateNumber = 3
+                        }
+                    }.ToArrayOf()
+                },
+                ct).ConfigureAwait(false);
+            Assert.That(receipt.ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
+        }
+
+        private static async Task AssertNotifiedAsync(
+            ConcurrentQueue<DataValue> values,
+            Func<DataValue, string, bool> lists,
+            string id,
+            CancellationToken ct)
+        {
+            Assert.That(
+                await WaitForAsync(
+                    () => values.Any(value => lists(value, id)),
+                    TimeSpan.FromSeconds(10),
+                    ct).ConfigureAwait(false),
+                Is.True,
+                $"'{id}' has to reach the monitored item of the job list.");
+        }
+
+        private static bool ListsJobOrder(DataValue value, string jobOrderId)
+        {
+            if (!value.WrappedValue.TryGetStructure(
+                out ArrayOf<V2.ISA95JobOrderAndStateDataType> orders))
+            {
+                return false;
+            }
+            foreach (V2.ISA95JobOrderAndStateDataType order in orders)
+            {
+                if (order?.JobOrder?.JobOrderID == jobOrderId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool ListsJobResponse(DataValue value, string jobResponseId)
+        {
+            if (!value.WrappedValue.TryGetStructure(
+                out ArrayOf<V2.ISA95JobResponseDataType> responses))
+            {
+                return false;
+            }
+            foreach (V2.ISA95JobResponseDataType response in responses)
+            {
+                if (response?.JobResponseID == jobResponseId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static async Task CollectAsync(
+            IAsyncEnumerable<DataValueChange> changes,
+            ConcurrentQueue<DataValue> values)
+        {
+            try
+            {
+                await foreach (DataValueChange change in changes.ConfigureAwait(false))
+                {
+                    values.Enqueue(change.Value);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // The test cancels the stream once it is done with it.
+            }
         }
 
         private static async Task AssertJobControlLifecycleAsync(
