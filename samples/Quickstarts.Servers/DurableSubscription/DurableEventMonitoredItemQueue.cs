@@ -418,33 +418,50 @@ namespace Quickstarts.Servers
         /// </summary>
         public StorableEventQueue ToStorableQueue()
         {
-            // batches spilled to disk are stored with the queue: the batch files are keyed
-            // by batch ids that are not kept across a restart, so their events would be lost.
-            MaterializePersistedBatch(m_dequeueBatch);
-            foreach (EventBatch batch in m_eventBatches)
-            {
-                MaterializePersistedBatch(batch);
-            }
-            MaterializePersistedBatch(m_enqueueBatch);
+            // the stored queue gets detached copies of resident batches: a batch spilled to
+            // disk is loaded back (its file is keyed by a batch id that does not survive a
+            // restart) and a batch whose spill is in flight is copied before the persistor
+            // can clear its events, so the copies stay stable while they are encoded.
+            EventBatch enqueueBatch = DetachBatch(m_enqueueBatch);
+            EventBatch dequeueBatch = ReferenceEquals(m_dequeueBatch, m_enqueueBatch)
+                ? enqueueBatch
+                : DetachBatch(m_dequeueBatch);
 
             return new StorableEventQueue
             {
                 IsDurable = IsDurable,
                 MonitoredItemId = MonitoredItemId,
-                DequeueBatch = m_dequeueBatch,
-                EnqueueBatch = m_enqueueBatch,
-                EventBatches = m_eventBatches,
+                DequeueBatch = dequeueBatch,
+                EnqueueBatch = enqueueBatch,
+                EventBatches = m_eventBatches.ConvertAll(DetachBatch),
                 QueueSize = QueueSize
             };
         }
 
-        private void MaterializePersistedBatch(EventBatch batch)
+        /// <summary>
+        /// Returns a resident copy of the batch that the persistor cannot change.
+        /// </summary>
+        private EventBatch DetachBatch(EventBatch batch)
         {
-            if (batch != null && (batch.IsPersisted || batch.Events == null))
+            for (int attempt = 0; attempt < kMaxDetachAttempts; attempt++)
             {
+                // the persistor clears the events of a spilled batch under this lock.
+                lock (batch)
+                {
+                    if (!batch.IsPersisted && batch.Events != null)
+                    {
+                        return new EventBatch([.. batch.Events], batch.BatchSize, batch.MonitoredItemId);
+                    }
+                }
+
                 m_batchPersistor.RestoreSynchronously(batch);
             }
+
+            m_logger.SpilledBatchNotLoadedForStore(MonitoredItemId);
+            return new EventBatch([], batch.BatchSize, batch.MonitoredItemId);
         }
+
+        private const int kMaxDetachAttempts = 3;
 
         /// <inheritdoc/>
         public void Dispose()

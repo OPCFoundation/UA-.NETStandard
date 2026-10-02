@@ -94,7 +94,10 @@ namespace Opc.Ua.Server.Tests
             queue.SetQueueSize(2, false);
             var expected = new EventFieldList { ClientHandle = 42 };
             queue.Enqueue(expected);
-            EventBatch batch = queue.ToStorableQueue().DequeueBatch;
+            // the live batch: ToStorableQueue returns detached copies.
+            var batch = (EventBatch)typeof(DurableEventMonitoredItemQueue)
+                .GetField("m_dequeueBatch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .GetValue(queue)!;
             if (persisted)
             {
                 batch.SetPersisted();
@@ -262,6 +265,48 @@ namespace Opc.Ua.Server.Tests
             finally
             {
                 DeleteBatchFiles();
+            }
+        }
+
+        /// <summary>
+        /// A batch whose spill is in flight when the queue is stored may lose its events to
+        /// the persistor before it is encoded; the stored queue holds a stable copy.
+        /// </summary>
+        [Test]
+        public void BatchSpilledWhileStoringKeepsItsEvents()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            const uint count = (kEventBatchSize * 2) + 500;
+            using var queue = new DurableEventMonitoredItemQueue(
+                true, 78, new Mock<IBatchPersistor>().Object, telemetry);
+            queue.SetQueueSize(10000, false);
+            for (uint i = 1; i <= count; i++)
+            {
+                queue.Enqueue(new EventFieldList { ClientHandle = i });
+            }
+
+            var batches = (List<EventBatch>)typeof(DurableEventMonitoredItemQueue)
+                .GetField("m_eventBatches", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .GetValue(queue)!;
+            Assert.That(batches, Is.Not.Empty);
+            EventBatch inFlight = batches[0];
+            inFlight.PersistingInProgress = true;
+
+            StorableEventQueue stored = queue.ToStorableQueue();
+
+            // the persistor finishes the spill before the stored queue is encoded.
+            lock (inFlight)
+            {
+                inFlight.SetPersisted();
+            }
+
+            StorableEventQueue template = RoundTrip(stored, ServiceMessageContext.Create(telemetry));
+            using var restored = new DurableEventMonitoredItemQueue(template, new Mock<IBatchPersistor>().Object);
+            Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
+            for (uint i = 1; i <= count; i++)
+            {
+                Assert.That(restored.Dequeue(out EventFieldList value), Is.True, $"event {i}");
+                Assert.That(value.ClientHandle, Is.EqualTo(i));
             }
         }
 
