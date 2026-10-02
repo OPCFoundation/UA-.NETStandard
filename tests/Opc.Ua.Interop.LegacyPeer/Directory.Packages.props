@@ -1,0 +1,6 @@
+<Project>
+  <!-- Stops the repository Directory.Packages.props from applying. See Directory.Build.props. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>
