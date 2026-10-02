@@ -438,10 +438,26 @@ namespace Opc.Ua.Bindings
             {
                 case KeyDerivationAlgorithm.HKDFSha256:
                 case KeyDerivationAlgorithm.HKDFSha384:
-                    token.Secret = m_localNonce!.GenerateSecret(m_remoteNonce!, token.PreviousSecret);
+                    // Part 6 6.8.1: a renewal chains the previous secret into
+                    // the new one only for policies with SecureChannelEnhancements;
+                    // the ECC policies of OPC UA 1.05 use the new secret alone.
+                    token.Secret = m_localNonce!.GenerateSecret(
+                        m_remoteNonce!,
+                        tokenPolicy.SecureChannelEnhancements ? token.PreviousSecret : null);
+
+                    // Part 6 6.8.1 Step 1: without AuthenticatedEncryption, Sign only sets
+                    // EncryptionKeyLength and InitializationVectorLength to 0 in L.
+                    bool signOnlyL = SecurityMode == MessageSecurityMode.Sign &&
+                        !tokenPolicy.NoSymmetricEncryptionPadding;
+                    ushort clientL = (ushort)(signOnlyL
+                        ? tokenPolicy.DerivedSignatureKeyLength
+                        : tokenPolicy.ClientKeyDataLength);
+                    ushort serverL = (ushort)(signOnlyL
+                        ? tokenPolicy.DerivedSignatureKeyLength
+                        : tokenPolicy.ServerKeyDataLength);
 
                     byte[] clientSalt = Utils.Append(
-                        BitConverter.GetBytes((ushort)tokenPolicy.ClientKeyDataLength),
+                        BitConverter.GetBytes(clientL),
                         s_hkdfClientLabel,
                         clientSecret,
                         serverSecret);
@@ -449,7 +465,7 @@ namespace Opc.Ua.Bindings
                     DeriveKeysWithHKDF(token, clientSalt, false, tokenPolicy.ClientKeyDataLength);
 
                     byte[] serverSalt = Utils.Append(
-                        BitConverter.GetBytes((ushort)tokenPolicy.ServerKeyDataLength),
+                        BitConverter.GetBytes(serverL),
                         s_hkdfServerLabel,
                         serverSecret,
                         clientSecret);

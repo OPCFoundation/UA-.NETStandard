@@ -110,8 +110,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             harness.Target.RecomputeKeys();
             Assert.That(harness.Target.Token.Secret, Is.EqualTo(harness.Peer.Token.Secret));
             Assert.That(harness.Target.Token.Secret, Is.Not.EqualTo(previous.Secret));
+            // Only policies with SecureChannelEnhancements chain the previous
+            // secret into the renewed one (Part 6 6.8.1).
+            bool chained = harness.Target.Token.SecurityPolicy!.SecureChannelEnhancements;
             Assert.That(
-                harness.HandedOffLocal!.GenerateSecret(harness.HandedOffRemote!, previous.Secret),
+                harness.HandedOffLocal!.GenerateSecret(harness.HandedOffRemote!, chained ? previous.Secret : null),
                 Is.EqualTo(harness.Target.Token.Secret));
             await harness.AssertEncryptedReadAsync(harness.NewTransport).ConfigureAwait(false);
         }
