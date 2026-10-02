@@ -405,39 +405,59 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces every queued event with the result of <paramref name="rebuild"/> and keeps
         /// the queue order. An event the callback cannot rebuild (it returns <c>null</c>) is
-        /// dropped and reported through <see cref="Overflow"/>.
+        /// dropped and reported through <see cref="Overflow"/>. When the callback throws, the
+        /// original events are queued again unchanged and the exception is rethrown.
         /// </summary>
         /// <param name="rebuild">Produces the replacement for a queued event.</param>
         internal void RebuildQueuedEvents(Func<EventFieldList, EventFieldList?> rebuild)
         {
             int count = m_eventQueue.ItemsInQueue;
-            var rebuilt = new List<EventFieldList>(count);
-            var dropPositions = new List<int>();
-            int[] droppedBefore = new int[count + 1];
-            for (int ii = 0; ii < count; ii++)
+            var originals = new List<EventFieldList>(count);
+            while (originals.Count < count)
             {
-                droppedBefore[ii + 1] = droppedBefore[ii];
                 if (!DequeueWithRetry(out EventFieldList fields))
                 {
                     // the queue no longer hands back the events it reports as queued.
-                    m_logger.RebuildDequeueFailed(ii, count);
-                    for (int jj = ii + 2; jj <= count; jj++)
-                    {
-                        droppedBefore[jj] = droppedBefore[ii];
-                    }
+                    m_logger.RebuildDequeueFailed(originals.Count, count);
                     break;
                 }
-                EventFieldList? replacement = rebuild(fields);
-                if (replacement == null)
+                originals.Add(fields);
+            }
+
+            var rebuilt = new List<EventFieldList>(originals.Count);
+            var dropPositions = new List<int>();
+            int[] droppedBefore = new int[count + 1];
+            try
+            {
+                for (int ii = 0; ii < count; ii++)
                 {
-                    droppedBefore[ii + 1]++;
-                    if (dropPositions.Count == 0 || dropPositions[dropPositions.Count - 1] != rebuilt.Count)
+                    droppedBefore[ii + 1] = droppedBefore[ii];
+                    if (ii >= originals.Count)
                     {
-                        dropPositions.Add(rebuilt.Count);
+                        continue;
                     }
-                    continue;
+
+                    EventFieldList? replacement = rebuild(originals[ii]);
+                    if (replacement == null)
+                    {
+                        droppedBefore[ii + 1]++;
+                        if (dropPositions.Count == 0 || dropPositions[dropPositions.Count - 1] != rebuilt.Count)
+                        {
+                            dropPositions.Add(rebuilt.Count);
+                        }
+                        continue;
+                    }
+                    rebuilt.Add(replacement);
                 }
-                rebuilt.Add(replacement);
+            }
+            catch
+            {
+                // nothing is lost: the queue gets its events back in their original order.
+                foreach (EventFieldList fields in originals)
+                {
+                    m_eventQueue.Enqueue(fields);
+                }
+                throw;
             }
 
             foreach (EventFieldList fields in rebuilt)

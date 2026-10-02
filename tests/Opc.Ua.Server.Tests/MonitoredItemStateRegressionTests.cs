@@ -410,6 +410,53 @@ namespace Opc.Ua.Server.Tests
             Assert.That(published[0].EventFields.Count, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// A modification whose rebuild of the queued events fails must neither lose those
+        /// events nor leave the item half modified.
+        /// </summary>
+        [Test]
+        public void FailedRebuildKeepsQueuedEventsAndLeavesItemUnmodified()
+        {
+            using var harness = new Harness();
+            var filter = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            using MonitoredItem item = harness.CreateEventItem(filter);
+            var first = new NamedFieldTarget();
+            var second = new NamedFieldTarget();
+            item.QueueEvent(first);
+            item.QueueEvent(second);
+
+            var modified = new EventFilter
+            {
+                SelectClauses = [CreateSelectClause(NamedFieldTarget.Failing), CreateSelectClause("A")],
+                WhereClause = new ContentFilter()
+            };
+            Assert.Throws<InvalidOperationException>(
+                () => item.ModifyAttributes(
+                    DiagnosticsMasks.None,
+                    TimestampsToReturn.Both,
+                    9,
+                    modified,
+                    modified,
+                    null,
+                    0,
+                    1,
+                    discardOldest: true));
+
+            Assert.That(item.ClientHandle, Is.EqualTo(5u));
+            Assert.That(item.Filter, Is.SameAs(filter));
+            Assert.That(item.QueueSize, Is.EqualTo(10u));
+            List<EventFieldList> published = PublishEvents(item);
+            Assert.That(published, Has.Count.EqualTo(2));
+            Assert.That(published[0].Handle, Is.SameAs(first));
+            Assert.That(published[1].Handle, Is.SameAs(second));
+            Assert.That(published[0].ClientHandle, Is.EqualTo(5u));
+            Assert.That(published[0].EventFields.ToArray(), Is.EqualTo(new[] { Variant.From("A") }));
+        }
+
         private static void ModifyEventItem(MonitoredItem item, EventFilter filter, uint clientHandle)
         {
             ServiceResult result = item.ModifyAttributes(
@@ -440,6 +487,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private sealed class NamedFieldTarget : IFilterTarget
         {
+            /// <summary>
+            /// A field name the target fails to resolve with an exception.
+            /// </summary>
+            public const string Failing = "Failing";
+
             public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
             {
                 return true;
@@ -452,6 +504,10 @@ namespace Opc.Ua.Server.Tests
                 uint attributeId,
                 NumericRange indexRange)
             {
+                if (relativePath[0].Name == Failing)
+                {
+                    throw new InvalidOperationException("The field cannot be resolved.");
+                }
                 return Variant.From(relativePath[0].Name);
             }
         }

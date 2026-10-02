@@ -938,6 +938,14 @@ namespace Opc.Ua.Server
                 }
                 AggregationFilterHandler.Modification? aggregateChange = aggregateFilter?.PrepareChange(filterToUse);
 
+                // the queued events are rebuilt before anything is committed: when that
+                // fails the queue is restored and the item stays unmodified.
+                RebuildQueuedEventFields(
+                    previousFilterToUse,
+                    filterToUse,
+                    previousClientHandle,
+                    clientHandle);
+
                 DiagnosticsMasks = diagnosticsMasks;
                 m_timestampsToReturn = timestampsToReturn;
                 ClientHandle = clientHandle;
@@ -970,8 +978,6 @@ namespace Opc.Ua.Server
 
                 InitializeQueue();
 
-                RebuildQueuedEventFields(previousFilterToUse, previousClientHandle);
-
                 return null;
             }
         }
@@ -989,11 +995,13 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void RebuildQueuedEventFields(
             MonitoringFilter? previousFilter,
-            uint previousClientHandle)
+            MonitoringFilter? newFilter,
+            uint previousClientHandle,
+            uint clientHandle)
         {
             if (m_eventQueueHandler == null ||
                 m_eventQueueHandler.ItemsInQueue == 0 ||
-                FilterToUse is not EventFilter filter)
+                newFilter is not EventFilter filter)
             {
                 return;
             }
@@ -1004,11 +1012,11 @@ namespace Opc.Ua.Server
 
             if (!selectClausesChanged)
             {
-                if (previousClientHandle != ClientHandle)
+                if (previousClientHandle != clientHandle)
                 {
                     m_eventQueueHandler.RebuildQueuedEvents(fields =>
                     {
-                        fields.ClientHandle = ClientHandle;
+                        fields.ClientHandle = clientHandle;
                         return fields;
                     });
                 }
@@ -1031,7 +1039,9 @@ namespace Opc.Ua.Server
 
                 // a trailing filtered retain event keeps its FilteredRetainTarget handle,
                 // so the rebuilt fields report the same Retain override.
-                return GetEventFields(context, filter, target);
+                EventFieldList rebuilt = GetEventFields(context, filter, target);
+                rebuilt.ClientHandle = clientHandle;
+                return rebuilt;
             });
         }
 
