@@ -279,14 +279,16 @@ namespace Opc.Ua.Server.Tests
             var queue = (SentMessageQueue)typeof(Subscription)
                 .GetField("m_messageQueue", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(subscription)!;
             var item = new MonitoredItemNotification { ClientHandle = 77, Value = new DataValue(42) };
-            var message = new NotificationMessage
+            var message = new UnpooledNotificationMessage
             {
                 SequenceNumber = 9,
                 NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })]
             };
             queue.Enqueue([message], [], out _, out _);
             IStoredSubscription snapshot = subscription.ToStorableSubscription();
+            Assert.That(snapshot.SentMessages[0], Is.Not.SameAs(message));
             queue.Clear();
+            Assert.That(message.ReuseCount, Is.EqualTo(1));
             Assert.That(message.IsEmpty, Is.True);
             var messageContext = ServiceMessageContext.Create(m_telemetry);
             using var encoder = new BinaryEncoder(messageContext);
@@ -298,6 +300,21 @@ namespace Opc.Ua.Server.Tests
             Assert.That(decoded.NotificationData[0].TryGetValue(out DataChangeNotification data), Is.True);
             Assert.That(data.MonitoredItems[0].ClientHandle, Is.EqualTo(77u));
             Assert.That(data.MonitoredItems[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
+        }
+
+        /// <summary>
+        /// Records recycling and resets like a pooled message, but stays out of the process-wide pool so a parallel
+        /// test cannot rent and repopulate it before the assertions read it.
+        /// </summary>
+        private sealed class UnpooledNotificationMessage : NotificationMessage
+        {
+            public int ReuseCount { get; private set; }
+
+            protected override void ReuseCore()
+            {
+                ReuseCount++;
+                ResetForReuse();
+            }
         }
 
         private ServerInternalData CreateServerInternalData()
