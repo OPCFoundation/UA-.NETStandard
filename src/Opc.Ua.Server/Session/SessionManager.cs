@@ -1921,20 +1921,29 @@ namespace Opc.Ua.Server
 
                 ISession? victim = null;
                 DateTimeUtc victimConnectionTime = DateTimeUtc.MaxValue;
+                long victimSequence = long.MaxValue;
                 foreach (KeyValuePair<NodeId, ISession> entry in m_sessions)
                 {
                     ISession candidate = entry.Value;
                     if (candidate == null ||
                         candidate.Id.IsNull ||
-                        !IsCapEvictionCandidate(candidate))
+                        !IsCapEvictionCandidate(candidate) ||
+                        !m_sessionActivationStates.TryGetValue(candidate, out SessionActivationState? candidateState))
                     {
                         continue;
                     }
+
+                    // The oldest by connection time; sessions created within one clock tick
+                    // are ordered by creation, not by the table's enumeration order.
                     DateTimeUtc connectionTime = candidate.ReadDiagnostics(d => d.ClientConnectionTime);
-                    if (victim == null || connectionTime < victimConnectionTime)
+                    if (victim == null ||
+                        connectionTime < victimConnectionTime ||
+                        (connectionTime == victimConnectionTime &&
+                            candidateState.CreationSequence < victimSequence))
                     {
                         victim = candidate;
                         victimConnectionTime = connectionTime;
+                        victimSequence = candidateState.CreationSequence;
                     }
                 }
 
@@ -2140,6 +2149,12 @@ namespace Opc.Ua.Server
 
             public SemaphoreSlim Lock { get; } = new(1, 1);
 
+            /// <summary>
+            /// Orders sessions by creation where ClientConnectionTime cannot: on a coarse
+            /// clock (about 15 ms on .NET Framework) sessions created back to back share it.
+            /// </summary>
+            public long CreationSequence { get; } = Interlocked.Increment(ref s_lastCreationSequence);
+
             public ByteString OriginalClientChannelCertificate { get; set; }
 
             public string SecurityPolicyUri { get; set; }
@@ -2185,6 +2200,7 @@ namespace Opc.Ua.Server
             }
 
             private ImpersonatedIdentity? m_impersonated;
+            private static long s_lastCreationSequence;
         }
 
         /// <inheritdoc/>
