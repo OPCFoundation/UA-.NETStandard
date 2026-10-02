@@ -425,7 +425,7 @@ namespace Opc.Ua.Server
                 {
                     m_backgroundWork.Run(
                         nameof(DoSampleAsync),
-                        async ct => await DoSampleAsync(itemsToSample, ct)
+                        async ct => await DoSampleAsync(itemsToSample, ownedByLoop: false, ct)
                             .ConfigureAwait(false));
                 }
 
@@ -623,7 +623,7 @@ namespace Opc.Ua.Server
                     }
 
                     // sample the values.
-                    await DoSampleAsync(items, cancellationToken).ConfigureAwait(false);
+                    await DoSampleAsync(items, ownedByLoop: true, cancellationToken).ConfigureAwait(false);
 
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -656,7 +656,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Samples the values of the items.
         /// </summary>
-        private async ValueTask DoSampleAsync(List<ISampledDataChangeMonitoredItem> items, CancellationToken cancellationToken = default)
+        /// <param name="items">The items to sample.</param>
+        /// <param name="ownedByLoop">
+        /// True for a sample of the sampling loop that owns <paramref name="cancellationToken"/>;
+        /// it stops as soon as that loop is detached from the group.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask DoSampleAsync(
+            List<ISampledDataChangeMonitoredItem> items,
+            bool ownedByLoop,
+            CancellationToken cancellationToken = default)
         {
             try
             {
@@ -679,7 +688,7 @@ namespace Opc.Ua.Server
                         using OperationContext context = session != null
                             ? new OperationContext(session, m_diagnosticsMask)
                             : new OperationContext(ownedItems[0]);
-                        await SampleItemsAsync(context, ownedItems, cancellationToken).ConfigureAwait(false);
+                        await SampleItemsAsync(context, ownedItems, ownedByLoop, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -699,6 +708,7 @@ namespace Opc.Ua.Server
         private async ValueTask SampleItemsAsync(
             OperationContext context,
             List<ISampledDataChangeMonitoredItem> items,
+            bool ownedByLoop,
             CancellationToken cancellationToken)
         {
             var itemsToRead = new List<ReadValueId>(items.Count);
@@ -723,7 +733,7 @@ namespace Opc.Ua.Server
             // may already be deleted.
             for (int ii = 0; ii < items.Count; ii++)
             {
-                if (cancellationToken.IsCancellationRequested)
+                if (IsSamplingStopped(ownedByLoop, cancellationToken))
                 {
                     return;
                 }
@@ -735,6 +745,13 @@ namespace Opc.Ua.Server
                         PermissionType.Read,
                         cancellationToken)
                     .ConfigureAwait(false);
+
+                // the group may have stopped while the permission check was suspended.
+                if (IsSamplingStopped(ownedByLoop, cancellationToken))
+                {
+                    return;
+                }
+
                 if (ServiceResult.IsBad(permissionResult))
                 {
                     items[ii].QueueValue(
@@ -753,6 +770,29 @@ namespace Opc.Ua.Server
                 }
 
                 items[ii].QueueValue(values[ii], errors[ii]);
+            }
+        }
+
+        /// <summary>
+        /// True when the sample must not be queued: its token is cancelled, or it belongs to a
+        /// sampling loop that was detached from the group and whose cancellation is still
+        /// pending on the thread pool.
+        /// </summary>
+        private bool IsSamplingStopped(bool ownedByLoop, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return true;
+            }
+
+            if (!ownedByLoop)
+            {
+                return false;
+            }
+
+            lock (m_lock)
+            {
+                return m_samplingCts == null || m_samplingCts.Token != cancellationToken;
             }
         }
 
