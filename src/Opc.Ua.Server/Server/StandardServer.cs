@@ -1034,18 +1034,26 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            server.ReportAuditCreateSessionEvent(
-                auditEntryId!,
-                null,
-                secureChannelId,
-                clientCertificate,
-                null,
-                0,
-                m_logger,
-                exception);
-            CountRejectedSession(
-                server,
-                exception is ServiceResultException sre ? sre.StatusCode : StatusCodes.BadUnexpectedError);
+            // Reporting is best effort: it must never replace the rejection the client gets.
+            try
+            {
+                server.ReportAuditCreateSessionEvent(
+                    auditEntryId!,
+                    null,
+                    secureChannelId,
+                    clientCertificate,
+                    null,
+                    0,
+                    m_logger,
+                    exception);
+                CountRejectedSession(
+                    server,
+                    exception is ServiceResultException sre ? sre.StatusCode : StatusCodes.BadUnexpectedError);
+            }
+            catch (Exception e)
+            {
+                m_logger.ReportingRejectedCreateSessionFailed(e);
+            }
         }
 
         /// <summary>
@@ -3527,7 +3535,7 @@ namespace Opc.Ua.Server
                 // The services count their rejections only once the request was admitted, so
                 // a request rejected by session validation (e.g. Bad_SessionIdInvalid or
                 // Bad_SecureChannelIdInvalid) is counted here (OPC 10000-5 12.9).
-                CountRejectedRequest(serverInternal, e.StatusCode);
+                CountRejectedRequest(serverInternal, requestType, e.StatusCode);
                 throw;
             }
 
@@ -3548,6 +3556,18 @@ namespace Opc.Ua.Server
             // from here, so disposing the context completes the request.
             context.AttachRequestScope(requestManager.EnterRequestScope(context));
 
+            // A close that started after the Session admitted this request, but before the
+            // request was registered, did not see it when it aborted the Session's outstanding
+            // requests (OPC 10000-4 5.7.2.1). The close marks the Session closing before it
+            // sweeps the registered requests under the request manager lock, and registration
+            // takes the same lock, so a request the sweep missed sees the mark here.
+            if (context.Session?.IsClosing == true)
+            {
+                CountRejectedRequest(serverInternal, requestType, StatusCodes.BadSessionClosed);
+                context.Dispose();
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
+
             // A Cancel that ran while this request was still queued cancels it now
             // (OPC 10000-4 5.7.5.2).
             if (requestManager.IsCancelledBeforeAdmission(context))
@@ -3563,7 +3583,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedRequest(serverInternal, e.StatusCode);
+                CountRejectedRequest(serverInternal, requestType, e.StatusCode);
                 context.Dispose();
                 throw;
             }
@@ -3579,8 +3599,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Counts a request rejected before its service ran in the server diagnostics.
         /// </summary>
-        private void CountRejectedRequest(ServerInternalData serverInternal, StatusCode statusCode)
+        private void CountRejectedRequest(
+            ServerInternalData serverInternal,
+            RequestType requestType,
+            StatusCode statusCode)
         {
+            // CreateSessionAsync counts every CreateSession it rejects before admission,
+            // including those rejected here, as a rejected session (and request), so it is
+            // not counted twice (OPC 10000-5 12.9).
+            if (requestType == RequestType.CreateSession)
+            {
+                return;
+            }
+
             serverInternal.UpdateServerDiagnostics(diagnostics =>
             {
                 diagnostics.RejectedRequestsCount++;
@@ -6096,6 +6127,13 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             string? errorMessage);
+
+        /// <summary>
+        /// Logs a failure to audit or count a rejected CreateSession.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 36, Level = LogLevel.Warning,
+            Message = "Server - reporting a rejected CreateSession failed; the rejection stands.")]
+        public static partial void ReportingRejectedCreateSessionFailed(this ILogger logger, Exception ex);
 
         /// <summary>
         /// Logs a failed best-effort step after an ActivateSession committed.

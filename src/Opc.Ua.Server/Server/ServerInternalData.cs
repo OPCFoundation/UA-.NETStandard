@@ -946,6 +946,13 @@ namespace Opc.Ua.Server
 
             lock (m_diagnosticsLock)
             {
+                // The diagnostics are created with the server object during startup; a request
+                // rejected before that (e.g. Bad_ServerHalted) has nothing to count yet.
+                if (ServerDiagnostics == null)
+                {
+                    return;
+                }
+
                 update.Invoke(ServerDiagnostics);
 
                 // mark diagnostic nodes dirty
@@ -1071,18 +1078,20 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            // OPC 10000-4 5.7.2.1: when a Session is terminated, all outstanding requests on
-            // the Session are aborted with Bad_SessionClosed. The CloseSession request that
-            // drives this close is the one request that must still complete normally.
-            RequestManager?.CancelSessionRequests(
-                sessionId,
-                GetRequestId(context),
-                StatusCodes.BadSessionClosed);
-
             CancellationToken closeCancellationToken = CancellationToken.None;
 
             try
             {
+                // OPC 10000-4 5.7.2.1: when a Session is terminated, all outstanding requests on
+                // the Session are aborted with Bad_SessionClosed. The CloseSession request that
+                // drives this close is the one request that must still complete normally. This
+                // runs inside the try, so a failure here cannot leave the Session marked closing
+                // but still registered.
+                RequestManager?.CancelSessionRequests(
+                    sessionId,
+                    GetRequestId(context),
+                    StatusCodes.BadSessionClosed);
+
                 await NodeManager.SessionClosingAsync(
                     context,
                     sessionId,
