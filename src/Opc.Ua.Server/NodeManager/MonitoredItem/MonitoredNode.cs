@@ -477,9 +477,9 @@ namespace Opc.Ua.Server
             Dictionary<uint, DataValue>? subscriberValueSnapshots = null;
             if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
                 reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
-                node is BaseVariableState { OnReadUserAccessLevel: not null } &&
-                context is ServerSystemContext serverContext)
+                node is BaseVariableState { OnReadUserAccessLevel: not null })
             {
+                ServerSystemContext serverContext = GetSubscriberContextTemplate(context);
                 long generation = Volatile.Read(ref m_permissionGeneration);
                 foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
                 {
@@ -887,12 +887,11 @@ namespace Opc.Ua.Server
             {
                 ct.ThrowIfCancellationRequested();
                 long generation = Volatile.Read(ref m_permissionGeneration);
-                ServerSystemContext? cachedContext = snapshot.Context is ServerSystemContext serverContext
-                    ? GetOrCreateContext(serverContext, monitoredItem, generation)
-                    : null;
-                using OperationContext? ownedContext =
-                    cachedContext == null ? new OperationContext(monitoredItem) : null;
-                OperationContext operationContext = cachedContext?.OperationContext ?? ownedContext!;
+                // the subscriber's own context, also when the reporter's context is not a
+                // ServerSystemContext: every access check of the item uses its identity.
+                ServerSystemContext cachedContext = GetOrCreateContext(
+                    GetSubscriberContextTemplate(snapshot.Context), monitoredItem, generation);
+                OperationContext operationContext = cachedContext.OperationContext!;
                 ServiceResult result;
                 if (m_permissionCache.TryGetValue(
                     monitoredItem.Id,
@@ -914,7 +913,7 @@ namespace Opc.Ua.Server
                 }
                 if (generation == Volatile.Read(ref m_permissionGeneration))
                 {
-                    return (result, cachedContext ?? snapshot.Context);
+                    return (result, cachedContext);
                 }
             }
         }
@@ -1122,6 +1121,19 @@ namespace Opc.Ua.Server
 
         private readonly TimeSpan m_cacheLifetime = TimeSpan.FromMinutes(5);
 
+        /// <summary>
+        /// Returns the context subscriber contexts are copied from: the reporter's context
+        /// when it is a <see cref="ServerSystemContext"/>, else a context of the server.
+        /// </summary>
+        private ServerSystemContext GetSubscriberContextTemplate(ISystemContext reporterContext)
+        {
+            return reporterContext as ServerSystemContext ??
+                LazyInitializer.EnsureInitialized(
+                    ref m_subscriberContextTemplate,
+                    () => new ServerSystemContext(m_server))!;
+        }
+
+        private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;

@@ -89,11 +89,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(value.WrappedValue, Is.EqualTo(new Variant(42)));
         }
 
+        /// <summary>
+        /// A reporter context that is not a ServerSystemContext must not lend the reporter's
+        /// identity to the subscriber's access check.
+        /// </summary>
+        [Test]
+        public async Task SubscriberAccessIsCheckedWithSubscriberIdentityForPlainReporterContextAsync()
+        {
+            var writer = new Mock<IUserIdentity>();
+            var denied = new Mock<IUserIdentity>();
+            (DataValue value, ServiceResult _) = await ReportChangeAsync(
+                writer.Object, denied.Object, denied.Object, plainReporterContext: true).ConfigureAwait(false);
+
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(value.WrappedValue.IsNull, Is.True);
+        }
+
         private static async Task<(DataValue, ServiceResult)> ReportChangeAsync(
             IUserIdentity writerIdentity,
             IUserIdentity subscriberIdentity,
             IUserIdentity deniedIdentity,
-            int? valueAfterReport = null)
+            int? valueAfterReport = null,
+            bool plainReporterContext = false)
         {
             // holds the processing of the change until the node has changed again.
             var processingGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -152,7 +169,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 writerSession.SetupGet(s => s.EffectiveIdentity).Returns(writerIdentity);
                 using var writerOperation = new OperationContext(
                     new RequestHeader(), null, RequestType.Write, RequestLifetime.None, writerSession.Object);
-                var writerContext = new ServerSystemContext(server.Object, writerOperation);
+                ISystemContext writerContext = plainReporterContext
+                    ? new SessionSystemContext(server.Object.Telemetry) { UserIdentity = writerIdentity }
+                    : new ServerSystemContext(server.Object, writerOperation);
 
                 var monitoredNode = new MonitoredNode2(nodeManager.Object, server.Object, node);
                 monitoredNode.Add(item.Object);
