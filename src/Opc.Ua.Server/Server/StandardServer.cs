@@ -1127,7 +1127,8 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Runs for every successful ActivateSession, with or without an additional
         /// header, so a client that used its EphemeralKey always receives a new one
-        /// (OPC 10000-6 6.8.2).
+        /// (OPC 10000-6 6.8.2). The new key was installed by the activation; if the
+        /// returned parameters carry no ECDHKey it is appended to the response.
         /// </remarks>
         protected virtual AdditionalParametersType? ActivateSessionProcessAdditionalParameters(
             ISession session,
@@ -1156,6 +1157,42 @@ namespace Opc.Ua.Server
                 parameters,
                 m_logger,
                 SecurityPolicyRegistry);
+        }
+
+        /// <summary>
+        /// Appends the EphemeralKey the activation installed for a used key when the
+        /// processed parameters do not carry an ECDHKey.
+        /// </summary>
+        internal static AdditionalParametersType? AppendUnsentEphemeralKey(
+            ISession session,
+            AdditionalParametersType? parameters)
+        {
+            if (session is not Session serverSession ||
+                serverSession.TakeUnsentEphemeralKey() is not EphemeralKeyType key)
+            {
+                return parameters;
+            }
+
+            if (parameters != null)
+            {
+                foreach (KeyValuePair parameter in parameters.Parameters)
+                {
+                    if (parameter.Key == AdditionalParameterNames.ECDHKey)
+                    {
+                        return parameters;
+                    }
+                }
+            }
+
+            var entry = new KeyValuePair
+            {
+                Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
+                Value = new ExtensionObject(key)
+            };
+            return new AdditionalParametersType
+            {
+                Parameters = parameters == null ? [entry] : [.. parameters.Parameters, entry]
+            };
         }
 
         /// <inheritdoc/>
@@ -1233,10 +1270,15 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    // e.g. the session started closing; the client can request a key
-                    // with ECDHPolicyUri on its next ActivateSession.
+                    // e.g. the session started closing.
                     m_logger.ActivateSessionPostCommitStepFailed(e, session.Id);
                 }
+
+                // A key the identity token used is replaced inside the activation; the
+                // replacement must reach the client, whose next token can only be
+                // encrypted with it (OPC 10000-6 6.8.2). Return it when the processing
+                // above failed or an override did not hand it out.
+                parameters = AppendUnsentEphemeralKey(session, parameters);
 
                 m_logger.ServerSESSIONACTIVATED(session.Id);
 

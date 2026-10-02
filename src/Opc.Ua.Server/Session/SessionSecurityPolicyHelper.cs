@@ -136,10 +136,11 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// OPC 10000-6 6.8.2: a valid ECDHPolicyUri in the request selects the
         /// policy of the returned EphemeralKey, an unsupported one is answered with
-        /// Bad_SecurityPolicyRejected; without one the Server returns a new key for
-        /// the policy already in use, since the previous key cannot be accepted
-        /// again. The response carries only the parameters the Server produces; the
-        /// request parameters are not echoed back.
+        /// Bad_SecurityPolicyRejected. Without one the Server returns a new key for
+        /// the policy already in use only when the previous key was used in the
+        /// request (it cannot be accepted again); otherwise it returns nothing and
+        /// retains the previous key. The response carries only the parameters the
+        /// Server produces; the request parameters are not echoed back.
         /// </remarks>
         public static AdditionalParametersType ProcessActivateSessionAdditionalParameters(
             ISession session,
@@ -149,6 +150,7 @@ namespace Opc.Ua.Server
         {
             var responseParameters = new List<KeyValuePair>();
             bool policyRequested = false;
+            bool policyAccepted = false;
             if (parameters != null)
             {
                 foreach (KeyValuePair parameter in parameters.Parameters)
@@ -170,6 +172,7 @@ namespace Opc.Ua.Server
                         securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                     {
                         session.SetUserTokenSecurityPolicy(policyUri);
+                        policyAccepted = true;
                         continue;
                     }
 
@@ -182,9 +185,28 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (responseParameters.Count == 0)
+            // The key the activation installed for a used key; taken in every case
+            // so a later activation cannot return it.
+            EphemeralKeyType? unsentKey = (session as Session)?.TakeUnsentEphemeralKey();
+
+            if (!policyRequested || policyAccepted)
             {
-                EphemeralKeyType? key = session.GetNewEphemeralKey();
+                EphemeralKeyType? key;
+                if (policyAccepted)
+                {
+                    key = session.GetNewEphemeralKey();
+                }
+                else if (session is Session)
+                {
+                    key = unsentKey;
+                }
+                else
+                {
+                    // a session implementation without key-use tracking: hand out a
+                    // new key so a used one is always replaced.
+                    key = session.GetNewEphemeralKey();
+                }
+
                 if (key != null)
                 {
                     responseParameters.Add(new KeyValuePair

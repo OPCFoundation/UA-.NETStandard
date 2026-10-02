@@ -167,12 +167,18 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// AS-1: once ActivateSession succeeds the EphemeralKey that decrypted the
         /// identity token shall not be accepted again (OPC 10000-6 6.8.2). The
-        /// activation retires it itself, whether or not a new key is handed out.
+        /// activation retires it itself and installs the replacement prepared during
+        /// validation, so the session is never left without a key (SWEEP-1); the
+        /// replacement is what the response hands out.
         /// </summary>
         [Test]
         public async Task SuccessfulActivationRetiresTheEphemeralKeyThatDecryptedTheTokenAsync()
         {
             using var harness = new NonceHarness();
+            if (!harness.UsesEcdh)
+            {
+                Assert.Ignore("Only an ephemeral-key policy encrypts the token with the EphemeralKey.");
+            }
             EphemeralKeyType ephemeral = harness.GetNewEphemeralKey();
             using Nonce original = GetCurrentNonce(harness.Session);
             UserNameIdentityToken encrypted = await harness.EncryptPasswordAsync(ephemeral).ConfigureAwait(false);
@@ -196,8 +202,136 @@ namespace Opc.Ua.Server.Tests
                 harness.Session.Activate(
                     harness.Context, identity, user, user, default, Nonce.CreateNonce(32));
 
-                Assert.That(s_nonceField.GetValue(harness.Session), Is.Null);
+                object? current = s_nonceField.GetValue(harness.Session);
+                Assert.That(current, Is.Not.Null, "The used key must be replaced, not dropped.");
+                Assert.That(current, Is.Not.SameAs(original));
                 Assert.That(GetKey(original), Is.Null, "The consumed key must be released.");
+
+                AdditionalParametersType response =
+                    SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                        harness.Session, null);
+                Assert.That(response.Parameters, Has.Count.EqualTo(1));
+                Assert.That(
+                    response.Parameters[0].Value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? returned),
+                    Is.True);
+                Assert.That(
+                    returned!.PublicKey,
+                    Is.EqualTo(((Nonce)current!).Data.ToByteString()),
+                    "The response returns the key the activation installed.");
+                Assert.That(
+                    SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                        harness.Session, null).Parameters.IsEmpty,
+                    Is.True,
+                    "The installed key is returned once.");
+                Assert.That(s_nonceField.GetValue(harness.Session), Is.SameAs(current));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(((UserNameIdentityTokenHandler)identity).DecryptedPassword!);
+            }
+        }
+
+        /// <summary>
+        /// K20: a token whose policy has no ephemeral key does not use the
+        /// EphemeralKey. Without an ECDHPolicyUri the Server then returns nothing and
+        /// retains the previous key (OPC 10000-6 6.8.2).
+        /// </summary>
+        [Test]
+        public async Task ActivationWithTokenThatDidNotUseTheKeyRetainsItAndReturnsNothingAsync()
+        {
+            using var harness = new NonceHarness(forceRsa: true);
+            EphemeralKeyType ephemeral = harness.GetNewEphemeralKey();
+            Nonce original = GetCurrentNonce(harness.Session);
+            UserNameIdentityToken encrypted = await harness.EncryptPasswordAsync(ephemeral).ConfigureAwait(false);
+            var token = new UserNameIdentityToken
+            {
+                PolicyId = "ecc",
+                UserName = "test-user",
+                Password = encrypted.Password,
+                EncryptionAlgorithm = encrypted.EncryptionAlgorithm
+            };
+
+            (IUserIdentityTokenHandler identity, _) = await harness.Session.ValidateBeforeActivateAsync(
+                harness.Context, harness.ClientSignature, new ExtensionObject(token), new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                var user = new UserIdentity(identity);
+                harness.Session.Activate(
+                    harness.Context, identity, user, user, default, Nonce.CreateNonce(32));
+
+                Assert.That(s_nonceField.GetValue(harness.Session), Is.SameAs(original));
+                Assert.That(GetKey(original), Is.Not.Null);
+                AdditionalParametersType response =
+                    SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                        harness.Session, null);
+                Assert.That(response.Parameters.IsEmpty, Is.True);
+                Assert.That(s_nonceField.GetValue(harness.Session), Is.SameAs(original));
+                Assert.That(
+                    StandardServer.AppendUnsentEphemeralKey(harness.Session, null),
+                    Is.Null);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(((UserNameIdentityTokenHandler)identity).DecryptedPassword!);
+            }
+        }
+
+        /// <summary>
+        /// SWEEP-1: the key the activation installed reaches the client even when the
+        /// (overridable) parameter processing did not return it, and is never added
+        /// next to an ECDHKey entry the processing produced.
+        /// </summary>
+        [Test]
+        public async Task UnsentReplacementKeyIsAppendedToTheResponseAsync()
+        {
+            using var harness = new NonceHarness();
+            if (!harness.UsesEcdh)
+            {
+                Assert.Ignore("Only an ephemeral-key policy encrypts the token with the EphemeralKey.");
+            }
+            EphemeralKeyType ephemeral = harness.GetNewEphemeralKey();
+            UserNameIdentityToken encrypted = await harness.EncryptPasswordAsync(ephemeral).ConfigureAwait(false);
+            var token = new UserNameIdentityToken
+            {
+                PolicyId = "ecc",
+                UserName = "test-user",
+                Password = encrypted.Password,
+                EncryptionAlgorithm = encrypted.EncryptionAlgorithm
+            };
+
+            (IUserIdentityTokenHandler identity, _) = await harness.Session.ValidateBeforeActivateAsync(
+                harness.Context, harness.ClientSignature, new ExtensionObject(token), new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                var user = new UserIdentity(identity);
+                harness.Session.Activate(
+                    harness.Context, identity, user, user, default, Nonce.CreateNonce(32));
+                Nonce current = GetCurrentNonce(harness.Session);
+
+                var existing = new KeyValuePair
+                {
+                    Key = new QualifiedName("Other"),
+                    Value = Variant.From(1)
+                };
+                AdditionalParametersType? response = StandardServer.AppendUnsentEphemeralKey(
+                    harness.Session,
+                    new AdditionalParametersType { Parameters = [existing] });
+
+                Assert.That(response, Is.Not.Null);
+                Assert.That(response!.Parameters, Has.Count.EqualTo(2));
+                Assert.That(
+                    response.Parameters[1].Key,
+                    Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+                Assert.That(
+                    response.Parameters[1].Value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? returned),
+                    Is.True);
+                Assert.That(returned!.PublicKey, Is.EqualTo(current.Data.ToByteString()));
+                Assert.That(
+                    StandardServer.AppendUnsentEphemeralKey(harness.Session, null),
+                    Is.Null,
+                    "The installed key is returned once.");
             }
             finally
             {
@@ -268,9 +402,9 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Uses ECDH where available and RSA otherwise, without changing the platform's security policy registry.
             /// </summary>
-            public NonceHarness(Action<NonceHarness>? beforeSignature = null)
+            public NonceHarness(Action<NonceHarness>? beforeSignature = null, bool forceRsa = false)
             {
-                UsesEcdh = SecurityPolicies.Default.GetInfo(kEcdhPolicy) != null;
+                UsesEcdh = !forceRsa && SecurityPolicies.Default.GetInfo(kEcdhPolicy) != null;
                 PolicyUri = UsesEcdh ? kEcdhPolicy : SecurityPolicies.Basic256Sha256;
                 SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(PolicyUri)
                     ?? throw new InvalidOperationException("The nonce fixture requires a supported security policy.");
