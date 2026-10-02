@@ -154,6 +154,12 @@ namespace Opc.Ua.Server.Tests
                 ?? throw new InvalidOperationException("Property SentMessages not found");
             var sentMessages = (List<NotificationMessage>)sentMessagesProperty.GetValue(messageQueue);
             sentMessages.AddRange(messages);
+
+            // the injected messages were sent (returned by a Publish response).
+            FieldInfo lastSentField = messageQueue.GetType().GetField("m_lastSentMessage",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_lastSentMessage not found");
+            lastSentField.SetValue(messageQueue, sentMessages.Count);
         }
 
         [Test]

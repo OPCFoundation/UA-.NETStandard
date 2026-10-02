@@ -194,13 +194,30 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Adds the sequence numbers still available for republish to the supplied list (used for keep-alive replies).
+        /// Adds the sequence numbers available for republish to the supplied list: the retained
+        /// messages already returned by a Publish response. Messages still queued for a Publish
+        /// response (held while publishing is disabled) are not in the retransmission queue yet
+        /// (OPC 10000-4 5.14.1.1); they are delivered by Publish (keep-alive replies, transfer).
         /// </summary>
         public void FillAvailableSequenceNumbers(List<uint> availableSequenceNumbers)
         {
-            for (int ii = 0; ii <= m_lastSentMessage && ii < SentMessages.Count; ii++)
+            int sentCount = Math.Min(m_lastSentMessage, SentMessages.Count);
+            for (int ii = 0; ii < sentCount; ii++)
             {
                 availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
+            }
+        }
+
+        /// <summary>
+        /// Gets the sequence number a keep-alive announces: the first message still queued
+        /// for a Publish response, which is sent next, or the next number to be assigned.
+        /// </summary>
+        public uint KeepAliveSequenceNumber
+        {
+            get
+            {
+                uint firstUnsent = GetFirstUnsentSequenceNumber();
+                return firstUnsent != 0 ? firstUnsent : m_sequenceNumber;
             }
         }
 
@@ -308,15 +325,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Finds a previously sent message for republish, or <c>null</c> when it is no longer available.
+        /// Finds a previously sent message for republish, or <c>null</c> when it is no longer
+        /// available or was not sent yet (it is then delivered by Publish, so republishing it
+        /// would deliver the sequence number twice).
         /// </summary>
         public NotificationMessage? FindForRepublish(uint retransmitSequenceNumber)
         {
-            foreach (NotificationMessage sentMessage in SentMessages)
+            int sentCount = Math.Min(m_lastSentMessage, SentMessages.Count);
+            for (int ii = 0; ii < sentCount; ii++)
             {
-                if (sentMessage.SequenceNumber == retransmitSequenceNumber)
+                if (SentMessages[ii].SequenceNumber == retransmitSequenceNumber)
                 {
-                    return CoreUtils.Clone(sentMessage)!;
+                    return CoreUtils.Clone(SentMessages[ii])!;
                 }
             }
 
@@ -326,16 +346,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the available sequence numbers for retransmission (for example used in Transfer Subscription).
         /// </summary>
+        /// <remarks>
+        /// Every sent message that was not acknowledged is included, as the original client may
+        /// have failed while handling it. Messages not sent yet are delivered by Publish to the
+        /// new session and are not offered for republish.
+        /// </remarks>
         public ArrayOf<uint> AvailableSequenceNumbersForRetransmission()
         {
             var availableSequenceNumbers = new List<uint>();
-            // Assumption we do not check lastSentMessage < sentMessages.Count because
-            // in case of subscription transfer original client might have crashed by handling message,
-            // therefor new client should have to chance to process all available messages
-            for (int ii = 0; ii < SentMessages.Count; ii++)
-            {
-                availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
-            }
+            FillAvailableSequenceNumbers(availableSequenceNumbers);
             return availableSequenceNumbers;
         }
 
