@@ -230,6 +230,32 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void TryAcknowledgeRejectsMessageNotSentYet()
+        {
+            var store = new Mock<ISubscriptionRetransmissionStore>();
+            var queue = SentMessageQueue.CreateRestored(
+                () => 14,
+                maxMessageCount: 5,
+                store.Object,
+                Mock.Of<ILogger>(),
+                [CreateMessage(31), CreateMessage(32)],
+                nextSequenceNumber: 33,
+                lastSentMessage: 1);
+
+            // 32 is still queued for Publish: the client cannot know it, so acknowledging it
+            // fails (Bad_SequenceNumberUnknown) and it is still delivered.
+            bool acknowledged = queue.TryAcknowledge(32);
+            NotificationMessage? next = queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(acknowledged, Is.False);
+                Assert.That(next!.SequenceNumber, Is.EqualTo(32u));
+            });
+            store.Verify(s => s.AcknowledgeNotification(14, 32), Times.Never);
+        }
+
+        [Test]
         public void CreateRestoredWithMissingStateStartsEmptyAtSequenceNumberOne()
         {
             var queue = SentMessageQueue.CreateRestored(

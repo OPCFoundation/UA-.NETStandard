@@ -302,8 +302,10 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> if the message was found and acknowledged; otherwise <c>false</c>.</returns>
         public bool TryAcknowledge(uint sequenceNumber)
         {
-            // find message in queue.
-            for (int ii = 0; ii < SentMessages.Count; ii++)
+            // only a sent message can be acknowledged: a message still queued for Publish is
+            // unknown to the client (Bad_SequenceNumberUnknown) and must not be lost.
+            int sentCount = Math.Min(m_lastSentMessage, SentMessages.Count);
+            for (int ii = 0; ii < sentCount; ii++)
             {
                 if (SentMessages[ii].SequenceNumber == sequenceNumber)
                 {
