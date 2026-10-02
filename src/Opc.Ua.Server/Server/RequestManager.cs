@@ -680,7 +680,7 @@ namespace Opc.Ua.Server
         /// caller, which is in the middle of cancelling other requests (or closing a Session).
         /// </summary>
         /// <returns><c>true</c> when this call cancelled the request.</returns>
-        private bool TryCancelRequest(OperationContext request, StatusCode statusCode)
+        internal bool TryCancelRequest(OperationContext request, StatusCode statusCode)
         {
             try
             {

@@ -3569,11 +3569,18 @@ namespace Opc.Ua.Server
             }
 
             // A Cancel that ran while this request was still queued cancels it now
-            // (OPC 10000-4 5.7.5.2).
+            // (OPC 10000-4 5.7.5.2). A failing cancellation callback is logged rather than
+            // thrown, so the request is still completed and rejected with the Cancel's status.
             if (requestManager.IsCancelledBeforeAdmission(context))
             {
-                context.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
-                context.Dispose();
+                try
+                {
+                    requestManager.TryCancelRequest(context, StatusCodes.BadRequestCancelledByClient);
+                }
+                finally
+                {
+                    context.Dispose();
+                }
                 throw new ServiceResultException(StatusCodes.BadRequestCancelledByClient);
             }
 

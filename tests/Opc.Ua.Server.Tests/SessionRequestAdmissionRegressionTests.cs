@@ -131,6 +131,69 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A queued request cancelled by an earlier Cancel call is rejected with
+        /// Bad_RequestCancelledByClient and completed even when one of its cancellation
+        /// callbacks fails, so it does not stay registered and block lifecycle drains
+        /// (OPC 10000-4 5.7.5.2).
+        /// </summary>
+        [Test]
+        public async Task PendingCancelAdmissionCompletesWhenACancellationCallbackFailsAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                (RequestHeader requestHeader, SecureChannelContext secureChannelContext) =
+                    await server.CreateAndActivateSessionAsync("PendingCancelFails").ConfigureAwait(false);
+                var serverInternal = (ServerInternalData)server.CurrentInstance;
+                DateTime sentAt = DateTime.UtcNow;
+
+                await server.CancelAsync(
+                    secureChannelContext,
+                    new RequestHeader
+                    {
+                        AuthenticationToken = requestHeader.AuthenticationToken,
+                        Timestamp = sentAt
+                    },
+                    9,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                using var lifetime = new RequestLifetime();
+                using CancellationTokenRegistration registration = lifetime.CancellationToken.Register(
+                    () => throw new InvalidOperationException("cancellation callback"));
+
+                // the Read was sent before the Cancel and was still queued when it ran.
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await server.ReadAsync(
+                        secureChannelContext,
+                        new RequestHeader
+                        {
+                            AuthenticationToken = requestHeader.AuthenticationToken,
+                            RequestHandle = 9,
+                            Timestamp = sentAt.AddSeconds(-1)
+                        },
+                        0,
+                        TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        lifetime).ConfigureAwait(false))!;
+
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+
+                using var drainTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                Assert.DoesNotThrowAsync(
+                    async () => await serverInternal.RequestManager
+                        .WaitForCurrentRequestsAsync(drainTimeout.Token)
+                        .ConfigureAwait(false),
+                    "The rejected request must not stay registered.");
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// A CreateSession rejected by request validation is one rejected session
         /// establishment request, counted once in each counter (OPC 10000-5 12.9).
         /// </summary>
