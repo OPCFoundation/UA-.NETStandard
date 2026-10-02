@@ -740,6 +740,17 @@ namespace Opc.Ua.Server
         /// </summary>
         PublishingState ISubscriptionPublishPipeline.PublishTimerExpired()
         {
+            return PublishTimerExpired(publishRequestQueued: false);
+        }
+
+        /// <inheritdoc/>
+        PublishingState ISubscriptionPublishPipeline.PublishTimerExpired(bool publishRequestQueued)
+        {
+            return PublishTimerExpired(publishRequestQueued);
+        }
+
+        private PublishingState PublishTimerExpired(bool publishRequestQueued)
+        {
             lock (m_lock)
             {
                 // OPC 10000-4 §5.14.1.2, Table 79 handles TransferSubscriptions as a single transition
@@ -769,13 +780,22 @@ namespace Opc.Ua.Server
                     m_publishTimerExpiry += (long)m_publishingInterval;
                 }
 
-                // OPC 10000-4 §5.14.1.4 StartPublishingTimer(): every publishing timer expiry
-                // advances the lifetime counter, in the NORMAL, LATE and KEEPALIVE states alike.
-                // The counter is reset when a NotificationMessage or keep-alive is sent
-                // (ResetLifetimeCounter() in the §5.14.1.2 state table) or a request
-                // acknowledges a message, so it only reaches MaxLifetimeCount when the client
-                // has stopped sending Publish requests.
-                m_lifetimeCounter++;
+                // OPC 10000-4 §5.14.1.2 row 27: the LifetimeCounter is decremented when the
+                // publishing timer expires while no Publish request is queued
+                // (PublishingReqQueued == FALSE) and reset while one is queued, in the NORMAL,
+                // LATE and KEEPALIVE states alike. It is also reset when a NotificationMessage
+                // or keep-alive is sent or a request acknowledges a message, so it only
+                // reaches MaxLifetimeCount when the client has stopped sending Publish
+                // requests. A subscription already waiting for a request (LATE) did not get
+                // the queued one, so it keeps counting.
+                if (publishRequestQueued && !m_waitingForPublish)
+                {
+                    m_lifetimeCounter = 0;
+                }
+                else
+                {
+                    m_lifetimeCounter++;
+                }
 
                 // A subscription that was already waiting for a Publish request when the
                 // timer expired has entered the LATE state; count the entry only once per
@@ -3431,7 +3451,12 @@ namespace Opc.Ua.Server
                 // clear lifetime counter.
                 ResetLifetimeCount();
 
-                m_maxLifetimeCount = maxLifetimeCount;
+                // the lifetime must be at least three keep-alive intervals (Part 4
+                // 5.14.2.2), or the subscription expires before its keep-alive is due.
+                ulong minimumLifetimeCount = 3UL * m_maxKeepAliveCount;
+                m_maxLifetimeCount = (uint)Math.Min(
+                    uint.MaxValue,
+                    Math.Max(maxLifetimeCount, minimumLifetimeCount));
 
                 // update diagnostics
                 lock (m_diagnosticsLock)

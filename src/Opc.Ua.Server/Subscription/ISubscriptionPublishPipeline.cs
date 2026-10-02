@@ -56,9 +56,19 @@ namespace Opc.Ua.Server
         void EventQueueOverflowHandler();
 
         /// <summary>
-        /// Checks if the subscription is ready to publish.
+        /// Checks if the subscription is ready to publish. Used where no Publish request can
+        /// be queued for the subscription (abandoned or restored without a session).
         /// </summary>
         PublishingState PublishTimerExpired();
+
+        /// <summary>
+        /// Checks if the subscription is ready to publish.
+        /// </summary>
+        /// <param name="publishRequestQueued">
+        /// Whether a Publish request of the owning session is queued (PublishingReqQueued in
+        /// OPC 10000-4 §5.14.1.3); the lifetime counter is reset instead of advanced then.
+        /// </param>
+        PublishingState PublishTimerExpired(bool publishRequestQueued);
 
         /// <summary>
         /// Returns the available sequence numbers for retransmission

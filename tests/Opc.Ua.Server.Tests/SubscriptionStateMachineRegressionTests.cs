@@ -334,6 +334,42 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Review U9: the lifetime counter is reset while a Publish request is queued and
+        /// only advances while none is (OPC 10000-4 §5.14.1.2 row 27), so a subscription
+        /// with a queued request never expires.
+        /// </summary>
+        [Test]
+        public void LifetimeCounterIsResetWhileAPublishRequestIsQueued()
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(clock, maxLifetimeCount: 3, maxKeepAliveCount: 1);
+            ISubscriptionPublishPipeline pipeline = subscription.AsPipeline();
+            using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+
+            for (int tick = 0; tick < 10; tick++)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(101));
+                PublishingState state = pipeline.PublishTimerExpired(publishRequestQueued: true);
+                Assert.That(state, Is.Not.EqualTo(PublishingState.Expired));
+                Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.Zero);
+
+                // the queued request receives the keep-alive.
+                if (state == PublishingState.NotificationsAvailable)
+                {
+                    subscription.Publish(context, out _, out _);
+                }
+            }
+
+            clock.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(pipeline.PublishTimerExpired(publishRequestQueued: false), Is.Not.EqualTo(PublishingState.Expired));
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.EqualTo(1u));
+            clock.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(pipeline.PublishTimerExpired(publishRequestQueued: false), Is.Not.EqualTo(PublishingState.Expired));
+            clock.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(pipeline.PublishTimerExpired(publishRequestQueued: false), Is.EqualTo(PublishingState.Expired));
+        }
+
+        /// <summary>
         /// Review U21: messages held while publishing is disabled are not in the
         /// retransmission queue yet, so TransferSubscriptions does not advertise them and
         /// Republish does not serve them; Publish delivers each of them exactly once.
