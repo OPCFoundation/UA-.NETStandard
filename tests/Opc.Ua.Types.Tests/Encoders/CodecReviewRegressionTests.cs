@@ -650,12 +650,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     foreach (string field in new[] { "N", "I", "U", "M" })
                     {
                         Assert.That(parsed[field].TypeInfo, Is.EqualTo(output[field].TypeInfo), field);
-                        // Variant equality never matches a typed null array, so
-                        // null or empty arrays are compared by their emptiness.
-                        if (!output[field].IsEmptyArray || !parsed[field].IsEmptyArray)
-                        {
-                            Assert.That(parsed[field], Is.EqualTo(output[field]), field);
-                        }
+                        Assert.That(parsed[field], Is.EqualTo(output[field]), field);
                     }
                     break;
                 default:

@@ -1146,7 +1146,7 @@ namespace Opc.Ua
             {
                 return 0;
             }
-            if (!ValueIsValueType && ValueIsDefaultOrNull)
+            if (IsAbsentPayload)
             {
                 // A typed null payload (null array, matrix, byte string,
                 // qualified name, ...) equals Variant.Null and must
@@ -7906,7 +7906,7 @@ namespace Opc.Ua
                 // letting it compare equal collapses both into one bucket of
                 // every Dictionary and HashSet keyed on Variant.
                 Variant typed = IsNull ? other : this;
-                return !typed.ValueIsValueType && typed.ValueIsDefaultOrNull;
+                return typed.IsAbsentPayload;
             }
 
             TypeInfo ourTypeInfo = m_typeInfo;
@@ -7917,6 +7917,15 @@ namespace Opc.Ua
                 !IsConvertible(ourTypeInfo, otherTypeInfo))
             {
                 return false;
+            }
+            if (IsAbsentPayload && other.IsAbsentPayload)
+            {
+                // Both hold the typed null of the same (or a convertible) type,
+                // e.g. a null array field. Each already equals Variant.Null and
+                // hashes like it, so they must equal each other as well; the
+                // accessors below cannot read an absent payload and made such a
+                // variant unequal even to itself.
+                return true;
             }
             if (ourTypeInfo.ValueRank == 0 || otherTypeInfo.ValueRank == 0)
             {
@@ -8412,6 +8421,14 @@ namespace Opc.Ua
                 return m_value is null;
             }
         }
+
+        /// <summary>
+        /// True for a typed variant whose reference payload is absent (a null
+        /// array, matrix, string, byte string, ...). Such a variant equals
+        /// <see cref="Null"/> and hashes like it. A numeric, boolean or status
+        /// code zero is a value, not an absent one.
+        /// </summary>
+        private bool IsAbsentPayload => !ValueIsValueType && ValueIsDefaultOrNull;
 
         /// <summary>
         /// Returns true if the variant holds an array or matrix without

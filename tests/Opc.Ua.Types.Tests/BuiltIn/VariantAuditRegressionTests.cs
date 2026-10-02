@@ -630,6 +630,82 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void VariantWithTypedNullArrayEqualsAnIdenticalTypedNull()
+        {
+            // A typed null array equalled Variant.Null but not itself: the
+            // array accessors cannot read an absent payload. Equality must be
+            // reflexive and agree with the hash code (OPC 10000-6 5.1.11).
+            TypeInfo[] types =
+            [
+                TypeInfo.Arrays.Int32,
+                TypeInfo.Arrays.String,
+                TypeInfo.Arrays.Variant,
+                TypeInfo.Arrays.ExtensionObject,
+                TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions)
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (TypeInfo type in types)
+                {
+                    Variant a = Variant.CreateDefault(type);
+                    Variant b = Variant.CreateDefault(type);
+                    Assert.That(IsEqual(a, a), Is.True, type.ToString());
+                    Assert.That(IsEqual(a, b), Is.True, type.ToString());
+                    Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()), type.ToString());
+                }
+
+                // the boxed null ArrayOf spelling equals the payload-less one
+                Variant nullInt32s = Variant.CreateDefault(TypeInfo.Arrays.Int32);
+                Assert.That(IsEqual(Variant.From(ArrayOf<int>.Null), nullInt32s), Is.True);
+
+                // a typed null still differs from a value and from another type
+                Assert.That(IsEqual(nullInt32s, Variant.From(s_oneTwoThree.ToArrayOf())), Is.False);
+                Variant nullBooleans = Variant.CreateDefault(TypeInfo.Arrays.Boolean);
+                Variant nullStrings = Variant.CreateDefault(TypeInfo.Arrays.String);
+                Assert.That(IsEqual(nullBooleans, nullStrings), Is.False);
+            });
+        }
+
+        [Test]
+        public void StructureWithNullArrayFieldsEqualsAnIdenticalStructure()
+        {
+            var definition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields =
+                [
+                    new StructureField
+                    {
+                        Name = "A",
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new StructureField
+                    {
+                        Name = "V",
+                        DataType = DataTypeIds.BaseDataType,
+                        ValueRank = ValueRanks.OneDimension
+                    }
+                ]
+            };
+            var types = new Dictionary<string, BuiltInType>
+            {
+                ["A"] = BuiltInType.Int32,
+                ["V"] = BuiltInType.Variant
+            };
+            var a = new global::Opc.Ua.Encoders.Structure(
+                new System.Xml.XmlQualifiedName("S", Namespaces.OpcUaXsd),
+                new ExpandedNodeId(1u), new ExpandedNodeId(2u), new ExpandedNodeId(3u),
+                definition,
+                types);
+            var b = (global::Opc.Ua.Encoders.Structure)a.Clone();
+
+            Assert.That(a.IsEqual(b), Is.True);
+        }
+
+        [Test]
         public void LocalizedTextWithEmptyLocaleAndNullTextHashesLikeNull()
         {
             // A1-5: a boxed LocalizedText("", null) equals LocalizedText.Null
