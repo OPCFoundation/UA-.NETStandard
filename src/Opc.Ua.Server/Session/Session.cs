@@ -289,13 +289,16 @@ namespace Opc.Ua.Server
             if (disposing)
             {
                 Nonce? retired;
+                Nonce? prepared;
                 lock (m_lock)
                 {
                     m_userTokenNonceStopped = true;
                     m_userTokenSecurityPolicyUri = null;
                     retired = ReplaceUserTokenNonce(null);
+                    prepared = TakePreparedUserTokenNonce();
                 }
                 retired?.Dispose();
+                prepared?.Dispose();
                 m_continuationPoints.Clear();
 
                 IdentityToken = null!;
@@ -601,31 +604,70 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                var nonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
-                bool retained = false;
-                try
-                {
-                    key = new EphemeralKeyType
-                    {
-                        PublicKey = nonce.Data.ToByteString(),
-                        Signature = CryptoUtils.Sign(
-                            new ArraySegment<byte>(nonce.Data!),
-                            m_serverCertificate,
-                            m_userTokenSecurityPolicyUri).ToByteString()
-                    };
-                    retired = ReplaceUserTokenNonce(nonce);
-                    retained = true;
-                }
-                finally
-                {
-                    if (!retained)
-                    {
-                        nonce.Dispose();
-                    }
-                }
+                key = CreateEphemeralKey(m_userTokenSecurityPolicyUri, out Nonce nonce);
+                retired = ReplaceUserTokenNonce(nonce);
             }
             retired?.Dispose();
             return key;
+        }
+
+        /// <summary>
+        /// Takes the EphemeralKey that the last committed activation installed in place
+        /// of the key its identity token used, if it has not been handed out yet.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 6.8.2: without an ECDHPolicyUri the Server returns a new key only
+        /// when the previous key was used in the request, and otherwise returns nothing
+        /// and retains the previous key. The replacement is created before the
+        /// activation commits, so a used key is never retired without one; any later
+        /// change of the session key (<see cref="GetNewEphemeralKey"/>,
+        /// <see cref="SetUserTokenSecurityPolicy"/>) discards it.
+        /// </remarks>
+        /// <returns>The new key, or <c>null</c> when there is nothing to return.</returns>
+        internal EphemeralKeyType? TakeUnsentEphemeralKey()
+        {
+            lock (m_lock)
+            {
+                EphemeralKeyType? key = m_unsentEphemeralKey;
+                m_unsentEphemeralKey = null;
+                return key;
+            }
+        }
+
+        /// <summary>
+        /// Whether the client application certificate passed the server's validation
+        /// when the session was created. <c>false</c> when an
+        /// <see cref="StandardServer.OnApplicationCertificateError"/> override accepted
+        /// a validation error: the session may still activate and sign with the
+        /// certificate, but the certificate does not establish a trusted application
+        /// identity for role assignment (OPC 10000-3 4.9, OPC 10000-18 4.4.4).
+        /// </summary>
+        internal bool ClientCertificateValidated { get; set; } = true;
+
+        /// <summary>
+        /// Creates a new ephemeral key for the policy, signed with the server certificate.
+        /// </summary>
+        private EphemeralKeyType CreateEphemeralKey(string securityPolicyUri, out Nonce nonce)
+        {
+            var created = Nonce.CreateNonce(securityPolicyUri);
+            try
+            {
+                var key = new EphemeralKeyType
+                {
+                    PublicKey = created.Data.ToByteString(),
+                    Signature = CryptoUtils.Sign(
+                        new ArraySegment<byte>(created.Data!),
+                        m_serverCertificate,
+                        securityPolicyUri).ToByteString()
+                };
+                nonce = created;
+                return key;
+            }
+            catch
+            {
+                created.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -765,13 +807,16 @@ namespace Opc.Ua.Server
                 SignatureData userTokenSignature,
                 CancellationToken cancellationToken)
         {
+            Nonce? stale;
             lock (m_lock)
             {
                 // a previous activation attempt that failed before Activate must not
                 // make this one retire a key it did not use.
                 m_consumedUserTokenNonce = null;
+                stale = TakePreparedUserTokenNonce();
                 ValidateChannelBeforeActivate(context, clientSignature);
             }
+            stale?.Dispose();
 
             (IUserIdentityTokenHandler identityToken, UserTokenPolicy? userTokenPolicy) =
                 await ValidateUserIdentityTokenAsync(
@@ -779,6 +824,33 @@ namespace Opc.Ua.Server
                     userIdentityToken,
                     userTokenSignature,
                     cancellationToken).ConfigureAwait(false);
+
+            // The identity token used the EphemeralKey: create its replacement now,
+            // before the activation commits, so the activation that retires the used
+            // key can install the new one in the same step (OPC 10000-6 6.8.2). A
+            // failure here fails the activation while the used key is still valid.
+            Nonce? superseded = null;
+            try
+            {
+                lock (m_lock)
+                {
+                    if (m_consumedUserTokenNonce != null &&
+                        ReferenceEquals(m_consumedUserTokenNonce, m_userTokenNonce) &&
+                        m_userTokenSecurityPolicyUri != null &&
+                        !m_userTokenNonceStopped)
+                    {
+                        superseded = TakePreparedUserTokenNonce();
+                        m_preparedEphemeralKey = CreateEphemeralKey(
+                            m_userTokenSecurityPolicyUri,
+                            out Nonce prepared);
+                        m_preparedUserTokenNonce = prepared;
+                    }
+                }
+            }
+            finally
+            {
+                superseded?.Dispose();
+            }
 
             TraceState("VALIDATED");
             return (identityToken, userTokenPolicy);
@@ -918,6 +990,7 @@ namespace Opc.Ua.Server
             Nonce serverNonce)
         {
             Nonce? retiredUserTokenNonce = null;
+            Nonce? unusedUserTokenNonce = null;
             bool changed = false;
             lock (m_lock)
             {
@@ -955,13 +1028,19 @@ namespace Opc.Ua.Server
 
                 // once ActivateSession succeeds the EphemeralKey that decrypted the
                 // identity token shall not be accepted again (OPC 10000-6 6.8.2).
-                // Retiring it here, inside the activation, keeps it from being reused
-                // even when no new key is handed out after the activation committed.
+                // It is replaced here, inside the activation, by the key prepared
+                // during validation, so the used key is never accepted again and the
+                // session is never left without a key the response can hand out.
+                // A key the identity token did not use is retained.
                 if (m_consumedUserTokenNonce != null &&
                     ReferenceEquals(m_consumedUserTokenNonce, m_userTokenNonce))
                 {
-                    retiredUserTokenNonce = ReplaceUserTokenNonce(null);
+                    EphemeralKeyType? replacementKey = m_preparedEphemeralKey;
+                    Nonce? replacement = TakePreparedUserTokenNonce();
+                    retiredUserTokenNonce = ReplaceUserTokenNonce(replacement);
+                    m_unsentEphemeralKey = replacement != null ? replacementKey : null;
                 }
+                unusedUserTokenNonce = TakePreparedUserTokenNonce();
                 m_consumedUserTokenNonce = null;
 
                 // update the contact time.
@@ -972,6 +1051,7 @@ namespace Opc.Ua.Server
                 }
             }
             retiredUserTokenNonce?.Dispose();
+            unusedUserTokenNonce?.Dispose();
 
             // indicate whether the user context has changed.
             return changed;
@@ -1268,11 +1348,20 @@ namespace Opc.Ua.Server
                         (m_server as ICertificateValidatorProvider)?.CertificateValidator,
                         cancellationToken).ConfigureAwait(false);
 
-                    if (userTokenNonce != null)
+                    // Only a token that was decrypted with the EphemeralKey used it;
+                    // an Anonymous or X509 token, or a token under a policy without
+                    // an ephemeral key, leaves it valid (OPC 10000-6 6.8.2).
+                    if (userTokenNonce != null && UsesEphemeralKey(token, securityPolicyUri))
                     {
                         lock (m_lock)
                         {
-                            m_consumedUserTokenNonce = userTokenNonce;
+                            if (string.Equals(
+                                    securityPolicyUri,
+                                    m_userTokenSecurityPolicyUri,
+                                    StringComparison.Ordinal))
+                            {
+                                m_consumedUserTokenNonce = userTokenNonce;
+                            }
                         }
                     }
                 }
@@ -1423,6 +1512,8 @@ namespace Opc.Ua.Server
         {
             Nonce? previous = m_userTokenNonce;
             m_userTokenNonce = replacement;
+            // a key that was not handed out yet no longer belongs to the session.
+            m_unsentEphemeralKey = null;
             if (previous != null && m_userTokenNonceBorrows?.ContainsKey(previous) == true)
             {
                 m_retiredUserTokenNonces ??= [];
@@ -1430,6 +1521,35 @@ namespace Opc.Ua.Server
                 return null;
             }
             return previous;
+        }
+
+        /// <summary>
+        /// Clears the replacement key prepared for the activation being validated and
+        /// returns its nonce for disposal. The prepared nonce is never borrowed.
+        /// </summary>
+        private Nonce? TakePreparedUserTokenNonce()
+        {
+            Nonce? prepared = m_preparedUserTokenNonce;
+            m_preparedUserTokenNonce = null;
+            m_preparedEphemeralKey = null;
+            return prepared;
+        }
+
+        /// <summary>
+        /// Whether decrypting the token used the session's EphemeralKey: only UserName
+        /// and IssuedToken secrets are encrypted, and only a policy with an ephemeral
+        /// key algorithm (ECC, RSA-DH) encrypts them with it (OPC 10000-6 6.8.2).
+        /// </summary>
+        private bool UsesEphemeralKey(IUserIdentityTokenHandler token, string? securityPolicyUri)
+        {
+            if (token.TokenType is not (UserTokenType.UserName or UserTokenType.IssuedToken) ||
+                string.IsNullOrEmpty(securityPolicyUri))
+            {
+                return false;
+            }
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri!);
+            return securityPolicy != null &&
+                securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
         }
 
         /// <summary>
@@ -1691,6 +1811,23 @@ namespace Opc.Ua.Server
         /// the nonce), hence typed as object.
         /// </summary>
         private object? m_consumedUserTokenNonce;
+
+        /// <summary>
+        /// The replacement for <see cref="m_consumedUserTokenNonce"/>, created while the
+        /// activation is validated and installed by <see cref="Activate"/>. Owned.
+        /// </summary>
+        private Nonce? m_preparedUserTokenNonce;
+
+        /// <summary>
+        /// The signed EphemeralKey of <see cref="m_preparedUserTokenNonce"/>.
+        /// </summary>
+        private EphemeralKeyType? m_preparedEphemeralKey;
+
+        /// <summary>
+        /// The EphemeralKey of the current user-token nonce that an activation
+        /// installed and that was not returned to the client yet.
+        /// </summary>
+        private EphemeralKeyType? m_unsentEphemeralKey;
 
         /// <summary>
         /// Counts active validation operations borrowing each user-token nonce.

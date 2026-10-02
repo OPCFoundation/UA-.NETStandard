@@ -115,6 +115,41 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// K15: the post-commit activation callback (e.g. the distributed session
+        /// mirror write) cannot fail the activation, so the request's cancellation
+        /// (TimeoutHint, Cancel) must not silently abort it while the client gets Good.
+        /// </summary>
+        [Test]
+        public async Task PostCommitCallbackIsNotBoundToTheRequestCancellationAsync()
+        {
+            var fixture = new ServerFixture<ActivateTestServer>(
+                telemetry => new ActivateTestServer(telemetry))
+            {
+                SecurityNone = true
+            };
+            try
+            {
+                ActivateTestServer server = await fixture.StartAsync().ConfigureAwait(false);
+                SecureChannelContext channel = CreateChannel(server, "post-commit-token");
+                NodeId token = await CreateSessionAsync(server, channel).ConfigureAwait(false);
+
+                using var lifetime = new RequestLifetime();
+                Assert.That(lifetime.CancellationToken.CanBeCanceled, Is.True);
+                ActivateSessionResponse response = await server.ActivateSessionAsync(
+                    channel, new RequestHeader { AuthenticationToken = token }, null, default, default,
+                    default, null, lifetime).ConfigureAwait(false);
+
+                Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
+                Assert.That(server.ActivatedCallbackToken, Is.Not.Null);
+                Assert.That(server.ActivatedCallbackToken.Value.CanBeCanceled, Is.False);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
         private static SecureChannelContext CreateChannel(StandardServer server, string channelId)
         {
             EndpointDescription endpoint = server.GetEndpoints().Find(
@@ -142,6 +177,8 @@ namespace Opc.Ua.Server.Tests
             public bool ThrowFromAdditionalParameters { get; set; }
 
             public bool CancelAuthentication { get; set; }
+
+            public CancellationToken? ActivatedCallbackToken { get; set; }
 
             protected override ISessionManager CreateSessionManager(
                 IServerInternal server,
@@ -193,6 +230,26 @@ namespace Opc.Ua.Server.Tests
                 }
                 return base.AuthenticateUserIdentityAsync(
                     session, newIdentity, userTokenPolicy, endpointDescription, cancellationToken);
+            }
+
+            protected override ValueTask OnSessionActivatedAsync(
+                NodeId authenticationToken,
+                ISession session,
+                ByteString serverNonce,
+                UserTokenType clientUserTokenType,
+                string clientUserId,
+                long activationSequence,
+                CancellationToken cancellationToken)
+            {
+                m_owner.ActivatedCallbackToken = cancellationToken;
+                return base.OnSessionActivatedAsync(
+                    authenticationToken,
+                    session,
+                    serverNonce,
+                    clientUserTokenType,
+                    clientUserId,
+                    activationSequence,
+                    cancellationToken);
             }
 
             private readonly ActivateTestServer m_owner;

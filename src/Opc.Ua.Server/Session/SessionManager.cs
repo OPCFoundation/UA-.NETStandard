@@ -883,7 +883,10 @@ namespace Opc.Ua.Server
 
                 // The session already holds serverNonce and is bound to this channel;
                 // a fault now would hide the nonce from the client and desync it
-                // (Part 4 5.7.3.1), so a failing or cancelled callback is only logged.
+                // (Part 4 5.7.3.1), so a failing callback is only logged. The work
+                // can no longer change the outcome, so the request token (TimeoutHint,
+                // Cancel) does not apply: a cancelled mirror write would leave a
+                // persisted activation state older than the one the client now uses.
                 try
                 {
                     await OnSessionActivatedAsync(
@@ -893,7 +896,7 @@ namespace Opc.Ua.Server
                         clientUserTokenType,
                         clientUserId,
                         activationSequence,
-                        cancellationToken).ConfigureAwait(false);
+                        CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1205,7 +1208,11 @@ namespace Opc.Ua.Server
         /// activation gate use it to discard writes that a newer concurrent
         /// activation has already superseded.
         /// </param>
-        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="cancellationToken">
+        /// The cancellation token. The activation has already committed and the
+        /// callback cannot fail it (a failure is only logged), so the request's
+        /// cancellation is not passed; implementations bound their own work.
+        /// </param>
         protected virtual ValueTask OnSessionActivatedAsync(
             NodeId authenticationToken,
             ISession session,
@@ -1484,8 +1491,17 @@ namespace Opc.Ua.Server
                     m_server.NamespaceUris);
             }
 
+            // Only a client certificate that passed validation identifies the
+            // application. One whose validation error an OnApplicationCertificateError
+            // override accepted still signs the session but grants neither
+            // TrustedApplication nor application-based role mappings.
+            Certificate? applicationCertificate =
+                session is Session { ClientCertificateValidated: false }
+                    ? null
+                    : session.ClientCertificate;
+
             // Assign TrustedApplication role per OPC UA Part 3 §4.9.
-            if (session.ClientCertificate != null &&
+            if (applicationCertificate != null &&
                 context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
             {
                 if (effectiveIdentity is RoleBasedIdentity rbi)
@@ -1509,7 +1525,7 @@ namespace Opc.Ua.Server
             {
                 IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
-                    session.ClientCertificate,
+                    applicationCertificate,
                     context.ChannelContext?.EndpointDescription);
 
                 if (dynamicRoleIds.Count > 0)
