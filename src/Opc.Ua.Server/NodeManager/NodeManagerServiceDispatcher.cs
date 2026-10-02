@@ -2630,6 +2630,10 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                // a node manager may complete after the request was cancelled: the item then
+                // stays unmodified and the cancellation propagates.
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // commit the new parameters.
                 try
                 {
