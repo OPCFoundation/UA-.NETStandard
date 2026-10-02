@@ -2483,7 +2483,7 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId sessionId);
 
-        [LoggerMessage(EventId = ServerEventIds.SessionManager + 30, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 11, Level = LogLevel.Information,
             Message = "Server - Closing non-activated session {SessionId}: the session limit of " +
                 "{MaxSessionCount} is reached.")]
         public static partial void ClosingNonActivatedSessionAtCap(
