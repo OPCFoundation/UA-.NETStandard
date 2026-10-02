@@ -537,6 +537,52 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         /// <summary>
+        /// A send that already holds the send lock when the transport closes
+        /// reaches <see cref="PipeWriter.GetMemory"/> on a completed writer.
+        /// It must fail with <see cref="StatusCodes.BadConnectionClosed"/>
+        /// instead of leaking the writer's <see cref="InvalidOperationException"/>.
+        /// </summary>
+        [Test]
+        public void SendChunkAsyncRacingCloseThrowsBadConnectionClosed()
+        {
+            using var ctx = new TestConnectionContext();
+            var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+            ctx.Transport = new DuplexPipeAdapter(
+                ctx.Transport.Input,
+                new CloseOnGetMemoryPipeWriter(ctx.Transport.Output, transport.Close));
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(
+                    new ReadOnlyMemory<byte>(new byte[8]),
+                    CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+        }
+
+        /// <summary>
+        /// The <see cref="BufferCollection"/> send racing close must also fail
+        /// with <see cref="StatusCodes.BadConnectionClosed"/>.
+        /// </summary>
+        [Test]
+        public void SendChunkAsyncBufferCollectionRacingCloseThrowsBadConnectionClosed()
+        {
+            using var ctx = new TestConnectionContext();
+            var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+            ctx.Transport = new DuplexPipeAdapter(
+                ctx.Transport.Input,
+                new CloseOnGetMemoryPipeWriter(ctx.Transport.Output, transport.Close));
+            var buffers = new BufferCollection
+            {
+                new ArraySegment<byte>(new byte[8])
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(
+                    buffers,
+                    CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+        }
+
+        /// <summary>
         /// Helper: build a valid UASC chunk with a Hello message type and
         /// the given total <paramref name="size"/> (header + body).
         /// </summary>
@@ -645,6 +691,54 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             public PipeReader Input { get; }
             public PipeWriter Output { get; }
+        }
+
+        /// <summary>
+        /// <see cref="PipeWriter"/> that runs a callback before the first
+        /// <see cref="GetMemory"/>, reproducing a close that lands after the
+        /// sender passed the closed check and acquired the send lock.
+        /// </summary>
+        private sealed class CloseOnGetMemoryPipeWriter : PipeWriter
+        {
+            public CloseOnGetMemoryPipeWriter(PipeWriter inner, Action onGetMemory)
+            {
+                m_inner = inner;
+                m_onGetMemory = onGetMemory;
+            }
+
+            public override Memory<byte> GetMemory(int sizeHint = 0)
+            {
+                Interlocked.Exchange(ref m_onGetMemory, null)?.Invoke();
+                return m_inner.GetMemory(sizeHint);
+            }
+
+            public override Span<byte> GetSpan(int sizeHint = 0)
+            {
+                return GetMemory(sizeHint).Span;
+            }
+
+            public override void Advance(int bytes)
+            {
+                m_inner.Advance(bytes);
+            }
+
+            public override void CancelPendingFlush()
+            {
+                m_inner.CancelPendingFlush();
+            }
+
+            public override void Complete(Exception? exception = null)
+            {
+                m_inner.Complete(exception);
+            }
+
+            public override ValueTask<FlushResult> FlushAsync(CancellationToken cancellationToken = default)
+            {
+                return m_inner.FlushAsync(cancellationToken);
+            }
+
+            private readonly PipeWriter m_inner;
+            private Action? m_onGetMemory;
         }
 
         private sealed class TelemetryStub : TelemetryContextBase
