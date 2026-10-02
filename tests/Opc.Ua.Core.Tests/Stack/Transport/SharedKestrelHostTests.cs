@@ -139,6 +139,44 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// A listener whose host-level settings (for example mutual TLS)
+        /// differ from the host's must not join it: the host serves one set of
+        /// settings for every listener and is rebuilt from any of them on a
+        /// certificate rotation.
+        /// </summary>
+        [Test]
+        public async Task AcquireWithDifferentHostSettingsThrowsAsync()
+        {
+            SharedHostKey key = NewKey();
+            await using SharedHostLease lease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
+                key,
+                null!,
+                "/first",
+                acc => MakeStubHost(),
+                kThumbprint,
+                "mtls=1").ConfigureAwait(false);
+
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(async () => await SharedKestrelHostRegistry.Instance.AcquireAsync(
+                    key,
+                    null!,
+                    "/second",
+                    acc => MakeStubHost(),
+                    kThumbprint,
+                    "mtls=0").ConfigureAwait(false))!;
+            Assert.That(ex.Message, Does.Contain("mtls=0"));
+            Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1));
+
+            await using SharedHostLease same = await SharedKestrelHostRegistry.Instance.AcquireAsync(
+                key,
+                null!,
+                "/third",
+                acc => MakeStubHost(),
+                kThumbprint,
+                "mtls=1").ConfigureAwait(false);
+            Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(2));
+        }
+
         [Test]
         public async Task ReleasingLastLeaseStopsTheHostAsync()
         {

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -285,7 +286,7 @@ namespace Opc.Ua.Bindings
         /// <param name="accessor">
         /// Late-bound accessor that resolves to the
         /// <see cref="SharedKestrelHost"/> serving this Kestrel host.
-        /// Set by <see cref="SharedKestrelHostRegistry.AcquireAsync"/> before
+        /// Set by <see cref="SharedKestrelHostRegistry.AcquireAsync(SharedHostKey, HttpsTransportListener, string, Func{SharedHostAccessor, IHost}, string, string, CancellationToken)"/> before
         /// the host is started.
         /// </param>
         /// <exception cref="ArgumentNullException"><paramref name="accessor"/> is <c>null</c>.</exception>
@@ -527,6 +528,17 @@ namespace Opc.Ua.Bindings
                 telemetry: m_telemetry,
                 limitPendingHandshakesOnly: m_reverseConnectListener);
 
+            // The settings a shared Kestrel host takes from the listener that
+            // builds it; listeners that differ in them must not share a host.
+            m_sharedHostSettings = string.Join(
+                ";",
+                "mtls=" + (m_mutualTlsEnabled ? "1" : "0"),
+                "reverse=" + (m_reverseConnectListener ? "1" : "0"),
+                "maxChannels=" + settings.MaxChannelCount.ToString(CultureInfo.InvariantCulture),
+                "handshakeTimeout=" + m_quotas.HandshakeTimeout.ToString("c", CultureInfo.InvariantCulture),
+                "rateLimiter=" + (settings.ConnectionRateLimiter?.GetType().FullName ?? "none"),
+                "isolation=" + (settings.ResourceIsolationProvider?.GetType().FullName ?? "none"));
+
             // buffer manager used by the WSS path to rent send / receive chunks.
             m_bufferManager = new BufferManager(
                 m_bufferManagerFactory.Create(
@@ -649,6 +661,7 @@ namespace Opc.Ua.Bindings
                         EndpointUrl.AbsolutePath,
                         BuildSharedHostInstance,
                         thumbprint,
+                        GetSharedHostSettings(),
                         ct).ConfigureAwait(false);
                     return;
                 }
@@ -1624,6 +1637,21 @@ namespace Opc.Ua.Bindings
                 ConfigureContributorServices(services);
             });
             webHostBuilder.UseStartup<SharedHostStartup>();
+        }
+
+        /// <summary>
+        /// Describes the settings a shared Kestrel host takes from this
+        /// listener, including the middleware contributors, which may be
+        /// assigned after the listener was opened.
+        /// </summary>
+        private string GetSharedHostSettings()
+        {
+            var contributors = new List<string>(StartupContributors.Count);
+            foreach (IHttpsListenerStartupContributor contributor in StartupContributors)
+            {
+                contributors.Add(contributor.GetType().FullName ?? contributor.GetType().Name);
+            }
+            return m_sharedHostSettings + ";contributors=" + string.Join(",", contributors);
         }
 
         /// <summary>
@@ -3175,6 +3203,7 @@ namespace Opc.Ua.Bindings
         private Certificate? m_pinnedServerCert;
         private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
+        private string m_sharedHostSettings = string.Empty;
         private bool m_reverseConnectListener;
 
         /// <summary>

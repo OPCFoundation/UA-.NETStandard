@@ -104,7 +104,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Process-wide registry of <see cref="SharedKestrelHost"/> instances
     /// keyed by <see cref="SharedHostKey"/>. The first
-    /// <see cref="HttpsTransportListener"/> to <see cref="AcquireAsync"/> a key
+    /// <see cref="HttpsTransportListener"/> to <see cref="AcquireAsync(SharedHostKey, HttpsTransportListener, string, Func{SharedHostAccessor, IHost}, string, string, CancellationToken)"/> a key
     /// constructs the underlying Kestrel <see cref="IHost"/>; subsequent
     /// listeners that share the same key are registered as additional
     /// path-prefix handlers on the same host. On <see cref="SharedHostLease.DisposeAsync"/>
@@ -173,12 +173,53 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentNullException"><paramref name="hostFactory"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
+        public ValueTask<SharedHostLease> AcquireAsync(
+            SharedHostKey key,
+            HttpsTransportListener listener,
+            string pathPrefix,
+            Func<SharedHostAccessor, IHost> hostFactory,
+            string serverCertificateThumbprint,
+            CancellationToken ct = default)
+        {
+            return AcquireAsync(
+                key,
+                listener,
+                pathPrefix,
+                hostFactory,
+                serverCertificateThumbprint,
+                string.Empty,
+                ct);
+        }
+
+        /// <summary>
+        /// Acquires a lease on the shared host for <paramref name="key"/> like
+        /// <see cref="AcquireAsync(SharedHostKey, HttpsTransportListener, string, Func{SharedHostAccessor, IHost}, string, CancellationToken)"/>,
+        /// and additionally requires the host-level settings of the listener
+        /// (TLS client certificate mode, admission limits, middleware) to match
+        /// those the host was built with. The host is built from one listener's
+        /// settings and rebuilt from another's on certificate rotation, so
+        /// listeners with different settings must not share it.
+        /// </summary>
+        /// <param name="key">The <c>(host, port)</c> of the shared host.</param>
+        /// <param name="listener">The listener to register.</param>
+        /// <param name="pathPrefix">The path the listener serves.</param>
+        /// <param name="hostFactory">Builds the host when none exists yet.</param>
+        /// <param name="serverCertificateThumbprint">Thumbprint of the TLS certificate.</param>
+        /// <param name="hostSettings">
+        /// A description of the listener's host-level settings; a mismatch
+        /// with the existing host throws <see cref="InvalidOperationException"/>.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="hostFactory"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public async ValueTask<SharedHostLease> AcquireAsync(
             SharedHostKey key,
             HttpsTransportListener listener,
             string pathPrefix,
             Func<SharedHostAccessor, IHost> hostFactory,
             string serverCertificateThumbprint,
+            string hostSettings,
             CancellationToken ct = default)
         {
             if (hostFactory == null)
@@ -198,7 +239,7 @@ namespace Opc.Ua.Bindings
                 if (!m_hosts.TryGetValue(key, out SharedKestrelHost? host))
                 {
                     var accessor = new SharedHostAccessor();
-                    host = new SharedKestrelHost(key, serverCertificateThumbprint);
+                    host = new SharedKestrelHost(key, serverCertificateThumbprint, hostSettings);
                     accessor.Instance = host;
                     // Build + start the host with the accessor already wired
                     // into DI so the first request can resolve the SharedHost.
@@ -214,6 +255,13 @@ namespace Opc.Ua.Bindings
                         $"Cannot share Kestrel host on {key}: existing TLS cert " +
                         $"thumbprint {host.ServerCertificateThumbprint} does not " +
                         $"match new listener's thumbprint {serverCertificateThumbprint}.");
+                }
+                else if (!string.Equals(host.HostSettings, hostSettings, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot share Kestrel host on {key}: the listener's host-level " +
+                        $"settings ({hostSettings}) differ from the existing host's " +
+                        $"({host.HostSettings}).");
                 }
 
                 host.AddListener(pathPrefix, listener);
@@ -287,7 +335,10 @@ namespace Opc.Ua.Bindings
                 await oldHost.StopAsync(ct).ConfigureAwait(false);
 
                 var accessor = new SharedHostAccessor();
-                var newHost = new SharedKestrelHost(key, serverCertificateThumbprint);
+                // Every listener on the host was admitted with the same
+                // host-level settings, so rebuilding from the rotating
+                // listener keeps them.
+                var newHost = new SharedKestrelHost(key, serverCertificateThumbprint, oldHost.HostSettings);
                 accessor.Instance = newHost;
                 foreach (KeyValuePair<string, HttpsTransportListener> entry in listeners)
                 {
@@ -302,7 +353,10 @@ namespace Opc.Ua.Bindings
                     // Keep the listeners served: restart a host with the
                     // previous certificate, then surface the rotation error.
                     var restoredAccessor = new SharedHostAccessor();
-                    var restoredHost = new SharedKestrelHost(key, oldHost.ServerCertificateThumbprint);
+                    var restoredHost = new SharedKestrelHost(
+                        key,
+                        oldHost.ServerCertificateThumbprint,
+                        oldHost.HostSettings);
                     restoredAccessor.Instance = restoredHost;
                     foreach (KeyValuePair<string, HttpsTransportListener> entry in listeners)
                     {
@@ -481,14 +535,22 @@ namespace Opc.Ua.Bindings
     {
         internal SharedKestrelHost(
             SharedHostKey key,
-            string serverCertificateThumbprint)
+            string serverCertificateThumbprint,
+            string hostSettings = "")
         {
             Key = key;
             ServerCertificateThumbprint = serverCertificateThumbprint;
+            HostSettings = hostSettings;
         }
 
         internal SharedHostKey Key { get; }
         internal string ServerCertificateThumbprint { get; }
+
+        /// <summary>
+        /// The host-level settings the host was built with; every listener
+        /// sharing the host has the same.
+        /// </summary>
+        internal string HostSettings { get; }
 
         internal int ListenerCount
         {
