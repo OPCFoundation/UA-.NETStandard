@@ -740,6 +740,7 @@ namespace Opc.Ua.Server
                     !current.Ended)
                 {
                     current.Pin(stored);
+                    current.RecordSaved(stored);
                 }
                 return stored;
             }
@@ -820,6 +821,7 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
+                    scope.RecordClientSupplied(id);
                     foreach (HistoryContinuationPoint candidate in m_history)
                     {
                         if (candidate.Id == id)
@@ -846,12 +848,67 @@ namespace Opc.Ua.Server
             return false;
         }
 
+        /// <summary>
+        /// Releases the history continuation points a faulted HistoryRead request saved, since
+        /// the response that would return them to the client is never sent (Part 4 §7.9). The
+        /// points are tracked by the request scope, so a point a node manager saved before it
+        /// failed without assigning it to a result is released as well. A point whose identifier
+        /// the client supplied in the request is kept, since the client still holds it.
+        /// </summary>
+        /// <param name="historyRequest">The scope returned by <see cref="BeginHistoryRequest"/>.</param>
+        internal void ReleaseSavedHistory(IDisposable historyRequest)
+        {
+            if (historyRequest is not HistoryRequestScope scope ||
+                !ReferenceEquals(scope.Owner, this))
+            {
+                return;
+            }
+
+            List<HistoryContinuationPoint>? released = null;
+            lock (m_lock)
+            {
+                List<HistoryContinuationPoint>? saved = scope.TakeSaved();
+                if (saved == null || m_history == null)
+                {
+                    return;
+                }
+                foreach (HistoryContinuationPoint candidate in saved)
+                {
+                    // a point still being persisted or claimed is cleaned up by that operation.
+                    if (scope.IsClientSupplied(candidate.Id) ||
+                        candidate.PendingPersistence ||
+                        candidate.Claiming ||
+                        !m_history.Remove(candidate))
+                    {
+                        continue;
+                    }
+                    (released ??= []).Add(candidate);
+                }
+            }
+
+            if (released == null)
+            {
+                return;
+            }
+            foreach (HistoryContinuationPoint continuationPoint in released)
+            {
+                if (continuationPoint.Portable)
+                {
+                    TryScheduleHistoryRemoval(
+                        continuationPoint.OwnerSessionId,
+                        continuationPoint.Id);
+                }
+                continuationPoint.Value.Dispose();
+            }
+        }
+
         private void EndHistoryRequest(HistoryRequestScope scope)
         {
             lock (m_lock)
             {
                 scope.Ended = true;
                 scope.UnpinAll();
+                _ = scope.TakeSaved();
             }
         }
 
@@ -885,6 +942,40 @@ namespace Opc.Ua.Server
                 (m_pinned ??= []).Add(continuationPoint);
             }
 
+            /// <summary>
+            /// Records a point the request saved, so a faulted request can release it.
+            /// </summary>
+            public void RecordSaved(HistoryContinuationPoint continuationPoint)
+            {
+                (m_saved ??= []).Add(continuationPoint);
+            }
+
+            /// <summary>
+            /// Returns and forgets the points the request saved.
+            /// </summary>
+            public List<HistoryContinuationPoint>? TakeSaved()
+            {
+                List<HistoryContinuationPoint>? saved = m_saved;
+                m_saved = null;
+                return saved;
+            }
+
+            /// <summary>
+            /// Records a continuation point identifier the client supplied in the request.
+            /// </summary>
+            public void RecordClientSupplied(Guid id)
+            {
+                (m_clientSupplied ??= []).Add(id);
+            }
+
+            /// <summary>
+            /// Reports whether the client supplied the identifier in the request.
+            /// </summary>
+            public bool IsClientSupplied(Guid id)
+            {
+                return m_clientSupplied?.Contains(id) == true;
+            }
+
             public void UnpinAll()
             {
                 if (m_pinned == null)
@@ -912,6 +1003,8 @@ namespace Opc.Ua.Server
 
             private readonly HistoryRequestScope? m_previous;
             private List<HistoryContinuationPoint>? m_pinned;
+            private List<HistoryContinuationPoint>? m_saved;
+            private HashSet<Guid>? m_clientSupplied;
             private int m_disposed;
         }
 
