@@ -1365,39 +1365,41 @@ namespace Opc.Ua.Server
                 diagnosticInfos.Add(diagnosticInfo!);
             }
 
+            // keep the points this request continues or creates from being evicted by its own
+            // later operations or by a concurrent request until the response has been produced
+            // (Part 4 §7.9). The scope lives until the method returns; it is begun synchronously
+            // so it is the current HistoryRead of the node manager calls awaited below.
+            SessionContinuationPoints? sessionContinuationPoints = validItems && !releaseContinuationPoints
+                ? context.Session?.ContinuationPoints as SessionContinuationPoints
+                : null;
+            using IDisposable? historyRequest = sessionContinuationPoints?.BeginHistoryRequest(nodesToRead);
+
             // call each node manager.
             if (validItems)
             {
-                // keep the points this request continues or creates from being evicted by its
-                // own later operations (Part 4 §7.9).
-                using (IDisposable? historyRequest = releaseContinuationPoints
-                    ? null
-                    : (context.Session?.ContinuationPoints as SessionContinuationPoints)?
-                        .BeginHistoryRequest(nodesToRead))
+                try
                 {
-                    try
+                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                     {
-                        foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-                        {
-                            await nodeManager.HistoryReadAsync(
-                                 context,
-                                details!,
-                                timestampsToReturn,
-                                releaseContinuationPoints,
-                                nodesToRead,
-                                results,
-                                errors,
-                                cancellationToken).ConfigureAwait(false);
-                        }
+                        await nodeManager.HistoryReadAsync(
+                            context,
+                            details!,
+                            timestampsToReturn,
+                            releaseContinuationPoints,
+                            nodesToRead,
+                            results,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
                     }
-                    catch
-                    {
-                        // the service faults, so the client never receives the continuation
-                        // points saved for earlier operations and could not release them
-                        // (Part 4 §7.9); free them like Browse does.
-                        ReleaseUnreturnedHistoryContinuationPoints(context, nodesToRead, results);
-                        throw;
-                    }
+                }
+                catch
+                {
+                    // the service faults, so the client never receives the continuation
+                    // points saved for its operations and could not release them
+                    // (Part 4 §7.9); free them like Browse does.
+                    ReleaseUnreturnedHistoryContinuationPoints(
+                        context, sessionContinuationPoints, historyRequest, nodesToRead, results);
+                    throw;
                 }
 
                 for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1442,13 +1444,29 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Releases the history continuation points a faulted HistoryRead saved for its
-        /// operations, since the response that would carry them is never sent.
+        /// operations, since the response that would carry them is never sent. This includes the
+        /// points a node manager saved before it faulted without assigning them to a result.
         /// </summary>
         private void ReleaseUnreturnedHistoryContinuationPoints(
             OperationContext context,
+            SessionContinuationPoints? sessionContinuationPoints,
+            IDisposable? historyRequest,
             ArrayOf<HistoryReadValueId> nodesToRead,
             List<HistoryReadResult> results)
         {
+            if (sessionContinuationPoints != null && historyRequest != null)
+            {
+                try
+                {
+                    sessionContinuationPoints.ReleaseSavedHistory(historyRequest);
+                }
+                catch (Exception e)
+                {
+                    // cleanup must not replace the error that faulted the request.
+                    m_logger.HistoryContinuationReleaseFailed(e);
+                }
+            }
+
             ISessionContinuationPoints? continuationPoints = context.Session?.ContinuationPoints;
             if (continuationPoints == null)
             {

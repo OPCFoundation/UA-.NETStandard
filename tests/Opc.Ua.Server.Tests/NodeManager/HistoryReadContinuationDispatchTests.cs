@@ -110,6 +110,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.Points.RestoreHistory(ToByteString(prior.Id)), Is.SameAs(prior));
         }
 
+        /// <summary>
+        /// Verifies that a faulted request releases a continuation point a node manager saved
+        /// before it failed without assigning the point to a result, since the client never
+        /// receives its identifier (Part 4 §7.9).
+        /// </summary>
+        [Test]
+        public void FaultedRequestReleasesPointSavedWithoutResult()
+        {
+            using var harness = new HistoryHarness(maxHistory: 10);
+            var saved = new TrackingPoint();
+            harness.SaveThenThrow(saved);
+
+            Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await harness.ReadAsync(1).ConfigureAwait(false));
+
+            Assert.That(saved.Disposed, Is.True);
+            Assert.That(harness.Points.RestoreHistory(ToByteString(saved.Id)), Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies that a faulted request keeps a continuation point whose identifier the client
+        /// supplied, even when a node manager saved it again within the request, because the
+        /// client still holds it.
+        /// </summary>
+        [Test]
+        public void FaultedRequestKeepsClientSuppliedContinuationPoint()
+        {
+            using var harness = new HistoryHarness(maxHistory: 10);
+            var continued = new TrackingPoint();
+            harness.Points.SaveHistory(continued);
+            harness.RestoreSaveThenThrow();
+
+            Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false));
+
+            Assert.That(continued.Disposed, Is.False);
+            Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));
+        }
+
         private static ByteString ToByteString(Guid id)
         {
             return new ByteString(id.ToByteArray());
@@ -195,6 +234,63 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             context, nodesToRead, results, errors, created, failAtOperation, cancellationToken)));
             }
 
+            /// <summary>
+            /// Makes the node manager save the given point and then observe cancellation before
+            /// it assigns the point to a result.
+            /// </summary>
+            public void SaveThenThrow(TrackingPoint point)
+            {
+                Manager.Setup(value => value.HistoryReadAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<HistoryReadDetails>(),
+                        It.IsAny<TimestampsToReturn>(), It.IsAny<bool>(),
+                        It.IsAny<ArrayOf<HistoryReadValueId>>(), It.IsAny<IList<HistoryReadResult>>(),
+                        It.IsAny<IList<ServiceResult>>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext context, HistoryReadDetails _, TimestampsToReturn _, bool _,
+                        ArrayOf<HistoryReadValueId> _, IList<HistoryReadResult> _,
+                        IList<ServiceResult> _, CancellationToken cancellationToken) =>
+                        new ValueTask(SaveThenThrowAsync(context, point, cancellationToken)));
+            }
+
+            /// <summary>
+            /// Makes the node manager continue the client's point, save the same point again and
+            /// then observe cancellation before it assigns the point to a result.
+            /// </summary>
+            public void RestoreSaveThenThrow()
+            {
+                Manager.Setup(value => value.HistoryReadAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<HistoryReadDetails>(),
+                        It.IsAny<TimestampsToReturn>(), It.IsAny<bool>(),
+                        It.IsAny<ArrayOf<HistoryReadValueId>>(), It.IsAny<IList<HistoryReadResult>>(),
+                        It.IsAny<IList<ServiceResult>>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext context, HistoryReadDetails _, TimestampsToReturn _, bool _,
+                        ArrayOf<HistoryReadValueId> nodesToRead, IList<HistoryReadResult> _,
+                        IList<ServiceResult> _, CancellationToken cancellationToken) =>
+                        new ValueTask(RestoreSaveThenThrowAsync(context, nodesToRead, cancellationToken)));
+            }
+
+            private static async Task SaveThenThrowAsync(
+                OperationContext context,
+                TrackingPoint point,
+                CancellationToken cancellationToken)
+            {
+                await context.Session.ContinuationPoints
+                    .SaveHistoryAsync(point, cancellationToken).ConfigureAwait(false);
+                throw new OperationCanceledException();
+            }
+
+            private static async Task RestoreSaveThenThrowAsync(
+                OperationContext context,
+                ArrayOf<HistoryReadValueId> nodesToRead,
+                CancellationToken cancellationToken)
+            {
+                IHistoryContinuationPoint point = await context.Session.ContinuationPoints
+                    .RestoreHistoryAsync(nodesToRead[0].ContinuationPoint, cancellationToken)
+                    .ConfigureAwait(false);
+                await context.Session.ContinuationPoints
+                    .SaveHistoryAsync(point, cancellationToken).ConfigureAwait(false);
+                throw new OperationCanceledException();
+            }
+
             private static async Task SaveAllAsync(
                 OperationContext context,
                 ArrayOf<HistoryReadValueId> nodesToRead,
@@ -233,12 +329,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             public ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
-                int count)
+                int count,
+                ByteString continuationPoint = default)
             {
                 var nodesToRead = new HistoryReadValueId[count];
                 for (int ii = 0; ii < count; ii++)
                 {
-                    nodesToRead[ii] = new HistoryReadValueId { NodeId = m_nodeId };
+                    nodesToRead[ii] = new HistoryReadValueId
+                    {
+                        NodeId = m_nodeId,
+                        ContinuationPoint = continuationPoint
+                    };
                 }
                 return Master.HistoryReadAsync(
                     Context,
