@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using ServerSession = Opc.Ua.Server.Session;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -86,6 +87,90 @@ namespace Opc.Ua.Server.Tests
             finally
             {
                 await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A request the Session admitted just before a close marked it closing, and that
+        /// registered only after the close aborted the outstanding requests, must not run
+        /// against the closing Session (OPC 10000-4 5.7.2.1).
+        /// </summary>
+        [Test]
+        public async Task RequestRegisteredAfterTheCloseSweepIsRejectedAsync()
+        {
+            var fixture = new ServerFixture<AdmissionServer>(t => new AdmissionServer(t));
+            AdmissionServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                (RequestHeader requestHeader, SecureChannelContext secureChannelContext) =
+                    await server.CreateAndActivateSessionAsync("ClosingWindow").ConfigureAwait(false);
+                var serverInternal = (ServerInternalData)server.CurrentInstance;
+                var sessionManager = (ClosingWindowSessionManager)serverInternal.SessionManager;
+                uint rejectedBefore = serverInternal.ServerDiagnostics.RejectedRequestsCount;
+
+                // The close starts after Session.ValidateRequest admitted the Read.
+                sessionManager.MarkClosingAfterAdmission = true;
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await server.ReadAsync(
+                        secureChannelContext,
+                        new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
+                        0,
+                        TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        RequestLifetime.None).ConfigureAwait(false))!;
+
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+                Assert.That(
+                    serverInternal.ServerDiagnostics.RejectedRequestsCount,
+                    Is.EqualTo(rejectedBefore + 1));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A server whose session manager can start a close inside the admission window.
+        /// </summary>
+        public sealed class AdmissionServer : StandardServer
+        {
+            public AdmissionServer(ITelemetryContext telemetry)
+                : base(telemetry)
+            {
+            }
+
+            protected override ISessionManager CreateSessionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+            {
+                return new ClosingWindowSessionManager(server, configuration);
+            }
+        }
+
+        /// <summary>
+        /// Marks the Session closing after it admitted a request, which is where a
+        /// concurrent close lands in the race.
+        /// </summary>
+        private sealed class ClosingWindowSessionManager : SessionManager
+        {
+            public ClosingWindowSessionManager(IServerInternal server, ApplicationConfiguration configuration)
+                : base(server, configuration)
+            {
+            }
+
+            public bool MarkClosingAfterAdmission { get; set; }
+
+            protected override void ReevaluateIdentityIfStale(
+                ISession session,
+                SecureChannelContext secureChannelContext)
+            {
+                base.ReevaluateIdentityIfStale(session, secureChannelContext);
+                if (MarkClosingAfterAdmission)
+                {
+                    MarkClosingAfterAdmission = false;
+                    ((ServerSession)session).MarkClosing();
+                }
             }
         }
     }

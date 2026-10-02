@@ -3494,6 +3494,18 @@ namespace Opc.Ua.Server
             // from here, so disposing the context completes the request.
             context.AttachRequestScope(requestManager.EnterRequestScope(context));
 
+            // A close that started after the Session admitted this request, but before the
+            // request was registered, did not see it when it aborted the Session's outstanding
+            // requests (OPC 10000-4 5.7.2.1). The close marks the Session closing before it
+            // sweeps the registered requests under the request manager lock, and registration
+            // takes the same lock, so a request the sweep missed sees the mark here.
+            if (context.Session?.IsClosing == true)
+            {
+                CountRejectedRequest(serverInternal, StatusCodes.BadSessionClosed);
+                context.Dispose();
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
+
             // A Cancel that ran while this request was still queued cancels it now
             // (OPC 10000-4 5.7.5.2).
             if (requestManager.IsCancelledBeforeAdmission(context))
