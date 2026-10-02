@@ -590,7 +590,7 @@ namespace Opc.Ua
             return buffer.ToString();
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         /// <summary>
         /// Formats the node id into a span without allocating a string.
         /// Writes the same text as <see cref="Format(IServiceMessageContext, bool)"/>

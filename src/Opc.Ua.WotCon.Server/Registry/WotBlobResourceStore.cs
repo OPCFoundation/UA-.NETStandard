@@ -220,7 +220,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             int count,
             CancellationToken ct)
         {
-#if NETFRAMEWORK || NETSTANDARD2_0
+#if NETFRAMEWORK
             return await stream.ReadAsync(buffer, offset, count, ct).ConfigureAwait(false);
 #else
             return await stream.ReadAsync(buffer.AsMemory(offset, count), ct).ConfigureAwait(false);
@@ -232,7 +232,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             byte[] buffer,
             CancellationToken ct)
         {
-#if NETFRAMEWORK || NETSTANDARD2_0
+#if NETFRAMEWORK
             await stream.WriteAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
 #else
             await stream.WriteAsync(buffer.AsMemory(), ct).ConfigureAwait(false);

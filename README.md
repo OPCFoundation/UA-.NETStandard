@@ -25,7 +25,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
 - **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
-  .NET Framework 4.8, and .NET Standard 2.1; ships
+  .NET Framework 4.8; ships
   Native-AOT-friendly assemblies.
 - **Certified for compliance** — the reference server has been
   certified through an OPC Foundation Certification Test Lab and is

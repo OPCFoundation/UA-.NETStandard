@@ -1941,8 +1941,7 @@ compatibility.
 
 Notes:
 
-- The source generator targets net8.0+. On older TFMs (net48 /
-  netstandard2.0 / netstandard2.1) the generator is a no-op and the
+- The source generator targets net8.0+. On older TFMs (net48) the generator is a no-op and the
   reflection-based binder is used — those TFMs don't support
   PublishAot anyway.
 - Options properties whose type is an interface or a non-default-

@@ -142,7 +142,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 Assert.That(
                     () => registry.Resolve("ECC_nistP256_AesGcm"),
                     Throws.TypeOf<NotSupportedException>(),
-                    "net48/netstandard2.1 must fail closed instead of substituting unsupported DTLS primitives.");
+                    "net48 must fail closed instead of substituting unsupported DTLS primitives.");
             });
         }
 #endif

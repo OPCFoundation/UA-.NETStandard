@@ -83,7 +83,7 @@ namespace Opc.Ua.Bindings
             using CancellationTokenSource linkedCts = await EnterSendAsync(ct).ConfigureAwait(false);
             try
             {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await socket
                     .SendAsync(chunk, WebSocketMessageType.Binary, endOfMessage: true, linkedCts.Token)
                     .ConfigureAwait(false);
@@ -147,7 +147,7 @@ namespace Opc.Ua.Bindings
                         offset += segment.Count;
                     }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     await socket
                         .SendAsync(
                             new ReadOnlyMemory<byte>(frame, 0, totalSize),
@@ -197,7 +197,7 @@ namespace Opc.Ua.Bindings
                 while (true)
                 {
                     ValueWebSocketReceiveResult result;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     System.Net.WebSockets.ValueWebSocketReceiveResult r = await socket
                         .ReceiveAsync(
                             new Memory<byte>(buffer, totalRead, buffer.Length - totalRead),
@@ -452,7 +452,7 @@ namespace Opc.Ua.Bindings
 
     /// <summary>
     /// Local copy of <c>System.Net.WebSockets.ValueWebSocketReceiveResult</c> for
-    /// platforms (net472 / net48) where the type is not available.
+    /// platforms (net48) where the type is not available.
     /// </summary>
     internal readonly struct ValueWebSocketReceiveResult
     {
@@ -545,7 +545,7 @@ namespace Opc.Ua.Bindings
                     ws.Options.ClientCertificates.Add(clientCert);
                 }
 #else
-                // net472 / net48 / netstandard2.1: ClientWebSocketOptions does not
+                // net48: ClientWebSocketOptions does not
                 // expose RemoteCertificateValidationCallback or per-connection client
                 // certificates, so the configured OPC UA certificate validator cannot
                 // be attached at the TLS layer here. TLS server validation falls back

@@ -252,9 +252,9 @@ These algorithms are **not** FIPS-approved and are enabled by default:
 | Curve25519 / X25519 | Not an approved curve |
 | SHA-1 and P-SHA1 (Basic128Rsa15, Basic256) | Deprecated for new signatures by SP 800-131A |
 
-`net472` and `net48` additionally use the `BouncyCastle.Cryptography` package for elliptic curve
+`net48` additionally uses the `BouncyCastle.Cryptography` package for elliptic curve
 certificate building. That package is **not** validated — the validated Bouncy Castle product is a
-separate, commercially licensed distribution — so **those target frameworks cannot make a FIPS claim at
+separate, commercially licensed distribution — so **that target framework cannot make a FIPS claim at
 all**.
 
 ### What `FipsOnly` actually enforces at startup

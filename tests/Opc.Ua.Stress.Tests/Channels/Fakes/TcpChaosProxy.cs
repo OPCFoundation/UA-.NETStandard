@@ -422,7 +422,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
             int count,
             CancellationToken ct)
         {
-#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_1_OR_GREATER
+#if NETCOREAPP2_1_OR_GREATER
             return stream.ReadAsync(buffer.AsMemory(offset, count), ct);
 #else
             return new ValueTask<int>(stream.ReadAsync(buffer, offset, count, ct));
@@ -436,7 +436,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
             int count,
             CancellationToken ct)
         {
-#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_1_OR_GREATER
+#if NETCOREAPP2_1_OR_GREATER
             return stream.WriteAsync(buffer.AsMemory(offset, count), ct);
 #else
             return new ValueTask(stream.WriteAsync(buffer, offset, count, ct));

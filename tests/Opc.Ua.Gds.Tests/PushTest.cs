@@ -690,9 +690,9 @@ namespace Opc.Ua.Gds.Tests
         [Order(402)]
         public async Task CreateSigningRequestRsaMinNullParmsAsync()
         {
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             Assert
-                .Ignore("SHA1 not supported on .NET Standard 2.1 and .NET 5.0 or greater");
+                .Ignore("SHA1 not supported on .NET 5.0 or greater");
 #endif
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             await Assert.ThatAsync(
@@ -734,8 +734,8 @@ namespace Opc.Ua.Gds.Tests
             {
                 // §7.10.10: genuine additional-entropy incorporation into an ECC
                 // private key is unavailable on target frameworks that cannot
-                // import a private-only EC scalar (.NET Framework /
-                // netstandard2.1), so a regenerate-key request for an ECC
+                // import a private-only EC scalar (.NET Framework), so a
+                // regenerate-key request for an ECC
                 // CertificateType must be rejected with Bad_NotSupported rather
                 // than silently ignoring the mandated Nonce.
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
@@ -962,7 +962,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task UpdateCertificateCASignedAsync(bool regeneratePrivateKey)
         {
-#if NETFRAMEWORK || SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
+#if NETFRAMEWORK
             if (m_certificateType != OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType &&
                 m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
@@ -986,7 +986,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 // §7.10.10: ECC regenerate-key requests are rejected with
                 // Bad_NotSupported when the server stack cannot import a
-                // private-only EC scalar (.NET Framework / netstandard2.1).
+                // private-only EC scalar (.NET Framework).
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                     () => m_pushClient.PushClient.CreateSigningRequestAsync(
                         default,

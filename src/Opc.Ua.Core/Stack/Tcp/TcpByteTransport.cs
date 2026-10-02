@@ -231,7 +231,7 @@ namespace Opc.Ua.Bindings
                 while (sent < chunk.Length)
                 {
                     ReadOnlyMemory<byte> slice = chunk[sent..];
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     int n = await socket
                         .SendAsync(slice, SocketFlags.None, ct)
                         .ConfigureAwait(false);
@@ -522,7 +522,7 @@ namespace Opc.Ua.Bindings
             while (read < count)
             {
                 int n;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 n = await socket
                     .ReceiveAsync(
                         new Memory<byte>(buffer, offset + read, count - read),

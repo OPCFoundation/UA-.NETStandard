@@ -529,14 +529,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteByteString(string? fieldName, ByteString value)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             WriteByteString(fieldName, value.Span);
 #else
             WriteByteString(fieldName, value, false);
 #endif
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
@@ -571,7 +571,7 @@ namespace Opc.Ua
 
         private void WriteByteString(string? fieldName, ByteString value, bool isArrayElement)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             WriteByteString(fieldName, value.Span, isArrayElement);
 #else
             if (BeginField(fieldName, value.IsNull, true, isArrayElement))

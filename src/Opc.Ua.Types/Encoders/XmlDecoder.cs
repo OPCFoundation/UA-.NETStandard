@@ -1242,7 +1242,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-#if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
                             value = Enum.Parse<T>(xml!, false);
 #else
                             value = (T)Enum.Parse(typeof(T), xml!, false);

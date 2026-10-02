@@ -51,11 +51,8 @@ namespace Opc.Ua.Types.Buffers.Tests
         }
 
         // ReadOnlyMemoryHelper.ReinterpretAs/From are net8.0+-only library helpers
-        // (unsafe ref reinterpretation). In the netstandard tests jobs the consumed
-        // Opc.Ua.Types is built as netstandard2.x, which does not provide them, so
-        // exclude these cases there (NET_STANDARD_TESTS is defined by the netstandard
-        // CI build of this test project).
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+        // (unsafe ref reinterpretation).
+#if NET8_0_OR_GREATER
         [Test]
         public void ReinterpretAsReturnsExpectedType()
         {

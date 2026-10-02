@@ -429,7 +429,7 @@ namespace Opc.Ua.Server.FileSystem
                 return new ReadMethodStateResult { ServiceResult = result };
             }
             byte[] buffer = new byte[count];
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             int read = await stream!.ReadAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
 #else
             int read = await stream!.ReadAsync(buffer, 0, count, cancellationToken).ConfigureAwait(false);

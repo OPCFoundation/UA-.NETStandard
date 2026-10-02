@@ -187,7 +187,7 @@ namespace Opc.Ua.Gds.Server
             ArrayOf<NodeId> requestedRoles,
             CancellationToken cancellationToken = default);
 
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Starts a request bound to the initiating SecureChannel client
         /// certificate.
@@ -225,7 +225,7 @@ namespace Opc.Ua.Gds.Server
             bool cancelRequest,
             CancellationToken cancellationToken = default);
 
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Finishes a request only when it is bound to the supplied
         /// SecureChannel client certificate fingerprint.
@@ -263,7 +263,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Starts a request bound to the supplied client-certificate fingerprint.
         /// </summary>
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         new ValueTask<NodeId> StartBoundRequestAsync(
 #else
         ValueTask<NodeId> StartBoundRequestAsync(
@@ -278,7 +278,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Finishes a request bound to the supplied client-certificate fingerprint.
         /// </summary>
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         new ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
 #else
         ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
@@ -354,7 +354,7 @@ namespace Opc.Ua.Gds.Server
             ByteString clientCertificateFingerprint,
             CancellationToken cancellationToken)
         {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return store.StartBoundRequestAsync(
                 applicationUri,
                 publicKey,
@@ -387,7 +387,7 @@ namespace Opc.Ua.Gds.Server
             ByteString clientCertificateFingerprint,
             CancellationToken cancellationToken)
         {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return store.FinishBoundRequestAsync(
                 requestId,
                 cancelRequest,

@@ -285,7 +285,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EccRegenerateKeyThrowsBadNotSupportedWhenAdditionalEntropyCannotBeIncorporated()
         {
-            // On .NET Framework / netstandard2.1 the platform cannot import a
+            // On .NET Framework the platform cannot import a
             // private-only EC scalar, so the caller-supplied §7.10.10 nonce
             // cannot be genuinely incorporated into an ECC key. The generator
             // must fail explicitly with Bad_NotSupported rather than silently
@@ -304,7 +304,7 @@ namespace Opc.Ua.Server.Tests
         public void RsaRegenerateKeyRemainsNonceDerivedOnNetFramework()
         {
             // RSA key regeneration must genuinely incorporate the nonce on every
-            // target framework, including .NET Framework / netstandard2.1.
+            // target framework, including .NET Framework.
             byte[] serverEntropy = [7, 7, 7, 7];
             var nonceA = new byte[32];
             var nonceB = new byte[32];

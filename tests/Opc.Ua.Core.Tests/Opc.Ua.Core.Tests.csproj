@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
@@ -28,20 +28,11 @@
     <PackageReference Include="System.Private.Uri" />
   </ItemGroup>
   <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
-    <!-- SharedKestrelHostTests uses HostBuilder which is in Microsoft.Extensions.Hosting.
-         The Opc.Ua.Bindings.Https reference normally pulls this in transitively through
-         the FrameworkReference Microsoft.AspNetCore.App, but only when Bindings.Https
-         is built for net8+. When CustomTestTarget=netstandard2.1 the binding is built
-         as netstandard2.1 (downlevel Kestrel packages, no FrameworkReference) while
-         the tests still build at net8.0 — adding the package explicitly here covers
-         both matrix entries with one reference. -->
+    <!-- SharedKestrelHostTests uses HostBuilder which is in Microsoft.Extensions.Hosting. -->
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
-  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0')) AND ('$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0')">
+  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <DefineConstants>$(DefineConstants);HAS_KESTREL_TCP_LISTENER</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
-    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup Condition="'$(SignAssembly)' != 'true'">
     <PackageReference Include="EmbedIO" />

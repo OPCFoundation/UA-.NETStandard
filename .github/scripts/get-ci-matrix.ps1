@@ -15,9 +15,7 @@
     as projects are added or renamed.
 
     CustomTestTarget, not '--framework', is the mechanism that pins the stack to
-    a single target framework (see targets.props). The standard profiles are not
-    runnable target frameworks: 'netstandard2.0' hosts its tests on net48 and
-    'netstandard2.1' hosts them on net8.0, so a profile carries both the
+    a single target framework (see targets.props). A profile carries both the
     CustomTestTarget it builds with and the framework its tests actually run on.
 
     GitHub Actions refuses to start a workflow run whose matrices expand past 256
@@ -197,10 +195,6 @@ $Profiles = @(
     @{ id = 'linux-net9.0'; os = 'linux'; customTestTarget = 'net9.0'; framework = 'net9.0'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'windows-net8.0'; os = 'windows'; customTestTarget = 'net8.0'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'linux-net8.0'; os = 'linux'; customTestTarget = 'net8.0'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'windows-net472'; os = 'windows'; customTestTarget = 'net472'; framework = 'net472'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'windows-netstandard2.0'; os = 'windows'; customTestTarget = 'netstandard2.0'; framework = 'net48'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'windows-netstandard2.1'; os = 'windows'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'linux-netstandard2.1'; os = 'linux'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('pr', 'full') }
     @{ id = 'linux-long-running'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full')
         tier = 'long-running'; filter = ''; hangTimeout = '30m'; coverage = $false
     }
@@ -221,18 +215,15 @@ $BuildProfiles = @(
     @{ id = 'pr-windows'; os = 'windows'; scopes = @('pr'); solutions = '*'
         tfms = @('net48', 'net10.0'); configurations = @('Debug', 'Release')
     }
-    @{ id = 'pr-windows-legacy'; os = 'windows'; scopes = @('pr'); solutions = @('UA.slnx')
-        tfms = @('net472', 'netstandard2.0'); configurations = @('Release')
-    }
     @{ id = 'pr-linux'; os = 'linux'; scopes = @('pr'); solutions = @('UA.slnx')
-        tfms = @('netstandard2.1', 'net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
+        tfms = @('net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
     }
     @{ id = 'full-windows'; os = 'windows'; scopes = @('full'); solutions = '*'
-        tfms = @('net472', 'net48', 'netstandard2.0', 'netstandard2.1', 'net8.0', 'net9.0', 'net10.0')
+        tfms = @('net48', 'net8.0', 'net9.0', 'net10.0')
         configurations = @('Debug', 'Release')
     }
     @{ id = 'full-linux'; os = 'linux'; scopes = @('full'); solutions = @('UA.slnx')
-        tfms = @('netstandard2.1', 'net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
+        tfms = @('net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
     }
 )
 
@@ -375,8 +366,7 @@ function Expand-TestMatrix([string] $scope, [int] $size, [bool] $includeMacOS)
         # coverlet.collector 10.x ships build assets for net8.0 and newer only, so
         # a .NET Framework test host cannot load the 'XPlat Code Coverage'
         # collector at all - VSTest only warns and writes no report. The
-        # netstandard2.0 profile is covered by the same rule because it hosts its
-        # tests on net48. The long-running and durable tiers opt out explicitly:
+        # long-running and durable tiers opt out explicitly:
         # they re-run projects the filtered legs already covered, so folding their
         # numbers into the merged report would double-count them.
         $coverage = -not $testProfile.framework.StartsWith('net4')

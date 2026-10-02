@@ -20,7 +20,7 @@ namespace Opc.Ua.Types.Tests.Encoders
     [SetUICulture("en-us")]
     [Parallelizable]
     public
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET7_0_OR_GREATER
     partial
 #endif
     class XmlEncoderTests
@@ -2050,7 +2050,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Does.Contain("AAECAwQFBgc="));
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         [Test]
         public void WriteByteStringWithReadOnlySpanWritesValue()
         {
@@ -7413,7 +7413,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                "ListOfInt32");
         }
 
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET7_0_OR_GREATER
         [GeneratedRegex(@"Value>([^<]*)<")]
         private static partial Regex REValue();
 #else

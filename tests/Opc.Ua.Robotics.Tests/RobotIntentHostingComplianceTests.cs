@@ -278,7 +278,7 @@ namespace Opc.Ua.Robotics.Tests
             foreach (FieldInfo field in fields)
             {
                 string facetName = (string)field.GetRawConstantValue()!;
-#if NETSTANDARD || NETFRAMEWORK
+#if NETFRAMEWORK
                 string expectedUri = RobotIntentConformanceUris.FacetBase + facetName.Substring("RI-".Length);
 #else
                 string expectedUri = string.Concat(
