@@ -438,10 +438,17 @@ namespace Quickstarts.Servers
             {
                 IsDurable = decoder.ReadBoolean(null),
                 MonitoredItemId = decoder.ReadUInt32(null),
-                QueueSize = decoder.ReadUInt32(null),
-                EnqueueBatch = DecodeEventBatch(decoder),
-                DequeueBatch = DecodeEventBatch(decoder)
+                QueueSize = decoder.ReadUInt32(null)
             };
+            q.EnqueueBatch = DecodeEventBatch(decoder, out Uuid enqueueBatchId);
+            q.DequeueBatch = DecodeEventBatch(decoder, out Uuid dequeueBatchId);
+
+            // files written before the shared batch was stored once hold the batch that was
+            // both the enqueue and the dequeue batch in both slots: restore it once.
+            if (q.EnqueueBatch != null && q.DequeueBatch != null && enqueueBatchId == dequeueBatchId)
+            {
+                q.DequeueBatch = null;
+            }
 
             int batchCount = decoder.ReadInt32(null);
             q.EventBatches = new List<EventBatch>(batchCount);
@@ -479,13 +486,19 @@ namespace Quickstarts.Servers
 
         internal static EventBatch? DecodeEventBatch(BinaryDecoder decoder)
         {
+            return DecodeEventBatch(decoder, out _);
+        }
+
+        private static EventBatch? DecodeEventBatch(BinaryDecoder decoder, out Uuid batchId)
+        {
+            batchId = default;
             bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
             {
                 return null;
             }
 
-            _ = decoder.ReadGuid(null);
+            batchId = decoder.ReadGuid(null);
             uint batchSize = decoder.ReadUInt32(null);
             uint monItemId = decoder.ReadUInt32(null);
             bool isPersisted = decoder.ReadBoolean(null);

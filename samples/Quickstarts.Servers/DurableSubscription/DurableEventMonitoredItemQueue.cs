@@ -418,6 +418,15 @@ namespace Quickstarts.Servers
         /// </summary>
         public StorableEventQueue ToStorableQueue()
         {
+            // batches spilled to disk are stored with the queue: the batch files are keyed
+            // by batch ids that are not kept across a restart, so their events would be lost.
+            MaterializePersistedBatch(m_dequeueBatch);
+            foreach (EventBatch batch in m_eventBatches)
+            {
+                MaterializePersistedBatch(batch);
+            }
+            MaterializePersistedBatch(m_enqueueBatch);
+
             return new StorableEventQueue
             {
                 IsDurable = IsDurable,
@@ -427,6 +436,14 @@ namespace Quickstarts.Servers
                 EventBatches = m_eventBatches,
                 QueueSize = QueueSize
             };
+        }
+
+        private void MaterializePersistedBatch(EventBatch batch)
+        {
+            if (batch != null && (batch.IsPersisted || batch.Events == null))
+            {
+                m_batchPersistor.RestoreSynchronously(batch);
+            }
         }
 
         /// <inheritdoc/>

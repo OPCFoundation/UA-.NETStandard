@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -194,6 +196,132 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.Dequeue(out EventFieldList next), Is.True);
             Assert.That(next.ClientHandle, Is.EqualTo(4242u));
             Assert.That(restored.Dequeue(out _), Is.False);
+        }
+
+        /// <summary>
+        /// Batches spilled to disk are stored with the queue: after a restart (new batch ids,
+        /// no batch files) every event is still delivered once, in order.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public void SpilledBatchesSurviveStoreAndRestore()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(
+                ServiceMessageContext.Create(telemetry));
+            string batchDirectory = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions", "Batches");
+            void DeleteBatchFiles()
+            {
+                if (Directory.Exists(batchDirectory))
+                {
+                    foreach (string file in Directory.GetFiles(batchDirectory, "77_*"))
+                    {
+                        File.Delete(file);
+                    }
+                }
+            }
+
+            DeleteBatchFiles();
+            try
+            {
+                var persistor = new BatchPersistor(telemetry);
+                const uint count = (kEventBatchSize * 3) + 500;
+                using var queue = new DurableEventMonitoredItemQueue(true, 77, persistor, telemetry);
+                queue.SetQueueSize(10000, false);
+                for (uint i = 1; i <= count; i++)
+                {
+                    queue.Enqueue(new EventFieldList { ClientHandle = i });
+                }
+
+                // the queue spills full batches in the background; wait until one is on disk
+                // and no longer held in memory.
+                var batches = (List<EventBatch>)typeof(DurableEventMonitoredItemQueue)
+                    .GetField("m_eventBatches", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                    .GetValue(queue)!;
+                bool Spilled() => batches.Exists(b => b.IsPersisted && b.Events == null);
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                while (!Spilled() && stopwatch.Elapsed < TimeSpan.FromSeconds(10))
+                {
+                    Thread.Sleep(10);
+                }
+                Assert.That(Spilled(), Is.True, "a batch must be spilled to disk for this test");
+
+                StorableEventQueue template = RoundTrip(
+                    queue.ToStorableQueue(),
+                    ServiceMessageContext.Create(telemetry));
+                using var restored = new DurableEventMonitoredItemQueue(template, new Mock<IBatchPersistor>().Object);
+
+                Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
+                for (uint i = 1; i <= count; i++)
+                {
+                    Assert.That(restored.Dequeue(out EventFieldList value), Is.True, $"event {i}");
+                    Assert.That(value.ClientHandle, Is.EqualTo(i));
+                }
+                Assert.That(restored.Dequeue(out _), Is.False);
+            }
+            finally
+            {
+                DeleteBatchFiles();
+            }
+        }
+
+        /// <summary>
+        /// Files written before the shared enqueue/dequeue batch was stored once hold that
+        /// batch in both slots; it is restored once, so every event is delivered once.
+        /// </summary>
+        [Test]
+        public void LegacyFileWithSharedBatchInBothSlotsDeliversEventsOnce()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var events = new List<EventFieldList>
+            {
+                new() { ClientHandle = 1 },
+                new() { ClientHandle = 2 },
+                new() { ClientHandle = 3 }
+            };
+            var batch = new EventBatch(events, kEventBatchSize, 5);
+
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, true))
+            {
+                // the previous writer: queue header, then the same batch as enqueue and dequeue batch.
+                encoder.WriteBoolean(null, true);
+                encoder.WriteUInt32(null, 5);
+                encoder.WriteUInt32(null, 100);
+                WriteLegacyEventBatch(encoder, batch);
+                WriteLegacyEventBatch(encoder, batch);
+                encoder.WriteInt32(null, 0);
+            }
+            stream.Position = 0;
+            StorableEventQueue template;
+            using (var decoder = new BinaryDecoder(stream, context, true))
+            {
+                template = DurableMonitoredItemQueueFactory.DecodeEventQueue(decoder);
+            }
+
+            using var restored = new DurableEventMonitoredItemQueue(template, new Mock<IBatchPersistor>().Object);
+            Assert.That(restored.ItemsInQueue, Is.EqualTo(3));
+            for (uint i = 1; i <= 3; i++)
+            {
+                Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
+                Assert.That(value.ClientHandle, Is.EqualTo(i));
+            }
+            Assert.That(restored.Dequeue(out _), Is.False);
+        }
+
+        private static void WriteLegacyEventBatch(BinaryEncoder encoder, EventBatch batch)
+        {
+            encoder.WriteBoolean(null, true);
+            encoder.WriteGuid(null, batch.Id);
+            encoder.WriteUInt32(null, batch.BatchSize);
+            encoder.WriteUInt32(null, batch.MonitoredItemId);
+            encoder.WriteBoolean(null, false);
+            encoder.WriteInt32(null, batch.Events.Count);
+            foreach (EventFieldList value in batch.Events)
+            {
+                encoder.WriteEncodeableAsExtensionObject(null, value);
+            }
         }
 
         private static StorableEventQueue RoundTrip(
