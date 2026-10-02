@@ -799,7 +799,7 @@ namespace Opc.Ua.Server
                     m_logger.SubscriptionDELETEDABANDONEDIdSubscriptionId(subscriptionId);
                 }
 
-                m_expiringSubscriptions.Remove(subscriptionId);
+                m_expiringSubscriptions.TryRemove(subscriptionId, out _);
 
                 // remove subscription.
                 m_subscriptions.TryRemove(subscriptionId, out _);
@@ -1215,13 +1215,13 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                m_expiringSubscriptions.Add(subscription.Id, subscription);
+                m_expiringSubscriptions[subscription.Id] = subscription;
                 if (sourceQueue.TryRemoveForExpiration(queuedSubscription))
                 {
                     return true;
                 }
 
-                m_expiringSubscriptions.Remove(subscription.Id);
+                m_expiringSubscriptions.TryRemove(subscription.Id, out _);
                 return false;
             }
             finally
@@ -1245,13 +1245,13 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                m_expiringSubscriptions.Add(subscription.Id, subscription);
+                m_expiringSubscriptions[subscription.Id] = subscription;
                 if (TryRemoveAbandonedSubscription(subscription))
                 {
                     return true;
                 }
 
-                m_expiringSubscriptions.Remove(subscription.Id);
+                m_expiringSubscriptions.TryRemove(subscription.Id, out _);
                 return false;
             }
             finally
@@ -3107,7 +3107,10 @@ namespace Opc.Ua.Server
         private readonly bool m_durableSubscriptionsEnabled;
         private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_subscriptions;
         private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_abandonedSubscriptions;
-        private readonly Dictionary<uint, ISubscriptionPublishPipeline> m_expiringSubscriptions;
+        // Mutated under m_semaphoreSlim (the expiry claim must be atomic with the
+        // queue removal); concurrent so that StoreSubscriptionsAsync, which a host
+        // may call without the semaphore, can read it safely.
+        private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_expiringSubscriptions;
         private readonly NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
         private readonly NodeIdDictionary<SessionPublishQueue> m_publishQueues;
         private readonly ManualResetEvent m_shutdownEvent;
