@@ -598,6 +598,38 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
+        /// <summary>
+        /// PR review 4166517637: a stale prepared replacement nonce that the
+        /// activation detaches is disposed even when the channel check throws.
+        /// </summary>
+        [Test]
+        public void ValidateBeforeActivateFailureDisposesStalePreparedNonce()
+        {
+            using ServerSession session = CreateSession(CreateEndpoint(SecurityPolicies.None));
+            OperationContext context = CreateContext(
+                CreateEndpoint(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign));
+
+            Nonce stale = Nonce.CreateNonce(SecurityPolicies.ECC_nistP256);
+            System.Reflection.FieldInfo ecdhField = typeof(Nonce).GetField(
+                "m_ecdh",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            Assert.That(ecdhField.GetValue(stale), Is.Not.Null);
+            typeof(ServerSession).GetField(
+                    "m_preparedUserTokenNonce",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(session, stale);
+
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
+                    context,
+                    new SignatureData(),
+                    default,
+                    new SignatureData(),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(ecdhField.GetValue(stale), Is.Null, "The stale prepared nonce was not disposed.");
+        }
+
         [Test]
         public void ValidateBeforeActivateWithWrongChannelThrows()
         {

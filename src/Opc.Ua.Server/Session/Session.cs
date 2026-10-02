@@ -813,16 +813,23 @@ namespace Opc.Ua.Server
                 SignatureData userTokenSignature,
                 CancellationToken cancellationToken)
         {
-            Nonce? stale;
-            lock (m_lock)
+            Nonce? stale = null;
+            try
             {
-                // a previous activation attempt that failed before Activate must not
-                // make this one retire a key it did not use.
-                m_consumedUserTokenNonce = null;
-                stale = TakePreparedUserTokenNonce();
-                ValidateChannelBeforeActivate(context, clientSignature);
+                lock (m_lock)
+                {
+                    // a previous activation attempt that failed before Activate must not
+                    // make this one retire a key it did not use.
+                    m_consumedUserTokenNonce = null;
+                    stale = TakePreparedUserTokenNonce();
+                    ValidateChannelBeforeActivate(context, clientSignature);
+                }
             }
-            stale?.Dispose();
+            finally
+            {
+                // detached above, so it is disposed even when the channel check throws.
+                stale?.Dispose();
+            }
 
             (IUserIdentityTokenHandler identityToken, UserTokenPolicy? userTokenPolicy) =
                 await ValidateUserIdentityTokenAsync(
