@@ -457,7 +457,8 @@ jobs:
           $isPrerelease = $env:RELEASE_CHANNEL -ceq 'preview'
           if ($LASTEXITCODE -eq 0) {
              $releaseObject = $release | ConvertFrom-Json
-             if ($releaseObject.target_commitish -cne $env:RELEASE_COMMIT -or
+             if ($releaseObject.draft -or
+                 $releaseObject.target_commitish -cne $env:RELEASE_COMMIT -or
                  [bool]$releaseObject.prerelease -ne $isPrerelease) {
                  throw "Existing GitHub Release '$tag' does not match the promoted candidate."
              }

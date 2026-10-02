@@ -376,9 +376,21 @@ namespace Opc.Ua.Tools.Tests
         public void ReleaseWorkflowTagsThePublishedCandidate()
         {
             string workflow = File.ReadAllText(ReleaseWorkflowPath);
+            int tagStep = workflow.IndexOf("- name: Tag published package candidate", StringComparison.Ordinal);
+            int lastPostCheck = workflow.LastIndexOf("-RequirePresent", StringComparison.Ordinal);
 
             Assert.Multiple(() =>
             {
+                Assert.That(tagStep, Is.GreaterThan(lastPostCheck), "Tagging must follow both feed post-checks.");
+                Assert.That(lastPostCheck, Is.GreaterThanOrEqualTo(0));
+                Assert.That(
+                    workflow,
+                    Does.Contain("$releaseObject.draft"),
+                    "A recovered draft release must not be accepted as published.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("$env:RELEASE_CHANNEL -ceq 'preview'"),
+                    "Preview promotions must produce a prerelease GitHub Release.");
                 Assert.That(
                     workflow,
                     Does.Contain("contents: write"),
