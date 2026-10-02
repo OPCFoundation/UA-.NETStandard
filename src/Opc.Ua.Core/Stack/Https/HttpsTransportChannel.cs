@@ -41,9 +41,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
-#endif
 
 namespace Opc.Ua.Bindings
 {
@@ -593,7 +591,6 @@ namespace Opc.Ua.Bindings
                     // (m_settings.ClientCertificate is a borrowed reference
                     // owned by the application configuration).
                     Certificate clientCertificate = m_settings.ClientCertificate.AddRef();
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                     try
                     {
                         // Create a copy of the certificate with the private key on platforms
@@ -616,7 +613,6 @@ namespace Opc.Ua.Bindings
                     {
                         m_logger.HttpsChannelLog8(ce);
                     }
-#endif
                     // pin the cert for the lifetime of the channel so the
                     // OS-level private key handle backing the X509Certificate2
                     // we hand to HttpClientHandler cannot be invalidated by a

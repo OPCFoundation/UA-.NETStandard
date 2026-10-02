@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </param>
         private static Task WritePayloadAsync(Stream stream, byte[] payload, CancellationToken cancellationToken = default)
         {
-#if NET472 || NET48
+#if NET48
             return stream.WriteAsync(payload, 0, payload.Length, cancellationToken);
 #else
             return stream.WriteAsync((ReadOnlyMemory<byte>)payload, cancellationToken).AsTask();

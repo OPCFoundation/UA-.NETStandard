@@ -230,7 +230,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
 
             using (Stream stream = fileSystem.OpenWrite("async.bin"))
             {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 stream.Write(first.AsSpan());
                 await stream.WriteAsync(second.AsMemory()).ConfigureAwait(false);
 #else
@@ -242,7 +242,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
 
             byte[] actual = new byte[first.Length + second.Length];
             using Stream readStream = fileSystem.OpenRead("async.bin");
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             int firstRead = readStream.Read(actual.AsSpan(0, first.Length));
             int secondRead = await readStream
                 .ReadAsync(actual.AsMemory(first.Length, second.Length))

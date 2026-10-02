@@ -147,7 +147,8 @@ namespace Opc.Ua.Bindings
                 object callbackData,
                 int timeout,
                 ILogger logger)
-                : base(callback, callbackData, timeout, logger)
+                // the timeout cancels the token so a pending connect is abandoned.
+                : base(callback, callbackData, timeout, new CancellationTokenSource(), logger)
             {
             }
 
@@ -214,16 +215,15 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                await transport.ConnectAsync(endpointUrl, CancellationToken.None).ConfigureAwait(false);
+                await transport.ConnectAsync(endpointUrl, ar.CancellationToken).ConfigureAwait(false);
                 OnReverseConnectComplete(ar);
             }
             catch (Exception ex)
             {
-                ar.Exception = new ServiceResultException(
+                ar.TryComplete(new ServiceResultException(
                     StatusCodes.BadNotConnected,
                     ex.Message,
-                    ex);
-                ar.OperationCompleted();
+                    ex));
             }
         }
 
@@ -254,6 +254,14 @@ namespace Opc.Ua.Bindings
         {
             if (ar == null || m_pendingReverseHello != null)
             {
+                return;
+            }
+
+            // the reverse connect timed out while connecting: the listener already
+            // disposed this channel, so do not start using the connection.
+            if (ar.IsCompleted)
+            {
+                ar.Transport?.Close();
                 return;
             }
 
@@ -288,8 +296,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                ar.Exception = e;
-                ar.OperationCompleted();
+                ar.TryComplete(e);
             }
             finally
             {
@@ -328,8 +335,9 @@ namespace Opc.Ua.Bindings
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
-                // check for replay attacks.
-                if (!VerifySequenceNumber(sequenceNumber, "Reconnect"))
+                // check for replay attacks. The chunks the client sent on the dropped
+                // socket are lost, so the number may skip ahead but not go back.
+                if (!VerifySequenceNumberCore(sequenceNumber, "Reconnect", true))
                 {
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
@@ -345,6 +353,9 @@ namespace Opc.Ua.Bindings
                     // need to assign a new token id.
                     token.ChannelId = ChannelId;
                     token.TokenId = GetNewTokenId();
+                    // chain from the current token, not from a pending renewal: the socket
+                    // may have dropped before the client received that renewal's response,
+                    // and a client chains from the token it has activated.
                     token.PreviousSecret = CurrentToken?.Secret;
                     ReplaceNonces(token);
                     if (Volatile.Read(ref m_disposed) != 0)
@@ -912,7 +923,9 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
-                token.PreviousSecret = CurrentToken?.Secret;
+                // chain from the most recently issued keys: the client uses a renewed
+                // token as soon as it has the response, before the server sees it.
+                token.PreviousSecret = (RenewedToken ?? CurrentToken)?.Secret;
 
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce.ToArray();
@@ -1183,8 +1196,8 @@ namespace Opc.Ua.Bindings
             if (ar != null &&
                 ar == Interlocked.CompareExchange(ref m_pendingReverseHello, null, ar))
             {
-                ar.Exception = e;
-                ar.OperationCompleted();
+                // a reverse hello that already timed out keeps its timeout outcome.
+                ar.TryComplete(e);
             }
         }
 

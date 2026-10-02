@@ -427,7 +427,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return Task.FromResult(0);
             }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();

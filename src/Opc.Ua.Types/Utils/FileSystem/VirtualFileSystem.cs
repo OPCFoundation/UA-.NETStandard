@@ -544,7 +544,7 @@ namespace Opc.Ua
                     return ReadCore(buffer.AsSpan(offset, count));
                 }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 /// <inheritdoc/>
 #pragma warning disable CA1725 // .NET Framework used a different parameter name
                 public override int Read(Span<byte> buffer)
@@ -578,7 +578,7 @@ namespace Opc.Ua
                     return Task.FromResult(ReadCore(buffer.AsSpan(offset, count)));
                 }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 /// <inheritdoc/>
                 public override ValueTask<int> ReadAsync(
                     Memory<byte> buffer,
@@ -686,7 +686,7 @@ namespace Opc.Ua
                     WriteCore(buffer.AsSpan(offset, count));
                 }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 /// <inheritdoc/>
 #pragma warning disable CA1725 // .NET Framework used a different parameter name
                 public override void Write(ReadOnlySpan<byte> buffer)
@@ -723,7 +723,7 @@ namespace Opc.Ua
                     return Task.CompletedTask;
                 }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 /// <inheritdoc/>
                 public override ValueTask WriteAsync(
                     ReadOnlyMemory<byte> buffer,

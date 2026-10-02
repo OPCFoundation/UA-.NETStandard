@@ -496,6 +496,47 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         /// <summary>
+        /// Closing the transport while one send is blocked on backpressure and
+        /// another is queued behind it must fail both with
+        /// <see cref="StatusCodes.BadConnectionClosed"/> instead of orphaning
+        /// the queued sender forever.
+        /// </summary>
+        [Test]
+        public async Task CloseFailsBlockedAndQueuedSendsWithBadConnectionClosedAsync()
+        {
+            using var ctx = new TestConnectionContext();
+            var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+
+            // Larger than the default pipe pause threshold: the flush blocks
+            // because the test never reads ServerOutput.
+            Task blocked = transport.SendChunkAsync(
+                new ReadOnlyMemory<byte>(new byte[128 * 1024]), CancellationToken.None).AsTask();
+            Task queued = transport.SendChunkAsync(
+                new ReadOnlyMemory<byte>(new byte[8]), CancellationToken.None).AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(blocked.IsCompleted, Is.False);
+            Assert.That(queued.IsCompleted, Is.False);
+
+            transport.Close();
+
+            foreach (Task send in new[] { blocked, queued })
+            {
+                Exception? error = null;
+                try
+                {
+                    await send.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    error = ex;
+                }
+                Assert.That(error, Is.TypeOf<ServiceResultException>());
+                Assert.That(((ServiceResultException)error!).StatusCode,
+                    Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+            }
+        }
+
+        /// <summary>
         /// Helper: build a valid UASC chunk with a Hello message type and
         /// the given total <paramref name="size"/> (header + body).
         /// </summary>

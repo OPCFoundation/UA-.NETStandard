@@ -18,7 +18,7 @@
     <!-- Rendering.Silk and the native OpenUSD payload are not trim/AOT clean;
          the connector viewer package makes the same call. -->
     <IsAotCompatible>false</IsAotCompatible>
-    <!-- The OpenUSD rendering stack has no net48/netstandard asset, so legacy
+    <!-- The OpenUSD rendering stack has no net48 asset, so legacy
          CustomTestTarget solution legs build this project as a no-op shell. -->
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>

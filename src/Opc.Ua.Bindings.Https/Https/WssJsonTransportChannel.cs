@@ -179,10 +179,11 @@ namespace Opc.Ua.Bindings
             }
 
             var ws = new ClientWebSocket();
+            System.Security.Cryptography.X509Certificates.X509Certificate2? clientCertificate = null;
             try
             {
                 ws.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolUaJson);
-                ConfigureClientTls(ws);
+                clientCertificate = ConfigureClientTls(ws);
                 Uri wsUrl = NormalizeUrl(m_url);
                 await ws.ConnectAsync(wsUrl, cts.Token).ConfigureAwait(false);
 
@@ -210,7 +211,7 @@ namespace Opc.Ua.Bindings
                     payload = memory.ToArray();
                 }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await ws.SendAsync(
                     new ReadOnlyMemory<byte>(payload, 0, payload.Length),
                     WebSocketMessageType.Text,
@@ -253,17 +254,17 @@ namespace Opc.Ua.Bindings
                 {
                     if (ws.State == WebSocketState.Open)
                     {
-                        await ws.CloseAsync(
-                            WebSocketCloseStatus.NormalClosure,
-                            string.Empty,
-                            CancellationToken.None).ConfigureAwait(false);
+                        await CloseNormalAsync(ws, ct).ConfigureAwait(false);
                     }
                 }
-                catch
+                finally
                 {
-                    // Best-effort.
+                    ws.Dispose();
                 }
-                ws.Dispose();
+
+                // The TLS client certificate must outlive the handshake and
+                // the connection; release it only after the socket is gone.
+                clientCertificate?.Dispose();
             }
         }
 
@@ -358,6 +359,31 @@ namespace Opc.Ua.Bindings
             ws.Abort();
         }
 
+        /// <summary>
+        /// Sends a normal Close frame without waiting for the peer's Close
+        /// (one message per connection, OPC 10000-6 7.5.2), bounded by
+        /// <see cref="kMessageTooBigCloseTimeout"/> and the caller's token,
+        /// then aborts the socket. A peer that never answers the close
+        /// handshake must not hang a request whose response already arrived.
+        /// </summary>
+        private static async Task CloseNormalAsync(WebSocket ws, CancellationToken ct)
+        {
+            try
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(kMessageTooBigCloseTimeout);
+                await ws.CloseOutputAsync(
+                    WebSocketCloseStatus.NormalClosure,
+                    string.Empty,
+                    cts.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best-effort: the socket is aborted either way.
+            }
+            ws.Abort();
+        }
+
         private static Uri NormalizeUrl(Uri url)
         {
             if (string.Equals(url.Scheme, Utils.UriSchemeOpcWss, StringComparison.OrdinalIgnoreCase))
@@ -372,7 +398,12 @@ namespace Opc.Ua.Bindings
             return url;
         }
 
-        private void ConfigureClientTls(ClientWebSocket ws)
+        /// <summary>
+        /// Installs the TLS server validation callback and the optional TLS
+        /// client certificate. Returns the caller-owned client certificate
+        /// copy, which must stay alive until the WebSocket is disposed.
+        /// </summary>
+        private System.Security.Cryptography.X509Certificates.X509Certificate2? ConfigureClientTls(ClientWebSocket ws)
         {
 #if NET5_0_OR_GREATER
             ICertificateValidatorEx? validator = m_settings?.CertificateValidator;
@@ -389,13 +420,15 @@ namespace Opc.Ua.Bindings
             Certificate? clientCert = m_settings?.ClientCertificate;
             if (clientCert != null)
             {
-                using System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
+                System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
                     clientCert.AsX509Certificate2();
                 ws.Options.ClientCertificates ??=
                     [];
                 ws.Options.ClientCertificates.Add(x509);
+                return x509;
             }
 #endif
+            return null;
         }
 
 #if NET5_0_OR_GREATER

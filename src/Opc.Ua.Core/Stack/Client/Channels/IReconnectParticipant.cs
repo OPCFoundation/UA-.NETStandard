@@ -103,7 +103,7 @@ namespace Opc.Ua
             int reconnectAttempt,
             CancellationToken ct);
 
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Invoked by the manager after the participant returned
         /// <see cref="ParticipantReconnectResult.RequiresSessionRecreate"/> from
@@ -146,7 +146,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="ct">Cancellation for shutdown, the cycle deadline, or this callback's timeout.</param>
         /// <returns>The asynchronous recreation work.</returns>
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         new ValueTask RecreateAsync(CancellationToken ct = default);
 #else
         ValueTask RecreateAsync(CancellationToken ct = default);

@@ -279,7 +279,7 @@ namespace Opc.Ua
             WriteBytes(buffer.AsSpan(offset, count));
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         /// <summary>
         /// Writes raw bytes to the stream.
         /// </summary>
@@ -536,7 +536,7 @@ namespace Opc.Ua
 
             int maxByteCount = Encoding.UTF8.GetMaxByteCount(value.Length);
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             const int maxStackAllocByteCount = 128;
             if (maxByteCount <= maxStackAllocByteCount)
             {
@@ -1002,18 +1002,31 @@ namespace Opc.Ua
                 encoding = (byte)value.Encoding;
             }
 
+            XmlElement xml = default;
+            bool isBinary = value.TryGetAsBinary(out ByteString bytes);
+            bool isXml = !isBinary && value.TryGetAsXml(out xml);
+
+            // Part 6 5.2.2.15: the Length of an encoded body is the byte count
+            // of the body, so a null ByteString or XmlElement body (Length -1)
+            // is not a valid body. Encoding 0x00 is "no body is encoded".
+            if ((isBinary && bytes.IsNull) || (isXml && xml.IsEmpty))
+            {
+                WriteByte(null, (byte)ExtensionObjectEncoding.None);
+                return;
+            }
+
             // write the encoding type.
             WriteByte(null, encoding);
 
             // write binary bodies.
-            if (value.TryGetAsBinary(out ByteString bytes))
+            if (isBinary)
             {
                 WriteByteString(null, bytes);
                 return;
             }
 
             // write XML bodies.
-            if (value.TryGetAsXml(out XmlElement xml))
+            if (isXml)
             {
                 WriteXmlElement(null, xml);
                 return;

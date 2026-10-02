@@ -379,7 +379,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             CheckPEMWriter(appCert);
         }
 
-#if NETFRAMEWORK || NET5_0_OR_GREATER
         [Test]
         public void CreateIssuerRSACngWithSuppliedKeyPair()
         {
@@ -426,7 +425,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             WriteCertificate(appCert, "Signed RSA app cert");
             CheckPEMWriter(appCert);
         }
-#endif
 
         [Theory]
         public void CreateForRSAWithGeneratorTest(KeyHashPair keyHashPair)

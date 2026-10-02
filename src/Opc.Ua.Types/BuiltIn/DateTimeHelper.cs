@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// Write Utc time in the format "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK".
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         public static void ConvertUniversalTimeToString(
             DateTime value,
             Span<char> valueString,

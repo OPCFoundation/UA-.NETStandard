@@ -53,6 +53,7 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
@@ -425,6 +426,196 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(limiter.Calls, Is.EqualTo(3));
             await AssertRejectedAsync(port, deadline.Token).ConfigureAwait(false);
             Assert.That(limiter.Calls, Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// OPC 10000-4 5.6.2.1: at MaxChannelCount the server closes the oldest
+        /// unused SecureChannel without a Session instead of refusing new clients.
+        /// </summary>
+        [Test]
+        public async Task IdleNoneChannelsAtMaxChannelCountAreReclaimedForANewClientAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var listener = new KestrelTcpTransportListener(telemetry);
+            var url = new Uri("opc.tcp://127.0.0.1:0");
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            int port = await OpenLoopbackListenerAsync(listener, url, context, maxChannelCount: 2)
+                .ConfigureAwait(false);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            using var first = new TcpClient();
+            using var second = new TcpClient();
+            await OpenNoneChannelAsync(first, port, context, url, deadline.Token).ConfigureAwait(false);
+            await OpenNoneChannelAsync(second, port, context, url, deadline.Token).ConfigureAwait(false);
+
+            using var third = new TcpClient();
+            await third.ConnectAsync(IPAddress.Loopback, port, deadline.Token).ConfigureAwait(false);
+            await third.GetStream().WriteAsync(CreateHello(context, url), deadline.Token).ConfigureAwait(false);
+            byte[] header = new byte[8];
+            await third.GetStream().ReadExactlyAsync(header, deadline.Token).ConfigureAwait(false);
+            Assert.That(BitConverter.ToUInt32(header), Is.EqualTo(TcpMessageType.Acknowledge));
+
+            // The least recently active channel (the first) was closed to make room.
+            await AssertClosedAsync(first.GetStream(), deadline.Token).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task IdleOpenChannelIsClosedAfterChannelLifetimeAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var listener = new KestrelTcpTransportListener(telemetry);
+            var url = new Uri("opc.tcp://127.0.0.1:0");
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.ChannelLifetime = 500;
+            int port = await OpenLoopbackListenerAsync(listener, url, context, 0, configuration)
+                .ConfigureAwait(false);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            using var idle = new TcpClient();
+            await OpenNoneChannelAsync(idle, port, context, url, deadline.Token).ConfigureAwait(false);
+            await AssertClosedAsync(idle.GetStream(), deadline.Token).ConfigureAwait(false);
+        }
+
+        [TestCase(0, 0)]
+        [TestCase(-1, 0)]
+        [TestCase(1, 1000)]
+        [TestCase(500, 1000)]
+        [TestCase(600000, 300000)]
+        public void InactivityDetectPeriodIsDisabledOrBoundedForChannelLifetime(int channelLifetime, int expected)
+        {
+            Assert.That(
+                KestrelTcpTransportListener.GetInactivityDetectPeriod(channelLifetime),
+                Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A ChannelLifetime that is not positive means "unset", as for
+        /// TcpTransportListener: no sweep runs and idle channels stay open.
+        /// </summary>
+        [Test]
+        public async Task IdleOpenChannelIsKeptWhenChannelLifetimeIsZeroAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var listener = new KestrelTcpTransportListener(telemetry);
+            var url = new Uri("opc.tcp://127.0.0.1:0");
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.ChannelLifetime = 0;
+            int port = await OpenLoopbackListenerAsync(listener, url, context, 0, configuration)
+                .ConfigureAwait(false);
+            Assert.That(GetField<ITimer?>(listener, "m_inactivityDetectionTimer"), Is.Null);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            using var idle = new TcpClient();
+            await OpenNoneChannelAsync(idle, port, context, url, deadline.Token).ConfigureAwait(false);
+            using var quiet = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+            quiet.CancelAfter(TimeSpan.FromMilliseconds(500));
+            Assert.That(
+                async () => await idle.GetStream().ReadAsync(new byte[1], quiet.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(
+                GetField<ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>>(
+                    listener, "m_channels"),
+                Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// OPC 10000-4 6.5.5: OpenSecureChannel raises an audit event on the
+        /// Kestrel-hosted opc.tcp transport like on the raw-socket one.
+        /// </summary>
+        [Test]
+        public async Task OpenSecureChannelReportsAuditEventAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var listener = new KestrelTcpTransportListener(telemetry);
+            var url = new Uri("opc.tcp://127.0.0.1:0");
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var reported = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ReportAuditOpenSecureChannelEvent(
+                    It.IsAny<string>(), It.IsAny<EndpointDescription>(), It.IsAny<OpenSecureChannelRequest>(),
+                    It.IsAny<Certificate>(), It.IsAny<Exception>()))
+                .Callback<string, EndpointDescription, OpenSecureChannelRequest, Certificate, Exception>(
+                    (channelId, _, _, _, _) => reported.TrySetResult(channelId));
+            int port = await OpenLoopbackListenerAsync(listener, url, context, 0, callback: callback.Object)
+                .ConfigureAwait(false);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            using var client = new TcpClient();
+            await OpenNoneChannelAsync(client, port, context, url, deadline.Token).ConfigureAwait(false);
+            string globalChannelId = await reported.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(globalChannelId, Does.StartWith(listener.ListenerId));
+        }
+
+        private static async Task<int> OpenLoopbackListenerAsync(
+            KestrelTcpTransportListener listener,
+            Uri url,
+            ServiceMessageContext context,
+            int maxChannelCount,
+            EndpointConfiguration? configuration = null,
+            ITransportListenerCallback? callback = null)
+        {
+            await listener.OpenAsync(url, new TransportListenerSettings
+            {
+                Configuration = configuration ?? EndpointConfiguration.Create(),
+                Factory = context.Factory,
+                NamespaceUris = context.NamespaceUris,
+                ServerCertificates = Mock.Of<ICertificateRegistry>(),
+                Descriptions = [CreateEndpoint(url)],
+                MaxChannelCount = maxChannelCount
+            }, callback ?? Mock.Of<ITransportListenerCallback>()).ConfigureAwait(false);
+            IHost host = GetField<IHost>(listener, "m_host");
+            IServer server = host.Services.GetRequiredService<IServer>();
+            return new Uri(server.Features.Get<IServerAddressesFeature>()!.Addresses.Single()).Port;
+        }
+
+        private static async Task OpenNoneChannelAsync(
+            TcpClient client,
+            int port,
+            IServiceMessageContext context,
+            Uri url,
+            CancellationToken ct)
+        {
+            await client.ConnectAsync(IPAddress.Loopback, port, ct).ConfigureAwait(false);
+            NetworkStream stream = client.GetStream();
+            await stream.WriteAsync(CreateHello(context, url), ct).ConfigureAwait(false);
+            byte[] header = new byte[8];
+            await stream.ReadExactlyAsync(header, ct).ConfigureAwait(false);
+            Assert.That(BitConverter.ToUInt32(header), Is.EqualTo(TcpMessageType.Acknowledge));
+            await stream.ReadExactlyAsync(new byte[BitConverter.ToInt32(header, 4) - 8], ct).ConfigureAwait(false);
+
+            await stream.WriteAsync(CreateOpenChunk(context), ct).ConfigureAwait(false);
+            await stream.ReadExactlyAsync(header, ct).ConfigureAwait(false);
+            Assert.That(BitConverter.ToUInt32(header), Is.EqualTo(TcpMessageType.Open | TcpMessageType.Final));
+            await stream.ReadExactlyAsync(new byte[BitConverter.ToInt32(header, 4) - 8], ct).ConfigureAwait(false);
+        }
+
+        private static byte[] CreateOpenChunk(IServiceMessageContext context)
+        {
+            using var body = new MemoryStream();
+            BinaryEncoder.EncodeMessage(new OpenSecureChannelRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 1 },
+                RequestType = SecurityTokenRequestType.Issue,
+                SecurityMode = MessageSecurityMode.None,
+                RequestedLifetime = 60000
+            }, body, context, true);
+            byte[] buffer = new byte[8192];
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, context);
+            encoder.WriteUInt32(null, TcpMessageType.Open | TcpMessageType.Final);
+            encoder.WriteUInt32(null, 0);
+            encoder.WriteUInt32(null, 0);
+            encoder.WriteString(null, SecurityPolicies.None);
+            encoder.WriteByteString(null, ByteString.Empty);
+            encoder.WriteByteString(null, ByteString.Empty);
+            encoder.WriteUInt32(null, 1);
+            encoder.WriteUInt32(null, 1);
+            byte[] encoded = body.ToArray();
+            encoder.WriteRawBytes(encoded, 0, encoded.Length);
+            int count = encoder.Close();
+            BitConverter.GetBytes(count).CopyTo(buffer, 4);
+            return buffer.AsSpan(0, count).ToArray();
         }
 
         private static async Task AssertRejectedAsync(int port, CancellationToken ct)

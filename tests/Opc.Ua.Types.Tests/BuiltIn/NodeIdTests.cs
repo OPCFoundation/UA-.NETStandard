@@ -495,7 +495,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IsNull, Is.True);
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         [Test]
         public void TryFormatMatchesFormatForNonUriForm(
             [Values] bool useNamespaceUri)
