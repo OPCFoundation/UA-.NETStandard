@@ -344,11 +344,14 @@ namespace Opc.Ua.Server
             RestoreQueue();
 
             // notifications that were queued before the restart are still owed to the
-            // client, so the item is ready without waiting for the next change.
+            // client, so the item is ready without waiting for the next change. Only a
+            // reporting item delivers them and triggers its linked items with them: the
+            // queue of a sampling item keeps its samples until it is triggered itself, so
+            // it holds nothing new since the restart.
             if (ItemsInQueue > 0)
             {
                 m_readyToPublish = true;
-                m_readyToTrigger = true;
+                m_readyToTrigger = MonitoringMode == MonitoringMode.Reporting;
             }
 
             m_isDeleted = storedMonitoredItem.IsDeleted;

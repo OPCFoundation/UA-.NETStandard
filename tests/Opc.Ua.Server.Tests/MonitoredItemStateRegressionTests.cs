@@ -336,6 +336,53 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Values queued before a restart trigger the linked items of a restored reporting
+        /// item, but not those of a sampling item, whose queue holds nothing new.
+        /// </summary>
+        [TestCase(MonitoringMode.Reporting, true)]
+        [TestCase(MonitoringMode.Sampling, false)]
+        public void RestoredItemWithQueuedValuesTriggersOnlyWhenReporting(
+            MonitoringMode monitoringMode,
+            bool readyToTrigger)
+        {
+            using var harness = new Harness();
+            IDataChangeMonitoredItemQueue queue = harness.QueueFactory.CreateDataChangeQueue(false, 2);
+            queue.ResetQueue(10, false);
+            queue.Enqueue(new DataValue(Variant.From(7)), ServiceResult.Good);
+            var filter = new DataChangeFilter { Trigger = DataChangeTrigger.StatusValue };
+            var stored = new StoredMonitoredItem
+            {
+                Id = 2,
+                SubscriptionId = 1,
+                TypeMask = MonitoredItemTypeMask.DataChange,
+                MonitoringMode = monitoringMode,
+                NodeId = new NodeId("V", 1),
+                AttributeId = Attributes.Value,
+                ClientHandle = 3,
+                QueueSize = 10,
+                DiscardOldest = true,
+                SamplingInterval = 0,
+                TimestampsToReturn = TimestampsToReturn.Both,
+                DiagnosticsMasks = DiagnosticsMasks.None,
+                OriginalFilter = filter,
+                FilterToUse = filter,
+                IndexRange = string.Empty,
+                ParsedIndexRange = NumericRange.Null,
+                LastValue = new DataValue(Variant.From(7)),
+                RestoredDataChangeQueue = queue
+            };
+
+            using var item = new MonitoredItem(
+                harness.ServerMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                stored,
+                harness.TimeProvider);
+
+            Assert.That(item.IsReadyToTrigger, Is.EqualTo(readyToTrigger));
+        }
+
+        /// <summary>
         /// Events queued before a modification of the select clauses are published in the
         /// new field layout and with the new client handle.
         /// </summary>
