@@ -1071,18 +1071,20 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            // OPC 10000-4 5.7.2.1: when a Session is terminated, all outstanding requests on
-            // the Session are aborted with Bad_SessionClosed. The CloseSession request that
-            // drives this close is the one request that must still complete normally.
-            RequestManager?.CancelSessionRequests(
-                sessionId,
-                GetRequestId(context),
-                StatusCodes.BadSessionClosed);
-
             CancellationToken closeCancellationToken = CancellationToken.None;
 
             try
             {
+                // OPC 10000-4 5.7.2.1: when a Session is terminated, all outstanding requests on
+                // the Session are aborted with Bad_SessionClosed. The CloseSession request that
+                // drives this close is the one request that must still complete normally. This
+                // runs inside the try, so a failure here cannot leave the Session marked closing
+                // but still registered.
+                RequestManager?.CancelSessionRequests(
+                    sessionId,
+                    GetRequestId(context),
+                    StatusCodes.BadSessionClosed);
+
                 await NodeManager.SessionClosingAsync(
                     context,
                     sessionId,

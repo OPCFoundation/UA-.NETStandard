@@ -196,6 +196,75 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void CancelSessionRequestsCancelsEveryRequestWhenACancellationCallbackFails()
+        {
+            // A cancellation callback runs inline on the closing thread. One that throws, or
+            // that registers another request while the requests are enumerated, must neither
+            // escape to the Session close nor keep the other requests from being aborted.
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            using var failingLifetime = new RequestLifetime();
+            using var reentrantLifetime = new RequestLifetime();
+            using var otherLifetime = new RequestLifetime();
+            using var lateLifetime = new RequestLifetime();
+            var failing = new OperationContext(
+                new RequestHeader { RequestHandle = 1 }, null, RequestType.Call, failingLifetime, session.Object);
+            var reentrant = new OperationContext(
+                new RequestHeader { RequestHandle = 2 }, null, RequestType.Read, reentrantLifetime, session.Object);
+            var other = new OperationContext(
+                new RequestHeader { RequestHandle = 3 }, null, RequestType.Read, otherLifetime, session.Object);
+            var late = new OperationContext(
+                new RequestHeader { RequestHandle = 4 }, null, RequestType.Read, lateLifetime);
+            failingLifetime.CancellationToken.Register(() => throw new InvalidOperationException("callback"));
+            reentrantLifetime.CancellationToken.Register(() => m_requestManager.RequestReceived(late));
+            m_requestManager.RequestReceived(failing);
+            m_requestManager.RequestReceived(reentrant);
+            m_requestManager.RequestReceived(other);
+
+            uint aborted = 0;
+            Assert.DoesNotThrow(() => aborted = m_requestManager.CancelSessionRequests(
+                session.Object.Id,
+                0,
+                StatusCodes.BadSessionClosed));
+
+            Assert.That(aborted, Is.EqualTo(3));
+            Assert.That(failing.OperationStatus.Code, Is.EqualTo(StatusCodes.BadSessionClosed));
+            Assert.That(reentrant.OperationStatus.Code, Is.EqualTo(StatusCodes.BadSessionClosed));
+            Assert.That(other.OperationStatus.Code, Is.EqualTo(StatusCodes.BadSessionClosed));
+            m_requestManager.RequestCompleted(late);
+        }
+
+        [Test]
+        public void CancelRequestsCancelsEveryMatchingRequestWhenACancellationCallbackFails()
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            using var failingLifetime = new RequestLifetime();
+            using var otherLifetime = new RequestLifetime();
+            using var lateLifetime = new RequestLifetime();
+            var failing = new OperationContext(
+                new RequestHeader { RequestHandle = 7 }, null, RequestType.Call, failingLifetime, session.Object);
+            var other = new OperationContext(
+                new RequestHeader { RequestHandle = 7 }, null, RequestType.Read, otherLifetime, session.Object);
+            var late = new OperationContext(
+                new RequestHeader { RequestHandle = 8 }, null, RequestType.Read, lateLifetime);
+            failingLifetime.CancellationToken.Register(() =>
+            {
+                m_requestManager.RequestReceived(late);
+                throw new InvalidOperationException("callback");
+            });
+            m_requestManager.RequestReceived(failing);
+            m_requestManager.RequestReceived(other);
+
+            uint cancelCount = 0;
+            Assert.DoesNotThrow(() => m_requestManager.CancelRequests(session.Object.Id, 7, out cancelCount));
+
+            Assert.That(cancelCount, Is.EqualTo(2));
+            Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.True);
+            m_requestManager.RequestCompleted(late);
+        }
+
+        [Test]
         public void CancelAppliesToMatchingRequestsThatWereStillQueued()
         {
             // OPC 10000-4 5.7.5.2: every outstanding request with the handle is cancelled,

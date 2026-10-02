@@ -643,22 +643,52 @@ namespace Opc.Ua.Server
                 return 0;
             }
 
-            var cancelledRequests = new List<uint>();
+            // Collect under the lock, cancel after releasing it: cancelling runs the request's
+            // cancellation callbacks and continuations inline, which may complete (and so
+            // unregister) the request while m_requests would otherwise be enumerated.
+            var matchingRequests = new List<OperationContext>();
             lock (m_requestsLock)
             {
                 foreach (OperationContext request in m_requests.Values)
                 {
                     if (request.RequestId != excludedRequestId &&
-                        request.SessionId == sessionId &&
-                        request.RequestLifetime.TryCancel(statusCode))
+                        request.SessionId == sessionId)
                     {
-                        cancelledRequests.Add(request.RequestId);
+                        matchingRequests.Add(request);
                     }
+                }
+            }
+
+            var cancelledRequests = new List<uint>(matchingRequests.Count);
+            foreach (OperationContext request in matchingRequests)
+            {
+                if (TryCancelRequest(request, statusCode))
+                {
+                    cancelledRequests.Add(request.RequestId);
                 }
             }
 
             RaiseRequestCancelled(cancelledRequests, statusCode);
             return (uint)cancelledRequests.Count;
+        }
+
+        /// <summary>
+        /// Cancels a request without letting a failing cancellation callback escape to the
+        /// caller, which is in the middle of cancelling other requests (or closing a Session).
+        /// </summary>
+        /// <returns><c>true</c> when this call cancelled the request.</returns>
+        private bool TryCancelRequest(OperationContext request, StatusCode statusCode)
+        {
+            try
+            {
+                return request.RequestLifetime.TryCancel(statusCode);
+            }
+            catch (Exception e)
+            {
+                // The token was cancelled; only one of its callbacks failed.
+                m_logger.UnexpectedErrorCancellingRequest(e, request.RequestId);
+                return true;
+            }
         }
 
         private void RaiseRequestCancelled(List<uint> requestIds, StatusCode statusCode)
@@ -688,9 +718,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private uint CancelMatchingRequests(NodeId sessionId, uint requestHandle, DateTime cancelTimestamp)
         {
-            var cancelledRequests = new List<uint>();
+            var matchingRequests = new List<OperationContext>();
 
-            // flag requests as cancelled.
+            // find the requests to cancel; they are cancelled after the lock is released so
+            // their cancellation callbacks never run while m_requests is being enumerated.
             lock (m_requestsLock)
             {
                 foreach (OperationContext request in m_requests.Values)
@@ -698,8 +729,7 @@ namespace Opc.Ua.Server
                     if (request.SessionId == sessionId &&
                         request.ClientHandle == requestHandle)
                     {
-                        request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
-                        cancelledRequests.Add(request.RequestId);
+                        matchingRequests.Add(request);
                     }
                 }
 
@@ -717,6 +747,14 @@ namespace Opc.Ua.Server
                         cancelTimestamp,
                         now + PendingCancelWindow));
                 }
+            }
+
+            // flag requests as cancelled.
+            var cancelledRequests = new List<uint>(matchingRequests.Count);
+            foreach (OperationContext request in matchingRequests)
+            {
+                TryCancelRequest(request, StatusCodes.BadRequestCancelledByClient);
+                cancelledRequests.Add(request.RequestId);
             }
 
             // raise notifications.
@@ -821,9 +859,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private void OnTimerExpired(object? state)
         {
-            var expiredRequests = new List<uint>();
+            var expiredContexts = new List<OperationContext>();
 
-            // flag requests as expired.
+            // find the expired requests; they are cancelled after the lock is released so their
+            // cancellation callbacks never run while m_requests is being enumerated.
             lock (m_requestsLock)
             {
                 // find the completed request.
@@ -833,8 +872,7 @@ namespace Opc.Ua.Server
                 {
                     if (request.OperationDeadline < m_timeProvider.GetUtcNow().UtcDateTime)
                     {
-                        request.RequestLifetime.TryCancel(StatusCodes.BadTimeout);
-                        expiredRequests.Add(request.RequestId);
+                        expiredContexts.Add(request);
                     }
                     else if (request.OperationDeadline < DateTime.MaxValue)
                     {
@@ -848,6 +886,14 @@ namespace Opc.Ua.Server
                     m_requestTimer.Dispose();
                     m_requestTimer = null;
                 }
+            }
+
+            // flag requests as expired.
+            var expiredRequests = new List<uint>(expiredContexts.Count);
+            foreach (OperationContext request in expiredContexts)
+            {
+                TryCancelRequest(request, StatusCodes.BadTimeout);
+                expiredRequests.Add(request.RequestId);
             }
 
             // raise notifications.
@@ -1134,5 +1180,9 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.RequestManager + 0, Level = LogLevel.Error,
             Message = "Unexpected error reporting RequestCancelled event.")]
         public static partial void UnexpectedErrorReportingRequestCancelledEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.RequestManager + 1, Level = LogLevel.Error,
+            Message = "Unexpected error in a cancellation callback of request {RequestId}.")]
+        public static partial void UnexpectedErrorCancellingRequest(this ILogger logger, Exception ex, uint requestId);
     }
 }
