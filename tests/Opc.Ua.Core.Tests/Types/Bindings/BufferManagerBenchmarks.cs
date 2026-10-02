@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             }
         }
 
-#if NET6_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET6_0_OR_GREATER
         /// <summary>
         /// Benchmark allocation with new.
         /// </summary>

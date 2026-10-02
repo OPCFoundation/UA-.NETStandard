@@ -103,7 +103,7 @@ namespace Opc.Ua.Fuzzing
                     parameters.Length == 1)
                 {
                     // afl-fuzz targets
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if NET8_0_OR_GREATER
                     if (parameters[0].ParameterType == typeof(Stream))
                     {
                         return method.CreateDelegate<AflFuzzStream>();

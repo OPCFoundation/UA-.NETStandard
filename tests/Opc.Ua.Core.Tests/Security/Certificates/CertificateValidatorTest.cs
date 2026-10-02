@@ -1413,10 +1413,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestSHA1RejectedAsync(bool trusted, bool rejectSHA1)
         {
-#if NET472_OR_GREATER || NET5_0_OR_GREATER
             Assert
                 .Ignore("To create SHA1 certificates is unsupported on this .NET version");
-#endif
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             using Certificate cert = s_factory
@@ -2151,10 +2149,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// No certificate is trusted, and one CRL is missing
+        /// Configured issuers establish trust, but a missing CRL is rejected when unknown revocation status is enabled.
         /// </summary>
         [Theory]
-        public async Task VerifyMissingCRLNoTrustAsync(bool rejectUnknownRevocationStatus)
+        public async Task VerifyMissingCRLWithIssuerTrustAsync(bool rejectUnknownRevocationStatus)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -2182,10 +2180,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
-                    Assert.That(result.IsValid, Is.False);
-                    Assert.That(
-                        result.StatusCode,
-                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+                    if (rejectUnknownRevocationStatus)
+                    {
+                        Assert.That(result.IsValid, Is.False);
+                        Assert.That(
+                            result.StatusCode,
+                            Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown)
+                                .Or.EqualTo(StatusCodes.BadCertificateIssuerRevocationUnknown));
+                    }
+                    else
+                    {
+                        Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(result.IsValid, Is.True);
+                    }
                 }
             }
         }

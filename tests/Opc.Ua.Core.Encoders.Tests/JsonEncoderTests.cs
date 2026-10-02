@@ -1775,7 +1775,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
                 CultureInfo.InvariantCulture);
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
             Span<char> valueString = stackalloc char[DateTimeHelper.DateTimeRoundTripKindLength];
             DateTimeHelper.ConvertUniversalTimeToString(
                 (DateTime)testDateTime,

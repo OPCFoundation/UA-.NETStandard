@@ -49,10 +49,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
     public enum JsonEncodingMode
     {
         /// <summary>
-        /// Verbose JSON per Part 6 §5.4.1. Variants emit the
-        /// <c>{ "Type", "Body" }</c> envelope so decoders can recover
-        /// the originating Built-In type without consulting
-        /// DataSetMetaData.
+        /// Verbose JSON per Part 6 §5.4.1. Variants emit the Part 6
+        /// §5.4.2.17 <c>{ "UaType", "Value" }</c> envelope so decoders can
+        /// recover the originating Built-In type without consulting
+        /// DataSetMetaData; top-level Variants whose FieldMetaData supplies
+        /// a concrete DataType are collapsed to the bare value (Part 14
+        /// §7.2.5.4.2).
         /// </summary>
         Verbose = 0,
 
@@ -65,7 +67,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         /// <summary>
         /// RawData JSON per Part 6 §5.4.1. Variants emit the bare body
-        /// without the <c>{ "Type", "Body" }</c> envelope; the decoder
+        /// without the <c>{ "UaType", "Value" }</c> envelope; the decoder
         /// requires DataSetMetaData and cannot recover OPC UA type
         /// fidelity from the body alone.
         /// </summary>

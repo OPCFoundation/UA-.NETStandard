@@ -277,6 +277,7 @@ namespace Opc.Ua.Machinery.Server
             "Machinery Job Management Result Location",
             "Machinery Job Management Result OrderNumbers",
             "Machinery Job Management Result PerformanceInfo",
+            "Machinery Job Management Result ProcessIrregularity",
             "Machinery Job Management Result ProducedQuantity",
             "Machinery Job Management Result RelatedContainer",
             "Machinery Job Management Result RunsCompleted",

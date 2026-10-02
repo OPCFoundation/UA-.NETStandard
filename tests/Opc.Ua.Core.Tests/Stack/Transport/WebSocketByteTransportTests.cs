@@ -29,7 +29,7 @@
 
 #nullable enable
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
 
 using System;
 using System.Net;
@@ -498,6 +498,204 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// Closing the transport while one send is in flight and another is
+        /// queued behind it must fail both with
+        /// <see cref="StatusCodes.BadConnectionClosed"/> (or the socket's own
+        /// abort error for the in-flight one) instead of orphaning the queued
+        /// sender forever.
+        /// </summary>
+        [Test]
+        public async Task CloseFailsQueuedSendInsteadOfOrphaningItAsync()
+        {
+            using var socket = new BlockingSendWebSocket();
+            var transport = new WebSocketServerByteTransport(
+                socket,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            Task inFlight = transport.SendChunkAsync(new byte[16], CancellationToken.None).AsTask();
+            Task queued = transport.SendChunkAsync(new byte[16], CancellationToken.None).AsTask();
+            await socket.SendStarted.Task.ConfigureAwait(false);
+            Assert.That(queued.IsCompleted, Is.False);
+
+            transport.Close();
+
+            Exception? inFlightError = await CaptureAsync(inFlight).ConfigureAwait(false);
+            Assert.That(inFlightError, Is.Not.Null);
+            Assert.That(inFlightError, Is.Not.InstanceOf<ObjectDisposedException>());
+            Exception? queuedError = await CaptureAsync(queued).ConfigureAwait(false);
+            Assert.That(queuedError, Is.TypeOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)queuedError!).StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+        }
+
+        /// <summary>
+        /// A <see cref="WebSocketClientByteTransport.Close"/> that runs while
+        /// the WebSocket upgrade is in flight must not leave the socket that the
+        /// upgrade then produces attached to the closed transport.
+        /// </summary>
+        [Test]
+        public async Task ClientCloseDuringConnectReleasesTheConnectedSocketAsync()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            try
+            {
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                using var transport = new WebSocketClientByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+                Task connect = transport.ConnectAsync(
+                    new Uri($"ws://127.0.0.1:{port}/"), CancellationToken.None).AsTask();
+                using TcpClient server = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                NetworkStream stream = server.GetStream();
+                string request = await ReadHttpHeadAsync(stream).ConfigureAwait(false);
+                string key = string.Empty;
+                foreach (string line in request.Split("\r\n"))
+                {
+                    if (line.StartsWith("Sec-WebSocket-Key:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        key = line["Sec-WebSocket-Key:".Length..].Trim();
+                    }
+                }
+
+                transport.Close();
+
+                // RFC 6455 4.2.2 defines Sec-WebSocket-Accept as a SHA-1 hash.
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+                string accept = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(
+                    System.Text.Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+#pragma warning restore CA5350
+                byte[] response = System.Text.Encoding.ASCII.GetBytes(
+                    "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
+                    $"Sec-WebSocket-Accept: {accept}\r\n" +
+                    $"Sec-WebSocket-Protocol: {Profiles.OpcUaWsSubProtocolUacp}\r\n\r\n");
+                await stream.WriteAsync(response).ConfigureAwait(false);
+
+                Exception? error = await CaptureAsync(connect).ConfigureAwait(false);
+                Assert.That(error, Is.TypeOf<ServiceResultException>());
+                Assert.That(((ServiceResultException)error!).StatusCode,
+                    Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+
+                // the aborted client socket closes the TCP connection.
+                byte[] buffer = new byte[64];
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try
+                {
+                    while (await stream.ReadAsync(buffer, timeout.Token).ConfigureAwait(false) > 0)
+                    {
+                    }
+                }
+                catch (System.IO.IOException)
+                {
+                    // a reset also proves the client socket was released.
+                }
+            }
+            finally
+            {
+                listener.Stop();
+            }
+        }
+
+        private static async Task<string> ReadHttpHeadAsync(NetworkStream stream)
+        {
+            var head = new System.Text.StringBuilder();
+            byte[] buffer = new byte[1];
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (!head.ToString().EndsWith("\r\n\r\n", StringComparison.Ordinal))
+            {
+                if (await stream.ReadAsync(buffer, timeout.Token).ConfigureAwait(false) == 0)
+                {
+                    break;
+                }
+                head.Append((char)buffer[0]);
+            }
+            return head.ToString();
+        }
+
+        private static async Task<Exception?> CaptureAsync(Task task)
+        {
+            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(task), "Send did not complete after Close.");
+            try
+            {
+                await task.ConfigureAwait(false);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                return ex;
+            }
+        }
+
+        /// <summary>
+        /// Open WebSocket whose sends never complete until the token is
+        /// cancelled or the socket is aborted (a peer that stopped reading).
+        /// </summary>
+        private sealed class BlockingSendWebSocket : WebSocket
+        {
+            public TaskCompletionSource<bool> SendStarted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public override WebSocketCloseStatus? CloseStatus => null;
+            public override string? CloseStatusDescription => null;
+            public override WebSocketState State => WebSocketState.Open;
+            public override string? SubProtocol => Profiles.OpcUaWsSubProtocolUacp;
+
+            public override void Abort()
+            {
+                m_aborted.TrySetException(new WebSocketException(WebSocketError.InvalidState));
+            }
+
+            public override Task CloseAsync(
+                WebSocketCloseStatus closeStatus,
+                string? statusDescription,
+                CancellationToken cancellationToken)
+            {
+                return Task.CompletedTask;
+            }
+
+            public override Task CloseOutputAsync(
+                WebSocketCloseStatus closeStatus,
+                string? statusDescription,
+                CancellationToken cancellationToken)
+            {
+                return Task.CompletedTask;
+            }
+
+            public override void Dispose()
+            {
+                Abort();
+            }
+
+            public override Task<WebSocketReceiveResult> ReceiveAsync(
+                ArraySegment<byte> buffer,
+                CancellationToken cancellationToken)
+            {
+                return new TaskCompletionSource<WebSocketReceiveResult>().Task;
+            }
+
+            public override async Task SendAsync(
+                ArraySegment<byte> buffer,
+                WebSocketMessageType messageType,
+                bool endOfMessage,
+                CancellationToken cancellationToken)
+            {
+                SendStarted.TrySetResult(true);
+                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using (cancellationToken.Register(() => cancelled.TrySetCanceled(cancellationToken)))
+                {
+                    await (await Task.WhenAny(m_aborted.Task, cancelled.Task).ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                }
+            }
+
+            private readonly TaskCompletionSource<bool> m_aborted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
         /// Creates a pair of <see cref="WebSocket"/> instances connected
         /// to each other over a loopback TCP <see cref="NetworkStream"/>.
         /// The handshake is bypassed via <see cref="WebSocket.CreateFromStream"/>.
@@ -590,4 +788,4 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     }
 }
 
-#endif // NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#endif // NET5_0_OR_GREATER

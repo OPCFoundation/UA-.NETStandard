@@ -19,7 +19,7 @@
     <SelfContained>false</SelfContained>
     <!-- Pinned to net10.0 so the sample cannot participate in legacy-TFM solution
          legs; the referenced OpenUsd stack and Vision.OpenUsd provider do not
-         target net472/net48. -->
+         target net48. -->
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
   <ItemGroup>

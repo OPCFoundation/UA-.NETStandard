@@ -16,7 +16,7 @@ Planner/validator binders for HTTP, CoAP, MQTT, Modbus TCP, BACnet, PROFINET, Lo
 
 ## Target frameworks
 
-The base package targets `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, and `net10.0`. The planner, plan, codec, credential, diagnostics, and registry APIs are available on all targets. The concrete `Opc.Ua.WotCon.Bindings.Http`, `Opc.Ua.WotCon.Bindings.Modbus`, and `Opc.Ua.WotCon.Bindings.OpcUa` namespaces are available only on `net8.0`, `net9.0`, and `net10.0`.
+The base package targets `net48`, `net8.0`, `net9.0`, and `net10.0`. The planner, plan, codec, credential, diagnostics, and registry APIs are available on all targets. The concrete `Opc.Ua.WotCon.Bindings.Http`, `Opc.Ua.WotCon.Bindings.Modbus`, and `Opc.Ua.WotCon.Bindings.OpcUa` namespaces are available only on `net8.0`, `net9.0`, and `net10.0`.
 
 OPC 10101 target mapping is protocol-neutral and authored on property affordances: `uav:mapToNodeId`, `uav:mapToType`, and `uav:mapByFieldPath` are validated centrally before protocol planning.
 

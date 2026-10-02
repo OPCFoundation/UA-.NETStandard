@@ -79,6 +79,44 @@ namespace Opc.Ua.Types.Tests
             Assert.That(value.Text, Is.EqualTo(text));
         }
 
+        [TestCase("x")]
+        [TestCase("  [\"t\"]")]
+        [TestCase("{\"t\":")]
+        [TestCase("{}")]
+        public void MalformedMulLocaleBehavesAsPlainText(string text)
+        {
+            // The "mul" JSON is decoded on first use, not when the value is
+            // created; malformed text must still behave as plain text.
+            var value = new LocalizedText("mul", text);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.IsNullOrEmpty, Is.False);
+                Assert.That(value.Translations, Is.Null);
+                Assert.That(value.TranslationInfo.IsNull, Is.True);
+                Assert.That(value.AsMultiLanguage(), Is.EqualTo(value));
+                Assert.That(value.FilterByPreferredLocales(["mul"]), Is.EqualTo(value));
+                Assert.That(value.FilterByPreferredLocales(["de-DE"]), Is.EqualTo(value));
+            });
+        }
+
+        [Test]
+        public void DecodedMulLocaleResolvesTranslationsOnFirstUse()
+        {
+            const string text = "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}";
+            var value = new LocalizedText("mul", text);
+            LocalizedText copy = value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.Text, Is.EqualTo(text));
+                Assert.That(value.Translations, Has.Count.EqualTo(2));
+                Assert.That(copy.Translations, Is.SameAs(value.Translations));
+                Assert.That(value.TranslationInfo.Locale, Is.EqualTo("en-US"));
+                Assert.That(value.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Hallo"));
+            });
+        }
+
         [Test]
         public void FilteringSkipsNullAndEmptyLocaleIds()
         {

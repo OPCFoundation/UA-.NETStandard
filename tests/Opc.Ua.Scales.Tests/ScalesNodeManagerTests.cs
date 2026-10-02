@@ -977,5 +977,100 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(units, Does.Contain("Scales FeederModule"));
             Assert.That(m_fixture.Manager.Scales, Has.Count.EqualTo(2));
         }
+
+        [Test]
+        public async Task ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync()
+        {
+            await CreateAsync(ScaleKind.Simple, "S").ConfigureAwait(false);
+
+            string[] profiles = [.. m_fixture.Manager.ServerProfiles.ToList()];
+            Assert.That(profiles, Does.Contain(ScalesProfiles.BaseScale));
+            Assert.That(profiles, Does.Contain(MachineIdentificationFacet));
+
+            QualifiedName[] units = [.. m_fixture.Manager.ConformanceUnits.ToList()];
+            Assert.That(units, Does.Contain(new QualifiedName("Machinery Find Machines")));
+            Assert.That(units, Does.Contain(new QualifiedName("Machinery Machine Identification")));
+        }
+
+        [Test]
+        public async Task ScaleFacetsAreNotClaimedOutsideTheMachinesFolderAsync()
+        {
+            await m_fixture.DisposeAsync().ConfigureAwait(false);
+            m_fixture = new ScalesServerFixture();
+            await m_fixture.StartAsync(new ScalesServerOptions { OrganizeIntoMachinesFolder = false })
+                .ConfigureAwait(false);
+            await CreateAsync(ScaleKind.Simple, "S", b => b
+                .WithProductionPreset(p => p
+                    .AllowSelection()
+                    .AllowManagement()
+                    .AddProduct("P1", new LocalizedText("A")))
+                .AddFeederModule("Feeder", f => f.WithIdentification(Identity("F1"))))
+                .ConfigureAwait(false);
+            await m_fixture.Manager.CreateScaleSystemAsync(
+                m_fixture.Name("System"),
+                s => s.WithIdentification(Identity("SYS")))
+                .ConfigureAwait(false);
+
+            string[] profiles = [.. m_fixture.Manager.ServerProfiles.ToList()];
+            Assert.That(profiles, Does.Not.Contain(MachineIdentificationFacet));
+            Assert.That(profiles, Does.Not.Contain(ScalesProfiles.BaseScale));
+            Assert.That(profiles, Does.Not.Contain(ScalesProfiles.SimpleScale));
+            Assert.That(profiles, Does.Not.Contain(ScalesProfiles.FeederModule));
+            Assert.That(profiles, Does.Not.Contain(ScalesProfiles.ScaleSystem));
+            Assert.That(
+                profiles,
+                Does.Contain(ScalesProfiles.FullProductionPreset),
+                "The production preset facets do not include Machine Identification.");
+
+            string[] units = [.. m_fixture.Manager.ConformanceUnits.ToList().Select(q => q.Name ?? string.Empty)];
+            Assert.That(units, Does.Not.Contain("Machinery Find Machines"));
+            Assert.That(units, Does.Not.Contain("Machinery Machine Identification"));
+            Assert.That(units, Does.Contain("Scales ScaleDeviceType"));
+            Assert.That(units, Does.Contain("Scales SimpleScale"));
+        }
+
+        [Test]
+        public async Task KindFacetsWithoutAControllerAreNotClaimedAsync()
+        {
+            await CreateAsync(ScaleKind.TotalizingHopper, "TH").ConfigureAwait(false);
+            await CreateAsync(ScaleKind.Catchweigher, "CW").ConfigureAwait(false);
+            await CreateAsync(ScaleKind.AutomaticWeightPriceLabeler, "AWPL").ConfigureAwait(false);
+
+            string[] profiles = [.. m_fixture.Manager.ServerProfiles.ToList()];
+            Assert.That(profiles, Does.Contain(ScalesProfiles.BaseScale));
+            Assert.That(profiles, Does.Not.Contain(ScalesProfiles.TotalizingHopperScale));
+            Assert.That(profiles, Does.Not.Contain(ScalesProfiles.Catchweigher));
+            Assert.That(profiles, Does.Not.Contain(ScalesProfiles.AutomaticWeightPriceLabeler));
+
+            string[] units = [.. m_fixture.Manager.ConformanceUnits.ToList().Select(q => q.Name ?? string.Empty)];
+            Assert.That(units, Does.Contain("Scales ScaleDeviceType"));
+            Assert.That(units, Does.Not.Contain("Scales TotalizingHopperScale"));
+            Assert.That(units, Does.Not.Contain("Scales Catchweigher"));
+            Assert.That(units, Does.Not.Contain("Scales AutomaticWeightPriceLabeler"));
+        }
+
+        [Test]
+        public async Task PackMLStateInformationIsClaimedWithAPackMLStateMachineAsync()
+        {
+            await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("Bare"),
+                ScaleKind.Simple,
+                b => b
+                    .WithIdentification(Identity("B1"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 3, 0.001, 0.001)))
+                .ConfigureAwait(false);
+            var packMl = new QualifiedName(
+                "PackML State Information",
+                m_fixture.Manager.NamespaceIndices.PackML);
+
+            Assert.That(m_fixture.Manager.ConformanceUnits.ToList(), Does.Not.Contain(packMl));
+
+            await CreateAsync(ScaleKind.Simple, "WithPackML").ConfigureAwait(false);
+
+            Assert.That(m_fixture.Manager.ConformanceUnits.ToList(), Does.Contain(packMl));
+        }
+
+        private const string MachineIdentificationFacet =
+            "http://opcfoundation.org/UA-Profile/Machinery/Server/MachineIdentification";
     }
 }

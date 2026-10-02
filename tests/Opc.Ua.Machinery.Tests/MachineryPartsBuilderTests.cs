@@ -388,6 +388,70 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public async Task PredefinedParametersAdvertiseEveryParameterUnitOfTheBaseFacetAsync()
+        {
+            using var provider = new InMemoryIsa95JobControlProvider();
+            await NewMachine("Job-Units-Machine")
+                .WithJobManagement(jobs => jobs.WithJobOrderReceiver(provider).WithPredefinedParameters())
+                .BuildAsync()
+                .ConfigureAwait(false);
+
+            // OPC 40001-3 Table 24 (Machinery Job Management Base Server
+            // Facet): the units of the predefined job-order parameters.
+            string[] expected =
+            [
+                "Machinery Job Management Planned Base",
+                "Machinery Job Management Planned ExecutionMode",
+                "Machinery Job Management Planned JobName",
+                "Machinery Job Management Planned OrderNumbers",
+                "Machinery Job Management Planned Customers",
+                "Machinery Job Management Planned CustomerOrderNumbers",
+                "Machinery Job Management Planned PlannedProductionTime",
+                "Machinery Job Management Planned PlannedSetupTime",
+                "Machinery Job Management Planned PlannedTimePerRun",
+                "Machinery Job Management Planned PlannedQuantityPerRun",
+                "Machinery Job Management Planned PlannedOrderQuantity",
+                "Machinery Job Management Planned PlannedDuration",
+                "Machinery Job Management Planned JobAnnotation",
+                "Machinery Job Management Planned ComponentName",
+                "Machinery Job Management Planned DrawingNumber",
+                "Machinery Job Management Planned DrawingVersionNumber",
+                "Machinery Job Management Planned Location",
+                "Machinery Job Management Planned RelatedContainer",
+                "Machinery Job Management Result BOM",
+                "Machinery Job Management Result PerformanceInfo",
+                "Machinery Job Management Result ExecutionMode",
+                "Machinery Job Management Result JobResult",
+                "Machinery Job Management Result JobName",
+                "Machinery Job Management Result OrderNumbers",
+                "Machinery Job Management Result Customers",
+                "Machinery Job Management Result CustomerOrderNumbers",
+                "Machinery Job Management Result RunsCompleted",
+                "Machinery Job Management Result RunsStarted",
+                "Machinery Job Management Result ActualQuantityCurrentRun",
+                "Machinery Job Management Result ActualProductionTime",
+                "Machinery Job Management Result ActualUnitSetupTime",
+                "Machinery Job Management Result ActualUnitDelayTime",
+                "Machinery Job Management Result ProducedQuantity",
+                "Machinery Job Management Result GoodQuantity",
+                "Machinery Job Management Result EstimatedRemainingTime",
+                "Machinery Job Management Result ComponentName",
+                "Machinery Job Management Result DrawingNumber",
+                "Machinery Job Management Result DrawingVersionNumber",
+                "Machinery Job Management Result Location",
+                "Machinery Job Management Result RelatedContainer",
+                "Machinery Job Management Result StartTime",
+                "Machinery Job Management Result EndTime",
+                "Machinery Job Management Result ProcessIrregularity"
+            ];
+
+            QualifiedName[] units = [.. m_fixture!.Manager.ConformanceUnits];
+            Assert.That(
+                units,
+                Is.SupersetOf(Array.ConvertAll(expected, name => new QualifiedName(name))));
+        }
+
+        [Test]
         public async Task AJobParameterTheSeriesDoesNotPredefineTravelsUntouchedAsync()
         {
             using var provider = new InMemoryIsa95JobControlProvider();

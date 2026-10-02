@@ -449,7 +449,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
                 await manager.ReconnectAsync(channel, budget, ct).ConfigureAwait(false);
 #else
                 if (manager is ClientChannelManager clientChannelManager)

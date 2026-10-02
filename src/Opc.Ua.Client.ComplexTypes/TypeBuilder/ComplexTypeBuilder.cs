@@ -147,6 +147,24 @@ namespace Opc.Ua.Client.ComplexTypes
                 StructureType.StructureWithSubtypedValues or StructureType.Structure => typeof(BaseComplexType),
                 _ => throw new DataTypeNotSupportedException("Unsupported structure type")
             };
+
+            // OPC 10000-6 5.2.7: the EncodingMask has one bit per optional
+            // field, so more than 32 optional fields cannot be encoded.
+            int optionalFields = 0;
+            foreach (StructureField field in structureDefinition.Fields)
+            {
+                if (field.IsOptional)
+                {
+                    optionalFields++;
+                }
+            }
+            if (structureDefinition.StructureType == StructureType.StructureWithOptionalFields &&
+                optionalFields > Encoders.StructureWithOptionalFields.MaxOptionalFields)
+            {
+                throw new DataTypeNotSupportedException(
+                    $"The structure has more than " +
+                    $"{Encoders.StructureWithOptionalFields.MaxOptionalFields} optional fields.");
+            }
             TypeBuilder structureBuilder = m_moduleBuilder.DefineType(
                 GetFullQualifiedTypeName(name),
                 TypeAttributes.Public,

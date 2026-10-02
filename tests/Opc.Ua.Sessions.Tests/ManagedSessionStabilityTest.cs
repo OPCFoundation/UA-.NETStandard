@@ -626,7 +626,7 @@ namespace Opc.Ua.Sessions.Tests
 
             /// <summary>
             /// Stored as long so Interlocked.Exchange / Volatile.Read have
-            /// overloads on net4x (the typed uint overload is .NET 5+).
+            /// overloads on net48 (the typed uint overload is .NET 5+).
             /// Value range stays within uint at runtime.
             /// </summary>
             private long m_lastValue;

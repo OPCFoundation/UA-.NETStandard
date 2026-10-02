@@ -10370,7 +10370,7 @@ namespace Opc.Ua.Server
         protected IMonitoredItemManager m_monitoredItemManager;
         private readonly ConditionalWeakTable<ServerAggregateFilter, object>
             m_prevalidatedInitialValueRequests =
-#if NETFRAMEWORK || NETSTANDARD2_0
+#if NETFRAMEWORK
                 new();
 #else
                 [];

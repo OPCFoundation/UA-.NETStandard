@@ -15,7 +15,7 @@ without re-implementing the standard service calls by hand.
 
 ## Target frameworks
 
-`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`,
+`net48`, `net8.0`, `net9.0`,
 `net10.0`.
 
 ## Additional documentation
