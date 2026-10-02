@@ -28,12 +28,12 @@
   </ItemGroup>
   <!--
     MQTTnet dual-version: latest v5 on modern .NET targets, pinned v4.3.7.1207 on
-    netstandard2.1 / net48 / net472. Matches the dual-version pattern from the
+    net48. Matches the dual-version pattern from the
     legacy Opc.Ua.PubSub.csproj so existing deployments are not forced off
     MQTTnet v4 until they move to a modern TFM.
   -->
   <Choose>
-    <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472'">
+    <When Condition="'$(TargetFramework)' != 'net48'">
       <ItemGroup>
         <PackageReference Include="MQTTnet" />
       </ItemGroup>

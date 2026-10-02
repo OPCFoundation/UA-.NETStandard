@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Pumps.Server</AssemblyName>
+    <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC</DefineConstants>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Pumps.Server</PackageId>
+    <RootNamespace>Opc.Ua.Pumps.Server</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Server hosting for the source-generated OPC 40223 Pumps model: a DI-based node manager that materialises pumps into the DeviceSet and the Machinery Machines folder, fluent builders for the nameplate, configuration, operational, supervision, maintenance, documentation and port groups, the typed fluent accessors for the whole Pumps model, and fluent application configuration APIs.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Pumps.Tests" />
+    <InternalsVisibleTo Include="PumpDeviceIntegrationServer" />
+  </ItemGroup>
+  <!-- Opc.Ua.IA is referenced explicitly although Machinery already brings it
+       in: the node manager calls AddOpcUaIA by name when it composes the
+       predefined-node tree, because OPC 40001-1's MonitoringType/Status/
+       Stacklight is typed by the OPC 10000-200 BasicStacklightType and that
+       type definition has to be in the address space before Machinery loads. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Pumps\Opc.Ua.Pumps.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.IA\Opc.Ua.IA.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- The Pumps NodeSet is linked, not copied: with
+       ModelSourceGeneratorFluentAccessorsOnly the generator emits only the
+       typed fluent accessors here and takes the model itself from
+       Opc.Ua.Pumps, which publishes it with OmitFluentApi. That assembly has
+       to stay among the ProjectReferences above or this fails with
+       MODELGEN014. The DI and Machinery NodeSets are deliberately not linked -
+       they resolve through the [ModelDependencyAttribute] payloads their
+       assemblies carry. -->
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.Pumps\Model\Opc.Ua.Pumps.NodeSet2.xml">
+      <Link>Model\Opc.Ua.Pumps.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Pumps</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorFluentAccessorsOnly>true</ModelSourceGeneratorFluentAccessorsOnly>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// <remarks>
     /// .NET 6+ ships a public <c>ArrayBufferWriter&lt;byte&gt;</c>, but
     /// the same type is <c>internal</c> in the <c>System.Memory</c>
-    /// back-compat package shipped for netstandard2.0/net472/net48. This
+    /// back-compat package shipped for net48. This
     /// shim therefore provides a uniform pooled implementation so the
     /// JSON PubSub encoder compiles across all PubSub TFMs.
     /// </remarks>

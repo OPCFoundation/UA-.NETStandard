@@ -84,7 +84,7 @@
     <PackageReference Include="Apache.Arrow" />
   </ItemGroup>
   <Choose>
-    <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472'">
+    <When Condition="'$(TargetFramework)' != 'net48'">
       <ItemGroup>
         <PackageReference Include="MQTTnet" />
       </ItemGroup>
@@ -98,7 +98,7 @@
   <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
     <!--
       System.Net.NetworkInformation is an in-box assembly on modern TFMs
-      (netstandard2.1, net8.0+); only the .NET Framework targets need an
+      (net8.0+); only the .NET Framework targets need an
       explicit reference to the framework assembly.
     -->
     <Reference Include="System.Net.NetworkInformation" />

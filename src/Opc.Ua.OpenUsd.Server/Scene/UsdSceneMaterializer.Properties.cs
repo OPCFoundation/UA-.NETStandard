@@ -242,8 +242,8 @@ namespace Opc.Ua.OpenUsd.Server.Scene
             foreach (UsdCompositionArc arc in prim.Composition)
             {
                 // string.Create(IFormatProvider, ...) is .NET 6+; concatenation with an
-                // invariant-culture index keeps the Server compiling on net472/net48/
-                // netstandard2.1 while staying culture-independent.
+                // invariant-culture index keeps the Server compiling on net48
+                // while staying culture-independent.
                 string name = arc.ArcKind.ToString() + "_" +
                     index.ToString(CultureInfo.InvariantCulture);
                 index++;

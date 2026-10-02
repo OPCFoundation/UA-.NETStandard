@@ -149,6 +149,55 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <summary>
+        /// T1-2: the rank of a matrix property is fixed by the field's ValueRank,
+        /// while a decoded matrix has whatever rank the wire said. An empty
+        /// matrix of another rank becomes an empty array of the field's rank; a
+        /// populated one is a decoding error instead of an ArgumentException out
+        /// of PropertyInfo.SetValue, which bypassed the decoder's handling.
+        /// </summary>
+        [Test]
+        public void MatrixOfAnotherRankIsNormalizedWhenEmptyAndRejectedWhenPopulated(
+            [Values] bool structure,
+            [Values] bool populated)
+        {
+            var holder = new StructurePropertyHolder();
+            string propertyName = structure
+                ? nameof(StructurePropertyHolder.Matrix)
+                : nameof(StructurePropertyHolder.Int32Matrix);
+            var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
+            var property = new ComplexTypePropertyInfo(
+                reflectionProperty,
+                new StructureFieldAttribute
+                {
+                    BuiltInType = (int)(structure ? BuiltInType.Null : BuiltInType.Int32),
+                    ValueRank = ValueRanks.TwoDimensions
+                },
+                new DataMemberAttribute { Name = propertyName });
+            int length = populated ? 1 : 0;
+            var structures = new IEncodeable[length, length, length];
+            if (populated)
+            {
+                structures[0, 0, 0] = new Argument();
+            }
+            Variant value = structure
+                ? Variant.FromStructure(MatrixOf.From<IEncodeable>(structures))
+                : Variant.From(MatrixOf.From<int>(new int[length, length, length]));
+
+            if (populated)
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => property.SetValue(holder, value));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                return;
+            }
+
+            property.SetValue(holder, value);
+            var actual = (Array)reflectionProperty.GetValue(holder);
+            Assert.That(actual.Rank, Is.EqualTo(2));
+            Assert.That(actual, Has.Length.Zero);
+        }
+
+        /// <summary>
         /// ExtensionObject collection properties retain their wrapper representation.
         /// </summary>
         [Test]
@@ -326,6 +375,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             public ExtensionObject[] ExtensionArray { get; set; }
 
             public ExtensionObject[,] ExtensionMatrix { get; set; }
+
+            public int[,] Int32Matrix { get; set; }
         }
     }
 }

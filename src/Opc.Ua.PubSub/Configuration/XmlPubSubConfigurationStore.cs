@@ -301,7 +301,7 @@ namespace Opc.Ua.PubSub.Configuration
             byte[] buffer = new byte[FileBufferSize];
             while (true)
             {
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
                 int read = await stream.ReadAsync(
                     buffer.AsMemory(),
                     cancellationToken)
@@ -335,7 +335,7 @@ namespace Opc.Ua.PubSub.Configuration
                 FileShare.None,
                 FileBufferSize,
                 useAsync: true);
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
             await stream.WriteAsync(
                 payload.AsMemory(),
                 cancellationToken)

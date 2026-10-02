@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddEccSignPolicies();
 
                 ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
                 Assert.That(policies.Count, Is.GreaterThan(0));
 #else
                 Assert.That(policies, Is.Empty, "Raw ECDH policies require a net8+ stack build.");
@@ -1037,7 +1037,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddEccSignAndEncryptPolicies();
 
                 ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
                 Assert.That(policies.Count, Is.GreaterThan(0));
 #else
                 Assert.That(policies, Is.Empty, "Raw ECDH policies require a net8+ stack build.");

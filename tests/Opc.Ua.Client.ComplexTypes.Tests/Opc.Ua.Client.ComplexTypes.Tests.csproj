@@ -21,9 +21,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
-    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>

@@ -487,9 +487,26 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     nextReconnect.TrySetResult(true);
                 }
             };
+
+            // The recovery started by the failed keepalive restarts the keepalive with an immediate read
+            // that can land while the channel entry still restores after Ready, where suppression is
+            // intended. Fail only one read, so that follow-up read is Good however quickly recovery runs,
+            // and observe the suppression decision synchronously: the managed session makes it before it
+            // raises the event.
+            int failedKeepAlives = 0;
+            bool failureSuppressed = false;
+            harness.Session.KeepAlive += (_, args) =>
+            {
+                if (args.Status != null && ServiceResult.IsBad(args.Status) &&
+                    Interlocked.Increment(ref failedKeepAlives) == 1)
+                {
+                    failureSuppressed = harness.Logs.Records.Any(
+                        record => record.EventId.Name == "ManagedSessionKeepAliveFailureSuppressedWhile");
+                }
+            };
             var keepAliveInterval = TimeSpan.FromMilliseconds(100);
             Task keepAliveTimer = harness.Clock.WaitForTimerChangedAsync(keepAliveInterval, keepAliveInterval);
-            harness.KeepAliveStatus = StatusCodes.BadNoCommunication;
+            harness.FailNextKeepAlive(StatusCodes.BadNoCommunication);
             harness.Session.KeepAliveInterval = (int)keepAliveInterval.TotalMilliseconds;
             await WaitForPhaseAsync(keepAliveTimer, "replacement keepalive timer").ConfigureAwait(false);
             harness.Clock.Advance(keepAliveInterval);
@@ -497,7 +514,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 await WaitForPhaseAsync(harness.FailedKeepAlive, "failed keepalive on the usable replacement")
                     .ConfigureAwait(false),
                 Is.EqualTo(StatusCodes.BadNoCommunication));
-            harness.KeepAliveStatus = StatusCodes.Good;
             await Task.WhenAny(nextReconnect.Task, Task.Delay(PhaseTimeout, harness.CancellationToken))
                 .ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -505,8 +521,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Assert.That(recoveryStillMarked, Is.False, "The cancelled cycle must not mark the surviving session.");
                 Assert.That(nextReconnect.Task.IsCompleted, Is.True,
                     "A real failed keepalive must start another outer recovery after the replacement is usable.");
-                Assert.That(harness.Logs.Records.Any(
-                    record => record.EventId.Name == "ManagedSessionKeepAliveFailureSuppressedWhile"), Is.False);
+                Assert.That(failureSuppressed, Is.False,
+                    "The failed keepalive on the usable replacement must not be suppressed.");
             });
             await WaitForPhaseAsync(
                 harness.Session.StateMachine.WaitForConnectedAsync(harness.CancellationToken).AsTask(),

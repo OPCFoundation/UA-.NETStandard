@@ -767,7 +767,7 @@ namespace Opc.Ua.Redundancy.Server
             public ConcurrentDictionary<NodeId, bool> RetainedIds { get; } = new();
 
             public ConditionalWeakTable<NodeState, InboundRegistration> InboundNodes { get; } =
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 [];
 #else
                 new();

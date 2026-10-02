@@ -255,7 +255,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             managedChannel.SetupGet(c => c.MessageContext).Returns(messageContext);
 
             var channelManager = new Mock<IClientChannelManager>();
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             IRetryBudget? capturedBudget = null;
             channelManager.Setup(m => m.ReconnectAsync(
                     managedChannel.Object,
@@ -290,7 +290,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             Assert.That(capturedBudget, Is.SameAs(budget));
 #else
             channelManager.Verify(m => m.ReconnectAsync(
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             ConfiguredEndpoint? capturedEndpoint = null;
             var channelManager = new Mock<IClientChannelManager>();
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             channelManager.Setup(m => m.ReconnectAsync(
                     managedChannel.Object,
                     It.IsAny<IRetryBudget>(),
@@ -427,7 +427,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             var channel = new Mock<IManagedTransportChannel>();
             channel.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
             var manager = new Mock<IClientChannelManager>();
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             manager.Setup(value => value.ReconnectAsync(
                     channel.Object, It.IsAny<IRetryBudget>(), It.IsAny<CancellationToken>()))
 #else

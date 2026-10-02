@@ -1103,10 +1103,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseCatchBlockOnInvalidEscape()
         {
-            // A truncated percent-escape at end triggers ServiceResultException, caught → Unexpected
+            // A truncated percent-escape is not a valid RFC 3986 escape.
             bool success = ExpandedNodeId.TryParse("nsu=http://test%2;i=1", out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
-            Assert.That(error, Is.EqualTo(NodeIdParseError.Unexpected));
+            Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidNamespaceUri));
         }
 
         [Test]
@@ -1553,7 +1553,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             bool success = ExpandedNodeId.TryParse("nsu=http://test%XZ;i=1", out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
-            Assert.That(error, Is.EqualTo(NodeIdParseError.Unexpected));
+            Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidNamespaceUri));
         }
 
         [Test]
@@ -1561,7 +1561,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             bool success = ExpandedNodeId.TryParse("nsu=http://test%3X;i=1", out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
-            Assert.That(error, Is.EqualTo(NodeIdParseError.Unexpected));
+            Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidNamespaceUri));
         }
 
         [Test]

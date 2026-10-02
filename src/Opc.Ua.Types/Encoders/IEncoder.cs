@@ -171,7 +171,7 @@ namespace Opc.Ua
         /// </summary>
         void WriteByteString(string? fieldName, ByteString value);
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>

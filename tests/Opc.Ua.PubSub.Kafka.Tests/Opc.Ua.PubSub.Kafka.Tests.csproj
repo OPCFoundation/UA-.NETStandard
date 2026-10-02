@@ -27,7 +27,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' AND '$(TargetFramework)' != 'net472'">
+  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
     <PackageReference Include="Testcontainers.Kafka" />
   </ItemGroup>
   <ItemGroup>

@@ -16,13 +16,11 @@ correctly.
 ## Supported consumer target frameworks
 
 The migration package's runtime shim DLL (`Opc.Ua.MigrationAnalyzer.Core.dll`)
-ships in 6 TFMs:
+ships in 4 TFMs:
 
 | TFM | Shipped? | OPC UA 2.0 main packages? |
 |---|---|---|
-| `net472` | ✅ | ✅ |
 | `net48` | ✅ | ✅ |
-| `netstandard2.1` | ✅ | ✅ |
 | `net8.0` | ✅ | ✅ (LTS) |
 | `net9.0` | ✅ | ✅ (STS) |
 | `net10.0` | ✅ | ✅ (LTS, current) |

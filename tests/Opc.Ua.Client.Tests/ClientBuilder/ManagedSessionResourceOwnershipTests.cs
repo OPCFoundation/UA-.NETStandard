@@ -119,7 +119,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 #if NET8_0_OR_GREATER
                 byte[] body = await message.Content!.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
 #else
-                byte[] body = await message.Content!.ReadAsByteArrayAsync().ConfigureAwait(false);
+                // .NET Framework's ReadAsByteArrayAsync has no token and buffers
+                // the content through Stream.BeginWrite on a thread-pool thread,
+                // so a starved runner stalls the open past every timeout. The
+                // stream of a ByteArrayContent is created synchronously.
+                using System.IO.Stream stream = await message.Content!.ReadAsStreamAsync().ConfigureAwait(false);
+                using var buffer = new System.IO.MemoryStream();
+                stream.CopyTo(buffer);
+                byte[] body = buffer.ToArray();
 #endif
                 var options = new JsonDecoderOptions { UpdateNamespaceTable = true };
                 IServiceRequest request = message.RequestUri!.AbsolutePath switch

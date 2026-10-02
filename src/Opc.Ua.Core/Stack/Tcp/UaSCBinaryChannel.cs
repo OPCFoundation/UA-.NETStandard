@@ -479,8 +479,19 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Tracks a reconnect's continued sequence until the retained channel can validate it.
+        /// Checks if the sequence number is valid.
         /// </summary>
+        /// <remarks>
+        /// Every chunk must carry exactly the next sequence number (OPC 10000-6 6.7.2.4):
+        /// a SecureChannel is closed if a SequenceNumber is missed (OPC 10000-2 5.1.14).
+        /// Only a reconnect on a new socket may skip numbers, because the chunks sent on the
+        /// dropped connection are lost; it may still not go back.
+        /// </remarks>
+        /// <param name="sequenceNumber">The received sequence number.</param>
+        /// <param name="context">The context to log a rejected number with.</param>
+        /// <param name="reconnecting">
+        /// Whether the chunk is the OpenSecureChannel of a reconnect on a new socket.
+        /// </param>
         private protected bool VerifySequenceNumberCore(uint sequenceNumber, string context, bool reconnecting)
         {
             // Accept the first sequence number depending on security policy
@@ -494,35 +505,11 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
             }
-            else if (sequenceNumber > m_remoteSequenceNumber)
+            else if (IsNextSequenceNumber(sequenceNumber, usesLegacySequenceNumbers) ||
+                (reconnecting && IsLaterSequenceNumber(sequenceNumber)))
             {
-                // everything ok if new number is greater.
                 m_remoteSequenceNumber = sequenceNumber;
-                if (m_sequenceRollover &&
-                    sequenceNumber >= TcpMessageLimits.MaxRolloverSequenceNumber &&
-                    sequenceNumber <= TcpMessageLimits.MinSequenceNumber)
-                {
-                    // The counter traversed the normal range, so the guard against repeated
-                    // low numbers right after a wrap has served its purpose. Part 6 does not
-                    // cap a channel at a single wrap, and a long-lived busy channel reaches
-                    // the next legal one.
-                    m_sequenceRollover = false;
-                }
                 return true;
-            }
-            else if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
-                sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber)
-            {
-                // check for a valid rollover.
-                // only one rollover per rollover window is allowed and with valid values
-                // depending on security policy
-                if (!m_sequenceRollover &&
-                    (usesLegacySequenceNumbers || sequenceNumber == 0))
-                {
-                    m_sequenceRollover = true;
-                    m_remoteSequenceNumber = sequenceNumber;
-                    return true;
-                }
             }
 
             if (m_logger.IsEnabled(LogLevel.Error))
@@ -534,6 +521,43 @@ namespace Opc.Ua.Bindings
                     m_remoteSequenceNumber);
             }
             return false;
+        }
+
+        /// <summary>
+        /// Whether the number directly follows the last received one, including a valid wrap
+        /// around (OPC 10000-6 6.7.2.4).
+        /// </summary>
+        private bool IsNextSequenceNumber(uint sequenceNumber, bool usesLegacySequenceNumbers)
+        {
+            if (m_remoteSequenceNumber != uint.MaxValue && sequenceNumber == m_remoteSequenceNumber + 1)
+            {
+                return true;
+            }
+
+            if (usesLegacySequenceNumbers)
+            {
+                // the counter wraps before it exceeds UInt32.MaxValue - 1024 and the first
+                // number after the wrap around is less than 1024.
+                return m_remoteSequenceNumber >= TcpMessageLimits.MinSequenceNumber &&
+                    sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber;
+            }
+
+            // the first number after UInt32.MaxValue is 0.
+            return m_remoteSequenceNumber == uint.MaxValue && sequenceNumber == 0;
+        }
+
+        /// <summary>
+        /// Whether the number lies ahead of the last received one, allowing for a wrap around.
+        /// </summary>
+        /// <remarks>
+        /// Serial number arithmetic (RFC 1982): the number is ahead when its forward
+        /// distance from the last one is less than half the range, so a number from
+        /// before a wrap around is not accepted again after the counter wrapped.
+        /// </remarks>
+        private bool IsLaterSequenceNumber(uint sequenceNumber)
+        {
+            uint distance = unchecked(sequenceNumber - m_remoteSequenceNumber);
+            return distance != 0 && distance < 0x80000000u;
         }
 
         /// <summary>
@@ -1556,18 +1580,77 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
         {
-            string? reason = error.LocalizedText.Text;
+            WriteErrorMessageBody(encoder, error, TcpMessageLimits.MaxErrorReasonLength);
+        }
 
-            // check that length is not exceeded.
-            if (reason != null &&
-                Encoding.UTF8.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
-            {
-                reason = reason[
-                    ..(TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1))];
-            }
+        /// <summary>
+        /// Writes an error to a stream, truncating the reason to at most
+        /// <paramref name="maxReasonLength"/> UTF-8 bytes.
+        /// </summary>
+        internal static void WriteErrorMessageBody(
+            BinaryEncoder encoder,
+            ServiceResult error,
+            int maxReasonLength)
+        {
+            // OPC 10000-6 §7.1.2.5: the Reason shall not be more than 4096 bytes.
+            string? reason = TruncateUtf8(
+                error.LocalizedText.Text,
+                Math.Min(maxReasonLength, TcpMessageLimits.MaxErrorReasonLength));
 
             encoder.WriteStatusCode(null, error.StatusCode);
             encoder.WriteString(null, reason);
+        }
+
+        /// <summary>
+        /// Truncates a string so that its UTF-8 form is at most
+        /// <paramref name="maxByteCount"/> bytes, without splitting a
+        /// surrogate pair.
+        /// </summary>
+        internal static string? TruncateUtf8(string? text, int maxByteCount)
+        {
+            if (text == null || Encoding.UTF8.GetByteCount(text) <= maxByteCount)
+            {
+                return text;
+            }
+
+            int byteCount = 0;
+            int length = 0;
+            while (length < text.Length)
+            {
+                char current = text[length];
+                int charCount = 1;
+                int scalarByteCount;
+                if (char.IsHighSurrogate(current) &&
+                    length + 1 < text.Length &&
+                    char.IsLowSurrogate(text[length + 1]))
+                {
+                    charCount = 2;
+                    scalarByteCount = 4;
+                }
+                else if (current < 0x80)
+                {
+                    scalarByteCount = 1;
+                }
+                else if (current < 0x800)
+                {
+                    scalarByteCount = 2;
+                }
+                else
+                {
+                    // includes a lone surrogate, encoded as U+FFFD.
+                    scalarByteCount = 3;
+                }
+
+                if (byteCount + scalarByteCount > maxByteCount)
+                {
+                    break;
+                }
+
+                byteCount += scalarByteCount;
+                length += charCount;
+            }
+
+            return text[..length];
         }
 
         /// <summary>
@@ -1583,7 +1666,7 @@ namespace Opc.Ua.Bindings
             // ensure the reason does not exceed the limits in the protocol.
             int reasonLength = decoder.ReadInt32(null);
 
-            if (reasonLength is > 0 and < TcpMessageLimits.MaxErrorReasonLength)
+            if (reasonLength is > 0 and <= TcpMessageLimits.MaxErrorReasonLength)
             {
                 byte[] reasonBytes = new byte[reasonLength];
 
@@ -1855,7 +1938,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpMessageTypeInvalid,
-                    "Expected message type {0:X8} instead of {0:X8}.",
+                    "Expected message type {0:X8} instead of {1:X8}.",
                     expectedMessageType,
                     messageType);
             }
@@ -1891,7 +1974,6 @@ namespace Opc.Ua.Bindings
         private long m_sequenceNumber;
         private long m_localSequenceNumber;
         private uint m_remoteSequenceNumber;
-        private bool m_sequenceRollover;
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;

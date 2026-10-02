@@ -237,7 +237,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             // The [Experimental] attribute is only emitted when Opc.Ua.Server is
             // compiled for .NET 8 or later (the attribute type does not exist in
-            // the netstandard2.1 / .NET Framework BCL). This test assembly is
+            // the .NET Framework BCL). This test assembly is
             // always compiled for net8.0, so a compile-time #if would reflect the
             // TEST target framework, not the STACK's. Probe the actual compiled
             // target framework of the Opc.Ua.Server assembly under test instead.

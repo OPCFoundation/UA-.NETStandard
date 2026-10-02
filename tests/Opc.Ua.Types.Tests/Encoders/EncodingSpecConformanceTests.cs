@@ -319,6 +319,33 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         /// <summary>
+        /// The EncodingMask is a 32-bit unsigned integer with exactly one bit
+        /// per optional field (OPC 10000-6 5.2.7): the 32nd optional field
+        /// gets the top bit and a 33rd cannot be represented, so the type is
+        /// rejected instead of silently never encoding that field.
+        /// </summary>
+        [Test]
+        public void MoreThanThirtyTwoOptionalFieldsAreRejected()
+        {
+            (string, NodeId, BuiltInType, bool)[] Fields(int count)
+            {
+                return [.. Enumerable.Range(0, count).Select(
+                    i => ("F" + i, DataTypeIds.Int32, BuiltInType.Int32, true))];
+            }
+
+            var structure = (StructureWithOptionalFields)CreateStructure(
+                StructureType.StructureWithOptionalFields,
+                Fields(StructureWithOptionalFields.MaxOptionalFields));
+            Assert.That(structure.PropertyList[^1].OptionalFieldMask, Is.EqualTo(0x80000000u));
+
+            Assert.That(
+                () => CreateStructure(
+                    StructureType.StructureWithOptionalFields,
+                    Fields(StructureWithOptionalFields.MaxOptionalFields + 1)),
+                Throws.ArgumentException);
+        }
+
+        /// <summary>
         /// Binary decoders report an error if EncodingMask bits that are not
         /// assigned to an optional field are set (OPC 10000-6 5.2.7); XML
         /// decoders ignore them (5.3.6).

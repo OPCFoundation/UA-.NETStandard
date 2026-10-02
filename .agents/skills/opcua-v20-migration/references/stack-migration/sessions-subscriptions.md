@@ -517,7 +517,7 @@ services
 > package. Reference that package directly; Server and GDS packages do not
 > pull the optional binding transitively. The Kestrel-hosted `opc.tcp://` listener
 > (`AddKestrelOpcTcpTransport()`) is available on `net8.0`+ only; on the
-> .NET Framework / netstandard targets keep the default raw-socket
+> .NET Framework targets keep the default raw-socket
 > `opc.tcp` listener that ships in `Opc.Ua.Core`.
 
 Every `Add*Transport()` extension installs an `ITransportBindingConfigurator` instance into the `IServiceCollection`. The `DefaultTransportBindingRegistry` singleton runs every registered configurator in registration order at first resolution time, so the **last** registration for a given URI scheme wins — exactly the same semantics `SetBinding` had, but scoped per `IServiceProvider`.

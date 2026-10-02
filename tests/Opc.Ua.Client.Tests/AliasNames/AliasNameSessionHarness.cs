@@ -56,6 +56,11 @@ namespace Opc.Ua.Client.Tests.AliasNames
         public Func<BrowseDescription, BrowseResult> BrowseHandler { get; set; }
         public Func<ByteString, BrowseResult> BrowseNextHandler { get; set; }
 
+        /// <summary>
+        /// Subtype to supertype pairs the node cache answers type checks from.
+        /// </summary>
+        public Dictionary<ExpandedNodeId, ExpandedNodeId> Supertypes { get; } = [];
+
         public Func<BrowsePath, BrowsePathResult> BrowsePathHandler { get; set; }
 
         private AliasNameSessionHarness(
@@ -76,6 +81,30 @@ namespace Opc.Ua.Client.Tests.AliasNames
             sessionMock.SetupGet(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
 
             var harness = new AliasNameSessionHarness(sessionMock, messageContext);
+
+            var nodeCache = new Mock<INodeCache>(MockBehavior.Loose);
+            nodeCache
+                .Setup(c => c.IsTypeOfAsync(
+                    It.IsAny<ExpandedNodeId>(),
+                    It.IsAny<ExpandedNodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<ExpandedNodeId, ExpandedNodeId, CancellationToken>(
+                    (subType, superType, _) =>
+                    {
+                        ExpandedNodeId current = subType;
+                        while (!current.IsNull)
+                        {
+                            if (current == superType)
+                            {
+                                return new ValueTask<bool>(true);
+                            }
+                            current = harness.Supertypes.TryGetValue(current, out ExpandedNodeId next)
+                                ? next
+                                : ExpandedNodeId.Null;
+                        }
+                        return new ValueTask<bool>(false);
+                    });
+            sessionMock.SetupGet(s => s.NodeCache).Returns(nodeCache.Object);
 
             sessionMock
                 .Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(

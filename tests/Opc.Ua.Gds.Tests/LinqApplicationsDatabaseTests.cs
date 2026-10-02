@@ -410,7 +410,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS // the netstandard2.1 library has no link/mode APIs
+#if NET8_0_OR_GREATER // .NET Framework has no link/mode APIs
         /// <summary>
         /// A database file that is a symbolic link keeps being a link: the
         /// save updates the link target.

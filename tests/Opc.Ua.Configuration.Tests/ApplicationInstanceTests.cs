@@ -41,7 +41,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-#if NETCOREAPP2_1_OR_GREATER && !NET_STANDARD_TESTS
+#if NETCOREAPP2_1_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
 
@@ -670,7 +670,7 @@ namespace Opc.Ua.Configuration.Tests
         [Repeat(2)]
         public async Task TestNoFileConfigAsServerX509StoreAsync()
         {
-#if NETCOREAPP2_1_OR_GREATER && !NET_STANDARD_TESTS
+#if NETCOREAPP2_1_OR_GREATER
             // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {

@@ -6,9 +6,6 @@
     <GenerateProgramFile>false</GenerateProgramFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
-    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

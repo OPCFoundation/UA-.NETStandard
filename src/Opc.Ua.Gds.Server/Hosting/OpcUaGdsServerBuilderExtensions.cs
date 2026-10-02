@@ -29,6 +29,9 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -40,6 +43,7 @@ using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
@@ -281,6 +285,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the built-in GDS identity authenticators that can be
         /// resolved from DI and server state.
         /// </summary>
+        /// <remarks>
+        /// UserName and X.509 tokens are handled by the GDS's own
+        /// authenticators and not by the generic ones. The UserName
+        /// authenticator grants the roles the <see cref="IUserDatabase"/>
+        /// assigns (DiscoveryAdmin, CertificateAuthorityAdmin, ...;
+        /// OPC 10000-12 §6.2, §7.2); the X.509 authenticator validates the
+        /// certificate against the configured user trust list and grants
+        /// AuthenticatedUser. Authenticators added with
+        /// <see cref="AddIdentityAuthenticator{TAuth}(IGdsServerBuilder)"/>
+        /// still replace them.
+        /// </remarks>
         /// <param name="gdsBuilder">The GDS server builder.</param>
         /// <param name="configure">Callback used to populate
         /// <see cref="GdsDefaultIdentityAuthenticatorOptions"/>.</param>
@@ -291,7 +306,10 @@ namespace Microsoft.Extensions.DependencyInjection
             this IGdsServerBuilder gdsBuilder,
             Action<GdsDefaultIdentityAuthenticatorOptions> configure)
         {
-            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (gdsBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(gdsBuilder));
+            }
             if (configure is null)
             {
                 throw new ArgumentNullException(nameof(configure));
@@ -299,23 +317,125 @@ namespace Microsoft.Extensions.DependencyInjection
 
             var options = new GdsDefaultIdentityAuthenticatorOptions();
             configure(options);
-            serverBuilder.AddDefaultIdentityAuthenticators(
-                serverOptions => CopyDefaultAuthenticatorOptions(serverOptions, options));
-            if (options.EnableGdsApplicationSelfAdminProvider)
+            return RegisterDefaultIdentityAuthenticators(gdsBuilder, options);
+        }
+
+        /// <summary>
+        /// Registers a singleton task the hosted GDS runs once it has
+        /// started. Tasks run in registration order and a failing task stops
+        /// the GDS startup. Repeated registration of the same task type is
+        /// idempotent.
+        /// </summary>
+        /// <remarks>
+        /// A task registered here runs on the GDS only, also when a regular
+        /// server shares the service collection. A task registered directly
+        /// as <see cref="IServerStartupTask"/> runs on the GDS only when no
+        /// regular server (<c>AddServer</c>) is registered.
+        /// </remarks>
+        /// <typeparam name="TTask">The startup task type.</typeparam>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddStartupTask<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTask>(
+                this IGdsServerBuilder gdsBuilder)
+            where TTask : class, IServerStartupTask
+        {
+            if (gdsBuilder is null)
             {
-                AddGdsApplicationSelfAdminProvider(gdsBuilder);
+                throw new ArgumentNullException(nameof(gdsBuilder));
             }
-            else
+
+            gdsBuilder.Services.TryAddSingleton<TTask>();
+            if (!HasRegistration<GdsServerStartupTaskRegistration>(
+                gdsBuilder.Services,
+                registration => registration.TaskType == typeof(TTask)))
             {
-                SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
+                gdsBuilder.Services.AddSingleton(new GdsServerStartupTaskRegistration(
+                    sp => sp.GetRequiredService<TTask>(),
+                    typeof(TTask)));
             }
             return gdsBuilder;
         }
 
         /// <summary>
-        /// Configures the default role manager used by the hosted GDS server
+        /// Registers an asynchronous callback the hosted GDS runs once it has
+        /// started. Callbacks run in registration order and a failing
+        /// callback stops the GDS startup.
+        /// </summary>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <param name="callback">The callback.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// or <paramref name="callback"/> is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddStartupTask(
+            this IGdsServerBuilder gdsBuilder,
+            Func<IServiceProvider, IServerContext, CancellationToken, ValueTask> callback)
+        {
+            if (gdsBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(gdsBuilder));
+            }
+            if (callback is null)
+            {
+                throw new ArgumentNullException(nameof(callback));
+            }
+
+            gdsBuilder.Services.AddSingleton(new GdsServerStartupTaskRegistration(
+                sp => new DelegateGdsServerStartupTask(sp, callback)));
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Registers a singleton task the hosted GDS runs while it starts,
+        /// once the server context exists and before the address space is
+        /// created. Repeated registration of the same task type is idempotent.
+        /// </summary>
+        /// <remarks>
+        /// A task registered here runs on the GDS only. A task registered
+        /// directly as <see cref="IServerPreStartupTask"/> runs on the GDS
+        /// only when no regular server (<c>AddServer</c>) is registered.
+        /// </remarks>
+        /// <typeparam name="TTask">The pre-startup task type.</typeparam>
+        /// <param name="gdsBuilder">The GDS server builder.</param>
+        /// <returns>The same <see cref="IGdsServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="gdsBuilder"/>
+        /// is <c>null</c>.</exception>
+        public static IGdsServerBuilder AddPreStartupTask<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTask>(
+                this IGdsServerBuilder gdsBuilder)
+            where TTask : class, IServerPreStartupTask
+        {
+            if (gdsBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(gdsBuilder));
+            }
+
+            gdsBuilder.Services.TryAddSingleton<TTask>();
+            if (!HasRegistration<GdsServerPreStartupTaskRegistration>(
+                gdsBuilder.Services,
+                registration => registration.TaskType == typeof(TTask)))
+            {
+                gdsBuilder.Services.AddSingleton(new GdsServerPreStartupTaskRegistration(
+                    sp => sp.GetRequiredService<TTask>(),
+                    typeof(TTask)));
+            }
+            return gdsBuilder;
+        }
+
+        /// <summary>
+        /// Configures the role manager used by the hosted GDS server
         /// using configuration binding.
         /// </summary>
+        /// <remarks>
+        /// The role manager maps identities to Roles through the configured
+        /// identity mapping rules (OPC 10000-18 §4.4), so a rule can grant a
+        /// GDS role such as DiscoveryAdmin to a user or certificate. When a
+        /// regular server (<c>AddServer</c>) shares the service collection,
+        /// the role manager belongs to that server and the GDS keeps its
+        /// default one.
+        /// </remarks>
         /// <param name="gdsBuilder">The GDS server builder.</param>
         /// <param name="section">Configuration section bound to
         /// <see cref="RoleConfigurationOptions"/>.</param>
@@ -365,26 +485,18 @@ namespace Microsoft.Extensions.DependencyInjection
             this IGdsServerBuilder gdsBuilder,
             IConfiguration section)
         {
-            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            if (gdsBuilder is null)
+            {
+                throw new ArgumentNullException(nameof(gdsBuilder));
+            }
             if (section is null)
             {
                 throw new ArgumentNullException(nameof(section));
             }
 
-            serverBuilder.AddDefaultIdentityAuthenticators(
-                section);
-            if (GetBoolean(
-                section,
-                nameof(GdsDefaultIdentityAuthenticatorOptions.EnableGdsApplicationSelfAdminProvider),
-                defaultValue: true))
-            {
-                AddGdsApplicationSelfAdminProvider(gdsBuilder);
-            }
-            else
-            {
-                SuppressBuiltInGdsApplicationSelfAdminProvider(gdsBuilder.Services);
-            }
-            return gdsBuilder;
+            return RegisterDefaultIdentityAuthenticators(
+                gdsBuilder,
+                BindDefaultAuthenticatorOptions(section));
         }
 
         /// <summary>
@@ -581,10 +693,101 @@ namespace Microsoft.Extensions.DependencyInjection
             target.ClockSkewTolerance = source.ClockSkewTolerance;
         }
 
+        private static IGdsServerBuilder RegisterDefaultIdentityAuthenticators(
+            IGdsServerBuilder gdsBuilder,
+            GdsDefaultIdentityAuthenticatorOptions options)
+        {
+            IOpcUaServerBuilder serverBuilder = ToServerBuilder(gdsBuilder);
+            IServiceCollection services = gdsBuilder.Services;
+
+            // The generic default set stays registered for a regular server that
+            // shares the service collection; the hosted GDS takes UserName and
+            // X.509 from its own authenticators instead (see
+            // GdsDefaultIdentityAuthenticatorsRegistration).
+            serverBuilder.AddDefaultIdentityAuthenticators(
+                serverOptions => CopyDefaultAuthenticatorOptions(serverOptions, options));
+            services.AddSingleton(new GdsDefaultIdentityAuthenticatorsRegistration(options));
+
+            if (options.EnableGdsApplicationSelfAdminProvider)
+            {
+                AddGdsApplicationSelfAdminProvider(gdsBuilder);
+            }
+            else
+            {
+                SuppressBuiltInGdsApplicationSelfAdminProvider(services);
+            }
+            return gdsBuilder;
+        }
+
+        private static GdsDefaultIdentityAuthenticatorOptions BindDefaultAuthenticatorOptions(
+            IConfiguration section)
+        {
+            var options = new GdsDefaultIdentityAuthenticatorOptions
+            {
+                EnableAnonymous = GetBoolean(
+                    section,
+                    nameof(GdsDefaultIdentityAuthenticatorOptions.EnableAnonymous),
+                    defaultValue: true),
+                EnableUserNamePassword = GetBoolean(
+                    section,
+                    nameof(GdsDefaultIdentityAuthenticatorOptions.EnableUserNamePassword),
+                    defaultValue: true),
+                EnableX509 = GetBoolean(
+                    section,
+                    nameof(GdsDefaultIdentityAuthenticatorOptions.EnableX509),
+                    defaultValue: true),
+                EnableJwt = GetBoolean(
+                    section,
+                    nameof(GdsDefaultIdentityAuthenticatorOptions.EnableJwt),
+                    defaultValue: true),
+                EnableGdsApplicationSelfAdminProvider = GetBoolean(
+                    section,
+                    nameof(GdsDefaultIdentityAuthenticatorOptions.EnableGdsApplicationSelfAdminProvider),
+                    defaultValue: true)
+            };
+
+            string? expectedAudience = section[nameof(GdsDefaultIdentityAuthenticatorOptions.ExpectedAudience)];
+            if (!string.IsNullOrEmpty(expectedAudience))
+            {
+                options.ExpectedAudience = expectedAudience;
+            }
+
+            string? clockSkew = section[nameof(GdsDefaultIdentityAuthenticatorOptions.ClockSkewTolerance)];
+            if (!string.IsNullOrEmpty(clockSkew) &&
+                TimeSpan.TryParse(clockSkew, CultureInfo.InvariantCulture, out TimeSpan parsedClockSkew))
+            {
+                options.ClockSkewTolerance = parsedClockSkew;
+            }
+
+            string? trustList = section[nameof(GdsDefaultIdentityAuthenticatorOptions.UserCertificateTrustList)] ??
+                section.GetSection(nameof(GdsDefaultIdentityAuthenticatorOptions.UserCertificateTrustList))["Name"];
+            if (!string.IsNullOrEmpty(trustList))
+            {
+                options.UserCertificateTrustList = new TrustListIdentifier(trustList);
+            }
+
+            return options;
+        }
+
         private static bool GetBoolean(IConfiguration section, string key, bool defaultValue)
         {
             string? value = section[key];
             return string.IsNullOrEmpty(value) ? defaultValue : bool.Parse(value);
+        }
+
+        private static bool HasRegistration<T>(IServiceCollection services, Func<T, bool> predicate)
+            where T : class
+        {
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (descriptor.ServiceType == typeof(T) &&
+                    descriptor.ImplementationInstance is T registration &&
+                    predicate(registration))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private sealed class ForwardingServerBuilder : IOpcUaServerBuilder
