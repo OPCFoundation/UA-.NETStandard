@@ -138,6 +138,60 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.IsEventContainedInQueue(instance), Is.True);
             Assert.That(queue.IsEventContainedInQueue(new Mock<IFilterTarget>().Object), Is.False);
         }
+
+        /// <summary>
+        /// Verifies that an event queue restored from its stored form reports and delivers
+        /// every stored event once, in order.
+        /// </summary>
+        [TestCase(3u)]
+        [TestCase(1500u)]
+        public void RestoredEventQueueDeliversEveryStoredEventOnce(uint count)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var persistor = new Mock<IBatchPersistor>();
+            using var queue = new DurableEventMonitoredItemQueue(
+                true, 1, persistor.Object, telemetry);
+            queue.SetQueueSize(2000, false);
+            for (uint i = 1; i <= count; i++)
+            {
+                queue.Enqueue(new EventFieldList { ClientHandle = i });
+            }
+
+            StorableEventQueue template = RoundTrip(
+                queue.ToStorableQueue(),
+                ServiceMessageContext.Create(telemetry));
+            using var restored = new DurableEventMonitoredItemQueue(template, persistor.Object);
+
+            Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
+            for (uint i = 1; i <= count; i++)
+            {
+                Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
+                Assert.That(value.ClientHandle, Is.EqualTo(i));
+            }
+            Assert.That(restored.ItemsInQueue, Is.Zero);
+            Assert.That(restored.Dequeue(out _), Is.False);
+
+            // the restored queue keeps working without serving stale events.
+            restored.Enqueue(new EventFieldList { ClientHandle = 4242 });
+            Assert.That(restored.Dequeue(out EventFieldList next), Is.True);
+            Assert.That(next.ClientHandle, Is.EqualTo(4242u));
+            Assert.That(restored.Dequeue(out _), Is.False);
+        }
+
+        private static StorableEventQueue RoundTrip(
+            StorableEventQueue original,
+            IServiceMessageContext context)
+        {
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, true))
+            {
+                DurableMonitoredItemQueueFactory.EncodeEventQueue(encoder, original);
+            }
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, context, true);
+            return DurableMonitoredItemQueueFactory.DecodeEventQueue(decoder);
+        }
+
         private const uint kEventBatchSize = 1000;
 
         /// <summary>

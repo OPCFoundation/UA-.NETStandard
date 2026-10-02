@@ -74,14 +74,53 @@ namespace Quickstarts.Servers
             IBatchPersistor batchPersistor)
         {
             IsDurable = queue.IsDurable;
-            m_enqueueBatch = queue.EnqueueBatch!;
-            m_eventBatches = queue.EventBatches;
-            m_dequeueBatch = queue.DequeueBatch!;
-            QueueSize = queue.QueueSize;
-            ItemsInQueue = 0;
             MonitoredItemId = queue.MonitoredItemId;
+            QueueSize = queue.QueueSize;
             m_batchPersistor = batchPersistor;
             m_logger = NullLogger<DurableEventMonitoredItemQueue>.Instance;
+
+            m_enqueueBatch = queue.EnqueueBatch ?? new EventBatch([], kBatchSize, MonitoredItemId);
+            // a null dequeue batch means it was the enqueue batch when the queue was stored.
+            m_dequeueBatch = queue.DequeueBatch ?? m_enqueueBatch;
+
+            // batches that come back without events hold nothing to deliver; dropping them
+            // keeps Dequeue from promoting an empty batch while events remain queued.
+            if (queue.EventBatches != null)
+            {
+                foreach (EventBatch batch in queue.EventBatches)
+                {
+                    if (batch?.Events != null && batch.Events.Count > 0)
+                    {
+                        m_eventBatches.Add(batch);
+                    }
+                }
+            }
+
+            if (m_dequeueBatch != m_enqueueBatch && m_dequeueBatch.Events.Count == 0)
+            {
+                if (m_eventBatches.Count > 0)
+                {
+                    m_dequeueBatch = m_eventBatches[0];
+                    m_eventBatches.RemoveAt(0);
+                }
+                else
+                {
+                    m_dequeueBatch = m_enqueueBatch;
+                }
+            }
+
+            // the stored format has no count: derive it from the restored events so that
+            // Dequeue, the duplicate check and the queue size handling see them.
+            int itemsInQueue = m_enqueueBatch.Events.Count;
+            if (m_dequeueBatch != m_enqueueBatch)
+            {
+                itemsInQueue += m_dequeueBatch.Events.Count;
+            }
+            foreach (EventBatch batch in m_eventBatches)
+            {
+                itemsInQueue += batch.Events.Count;
+            }
+            ItemsInQueue = itemsInQueue;
         }
 
         /// <inheritdoc/>

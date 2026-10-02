@@ -415,7 +415,11 @@ namespace Quickstarts.Servers
             encoder.WriteUInt32(null, q.MonitoredItemId);
             encoder.WriteUInt32(null, q.QueueSize);
             EncodeEventBatch(encoder, q.EnqueueBatch);
-            EncodeEventBatch(encoder, q.DequeueBatch);
+            // a single batch is both the enqueue and the dequeue batch: store it once
+            // (a null dequeue batch restores as the enqueue batch) so it is not duplicated.
+            EncodeEventBatch(
+                encoder,
+                ReferenceEquals(q.DequeueBatch, q.EnqueueBatch) ? null : q.DequeueBatch);
 
             int batchCount = q.EventBatches?.Count ?? 0;
             encoder.WriteInt32(null, batchCount);
