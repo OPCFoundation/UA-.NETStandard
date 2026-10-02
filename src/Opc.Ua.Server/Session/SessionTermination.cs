@@ -168,6 +168,26 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Whether the session is closing: its own <see cref="ISession.IsClosing"/> is set,
+        /// or, for a custom <see cref="ISession"/> whose closing mark the server cannot set,
+        /// a close has claimed it through <see cref="TryClaimClose"/>. Request admission and
+        /// activation check this rather than <see cref="ISession.IsClosing"/> so that a
+        /// custom session is rejected with Bad_SessionClosed while it is being closed, like
+        /// a <see cref="Session"/>.
+        /// </summary>
+        public static bool IsClosingOrClaimed(ISession session)
+        {
+            if (session.IsClosing)
+            {
+                return true;
+            }
+
+            return session is not Session &&
+                s_closeClaims.TryGetValue(session, out StrongBox<int>? claim) &&
+                Volatile.Read(ref claim.Value) != 0;
+        }
+
+        /// <summary>
         /// Closes a session that the caller has already claimed with <see cref="TryClaimClose"/>
         /// through the regular close path.
         /// </summary>

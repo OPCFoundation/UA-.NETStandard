@@ -1229,7 +1229,7 @@ namespace Opc.Ua.Server
         private ISession GetActivatedSessionOrThrowClosed(NodeId authenticationToken)
         {
             ISession? session = ServerInternal.SessionManager.GetSession(authenticationToken);
-            if (session == null || session.IsClosing)
+            if (session == null || SessionTermination.IsClosingOrClaimed(session))
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -3605,7 +3605,8 @@ namespace Opc.Ua.Server
             // requests (OPC 10000-4 5.7.2.1). The close marks the Session closing before it
             // sweeps the registered requests under the request manager lock, and registration
             // takes the same lock, so a request the sweep missed sees the mark here.
-            if (context.Session?.IsClosing == true)
+            if (context.Session is ISession admittedSession &&
+                SessionTermination.IsClosingOrClaimed(admittedSession))
             {
                 CountRejectedRequest(serverInternal, requestType, StatusCodes.BadSessionClosed);
                 context.Dispose();

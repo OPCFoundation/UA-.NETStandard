@@ -30,7 +30,9 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -503,6 +505,36 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// PR review 4168294838: a custom <see cref="ISession"/> has no closing mark the
+        /// server can set, so a close that claimed it is recorded beside it. Request
+        /// admission still rejects it with Bad_SessionClosed, like a closing Session.
+        /// </summary>
+        [Test]
+        public async Task RequestOnClaimedCustomSessionIsRejectedAsync()
+        {
+            using var harness = new Harness();
+            var custom = new Mock<ISession>();
+            custom.SetupGet(s => s.Id).Returns(new NodeId(4242u, 1));
+            custom.SetupGet(s => s.Activated).Returns(true);
+            var token = new NodeId(Nonce.CreateRandomNonceData(32).ToByteString());
+            harness.AddSession(token, custom.Object);
+
+            using (OperationContext admitted = await harness.ValidateAsync(token, RequestType.Read).ConfigureAwait(false))
+            {
+                Assert.That(admitted.Session, Is.SameAs(custom.Object));
+            }
+            Assert.That(SessionTermination.IsClosingOrClaimed(custom.Object), Is.False);
+
+            Assert.That(SessionTermination.TryClaimClose(custom.Object), Is.True);
+
+            Assert.That(custom.Object.IsClosing, Is.False);
+            Assert.That(SessionTermination.IsClosingOrClaimed(custom.Object), Is.True);
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ValidateAsync(token, RequestType.Read).ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+        }
+
+        /// <summary>
         /// Accepts anonymous tokens like <see cref="AnonymousAuthenticator"/>, optionally
         /// holding the authentication until the test opens the gate.
         /// </summary>
@@ -716,6 +748,14 @@ namespace Opc.Ua.Server.Tests
                     new SecureChannelContext(kChannelId, Endpoint, RequestEncoding.Binary),
                     requestType,
                     RequestLifetime.None).ConfigureAwait(false);
+            }
+
+            public void AddSession(NodeId authenticationToken, ISession session)
+            {
+                var sessions = (ConcurrentDictionary<NodeId, ISession>)typeof(SessionManager)
+                    .GetField("m_sessions", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(Manager)!;
+                Assert.That(sessions.TryAdd(authenticationToken, session), Is.True);
             }
 
             public void Dispose()

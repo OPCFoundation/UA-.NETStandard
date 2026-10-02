@@ -647,7 +647,7 @@ namespace Opc.Ua.Server
 
                     if (!m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
                         !ReferenceEquals(currentSession, session) ||
-                        session.IsClosing)
+                        SessionTermination.IsClosingOrClaimed(session))
                     {
                         // A timeout or server termination may already be tearing the
                         // session down; it then waits for this lock only to remove it.
@@ -841,7 +841,7 @@ namespace Opc.Ua.Server
                     // meanwhile has already abandoned the session's subscriptions, so
                     // reporting a successful activation would hand the client a session that
                     // is removed as soon as this lock is released (OPC 10000-4 5.7.2.1).
-                    if (session.IsClosing)
+                    if (SessionTermination.IsClosingOrClaimed(session))
                     {
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
@@ -1071,7 +1071,7 @@ namespace Opc.Ua.Server
             // Session diagnostics callbacks can query membership while holding a Session lock.
             // Probe Session state without the index lock, then check that the snapshot is still current.
             if (!session.Activated ||
-                session.IsClosing ||
+                SessionTermination.IsClosingOrClaimed(session) ||
                 session.HasExpired ||
                 !string.Equals(binding.SecureChannelId, channelContext.SecureChannelId, StringComparison.Ordinal) ||
                 !session.IsSecureChannelValid(channelContext.SecureChannelId) ||
@@ -1110,7 +1110,7 @@ namespace Opc.Ua.Server
                 // and a timeout or termination can start closing it.
                 if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
                     !ReferenceEquals(current, session) ||
-                    session.IsClosing)
+                    SessionTermination.IsClosingOrClaimed(session))
                 {
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
@@ -1298,6 +1298,13 @@ namespace Opc.Ua.Server
                 // validate request header.
                 session!.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
+                // A Session rejects requests itself once it is closing; a custom ISession
+                // whose close was only claimed by the server cannot, so it is checked here.
+                if (SessionTermination.IsClosingOrClaimed(session))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
+
                 // Lazily reconcile the RoleManager subscription. The
                 // RoleManager is bound during server startup, after
                 // SessionManager construction, so we
@@ -1324,7 +1331,7 @@ namespace Opc.Ua.Server
                 if ((sre.StatusCode == StatusCodes.BadSessionClosed ||
                         sre.StatusCode == StatusCodes.BadSessionNotActivated) &&
                     session != null &&
-                    !session.IsClosing &&
+                    !SessionTermination.IsClosingOrClaimed(session) &&
                     session.HasExpired)
                 {
                     // The request found the session timed out before the session monitor
@@ -1989,7 +1996,7 @@ namespace Opc.Ua.Server
         private bool IsCapEvictionCandidate(ISession session)
         {
             return !session.Activated &&
-                !session.IsClosing &&
+                !SessionTermination.IsClosingOrClaimed(session) &&
                 m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state) &&
                 !state.IsCommitting &&
                 !state.ActivationInFlight &&
