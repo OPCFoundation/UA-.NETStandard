@@ -359,6 +359,124 @@ namespace Opc.Ua.Server.Tests
             Assert.That(GetKey(original), Is.Not.Null);
         }
 
+        /// <summary>
+        /// PR review 4166517781: an ECDHPolicyUri that is registered but cannot be
+        /// served with the session's server certificate (an ECC policy on an RSA
+        /// certificate session) is answered with Bad_SecurityPolicyRejected, and the
+        /// working EphemeralKey is kept, in CreateSession and ActivateSession.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UnusableEcdhPolicyIsRejectedAndKeepsTheWorkingKey(bool createSession)
+        {
+            if (SecurityPolicies.Default.GetInfo(kEcdhPolicy) == null)
+            {
+                Assert.Ignore("The ECC policy is not supported on this platform.");
+            }
+            using var harness = new NonceHarness(forceRsa: true);
+            harness.GetNewEphemeralKey();
+            Nonce original = GetCurrentNonce(harness.Session);
+            var request = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = Variant.From(kEcdhPolicy)
+                    }
+                ]
+            };
+
+            AdditionalParametersType? response = createSession
+                ? SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
+                    harness.Session, request, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance)
+                : SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                    harness.Session, request);
+
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response!.Parameters, Has.Count.EqualTo(1));
+            Assert.That(
+                response.Parameters[0].Key,
+                Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+            Assert.That(response.Parameters[0].Value.TryGetValue(out StatusCode status), Is.True);
+            Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(GetCurrentNonce(harness.Session), Is.SameAs(original), "The working key must be kept.");
+            Assert.That(GetKey(original), Is.Not.Null);
+            Assert.That(harness.Session.GetNewEphemeralKey(), Is.Not.Null, "The previous policy must be kept.");
+        }
+
+        /// <summary>
+        /// PR review 4166517820: when the identity token used the EphemeralKey and the
+        /// request names an ECDHPolicyUri the Server rejects, the response carries only
+        /// Bad_SecurityPolicyRejected (OPC 10000-6 6.8.2); the replacement the
+        /// activation installed stays pending and is returned by the next activation.
+        /// </summary>
+        [Test]
+        public async Task RejectedEcdhPolicyKeepsTheReplacementKeyDeliverableAsync()
+        {
+            using var harness = new NonceHarness();
+            if (!harness.UsesEcdh)
+            {
+                Assert.Ignore("Only an ephemeral-key policy encrypts the token with the EphemeralKey.");
+            }
+            EphemeralKeyType ephemeral = harness.GetNewEphemeralKey();
+            UserNameIdentityToken encrypted = await harness.EncryptPasswordAsync(ephemeral).ConfigureAwait(false);
+            var token = new UserNameIdentityToken
+            {
+                PolicyId = "ecc",
+                UserName = "test-user",
+                Password = encrypted.Password,
+                EncryptionAlgorithm = encrypted.EncryptionAlgorithm
+            };
+
+            (IUserIdentityTokenHandler identity, _) = await harness.Session.ValidateBeforeActivateAsync(
+                harness.Context, harness.ClientSignature, new ExtensionObject(token), new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                var user = new UserIdentity(identity);
+                harness.Session.Activate(
+                    harness.Context, identity, user, user, default, Nonce.CreateNonce(32));
+                Nonce replacement = GetCurrentNonce(harness.Session);
+
+                var request = new AdditionalParametersType
+                {
+                    Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                            Value = Variant.From(SecurityPolicies.None)
+                        }
+                    ]
+                };
+                AdditionalParametersType? response = StandardServer.AppendUnsentEphemeralKey(
+                    harness.Session,
+                    SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                        harness.Session, request));
+
+                Assert.That(response, Is.Not.Null);
+                Assert.That(response!.Parameters, Has.Count.EqualTo(1));
+                Assert.That(response.Parameters[0].Value.TryGetValue(out StatusCode status), Is.True);
+                Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+                Assert.That(GetCurrentNonce(harness.Session), Is.SameAs(replacement));
+
+                AdditionalParametersType next =
+                    SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                        harness.Session, null);
+                Assert.That(next.Parameters, Has.Count.EqualTo(1));
+                Assert.That(
+                    next.Parameters[0].Value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? returned),
+                    Is.True);
+                Assert.That(returned!.PublicKey, Is.EqualTo(replacement.Data.ToByteString()));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(((UserNameIdentityTokenHandler)identity).DecryptedPassword!);
+            }
+        }
+
         [Test]
         public void HarnessConstructionFailureReleasesCertificates()
         {

@@ -649,6 +649,33 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Whether a signed EphemeralKey can be created for the policy with this
+        /// session's server certificate (e.g. an ECC policy cannot be signed with an
+        /// RSA certificate). Leaves the session's key state untouched, so a policy
+        /// that cannot be served is rejected before the working key is discarded.
+        /// </summary>
+        internal bool CanCreateEphemeralKey(string securityPolicyUri)
+        {
+            lock (m_lock)
+            {
+                if (m_userTokenNonceStopped)
+                {
+                    throw new ObjectDisposedException(nameof(Session));
+                }
+                try
+                {
+                    CreateEphemeralKey(securityPolicyUri, out Nonce nonce);
+                    nonce.Dispose();
+                    return true;
+                }
+                catch (Exception e) when (e is not ObjectDisposedException)
+                {
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
         /// Creates a new ephemeral key for the policy, signed with the server certificate.
         /// </summary>
         private EphemeralKeyType CreateEphemeralKey(string securityPolicyUri, out Nonce nonce)

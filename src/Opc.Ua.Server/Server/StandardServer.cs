@@ -1187,12 +1187,14 @@ namespace Opc.Ua.Server
             ISession session,
             AdditionalParametersType? parameters)
         {
-            if (session is not Session serverSession ||
-                serverSession.TakeUnsentEphemeralKey() is not EphemeralKeyType key)
+            if (session is not Session serverSession)
             {
                 return parameters;
             }
 
+            // An ECDHKey entry is already the answer: a new key, or a rejected
+            // ECDHPolicyUri (Bad_SecurityPolicyRejected), for which a pending
+            // replacement stays with the session for a later activation.
             if (parameters != null)
             {
                 foreach (KeyValuePair parameter in parameters.Parameters)
@@ -1202,6 +1204,11 @@ namespace Opc.Ua.Server
                         return parameters;
                     }
                 }
+            }
+
+            if (serverSession.TakeUnsentEphemeralKey() is not EphemeralKeyType key)
+            {
+                return parameters;
             }
 
             var entry = new KeyValuePair
