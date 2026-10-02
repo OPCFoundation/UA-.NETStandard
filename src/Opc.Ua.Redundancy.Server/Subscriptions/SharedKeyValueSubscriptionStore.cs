@@ -1083,11 +1083,17 @@ namespace Opc.Ua.Redundancy.Server
 
         private ByteString Encode(StoredSubscription subscription)
         {
+            // Only subscriptions with triggering links need the newer format; writing the
+            // previous one otherwise keeps snapshots readable by replicas that predate it
+            // during a rolling upgrade.
+            int version = subscription.TriggeringLinks is { Count: > 0 }
+                ? TriggeringLinksDefinitionFormatVersion
+                : OwnerStateDefinitionFormatVersion;
             using var encoder = new BinaryEncoder(m_context);
-            encoder.WriteInt32(null, DefinitionFormatVersion);
+            encoder.WriteInt32(null, version);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
-            EncodeSubscription(encoder, subscription, DefinitionFormatVersion);
+            EncodeSubscription(encoder, subscription, version);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -1539,9 +1545,6 @@ namespace Opc.Ua.Redundancy.Server
         private const int FilteredRetainDefinitionFormatVersion = 3;
         private const int OwnerStateDefinitionFormatVersion = 5;
         private const int TriggeringLinksDefinitionFormatVersion = 6;
-
-        private const int DefinitionFormatVersion =
-            TriggeringLinksDefinitionFormatVersion;
 
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;

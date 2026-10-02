@@ -329,8 +329,44 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 actual.LastError.StatusCode,
                 Is.EqualTo(StatusCodes.BadCommunicationError));
             using var decoder = new BinaryDecoder(EncodeDefinition(active, expected).ToArray(), CreateContext());
-            Assert.That(decoder.ReadInt32(null), Is.EqualTo(6),
-                "New definitions must carry the owner, publishing state and triggering link format.");
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(5),
+                "Definitions without triggering links must keep the owner and publishing state format.");
+        }
+
+        /// <summary>
+        /// Verifies that only definitions with triggering links use the newer format, so that
+        /// replicas that predate it can still read link-free snapshots.
+        /// </summary>
+        [Test]
+        public async Task DefinitionFormatDependsOnTriggeringLinksAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            StoredSubscription withoutLinks = NewSubscription(109, 21);
+            StoredSubscription emptyLinks = NewSubscription(110, 22);
+            emptyLinks.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>();
+            StoredSubscription withLinks = NewSubscription(111, 23);
+            withLinks.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+            {
+                [23] = [24u]
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ReadDefinitionVersion(store, withoutLinks), Is.EqualTo(5));
+                Assert.That(ReadDefinitionVersion(store, emptyLinks), Is.EqualTo(5));
+                Assert.That(ReadDefinitionVersion(store, withLinks), Is.EqualTo(6));
+            });
+        }
+
+        private static int ReadDefinitionVersion(
+            SharedKeyValueSubscriptionStore store,
+            StoredSubscription subscription)
+        {
+            using var decoder = new BinaryDecoder(
+                EncodeDefinition(store, subscription).ToArray(),
+                CreateContext());
+            return decoder.ReadInt32(null);
         }
 
         /// <summary>
