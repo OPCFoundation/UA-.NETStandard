@@ -1899,6 +1899,15 @@ namespace Opc.Ua.Server
                                         "Subscription ownership could not be restored."));
                             }
 
+                            // Release the transfer reservation before the source queue entry
+                            // is restored: restoring the claim can hand the subscription to a
+                            // parked Publish whose continuation would otherwise still see the
+                            // transfer in progress and fault with Bad_SubscriptionIdInvalid.
+                            if (transferStarted)
+                            {
+                                subscription.AbortTransfer(ownerSession);
+                            }
+
                             if (sourceQueueClaim != null &&
                                 !sourcePublishQueue!.RestoreTransferClaim(sourceQueueClaim))
                             {
@@ -1923,11 +1932,6 @@ namespace Opc.Ua.Server
                                     new ServiceResultException(
                                         StatusCodes.BadSubscriptionIdInvalid,
                                         "Abandoned subscription source could not be restored."));
-                            }
-
-                            if (transferStarted)
-                            {
-                                subscription.AbortTransfer(ownerSession);
                             }
 
                             if (rollbackErrors.Count > 0)
