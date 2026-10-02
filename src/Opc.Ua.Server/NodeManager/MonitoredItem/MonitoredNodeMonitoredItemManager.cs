@@ -148,8 +148,11 @@ namespace Opc.Ua.Server
             MonitoredItemIdFactory monitoredItemIdFactory,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            MonitoredItemFactory factory)
+            MonitoredItemFactory factory,
+            bool initialValueQueued)
         {
+            // monitored nodes report changes; there is no immediate sample to suppress.
+            _ = initialValueQueued;
             MonitoredNode2? monitoredNode = null;
             ISampledDataChangeMonitoredItem? monitoredItem = null;
             bool monitoredNodeCreated = false;

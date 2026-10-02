@@ -156,7 +156,8 @@ namespace Opc.Ua.Server
             MonitoredItemIdFactory monitoredItemIdFactory,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            MonitoredItemFactory factory)
+            MonitoredItemFactory factory,
+            bool initialValueQueued)
         {
             _ = addNodeToComponentCache;
             _ = removeNodeFromComponentCache;
@@ -194,6 +195,13 @@ namespace Opc.Ua.Server
                     createDurable);
                 monitoredItem = factory(factoryContext);
                 CustomMonitoredItemValidation.Validate(factoryContext, monitoredItem);
+
+                // the node manager reads and queues the initial value after creating
+                // the item, so the group does not take another immediate sample.
+                if (initialValueQueued)
+                {
+                    m_samplingGroupManager.MarkInitialValueQueued(monitoredItem);
+                }
 
                 m_samplingGroupManager.StartMonitoring(
                     context.OperationContext!,

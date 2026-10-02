@@ -8217,7 +8217,8 @@ namespace Opc.Ua.Server
                         monitoredItemId,
                         AddNodeToComponentCache,
                         RemoveNodeFromComponentCache,
-                        decision.Factory!);
+                        decision.Factory!,
+                        decision.QueueInitialValue);
                 }
                 else
                 {
