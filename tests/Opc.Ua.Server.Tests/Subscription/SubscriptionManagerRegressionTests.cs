@@ -476,6 +476,58 @@ namespace Opc.Ua.Server.Tests
             Assert.That(destination.Diagnostics.CurrentMonitoredItemsCount, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// A queued ConditionRefresh or ConditionRefresh2 of a subscription blocks any
+        /// further refresh of the same subscription with Bad_RefreshInProgress, whatever
+        /// the monitored item (review U14, Part 9 5.5.7/5.5.8).
+        /// </summary>
+        [TestCase(0u, 1u)]
+        [TestCase(1u, 0u)]
+        [TestCase(1u, 2u)]
+        public async Task QueuedConditionRefreshBlocksAnyRefreshOfTheSubscriptionAsync(
+            uint firstItemId,
+            uint secondItemId)
+        {
+            // the manager is not started, so the refresh stays queued
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration());
+            TestSession session = CreateSession();
+            Subscription subscription = await CreateSubscriptionAsync(manager, session).ConfigureAwait(false);
+            SetMonitoredItemCount(subscription, 2);
+            using var context = new OperationContext(session.Mock.Object, DiagnosticsMasks.None);
+
+            Refresh(firstItemId);
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() => Refresh(secondItemId));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadRefreshInProgress));
+
+            void Refresh(uint monitoredItemId)
+            {
+                if (monitoredItemId == 0)
+                {
+                    manager.ConditionRefresh(context, subscription.Id);
+                }
+                else
+                {
+                    manager.ConditionRefresh2(context, subscription.Id, monitoredItemId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Refreshes of different subscriptions do not block each other (review U14).
+        /// </summary>
+        [Test]
+        public async Task QueuedConditionRefreshDoesNotBlockOtherSubscriptionsAsync()
+        {
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration());
+            TestSession session = CreateSession();
+            Subscription first = await CreateSubscriptionAsync(manager, session).ConfigureAwait(false);
+            Subscription second = await CreateSubscriptionAsync(manager, session).ConfigureAwait(false);
+            using var context = new OperationContext(session.Mock.Object, DiagnosticsMasks.None);
+
+            manager.ConditionRefresh(context, first.Id);
+            Assert.DoesNotThrow(() => manager.ConditionRefresh(context, second.Id));
+        }
+
         private static void SetMonitoredItemCount(Subscription subscription, int count)
         {
             var monitoredItems = GetPrivateField<System.Collections.IDictionary>(subscription, "m_monitoredItems");

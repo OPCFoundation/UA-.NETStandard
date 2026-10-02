@@ -659,8 +659,7 @@ namespace Opc.Ua.Server
             {
                 // a refresh taken off the queue is still in progress until it completes,
                 // including the window before the subscription queues its RefreshStartEvent.
-                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask) &&
-                    !conditionRefreshTask.Equals(m_runningConditionRefresh))
+                if (!IsConditionRefreshInProgress(subscription.Id))
                 {
                     m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
                 }
@@ -705,8 +704,7 @@ namespace Opc.Ua.Server
             {
                 // a refresh taken off the queue is still in progress until it completes,
                 // including the window before the subscription queues its RefreshStartEvent.
-                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask) &&
-                    !conditionRefreshTask.Equals(m_runningConditionRefresh))
+                if (!IsConditionRefreshInProgress(subscription.Id))
                 {
                     m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
                 }
@@ -3036,6 +3034,29 @@ namespace Opc.Ua.Server
         }
 
         private ConditionRefreshTask? m_runningConditionRefresh;
+
+        /// <summary>
+        /// Returns whether a ConditionRefresh or ConditionRefresh2 of the subscription is
+        /// queued or running. The subscription allows one refresh at a time whatever the
+        /// monitored item (Part 9 5.5.7/5.5.8 Bad_RefreshInProgress), so the check is keyed
+        /// by the subscription only. Must be called under m_conditionRefreshLock.
+        /// </summary>
+        private bool IsConditionRefreshInProgress(uint subscriptionId)
+        {
+            if (m_runningConditionRefresh?.Subscription.Id == subscriptionId)
+            {
+                return true;
+            }
+
+            foreach (ConditionRefreshTask queued in m_conditionRefreshQueue)
+            {
+                if (queued.Subscription.Id == subscriptionId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         private class ConditionRefreshTask
         {
