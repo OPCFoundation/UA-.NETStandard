@@ -493,6 +493,7 @@ namespace Opc.Ua.Server
                             return null;
                         }
                         m_history.RemoveAt(i);
+                        ReserveForContinuedOperation(id);
                         return restored.Value;
                     }
                 }
@@ -579,6 +580,7 @@ namespace Opc.Ua.Server
                     if (!candidate.Portable)
                     {
                         m_history.RemoveAt(i);
+                        ReserveForContinuedOperation(id);
                         return candidate.Value;
                     }
                     if (candidate.Claiming || m_historyStore == null)
@@ -610,7 +612,7 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            bool removed = RemoveClaimedHistory(restored);
+            bool removed = RemoveClaimedHistory(restored, reserve: claimed);
             if (!removed)
             {
                 return null;
@@ -636,13 +638,58 @@ namespace Opc.Ua.Server
         }
 
         private bool RemoveClaimedHistory(
-            HistoryContinuationPoint continuationPoint)
+            HistoryContinuationPoint continuationPoint,
+            bool reserve)
         {
             lock (m_lock)
             {
                 List<HistoryContinuationPoint>? history = m_history;
-                return history != null && history.Remove(continuationPoint);
+                if (history == null || !history.Remove(continuationPoint))
+                {
+                    return false;
+                }
+                if (reserve)
+                {
+                    ReserveForContinuedOperation(continuationPoint.Id);
+                }
+                return true;
             }
+        }
+
+        /// <summary>
+        /// Keeps the slot of a continuation point that the current HistoryRead request restored
+        /// to continue an operation the client supplied, so that a concurrent request cannot take
+        /// it before the operation saves its successor: continuing a halted operation must not fail
+        /// for lack of continuation points (Part 4 §7.9). The reservation is consumed by the next
+        /// point the request saves, or released when the request ends. Called under the lock.
+        /// </summary>
+        private void ReserveForContinuedOperation(Guid id)
+        {
+            if (m_maxHistory == 0)
+            {
+                return;
+            }
+            HistoryRequestScope? current = GetCurrentHistoryRequest();
+            if (current == null || !current.IsClientSupplied(id))
+            {
+                return;
+            }
+            current.Reservations++;
+            m_reservedHistory++;
+        }
+
+        /// <summary>
+        /// Returns the in-flight HistoryRead request of the calling asynchronous flow that
+        /// belongs to this holder, or <c>null</c>.
+        /// </summary>
+        private HistoryRequestScope? GetCurrentHistoryRequest()
+        {
+            HistoryRequestScope? current = s_currentHistoryRequest.Value;
+            return current != null &&
+                ReferenceEquals(current.Owner, this) &&
+                !current.Ended
+                ? current
+                : null;
         }
 
         private static bool TryGetHistoryContinuationPointId(
@@ -698,14 +745,21 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                while (m_maxHistory > 0 && m_history.Count >= m_maxHistory)
+                // a request that continues an operation uses the slot it reserved when it
+                // restored the point; any other save must also leave the slots reserved by
+                // in-flight requests free.
+                HistoryRequestScope? current = GetCurrentHistoryRequest();
+                bool useReservation = current != null && current.Reservations > 0;
+                while (!useReservation &&
+                    m_maxHistory > 0 &&
+                    m_history.Count + m_reservedHistory >= m_maxHistory)
                 {
                     int evictionIndex = FindEvictableHistoryIndex();
                     if (evictionIndex < 0)
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadNoContinuationPoints,
-                            "All history continuation slots are being persisted, claimed or used by an in-flight request.");
+                            "All history continuation slots are being persisted, claimed, used or reserved by an in-flight request.");
                     }
                     HistoryContinuationPoint old =
                         m_history[evictionIndex];
@@ -734,11 +788,13 @@ namespace Opc.Ua.Server
                 // that saved it has returned its response. Only that request's scope pins it,
                 // so an unrelated in-flight HistoryRead of the session does not keep points of
                 // already completed requests from being freed (Part 4 §7.9).
-                HistoryRequestScope? current = s_currentHistoryRequest.Value;
-                if (current != null &&
-                    ReferenceEquals(current.Owner, this) &&
-                    !current.Ended)
+                if (current != null)
                 {
+                    if (useReservation)
+                    {
+                        current.Reservations--;
+                        m_reservedHistory--;
+                    }
                     current.Pin(stored);
                     current.RecordSaved(stored);
                 }
@@ -909,6 +965,8 @@ namespace Opc.Ua.Server
                 scope.Ended = true;
                 scope.UnpinAll();
                 _ = scope.TakeSaved();
+                m_reservedHistory -= scope.Reservations;
+                scope.Reservations = 0;
             }
         }
 
@@ -935,6 +993,12 @@ namespace Opc.Ua.Server
             /// Set once the request has returned its response; a late save is not pinned then.
             /// </summary>
             public bool Ended { get; set; }
+
+            /// <summary>
+            /// The slots this request holds for the successors of the points it restored to
+            /// continue operations the client supplied.
+            /// </summary>
+            public int Reservations { get; set; }
 
             public void Pin(HistoryContinuationPoint continuationPoint)
             {
@@ -1307,6 +1371,7 @@ namespace Opc.Ua.Server
         private List<HistoryContinuationPoint>? m_history;
         private Dictionary<Guid, NodeId>? m_mirroredBrowseOwners;
         private Dictionary<Guid, NodeId>? m_mirroredHistoryOwners;
+        private int m_reservedHistory;
         private bool m_closed;
 
         /// <summary>
