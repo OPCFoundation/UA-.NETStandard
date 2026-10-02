@@ -1,0 +1,102 @@
+name: Foreign stack interop
+
+# Runs the interop fixtures of tests/Opc.Ua.Interop.Tests against peers built
+# on other OPC UA stacks (tests/Opc.Ua.Interop.Peers/<stack>). The fixtures are
+# the same ones the main CI runs against the 1.5.378 peer; the peer is swapped
+# through OPCUA_INTEROP_PEER_HOST, OPCUA_INTEROP_PEER_HOST_ARGUMENTS and
+# OPCUA_INTEROP_LEGACY_PEER. Known defects of a stack are listed in its
+# expected-differences.json and reported as inconclusive.
+#
+# Opt-in: nightly, manual, and pull requests labelled 'interop'. It is not a
+# required check, so a regression of a foreign stack never blocks a merge.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: interop-foreign-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  interop:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'interop')
+    name: ${{ matrix.peer }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        peer: [node-opcua, milo]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.401'
+
+      - name: Setup Node.js
+        if: matrix.peer == 'node-opcua'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tests/Opc.Ua.Interop.Peers/node-opcua/package-lock.json
+
+      - name: Install the node-opcua peer
+        if: matrix.peer == 'node-opcua'
+        working-directory: tests/Opc.Ua.Interop.Peers/node-opcua
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Java
+        if: matrix.peer == 'milo'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: tests/Opc.Ua.Interop.Peers/milo/pom.xml
+
+      - name: Build the Milo peer
+        if: matrix.peer == 'milo'
+        run: mvn -B -q -f tests/Opc.Ua.Interop.Peers/milo/pom.xml package
+
+      - name: Select the peer
+        shell: pwsh
+        run: |
+          $peers = "${{ github.workspace }}/tests/Opc.Ua.Interop.Peers"
+          if ('${{ matrix.peer }}' -eq 'node-opcua') {
+            "OPCUA_INTEROP_PEER_HOST=$((Get-Command node).Source)" >> $env:GITHUB_ENV
+            "OPCUA_INTEROP_LEGACY_PEER=$peers/node-opcua/peer.mjs" >> $env:GITHUB_ENV
+          } else {
+            "OPCUA_INTEROP_PEER_HOST=$((Get-Command java).Source)" >> $env:GITHUB_ENV
+            "OPCUA_INTEROP_PEER_HOST_ARGUMENTS=-jar" >> $env:GITHUB_ENV
+            "OPCUA_INTEROP_LEGACY_PEER=$peers/milo/target/milo-peer.jar" >> $env:GITHUB_ENV
+          }
+
+      - name: Test
+        run: >
+          dotnet test tests/Opc.Ua.Interop.Tests/Opc.Ua.Interop.Tests.csproj
+          -c Release -f net10.0 -p:CustomTestTarget=net10.0
+          --filter "FullyQualifiedName~LegacyServerInteropTests|FullyQualifiedName~LegacyClientInteropTests"
+          --logger "trx;LogFileName=interop-${{ matrix.peer }}.trx"
+          --results-directory ./TestResults
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: interop-${{ matrix.peer }}-${{ matrix.os }}
+          path: ./TestResults

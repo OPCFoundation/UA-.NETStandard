@@ -161,7 +161,15 @@ namespace Opc.Ua.Interop.LegacyPeer
             }
             await application.StartAsync(instance).ConfigureAwait(false);
 
-            // The test harness waits for this exact line before it connects.
+            // What the tests compare the server against, then the exact line
+            // the test harness waits for before it connects.
+            Console.WriteLine("PEER-INFO " + System.Text.Json.JsonSerializer.Serialize(new
+            {
+                stack = "UA-.NETStandard",
+                version = Utils.GetAssemblySoftwareVersion(),
+                applicationUri = application.ApplicationConfiguration.ApplicationUri,
+                softwareVersion = Utils.GetAssemblySoftwareVersion()
+            }));
             Console.WriteLine("LEGACY-SERVER-READY " + endpointUrl);
             Console.Out.Flush();
 
