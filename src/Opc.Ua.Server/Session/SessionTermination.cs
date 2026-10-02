@@ -74,7 +74,39 @@ namespace Opc.Ua.Server
 
             // A session that no longer exists, or that another close has claimed, is not
             // terminated by this call: nothing to count.
-            if (session == null || !TryClaimClose(session))
+            if (session == null)
+            {
+                // A server other than ServerInternalData may track sessions this one cannot
+                // see; hand it the close, but count nothing.
+                if (server is not ServerInternalData)
+                {
+                    await server.CloseSessionAsync(null!, sessionId, deleteSubscriptions, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                return;
+            }
+
+            await server.TerminateSessionAsync(session, deleteSubscriptions, logger, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Terminates a session the caller already holds, like the overload taking an id.
+        /// Nothing is counted or reported when another close of the session has claimed it.
+        /// </summary>
+        /// <param name="server">The server owning the session.</param>
+        /// <param name="session">The session to terminate.</param>
+        /// <param name="deleteSubscriptions">Whether the session's subscriptions are deleted.</param>
+        /// <param name="logger">The logger for audit reporting failures.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public static async ValueTask TerminateSessionAsync(
+            this IServerInternal server,
+            ISession session,
+            bool deleteSubscriptions,
+            ILogger logger,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryClaimClose(session))
             {
                 return;
             }
@@ -85,7 +117,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Closes a session that the caller has already claimed with <see cref="TryClaimClose"/>,
-        /// then counts and audits it as a termination like <see cref="TerminateSessionAsync"/>.
+        /// then counts and audits it as a termination like
+        /// <see cref="TerminateSessionAsync(IServerInternal, ISession, bool, ILogger, CancellationToken)"/>.
         /// The session is removed even when a part of the teardown fails, so it is counted then
         /// too.
         /// </summary>
