@@ -158,6 +158,60 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A read hook that registers a throwing callback on the sampling token must not make
+        /// stopping the loop throw out of ApplyChanges or Dispose.
+        /// </summary>
+        [Test]
+        public async Task ThrowingCancellationCallbackDoesNotFailApplyChangesAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var readStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager
+                    .Setup(m => m.ReadAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<double>(),
+                        It.IsAny<ArrayOf<ReadValueId>>(),
+                        It.IsAny<IList<DataValue>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<OperationContext, double, ArrayOf<ReadValueId>, IList<DataValue>,
+                        IList<ServiceResult>, CancellationToken>(
+                        (_, _, _, _, _, ct) => new ValueTask(ReadAsync(ct)));
+
+                using OperationContext context = CreateContext();
+                var group = new SamplingGroup(
+                    server.Object, nodeManager.Object, [new SamplingRateGroup(50, 50, 4)], context, 50);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50);
+
+                Assert.That(group.StartMonitoring(context, item.Object, null, initialValueQueued: true), Is.True);
+                Assert.That(group.ApplyChanges(), Is.False);
+                await readStarted.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+                group.StopMonitoring(item.Object);
+                Assert.That(group.ApplyChanges, Throws.Nothing);
+                Assert.That(group.Dispose, Throws.Nothing);
+
+                async Task ReadAsync(CancellationToken ct)
+                {
+                    _ = ct.Register(static () => throw new InvalidOperationException("read hook"));
+                    readStarted.TrySetResult(true);
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // stopped.
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// A created item already gets its initial value from the node manager, so applying the
         /// changes does not take another immediate sample (Part 4 5.13.2.1).
         /// </summary>
