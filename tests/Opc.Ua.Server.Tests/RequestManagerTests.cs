@@ -339,6 +339,106 @@ namespace Opc.Ua.Server.Tests
             Assert.That(m_requestManager.IsCancelledBeforeAdmission(later), Is.False);
         }
 
+        [Test]
+        public void CancelDoesNotApplyToAQueuedRequestWithTheSameTimestamp()
+        {
+            // Only a request strictly older than the Cancel was provably sent before it; with
+            // a coarse client clock an equal timestamp may belong to a later request.
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            DateTime sentAt = DateTime.UtcNow;
+            CancelWithTimestamp(session.Object, 9, sentAt);
+
+            Assert.That(m_requestManager.IsCancelledBeforeAdmission(QueuedRequest(session.Object, 9, sentAt)), Is.False);
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(QueuedRequest(session.Object, 9, sentAt.AddTicks(-1))),
+                Is.True);
+        }
+
+        [Test]
+        public void CancelFloodOfOneSessionDoesNotEvictThePendingCancelsOfAnother()
+        {
+            var flooding = new Mock<ISession>();
+            flooding.Setup(s => s.Id).Returns(new NodeId(1));
+            var victim = new Mock<ISession>();
+            victim.Setup(s => s.Id).Returns(new NodeId(2));
+            DateTime sentAt = DateTime.UtcNow;
+            CancelWithTimestamp(victim.Object, 9, sentAt.AddSeconds(1));
+
+            for (uint handle = 1000; handle < 2100; handle++)
+            {
+                CancelWithTimestamp(flooding.Object, handle, sentAt.AddSeconds(1));
+            }
+
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(QueuedRequest(victim.Object, 9, sentAt)),
+                Is.True,
+                "Another session's Cancel flood must not evict this session's pending Cancel.");
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(QueuedRequest(flooding.Object, 2099, sentAt)),
+                Is.True,
+                "The flooding session keeps its newest pending Cancels.");
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(QueuedRequest(flooding.Object, 1000, sentAt)),
+                Is.False,
+                "The flooding session evicts its own oldest pending Cancels.");
+        }
+
+        [Test]
+        public void CancelsWithoutTimestampAreNotRememberedAndEvictNothing()
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            DateTime sentAt = DateTime.UtcNow;
+            CancelWithTimestamp(session.Object, 9, sentAt.AddSeconds(1));
+
+            for (uint handle = 1000; handle < 2100; handle++)
+            {
+                CancelWithTimestamp(session.Object, handle, DateTime.MinValue);
+                m_requestManager.CancelRequests(session.Object.Id, handle, out _);
+            }
+
+            Assert.That(
+                m_requestManager.IsCancelledBeforeAdmission(QueuedRequest(session.Object, 9, sentAt)),
+                Is.True,
+                "Cancels that can never match a queued request must not evict one that can.");
+        }
+
+        [Test]
+        public void ClosingASessionForgetsItsPendingCancels()
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId(1));
+            DateTime sentAt = DateTime.UtcNow;
+            CancelWithTimestamp(session.Object, 9, sentAt.AddSeconds(1));
+            Assert.That(m_requestManager.IsCancelledBeforeAdmission(QueuedRequest(session.Object, 9, sentAt)), Is.True);
+
+            m_requestManager.CancelSessionRequests(session.Object.Id, 0, StatusCodes.BadSessionClosed);
+
+            Assert.That(m_requestManager.IsCancelledBeforeAdmission(QueuedRequest(session.Object, 9, sentAt)), Is.False);
+        }
+
+        private void CancelWithTimestamp(ISession session, uint requestHandle, DateTime timestamp)
+        {
+            var cancel = new OperationContext(
+                new RequestHeader { RequestHandle = 1, Timestamp = timestamp },
+                null,
+                RequestType.Cancel,
+                RequestLifetime.None,
+                session);
+            m_requestManager.CancelRequests(cancel, requestHandle, out _);
+        }
+
+        private static OperationContext QueuedRequest(ISession session, uint requestHandle, DateTime timestamp)
+        {
+            return new OperationContext(
+                new RequestHeader { RequestHandle = requestHandle, Timestamp = timestamp },
+                null,
+                RequestType.Read,
+                RequestLifetime.None,
+                session);
+        }
+
         private static ServerSystemContext CreateAuditContext()
         {
             NamespaceTable namespaceUris = new();

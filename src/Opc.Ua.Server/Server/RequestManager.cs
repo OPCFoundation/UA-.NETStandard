@@ -657,6 +657,9 @@ namespace Opc.Ua.Server
                         matchingRequests.Add(request);
                     }
                 }
+
+                // the Session's queued requests can no longer be admitted either.
+                RemovePendingCancelsLocked(sessionId);
             }
 
             var cancelledRequests = new List<uint>(matchingRequests.Count);
@@ -736,16 +739,11 @@ namespace Opc.Ua.Server
                 // OPC 10000-4 5.7.5.2: all outstanding requests with the handle are cancelled,
                 // including those still waiting in the server request queue, which are not
                 // registered yet. Remember the cancellation for a while so they are rejected
-                // when they reach validation.
-                if (!sessionId.IsNull)
+                // when they reach validation. A Cancel without a timestamp can never prove
+                // that a queued request was sent before it, so it is not remembered.
+                if (!sessionId.IsNull && cancelTimestamp != DateTime.MinValue)
                 {
-                    DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
-                    PurgeExpiredPendingCancelsLocked(now);
-                    m_pendingCancels.Add(new PendingCancel(
-                        sessionId,
-                        requestHandle,
-                        cancelTimestamp,
-                        now + PendingCancelWindow));
+                    AddPendingCancelLocked(sessionId, requestHandle, cancelTimestamp);
                 }
             }
 
@@ -790,39 +788,49 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Reports whether a request that is being admitted was already cancelled by a Cancel
-        /// call that arrived while the request was still queued. A request the client sent
-        /// after the Cancel is not affected. Both the request and the Cancel must carry a
+        /// call that arrived while the request was still queued. A request whose timestamp is
+        /// not strictly earlier than the Cancel's is not affected. Both the request and the Cancel must carry a
         /// RequestHeader.Timestamp; otherwise the request is admitted.
         /// </summary>
         /// <param name="context">The request being admitted.</param>
         /// <returns><c>true</c> when the request must complete with Bad_RequestCancelledByClient.</returns>
         internal bool IsCancelledBeforeAdmission(OperationContext context)
         {
+            // Only a request the client provably sent before the Cancel is cancelled; without
+            // a timestamp a later request reusing the handle (e.g. a client that always sends
+            // 0) cannot be told apart.
             if (context == null ||
                 context.RequestType == RequestType.Cancel ||
-                context.SessionId.IsNull)
+                context.SessionId.IsNull ||
+                context.ClientTimestamp == DateTime.MinValue)
+            {
+                return false;
+            }
+
+            // Lock-free fast path for the common case that no Cancel is remembered. The request
+            // was registered under m_requestsLock before this call, and a Cancel scans the
+            // registered requests and remembers itself under the same lock: either the Cancel
+            // saw (and cancelled) this request, or its update of the count is visible here.
+            if (Volatile.Read(ref m_pendingCancelSessionCount) == 0)
             {
                 return false;
             }
 
             lock (m_requestsLock)
             {
-                if (m_pendingCancels.Count == 0)
+                if (!m_pendingCancels.TryGetValue(context.SessionId, out List<PendingCancel>? pendingCancels))
                 {
                     return false;
                 }
 
-                PurgeExpiredPendingCancelsLocked(m_timeProvider.GetUtcNow().UtcDateTime);
-                foreach (PendingCancel pending in m_pendingCancels)
+                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                foreach (PendingCancel pending in pendingCancels)
                 {
-                    // Only a request the client provably sent before the Cancel is
-                    // cancelled; without both timestamps a later request reusing the
-                    // handle (e.g. a client that always sends 0) cannot be told apart.
-                    if (pending.RequestHandle == context.ClientHandle &&
-                        pending.SessionId == context.SessionId &&
-                        pending.CancelTimestamp != DateTime.MinValue &&
-                        context.ClientTimestamp != DateTime.MinValue &&
-                        context.ClientTimestamp <= pending.CancelTimestamp)
+                    // A request is cancelled only when it is strictly older than the Cancel;
+                    // with a coarse client clock an equal timestamp may be a later request.
+                    if (pending.ExpiresAt > now &&
+                        pending.RequestHandle == context.ClientHandle &&
+                        context.ClientTimestamp < pending.CancelTimestamp)
                     {
                         return true;
                     }
@@ -831,12 +839,84 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void PurgeExpiredPendingCancelsLocked(DateTime now)
+        /// <summary>
+        /// Remembers a Cancel call for the requests of the session that are still queued.
+        /// Expired entries are purged only here, so admission never pays for the cleanup.
+        /// </summary>
+        private void AddPendingCancelLocked(NodeId sessionId, uint requestHandle, DateTime cancelTimestamp)
         {
-            m_pendingCancels.RemoveAll(pending => pending.ExpiresAt <= now);
-            if (m_pendingCancels.Count >= kMaxPendingCancels)
+            DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+
+            // sessions that stopped cancelling are swept once per window, so their entries
+            // do not linger after they expired.
+            if (now >= m_nextPendingCancelSweep)
             {
-                m_pendingCancels.RemoveRange(0, m_pendingCancels.Count - kMaxPendingCancels + 1);
+                m_nextPendingCancelSweep = now + PendingCancelWindow;
+                List<NodeId>? emptySessions = null;
+                foreach (KeyValuePair<NodeId, List<PendingCancel>> entry in m_pendingCancels)
+                {
+                    RemoveExpiredPendingCancels(entry.Value, now);
+                    if (entry.Value.Count == 0)
+                    {
+                        (emptySessions ??= []).Add(entry.Key);
+                    }
+                }
+
+                if (emptySessions != null)
+                {
+                    foreach (NodeId emptySession in emptySessions)
+                    {
+                        m_pendingCancels.Remove(emptySession);
+                    }
+                }
+            }
+
+            if (!m_pendingCancels.TryGetValue(sessionId, out List<PendingCancel>? pendingCancels))
+            {
+                pendingCancels = [];
+                m_pendingCancels.Add(sessionId, pendingCancels);
+            }
+            else
+            {
+                RemoveExpiredPendingCancels(pendingCancels, now);
+            }
+
+            // Each session is bounded on its own, so a session flooding Cancel only evicts its
+            // own oldest entries and never those of another session.
+            if (pendingCancels.Count >= kMaxPendingCancelsPerSession)
+            {
+                pendingCancels.RemoveRange(0, pendingCancels.Count - kMaxPendingCancelsPerSession + 1);
+            }
+
+            pendingCancels.Add(new PendingCancel(requestHandle, cancelTimestamp, now + PendingCancelWindow));
+            Volatile.Write(ref m_pendingCancelSessionCount, m_pendingCancels.Count);
+        }
+
+        /// <summary>
+        /// Removes the expired entries, which lead the list because it is in insertion order.
+        /// </summary>
+        private static void RemoveExpiredPendingCancels(List<PendingCancel> pendingCancels, DateTime now)
+        {
+            int expired = 0;
+            while (expired < pendingCancels.Count && pendingCancels[expired].ExpiresAt <= now)
+            {
+                expired++;
+            }
+
+            if (expired > 0)
+            {
+                pendingCancels.RemoveRange(0, expired);
+            }
+        }
+
+        /// <summary>
+        /// Forgets the Cancel calls of a session whose requests are aborted because it closes.
+        /// </summary>
+        private void RemovePendingCancelsLocked(NodeId sessionId)
+        {
+            if (m_pendingCancels.Remove(sessionId))
+            {
+                Volatile.Write(ref m_pendingCancelSessionCount, m_pendingCancels.Count);
             }
         }
 
@@ -844,15 +924,15 @@ namespace Opc.Ua.Server
         /// A Cancel call remembered for requests that were still queued when it ran.
         /// </summary>
         private readonly record struct PendingCancel(
-            NodeId SessionId,
             uint RequestHandle,
             DateTime CancelTimestamp,
             DateTime ExpiresAt);
 
         /// <summary>
-        /// Bounds the remembered Cancel calls so a client flooding Cancel cannot grow them.
+        /// Bounds the remembered Cancel calls of one session so a client flooding Cancel
+        /// cannot grow them.
         /// </summary>
-        private const int kMaxPendingCancels = 1024;
+        private const int kMaxPendingCancelsPerSession = 64;
 
         /// <summary>
         /// Checks for any expired requests and changes their status.
@@ -927,7 +1007,9 @@ namespace Opc.Ua.Server
         private readonly List<RequestDrain> m_requestDrains = [];
         private readonly Lock m_requestsLock = new();
         private readonly HashSet<long> m_activeValidationScopes = [];
-        private readonly List<PendingCancel> m_pendingCancels = [];
+        private readonly Dictionary<NodeId, List<PendingCancel>> m_pendingCancels = [];
+        private int m_pendingCancelSessionCount;
+        private DateTime m_nextPendingCancelSweep;
         private long m_lastValidationScopeId;
         private RequestManagerLifecycleExtension? m_lifecycleExtension;
         private ITimer? m_requestTimer;
