@@ -605,6 +605,11 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValidateBeforeActivateFailureDisposesStalePreparedNonce()
         {
+            if (SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null)
+            {
+                Assert.Ignore("ECC_nistP256 is not supported on this platform.");
+            }
+
             using ServerSession session = CreateSession(CreateEndpoint(SecurityPolicies.None));
             OperationContext context = CreateContext(
                 CreateEndpoint(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign));
