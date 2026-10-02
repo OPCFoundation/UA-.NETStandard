@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -721,6 +722,38 @@ namespace Opc.Ua.Server.Tests
             queue.PublishTimerExpired();
             Assert.That(task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
             Assert.That(task.Result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        public void PublishAsyncWithTimeoutHintBeyondTimerRangeTimesOutAtDeadline()
+        {
+            var timeProvider = new FakeTimeProvider();
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                kMaxPublishRequests,
+                timeProvider);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            // A 30 day TimeoutHint exceeds the Int32.MaxValue ms (~24.86 days) timer limit:
+            // the request must not time out before its deadline (OPC 10000-4, 7.33).
+            TimeSpan hint = TimeSpan.FromDays(30);
+            DateTime deadline = timeProvider.GetUtcNow().UtcDateTime + hint;
+            Task<ISubscriptionPublishPipeline> task = queue.PublishAsync(
+                "channel1", deadline, false, null, CancellationToken.None);
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(int.MaxValue) + TimeSpan.FromSeconds(1));
+            Assert.That(task.IsCompleted, Is.False);
+
+            timeProvider.Advance(hint - TimeSpan.FromMilliseconds(int.MaxValue) - TimeSpan.FromSeconds(2));
+            Assert.That(task.IsCompleted, Is.False);
+
+            timeProvider.Advance(TimeSpan.FromSeconds(2));
+            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
         }
 
         [Test]
