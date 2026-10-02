@@ -184,14 +184,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Cancels the running sampling loop. The token source is released once the
-        /// loop has observed the cancellation, so an in-flight sample never touches a
-        /// disposed object. Must be called while holding the lock.
+        /// Stops the running sampling loop. Must be called while holding the lock.
         /// </summary>
+        /// <remarks>
+        /// The loop is detached at once, so it stops sampling at its next cycle, but its
+        /// token is cancelled on the thread pool: cancellation runs the callbacks that
+        /// node-manager read hooks registered on the token, which must not run under the
+        /// group lock or the lock of a <see cref="SamplingGroupManager"/> applying changes.
+        /// </remarks>
         private void StopSamplingLoop()
         {
             (CancellationTokenSource? samplingCts, Task? samplingTask) = DetachSamplingLoop();
-            CancelSamplingLoop(samplingCts, samplingTask);
+            if (samplingCts != null)
+            {
+                _ = Task.Run(() => CancelSamplingLoop(samplingCts, samplingTask), CancellationToken.None);
+            }
         }
 
         /// <summary>
@@ -584,6 +591,12 @@ namespace Opc.Ua.Server
 
                     lock (m_lock)
                     {
+                        // a detached loop stops even before its token is cancelled.
+                        if (m_samplingCts == null || m_samplingCts.Token != cancellationToken)
+                        {
+                            break;
+                        }
+
                         uint disabledItemCount = 0;
                         Dictionary<uint, ISampledDataChangeMonitoredItem>.Enumerator enumerator =
                             m_items.GetEnumerator();
