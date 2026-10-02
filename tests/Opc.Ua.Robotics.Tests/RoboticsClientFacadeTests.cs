@@ -261,6 +261,63 @@ namespace Opc.Ua.Robotics.Client.Tests
         }
 
         [Test]
+        public async Task TheOperationStateIsMatchedByStateNodeIdNotByLocalizedText()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            NodeId taskIdle = new(1910, 2);
+            NodeId taskExecuting = new(1911, 2);
+            NodeId systemIdle = new(1920, 2);
+            NodeId systemReady = new(1921, 2);
+            NodeId systemExecuting = new(1922, 2);
+            // A German server: the state names are localized, the state nodes are not.
+            h.AddOperationState(
+                h.SystemOperationId,
+                RoboticsBrowseNames.SystemOperationStateMachine,
+                h.SystemStateMachineId,
+                h.SystemCurrentStateId,
+                "Ausf\u00fchrung");
+            h.AddOperationState(
+                h.TaskControlOperationId,
+                RoboticsBrowseNames.TaskControlStateMachine,
+                h.TaskControlStateMachineId,
+                h.TaskCurrentStateId,
+                "Bereit");
+            h.AddStateNodes(
+                h.SystemStateMachineId, h.SystemCurrentStateId, systemIdle, systemReady, systemExecuting,
+                systemExecuting);
+            h.AddStateNodes(
+                h.TaskControlStateMachineId, h.TaskCurrentStateId, taskIdle, h.ReadyStateId, taskExecuting,
+                h.ReadyStateId);
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.CurrentState, Is.EqualTo(RoboticsOperationState.Executing));
+                Assert.That(task.CurrentState, Is.EqualTo(RoboticsOperationState.Ready));
+            });
+        }
+
+        [Test]
+        public async Task ABadQualityEngineeringValueReadsAsNoStructure()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            h.SetBadQuality(h.Resolve(h.MotorTemperatureId, RoboticsSessionHarness.Ua(Opc.Ua.BrowseNames.EURange)));
+
+            RoboticsTopologySnapshot snapshot = await h.Client.ReadSystemAsync(h.SystemId).ConfigureAwait(false);
+
+            MotorSnapshot motor = snapshot.Motors[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(motor.MotorTemperatureEngineering.Range, Is.Null, "a bad read is not a range");
+                Assert.That(motor.MotorTemperatureEngineering.EngineeringUnits?.UnitId, Is.EqualTo(h.Celsius.UnitId));
+            });
+        }
+
+        [Test]
         public async Task AnUnknownOrUnreadableOperationStateReadsAsNull()
         {
             RoboticsSessionHarness h = new();
@@ -562,6 +619,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             private readonly Dictionary<NodeId, List<ReferenceDescription>> m_browse = [];
             private readonly Dictionary<NodeId, Variant> m_values = [];
             private readonly HashSet<NodeId> m_continuationNodes = [];
+            private readonly HashSet<NodeId> m_badQualityNodes = [];
             private StatusCode m_callStatus = StatusCodes.Good;
             private int m_callOutput;
 
@@ -887,6 +945,33 @@ namespace Opc.Ua.Robotics.Client.Tests
                 return current;
             }
 
+            /// <summary>
+            /// Makes every read of <paramref name="node"/> return its value with a bad status.
+            /// </summary>
+            public void SetBadQuality(NodeId node)
+            {
+                m_badQualityNodes.Add(node);
+            }
+
+            /// <summary>
+            /// Registers the Idle, Ready and Executing state objects of an operation state
+            /// machine and points its CurrentState/Id at <paramref name="activeState"/>, so
+            /// the state is known by NodeId whatever text the server localizes it to.
+            /// </summary>
+            public void AddStateNodes(
+                NodeId stateMachine,
+                NodeId currentState,
+                NodeId idle,
+                NodeId ready,
+                NodeId executing,
+                NodeId activeState)
+            {
+                AddChild(stateMachine, Rob(RoboticsBrowseNames.Idle), idle);
+                AddChild(stateMachine, Rob(RoboticsBrowseNames.Ready), ready);
+                AddChild(stateMachine, Rob(RoboticsBrowseNames.Executing), executing);
+                m_values[Resolve(currentState, Ua(Opc.Ua.BrowseNames.Id))] = Variant.From(activeState);
+            }
+
             public void AddStateReads(NodeId stateMachine, string stateName)
             {
                 AddChild(stateMachine, Ua(Opc.Ua.BrowseNames.CurrentState), CurrentStateNode);
@@ -1163,7 +1248,9 @@ namespace Opc.Ua.Robotics.Client.Tests
                                 else
                                 {
                                     values.Add(m_values.TryGetValue(node.NodeId, out Variant variant)
-                                        ? Value(variant)
+                                        ? m_badQualityNodes.Contains(node.NodeId)
+                                            ? new DataValue(variant, StatusCodes.BadSensorFailure)
+                                            : Value(variant)
                                         : new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown));
                                 }
                             }

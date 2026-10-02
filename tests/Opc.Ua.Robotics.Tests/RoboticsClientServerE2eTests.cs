@@ -219,7 +219,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             using var pump = new CancellationTokenSource();
             Task writer = Task.Run(async () =>
             {
-                double value = 10;
+                double value = CurrentA1Position();
                 while (!pump.IsCancellationRequested)
                 {
                     value++;
@@ -346,7 +346,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             using var pump = new CancellationTokenSource();
             var writer = Task.Run(async () =>
             {
-                double value = 100;
+                double value = CurrentA1Position();
                 while (!pump.IsCancellationRequested)
                 {
                     value++;
@@ -711,6 +711,16 @@ namespace Opc.Ua.Robotics.Client.Tests
                 Telemetry);
             configuration.CertificateManager.AcceptError = static (_, _) => true;
             return configuration;
+        }
+
+        /// <summary>
+        /// The A1 position as the server holds it now. The writers of the position tests
+        /// count up from here, so the order of the tests cannot reset the position and
+        /// break the ascending assertions.
+        /// </summary>
+        private double CurrentA1Position()
+        {
+            return m_a1Position.WrappedValue.TryGetValue(out double position) ? position : 0;
         }
 
         private void Write(BaseDataVariableState node, double value)

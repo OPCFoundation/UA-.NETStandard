@@ -651,17 +651,25 @@ the session:
   `GearType`, subtypes included). A motor's drives are found through its
   `IsDrivenBy` references; a drive that drives several motors is listed once.
 
-Every value in a snapshot comes with the NodeId of the variable it was read
-from (`AxisStateSnapshot.ActualPositionId`, `MotionDeviceSnapshot.SpeedOverrideId`,
-`SafetyStateSnapshot.EmergencyStopId`, `TaskControlSnapshot.TaskProgramNameId`,
-`MotorSnapshot.MotorTemperatureId`, …), or `NodeId.Null` when the server does
-not publish the variable. A client that shows a snapshot can subscribe to
-exactly the values it shows, without resolving the browse paths again.
+The values a client typically shows or follows come with the NodeId of the
+variable they were read from (`AxisStateSnapshot.ActualPositionId`,
+`MotionDeviceSnapshot.SpeedOverrideId`, `SafetyStateSnapshot.EmergencyStopId`,
+`TaskControlSnapshot.TaskProgramNameId`, `MotorSnapshot.MotorTemperatureId`,
+`LoadSnapshot.MassId`, `GearSnapshot.PitchId`, …), or `NodeId.Null` when the
+server does not publish the variable. A client can subscribe to such a value
+without resolving the browse paths again. Not every value in a snapshot has an
+id: `LoadSnapshot.CenterOfMass` and `Inertia`, `AxisSnapshot.MotionProfile`,
+`MotionDeviceSnapshot.Category` and the engineering units and range of a
+motor temperature are read once and carry no NodeId.
 
 `ControllerSnapshot` and `TaskControlSnapshot` also carry the state of their
 operation state machine: `CurrentStateId` is the `CurrentState` variable of the
 `SystemOperationStateMachine` or `TaskControlStateMachine`, and `CurrentState`
-is the `RoboticsOperationState` it named when read. `CurrentState` is `null`
+is the `RoboticsOperationState` it named when read. The state is told by the
+NodeId in `CurrentState/Id`, matched against the machine's `Idle`, `Ready` and
+`Executing` state objects, so it does not depend on the language the server
+localizes the state name to; the name is used only when the server publishes
+no such Id. `CurrentState` is `null`
 when the state machine is absent, its read failed, or it names a state other
 than `Idle`, `Ready` or `Executing`; the rest of the snapshot is still
 returned. `ControllerSnapshot.SystemOperationId` is the SystemOperation object.

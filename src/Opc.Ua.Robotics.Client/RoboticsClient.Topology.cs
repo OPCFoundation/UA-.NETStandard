@@ -1039,8 +1039,11 @@ namespace Opc.Ua.Robotics.Client
         /// <summary>
         /// Reads the <c>CurrentState</c> variable of the operation state machine
         /// <paramref name="stateMachineBrowseName"/> below <paramref name="operation"/>.
-        /// A missing machine or a failed read yields no state instead of an error, so
-        /// the rest of the snapshot is still returned.
+        /// The state is told by the NodeId in <c>CurrentState/Id</c>, which names one of
+        /// the machine's Idle, Ready or Executing state objects whatever language the
+        /// server localizes <c>CurrentState</c> to; the state name is the fallback when
+        /// the server exposes no such Id. A missing machine or a failed read yields no
+        /// state instead of an error, so the rest of the snapshot is still returned.
         /// </summary>
         private async Task<(NodeId CurrentStateId, RoboticsOperationState? CurrentState)> ReadOperationStateAsync(
             NodeId operation,
@@ -1051,10 +1054,39 @@ namespace Opc.Ua.Robotics.Client
             {
                 return (NodeId.Null, null);
             }
+            QualifiedName[] machine = MemberPath(stateMachineBrowseName);
+            QualifiedName[] currentState = UaChildPath(machine, UaBrowseNames.CurrentState);
             (ArrayOf<NodeId> nodes, ArrayOf<DataValue> values) = await ReadChildrenAsync(
                 operation,
-                [UaChildPath(MemberPath(stateMachineBrowseName), UaBrowseNames.CurrentState)],
+                [currentState, UaChildPath(currentState, UaBrowseNames.Id)],
                 cancellationToken).ConfigureAwait(false);
+            if (nodes[0].IsNull)
+            {
+                return (nodes[0], null);
+            }
+            if (StatusCode.IsGood(values[1].StatusCode) && values[1].WrappedValue.TryGetValue(out NodeId stateId))
+            {
+                ArrayOf<NodeId> states = await ResolveChildrenAsync(
+                    operation,
+                    [
+                        [.. machine, .. MemberPath(RoboticsBrowseNames.Idle)],
+                        [.. machine, .. MemberPath(RoboticsBrowseNames.Ready)],
+                        [.. machine, .. MemberPath(RoboticsBrowseNames.Executing)]
+                    ],
+                    cancellationToken).ConfigureAwait(false);
+                if (!stateId.IsNull && stateId == states[0])
+                {
+                    return (nodes[0], RoboticsOperationState.Idle);
+                }
+                if (!stateId.IsNull && stateId == states[1])
+                {
+                    return (nodes[0], RoboticsOperationState.Ready);
+                }
+                if (!stateId.IsNull && stateId == states[2])
+                {
+                    return (nodes[0], RoboticsOperationState.Executing);
+                }
+            }
             return (nodes[0], ToOperationState(values[0]));
         }
 
@@ -1115,7 +1147,8 @@ namespace Opc.Ua.Robotics.Client
         private T? ToStructure<T>(in DataValue value)
             where T : class, IEncodeable, new()
         {
-            return value.WrappedValue.TryGetStructure<T>(Session.MessageContext, out T? structure)
+            return StatusCode.IsGood(value.StatusCode) &&
+                value.WrappedValue.TryGetStructure<T>(Session.MessageContext, out T? structure)
                 ? structure
                 : null;
         }
