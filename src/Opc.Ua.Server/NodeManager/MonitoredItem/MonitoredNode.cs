@@ -471,12 +471,46 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
             }
 
+            // The reporter may be denied a value whose user access level depends on the user
+            // (Part 3 5.6.3). A subscriber that may read it must still receive the value of
+            // this change, so it is read now in each subscriber's context.
+            Dictionary<uint, DataValue>? subscriberValueSnapshots = null;
+            if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
+                reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
+                node is BaseVariableState { OnReadUserAccessLevel: not null } &&
+                context is ServerSystemContext serverContext)
+            {
+                long generation = Volatile.Read(ref m_permissionGeneration);
+                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+                {
+                    if (kvp.Value.AttributeId != Attributes.Value)
+                    {
+                        continue;
+                    }
+
+                    ServerSystemContext subscriberContext = GetOrCreateContext(serverContext, kvp.Value, generation);
+                    (_, DataValue subscriberValue) = await node.ReadAttributeAsync(
+                        subscriberContext,
+                        Attributes.Value,
+                        default,
+                        QualifiedName.Null,
+                        new DataValue(
+                            default,
+                            StatusCodes.Good,
+                            DateTime.MinValue,
+                            m_timeProvider.GetUtcNow().UtcDateTime),
+                        cancellationToken).ConfigureAwait(false);
+                    (subscriberValueSnapshots ??= [])[kvp.Key] = subscriberValue;
+                }
+            }
+
             var notification = new DataChangeSnapshot
             {
                 Context = context,
                 NodeId = node.NodeId,
                 Changes = changes,
-                AttributeSnapshots = attributeSnapshots
+                AttributeSnapshots = attributeSnapshots,
+                SubscriberValueSnapshots = subscriberValueSnapshots
             };
 
             try
@@ -749,20 +783,16 @@ namespace Opc.Ua.Server
                                 continue;
                             }
 
-                            // the reporter could not read the value, but the subscriber can.
-                            if (snapshotValue.StatusCode == StatusCodes.BadUserAccessDenied)
+                            // the reporter could not read the value, but the subscriber can:
+                            // use the value of this change read in the subscriber's context
+                            // when it was reported, never a later value of the node.
+                            if (snapshotValue.StatusCode == StatusCodes.BadUserAccessDenied &&
+                                snapshot.SubscriberValueSnapshots != null &&
+                                snapshot.SubscriberValueSnapshots.TryGetValue(
+                                    monitoredItem.Id,
+                                    out DataValue subscriberValue))
                             {
-                                (_, snapshotValue) = await Node.ReadAttributeAsync(
-                                    contextToUse,
-                                    Attributes.Value,
-                                    default,
-                                    QualifiedName.Null,
-                                    new DataValue(
-                                        default,
-                                        StatusCodes.Good,
-                                        DateTime.MinValue,
-                                        m_timeProvider.GetUtcNow().UtcDateTime),
-                                    cancellationToken).ConfigureAwait(false);
+                                snapshotValue = subscriberValue;
                             }
                         }
 

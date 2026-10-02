@@ -73,11 +73,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(value.WrappedValue, Is.EqualTo(new Variant(42)));
         }
 
+        /// <summary>
+        /// The subscriber receives the value of the reported change, not a later value of the
+        /// node, also when the writer could not read it.
+        /// </summary>
+        [Test]
+        public async Task SubscriberReceivesReportedValueNotLaterValueWhenWriterCouldNotReadAsync()
+        {
+            var writer = new Mock<IUserIdentity>();
+            var subscriber = new Mock<IUserIdentity>();
+            (DataValue value, ServiceResult _) = await ReportChangeAsync(
+                writer.Object, subscriber.Object, writer.Object, valueAfterReport: 999).ConfigureAwait(false);
+
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue, Is.EqualTo(new Variant(42)));
+        }
+
         private static async Task<(DataValue, ServiceResult)> ReportChangeAsync(
             IUserIdentity writerIdentity,
             IUserIdentity subscriberIdentity,
-            IUserIdentity deniedIdentity)
+            IUserIdentity deniedIdentity,
+            int? valueAfterReport = null)
         {
+            // holds the processing of the change until the node has changed again.
+            var processingGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (valueAfterReport == null)
+            {
+                processingGate.SetResult(true);
+            }
+
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             {
@@ -106,7 +130,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         It.IsAny<NodeId>(),
                         It.IsAny<PermissionType>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                    .Returns(async () =>
+                    {
+                        await processingGate.Task.ConfigureAwait(false);
+                        return ServiceResult.Good;
+                    });
 
                 var subscriberSession = new Mock<ISession>();
                 subscriberSession.SetupGet(s => s.Id).Returns(new NodeId("subscriber", 1));
@@ -130,6 +158,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 monitoredNode.Add(item.Object);
                 await monitoredNode.OnMonitoredNodeChangedAsync(
                     writerContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                if (valueAfterReport != null)
+                {
+                    node.Value = valueAfterReport.Value;
+                    processingGate.SetResult(true);
+                }
                 await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
                 var queued = item.Invocations
