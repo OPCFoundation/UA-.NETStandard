@@ -31,6 +31,7 @@
 #pragma warning disable CA2007
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -227,6 +228,57 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(queue.SentCount, Is.EqualTo(1));
             });
             store.Verify(s => s.AcknowledgeNotification(13, 31), Times.Once);
+        }
+
+        [Test]
+        public void CreateRestoredWithNullEntryKeepsUnsentMessageQueued()
+        {
+            var queue = SentMessageQueue.CreateRestored(
+                () => 15,
+                maxMessageCount: 5,
+                null,
+                Mock.Of<ILogger>(),
+                [CreateMessage(7), null!, CreateMessage(8)],
+                nextSequenceNumber: 9,
+                lastSentMessage: 2);
+
+            // 7 and the null entry were in front of the cursor; 8 was not sent yet.
+            NotificationMessage? next = queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(next!.SequenceNumber, Is.EqualTo(8u));
+                Assert.That(queue.FindForRepublish(7), Is.Not.Null);
+            });
+        }
+
+        [TestCase(13u, 11u, new uint[] { 10, 12 }, 12u)]
+        [TestCase(3u, uint.MaxValue, new uint[] { uint.MaxValue - 1, 1, 2 }, 1u)]
+        public async Task LoadRetransmissionStateAsyncFindsBoundaryWhenFirstUnsentMessageIsMissingAsync(
+            uint nextSequenceNumber,
+            uint firstUnsentSequenceNumber,
+            uint[] retained,
+            uint expectedFirstUnsent)
+        {
+            var state = new SubscriptionRetransmissionState
+            {
+                NextSequenceNumber = nextSequenceNumber,
+                SentMessages = [.. retained.Select(CreateMessage)],
+                FirstUnsentSequenceNumber = firstUnsentSequenceNumber
+            };
+            var store = new Mock<ISubscriptionRetransmissionSendStateStore>();
+            store.Setup(s => s.LoadRetransmissionStateAsync(21, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<SubscriptionRetransmissionState?>(state));
+            var queue = new SentMessageQueue(
+                () => 21,
+                maxMessageCount: 5,
+                store.Object,
+                Mock.Of<ILogger>());
+
+            await queue.LoadRetransmissionStateAsync(CancellationToken.None).ConfigureAwait(false);
+
+            NotificationMessage? first = queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
+            Assert.That(first!.SequenceNumber, Is.EqualTo(expectedFirstUnsent));
         }
 
         [Test]

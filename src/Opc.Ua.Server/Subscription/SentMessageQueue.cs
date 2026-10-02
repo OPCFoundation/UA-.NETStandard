@@ -89,12 +89,28 @@ namespace Opc.Ua.Server
             // Restored state comes from a pluggable store and is validated: a missing list
             // is empty, the sent index stays within the list and sequence number 0 is
             // never used (OPC 10000-4, 5.14.1.1).
-            SentMessages = sentMessages == null
-                ? []
-                : sentMessages.FindAll(message => message != null)
-                    .ConvertAll(message => CoreUtils.Clone(message)!);
+            // null entries are dropped; the sent index keeps pointing at the first unsent
+            // message, so only the messages in front of it are counted.
+            SentMessages = [];
+            int sentPrefix = 0;
+            if (sentMessages != null)
+            {
+                for (int ii = 0; ii < sentMessages.Count; ii++)
+                {
+                    if (sentMessages[ii] == null)
+                    {
+                        continue;
+                    }
+
+                    if (ii < lastSentMessage)
+                    {
+                        sentPrefix++;
+                    }
+                    SentMessages.Add(CoreUtils.Clone(sentMessages[ii])!);
+                }
+            }
             m_sequenceNumber = ValidateNextSequenceNumber(nextSequenceNumber, SentMessages);
-            m_lastSentMessage = Math.Min(Math.Max(lastSentMessage, 0), SentMessages.Count);
+            m_lastSentMessage = sentPrefix;
         }
 
         /// <summary>
@@ -394,8 +410,14 @@ namespace Opc.Ua.Server
             m_lastSentMessage = SentMessages.Count;
             if (state.FirstUnsentSequenceNumber != 0)
             {
+                // the first unsent message itself may be missing from the snapshot (its key
+                // written after the state): the boundary is the first retained message at or
+                // after it, compared by distance below the next sequence number so that a
+                // rollover is handled (OPC 10000-4, 7.38).
+                uint next = m_sequenceNumber;
+                uint boundaryAge = unchecked(next - state.FirstUnsentSequenceNumber);
                 int firstUnsent = SentMessages.FindIndex(
-                    message => message.SequenceNumber == state.FirstUnsentSequenceNumber);
+                    message => unchecked(next - message.SequenceNumber) <= boundaryAge);
                 if (firstUnsent >= 0)
                 {
                     m_lastSentMessage = firstUnsent;
