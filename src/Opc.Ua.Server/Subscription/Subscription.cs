@@ -2339,11 +2339,42 @@ namespace Opc.Ua.Server
         /// Adds monitored items to a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
+        {
+            return CreateMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToCreate,
+                null,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<CreateMonitoredItemsResponse> ISubscriptionPublishPipeline.CreateMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken)
+        {
+            return CreateMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToCreate,
+                countChange,
+                cancellationToken);
+        }
+
+        private async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsCoreAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            MonitoredItemCountChange? countChange,
+            CancellationToken cancellationToken)
         {
             if (context == null)
             {
@@ -2425,6 +2456,7 @@ namespace Opc.Ua.Server
 
                                 LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
                                 m_monitoredItems.Add(monitoredItem.Id, node);
+                                countChange?.Increment();
 
                                 errors[ii] = monitoredItem.GetCreateResult(out result);
 
@@ -2769,10 +2801,28 @@ namespace Opc.Ua.Server
         /// Deletes the monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
+        {
+            return DeleteMonitoredItemsCoreAsync(context, monitoredItemIds, null);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<DeleteMonitoredItemsResponse> ISubscriptionPublishPipeline.DeleteMonitoredItemsAsync(
+            OperationContext context,
+            ArrayOf<uint> monitoredItemIds,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken)
+        {
+            return DeleteMonitoredItemsCoreAsync(context, monitoredItemIds, countChange);
+        }
+
+        private async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsCoreAsync(
+            OperationContext context,
+            ArrayOf<uint> monitoredItemIds,
+            MonitoredItemCountChange? countChange)
         {
             if (context == null)
             {
@@ -2836,6 +2886,7 @@ namespace Opc.Ua.Server
 
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
+                    countChange?.Decrement();
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
                     {

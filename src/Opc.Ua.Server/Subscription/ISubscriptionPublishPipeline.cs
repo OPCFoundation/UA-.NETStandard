@@ -140,6 +140,29 @@ namespace Opc.Ua.Server
         void AbortTransfer(ISession? sourceSession);
 
         /// <summary>
+        /// Adds monitored items to the subscription and records every item that becomes
+        /// part of the subscription in <paramref name="countChange"/> under the
+        /// subscription lock.
+        /// </summary>
+        ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Deletes monitored items from the subscription and records every item that is
+        /// removed from the subscription in <paramref name="countChange"/>, whatever
+        /// status the NodeManager reports for it.
+        /// </summary>
+        ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+            OperationContext context,
+            ArrayOf<uint> monitoredItemIds,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken);
+
+        /// <summary>
         /// Restores ownership if a transfer failed after assigning its destination.
         /// </summary>
         bool TryRestoreSessionAfterFailedTransfer(

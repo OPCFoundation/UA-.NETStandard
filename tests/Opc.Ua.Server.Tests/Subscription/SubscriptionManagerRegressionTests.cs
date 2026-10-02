@@ -528,6 +528,175 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(() => manager.ConditionRefresh(context, second.Id));
         }
 
+        /// <summary>
+        /// An item the subscription removed is subtracted from the session's
+        /// CurrentMonitoredItemsCount even when its NodeManager reports
+        /// Bad_MonitoredItemIdInvalid for it (review U7).
+        /// </summary>
+        [Test]
+        public async Task DeleteCountsRemovedItemsReportedInvalidByTheNodeManagerAsync()
+        {
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration());
+            TestSession session = CreateSession();
+            Subscription subscription = await CreateSubscriptionAsync(manager, session).ConfigureAwait(false);
+            SetMonitoredItemCount(subscription, 2);
+            session.Diagnostics.CurrentMonitoredItemsCount = 2;
+            m_nodeManagerMock
+                .Setup(n => n.DeleteMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    OperationContext _, uint _, IList<IMonitoredItem> _, IList<ServiceResult> errors,
+                    CancellationToken _) =>
+                {
+                    // e.g. the node of the item was deleted concurrently
+                    errors[0] = StatusCodes.BadMonitoredItemIdInvalid;
+                    return default;
+                });
+            using var context = new OperationContext(session.Mock.Object, DiagnosticsMasks.None);
+
+            DeleteMonitoredItemsResponse response = await manager.DeleteMonitoredItemsAsync(
+                context,
+                subscription.Id,
+                new uint[] { 1, 99 }.ToArrayOf()).ConfigureAwait(false);
+
+            Assert.That(response.Results[0], Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+            Assert.That(response.Results[1], Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
+            Assert.That(session.Diagnostics.CurrentMonitoredItemsCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// An item the subscription added is counted in the session's
+        /// CurrentMonitoredItemsCount even when its create result is Bad (review U7).
+        /// </summary>
+        [Test]
+        public async Task CreateCountsItemsAddedWithABadCreateResultAsync()
+        {
+            using SubscriptionManager manager = CreateManager(new ServerConfiguration());
+            TestSession session = CreateSession();
+            Subscription subscription = await CreateSubscriptionAsync(manager, session).ConfigureAwait(false);
+            SetupNodeManagerCreate(StatusCodes.BadMonitoredItemFilterUnsupported);
+            using var context = new OperationContext(session.Mock.Object, DiagnosticsMasks.None);
+
+            CreateMonitoredItemsResponse response = await manager.CreateMonitoredItemsAsync(
+                context,
+                subscription.Id,
+                TimestampsToReturn.Both,
+                CreateRequests(1)).ConfigureAwait(false);
+
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemFilterUnsupported));
+            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
+            Assert.That(session.Diagnostics.CurrentMonitoredItemsCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Items of an in-flight CreateMonitoredItems call that are already part of the
+        /// subscription are not counted a second time through the call's reservation, so a
+        /// concurrent create is not rejected with Bad_TooManyMonitoredItems too early
+        /// (review SWEEP-1).
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ConcurrentCreateDoesNotCountAddedItemsTwiceAsync(bool perSubscriptionLimit)
+        {
+            using SubscriptionManager manager = CreateManager(
+                perSubscriptionLimit
+                    ? new ServerConfiguration { MaxMonitoredItemsPerSubscription = 100 }
+                    : new ServerConfiguration { MaxMonitoredItemCount = 100 });
+            TestSession session = CreateSession();
+            Subscription subscription = await CreateSubscriptionAsync(manager, session).ConfigureAwait(false);
+            SetupNodeManagerCreate(StatusCodes.Good);
+
+            // request A reserved 60 items and the subscription already added all of them,
+            // but A has not returned (and released its reservation) yet.
+            var addedByA = new MonitoredItemCountChange();
+            object reservationA = typeof(SubscriptionManager)
+                .GetMethod("ReserveMonitoredItems", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(manager, [subscription, 60, addedByA]);
+            Assert.That(reservationA, Is.Not.Null);
+            SetMonitoredItemCount(subscription, 60);
+            for (int ii = 0; ii < 60; ii++)
+            {
+                addedByA.Increment();
+            }
+
+            using var context = new OperationContext(session.Mock.Object, DiagnosticsMasks.None);
+            CreateMonitoredItemsResponse response = await manager.CreateMonitoredItemsAsync(
+                context,
+                subscription.Id,
+                TimestampsToReturn.Both,
+                CreateRequests(41)).ConfigureAwait(false);
+
+            int good = 0;
+            int tooMany = 0;
+            foreach (MonitoredItemCreateResult result in response.Results)
+            {
+                if (result.StatusCode == StatusCodes.Good)
+                {
+                    good++;
+                }
+                else if (result.StatusCode == StatusCodes.BadTooManyMonitoredItems)
+                {
+                    tooMany++;
+                }
+            }
+            Assert.That(good, Is.EqualTo(40));
+            Assert.That(tooMany, Is.EqualTo(1));
+            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(100));
+        }
+
+        private void SetupNodeManagerCreate(StatusCode createResult)
+        {
+            int nextId = 1000;
+            m_nodeManagerMock
+                .Setup(n => n.CreateMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(), It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<IList<ServiceResult>>(), It.IsAny<IList<MonitoringFilterResult>>(),
+                    It.IsAny<IList<IMonitoredItem>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .Returns((
+                    OperationContext _, uint _, double _, TimestampsToReturn _,
+                    ArrayOf<MonitoredItemCreateRequest> _, IList<ServiceResult> errors,
+                    IList<MonitoringFilterResult> _, IList<IMonitoredItem> items, bool _, CancellationToken _) =>
+                {
+                    for (int ii = 0; ii < items.Count; ii++)
+                    {
+                        uint id = (uint)Interlocked.Increment(ref nextId);
+                        var item = new Mock<IMonitoredItem>();
+                        item.SetupGet(value => value.Id).Returns(id);
+                        var created = new MonitoredItemCreateResult
+                        {
+                            MonitoredItemId = id,
+                            StatusCode = createResult,
+                            RevisedSamplingInterval = 1000
+                        };
+                        item.Setup(value => value.GetCreateResult(out created))
+                            .Returns(new ServiceResult(createResult));
+                        items[ii] = item.Object;
+                        errors[ii] = ServiceResult.Good;
+                    }
+                    return default;
+                });
+        }
+
+        private static ArrayOf<MonitoredItemCreateRequest> CreateRequests(int count)
+        {
+            var requests = new MonitoredItemCreateRequest[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                requests[ii] = new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = new NodeId(1000u + (uint)ii), AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting
+                };
+            }
+            return requests.ToArrayOf();
+        }
+
         private static void SetMonitoredItemCount(Subscription subscription, int count)
         {
             var monitoredItems = GetPrivateField<System.Collections.IDictionary>(subscription, "m_monitoredItems");

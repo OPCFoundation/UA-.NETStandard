@@ -2158,7 +2158,12 @@ namespace Opc.Ua.Server
             }
 
             // reserve room for the items within the configured monitored item limits.
-            int allowed = ReserveMonitoredItems(subscription, itemsToCreate.Count);
+            var added = new MonitoredItemCountChange();
+            MonitoredItemReservation? reservation = ReserveMonitoredItems(
+                subscription,
+                itemsToCreate.Count,
+                added);
+            int allowed = reservation?.Reserved ?? itemsToCreate.Count;
             CreateMonitoredItemsResponse response;
             try
             {
@@ -2169,6 +2174,7 @@ namespace Opc.Ua.Server
                         context,
                         timestampsToReturn,
                         itemsToCreate,
+                        added,
                         cancellationToken).ConfigureAwait(false);
                 }
                 else
@@ -2179,24 +2185,19 @@ namespace Opc.Ua.Server
                         timestampsToReturn,
                         itemsToCreate,
                         allowed,
+                        added,
                         cancellationToken).ConfigureAwait(false);
                 }
             }
             finally
             {
-                ReleaseMonitoredItems(subscription, allowed);
+                ReleaseMonitoredItems(reservation);
             }
 
-            // count the items this request created; sampling MonitoredItemCount before and
-            // after the await also counts concurrent create/delete calls on the subscription.
-            int monitoredItemCountIncrement = 0;
-            foreach (MonitoredItemCreateResult result in response.Results)
-            {
-                if (result != null && !StatusCode.IsBad(result.StatusCode))
-                {
-                    monitoredItemCountIncrement++;
-                }
-            }
+            // count the items this request added to the subscription; sampling
+            // MonitoredItemCount before and after the await also counts concurrent
+            // create/delete calls, and an item can be added with a Bad create result.
+            int monitoredItemCountIncrement = added.Count;
 
             // update diagnostics.
             context.Session?.UpdateDiagnostics(
@@ -2216,6 +2217,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             int allowed,
+            MonitoredItemCountChange added,
             CancellationToken cancellationToken)
         {
             var itemsWithinLimit = new MonitoredItemCreateRequest[allowed];
@@ -2230,6 +2232,7 @@ namespace Opc.Ua.Server
                 context,
                 timestampsToReturn,
                 itemsWithinLimit.ToArrayOf(),
+                added,
                 cancellationToken).ConfigureAwait(false);
 
             int count = itemsToCreate.Count;
@@ -2283,33 +2286,54 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Reserves room for up to <paramref name="requested"/> new monitored items within
-        /// the configured server-wide and per-subscription limits and returns how many
-        /// items may be created. The reservation is released with
-        /// <see cref="ReleaseMonitoredItems"/> once the items are part of the subscription.
+        /// the configured server-wide and per-subscription limits. Returns <c>null</c> when
+        /// no limit is configured; otherwise the reservation holds how many items may be
+        /// created and must be released with <see cref="ReleaseMonitoredItems"/>.
         /// </summary>
-        private int ReserveMonitoredItems(ISubscriptionPublishPipeline subscription, int requested)
+        /// <remarks>
+        /// The subscription records each item it adds in <paramref name="added"/> in the
+        /// same step that makes the item part of <see cref="ISubscription.MonitoredItemCount"/>,
+        /// so an in-flight reservation only counts the items that are not yet added and a
+        /// concurrent create does not count the same item twice.
+        /// </remarks>
+        private MonitoredItemReservation? ReserveMonitoredItems(
+            ISubscriptionPublishPipeline subscription,
+            int requested,
+            MonitoredItemCountChange added)
         {
             int maxPerSubscription = m_maxMonitoredItemsPerSubscription;
             int maxTotal = m_maxMonitoredItemCount;
             if (maxPerSubscription <= 0 && maxTotal <= 0)
             {
-                return requested;
+                return null;
             }
 
             lock (m_monitoredItemReservationLock)
             {
-                int allowed = requested;
-                m_monitoredItemReservations.TryGetValue(subscription.Id, out int reservedForSubscription);
+                // read the outstanding reservations before the item counts: an item added
+                // in between is then counted twice for a moment, never not at all.
+                long outstandingForSubscription = 0;
+                long outstandingTotal = 0;
+                foreach (MonitoredItemReservation active in m_monitoredItemReservations)
+                {
+                    int outstanding = active.Outstanding;
+                    outstandingTotal += outstanding;
+                    if (active.SubscriptionId == subscription.Id)
+                    {
+                        outstandingForSubscription += outstanding;
+                    }
+                }
 
+                int allowed = requested;
                 if (maxPerSubscription > 0)
                 {
-                    long inUse = (long)subscription.MonitoredItemCount + reservedForSubscription;
+                    long inUse = subscription.MonitoredItemCount + outstandingForSubscription;
                     allowed = (int)Math.Max(0, Math.Min(allowed, maxPerSubscription - inUse));
                 }
 
                 if (maxTotal > 0)
                 {
-                    long inUse = m_totalMonitoredItemReservations;
+                    long inUse = outstandingTotal;
                     foreach (ISubscriptionPublishPipeline existing in m_subscriptions.Values)
                     {
                         inUse += existing.MonitoredItemCount;
@@ -2318,38 +2342,53 @@ namespace Opc.Ua.Server
                     allowed = (int)Math.Max(0, Math.Min(allowed, maxTotal - inUse));
                 }
 
-                m_monitoredItemReservations[subscription.Id] = reservedForSubscription + allowed;
-                m_totalMonitoredItemReservations += allowed;
-                return allowed;
+                var reservation = new MonitoredItemReservation(subscription.Id, allowed, added);
+                m_monitoredItemReservations.Add(reservation);
+                return reservation;
             }
         }
 
         /// <summary>
         /// Releases a reservation made by <see cref="ReserveMonitoredItems"/>.
         /// </summary>
-        private void ReleaseMonitoredItems(ISubscriptionPublishPipeline subscription, int reserved)
+        private void ReleaseMonitoredItems(MonitoredItemReservation? reservation)
         {
-            if (m_maxMonitoredItemsPerSubscription <= 0 && m_maxMonitoredItemCount <= 0)
+            if (reservation == null)
             {
                 return;
             }
 
             lock (m_monitoredItemReservationLock)
             {
-                m_totalMonitoredItemReservations -= reserved;
-                if (m_monitoredItemReservations.TryGetValue(subscription.Id, out int reservedForSubscription))
-                {
-                    reservedForSubscription -= reserved;
-                    if (reservedForSubscription > 0)
-                    {
-                        m_monitoredItemReservations[subscription.Id] = reservedForSubscription;
-                    }
-                    else
-                    {
-                        m_monitoredItemReservations.Remove(subscription.Id);
-                    }
-                }
+                m_monitoredItemReservations.Remove(reservation);
             }
+        }
+
+        /// <summary>
+        /// Room reserved for the monitored items of one CreateMonitoredItems call.
+        /// </summary>
+        private sealed class MonitoredItemReservation
+        {
+            public MonitoredItemReservation(
+                uint subscriptionId,
+                int reserved,
+                MonitoredItemCountChange added)
+            {
+                SubscriptionId = subscriptionId;
+                Reserved = reserved;
+                m_added = added;
+            }
+
+            public uint SubscriptionId { get; }
+
+            public int Reserved { get; }
+
+            /// <summary>
+            /// The reserved items that are not yet part of the subscription.
+            /// </summary>
+            public int Outstanding => Math.Max(0, Reserved - m_added.Count);
+
+            private readonly MonitoredItemCountChange m_added;
         }
 
         /// <summary>
@@ -2394,23 +2433,18 @@ namespace Opc.Ua.Server
             }
 
             // delete the items.
+            var removed = new MonitoredItemCountChange();
             DeleteMonitoredItemsResponse response = await subscription.DeleteMonitoredItemsAsync(
                 context,
                 monitoredItemIds,
+                removed,
                 cancellationToken).ConfigureAwait(false);
 
-            // count the items this request removed; sampling MonitoredItemCount before and
-            // after the await also counts concurrent create/delete calls on the subscription.
-            // The subscription removes every item it finds, so only an unknown id
-            // (Bad_MonitoredItemIdInvalid) leaves the count unchanged.
-            int monitoredItemCountIncrement = 0;
-            foreach (StatusCode result in response.Results)
-            {
-                if (result != StatusCodes.BadMonitoredItemIdInvalid)
-                {
-                    monitoredItemCountIncrement--;
-                }
-            }
+            // count the items this request removed from the subscription; sampling
+            // MonitoredItemCount before and after the await also counts concurrent
+            // create/delete calls, and the result of a removed item can still be
+            // Bad_MonitoredItemIdInvalid when its NodeManager no longer tracked it.
+            int monitoredItemCountIncrement = removed.Count;
 
             // update diagnostics.
             context.Session?.UpdateDiagnostics(
@@ -3123,8 +3157,7 @@ namespace Opc.Ua.Server
         private readonly int m_maxMonitoredItemCount;
         private readonly int m_maxMonitoredItemsPerSubscription;
         private readonly Lock m_monitoredItemReservationLock = new();
-        private readonly Dictionary<uint, int> m_monitoredItemReservations = [];
-        private long m_totalMonitoredItemReservations;
+        private readonly HashSet<MonitoredItemReservation> m_monitoredItemReservations = [];
         private readonly bool m_durableSubscriptionsEnabled;
         private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_subscriptions;
         private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_abandonedSubscriptions;
