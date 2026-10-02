@@ -308,9 +308,12 @@ namespace Opc.Ua.Server
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
 
-            // must send the latest value after enabling a disabled item.
+            // must send the latest value after enabling a disabled item. For an item whose
+            // node was deleted SetMonitoringMode already queued Bad_NodeIdUnknown, and the
+            // stale node must not override it with a Good value.
             if (previousMode == MonitoringMode.Disabled &&
-                monitoringMode != MonitoringMode.Disabled)
+                monitoringMode != MonitoringMode.Disabled &&
+                monitoredItem is not IDetachableMonitoredItem { IsDeleted: true })
             {
                 await handle.MonitoredNode.QueueValueAsync(context, handle.Node, monitoredItem, cancellationToken).ConfigureAwait(false);
             }

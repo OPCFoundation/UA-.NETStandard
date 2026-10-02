@@ -31,6 +31,7 @@
 #pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
@@ -191,6 +192,70 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 published[0].Value.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        /// <summary>
+        /// Re-enabling an item whose node was deleted must not read the stale node and queue
+        /// a Good value over the Bad_NodeIdUnknown the item reports (both managers).
+        /// </summary>
+        [TestCase(false, 1u)]
+        [TestCase(false, 10u)]
+        [TestCase(true, 1u)]
+        [TestCase(true, 10u)]
+        public async Task ReenablingDeletedNodeItemDoesNotQueueStaleValueAsync(
+            bool useSamplingGroups,
+            uint queueSize)
+        {
+            using var harness = new Harness();
+            using MonitoredItem item = harness.CreateDataItem(queueSize, samplingInterval: 0);
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("V", 1),
+                DataType = DataTypeIds.Int32,
+                Value = new Variant(42),
+                StatusCode = StatusCodes.Good
+            };
+            var handle = new NodeHandle(node.NodeId, node);
+            var context = new ServerSystemContext(harness.ServerMock.Object);
+
+            IMonitoredItemManager manager;
+            if (useSamplingGroups)
+            {
+                var samplingGroups = new SamplingGroupManager(
+                    harness.ServerMock.Object, nodeManager.Object, 10, 10, [new SamplingRateGroup(1000, 0, 1)]);
+                manager = new SamplingGroupMonitoredItemManager(
+                    nodeManager.Object, harness.ServerMock.Object, samplingGroups);
+            }
+            else
+            {
+                manager = new MonitoredNodeMonitoredItemManager(nodeManager.Object, harness.ServerMock.Object);
+                handle.MonitoredNode = new MonitoredNode2(nodeManager.Object, harness.ServerMock.Object, node);
+                manager.MonitoredNodes[node.NodeId] = handle.MonitoredNode;
+            }
+
+            using (manager)
+            {
+                manager.MonitoredItems[item.Id] = item;
+
+                item.QueueValue(new DataValue(Variant.From(1)), ServiceResult.Good);
+                Assert.That(PublishData(harness, item), Has.Count.EqualTo(1));
+
+                item.SetMonitoringMode(MonitoringMode.Disabled);
+                ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+
+                (ServiceResult result, MonitoringMode? previousMode) = await manager.SetMonitoringModeAsync(
+                    context, item, MonitoringMode.Reporting, handle).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(previousMode, Is.EqualTo(MonitoringMode.Disabled));
+
+                List<MonitoredItemNotification> published = PublishData(harness, item);
+
+                Assert.That(published, Has.Count.EqualTo(1));
+                Assert.That(
+                    published[0].Value.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
         }
 
         /// <summary>

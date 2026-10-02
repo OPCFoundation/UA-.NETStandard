@@ -345,8 +345,10 @@ namespace Opc.Ua.Server
 
             m_samplingGroupManager.ModifyMonitoring(context.OperationContext!, monitoredItem);
 
-            // need to provide an immediate update after enabling.
-            if (enabled)
+            // need to provide an immediate update after enabling. For an item whose node
+            // was deleted SetMonitoringMode already queued Bad_NodeIdUnknown, and the stale
+            // node must not override it with a Good value.
+            if (enabled && monitoredItem is not IDetachableMonitoredItem { IsDeleted: true })
             {
                 var initialValue = new DataValue(
                     Variant.Null,
