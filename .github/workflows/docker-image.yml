@@ -3,14 +3,10 @@ name: Docker Reference Server CI
 on:
   push:
     branches: [ master, release/*, docker* ]
-    paths-ignore:
-    - 'Docs/**'
-    - 'Tests/**'
   pull_request:
-    branches: [ master ]
-    paths-ignore:
-    - 'Docs/**'
-    - 'Tests/**'
+    branches: [ master, main, master378, develop/*, release/* ]
+    # Keep the same PR targets as buildandtest.yml. Filter jobs below so the
+    # required summary also reports for documentation- and test-only changes.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -22,7 +18,55 @@ env:
   DOCKERSIGN: false
 
 jobs:
+  discover:
+    name: Discover image changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      relevant_changes: ${{ steps.relevance.outputs.relevant_changes }}
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Resolve path relevance
+      id: relevance
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        BEFORE_SHA: ${{ github.event.before }}
+      run: |
+        set -euo pipefail
+        relevant=true
+        range=''
+        if [[ "$EVENT_NAME" == pull_request ]]; then
+          : "${BASE_SHA:?Missing pull-request base commit}"
+          range="${BASE_SHA}...HEAD"
+        elif [[ "$EVENT_NAME" == push && "$BEFORE_SHA" =~ ^[0-9a-f]{40}$ && ! "$BEFORE_SHA" =~ ^0+$ ]] &&
+          git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+          range="${BEFORE_SHA}..HEAD"
+        fi
+        # Build on new branches or when a force-push predecessor is unavailable.
+        if [[ -n "$range" ]]; then
+          git diff --name-only --no-renames -z "$range" > "$RUNNER_TEMP/image-changed-files"
+          relevant=false
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              Docs/*|Tests/*) ;;
+              *)
+                relevant=true
+                break
+                ;;
+            esac
+          done < "$RUNNER_TEMP/image-changed-files"
+        fi
+        echo "relevant_changes=$relevant" >> "$GITHUB_OUTPUT"
+
   build-and-push-image:
+    needs: discover
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: ubuntu-latest
     env:
       IS_NOT_PR: ${{ !github.head_ref && true }}
@@ -132,3 +176,34 @@ jobs:
         echo Signing ${{ env.IMAGE_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}
         echo "${{ env.IMAGE_REPOSITORY }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
 
+  images-summary:
+    name: images summary
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: ${{ always() }}
+    needs: [discover, build-and-push-image]
+    steps:
+    - name: Evaluate job results
+      shell: bash
+      env:
+        DISCOVER_RESULT: ${{ needs.discover.result }}
+        RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
+        IMAGES_RESULT: ${{ needs.build-and-push-image.result }}
+      run: |
+        set -euo pipefail
+        echo "Discovery: $DISCOVER_RESULT; image-relevant: $RELEVANT_CHANGES; images: $IMAGES_RESULT"
+        if [[ "$DISCOVER_RESULT" != success ]]; then
+          echo '::error::Image change discovery did not succeed.'
+          exit 1
+        fi
+        # Only accept a skipped build when discovery intentionally excluded it.
+        case "$RELEVANT_CHANGES:$IMAGES_RESULT" in
+          true:success|false:skipped)
+            echo 'Image build succeeded or was intentionally skipped.'
+            ;;
+          *)
+            echo '::error::Required image build did not succeed.'
+            exit 1
+            ;;
+        esac

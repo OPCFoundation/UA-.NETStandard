@@ -2,22 +2,11 @@ name: Build and Test .NET 10.0
 
 on:
   push:
-    branches: [ master, main, master378, develop/* ]
+    branches: [ master, main, master378, develop/*, release/* ]
   pull_request:
-    branches: [ master, main, master378, develop/* ]
-    paths:
-    - '**.cs'
-    - '**.csproj'
-    # Build/config files affect compilation, so the build and test jobs must
-    # run when they change (common.props, targets.props, Directory.Build.props,
-    # the solutions, and this workflow itself).
-    - '**.props'
-    - '**.targets'
-    - '**.sln'
-    - '**.slnx'
-    - 'global.json'
-    - 'NuGet.config'
-    - '.github/workflows/buildandtest.yml'
+    branches: [ master, main, master378, develop/*, release/* ]
+    # Filter jobs below, not the workflow: the required summary must report
+    # even when a pull request changes no build-relevant files.
 
 permissions:
   contents: read
@@ -32,11 +21,40 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       csprojs: ${{ steps.list.outputs.csprojs }}
+      relevant_changes: ${{ steps.relevance.outputs.relevant_changes }}
     steps:
     - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Resolve path relevance
+      id: relevance
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: |
+        set -euo pipefail
+        relevant=true
+        if [[ "$EVENT_NAME" == pull_request ]]; then
+          : "${BASE_SHA:?Missing pull-request base commit}"
+          # A failed diff must fail discovery, never silently skip the tests.
+          git diff --name-only --no-renames -z "${BASE_SHA}...HEAD" > "$RUNNER_TEMP/build-changed-files"
+          relevant=false
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.cs|*.csproj|*.props|*.targets|*.sln|*.slnx|global.json|NuGet.config|.github/workflows/buildandtest.yml)
+                relevant=true
+                break
+                ;;
+            esac
+          done < "$RUNNER_TEMP/build-changed-files"
+        fi
+        echo "relevant_changes=$relevant" >> "$GITHUB_OUTPUT"
 
     - name: Enumerate Tests/Opc.Ua.*.Tests projects
       id: list
+      if: ${{ steps.relevance.outputs.relevant_changes == 'true' }}
       shell: pwsh
       run: |
         # Discover test projects from the filesystem so this matrix does not
@@ -51,6 +69,7 @@ jobs:
 
   build-and-test:
     needs: discover
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -114,3 +133,33 @@ jobs:
         verbose: true
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
+
+  build-and-test-summary:
+    name: build-and-test summary
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs: [discover, build-and-test]
+    steps:
+    - name: Evaluate job results
+      shell: bash
+      env:
+        DISCOVER_RESULT: ${{ needs.discover.result }}
+        RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
+        TEST_RESULT: ${{ needs.build-and-test.result }}
+      run: |
+        set -euo pipefail
+        echo "Discovery: $DISCOVER_RESULT; build-relevant: $RELEVANT_CHANGES; tests: $TEST_RESULT"
+        if [[ "$DISCOVER_RESULT" != success ]]; then
+          echo '::error::Test discovery did not succeed.'
+          exit 1
+        fi
+        # Only accept a skipped matrix when discovery intentionally excluded it.
+        case "$RELEVANT_CHANGES:$TEST_RESULT" in
+          true:success|false:skipped)
+            echo 'Build and test jobs succeeded or were intentionally skipped.'
+            ;;
+          *)
+            echo '::error::Required build and test jobs did not succeed.'
+            exit 1
+            ;;
+        esac
