@@ -81,6 +81,66 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// PR review 4166517725: cap eviction and activation admission are decided under
+        /// the same lock. A session whose activation registered itself in flight is not
+        /// evicted even when its activation gate reads as free, and an activation that
+        /// is admitted after the session was claimed as a victim fails.
+        /// </summary>
+        [Test]
+        public async Task CapEvictionAndActivationAdmissionAreMutuallyExclusiveAsync()
+        {
+            ServerFixture<StandardServer> fixture = await StartAsync(maxSessionCount: 1).ConfigureAwait(false);
+            try
+            {
+                StandardServer server = fixture.Server;
+                SecureChannelContext channel = CreateNoneChannel(server, "cap-admission");
+                CreateSessionResponse first = await server.CreateSessionAsync(
+                    channel, new RequestHeader(), null, null, null, "cap-admission-1",
+                    default, default, 60000, 0, RequestLifetime.None).ConfigureAwait(false);
+                object sessionManager = server.CurrentInstance.SessionManager;
+                ISession session = server.CurrentInstance.SessionManager.GetSession(first.AuthenticationToken);
+                object state = GetActivationState(sessionManager, session);
+                PropertyInfo inFlight = state.GetType().GetProperty("ActivationInFlight");
+                PropertyInfo claimed = state.GetType().GetProperty("CapEvictionClaimed");
+
+                // an activation admitted between the eviction's candidate check and its claim.
+                inFlight.SetValue(state, true);
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await CreateAsync(server, "cap-admission-2").ConfigureAwait(false));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManySessions));
+                Assert.That(session.IsClosing, Is.False);
+                Assert.That(
+                    server.CurrentInstance.SessionManager.GetSession(first.AuthenticationToken),
+                    Is.SameAs(session));
+
+                // an activation that acquires the gate after the eviction claim fails.
+                inFlight.SetValue(state, false);
+                claimed.SetValue(state, true);
+                ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await server.ActivateSessionAsync(
+                        channel, new RequestHeader { AuthenticationToken = first.AuthenticationToken },
+                        null, default, default, default, null, RequestLifetime.None).ConfigureAwait(false));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+                Assert.That(session.Activated, Is.False);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static object GetActivationState(object sessionManager, ISession session)
+        {
+            object table = typeof(SessionManager)
+                .GetField("m_sessionActivationStates", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(sessionManager);
+            object[] args = [session, null];
+            bool found = (bool)table.GetType().GetMethod("TryGetValue").Invoke(table, args);
+            Assert.That(found, Is.True);
+            return args[1];
+        }
+
+        /// <summary>
         /// A cap filled with activated Sessions still rejects CreateSession with
         /// Bad_TooManySessions; activated Sessions are never evicted.
         /// </summary>

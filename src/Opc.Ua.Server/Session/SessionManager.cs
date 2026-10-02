@@ -624,6 +624,18 @@ namespace Opc.Ua.Server
 
                 try
                 {
+                    // Admit the activation under the lock the cap eviction claims its
+                    // victim under: either the eviction sees this activation in flight
+                    // and skips the session, or the activation sees the claim and fails.
+                    lock (m_bindingsLock)
+                    {
+                        if (activationState.CapEvictionClaimed)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                        }
+                        activationState.ActivationInFlight = true;
+                    }
+
                     if (!m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
                         !ReferenceEquals(currentSession, session) ||
                         session.IsClosing)
@@ -868,6 +880,10 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
+                    lock (m_bindingsLock)
+                    {
+                        activationState.ActivationInFlight = false;
+                    }
                     activationLock.Release();
                     activationLock = null;
                 }
@@ -1920,13 +1936,17 @@ namespace Opc.Ua.Server
 
                 // Re-checked and claimed under the lock CommitSessionBinding re-checks
                 // IsClosing under, without taking a Session lock while it is held.
+                // An activation registers itself in flight under the same lock after
+                // it acquired its gate, and fails once the eviction claim is recorded.
                 lock (m_bindingsLock)
                 {
                     if (!IsCapEvictionCandidate(victim) ||
+                        !m_sessionActivationStates.TryGetValue(victim, out SessionActivationState? victimState) ||
                         !SessionTermination.TryClaimClose(victim))
                     {
                         continue;
                     }
+                    victimState.CapEvictionClaimed = true;
                 }
 
                 m_logger.ClosingNonActivatedSessionAtCap(victim.Id, m_maxSessionCount);
@@ -1945,7 +1965,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the session may be closed to make room at the session cap: it was never
         /// activated, is not closing and has no ActivateSession in flight. Takes no Session
-        /// lock, so it can be called under the bindings lock.
+        /// lock, so it can be called under the bindings lock; the in-flight flag is only
+        /// authoritative there.
         /// </summary>
         private bool IsCapEvictionCandidate(ISession session)
         {
@@ -1953,6 +1974,8 @@ namespace Opc.Ua.Server
                 !session.IsClosing &&
                 m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state) &&
                 !state.IsCommitting &&
+                !state.ActivationInFlight &&
+                !state.CapEvictionClaimed &&
                 state.Lock.CurrentCount != 0;
         }
 
@@ -2127,6 +2150,18 @@ namespace Opc.Ua.Server
             public SessionBindingContext? BindingContext { get; set; }
 
             public bool IsCommitting { get; set; }
+
+            /// <summary>
+            /// An ActivateSession holds the activation gate and was admitted; set and read
+            /// under the bindings lock.
+            /// </summary>
+            public bool ActivationInFlight { get; set; }
+
+            /// <summary>
+            /// The session was claimed as a cap eviction victim; set and read under the
+            /// bindings lock. An activation that acquires the gate afterwards fails.
+            /// </summary>
+            public bool CapEvictionClaimed { get; set; }
 
             /// <summary>
             /// The effective identity the authenticator (or ImpersonateUser callback) returned
