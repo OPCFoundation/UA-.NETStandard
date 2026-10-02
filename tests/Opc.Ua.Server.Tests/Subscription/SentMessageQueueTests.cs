@@ -323,19 +323,19 @@ namespace Opc.Ua.Server.Tests
                 out bool moreNotifications,
                 out _);
             Assert.That(moreNotifications, Is.True);
-            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, 11), Times.Once);
+            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, It.IsAny<uint>(), 11), Times.Once);
 
             queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
-            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, 12), Times.Once);
+            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, It.IsAny<uint>(), 12), Times.Once);
 
             queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
-            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, 0), Times.Once);
+            store.Verify(s => s.StoreFirstUnsentSequenceNumber(19, It.IsAny<uint>(), 0), Times.Once);
 
             // Nothing changes: no further mirror writes.
             queue.TryAcknowledge(10);
             queue.Enqueue([CreateMessage(13)], [], out _, out _);
             store.Verify(
-                s => s.StoreFirstUnsentSequenceNumber(It.IsAny<uint>(), It.IsAny<uint>()),
+                s => s.StoreFirstUnsentSequenceNumber(It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<uint>()),
                 Times.Exactly(3));
         }
 
@@ -371,6 +371,32 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(second!.SequenceNumber, Is.EqualTo(12u));
                 Assert.That(none, Is.Null);
             });
+        }
+
+        [Test]
+        public async Task SendStateAfterRestoreCarriesNextSequenceNumberAsync()
+        {
+            var state = new SubscriptionRetransmissionState
+            {
+                NextSequenceNumber = 13,
+                SentMessages = [CreateMessage(10), CreateMessage(11), CreateMessage(12)],
+                FirstUnsentSequenceNumber = 11
+            };
+            var store = new Mock<ISubscriptionRetransmissionSendStateStore>();
+            store.Setup(s => s.LoadRetransmissionStateAsync(21, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<SubscriptionRetransmissionState?>(state));
+            var queue = new SentMessageQueue(
+                () => 21,
+                maxMessageCount: 5,
+                store.Object,
+                Mock.Of<ILogger>());
+
+            await queue.LoadRetransmissionStateAsync(CancellationToken.None).ConfigureAwait(false);
+
+            // The first send-state write after a restore is not preceded by a retransmission
+            // state write, so it must carry the restored next sequence number itself.
+            queue.TryDequeueQueued([], hasItemsToPublish: false, out _);
+            store.Verify(s => s.StoreFirstUnsentSequenceNumber(21, 13, 12), Times.Once);
         }
 
         private static NotificationMessage CreateMessage(uint sequenceNumber)

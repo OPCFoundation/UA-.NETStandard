@@ -46,11 +46,22 @@ namespace Opc.Ua.Server
         /// Stores the sequence number of the oldest retained notification that was not yet
         /// returned by a Publish response.
         /// </summary>
+        /// <remarks>
+        /// The next sequence number is passed along because the send state can change before
+        /// any retransmission state was stored by this instance (for example right after a
+        /// replica restored the subscription), and the stored record carries both values.
+        /// </remarks>
         /// <param name="subscriptionId">The subscription id.</param>
+        /// <param name="nextSequenceNumber">
+        /// The sequence number the subscription assigns to its next notification message.
+        /// </param>
         /// <param name="firstUnsentSequenceNumber">
         /// The sequence number of the oldest unsent notification, or 0 when every retained
         /// notification was sent.
         /// </param>
-        void StoreFirstUnsentSequenceNumber(uint subscriptionId, uint firstUnsentSequenceNumber);
+        void StoreFirstUnsentSequenceNumber(
+            uint subscriptionId,
+            uint nextSequenceNumber,
+            uint firstUnsentSequenceNumber);
     }
 }

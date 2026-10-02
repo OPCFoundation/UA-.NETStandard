@@ -390,11 +390,17 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public void StoreFirstUnsentSequenceNumber(uint subscriptionId, uint firstUnsentSequenceNumber)
+        public void StoreFirstUnsentSequenceNumber(
+            uint subscriptionId,
+            uint nextSequenceNumber,
+            uint firstUnsentSequenceNumber)
         {
             lock (m_retransmissionLock)
             {
+                // The state record carries both values; a pending state created here (for
+                // example after a restore on a fresh replica) must not persist Next = 0.
                 PendingRetransmissionState state = GetPendingState(subscriptionId);
+                state.NextSequenceNumber = nextSequenceNumber;
                 state.FirstUnsentSequenceNumber = firstUnsentSequenceNumber;
                 state.StateDirty = true;
             }

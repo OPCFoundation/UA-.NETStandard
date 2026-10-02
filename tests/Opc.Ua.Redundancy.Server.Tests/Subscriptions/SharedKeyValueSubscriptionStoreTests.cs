@@ -1623,7 +1623,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 4,
                 [NewNotification(1), NewNotification(2), NewNotification(3)],
                 []);
-            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 2);
+            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 4, 2);
             await primary.FlushAsync().ConfigureAwait(false);
 
             SubscriptionRetransmissionState? state =
@@ -1632,10 +1632,43 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(state!.NextSequenceNumber, Is.EqualTo(4));
             Assert.That(state.FirstUnsentSequenceNumber, Is.EqualTo(2));
 
-            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 0);
+            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 4, 0);
             await primary.FlushAsync().ConfigureAwait(false);
             state = await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
             Assert.That(state!.FirstUnsentSequenceNumber, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that a replica which restored a subscription and only reports send-state
+        /// changes keeps the stored next sequence number instead of persisting 0.
+        /// </summary>
+        [Test]
+        public async Task SendStateOnRestoredReplicaKeepsNextSequenceNumberAsync()
+        {
+            const uint subscriptionId = 725;
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+
+            primary.StoreRetransmissionStateDelta(
+                subscriptionId,
+                4,
+                [NewNotification(1), NewNotification(2), NewNotification(3)],
+                []);
+            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 4, 2);
+            await primary.FlushAsync().ConfigureAwait(false);
+
+            // The backup restores and returns the backlog: only the send state changes.
+            SubscriptionRetransmissionState? state =
+                await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+            Assert.That(state, Is.Not.Null);
+            backup.StoreFirstUnsentSequenceNumber(subscriptionId, state!.NextSequenceNumber, 3);
+            await backup.FlushAsync().ConfigureAwait(false);
+
+            state = await primary.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(4));
+            Assert.That(state.FirstUnsentSequenceNumber, Is.EqualTo(3));
         }
 
         /// <summary>
