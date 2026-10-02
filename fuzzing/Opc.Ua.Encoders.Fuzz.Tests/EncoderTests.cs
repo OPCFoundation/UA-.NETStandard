@@ -104,8 +104,9 @@ namespace Opc.Ua.Fuzzing
         }
 
         [Test]
-        public void JsonRoundTripAllowsUnencodableDataValuePicosecondsRejection()
+        public void JsonRoundTripAllowsDroppedDataValuePicosecondsWithoutTimestamp()
         {
+            // Picoseconds without their timestamp are ignored (Part 6 5.2.2.17) and dropped.
             var response = new ReadResponse
             {
                 Results =

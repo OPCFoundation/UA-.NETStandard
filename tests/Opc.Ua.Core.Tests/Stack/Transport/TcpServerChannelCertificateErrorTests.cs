@@ -147,5 +147,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 TcpServerChannel.TryGetReportableCertificateError(new InvalidOperationException(), out _),
                 Is.False);
         }
+
+        /// <summary>
+        /// A custom RSA policy without a key length window (the init properties default to 0)
+        /// has no bound, as for the server certificate selection; a set bound is enforced.
+        /// </summary>
+        [TestCase(0, 0, 2048, true)]
+        [TestCase(0, 0, 8192, true)]
+        [TestCase(2048, 0, 8192, true)]
+        [TestCase(2048, 0, 1024, false)]
+        [TestCase(0, 2048, 1024, true)]
+        [TestCase(0, 2048, 4096, false)]
+        [TestCase(2048, 4096, 2048, true)]
+        [TestCase(2048, 4096, 4096, true)]
+        [TestCase(2048, 4096, 1024, false)]
+        [TestCase(2048, 4096, 8192, false)]
+        public void RsaKeyLengthWindowTreatsNonPositiveBoundsAsUnbounded(
+            int minKeyLength,
+            int maxKeyLength,
+            int keySize,
+            bool allowed)
+        {
+            var policy = new SecurityPolicyInfo("urn:test:CustomRsaPolicy")
+            {
+                CertificateKeyFamily = CertificateKeyFamily.RSA,
+                MinAsymmetricKeyLength = minKeyLength,
+                MaxAsymmetricKeyLength = maxKeyLength
+            };
+
+            Assert.That(UaSCUaBinaryChannel.IsRsaKeySizeAllowed(policy, keySize), Is.EqualTo(allowed));
+        }
     }
 }

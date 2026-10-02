@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -37,6 +38,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.ISA95.Client;
@@ -436,30 +438,25 @@ namespace Opc.Ua.ISA95.Tests.Integration
                     ct).ConfigureAwait(false),
                 Is.True);
 
-            V2.ISA95JobOrderDataType externalUpdate =
-                Isa95TestData.V2Order("v2-main");
-            externalUpdate.Priority = 77;
-            Isa95JobOrderReceiptV2 externalUpdateResult =
-                await execution.ReceiveJobOrderAsync(
-                    Isa95JobOrderOperationV2.Update,
-                    externalUpdate,
-                    [new LocalizedText("en-US", "Updated externally")],
-                    ct).ConfigureAwait(false);
-            Assert.That(ServiceResult.IsGood(externalUpdateResult.Result), Is.True);
             NodeId jobOrderListId = await FindChildAsync(
                 client.Session,
                 v2Order.NodeId,
                 V2.BrowseNames.JobOrderList,
                 V2.Namespaces.ISA95JobControlV2,
                 ct).ConfigureAwait(false);
-            Assert.That(
-                await WaitForJobOrderPriorityAsync(
-                    client.Session,
-                    jobOrderListId,
-                    "v2-main",
-                    77,
-                    ct).ConfigureAwait(false),
-                Is.True);
+            NodeId v1JobOrderListId = await FindChildAsync(
+                client.Session,
+                v1Order.NodeId,
+                V1.BrowseNames.JobOrderList,
+                V1.Namespaces.ISA95JobControlV1,
+                ct).ConfigureAwait(false);
+            await AssertJobOrderListNotificationsAsync(
+                client.Session,
+                subscriptionManager!,
+                execution,
+                v1JobOrderListId,
+                jobOrderListId,
+                ct).ConfigureAwait(false);
 
             AssertSuccess(await v2.UpdateAsync(Isa95TestData.V2Order("v2-main"), ct: ct)
                 .ConfigureAwait(false));
@@ -645,6 +642,154 @@ namespace Opc.Ua.ISA95.Tests.Integration
                 }
                 await enumerator.DisposeAsync().ConfigureAwait(false);
                 eventCts.Cancel();
+            }
+        }
+
+        /// <summary>
+        /// Subscribes to both JobOrderLists and changes the job order behind
+        /// the server's back, once and then twice in quick succession. Every
+        /// change has to reach the monitored items: the lists serve their
+        /// value from a snapshot, so a change is only published when it is
+        /// reported, and the second of two quick refreshes can stamp the same
+        /// source timestamp as the first.
+        /// </summary>
+        private static async Task AssertJobOrderListNotificationsAsync(
+            ClientSession session,
+            ClientSubscriptionManager subscriptionManager,
+            InMemoryIsa95JobControlProvider execution,
+            NodeId v1JobOrderListId,
+            NodeId v2JobOrderListId,
+            CancellationToken ct)
+        {
+            var v1Values = new ConcurrentQueue<DataValue>();
+            var v2Values = new ConcurrentQueue<DataValue>();
+            var streaming = new StreamingSubscription(subscriptionManager);
+            using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            Task v1Stream = CollectAsync(
+                streaming.SubscribeDataChangesAsync(v1JobOrderListId, ct: streamCts.Token),
+                v1Values);
+            Task v2Stream = CollectAsync(
+                streaming.SubscribeDataChangesAsync(v2JobOrderListId, ct: streamCts.Token),
+                v2Values);
+            try
+            {
+                // A monitored item reports the current value first; only what
+                // follows shows that the server reports changes.
+                Assert.That(
+                    await WaitForAsync(
+                        () => !v1Values.IsEmpty && !v2Values.IsEmpty,
+                        TimeSpan.FromSeconds(15),
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The JobOrderList monitored items have to report their current value.");
+
+                await UpdatePriorityExternallyAsync(execution, 77, ct).ConfigureAwait(false);
+                Assert.That(
+                    await WaitForJobOrderPriorityAsync(session, v2JobOrderListId, "v2-main", 77, ct)
+                        .ConfigureAwait(false),
+                    Is.True);
+                await AssertPriorityNotifiedAsync(v1Values, v2Values, 77, ct).ConfigureAwait(false);
+
+                // Back to back, so both refreshes can fall into one clock tick.
+                await UpdatePriorityExternallyAsync(execution, 78, ct).ConfigureAwait(false);
+                await UpdatePriorityExternallyAsync(execution, 79, ct).ConfigureAwait(false);
+                await AssertPriorityNotifiedAsync(v1Values, v2Values, 79, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                streamCts.Cancel();
+                await streaming.DisposeAsync().ConfigureAwait(false);
+                await Task.WhenAll(v1Stream, v2Stream).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task UpdatePriorityExternallyAsync(
+            InMemoryIsa95JobControlProvider execution,
+            short priority,
+            CancellationToken ct)
+        {
+            V2.ISA95JobOrderDataType update = Isa95TestData.V2Order("v2-main");
+            update.Priority = priority;
+            Isa95JobOrderReceiptV2 receipt = await execution.ReceiveJobOrderAsync(
+                Isa95JobOrderOperationV2.Update,
+                update,
+                [new LocalizedText("en-US", "Updated externally")],
+                ct).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(receipt.Result), Is.True);
+        }
+
+        private static async Task AssertPriorityNotifiedAsync(
+            ConcurrentQueue<DataValue> v1Values,
+            ConcurrentQueue<DataValue> v2Values,
+            short priority,
+            CancellationToken ct)
+        {
+            Assert.That(
+                await WaitForAsync(
+                    () => v2Values.Any(value => ListsV2Priority(value, priority)),
+                    TimeSpan.FromSeconds(10),
+                    ct).ConfigureAwait(false),
+                Is.True,
+                $"Priority {priority} has to reach the monitored item of the V2 JobOrderList.");
+            Assert.That(
+                await WaitForAsync(
+                    () => v1Values.Any(value => ListsV1Priority(value, priority)),
+                    TimeSpan.FromSeconds(10),
+                    ct).ConfigureAwait(false),
+                Is.True,
+                $"Priority {priority} has to reach the monitored item of the V1 JobOrderList.");
+        }
+
+        private static bool ListsV2Priority(DataValue value, short priority)
+        {
+            if (!value.WrappedValue.TryGetStructure(
+                out ArrayOf<V2.ISA95JobOrderAndStateDataType> orders))
+            {
+                return false;
+            }
+            foreach (V2.ISA95JobOrderAndStateDataType order in orders)
+            {
+                if (string.Equals(order.JobOrder.JobOrderID, "v2-main", StringComparison.Ordinal) &&
+                    order.JobOrder.Priority == priority)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool ListsV1Priority(DataValue value, short priority)
+        {
+            if (!value.WrappedValue.TryGetStructure(
+                out ArrayOf<V1.ISA95JobOrderDataType> orders))
+            {
+                return false;
+            }
+            foreach (V1.ISA95JobOrderDataType order in orders)
+            {
+                if (string.Equals(order.ID, "v2-main", StringComparison.Ordinal) &&
+                    order.Priority == priority)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static async Task CollectAsync(
+            IAsyncEnumerable<DataValueChange> changes,
+            ConcurrentQueue<DataValue> values)
+        {
+            try
+            {
+                await foreach (DataValueChange change in changes.ConfigureAwait(false))
+                {
+                    values.Enqueue(change.Value);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // The test cancels the stream once it is done with it.
             }
         }
 

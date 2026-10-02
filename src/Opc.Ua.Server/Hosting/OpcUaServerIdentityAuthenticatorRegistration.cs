@@ -78,8 +78,10 @@ namespace Opc.Ua.Server.Hosting
         /// (<see cref="DefaultAuthenticatorOptions"/>). When such a registration
         /// produces no anonymous authenticator, anonymous access was disabled
         /// by configuration and anonymous tokens are rejected explicitly.
+        /// A server with its own UserName or X.509 authenticators (such as the
+        /// GDS) skips those token types from such a registration.
         /// </summary>
-        internal bool ConfiguresDefaultAuthenticators { get; init; }
+        public bool ConfiguresDefaultAuthenticators { get; internal init; }
 
         /// <summary>
         /// Creates the configured identity authenticators.

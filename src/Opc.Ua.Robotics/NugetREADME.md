@@ -3,12 +3,18 @@
 Server/client-independent foundation for the **OPC 40010 Robotics** companion
 specification.
 
-The Robotics NodeSet and its required Industrial Automation (IA) base model are
-**source-generated** here (over the source-generated OPC UA DI base model),
-exposing generated ObjectTypes, ReferenceTypes, enums, typed node states and
-client proxies, plus the `AddOpcUaRobotics` / `AddOpcUaIA` model loaders. The
-generated `ObjectTypeIds` and `ReferenceTypeIds` classes are the source of truth;
-`RoboticsModel` provides namespace-safe resolution and classification helpers.
+The Robotics NodeSet is **source-generated** here over the OPC 10000-200
+Industrial Automation and OPC 10000-100 DI base models, exposing generated
+ObjectTypes, ReferenceTypes, enums, typed node states and client proxies, plus
+the `AddOpcUaRobotics` model loader. The generated `ObjectTypeIds` and
+`ReferenceTypeIds` classes are the source of truth; `RoboticsModel` provides
+namespace-safe resolution and classification helpers.
+
+The IA model itself now ships in its own `Opc.Ua.IA` package (it is shared with
+OPC 40001-1 Machinery), which this package references. The generated IA types
+keep living in the `Opc.Ua.IA` namespace and `AddOpcUaIA` is unchanged, so
+consuming code does not change — but IA types and `*TypeClient` proxies now come
+from `Opc.Ua.IA.dll` rather than `Opc.Ua.Robotics.dll`.
 
 The package also provides `ArrayOf<T>`-based common contracts for a focused read
 projection of systems, controllers, motion devices, axes, loads, power trains,

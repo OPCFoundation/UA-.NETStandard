@@ -147,7 +147,8 @@ namespace Opc.Ua.Bindings
                 object callbackData,
                 int timeout,
                 ILogger logger)
-                : base(callback, callbackData, timeout, logger)
+                // the timeout cancels the token so a pending connect is abandoned.
+                : base(callback, callbackData, timeout, new CancellationTokenSource(), logger)
             {
             }
 
@@ -214,16 +215,15 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                await transport.ConnectAsync(endpointUrl, CancellationToken.None).ConfigureAwait(false);
+                await transport.ConnectAsync(endpointUrl, ar.CancellationToken).ConfigureAwait(false);
                 OnReverseConnectComplete(ar);
             }
             catch (Exception ex)
             {
-                ar.Exception = new ServiceResultException(
+                ar.TryComplete(new ServiceResultException(
                     StatusCodes.BadNotConnected,
                     ex.Message,
-                    ex);
-                ar.OperationCompleted();
+                    ex));
             }
         }
 
@@ -254,6 +254,14 @@ namespace Opc.Ua.Bindings
         {
             if (ar == null || m_pendingReverseHello != null)
             {
+                return;
+            }
+
+            // the reverse connect timed out while connecting: the listener already
+            // disposed this channel, so do not start using the connection.
+            if (ar.IsCompleted)
+            {
+                ar.Transport?.Close();
                 return;
             }
 
@@ -288,8 +296,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                ar.Exception = e;
-                ar.OperationCompleted();
+                ar.TryComplete(e);
             }
             finally
             {
@@ -328,8 +335,9 @@ namespace Opc.Ua.Bindings
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
-                // check for replay attacks.
-                if (!VerifySequenceNumber(sequenceNumber, "Reconnect"))
+                // check for replay attacks. The chunks the client sent on the dropped
+                // socket are lost, so the number may skip ahead but not go back.
+                if (!VerifySequenceNumberCore(sequenceNumber, "Reconnect", true))
                 {
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
@@ -345,6 +353,9 @@ namespace Opc.Ua.Bindings
                     // need to assign a new token id.
                     token.ChannelId = ChannelId;
                     token.TokenId = GetNewTokenId();
+                    // chain from the current token, not from a pending renewal: the socket
+                    // may have dropped before the client received that renewal's response,
+                    // and a client chains from the token it has activated.
                     token.PreviousSecret = CurrentToken?.Secret;
                     ReplaceNonces(token);
                     if (Volatile.Read(ref m_disposed) != 0)
@@ -447,6 +458,20 @@ namespace Opc.Ua.Bindings
                     {
                         m_logger.TcpServerLog1(ChannelId);
                         ownsBuffer = ProcessHelloMessage(messageChunk);
+                    }
+                    // OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel
+                    // messages are always a single final chunk. Rejected before any
+                    // security processing so no chunk of them is ever reassembled.
+                    else if ((TcpMessageType.IsType(messageType, TcpMessageType.Open) ||
+                            TcpMessageType.IsType(messageType, TcpMessageType.Close)) &&
+                        !TcpMessageType.IsFinal(messageType))
+                    {
+                        ForceChannelFaultCore(
+                            StatusCodes.BadTcpMessageTypeInvalid,
+                            "The message type {0:X8} is not a final chunk.",
+                            messageType);
+
+                        ownsBuffer = false;
                     }
                     // process open secure channel repsonse.
                     else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
@@ -604,13 +629,33 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                // update receive buffer size.
-                ReceiveBufferSize = Math.Min(ReceiveBufferSize, (int)receiveBufferSize);
-                ReceiveBufferSize = Math.Min(
-                    Math.Max(ReceiveBufferSize, TcpMessageLimits.MinBufferSize),
+                // OPC 10000-6 §7.1.2.3: the buffer sizes a client requests are at
+                // least 1024 bytes when it intends to use an ECC SecurityPolicy and
+                // 8192 bytes otherwise. Smaller values are rejected, not raised: a
+                // raised SendBufferSize would send chunks the client cannot take.
+                // §7.1.5: this protocol error is reported in an Error message before
+                // the close. Bad_TcpInternalError (Table 79, unexpected configuration
+                // error) is used, not Bad_TcpNotEnoughResources, which tells the
+                // client to retry later and closes without an Error message here.
+                if (receiveBufferSize < TcpMessageLimits.ECCMinBufferSize ||
+                    sendBufferSize < TcpMessageLimits.ECCMinBufferSize)
+                {
+                    ForceChannelFaultCore(
+                        StatusCodes.BadTcpInternalError,
+                        "Client buffer sizes are below the minimum (receive {0}, send {1} bytes).",
+                        sendBufferSize,
+                        receiveBufferSize);
+                    return false;
+                }
+
+                // update receive buffer size. §7.1.2.4: not larger than the
+                // client's SendBufferSize, and at least 8192 bytes unless the
+                // client requested less.
+                ReceiveBufferSize = (int)Math.Min(
+                    Math.Min((uint)ReceiveBufferSize, receiveBufferSize),
                     TcpMessageLimits.MaxBufferSize);
                 ReceiveBufferSize = Math.Max(
-                    TcpMessageLimits.MinBufferSize,
+                    GetMinBufferSize(receiveBufferSize),
                     BufferManager.GetSuggestedBufferSize(ReceiveBufferSize));
 
                 if (Transport is IUaSCByteTransportLimits transportLimits)
@@ -618,13 +663,13 @@ namespace Opc.Ua.Bindings
                     transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
                 }
 
-                // update send buffer size.
-                SendBufferSize = Math.Min(SendBufferSize, (int)sendBufferSize);
-                SendBufferSize = Math.Min(
-                    Math.Max(SendBufferSize, TcpMessageLimits.MinBufferSize),
+                // update send buffer size. §7.1.2.4: never larger than the
+                // client's ReceiveBufferSize.
+                SendBufferSize = (int)Math.Min(
+                    Math.Min((uint)SendBufferSize, sendBufferSize),
                     TcpMessageLimits.MaxBufferSize);
                 SendBufferSize = Math.Max(
-                    TcpMessageLimits.MinBufferSize,
+                    GetMinBufferSize(sendBufferSize),
                     BufferManager.GetSuggestedBufferSize(SendBufferSize));
 
                 // update the max message size.
@@ -695,6 +740,18 @@ namespace Opc.Ua.Bindings
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns the smallest buffer size the Acknowledge may return for a
+        /// size the client requested (OPC 10000-6 §7.1.2.4): 8192 bytes when the
+        /// client requested at least that much, 1024 bytes otherwise.
+        /// </summary>
+        private static int GetMinBufferSize(uint requestedBufferSize)
+        {
+            return requestedBufferSize >= TcpMessageLimits.MinBufferSize
+                ? TcpMessageLimits.MinBufferSize
+                : TcpMessageLimits.ECCMinBufferSize;
         }
 
         /// <summary>
@@ -845,14 +902,7 @@ namespace Opc.Ua.Bindings
                 clientCertificate = null;
                 RetainPeerCertificateChain(clientChainBlob);
 
-                // check if it is necessary to wait for more chunks.
-                if (!TcpMessageType.IsFinal(messageType))
-                {
-                    bodyOwned = false;
-                    SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
-                    return false;
-                }
-                // get the chunks to process.
+                // get the chunks to process (the message is a single final chunk).
                 bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
                 if (State == TcpChannelState.Closed)
@@ -879,7 +929,9 @@ namespace Opc.Ua.Bindings
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
                 token.ServerNonce = CreateNonce(ServerCertificate);
-                token.PreviousSecret = CurrentToken?.Secret;
+                // chain from the most recently issued keys: the client uses a renewed
+                // token as soon as it has the response, before the server sees it.
+                token.PreviousSecret = (RenewedToken ?? CurrentToken)?.Secret;
 
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce.ToArray();
@@ -1150,8 +1202,8 @@ namespace Opc.Ua.Bindings
             if (ar != null &&
                 ar == Interlocked.CompareExchange(ref m_pendingReverseHello, null, ar))
             {
-                ar.Exception = e;
-                ar.OperationCompleted();
+                // a reverse hello that already timed out keeps its timeout outcome.
+                ar.TryComplete(e);
             }
         }
 
@@ -1416,19 +1468,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                // check if it is necessary to wait for more chunks.
-                if (!TcpMessageType.IsFinal(messageType))
-                {
-                    // The symmetric message was decrypted in place, so messageBody
-                    // and messageChunk share one array. SaveIntermediateChunk has
-                    // taken it, so reporting "not owned" here would hand the same
-                    // buffer back to the pool as well - the double free the return
-                    // at the end of this method already warns about.
-                    SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
-                    return true;
-                }
-
-                // get the chunks to process.
+                // get the chunks to process (the message is a single final chunk).
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
 
                 using var closeRequestStream = new ArraySegmentStream(chunksToProcess);

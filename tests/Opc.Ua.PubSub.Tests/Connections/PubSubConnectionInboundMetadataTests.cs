@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
         [Test]
         [TestSpec("6.2.9.4",
-            Summary = "Inbound metadata older than registered MajorVersion is dropped")]
+            Summary = "Authenticated inbound metadata older than registered MajorVersion is dropped")]
         public void OnInbound_StaleMajorVersion_Rejects()
         {
             var registry = new DataSetMetaDataRegistry();
@@ -172,13 +172,79 @@ namespace Opc.Ua.PubSub.Tests.Connections
             };
 
             bool routed = PubSubConnection.TryRouteInboundMetaData(
-                registry, staleMessage, NullLogger.Instance);
+                registry, staleMessage, NullLogger.Instance, authenticated: true);
 
             Assert.That(routed, Is.True, "Routing helper still claims ownership of the frame.");
             Assert.That(changeEvents, Is.Zero, "Stale metadata must not trigger MetaDataChanged.");
             MetaDataMatchResult check = registry.TryGet(in existingKey, out DataSetMetaDataType? stored);
             Assert.That(check, Is.EqualTo(MetaDataMatchResult.Match));
             Assert.That(stored, Is.SameAs(newer), "Registry retains the newer description.");
+        }
+
+        [Test]
+        [TestSpec("6.2.9.4",
+            Summary = "Unauthenticated metadata cannot pin a forged future MajorVersion")]
+        public void OnInboundUnauthenticatedForgedMajorVersionIsReplacedByLaterAnnouncement()
+        {
+            var registry = new DataSetMetaDataRegistry();
+            DataSetMetaDataType forged = NewMeta(major: uint.MaxValue, name: "Forged");
+            DataSetMetaDataType genuine = NewMeta(major: 5, name: "Genuine");
+
+            _ = PubSubConnection.TryRouteInboundMetaData(
+                registry, NewJsonMeta(forged), NullLogger.Instance);
+            _ = PubSubConnection.TryRouteInboundMetaData(
+                registry, NewJsonMeta(genuine), NullLogger.Instance);
+
+            var key = new DataSetMetaDataKey(PublisherId.FromString("Plant1"), 0, 4, Uuid.Empty, 5);
+            MetaDataMatchResult check = registry.TryGet(in key, out DataSetMetaDataType? stored);
+            Assert.That(check, Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(stored, Is.SameAs(genuine));
+        }
+
+        [Test]
+        public void OnInboundRejectedIdentityIsNotRegistered()
+        {
+            var registry = new DataSetMetaDataRegistry();
+
+            bool routed = PubSubConnection.TryRouteInboundMetaData(
+                registry,
+                NewJsonMeta(NewMeta(major: 1)),
+                NullLogger.Instance,
+                admit: static (in DataSetMetaDataKey _) => false);
+
+            Assert.That(routed, Is.True);
+            Assert.That(registry.Keys, Has.Count.Zero);
+        }
+
+        [Test]
+        public void RegistryRefusesNewIdentitiesBeyondMaxEntries()
+        {
+            var registry = new DataSetMetaDataRegistry { MaxEntries = 2 };
+            var first = new DataSetMetaDataKey(PublisherId.FromUInt16(1), 0, 1, Uuid.Empty, 1);
+            var second = new DataSetMetaDataKey(PublisherId.FromUInt16(1), 0, 2, Uuid.Empty, 1);
+            var third = new DataSetMetaDataKey(PublisherId.FromUInt16(1), 0, 3, Uuid.Empty, 1);
+            registry.Register(in first, NewMeta(major: 1));
+            registry.Register(in second, NewMeta(major: 1));
+
+            Assert.That(() => registry.Register(in third, NewMeta(major: 1)),
+                Throws.InvalidOperationException);
+            Assert.That(() => registry.Register(in first, NewMeta(major: 2)), Throws.Nothing);
+            Assert.That(registry.Keys, Has.Count.EqualTo(2));
+            Assert.That(
+                PubSubConnection.TryRouteInboundMetaData(
+                    registry, NewJsonMeta(NewMeta(major: 1)), NullLogger.Instance),
+                Is.True,
+                "A full registry is logged, not thrown, on the receive path.");
+        }
+
+        private static JsonMetaDataMessage NewJsonMeta(DataSetMetaDataType meta)
+        {
+            return new JsonMetaDataMessage
+            {
+                PublisherId = PublisherId.FromString("Plant1"),
+                DataSetWriterId = 4,
+                MetaDataPayload = meta
+            };
         }
     }
 }

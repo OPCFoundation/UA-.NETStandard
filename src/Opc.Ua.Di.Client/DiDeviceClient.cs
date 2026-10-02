@@ -270,25 +270,27 @@ namespace Opc.Ua.Di.Client
                 Opc.Ua.Di.ObjectTypeIds.FunctionalGroupType;
             NodeId refTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
 
-            (_, _, ArrayOf<ReferenceDescription> references) = await Session.BrowseAsync(
-                requestHeader: null,
-                view: null,
-                DeviceNodeId,
-                maxResultsToReturn: 0,
-                BrowseDirection.Forward,
-                refTypeId,
-                includeSubtypes: true,
-                (uint)NodeClass.Object,
-                ct).ConfigureAwait(false);
+            // A device with many functional groups and components in one
+            // HasComponent set may come back behind continuation points. A bad
+            // status for the device node yields no functional groups rather
+            // than an exception.
+            List<ReferenceDescription> references = await DiBrowse
+                .BrowseAllAsync(
+                    Session,
+                    new BrowseDescription
+                    {
+                        NodeId = DeviceNodeId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = refTypeId,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    },
+                    Telemetry.CreateLogger<DiDeviceClient>(),
+                    ct)
+                .ConfigureAwait(false);
 
-            var snapshot =
-                new ReferenceDescription[references.Count];
-            for (int i = 0; i < references.Count; i++)
-            {
-                snapshot[i] = references[i];
-            }
-
-            foreach (ReferenceDescription reference in snapshot)
+            foreach (ReferenceDescription reference in references)
             {
                 ct.ThrowIfCancellationRequested();
 

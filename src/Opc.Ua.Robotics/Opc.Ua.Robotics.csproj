@@ -6,7 +6,7 @@
     <RootNamespace>Opc.Ua.Robotics</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
     <Nullable>enable</Nullable>
-    <Description>Server/client-independent OPC 40010 Robotics contracts and source-generated Robotics and Industrial Automation models over OPC UA DI, including model identifiers, typed states and proxies, model loaders, and focused topology read-projection contracts.</Description>
+    <Description>Server/client-independent OPC 40010 Robotics contracts and source-generated Robotics model over the OPC 10000-200 Industrial Automation and OPC 10000-100 DI base models, including model identifiers, typed states and proxies, model loaders, and focused topology read-projection contracts.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -24,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\Opc.Ua.IA\Opc.Ua.IA.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
@@ -31,23 +32,25 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
-  <!-- The OPC 40010 Robotics model and its required OPC 40001-1 IA base model are
-       source-generated from their NodeSet2 XML over the source-generated OPC UA
-       DI base model. The Robotics Programs facet uses the standard
-       FileDirectoryType, whose method-state classes a curated Core omits; the
-       model generator degrades those absent standard method-state references to
-       the base MethodState (see StandardMethodStateFallback), so the model
-       compiles. OmitFluentApi keeps the output model-only (Core + DI, no Server
-       dependency). -->
+  <!-- The OPC 40010 Robotics model is source-generated from its NodeSet2 XML.
+       Its required OPC 10000-200 IA base model is no longer generated here: it
+       moved to src/Opc.Ua.IA when OPC 40001-1 Machinery needed it as well, and
+       two assemblies generating the same model URI under the same C# prefix
+       collide at the consumer. IA (and DI beneath it) now resolve through the
+       referenced assemblies' [assembly: ModelDependencyAttribute] payloads, so
+       neither NodeSet is needed here; the generated types keep living in the
+       Opc.Ua.IA namespace, so no source change was required.
+
+       The Robotics Programs facet uses the standard FileDirectoryType, whose
+       method-state classes a curated Core omits; the model generator degrades
+       those absent standard method-state references to the base MethodState
+       (see StandardMethodStateFallback), so the model compiles. OmitFluentApi
+       keeps the output model-only (Core + DI + IA, no Server dependency). -->
   <ItemGroup>
-    <None Remove="Model\Opc.Ua.IA.NodeSet2.xml" />
     <None Remove="Model\Opc.Ua.Robotics.NodeSet2.xml" />
     <None Remove="Model\Opc.Ua.RobotIntent.NodeSet2.xml" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="Model\Opc.Ua.IA.NodeSet2.xml">
-      <ModelSourceGeneratorPrefix>Opc.Ua.IA</ModelSourceGeneratorPrefix>
-    </AdditionalFiles>
     <AdditionalFiles Include="Model\Opc.Ua.Robotics.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.Robotics</ModelSourceGeneratorPrefix>
     </AdditionalFiles>

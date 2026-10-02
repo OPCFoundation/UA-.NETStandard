@@ -127,7 +127,7 @@
       </StatusCode>
       <SourceTimestamp>2025-01-02T03:04:05Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>1601-01-01T00:00:00Z</ServerTimestamp>
+      <ServerTimestamp>0001-01-01T00:00:00Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
     <DataValue>
@@ -141,7 +141,7 @@
       </StatusCode>
       <SourceTimestamp>2025-01-02T03:04:05Z</SourceTimestamp>
       <SourcePicoseconds>0</SourcePicoseconds>
-      <ServerTimestamp>1601-01-01T00:00:00Z</ServerTimestamp>
+      <ServerTimestamp>0001-01-01T00:00:00Z</ServerTimestamp>
       <ServerPicoseconds>0</ServerPicoseconds>
     </DataValue>
     <DataValue>

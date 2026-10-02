@@ -5359,8 +5359,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stages a pre-startup task without registering the same instance more than once.
         /// </summary>
+        /// <remarks>
+        /// Staged tasks run in staging order once the server context exists and before
+        /// the address space is created. Stage them before the server is started;
+        /// a task staged later does not run.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="task"/> is <c>null</c>.</exception>
-        internal void AddPreStartupTask(Hosting.IServerPreStartupTask task)
+        protected internal void AddPreStartupTask(Hosting.IServerPreStartupTask task)
         {
             if (task == null)
             {

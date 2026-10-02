@@ -868,7 +868,7 @@ namespace Alarms
             {
                 // This is bad, but I'm not sure why the NodeName is being attached with an underscore.
                 // It messes with this lookup.
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 string name = unmodifiedName.Replace(
                     "Alarms_",
                     "Alarms.",
@@ -959,7 +959,7 @@ namespace Alarms
                 // Alarms.UnitName.AnalogSource
                 if (splitString.Length >= 2)
                 {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     sourceName = splitString[^1].Replace(
                         "Source",
                         string.Empty,

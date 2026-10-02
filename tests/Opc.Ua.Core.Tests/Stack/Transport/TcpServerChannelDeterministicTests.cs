@@ -182,6 +182,79 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             listenerMock.Verify(l => l.ChannelClosed(0u), Times.Once());
         }
 
+        /// <summary>
+        /// OPC 10000-6 §7.1.2.3/§7.1.2.4: a client may request buffers down to 1024 bytes (ECC); the Acknowledge
+        /// never returns a SendBufferSize above the client's ReceiveBufferSize nor a ReceiveBufferSize above the
+        /// client's SendBufferSize.
+        /// </summary>
+        [TestCase(1024u, 1024u, 1024u, 1024u)]
+        [TestCase(2000u, 3000u, 3000u, 2000u)]
+        [TestCase(8192u, 65535u, 65535u, 8192u)]
+        public async Task ProcessHelloMessageHonoursClientBufferSizesAsync(
+            uint clientReceiveBufferSize,
+            uint clientSendBufferSize,
+            uint expectedReceiveBufferSize,
+            uint expectedSendBufferSize)
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new RecordingByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Connecting;
+
+            await channel.FeedIncomingMessageAsync(
+                TcpMessageType.Hello,
+                new ArraySegment<byte>(BuildHello(clientReceiveBufferSize, clientSendBufferSize)))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never sent the Acknowledge message");
+            byte[] acknowledge = transport.LastSent;
+            Assert.That(BitConverter.ToUInt32(acknowledge, 0), Is.EqualTo(TcpMessageType.Acknowledge));
+            Assert.That(BitConverter.ToUInt32(acknowledge, 12), Is.EqualTo(expectedReceiveBufferSize));
+            Assert.That(BitConverter.ToUInt32(acknowledge, 16), Is.EqualTo(expectedSendBufferSize));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Opening));
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §7.1.2.3: buffer sizes below 1024 bytes are never valid and are rejected instead
+        /// of being raised to a size the client did not agree to. §7.1.5: the rejection is an Error
+        /// message with Bad_TcpInternalError (not an Acknowledge) followed by the close.
+        /// </summary>
+        [TestCase(1023u, 8192u)]
+        [TestCase(8192u, 1023u)]
+        public async Task ProcessHelloMessageRejectsBufferSizesBelowTheMinimumAsync(
+            uint clientReceiveBufferSize,
+            uint clientSendBufferSize)
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new RecordingByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Connecting;
+
+            await channel.FeedIncomingMessageAsync(
+                TcpMessageType.Hello,
+                new ArraySegment<byte>(BuildHello(clientReceiveBufferSize, clientSendBufferSize)))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never emitted the error message");
+            Assert.That(
+                BitConverter.ToUInt32(transport.LastSent, 0),
+                Is.EqualTo(TcpMessageType.Error),
+                "no Acknowledge may be sent");
+            Assert.That(
+                DecodeErrorStatusCode(transport.LastSent),
+                Is.EqualTo((uint)StatusCodes.BadTcpInternalError));
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
+            listenerMock.Verify(l => l.ChannelClosed(0u), Times.Once());
+        }
+
         [Test]
         public async Task ProcessHelloMessageWhileNotConnectingSendsErrorAndFaultsAsync()
         {
@@ -581,6 +654,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 encoder.WriteUInt32(null, 0); // max message size
                 encoder.WriteUInt32(null, 0); // max chunk count
                 encoder.WriteInt32(null, urlLength);
+            });
+        }
+
+        private byte[] BuildHello(uint receiveBufferSize, uint sendBufferSize)
+        {
+            return BuildChunk(TcpMessageType.Hello, encoder =>
+            {
+                encoder.WriteUInt32(null, 0); // protocol version
+                encoder.WriteUInt32(null, receiveBufferSize);
+                encoder.WriteUInt32(null, sendBufferSize);
+                encoder.WriteUInt32(null, 0); // max message size
+                encoder.WriteUInt32(null, 0); // max chunk count
+                encoder.WriteInt32(null, -1); // endpoint url
             });
         }
 

@@ -110,8 +110,8 @@ Conventions and requirements:
       -p:CustomTestTarget=net10.0
   ```
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
-- **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
-- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8, .NET Framework 4.7.2, netstandard) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
+- **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
+- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
 Channel recovery regressions use `ManagedSessionReconnectTests` in the client
 test project and `ClientChannelManagerManagedTests` / `ReconnectDeadlineTests`
@@ -271,7 +271,7 @@ The following NuGet packages are released on a monthly cadence (with hot fixes f
 
 For improved source-level debugging, symbol packages for non-`.Debug` package IDs are published on nuget.org in `snupkg` format. `Debug`-compiled packages are retained with a `.Debug` suffix on GitHub Packages but are not published to nuget.org.
 
-In-development previews are published **only** to the [GitHub Packages feed](https://nuget.pkg.github.com/OPCFoundation/index.json) — nothing in this repository pushes a preview to nuget.org. nuget.org receives a version only through the manually approved [promotion](ReleaseProcess.md#approved-promotion) of a stable candidate built from a `release/<major>.<minor>` branch, which is where the `2.0.0-preview.N` packages currently on nuget.org came from (the earlier `release/2.0.0` line). To consume those, use `2.0.0-preview.*` to float to the latest published `2.0.0-preview.N` release, pass `--prerelease` to `dotnet add package`, or
+In-development builds from `master` (`2.0.0-preview.<N>.g<commit>`) are published **only** to the [GitHub Packages feed](https://nuget.pkg.github.com/OPCFoundation/index.json). nuget.org receives a version only through a manually dispatched `release.yml` run from a `release/<major>.<minor>` branch: an [approved promotion](ReleaseProcess.md#approved-promotion) of a stable release, or a numbered [preview release](ReleaseProcess.md#preview-release) such as `2.0.0-preview.6`. `2.0.0-preview.2` to `.5` came from the earlier, retired `release/2.0.0` line and are the last previews that also put `.Debug` packages on nuget.org; see [`.Debug` packages are no longer published to nuget.org](migrate/2.0.x/packages.md#debug-packages-are-no-longer-published-to-nugetorg). To consume the nuget.org previews, use `2.0.0-preview.*` to float to the latest published `2.0.0-preview.N` release, pass `--prerelease` to `dotnet add package`, or
 select *Include prerelease* in Visual Studio. No additional package source or
 credentials are required for nuget.org; the GitHub Packages feed needs a classic PAT with `read:packages`.
 
@@ -281,15 +281,13 @@ The full set of packages [`nuget-publish.yml`](../.github/workflows/nuget-publis
 
 The class libraries currently target:
 
-1. .NET Standard 2.0 (`Opc.Ua.Types` only)
-2. .NET Standard 2.1
-3. .NET Framework 4.7.2 (limited support)
-4. .NET Framework 4.8
-5. .NET 8.0
-6. .NET 9.0
-7. .NET 10.0
+1. .NET Standard 2.0 (`Opc.Ua.Types` and `Opc.Ua.SourceGeneration.Core` only, because the source generators load them)
+2. .NET Framework 4.8
+3. .NET 8.0
+4. .NET 9.0
+5. .NET 10.0
 
-The pull-request gate *compiles* every one of these targets, but only runs the test suite on (4) and (7) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
+The pull-request gate *compiles* every one of these targets, but only runs the test suite on (2) and (5) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
 
 ### Supported analyzer and source generator hosts
 
@@ -339,13 +337,13 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 
 | | Pull request (`buildandtest.yml`) | Full scope (`nightly.yml`) |
 | --- | --- | --- |
-| Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net472, net9.0, net8.0, netstandard2.0, netstandard2.1, the Debug legs, and the tiers that lift the category filter |
-| Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` for net472/netstandard2.0 and the Linux TFMs | every `.slnx` on Windows for all seven TFMs × Debug/Release, plus the Linux legs |
+| Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net9.0, net8.0, the Debug legs, and the tiers that lift the category filter |
+| Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0 | every `.slnx` on Windows for all four TFMs × Debug/Release, plus the Linux legs |
 | Native AoT | linux-x64, osx-x64, osx-arm64 | the above plus win-x64 |
 | Coverage | project floors and the graduated patch gate | project floors only |
 | Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |
 
-A profile pins its target framework through `CustomTestTarget`, not `--framework`, because that is the mechanism [`targets.props`](../targets.props) uses. Two profiles are not runnable target frameworks at all: `netstandard2.0` hosts its tests on net48 and `netstandard2.1` hosts them on net8.0, so each profile records both what it builds with and what its tests run on.
+A profile pins its target framework through `CustomTestTarget`, not `--framework`, because that is the mechanism [`targets.props`](../targets.props) uses.
 
 GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. The project fan-out is therefore **batched**: each matrix entry carries several projects that [`.github/scripts/run-dotnet-tests.ps1`](../.github/scripts/run-dotnet-tests.ps1) runs in sequence, keeping per-project results and per-project timeouts. The batch size is the smallest one that fits the budget, so it grows by itself as test projects are added instead of silently truncating the matrix. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, and that a narrowed matrix can never expand to nothing.
 

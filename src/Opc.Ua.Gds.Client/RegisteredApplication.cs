@@ -152,7 +152,7 @@ namespace Opc.Ua.Gds.Client
             if (RegistrationType != RegistrationType.ServerPush)
             {
                 // string.IsNullOrEmpty is not annotated with [NotNullWhen(false)] on
-                // net472/net48, so the post-condition does not flow through there.
+                // net48, so the post-condition does not flow through there.
                 if (!string.IsNullOrEmpty(CertificatePrivateKeyPath) &&
                     CertificatePrivateKeyPath!.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                 {
@@ -179,7 +179,7 @@ namespace Opc.Ua.Gds.Client
             if (!string.IsNullOrEmpty(Domains))
             {
                 // string.IsNullOrEmpty is not annotated with [NotNullWhen(false)] on
-                // net472/net48, so the post-condition does not flow through there.
+                // net48, so the post-condition does not flow through there.
                 string[] domains = Domains!.Split(',');
                 var trimmedDomains = new List<string>();
 

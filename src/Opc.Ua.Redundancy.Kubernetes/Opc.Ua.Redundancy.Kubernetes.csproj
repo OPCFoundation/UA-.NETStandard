@@ -2,7 +2,7 @@
   <PropertyGroup>
     <!-- Kubernetes integration uses HttpClient and System.Text.Json source generation on net8.0+.
          Multi-target when not pinned by CI; otherwise follow $(CustomTestTarget).
-         For legacy CI runs (net472/net48/netstandard2.x) Directory.Build.targets
+         For legacy CI runs (net48) Directory.Build.targets
          strips this project to an empty no-op shell via $(RestrictForLegacyTfm). -->
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>

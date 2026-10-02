@@ -263,7 +263,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 NUnitTelemetryContext.Create(),
                 metadataByteCount: 0);
 
-#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET5_0_OR_GREATER
             const int minimumExpectedSize = 16;
 #else
             const int minimumExpectedSize = 32;

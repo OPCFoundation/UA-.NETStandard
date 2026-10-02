@@ -225,8 +225,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void BinaryDecodeSourcePicosecondsWithoutTimestampThrowsBadDecodingError()
+        public void BinaryDecodeSourcePicosecondsWithoutTimestampAreIgnored()
         {
+            // OPC 10000-6 5.2.2.17: "If the source timestamp is missing the
+            // Picoseconds are ignored."
             byte[] bytes =
             [
                 0x10,
@@ -235,14 +237,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext ctx = CreateContext();
             using var decoder = new BinaryDecoder(bytes, ctx);
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadDataValue(null));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            Assert.That(ex.InnerException, Is.Null);
+            DataValue value = decoder.ReadDataValue(null);
+            Assert.That(value.SourcePicoseconds, Is.Zero);
+            Assert.That(value.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
         }
 
         [Test]
-        public void BinaryDecodeServerPicosecondsWithoutTimestampThrowsBadDecodingError()
+        public void BinaryDecodeServerPicosecondsWithoutTimestampAreIgnored()
         {
             byte[] bytes =
             [
@@ -252,10 +254,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext ctx = CreateContext();
             using var decoder = new BinaryDecoder(bytes, ctx);
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadDataValue(null));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            Assert.That(ex.InnerException, Is.Null);
+            DataValue value = decoder.ReadDataValue(null);
+            Assert.That(value.ServerPicoseconds, Is.Zero);
+            Assert.That(value.ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
         }
 
         [Test]
@@ -439,6 +441,46 @@ namespace Opc.Ua.Types.Tests.Encoders
                 () => DecodeDataValueViaXmlParser(payload));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.InnerException, Is.Null);
+        }
+
+        [Test]
+        public void JsonDecodeMatrixWithMoreThan32DimensionsThrowsBadEncodingLimitsExceeded()
+        {
+            // A rank above 32 is valid per Part 6 but no .NET array can hold
+            // it: an implementation limit, not a malformed message.
+            ServiceMessageContext ctx = CreateContext();
+            string dimensions = string.Join(",", Enumerable.Repeat(1, 33));
+            using var decoder = new JsonDecoder(
+                "{\"v\":{\"UaType\":6,\"Value\":[7],\"Dimensions\":[" + dimensions + "]}}",
+                ctx);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadVariant("v"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void XmlDecodeMatrixWithMoreThan32DimensionsThrowsBadEncodingLimitsExceeded()
+        {
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => DecodeXmlVariant(Rank33MatrixXml()));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void XmlParserDecodeMatrixWithMoreThan32DimensionsThrowsBadEncodingLimitsExceeded()
+        {
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => DecodeXmlParserVariant(Rank33MatrixXml()));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        private static string Rank33MatrixXml()
+        {
+            return "<v xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                "<Value><Matrix><Dimensions>" +
+                string.Concat(Enumerable.Repeat("<Int32>1</Int32>", 33)) +
+                "</Dimensions><Elements><Int32>7</Int32></Elements></Matrix></Value></v>";
         }
 
         private static string EncodeXmlVariant(ServiceMessageContext ctx, Variant variant)

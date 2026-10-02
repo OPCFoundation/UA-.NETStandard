@@ -326,11 +326,9 @@ namespace Opc.Ua
             }
 
             var buffer = new StringBuilder();
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             // check for special folder.
             if (!Enum.TryParse(folder, out Environment.SpecialFolder specialFolder))
             {
-#endif
                 folder = ReplaceSpecialFolderWithEnvVar(folder);
                 string? value = Environment.GetEnvironmentVariable(folder);
                 if (value != null)
@@ -341,13 +339,11 @@ namespace Opc.Ua
                 {
                     buffer.Append(DefaultLocalFolder);
                 }
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             }
             else
             {
                 buffer.Append(Environment.GetFolderPath(specialFolder));
             }
-#endif
             // construct new path.
             buffer.Append(path);
             return buffer.ToString();
@@ -764,7 +760,7 @@ namespace Opc.Ua
 
             // construct new uri.
             var buffer = new StringBuilder();
-#if NET5_0_OR_GREATER || NETSTANDARD2_1
+#if NET5_0_OR_GREATER
             buffer
                 .Append(uri.AsSpan(0, index))
                 .Append(hostname ?? GetHostName())
@@ -805,7 +801,7 @@ namespace Opc.Ua
 
             // construct new uri.
             var buffer = new StringBuilder();
-#if NET5_0_OR_GREATER || NETSTANDARD2_1
+#if NET5_0_OR_GREATER
             buffer
                 .Append(subjectName.AsSpan(0, index + 3))
                 .Append(hostname ?? GetHostName())
@@ -1081,7 +1077,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             return CoreUtils.ToHexString(buffer, invertEndian);
@@ -1730,9 +1726,7 @@ namespace Opc.Ua
         {
             try
             {
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
                 return File.GetLastWriteTimeUtc(typeof(Utils).GetTypeInfo().Assembly.Location);
-#endif
             }
             catch
             {

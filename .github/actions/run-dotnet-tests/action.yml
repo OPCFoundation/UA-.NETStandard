@@ -16,8 +16,7 @@ inputs:
     required: true
   framework:
     description: >-
-      Target framework the tests execute on. Differs from custom-test-target for
-      netstandard2.0 (hosted on net48) and netstandard2.1 (hosted on net8.0).
+      Target framework the tests execute on.
     required: true
   configuration:
     description: Debug or Release.

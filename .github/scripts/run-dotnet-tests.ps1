@@ -38,9 +38,7 @@
     (see targets.props).
 
  .PARAMETER Framework
-    The target framework the tests actually execute on. It differs from
-    CustomTestTarget for the standard profiles: netstandard2.0 hosts its tests on
-    net48 and netstandard2.1 hosts them on net8.0.
+    The target framework the tests actually execute on.
 
  .PARAMETER Configuration
     Debug or Release.

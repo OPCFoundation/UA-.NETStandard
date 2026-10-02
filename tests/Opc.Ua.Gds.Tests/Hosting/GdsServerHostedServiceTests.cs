@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class GdsServerHostedServiceTests
+    public sealed partial class GdsServerHostedServiceTests
     {
         [Test]
         public async Task AddIdentityAuthenticatorRegistersWithRunningGdsIdentityRegistry()
@@ -745,6 +745,15 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public Task VerifySigningRequestAsync(
                 ApplicationRecordDataType application,
+                ByteString certificateRequest,
+                CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
+
+            public Task VerifySigningRequestAsync(
+                ApplicationRecordDataType application,
+                NodeId certificateType,
                 ByteString certificateRequest,
                 CancellationToken ct = default)
             {

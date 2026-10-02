@@ -538,7 +538,7 @@ There is no fully-automated CTT harness in this repository, and the formal **OPC
 | Section | Feature | Status | Source | Tests |
 |---------|---------|--------|--------|-------|
 | §6.5.3 | DirectoryType | ✅ | `ApplicationsNodeManager.cs` | `ClientTest.cs`, `GdsApplicationDirectoryTests.cs` |
-| §6.5.4 | FindApplications | ✅ | `OnFindApplications` | `GdsApplicationDirectoryTests.cs` |
+| §6.5.4 | FindApplications | ✅ | `OnFindApplications` (any Client, §6.5.3) | `GdsApplicationDirectoryTests.cs`, `ClientTest.FindApplicationsAsSelfAdminAsync` |
 | §6.5.5 | ApplicationRecordDataType / rcp+ rules | ✅ | `ApplicationsDatabaseBase.ValidateApplication` | `ApplicationsDatabaseBaseTests.cs`, `LinqApplicationsDatabaseTests.cs` |
 | §6.5.6 | RegisterApplication | ✅ | `OnRegisterApplication` + `DiscoveryAdminOrAppAdmin` | `GdsApplicationDirectoryTests.cs`, `RegisteredApplicationTests.cs` |
 | §6.5.7 | UpdateApplication | ✅ | `OnUpdateApplication` + `DiscoveryAdminOrSelfAdminOrAppAdmin` | `GdsApplicationDirectoryTests.cs` |
@@ -554,7 +554,7 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 
 | Section | Feature | Status | Source | Tests |
 |---------|---------|--------|--------|-------|
-| §7.9.3 | StartSigningRequest | ✅ | `OnStartSigningRequestAsync` + audit | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
+| §7.9.3 | StartSigningRequest | ✅ | `OnStartSigningRequestAsync` + CSR key / CertificateType check + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupSigningRequestTests.cs`, `ClientTest.cs` |
 | §7.9.4 | StartNewKeyPairRequest | ✅ | `OnStartNewKeyPairRequest` + audit | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
 | §7.9.5 | FinishRequest | ✅ | `OnFinishRequestAsync` + issuer chain | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
 | §7.9.6 | RevokeCertificate | ✅ | `OnRevokeCertificateAsync` + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupTests.cs` |
