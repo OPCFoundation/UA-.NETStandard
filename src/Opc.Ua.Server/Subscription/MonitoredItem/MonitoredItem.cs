@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -1030,20 +1029,9 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                bool overrideRetain = m_filteredRetainEvents != null &&
-                    m_filteredRetainEvents.TryGetValue(fields, out _);
-                EventFieldList rebuilt = GetEventFields(
-                    context,
-                    filter,
-                    overrideRetain ? new FilteredRetainTarget(target) : target);
-                rebuilt.Handle = target;
-
-                if (overrideRetain)
-                {
-                    m_filteredRetainEvents!.Add(rebuilt, s_filteredRetainMarker);
-                }
-
-                return rebuilt;
+                // a trailing filtered retain event keeps its FilteredRetainTarget handle,
+                // so the rebuilt fields report the same Retain override.
+                return GetEventFields(context, filter, target);
             });
         }
 
@@ -1539,20 +1527,12 @@ namespace Opc.Ua.Server
 
                 // fetch the event fields. The trailing filtered retain event reads them
                 // through a wrapper that reports Retain = false to this client only. The
-                // queue keeps the original handle: duplicate detection compares handles by
-                // reference, and node managers map the handle back onto the event state.
+                // wrapper stays the handle of the queued event, so a later change of the
+                // select clauses rebuilds its fields with the same Retain override.
                 IFilterTarget fieldSource = overrideRetain
                     ? new FilteredRetainTarget(instance)
                     : instance;
-                EventFieldList fields = GetEventFields(context, filter, fieldSource);
-                fields.Handle = instance;
-                if (overrideRetain)
-                {
-                    // remembered so a later change of the select clauses can rebuild the
-                    // fields of this queued event with the same Retain override.
-                    (m_filteredRetainEvents ??= new()).Add(fields, s_filteredRetainMarker);
-                }
-                QueueEvent(fields);
+                QueueEvent(GetEventFields(context, filter, fieldSource));
             }
         }
 
@@ -2629,8 +2609,6 @@ namespace Opc.Ua.Server
         private bool m_resendData;
         private bool m_valueQueued;
         private HashSet<string>? m_filteredRetainConditionIds;
-        private ConditionalWeakTable<EventFieldList, object>? m_filteredRetainEvents;
-        private static readonly object s_filteredRetainMarker = new();
         private bool m_isDetached;
         private bool m_isDeleted;
     }
