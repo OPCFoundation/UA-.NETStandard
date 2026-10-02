@@ -556,6 +556,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     new ReadOnlyMemory<byte>(new byte[8]),
                     CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+            Assert.That(ex.InnerException, Is.TypeOf<InvalidOperationException>());
         }
 
         /// <summary>
@@ -580,6 +581,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     buffers,
                     CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+            Assert.That(ex.InnerException, Is.TypeOf<InvalidOperationException>());
         }
 
         /// <summary>
