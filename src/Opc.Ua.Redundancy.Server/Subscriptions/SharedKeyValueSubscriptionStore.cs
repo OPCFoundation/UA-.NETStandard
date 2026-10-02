@@ -588,8 +588,10 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask DrainPendingAsync(CancellationToken cancellationToken)
         {
-            foreach (RetransmissionBatch batch in TakePendingBatches())
+            List<RetransmissionBatch> batches = TakePendingBatches();
+            for (int ii = 0; ii < batches.Count; ii++)
             {
+                RetransmissionBatch batch = batches[ii];
                 try
                 {
                     if (batch.ClearRequested)
@@ -646,7 +648,11 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 catch
                 {
-                    Requeue(batch);
+                    // Requeue the failed batch and every batch not yet written.
+                    for (int jj = ii; jj < batches.Count; jj++)
+                    {
+                        Requeue(batches[jj]);
+                    }
                     throw;
                 }
             }
@@ -734,12 +740,21 @@ namespace Opc.Ua.Redundancy.Server
             {
                 PendingRetransmissionState state = GetPendingState(batch.SubscriptionId);
                 state.ClearRequested |= batch.ClearRequested;
-                state.NextSequenceNumber = batch.NextSequenceNumber;
-                state.FirstUnsentSequenceNumber = batch.FirstUnsentSequenceNumber;
+
+                // A state change stored while the batch was in flight is newer; keep it.
+                if (!state.StateDirty)
+                {
+                    state.NextSequenceNumber = batch.NextSequenceNumber;
+                    state.FirstUnsentSequenceNumber = batch.FirstUnsentSequenceNumber;
+                }
                 state.StateDirty |= batch.StateDirty;
                 foreach (NotificationMessage message in batch.Messages)
                 {
-                    state.PendingMessages[message.SequenceNumber] = message;
+                    // Acknowledged while the batch was in flight: do not resurrect it.
+                    if (!state.PendingDeletes.Contains(message.SequenceNumber))
+                    {
+                        state.PendingMessages[message.SequenceNumber] = message;
+                    }
                 }
                 foreach (uint sequenceNumber in batch.Deletes)
                 {
