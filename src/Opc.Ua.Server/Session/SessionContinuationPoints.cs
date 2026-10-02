@@ -729,14 +729,17 @@ namespace Opc.Ua.Server
                     Timestamp = DateTime.UtcNow
                 };
                 m_history.Add(stored);
-                if (m_historyRequests != null)
+
+                // The client has not received this point yet: keep it until the HistoryRead
+                // that saved it has returned its response. Only that request's scope pins it,
+                // so an unrelated in-flight HistoryRead of the session does not keep points of
+                // already completed requests from being freed (Part 4 §7.9).
+                HistoryRequestScope? current = s_currentHistoryRequest.Value;
+                if (current != null &&
+                    ReferenceEquals(current.Owner, this) &&
+                    !current.Ended)
                 {
-                    // The client has not received this point yet: keep it until every
-                    // in-flight HistoryRead has returned its response.
-                    foreach (HistoryRequestScope scope in m_historyRequests)
-                    {
-                        scope.Pin(stored);
-                    }
+                    current.Pin(stored);
                 }
                 return stored;
             }
@@ -779,7 +782,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Marks the start of a HistoryRead request. Until the returned scope is disposed, the
-        /// history continuation points the request continues and every point saved meanwhile
+        /// history continuation points the request continues and every point the request saves
         /// are excluded from eviction, so the limit makes a further operation fail with
         /// Bad_NoContinuationPoints instead of dropping a point of the same request or one the
         /// request is about to continue (Part 4 §7.9: only points from prior requests are freed
@@ -787,18 +790,23 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodesToRead">The operations of the request.</param>
         /// <returns>The scope to dispose once the response has been produced.</returns>
+        /// <remarks>
+        /// The scope becomes the current HistoryRead of the calling asynchronous flow, so the
+        /// points saved by the node managers the request awaits are attributed to it. This
+        /// method is synchronous on purpose: the value set here stays in the caller's
+        /// execution context until the scope is disposed.
+        /// </remarks>
         internal IDisposable BeginHistoryRequest(ArrayOf<HistoryReadValueId> nodesToRead)
         {
-            var scope = new HistoryRequestScope(this);
+            var scope = new HistoryRequestScope(this, s_currentHistoryRequest.Value);
+            s_currentHistoryRequest.Value = scope;
+            if (!HasHistoryContinuationPoint(nodesToRead))
+            {
+                return scope;
+            }
             lock (m_lock)
             {
-                if (m_closed)
-                {
-                    return scope;
-                }
-                m_historyRequests ??= [];
-                m_historyRequests.Add(scope);
-                if (m_history == null)
+                if (m_closed || m_history == null)
                 {
                     return scope;
                 }
@@ -825,51 +833,85 @@ namespace Opc.Ua.Server
             return scope;
         }
 
+        private static bool HasHistoryContinuationPoint(ArrayOf<HistoryReadValueId> nodesToRead)
+        {
+            for (int ii = 0; ii < nodesToRead.Count; ii++)
+            {
+                HistoryReadValueId? nodeToRead = nodesToRead[ii];
+                if (nodeToRead != null && nodeToRead.ContinuationPoint.Length == 16)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private void EndHistoryRequest(HistoryRequestScope scope)
         {
             lock (m_lock)
             {
-                m_historyRequests?.Remove(scope);
+                scope.Ended = true;
                 scope.UnpinAll();
             }
         }
 
         /// <summary>
         /// Tracks the history continuation points pinned by one in-flight HistoryRead request.
-        /// All members are accessed under the owner's lock.
+        /// All members except the owner and the previous scope are accessed under the owner's lock.
         /// </summary>
         private sealed class HistoryRequestScope : IDisposable
         {
-            public HistoryRequestScope(SessionContinuationPoints owner)
+            public HistoryRequestScope(
+                SessionContinuationPoints owner,
+                HistoryRequestScope? previous)
             {
-                m_owner = owner;
+                Owner = owner;
+                m_previous = previous;
             }
+
+            /// <summary>
+            /// The holder whose points this scope pins.
+            /// </summary>
+            public SessionContinuationPoints Owner { get; }
+
+            /// <summary>
+            /// Set once the request has returned its response; a late save is not pinned then.
+            /// </summary>
+            public bool Ended { get; set; }
 
             public void Pin(HistoryContinuationPoint continuationPoint)
             {
                 continuationPoint.Pins++;
-                m_pinned.Add(continuationPoint);
+                (m_pinned ??= []).Add(continuationPoint);
             }
 
             public void UnpinAll()
             {
+                if (m_pinned == null)
+                {
+                    return;
+                }
                 foreach (HistoryContinuationPoint continuationPoint in m_pinned)
                 {
                     continuationPoint.Pins--;
                 }
-                m_pinned.Clear();
+                m_pinned = null;
             }
 
             public void Dispose()
             {
                 if (Interlocked.Exchange(ref m_disposed, 1) == 0)
                 {
-                    m_owner.EndHistoryRequest(this);
+                    if (ReferenceEquals(s_currentHistoryRequest.Value, this))
+                    {
+                        s_currentHistoryRequest.Value = m_previous;
+                    }
+                    Owner.EndHistoryRequest(this);
                 }
             }
 
-            private readonly SessionContinuationPoints m_owner;
-            private readonly List<HistoryContinuationPoint> m_pinned = [];
+            private readonly HistoryRequestScope? m_previous;
+            private List<HistoryContinuationPoint>? m_pinned;
             private int m_disposed;
         }
 
@@ -1072,7 +1114,6 @@ namespace Opc.Ua.Server
                 }
                 m_mirroredBrowseOwners = null;
                 m_mirroredHistoryOwners = null;
-                m_historyRequests = null;
             }
 
             foreach ((NodeId ownerSessionId, ContinuationPointKind kind, Guid id) in mirrored)
@@ -1173,7 +1214,12 @@ namespace Opc.Ua.Server
         private List<HistoryContinuationPoint>? m_history;
         private Dictionary<Guid, NodeId>? m_mirroredBrowseOwners;
         private Dictionary<Guid, NodeId>? m_mirroredHistoryOwners;
-        private List<HistoryRequestScope>? m_historyRequests;
         private bool m_closed;
+
+        /// <summary>
+        /// The HistoryRead request of the current asynchronous flow; it pins the history
+        /// continuation points saved while it is in flight.
+        /// </summary>
+        private static readonly AsyncLocal<HistoryRequestScope?> s_currentHistoryRequest = new();
     }
 }
