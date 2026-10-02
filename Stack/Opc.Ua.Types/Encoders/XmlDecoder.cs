@@ -591,6 +591,8 @@ namespace Opc.Ua
                     ae.Message);
             }
 
+            XmlElementDepth.Check(xmlString, Context, ConformanceLevel.Document);
+
             // check for empty body.
             var document = new XmlDocument();
 
@@ -1081,7 +1083,9 @@ namespace Opc.Ua
                     m_reader.MoveToContent();
                 }
 
-                value.InnerXml = m_reader.ReadInnerXml();
+                string innerXml = m_reader.ReadInnerXml();
+                XmlElementDepth.Check(innerXml, Context, ConformanceLevel.Fragment);
+                value.InnerXml = innerXml;
 
                 EndField(fieldName);
                 return value;

@@ -565,6 +565,60 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo((uint)expectedLimit));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TransferWithoutInitialValuesChecksQueuedDataBeforeKeepAliveAsync(bool hasQueuedData)
+        {
+            m_queueFactoryMock.SetupGet(factory => factory.SupportsDurableQueues).Returns(true);
+            using Subscription subscription = CreateSubscription();
+            Assert.That(ServiceResult.IsGood(subscription.SetSubscriptionDurable(1000)), Is.True);
+            var publishLimits = new List<uint>();
+            Mock<IDataChangeMonitoredItem> item = CreateDataChangeMonitoredItem(1, 3, publishLimits);
+            item.SetupGet(value => value.IsReadyToPublish)
+                .Returns(() => hasQueuedData && publishLimits.Count == 0);
+            await RegisterMonitoredItemsAsync(subscription, item.Object).ConfigureAwait(false);
+
+            subscription.SessionClosed();
+            SetExpiryTime(subscription, HiResClock.TickCount64 - 100);
+            Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable));
+            Assert.That(GetItemsToPublishCount(subscription), Is.Zero);
+            SetExpiryTime(subscription, HiResClock.TickCount64 - 100);
+            subscription.PublishTimerExpired();
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.GreaterThan(0));
+
+            // Transfer just after an abandoned subscription's timer tick. The next queue scan
+            // must not depend on another publishing interval elapsing.
+            SetExpiryTime(subscription, HiResClock.TickCount64 + 100000);
+            var newSession = new Mock<ISession>();
+            newSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
+            var context = new OperationContext(newSession.Object, new DiagnosticsMasks());
+            await subscription.TransferSessionAsync(context, false).ConfigureAwait(false);
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.Zero);
+            Assert.That(subscription.PublishTimerExpired(), Is.Not.EqualTo(PublishingState.Idle));
+
+            NotificationMessage first = subscription.Publish(context, out _, out bool moreNotifications);
+            Assert.That(first, Is.Not.Null);
+            Assert.That(first.NotificationData, Has.Count.EqualTo(hasQueuedData ? 1 : 0));
+            Assert.That(moreNotifications, Is.False);
+            if (hasQueuedData)
+            {
+                var data = (DataChangeNotification)first.NotificationData[0].Body;
+                Assert.That(data.MonitoredItems.Select(value => value.Value.Value), Is.EqualTo(Enumerable.Range(0, 3)));
+            }
+            item.Verify(value => value.SetupResendDataTrigger(), Times.Never);
+
+            // No new samples: the next keep-alive must not replay the values just drained.
+            for (int tick = 0; tick < 5; tick++)
+            {
+                SetExpiryTime(subscription, HiResClock.TickCount64 - 100);
+                subscription.PublishTimerExpired();
+            }
+            NotificationMessage keepAlive = subscription.Publish(context, out _, out moreNotifications);
+            Assert.That(keepAlive, Is.Not.Null);
+            Assert.That(keepAlive.NotificationData, Is.Empty);
+            Assert.That(moreNotifications, Is.False);
+        }
+
         private async Task RegisterMonitoredItemsAsync(
             Subscription subscription,
             params IMonitoredItem[] monitoredItems)

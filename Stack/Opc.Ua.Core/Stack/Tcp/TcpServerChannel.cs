@@ -301,6 +301,10 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
+                if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
+                {
+                    return false;
+                }
                 SetResponseRequired(true);
 
                 try
@@ -657,6 +661,10 @@ namespace Opc.Ua.Bindings
                 }
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
+                if (State == TcpChannelState.Closed)
+                {
+                    return false;
+                }
 
                 request = (OpenSecureChannelRequest)
                     BinaryDecoder.DecodeMessage(
@@ -959,7 +967,7 @@ namespace Opc.Ua.Bindings
                 if (!TcpMessageType.IsFinal(messageType))
                 {
                     SaveIntermediateChunk(requestId, messageBody, true);
-                    return false;
+                    return true;
                 }
 
                 // get the chunks to process.
@@ -1094,41 +1102,39 @@ namespace Opc.Ua.Bindings
                         "ChannelId {Id}: ProcessRequestMessage RequestId {RequestId} was aborted.",
                         ChannelId,
                         requestId);
-                    chunksToProcess = GetSavedChunks(requestId, messageBody, true);
+                    chunksToProcess = TakeSavedChunks();
+                    chunksToProcess.Add(messageBody);
                     return true;
                 }
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    bool firstChunk = SaveIntermediateChunk(requestId, messageBody, true);
-
-                    // validate the type is allowed with a discovery channel
-                    if (DiscoveryOnly)
+                    // Validate before transferring ownership: a rejected chunk is
+                    // returned to the pool immediately by SaveIntermediateChunk.
+                    if (DiscoveryOnly && !HasPartialMessage &&
+                        !ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess))
                     {
-                        if (firstChunk)
-                        {
-                            if (!ValidateDiscoveryServiceCall(
-                                token,
-                                requestId,
-                                messageBody,
-                                out chunksToProcess))
-                            {
-                                ChannelClosed();
-                            }
-                        }
-                        else if (GetSavedChunksTotalSize() > TcpMessageLimits
-                            .DefaultDiscoveryMaxMessageSize)
-                        {
-                            chunksToProcess = GetSavedChunks(0, messageBody, true);
-                            SendServiceFault(
-                                token,
-                                requestId,
-                                ServiceResult.Create(
-                                    StatusCodes.BadSecurityPolicyRejected,
-                                    "Discovery Channel message size exceeded."));
-                            ChannelClosed();
-                        }
+                        ChannelClosed();
+                        return true;
+                    }
+
+                    bool firstChunk = SaveIntermediateChunk(requestId, messageBody, true);
+                    if (State == TcpChannelState.Closed)
+                    {
+                        return true;
+                    }
+                    if (DiscoveryOnly && !firstChunk &&
+                        GetSavedChunksTotalSize() > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
+                    {
+                        chunksToProcess = TakeSavedChunks();
+                        SendServiceFault(
+                            token,
+                            requestId,
+                            ServiceResult.Create(
+                                StatusCodes.BadSecurityPolicyRejected,
+                                "Discovery Channel message size exceeded."));
+                        ChannelClosed();
                     }
 
                     return true;
@@ -1152,6 +1158,10 @@ namespace Opc.Ua.Bindings
 
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
+                if (State == TcpChannelState.Closed)
+                {
+                    return true;
+                }
 
                 // decode the request.
                 if (BinaryDecoder.DecodeMessage(
@@ -1310,6 +1320,36 @@ namespace Opc.Ua.Bindings
             ChannelClosed();
         }
 
+        internal override void OnReassemblyBudgetExceeded()
+        {
+            try
+            {
+                if (Socket != null)
+                {
+                    SendErrorMessage(new ServiceResult(
+                        StatusCodes.BadTcpNotEnoughResources,
+                        "The server cannot retain more chunks of incomplete messages."));
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.LogDebug(e, "Could not report exhausted reassembly capacity.");
+            }
+            finally
+            {
+                // The incoming buffer has already been returned. Do not let a
+                // failed terminal write/close make the receive loop return it twice.
+                try
+                {
+                    ChannelClosed();
+                }
+                catch (Exception e)
+                {
+                    m_logger.LogDebug(e, "Error closing a channel after reassembly exhaustion.");
+                }
+            }
+        }
+
         /// <summary>
         /// Validate the type of message before it is decoded.
         /// </summary>
@@ -1320,15 +1360,27 @@ namespace Opc.Ua.Bindings
             out BufferCollection chunksToProcess)
         {
             chunksToProcess = null;
-            using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
-            // read the type of the message before more chunks are processed.
-            NodeId typeId = decoder.ReadNodeId(null);
+            NodeId typeId;
+            try
+            {
+                using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
+                // read the type of the message before more chunks are processed.
+                typeId = decoder.ReadNodeId(null);
+            }
+            catch
+            {
+                // Validation runs before SaveIntermediateChunk takes ownership.
+                // Let ProcessRequestMessage release this buffer after reporting the fault.
+                chunksToProcess = new BufferCollection(messageBody);
+                throw;
+            }
 
             if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
             {
-                chunksToProcess = GetSavedChunks(0, messageBody, true);
+                chunksToProcess = TakeSavedChunks();
+                chunksToProcess.Add(messageBody);
                 SendServiceFault(
                     token,
                     requestId,

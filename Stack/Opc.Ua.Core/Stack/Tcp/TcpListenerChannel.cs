@@ -196,9 +196,16 @@ namespace Opc.Ua.Bindings
         public int ElapsedSinceLastActiveTime => HiResClock.TickCount - LastActiveTickCount;
 
         /// <summary>
-        /// Has the channel been used in a session
+        /// Whether the channel has an activated session, or the legacy activation hint
+        /// when no session membership provider is available.
         /// </summary>
-        public bool UsedBySession { get; protected set; }
+        public bool UsedBySession
+        {
+            get => Quotas.HasActivatedSession?.Invoke(GlobalChannelId) ?? m_usedBySession;
+            protected set => m_usedBySession = value;
+        }
+
+        private bool m_usedBySession;
 
         /// <summary>
         /// Handles a socket error.
@@ -257,6 +264,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
+                TakeSavedChunks().Release(BufferManager, nameof(ForceChannelFault));
                 CompleteReverseHello(new ServiceResultException(reason));
 
                 // nothing to do if channel already in a faulted state.
@@ -362,6 +370,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Closed;
+                ClosePartialMessage();
                 Listener.ChannelClosed(ChannelId);
 
                 // notify any monitors.
@@ -382,6 +391,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Faulted;
+                ClosePartialMessage();
                 Listener.ChannelClosed(ChannelId);
             }
         }

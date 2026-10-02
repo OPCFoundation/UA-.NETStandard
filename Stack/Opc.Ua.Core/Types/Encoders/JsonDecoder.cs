@@ -776,6 +776,8 @@ namespace Opc.Ua
 
             try
             {
+                XmlElementDepth.Check(value, Context, ConformanceLevel.Document);
+
                 var document = new XmlDocument();
 
                 using (var reader = XmlReader.Create(

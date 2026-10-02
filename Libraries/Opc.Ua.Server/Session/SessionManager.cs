@@ -90,6 +90,7 @@ namespace Opc.Ua.Server
                 // create snapshot of all sessions
                 KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
                 m_sessions.Clear();
+                RefreshActivatedChannels();
 
                 foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
                 {
@@ -136,6 +137,7 @@ namespace Opc.Ua.Server
             // dispose of session objects using a snapshot.
             KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
             m_sessions.Clear();
+            RefreshActivatedChannels();
 
             foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
             {
@@ -403,6 +405,9 @@ namespace Opc.Ua.Server
                 localeIds,
                 serverNonceObject);
 
+            // Channel transfers need a refresh even when the identity context is unchanged.
+            RefreshActivatedChannels();
+
             // raise session related event.
             if (contextChanged)
             {
@@ -440,6 +445,8 @@ namespace Opc.Ua.Server
             // close the session if removed.
             if (session != null)
             {
+                RefreshActivatedChannels();
+
                 // raise session related event.
                 RaiseSessionEvent(session, SessionEventReason.Closing);
 
@@ -679,9 +686,38 @@ namespace Opc.Ua.Server
             }
         }
 
+        internal bool HasActivatedSession(string channelId)
+        {
+            return channelId != null && Volatile.Read(ref m_activatedChannels).Contains(channelId);
+        }
+
+        private void RefreshActivatedChannels()
+        {
+            // Serialize the scan as well as publication so a delayed refresh cannot
+            // overwrite newer membership. Always scan the live registry, not event arguments.
+            lock (m_activatedChannelsLock)
+            {
+                var channels = new HashSet<string>(StringComparer.Ordinal);
+                foreach (ISession session in m_sessions.Values)
+                {
+                    string channelId = session.SecureChannelId;
+                    if (session.Activated && !string.IsNullOrEmpty(channelId))
+                    {
+                        channels.Add(channelId);
+                    }
+                }
+                Volatile.Write(ref m_activatedChannels, channels);
+            }
+        }
+
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
         private readonly IServerInternal m_server;
         private readonly ILogger m_logger;
+
+        // Published sets are never mutated. Readers do not take the refresh lock.
+        private readonly object m_activatedChannelsLock = new();
+        private HashSet<string> m_activatedChannels = new(StringComparer.Ordinal);
+
         private readonly NodeIdDictionary<ISession> m_sessions;
         private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;

@@ -52,6 +52,7 @@ namespace Opc.Ua.Server
         /// resources.</param>
         protected override void Dispose(bool disposing)
         {
+            Volatile.Write(ref m_reassemblySessionManager, null);
             if (disposing)
             {
                 if (m_conformanceUnitsManager != null)
@@ -2920,6 +2921,11 @@ namespace Opc.Ua.Server
             {
                 base.OnServerStarting(configuration);
 
+                // Listeners open before the session manager exists. Keep their callback
+                // stable and resolve the current manager at each lookup, including restarts.
+                Volatile.Write(ref m_reassemblySessionManager, null);
+                HasActivatedSession = ChannelHasActivatedSession;
+
                 // save minimum nonce length.
                 m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
@@ -3158,6 +3164,7 @@ namespace Opc.Ua.Server
 
                 // add the session manager to the datastore.
                 m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+                Volatile.Write(ref m_reassemblySessionManager, sessionManager);
 
                 ServerError = null;
 
@@ -3242,6 +3249,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
+                Volatile.Write(ref m_reassemblySessionManager, null);
                 const string message = "Unexpected error starting application";
                 m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
                 Utils.SilentDispose(m_serverInternal);
@@ -3278,6 +3286,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override async ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
+            Volatile.Write(ref m_reassemblySessionManager, null);
             m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Stopping.");
 
             ShutDownDelay();
@@ -3862,11 +3871,36 @@ namespace Opc.Ua.Server
             }
         }
 
+        private bool ChannelHasActivatedSession(string channelId)
+        {
+            ISessionManager manager = Volatile.Read(ref m_reassemblySessionManager);
+            if (manager == null || string.IsNullOrEmpty(channelId))
+            {
+                return false;
+            }
+            if (manager.GetType() == typeof(SessionManager))
+            {
+                return ((SessionManager)manager).HasActivatedSession(channelId);
+            }
+
+            // Custom managers (including overrides of SessionManager's lifecycle)
+            // keep their existing contract and do not need to maintain our snapshot.
+            foreach (ISession session in manager.GetSessions())
+            {
+                if (session.Activated && string.Equals(session.SecureChannelId, channelId, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private OperationLimitsState OperationLimits
             => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
 
         private readonly Lock m_registrationLock = new();
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
+        private ISessionManager m_reassemblySessionManager;
         private IServerInternal m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
         private ConfiguredEndpointCollection m_registrationEndpoints;
