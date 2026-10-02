@@ -115,6 +115,32 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that the duplicate event check also scans the dequeue batch, which holds
+        /// the newest event right after a full enqueue batch was handed over to it.
+        /// </summary>
+        [Test]
+        public void DuplicateCheckScansTheDequeueBatch()
+        {
+            var persistor = new Mock<IBatchPersistor>();
+            using var queue = new DurableEventMonitoredItemQueue(
+                true, 1, persistor.Object, NUnitTelemetryContext.Create());
+            queue.SetQueueSize(2000, false);
+            IFilterTarget instance = new Mock<IFilterTarget>().Object;
+            for (uint i = 1; i < kEventBatchSize; i++)
+            {
+                queue.Enqueue(new EventFieldList { ClientHandle = i });
+            }
+            queue.Enqueue(new EventFieldList { ClientHandle = kEventBatchSize, Handle = instance });
+
+            StorableEventQueue stored = queue.ToStorableQueue();
+            Assert.That(stored.DequeueBatch, Is.Not.SameAs(stored.EnqueueBatch));
+            Assert.That(stored.EnqueueBatch.Events, Is.Empty);
+            Assert.That(queue.IsEventContainedInQueue(instance), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(new Mock<IFilterTarget>().Object), Is.False);
+        }
+        private const uint kEventBatchSize = 1000;
+
+        /// <summary>
         /// Verifies that restoring a persisted batch closes its reader so the backing file can be deleted.
         /// </summary>
         [Test]

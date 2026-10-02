@@ -222,19 +222,16 @@ namespace Quickstarts.Servers
         {
             // a duplicate is the same instance reported again through another notifier
             // path, so it sits among the most recently queued events: scan from the newest
-            // (the enqueue batch, then the stored batches from the latest backwards).
+            // (the enqueue batch, then the stored batches from the latest backwards, then
+            // the dequeue batch, which holds the oldest events).
             int remaining =
                 ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents
                     ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents
                     : ItemsInQueue;
 
-            for (int i = m_enqueueBatch.Events.Count - 1; i >= 0 && remaining > 0; i--, remaining--)
+            if (ContainsHandle(m_enqueueBatch.Events, instance, ref remaining))
             {
-                if (m_enqueueBatch.Events[i] is EventFieldList processedEvent &&
-                    ReferenceEquals(instance, processedEvent.Handle))
-                {
-                    return true;
-                }
+                return true;
             }
 
             for (int batch = m_eventBatches.Count - 1; batch >= 0 && remaining > 0; batch--)
@@ -243,15 +240,34 @@ namespace Quickstarts.Servers
                 List<EventFieldList>? events = m_eventBatches[batch].Events;
                 if (events == null)
                 {
-                    break;
+                    return false;
                 }
-                for (int i = events.Count - 1; i >= 0 && remaining > 0; i--, remaining--)
+                if (ContainsHandle(events, instance, ref remaining))
                 {
-                    if (events[i] is EventFieldList storedEvent &&
-                        ReferenceEquals(instance, storedEvent.Handle))
-                    {
-                        return true;
-                    }
+                    return true;
+                }
+            }
+
+            return m_dequeueBatch != m_enqueueBatch &&
+                m_dequeueBatch.Events != null &&
+                ContainsHandle(m_dequeueBatch.Events, instance, ref remaining);
+        }
+
+        /// <summary>
+        /// Scans the events from the newest to the oldest for an event raised for the
+        /// instance, checking at most <paramref name="remaining"/> events.
+        /// </summary>
+        private static bool ContainsHandle(
+            List<EventFieldList> events,
+            IFilterTarget instance,
+            ref int remaining)
+        {
+            for (int i = events.Count - 1; i >= 0 && remaining > 0; i--, remaining--)
+            {
+                if (events[i] is EventFieldList queuedEvent &&
+                    ReferenceEquals(instance, queuedEvent.Handle))
+                {
+                    return true;
                 }
             }
             return false;
