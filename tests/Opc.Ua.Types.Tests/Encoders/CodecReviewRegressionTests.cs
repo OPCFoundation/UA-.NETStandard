@@ -640,6 +640,23 @@ namespace Opc.Ua.Types.Tests.Encoders
                         decoder.PushNamespace(kNs);
                         output.Decode(decoder);
                     }
+                    // Both XML decoders read abstract-number fields as Variants.
+                    Structure parsed = CreateNumberStructure();
+                    using (XmlParser parser = CreateXmlParser(xml, context))
+                    {
+                        parser.PushNamespace(kNs);
+                        parsed.Decode(parser);
+                    }
+                    foreach (string field in new[] { "N", "I", "U", "M" })
+                    {
+                        Assert.That(parsed[field].TypeInfo, Is.EqualTo(output[field].TypeInfo), field);
+                        // Variant equality never matches a typed null array, so
+                        // null or empty arrays are compared by their emptiness.
+                        if (!output[field].IsEmptyArray || !parsed[field].IsEmptyArray)
+                        {
+                            Assert.That(parsed[field], Is.EqualTo(output[field]), field);
+                        }
+                    }
                     break;
                 default:
                     string json;
@@ -657,6 +674,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             return output;
         }
 
+        private static StructureField CreateField(string name, NodeId dataType, int valueRank)
+        {
+            return new StructureField { Name = name, DataType = dataType, ValueRank = valueRank };
+        }
+
         private static Structure CreateNumberStructure()
         {
             var definition = new StructureDefinition
@@ -665,10 +687,10 @@ namespace Opc.Ua.Types.Tests.Encoders
                 StructureType = StructureType.Structure,
                 Fields =
                 [
-                    new StructureField { Name = "N", DataType = DataTypeIds.Number, ValueRank = ValueRanks.Scalar },
-                    new StructureField { Name = "I", DataType = DataTypeIds.Integer, ValueRank = ValueRanks.OneDimension },
-                    new StructureField { Name = "U", DataType = DataTypeIds.UInteger, ValueRank = ValueRanks.OneDimension },
-                    new StructureField { Name = "M", DataType = DataTypeIds.Number, ValueRank = ValueRanks.TwoDimensions }
+                    CreateField("N", DataTypeIds.Number, ValueRanks.Scalar),
+                    CreateField("I", DataTypeIds.Integer, ValueRanks.OneDimension),
+                    CreateField("U", DataTypeIds.UInteger, ValueRanks.OneDimension),
+                    CreateField("M", DataTypeIds.Number, ValueRanks.TwoDimensions)
                 ]
             };
             return new Structure(
