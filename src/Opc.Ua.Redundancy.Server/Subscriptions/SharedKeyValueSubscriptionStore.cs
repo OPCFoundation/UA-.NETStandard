@@ -390,11 +390,17 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public void StoreFirstUnsentSequenceNumber(uint subscriptionId, uint firstUnsentSequenceNumber)
+        public void StoreFirstUnsentSequenceNumber(
+            uint subscriptionId,
+            uint nextSequenceNumber,
+            uint firstUnsentSequenceNumber)
         {
             lock (m_retransmissionLock)
             {
+                // The state record carries both values; a pending state created here (for
+                // example after a restore on a fresh replica) must not persist Next = 0.
                 PendingRetransmissionState state = GetPendingState(subscriptionId);
+                state.NextSequenceNumber = nextSequenceNumber;
                 state.FirstUnsentSequenceNumber = firstUnsentSequenceNumber;
                 state.StateDirty = true;
             }
@@ -582,8 +588,10 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask DrainPendingAsync(CancellationToken cancellationToken)
         {
-            foreach (RetransmissionBatch batch in TakePendingBatches())
+            List<RetransmissionBatch> batches = TakePendingBatches();
+            for (int ii = 0; ii < batches.Count; ii++)
             {
+                RetransmissionBatch batch = batches[ii];
                 try
                 {
                     if (batch.ClearRequested)
@@ -640,7 +648,11 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 catch
                 {
-                    Requeue(batch);
+                    // Requeue the failed batch and every batch not yet written.
+                    for (int jj = ii; jj < batches.Count; jj++)
+                    {
+                        Requeue(batches[jj]);
+                    }
                     throw;
                 }
             }
@@ -728,12 +740,21 @@ namespace Opc.Ua.Redundancy.Server
             {
                 PendingRetransmissionState state = GetPendingState(batch.SubscriptionId);
                 state.ClearRequested |= batch.ClearRequested;
-                state.NextSequenceNumber = batch.NextSequenceNumber;
-                state.FirstUnsentSequenceNumber = batch.FirstUnsentSequenceNumber;
+
+                // A state change stored while the batch was in flight is newer; keep it.
+                if (!state.StateDirty)
+                {
+                    state.NextSequenceNumber = batch.NextSequenceNumber;
+                    state.FirstUnsentSequenceNumber = batch.FirstUnsentSequenceNumber;
+                }
                 state.StateDirty |= batch.StateDirty;
                 foreach (NotificationMessage message in batch.Messages)
                 {
-                    state.PendingMessages[message.SequenceNumber] = message;
+                    // Acknowledged while the batch was in flight: do not resurrect it.
+                    if (!state.PendingDeletes.Contains(message.SequenceNumber))
+                    {
+                        state.PendingMessages[message.SequenceNumber] = message;
+                    }
                 }
                 foreach (uint sequenceNumber in batch.Deletes)
                 {
@@ -1062,11 +1083,17 @@ namespace Opc.Ua.Redundancy.Server
 
         private ByteString Encode(StoredSubscription subscription)
         {
+            // Only subscriptions with triggering links need the newer format; writing the
+            // previous one otherwise keeps snapshots readable by replicas that predate it
+            // during a rolling upgrade.
+            int version = subscription.TriggeringLinks is { Count: > 0 }
+                ? TriggeringLinksDefinitionFormatVersion
+                : OwnerStateDefinitionFormatVersion;
             using var encoder = new BinaryEncoder(m_context);
-            encoder.WriteInt32(null, DefinitionFormatVersion);
+            encoder.WriteInt32(null, version);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
-            EncodeSubscription(encoder, subscription, DefinitionFormatVersion);
+            EncodeSubscription(encoder, subscription, version);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -1518,9 +1545,6 @@ namespace Opc.Ua.Redundancy.Server
         private const int FilteredRetainDefinitionFormatVersion = 3;
         private const int OwnerStateDefinitionFormatVersion = 5;
         private const int TriggeringLinksDefinitionFormatVersion = 6;
-
-        private const int DefinitionFormatVersion =
-            TriggeringLinksDefinitionFormatVersion;
 
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;

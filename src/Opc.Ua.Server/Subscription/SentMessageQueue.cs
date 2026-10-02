@@ -411,7 +411,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            sendStateStore.StoreFirstUnsentSequenceNumber(Id, firstUnsentSequenceNumber);
+            sendStateStore.StoreFirstUnsentSequenceNumber(Id, m_sequenceNumber, firstUnsentSequenceNumber);
             m_mirroredFirstUnsentSequenceNumber = firstUnsentSequenceNumber;
         }
 

@@ -329,8 +329,44 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 actual.LastError.StatusCode,
                 Is.EqualTo(StatusCodes.BadCommunicationError));
             using var decoder = new BinaryDecoder(EncodeDefinition(active, expected).ToArray(), CreateContext());
-            Assert.That(decoder.ReadInt32(null), Is.EqualTo(6),
-                "New definitions must carry the owner, publishing state and triggering link format.");
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(5),
+                "Definitions without triggering links must keep the owner and publishing state format.");
+        }
+
+        /// <summary>
+        /// Verifies that only definitions with triggering links use the newer format, so that
+        /// replicas that predate it can still read link-free snapshots.
+        /// </summary>
+        [Test]
+        public async Task DefinitionFormatDependsOnTriggeringLinksAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            StoredSubscription withoutLinks = NewSubscription(109, 21);
+            StoredSubscription emptyLinks = NewSubscription(110, 22);
+            emptyLinks.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>();
+            StoredSubscription withLinks = NewSubscription(111, 23);
+            withLinks.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+            {
+                [23] = [24u]
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ReadDefinitionVersion(store, withoutLinks), Is.EqualTo(5));
+                Assert.That(ReadDefinitionVersion(store, emptyLinks), Is.EqualTo(5));
+                Assert.That(ReadDefinitionVersion(store, withLinks), Is.EqualTo(6));
+            });
+        }
+
+        private static int ReadDefinitionVersion(
+            SharedKeyValueSubscriptionStore store,
+            StoredSubscription subscription)
+        {
+            using var decoder = new BinaryDecoder(
+                EncodeDefinition(store, subscription).ToArray(),
+                CreateContext());
+            return decoder.ReadInt32(null);
         }
 
         /// <summary>
@@ -1543,6 +1579,79 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// Verifies that requeueing a failed batch does not overwrite a send state that was
+        /// stored while the batch was in flight.
+        /// </summary>
+        [Test]
+        public async Task RetransmissionRequeueKeepsNewerSendStateAsync()
+        {
+            const uint subscriptionId = 726;
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new BlockingRetransmissionSetStore(inner, subscriptionId, throwAfterRelease: true);
+            await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext());
+
+            store.StoreRetransmissionStateDelta(
+                subscriptionId,
+                4,
+                [NewNotification(1), NewNotification(2), NewNotification(3)],
+                []);
+            await kv.WaitForBlockedSetAsync().ConfigureAwait(false);
+            store.StoreFirstUnsentSequenceNumber(subscriptionId, 4, 3);
+            kv.ReleaseBlockedSets();
+            await store.FlushAsync().ConfigureAwait(false);
+
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(inner);
+            SubscriptionRetransmissionState? state =
+                await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(4));
+            Assert.That(state.FirstUnsentSequenceNumber, Is.EqualTo(3));
+            Assert.That(
+                state.SentMessages.Memory.ToArray().Select(m => m.SequenceNumber),
+                Is.EqualTo(new uint[] { 1, 2, 3 }));
+        }
+
+        /// <summary>
+        /// Verifies that a failing batch does not drop the other batches taken with it.
+        /// </summary>
+        [Test]
+        public async Task RetransmissionFailureRequeuesRemainingBatchesAsync()
+        {
+            const uint blockedSubscriptionId = 727;
+            const uint failingSubscriptionId = 728;
+            const uint otherSubscriptionId = 729;
+            using var inner = new InMemorySharedKeyValueStore();
+            var blocking = new BlockingRetransmissionSetStore(inner, blockedSubscriptionId);
+            var kv = new ThrowOnceOnPrefixStore(
+                blocking,
+                SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(failingSubscriptionId));
+            await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext());
+
+            // Hold the drain so that the next two subscriptions are taken in one pass.
+            store.StoreRetransmissionState(blockedSubscriptionId, 2, [NewNotification(1)]);
+            await blocking.WaitForBlockedSetAsync().ConfigureAwait(false);
+            store.StoreRetransmissionState(failingSubscriptionId, 5, [NewNotification(4)]);
+            store.StoreRetransmissionState(otherSubscriptionId, 8, [NewNotification(7)]);
+            blocking.ReleaseBlockedSets();
+            await store.FlushAsync().ConfigureAwait(false);
+
+            SubscriptionRetransmissionState? failing =
+                await store.LoadRetransmissionStateAsync(failingSubscriptionId).ConfigureAwait(false);
+            SubscriptionRetransmissionState? other =
+                await store.LoadRetransmissionStateAsync(otherSubscriptionId).ConfigureAwait(false);
+
+            Assert.That(kv.ThrowCount, Is.EqualTo(1));
+            Assert.That(failing, Is.Not.Null);
+            Assert.That(failing!.NextSequenceNumber, Is.EqualTo(5));
+            Assert.That(other, Is.Not.Null);
+            Assert.That(other!.NextSequenceNumber, Is.EqualTo(8));
+            Assert.That(
+                other.SentMessages.Memory.ToArray().Select(m => m.SequenceNumber),
+                Is.EqualTo(new uint[] { 7 }));
+        }
+
+        /// <summary>
         /// Verifies that continuation mirroring requeues its batch after a transient failure.
         /// </summary>
         [Test]
@@ -1623,7 +1732,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 4,
                 [NewNotification(1), NewNotification(2), NewNotification(3)],
                 []);
-            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 2);
+            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 4, 2);
             await primary.FlushAsync().ConfigureAwait(false);
 
             SubscriptionRetransmissionState? state =
@@ -1632,10 +1741,43 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(state!.NextSequenceNumber, Is.EqualTo(4));
             Assert.That(state.FirstUnsentSequenceNumber, Is.EqualTo(2));
 
-            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 0);
+            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 4, 0);
             await primary.FlushAsync().ConfigureAwait(false);
             state = await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
             Assert.That(state!.FirstUnsentSequenceNumber, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that a replica which restored a subscription and only reports send-state
+        /// changes keeps the stored next sequence number instead of persisting 0.
+        /// </summary>
+        [Test]
+        public async Task SendStateOnRestoredReplicaKeepsNextSequenceNumberAsync()
+        {
+            const uint subscriptionId = 725;
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
+            await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+
+            primary.StoreRetransmissionStateDelta(
+                subscriptionId,
+                4,
+                [NewNotification(1), NewNotification(2), NewNotification(3)],
+                []);
+            primary.StoreFirstUnsentSequenceNumber(subscriptionId, 4, 2);
+            await primary.FlushAsync().ConfigureAwait(false);
+
+            // The backup restores and returns the backlog: only the send state changes.
+            SubscriptionRetransmissionState? state =
+                await backup.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+            Assert.That(state, Is.Not.Null);
+            backup.StoreFirstUnsentSequenceNumber(subscriptionId, state!.NextSequenceNumber, 3);
+            await backup.FlushAsync().ConfigureAwait(false);
+
+            state = await primary.LoadRetransmissionStateAsync(subscriptionId).ConfigureAwait(false);
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(4));
+            Assert.That(state.FirstUnsentSequenceNumber, Is.EqualTo(3));
         }
 
         /// <summary>
@@ -2159,9 +2301,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private sealed class BlockingRetransmissionSetStore : ISharedKeyValueStore
         {
-            public BlockingRetransmissionSetStore(ISharedKeyValueStore inner, uint subscriptionId)
+            public BlockingRetransmissionSetStore(
+                ISharedKeyValueStore inner,
+                uint subscriptionId,
+                bool throwAfterRelease = false)
             {
                 m_inner = inner;
+                m_throwAfterRelease = throwAfterRelease;
                 m_keyPrefix = "subscription-retransmission/" +
                     subscriptionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture) +
                     "/";
@@ -2181,6 +2327,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 {
                     m_blocked.SetResult(true);
                     await m_release.Task.ConfigureAwait(false);
+                    if (m_throwAfterRelease)
+                    {
+                        throw new InvalidOperationException("Injected transient mirror failure.");
+                    }
                 }
 
                 await m_inner.SetAsync(key, value, ct).ConfigureAwait(false);
@@ -2234,6 +2384,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             private readonly ISharedKeyValueStore m_inner;
             private readonly string m_keyPrefix;
+            private readonly bool m_throwAfterRelease;
 
             private readonly TaskCompletionSource<bool> m_blocked =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);

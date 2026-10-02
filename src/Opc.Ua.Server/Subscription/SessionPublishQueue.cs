@@ -1008,17 +1008,17 @@ namespace Opc.Ua.Server
                     if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                     {
                         // Any UInt32 TimeoutHint is valid (OPC 10000-4, 7.33), but a timer
-                        // delay above Int32.MaxValue ms is rejected by CancellationTokenSource
-                        // on .NET Framework (and above UInt32.MaxValue - 1 ms on .NET). Clamp
-                        // instead of faulting the Publish; the request manager still cancels
-                        // the request at its exact deadline.
-                        if (timeOut > s_maxTimeOut)
-                        {
-                            timeOut = s_maxTimeOut;
-                        }
-                        m_cancellationTokenSource = timeProvider.CreateCancellationTokenSource(timeOut);
-                        m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
-                            () => TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
+                        // delay above Int32.MaxValue ms is rejected on .NET Framework (and
+                        // above UInt32.MaxValue - 1 ms on .NET). Arm at most the largest
+                        // supported delay and re-arm for the remainder when it expires, so
+                        // the request never times out before its deadline.
+                        m_timeProvider = timeProvider;
+                        m_timeoutDeadline = operationTimeout.AddMilliseconds(500);
+                        m_timeoutTimer = timeProvider.CreateTimer(
+                            static state => ((QueuedPublishRequest)state!).OnTimeoutTimer(),
+                            this,
+                            timeOut > s_maxTimeOut ? s_maxTimeOut : timeOut,
+                            Timeout.InfiniteTimeSpan);
                     }
                 }
                 catch
@@ -1051,8 +1051,32 @@ namespace Opc.Ua.Server
             public void Dispose()
             {
                 m_cancellationTokenRegistration.Dispose();
-                m_cancellationTokenSource?.Dispose();
-                m_cancellationTokenRegistration2.Dispose();
+                m_timeoutTimer?.Dispose();
+            }
+
+            /// <summary>
+            /// Fails the request with Bad_Timeout once its deadline passed, otherwise re-arms
+            /// the timer for the remainder of a delay longer than one timer period supports.
+            /// </summary>
+            private void OnTimeoutTimer()
+            {
+                TimeSpan remaining = m_timeoutDeadline - m_timeProvider!.GetUtcNow().UtcDateTime;
+                if (remaining > TimeSpan.Zero && m_timeoutTimer != null)
+                {
+                    try
+                    {
+                        m_timeoutTimer.Change(
+                            remaining > s_maxTimeOut ? s_maxTimeOut : remaining,
+                            Timeout.InfiniteTimeSpan);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // the request completed meanwhile.
+                    }
+                    return;
+                }
+
+                TrySetException(new ServiceResultException(StatusCodes.BadTimeout));
             }
 
             private bool TrySetCanceled()
@@ -1091,8 +1115,9 @@ namespace Opc.Ua.Server
             /// </summary>
             private static readonly TimeSpan s_maxTimeOut = TimeSpan.FromMilliseconds(int.MaxValue);
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
-            private readonly CancellationTokenSource? m_cancellationTokenSource;
-            private readonly CancellationTokenRegistration m_cancellationTokenRegistration2;
+            private readonly TimeProvider? m_timeProvider;
+            private readonly DateTime m_timeoutDeadline;
+            private readonly ITimer? m_timeoutTimer;
             private readonly Action m_onCompleted;
             private int m_completed;
         }
