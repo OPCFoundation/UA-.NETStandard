@@ -4838,20 +4838,8 @@ namespace Opc.Ua.Server
             // is torn down.
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
 
-            // No request can close a session any more: every session still open is terminated
-            // by the server, which is audited once per session (OPC 10000-5 6.4.7).
-            foreach (ISession session in serverInternal.SessionManager.GetSessions())
-            {
-                if (!session.IsClosing)
-                {
-                    serverInternal.ReportAuditCloseSessionEvent(
-                        null!,
-                        session,
-                        m_logger,
-                        "Session/Terminated");
-                }
-            }
-
+            // Sessions still open are terminated by the server; SessionManager.ShutdownAsync
+            // audits each of them once its close completed (OPC 10000-5 6.4.7).
             await RunShutdownStageAsync(
                     failures,
                     serverInternal.DrainRoleStateBindingAsync)
