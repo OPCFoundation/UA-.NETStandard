@@ -339,6 +339,7 @@
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Interop.Tests/Opc.Ua.Interop.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lds.Tests/Opc.Ua.Lds.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Stress.Tests/Opc.Ua.Stress.Tests.csproj" />

@@ -122,6 +122,15 @@ namespace Opc.Ua.Client.TestFramework
         /// </summary>
         public uint SharedSessionTimeout { get; set; } = 120_000;
         public bool SupportsExternalServerUrl { get; set; }
+
+        /// <summary>
+        /// When set before <c>OneTimeSetUpCoreAsync</c>, the tests run
+        /// against the server at this URL instead of an in-process reference
+        /// server, without reading the test run parameters.
+        /// <see cref="ServerFixture"/> and <see cref="ReferenceServer"/> stay
+        /// null, so only tests that do not use them can run this way.
+        /// </summary>
+        public string ExternalServerUrl { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
         /// <summary>
@@ -285,17 +294,21 @@ namespace Opc.Ua.Client.TestFramework
                 m_logger.LogInformation("Using the Pki Root {FilePath}", PkiRoot);
             }
 
+            // An external server set in code (the interop tests run the
+            // client tests against a 1.5 server process) keeps the default
+            // test sets, which address the same reference server nodes.
+            string customUrl = ExternalServerUrl;
+            if (customUrl != null)
+            {
+                m_logger.UsingExternalServerUrl(customUrl);
+            }
             // The parameters are read from the .runsettings file
-            string customUrl = null;
-            if (SupportsExternalServerUrl)
+            else if (SupportsExternalServerUrl)
             {
                 customUrl = TestContext.Parameters["ServerUrl"];
                 if (customUrl?.StartsWith(UriScheme, StringComparison.Ordinal) == true)
                 {
-                    if (m_logger.IsEnabled(LogLevel.Information))
-                    {
-                        m_logger.LogInformation("Using the external Server Url {Url}", customUrl);
-                    }
+                    m_logger.UsingExternalServerUrl(customUrl);
 
                     // load custom test sets
                     TestSetStatic = ReadCustomTestSet("TestSetStatic");
@@ -877,5 +890,14 @@ namespace Opc.Ua.Client.TestFramework
             }
             return list;
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages of <see cref="ClientTestFramework"/>.
+    /// </summary>
+    internal static partial class ClientTestFrameworkLog
+    {
+        [LoggerMessage(Level = LogLevel.Information, Message = "Using the external Server Url {Url}")]
+        public static partial void UsingExternalServerUrl(this ILogger logger, string url);
     }
 }
