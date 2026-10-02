@@ -750,36 +750,19 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // flag requests as cancelled.
+            // flag requests as cancelled. A request that another cancellation (a timeout, a
+            // Session close or an earlier Cancel) already claimed, or that completed after
+            // the snapshot, was not cancelled by this call and is neither counted nor reported.
             var cancelledRequests = new List<uint>(matchingRequests.Count);
             foreach (OperationContext request in matchingRequests)
             {
-                TryCancelRequest(request, StatusCodes.BadRequestCancelledByClient);
-                cancelledRequests.Add(request.RequestId);
-            }
-
-            // raise notifications.
-            lock (m_lock)
-            {
-                for (int ii = 0; ii < cancelledRequests.Count; ii++)
+                if (TryCancelRequest(request, StatusCodes.BadRequestCancelledByClient))
                 {
-                    if (m_RequestCancelled != null)
-                    {
-                        try
-                        {
-                            m_RequestCancelled(
-                                this,
-                                cancelledRequests[ii],
-                                StatusCodes.BadRequestCancelledByClient);
-                        }
-                        catch (Exception e)
-                        {
-                            m_logger.UnexpectedErrorReportingRequestCancelledEvent(e);
-                        }
-                    }
+                    cancelledRequests.Add(request.RequestId);
                 }
             }
 
+            RaiseRequestCancelled(cancelledRequests, StatusCodes.BadRequestCancelledByClient);
             return (uint)cancelledRequests.Count;
         }
 
@@ -971,32 +954,18 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // flag requests as expired.
+            // flag requests as expired; a request another cancellation already claimed, or
+            // that completed after the snapshot, did not time out and is not reported.
             var expiredRequests = new List<uint>(expiredContexts.Count);
             foreach (OperationContext request in expiredContexts)
             {
-                TryCancelRequest(request, StatusCodes.BadTimeout);
-                expiredRequests.Add(request.RequestId);
-            }
-
-            // raise notifications.
-            lock (m_lock)
-            {
-                for (int ii = 0; ii < expiredRequests.Count; ii++)
+                if (TryCancelRequest(request, StatusCodes.BadTimeout))
                 {
-                    if (m_RequestCancelled != null)
-                    {
-                        try
-                        {
-                            m_RequestCancelled(this, expiredRequests[ii], StatusCodes.BadTimeout);
-                        }
-                        catch (Exception e)
-                        {
-                            m_logger.UnexpectedErrorReportingRequestCancelledEvent(e);
-                        }
-                    }
+                    expiredRequests.Add(request.RequestId);
                 }
             }
+
+            RaiseRequestCancelled(expiredRequests, StatusCodes.BadTimeout);
         }
 
         private readonly Lock m_lock = new();
