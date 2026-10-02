@@ -816,49 +816,60 @@ namespace Opc.Ua
             byte[]? iv = null;
             byte[]? encryptedPayload = null;
             byte[]? payload = null;
+            byte[]? decrypted = null;
 
             try
             {
-                keyData = DecryptRsaRaw(new ArraySegment<byte>(encodedSecret, keyDataStart, keyDataLength));
-
-                using (var keyDataDecoder = new BinaryDecoder(keyData, Context))
+                // A KeyData that fails RSA unpadding or does not hold the expected keys must
+                // be indistinguishable from one whose keys fail the signature check
+                // (OPC 10000-4 7.40.2.1): the receiver has to decrypt the KeyData before it
+                // can verify the Signature (7.40.2.3), so any difference in the error or in
+                // the steps run is a decryption oracle on the receiver key. Invalid KeyData
+                // is therefore replaced with random keys, the signature is still computed,
+                // and every such failure ends in the same Bad_SecurityChecksFailed.
+                bool keyDataValid;
+                try
                 {
-                    signingKey = keyDataDecoder.ReadByteString(null).ToArray();
-                    encryptingKey = keyDataDecoder.ReadByteString(null).ToArray();
-                    iv = keyDataDecoder.ReadByteString(null).ToArray();
-                    if (keyDataDecoder.Position != keyData.Length)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadDecodingError);
-                    }
+                    keyData = DecryptRsaRaw(new ArraySegment<byte>(encodedSecret, keyDataStart, keyDataLength));
+                    keyDataValid = TryParseRsaKeyData(keyData, out signingKey, out encryptingKey, out iv);
+                }
+                catch (CryptographicException)
+                {
+                    keyDataValid = false;
                 }
 
-                if (signingKey.Length != SecurityPolicy.DerivedSignatureKeyLength ||
-                    encryptingKey.Length != SecurityPolicy.SymmetricEncryptionKeyLength ||
-                    iv.Length != SecurityPolicy.InitializationVectorLength)
+                if (!keyDataValid)
                 {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError);
+                    ZeroMemory(signingKey);
+                    ZeroMemory(encryptingKey);
+                    ZeroMemory(iv);
+                    signingKey = Nonce.CreateRandomNonceData(SecurityPolicy.DerivedSignatureKeyLength, false);
+                    encryptingKey = Nonce.CreateRandomNonceData(SecurityPolicy.SymmetricEncryptionKeyLength, false);
+                    iv = Nonce.CreateRandomNonceData(SecurityPolicy.InitializationVectorLength, false);
                 }
+
+                int notValid = keyDataValid ? 0 : 1;
 
                 if (signatureLength > 0)
                 {
-                    using HMAC hmac = SecurityPolicy.CreateSignatureHmac(signingKey) ??
+                    using HMAC hmac = SecurityPolicy.CreateSignatureHmac(signingKey!) ??
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
                             "The security policy does not support symmetric signatures required for RSAEncryptedSecret validation.");
 
                     byte[] expectedSignature = hmac.ComputeHash(encodedSecret, 0, signatureStart);
-                    int notValid = expectedSignature.Length == signatureLength ? 0 : 1;
+                    notValid |= expectedSignature.Length == signatureLength ? 0 : 1;
 
                     for (int ii = 0; ii < signatureLength; ii++)
                     {
                         byte expectedByte = ii < expectedSignature.Length ? expectedSignature[ii] : (byte)0;
                         notValid |= expectedByte ^ encodedSecret[signatureStart + ii];
                     }
+                }
 
-                    if (notValid != 0)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
-                    }
+                if (notValid != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
                 }
 
                 int encryptedPayloadStart = decoder.Position;
@@ -867,8 +878,8 @@ namespace Opc.Ua
                 Buffer.BlockCopy(encodedSecret, encryptedPayloadStart, encryptedPayload, 0, encryptedPayloadLength);
                 DecryptCbcWithoutPadding(
                     new ArraySegment<byte>(encryptedPayload, 0, encryptedPayload.Length),
-                    encryptingKey,
-                    iv);
+                    encryptingKey!,
+                    iv!);
                 payload = encryptedPayload;
 
                 using var payloadDecoder = new BinaryDecoder(payload, Context);
@@ -879,7 +890,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
-                secret = payloadDecoder.ReadByteString(null).ToArray();
+                decrypted = payloadDecoder.ReadByteString(null).ToArray();
                 int paddingStart = payloadDecoder.Position;
                 if (payload.Length < paddingStart + sizeof(ushort))
                 {
@@ -900,10 +911,15 @@ namespace Opc.Ua
                     }
                 }
 
+                secret = decrypted;
+                decrypted = null;
                 return true;
             }
             finally
             {
+                // never leave a secret that failed validation behind.
+                ZeroMemory(decrypted);
+
                 if (keyData != null)
                 {
                     ZeroMemory(keyData);
@@ -914,6 +930,42 @@ namespace Opc.Ua
                 ZeroMemory(iv);
                 ZeroMemory(encryptedPayload);
                 ZeroMemory(payload);
+            }
+        }
+
+        /// <summary>
+        /// Parses the decrypted KeyData of an RSAEncryptedSecret and checks the key sizes
+        /// against the security policy.
+        /// </summary>
+        /// <returns><c>false</c> when the KeyData does not hold exactly the expected keys.</returns>
+        private bool TryParseRsaKeyData(
+            byte[] keyData,
+            out byte[]? signingKey,
+            out byte[]? encryptingKey,
+            out byte[]? iv)
+        {
+            signingKey = null;
+            encryptingKey = null;
+            iv = null;
+
+            try
+            {
+                using var keyDataDecoder = new BinaryDecoder(keyData, Context);
+                signingKey = keyDataDecoder.ReadByteString(null).ToArray();
+                encryptingKey = keyDataDecoder.ReadByteString(null).ToArray();
+                iv = keyDataDecoder.ReadByteString(null).ToArray();
+                return keyDataDecoder.Position == keyData.Length &&
+                    signingKey.Length == SecurityPolicy.DerivedSignatureKeyLength &&
+                    encryptingKey.Length == SecurityPolicy.SymmetricEncryptionKeyLength &&
+                    iv.Length == SecurityPolicy.InitializationVectorLength;
+            }
+            catch (Exception ex) when (ex is
+                ServiceResultException or
+                IOException or
+                ArgumentException or
+                OverflowException)
+            {
+                return false;
             }
         }
 
@@ -936,13 +988,13 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
-            {
-                return TryDecryptRsa(encryptedSecret, expectedNonce, out secret);
-            }
-
             try
             {
+                if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+                {
+                    return TryDecryptRsa(encryptedSecret, expectedNonce, out secret);
+                }
+
                 secret = Decrypt(
                     DateTime.UtcNow - s_eccEncryptedSecretMaxTokenAge,
                     expectedNonce,
@@ -957,7 +1009,8 @@ namespace Opc.Ua
                 CryptographicException or
                 IOException or
                 FormatException or
-                ArgumentException)
+                ArgumentException or
+                OverflowException)
             {
                 return false;
             }
@@ -987,14 +1040,14 @@ namespace Opc.Ua
                 return (false, null);
             }
 
-            if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
-            {
-                bool ok = TryDecryptRsa(encryptedSecret, expectedNonce, out byte[]? rsaSecret);
-                return (ok, rsaSecret);
-            }
-
             try
             {
+                if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+                {
+                    bool ok = TryDecryptRsa(encryptedSecret, expectedNonce, out byte[]? rsaSecret);
+                    return (ok, rsaSecret);
+                }
+
                 byte[] secret = await DecryptAsync(
                     DateTime.UtcNow - s_eccEncryptedSecretMaxTokenAge,
                     expectedNonce,
@@ -1010,7 +1063,8 @@ namespace Opc.Ua
                 CryptographicException or
                 IOException or
                 FormatException or
-                ArgumentException)
+                ArgumentException or
+                OverflowException)
             {
                 return (false, null);
             }
@@ -1044,7 +1098,37 @@ namespace Opc.Ua
         {
             using RSA rsa = ReceiverCertificate.GetRSAPrivateKey()
                 ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-            return TransformRsaBlocks(cipherText, rsa, GetRsaEncryptionPadding(), encrypt: false);
+            RSAEncryptionPadding padding = GetRsaEncryptionPadding();
+
+            // The KeyData holds the signing key, the encrypting key and the IV, each as
+            // a ByteString, so its encrypted size follows from the policy and the
+            // receiver key alone. Rejecting any other length before a private-key
+            // operation bounds the work a sender can force, and the length is public.
+            int cipherTextBlockSize = rsa.KeySize / 8;
+            int plainTextLength = (3 * sizeof(int)) +
+                SecurityPolicy.DerivedSignatureKeyLength +
+                SecurityPolicy.SymmetricEncryptionKeyLength +
+                SecurityPolicy.InitializationVectorLength;
+            int plainTextBlockSize = GetRsaPlainTextBlockSize(cipherTextBlockSize, padding);
+            int expectedLength =
+                (plainTextLength + plainTextBlockSize - 1) / plainTextBlockSize * cipherTextBlockSize;
+            if (cipherText.Count != expectedLength)
+            {
+                throw new CryptographicException("Unexpected KeyData length.");
+            }
+
+            return TransformRsaBlocks(cipherText, rsa, padding, encrypt: false);
+        }
+
+        private static int GetRsaPlainTextBlockSize(int cipherTextBlockSize, RSAEncryptionPadding padding)
+        {
+            return padding.Mode switch
+            {
+                RSAEncryptionPaddingMode.Pkcs1 => cipherTextBlockSize - 11,
+                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA1 => cipherTextBlockSize - 42,
+                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA256 => cipherTextBlockSize - 66,
+                _ => throw new NotSupportedException($"Unsupported RSA padding mode '{padding.Mode}'.")
+            };
         }
 
         private RSAEncryptionPadding GetRsaEncryptionPadding()
@@ -1057,20 +1141,14 @@ namespace Opc.Ua
             };
         }
 
-        private static byte[] TransformRsaBlocks(
+        internal static byte[] TransformRsaBlocks(
             ReadOnlySpan<byte> input,
             RSA rsa,
             RSAEncryptionPadding padding,
             bool encrypt)
         {
             int cipherTextBlockSize = rsa.KeySize / 8;
-            int plainTextBlockSize = padding.Mode switch
-            {
-                RSAEncryptionPaddingMode.Pkcs1 => cipherTextBlockSize - 11,
-                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA1 => cipherTextBlockSize - 42,
-                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA256 => cipherTextBlockSize - 66,
-                _ => throw new NotSupportedException($"Unsupported RSA padding mode '{padding.Mode}'.")
-            };
+            int plainTextBlockSize = GetRsaPlainTextBlockSize(cipherTextBlockSize, padding);
             int inputBlockSize = encrypt ? plainTextBlockSize : cipherTextBlockSize;
 
             if (!encrypt && input.Length % cipherTextBlockSize != 0)
@@ -1079,18 +1157,54 @@ namespace Opc.Ua
             }
 
             using var output = new MemoryStream();
+            CryptographicException? decryptFailure = null;
 
-            for (int offset = 0; offset < input.Length; offset += inputBlockSize)
+            try
             {
-                int count = Math.Min(inputBlockSize, input.Length - offset);
-                byte[] transformed = encrypt
-                    ? rsa.Encrypt(input.Slice(offset, count).ToArray(), padding)
-                    : rsa.Decrypt(input.Slice(offset, count).ToArray(), padding);
-                output.Write(transformed, 0, transformed.Length);
-                CryptoUtils.ZeroMemory(transformed);
-            }
+                for (int offset = 0; offset < input.Length; offset += inputBlockSize)
+                {
+                    int count = Math.Min(inputBlockSize, input.Length - offset);
+                    byte[] transformed;
+                    if (encrypt)
+                    {
+                        transformed = rsa.Encrypt(input.Slice(offset, count).ToArray(), padding);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            transformed = rsa.Decrypt(input.Slice(offset, count).ToArray(), padding);
+                        }
+                        catch (CryptographicException ex)
+                        {
+                            // Keep decrypting the remaining blocks: stopping at the first block
+                            // with bad padding would make the number of private-key operations
+                            // (and so the response time) reveal the padding validity of the
+                            // earlier blocks.
+                            decryptFailure ??= ex;
+                            continue;
+                        }
+                    }
 
-            return output.ToArray();
+                    if (decryptFailure == null)
+                    {
+                        output.Write(transformed, 0, transformed.Length);
+                    }
+
+                    CryptoUtils.ZeroMemory(transformed);
+                }
+
+                if (decryptFailure != null)
+                {
+                    throw new CryptographicException("RSA decryption failed.", decryptFailure);
+                }
+
+                return output.ToArray();
+            }
+            finally
+            {
+                Array.Clear(output.GetBuffer(), 0, (int)output.Length);
+            }
         }
 
         private static void EncryptCbcWithoutPadding(ArraySegment<byte> payload, byte[] encryptingKey, byte[] iv)

@@ -786,5 +786,29 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         public interface IChannel : ITransportChannel, ISecureChannel;
+
+        /// <summary>
+        /// A Sign-only token of a policy that derives no encrypting key or IV still yields a
+        /// diagnostic key record (and so a Wireshark keyset entry) with its signing key length.
+        /// </summary>
+        [Test]
+        public void ChannelKeyIsReportedForSignOnlyTokenWithoutEncryptingKey()
+        {
+            ChannelKey? signOnly = ClientChannelManager.ToChannelKey([], [], new byte[32]);
+            Assert.That(signOnly, Is.Not.Null);
+            Assert.That(signOnly!.Iv, Is.Empty);
+            Assert.That(signOnly.Key, Is.Empty);
+            Assert.That(signOnly.SigLen, Is.EqualTo(32));
+
+            ChannelKey? full = ClientChannelManager.ToChannelKey([1, 2], [3, 4], new byte[16]);
+            Assert.That(full, Is.Not.Null);
+            Assert.That(full!.Iv, Is.EqualTo(new byte[] { 1, 2 }));
+            Assert.That(full.Key, Is.EqualTo(new byte[] { 3, 4 }));
+            Assert.That(full.SigLen, Is.EqualTo(16));
+
+            Assert.That(ClientChannelManager.ToChannelKey([1], [2], []), Is.Null);
+            Assert.That(ClientChannelManager.ToChannelKey([1], [], [3]), Is.Null);
+            Assert.That(ClientChannelManager.ToChannelKey(null, null, null), Is.Null);
+        }
     }
 }
