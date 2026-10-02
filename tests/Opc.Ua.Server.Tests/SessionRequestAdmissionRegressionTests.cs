@@ -131,6 +131,41 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A CreateSession rejected by request validation is one rejected session
+        /// establishment request, counted once in each counter (OPC 10000-5 12.9).
+        /// </summary>
+        [Test]
+        public async Task CreateSessionRejectedDuringValidationIsCountedOnceAsync()
+        {
+            var fixture = new ServerFixture<AdmissionServer>(t => new AdmissionServer(t));
+            AdmissionServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                var serverInternal = (ServerInternalData)server.CurrentInstance;
+                ServerDiagnosticsSummaryDataType diagnostics = serverInternal.ServerDiagnostics;
+                uint rejectedRequestsBefore = diagnostics.RejectedRequestsCount;
+                uint rejectedSessionsBefore = diagnostics.RejectedSessionCount;
+                uint securityRejectedRequestsBefore = diagnostics.SecurityRejectedRequestsCount;
+                uint securityRejectedSessionsBefore = diagnostics.SecurityRejectedSessionCount;
+
+                server.RejectCreateSession = true;
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await server.CreateAndActivateSessionAsync("RejectedCreate").ConfigureAwait(false))!;
+
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(diagnostics.RejectedSessionCount, Is.EqualTo(rejectedSessionsBefore + 1));
+                Assert.That(diagnostics.RejectedRequestsCount, Is.EqualTo(rejectedRequestsBefore + 1));
+                Assert.That(
+                    diagnostics.SecurityRejectedRequestsCount - securityRejectedRequestsBefore,
+                    Is.EqualTo(diagnostics.SecurityRejectedSessionCount - securityRejectedSessionsBefore));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// A server whose session manager can start a close inside the admission window.
         /// </summary>
         public sealed class AdmissionServer : StandardServer
@@ -140,11 +175,23 @@ namespace Opc.Ua.Server.Tests
             {
             }
 
+            public bool RejectCreateSession { get; set; }
+
             protected override ISessionManager CreateSessionManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration)
             {
                 return new ClosingWindowSessionManager(server, configuration);
+            }
+
+            protected override ValueTask OnRequestValidatedAsync(OperationContext context)
+            {
+                if (RejectCreateSession && context.RequestType == RequestType.CreateSession)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                }
+
+                return base.OnRequestValidatedAsync(context);
             }
         }
 

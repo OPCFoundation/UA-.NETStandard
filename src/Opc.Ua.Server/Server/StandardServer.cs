@@ -3473,7 +3473,7 @@ namespace Opc.Ua.Server
                 // The services count their rejections only once the request was admitted, so
                 // a request rejected by session validation (e.g. Bad_SessionIdInvalid or
                 // Bad_SecureChannelIdInvalid) is counted here (OPC 10000-5 12.9).
-                CountRejectedRequest(serverInternal, e.StatusCode);
+                CountRejectedRequest(serverInternal, requestType, e.StatusCode);
                 throw;
             }
 
@@ -3501,7 +3501,7 @@ namespace Opc.Ua.Server
             // takes the same lock, so a request the sweep missed sees the mark here.
             if (context.Session?.IsClosing == true)
             {
-                CountRejectedRequest(serverInternal, StatusCodes.BadSessionClosed);
+                CountRejectedRequest(serverInternal, requestType, StatusCodes.BadSessionClosed);
                 context.Dispose();
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -3521,7 +3521,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                CountRejectedRequest(serverInternal, e.StatusCode);
+                CountRejectedRequest(serverInternal, requestType, e.StatusCode);
                 context.Dispose();
                 throw;
             }
@@ -3537,8 +3537,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Counts a request rejected before its service ran in the server diagnostics.
         /// </summary>
-        private void CountRejectedRequest(ServerInternalData serverInternal, StatusCode statusCode)
+        private void CountRejectedRequest(
+            ServerInternalData serverInternal,
+            RequestType requestType,
+            StatusCode statusCode)
         {
+            // CreateSessionAsync counts every CreateSession it rejects before admission,
+            // including those rejected here, as a rejected session (and request), so it is
+            // not counted twice (OPC 10000-5 12.9).
+            if (requestType == RequestType.CreateSession)
+            {
+                return;
+            }
+
             serverInternal.UpdateServerDiagnostics(diagnostics =>
             {
                 diagnostics.RejectedRequestsCount++;
