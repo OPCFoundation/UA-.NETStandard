@@ -135,10 +135,16 @@ namespace Opc.Ua.Server
                 // stops at its next await once the token trips.
                 m_backgroundWork.Dispose();
 
+                // cancel outside the lock: cancellation runs the callbacks registered
+                // on the token, which may belong to node-manager read hooks.
+                CancellationTokenSource? samplingCts;
+                Task? samplingTask;
                 lock (m_lock)
                 {
-                    StopSamplingLoop();
+                    (samplingCts, samplingTask) = DetachSamplingLoop();
                 }
+
+                CancelSamplingLoop(samplingCts, samplingTask);
             }
         }
 
@@ -184,17 +190,44 @@ namespace Opc.Ua.Server
         /// </summary>
         private void StopSamplingLoop()
         {
+            (CancellationTokenSource? samplingCts, Task? samplingTask) = DetachSamplingLoop();
+            CancelSamplingLoop(samplingCts, samplingTask);
+        }
+
+        /// <summary>
+        /// Detaches the running sampling loop from the group. Must be called while
+        /// holding the lock.
+        /// </summary>
+        private (CancellationTokenSource?, Task?) DetachSamplingLoop()
+        {
             CancellationTokenSource? samplingCts = m_samplingCts;
             Task? samplingTask = m_samplingTask;
             m_samplingCts = null;
             m_samplingTask = null;
+            return (samplingCts, samplingTask);
+        }
 
+        /// <summary>
+        /// Cancels a detached sampling loop and releases its token source once the
+        /// loop has observed the cancellation.
+        /// </summary>
+        private void CancelSamplingLoop(CancellationTokenSource? samplingCts, Task? samplingTask)
+        {
             if (samplingCts == null)
             {
                 return;
             }
 
-            samplingCts.Cancel();
+            try
+            {
+                samplingCts.Cancel();
+            }
+            catch (AggregateException ex)
+            {
+                // a callback registered on the token by a read hook threw. It must not
+                // abort applying the changes of this or other groups, nor leak the source.
+                m_logger.SamplingLoopCancellationFailed(ex);
+            }
 
             if (samplingTask == null || samplingTask.IsCompleted)
             {
@@ -463,9 +496,20 @@ namespace Opc.Ua.Server
         /// </summary>
         private double AdjustSamplingInterval(double samplingInterval)
         {
+            return AdjustSamplingInterval(m_samplingRates, samplingInterval);
+        }
+
+        /// <summary>
+        /// Lines the requested sampling interval up with one of the supported sampling rates,
+        /// which is the sampling interval an item gets in the group.
+        /// </summary>
+        internal static double AdjustSamplingInterval(
+            List<SamplingRateGroup> samplingRates,
+            double samplingInterval)
+        {
             samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                 samplingInterval, 0, MinimumSamplingIntervals.Continuous, 0);
-            foreach (SamplingRateGroup samplingRate in m_samplingRates)
+            foreach (SamplingRateGroup samplingRate in samplingRates)
             {
                 if (double.IsNaN(samplingRate.Start) || double.IsInfinity(samplingRate.Start) || samplingRate.Start < 0)
                 {
@@ -763,5 +807,12 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 4, Level = LogLevel.Error,
             Message = "Server: Unexpected error sampling values.")]
         public static partial void ServerUnexpectedErrorSamplingValues(this ILogger logger, Exception ex);
+
+        /// <summary>
+        /// Logs a cancellation callback that threw while the sampling loop was stopped.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.SamplingGroup + 5, Level = LogLevel.Warning,
+            Message = "Server: A cancellation callback threw while stopping the sampling loop.")]
+        public static partial void SamplingLoopCancellationFailed(this ILogger logger, Exception ex);
     }
 }

@@ -8171,12 +8171,13 @@ namespace Opc.Ua.Server
                 MaxQueueSize,
                 MaxDurableQueueSize);
 
-            // validate the monitoring filter.
+            // validate the monitoring filter against the sampling interval the item gets,
+            // so the revised processing interval is at least twice it (Part 4 7.22.4).
             ValidateMonitoringFilterResult validateMonitoringFilterResult = await ValidateMonitoringFilterAsync(
                 context,
                 handle,
                 itemToCreate.ItemToMonitor.AttributeId,
-                samplingInterval,
+                GetGroupSamplingInterval(samplingInterval),
                 revisedQueueSize,
                 parameters.Filter,
                 cancellationToken).ConfigureAwait(false);
@@ -8217,7 +8218,8 @@ namespace Opc.Ua.Server
                         monitoredItemId,
                         AddNodeToComponentCache,
                         RemoveNodeFromComponentCache,
-                        decision.Factory!);
+                        decision.Factory!,
+                        decision.QueueInitialValue);
                 }
                 else
                 {
@@ -9007,6 +9009,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the sampling interval a data item with the revised sampling interval gets
+        /// once a sampling group rounds it to a supported rate.
+        /// </summary>
+        private double GetGroupSamplingInterval(double samplingInterval)
+        {
+            return m_monitoredItemManager is SamplingGroupMonitoredItemManager samplingGroups
+                ? samplingGroups.GetGroupSamplingInterval(samplingInterval)
+                : samplingInterval;
+        }
+
+        /// <summary>
         /// Revises an aggregate filter (may require knowledge of the variable being used).
         /// </summary>
         /// <param name="context">The context.</param>
@@ -9280,12 +9293,13 @@ namespace Opc.Ua.Server
                 MaxQueueSize,
                 MaxDurableQueueSize);
 
-            // validate the monitoring filter.
+            // validate the monitoring filter against the sampling interval the item gets,
+            // so the revised processing interval is at least twice it (Part 4 7.22.4).
             ValidateMonitoringFilterResult validateMonitoringFilterResult = await ValidateMonitoringFilterAsync(
                 context,
                 handle,
                 datachangeItem.AttributeId,
-                samplingInterval,
+                GetGroupSamplingInterval(samplingInterval),
                 revisedQueueSize,
                 parameters.Filter,
                 cancellationToken).ConfigureAwait(false);
