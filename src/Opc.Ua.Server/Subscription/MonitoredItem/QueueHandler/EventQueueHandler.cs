@@ -193,6 +193,10 @@ namespace Opc.Ua.Server
 
             long discarded = m_eventQueue.ItemsInQueue - (long)queueSize;
             m_eventQueue.SetQueueSize(queueSize, discardOldest);
+            if (discarded > 0)
+            {
+                RemovePendingTransforms(discarded, discardOldest);
+            }
 
             // shrinking the queue loses events, which is signalled like any other overflow
             // (Part 4 5.13.1.5).
@@ -306,7 +310,10 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "Queue is full and no discarding of old values is allowed");
                 }
-                m_eventQueue.Dequeue(out _);
+                if (m_eventQueue.Dequeue(out _))
+                {
+                    RemovePendingTransforms(1, true);
+                }
                 ReportDiscardedEvents(1);
             }
             // queue the event.
@@ -334,8 +341,10 @@ namespace Opc.Ua.Server
         /// <param name="notifications">Notifications</param>
         /// <param name="maxNotificationsPerPublish">the maximum number of notifications to enqueue per call</param>
         /// <param name="overflowEventDue">
-        /// With discardOldest FALSE: true when every event queued before the pending overflow
-        /// event was published and the caller appends the overflow event now.
+        /// True when the caller appends an overflow event to the published events now: with
+        /// discardOldest FALSE once every event queued before the loss was published, with
+        /// discardOldest TRUE for an event lost while publishing (it precedes the events still
+        /// queued).
         /// </param>
         internal uint Publish(
             OperationContext context,
@@ -352,10 +361,35 @@ namespace Opc.Ua.Server
                 : long.MaxValue;
 
             uint notificationCount = 0;
+            int consumed = 0;
+            bool eventsDropped = false;
             while (notificationCount < maxNotificationsPerPublish &&
-                notificationCount < eventsBeforeOverflow &&
+                consumed < eventsBeforeOverflow &&
                 m_eventQueue.Dequeue(out EventFieldList fields))
             {
+                int position = consumed++;
+                EventFieldList? transformed = ApplyPendingTransform(fields);
+                if (transformed == null)
+                {
+                    // the event cannot be expressed with the current select clauses: it is
+                    // lost, which the client learns from an overflow event at its position.
+                    m_discardedEventHandler?.Invoke();
+                    eventsDropped = true;
+                    if (!m_discardOldest)
+                    {
+                        if (m_overflowPositions.Count == 0 || m_overflowPositions[0] != position)
+                        {
+                            m_overflowPositions.Insert(0, position);
+                            m_overflowEventHandler?.Invoke();
+                        }
+
+                        // the overflow event follows the events published before the loss.
+                        eventsBeforeOverflow = consumed;
+                    }
+                    continue;
+                }
+
+                fields = transformed;
                 foreach (Variant field in fields.EventFields)
                 {
                     StatusResult tmpStatus;
@@ -375,8 +409,22 @@ namespace Opc.Ua.Server
             }
             if (m_discardOldest)
             {
-                // the caller placed the overflow event in front of the published events.
+                // the caller placed the overflow event in front of the published events. An
+                // event lost while publishing is reported in front of the events still queued:
+                // appended now when it fits, else at the start of the next publish.
                 m_overflowAtStart = false;
+                if (eventsDropped)
+                {
+                    m_overflowEventHandler?.Invoke();
+                    if (notificationCount < maxNotificationsPerPublish)
+                    {
+                        overflowEventDue = true;
+                    }
+                    else
+                    {
+                        m_overflowAtStart = true;
+                    }
+                }
             }
             else if (m_overflowPositions.Count > 0)
             {
@@ -384,7 +432,16 @@ namespace Opc.Ua.Server
                 {
                     m_overflowPositions[ii] = Math.Max(
                         0,
-                        m_overflowPositions[ii] - (int)notificationCount);
+                        m_overflowPositions[ii] - consumed);
+                }
+
+                // losses that end up at the same position are reported by one overflow event.
+                for (int ii = m_overflowPositions.Count - 1; ii > 0; ii--)
+                {
+                    if (m_overflowPositions[ii] == m_overflowPositions[ii - 1])
+                    {
+                        m_overflowPositions.RemoveAt(ii);
+                    }
                 }
 
                 // the caller appends the overflow event when it still fits into the publish
@@ -403,141 +460,123 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Replaces every queued event with the result of <paramref name="rebuild"/> and keeps
-        /// the queue order. An event the callback cannot rebuild (it returns <c>null</c>) is
-        /// dropped and reported through <see cref="Overflow"/>. When the callback throws, the
-        /// original events are queued again unchanged and the exception is rethrown.
+        /// Brings every event queued now in line with a modification: <paramref name="transform"/>
+        /// is applied to each of them when it is published. An event the transform cannot
+        /// express any more (it returns <c>null</c>) is dropped at that point and reported
+        /// with an overflow event at its position.
         /// </summary>
-        /// <param name="rebuild">Produces the replacement for a queued event.</param>
-        internal void RebuildQueuedEvents(Func<EventFieldList, EventFieldList?> rebuild)
+        /// <remarks>
+        /// The queue is not drained: a durable queue may not hand back every queued event at
+        /// once, and events taken out of a FIFO queue cannot be put back in front of the
+        /// ones that stay, so a drain could reorder events (Part 4 5.13.1.5). Transforms of
+        /// successive modifications are composed per segment of queued events.
+        /// </remarks>
+        /// <param name="transform">Produces the replacement for a queued event.</param>
+        internal void TransformQueuedEvents(Func<EventFieldList, EventFieldList?> transform)
         {
-            int count = m_eventQueue.ItemsInQueue;
-            var originals = new List<EventFieldList>(count);
-            while (originals.Count < count)
+            int covered = 0;
+            foreach (PendingTransform pending in m_pendingTransforms)
             {
-                if (!DequeueWithRetry(out EventFieldList fields))
+                Func<EventFieldList, EventFieldList?> previous = pending.Transform;
+                pending.Transform = fields =>
                 {
-                    // the queue no longer hands back the events it reports as queued.
-                    m_logger.RebuildDequeueFailed(originals.Count, count);
-                    break;
-                }
-                originals.Add(fields);
+                    EventFieldList? intermediate = previous(fields);
+                    return intermediate == null ? null : transform(intermediate);
+                };
+                covered += pending.Count;
             }
 
-            var rebuilt = new List<EventFieldList>(originals.Count);
-            var dropPositions = new List<int>();
-            int[] droppedBefore = new int[count + 1];
+            int queued = m_eventQueue.ItemsInQueue;
+            if (queued > covered)
+            {
+                m_pendingTransforms.Add(new PendingTransform(queued - covered, transform));
+            }
+        }
+
+        /// <summary>
+        /// Applies the pending transform of the oldest queued events to an event that was
+        /// just dequeued for publishing.
+        /// </summary>
+        /// <returns>The event to publish, or <c>null</c> when it is dropped.</returns>
+        private EventFieldList? ApplyPendingTransform(EventFieldList fields)
+        {
+            if (m_pendingTransforms.Count == 0)
+            {
+                return fields;
+            }
+
+            PendingTransform pending = m_pendingTransforms[0];
+            if (--pending.Count == 0)
+            {
+                m_pendingTransforms.RemoveAt(0);
+            }
+
             try
             {
-                for (int ii = 0; ii < count; ii++)
-                {
-                    droppedBefore[ii + 1] = droppedBefore[ii];
-                    if (ii >= originals.Count)
-                    {
-                        continue;
-                    }
-
-                    EventFieldList? replacement = rebuild(originals[ii]);
-                    if (replacement == null)
-                    {
-                        droppedBefore[ii + 1]++;
-                        if (dropPositions.Count == 0 || dropPositions[dropPositions.Count - 1] != rebuilt.Count)
-                        {
-                            dropPositions.Add(rebuilt.Count);
-                        }
-                        continue;
-                    }
-                    rebuilt.Add(replacement);
-                }
+                return pending.Transform(fields);
             }
-            catch
+            catch (Exception ex)
             {
-                // nothing is lost: the queue gets its events back in their original order.
-                foreach (EventFieldList fields in originals)
-                {
-                    m_eventQueue.Enqueue(fields);
-                }
-                throw;
+                m_logger.QueuedEventTransformFailed(ex);
+                return null;
             }
-
-            foreach (EventFieldList fields in rebuilt)
-            {
-                m_eventQueue.Enqueue(fields);
-            }
-
-            if (dropPositions.Count == 0)
-            {
-                return;
-            }
-
-            // pending overflow markers keep their place relative to the remaining events.
-            for (int ii = 0; ii < m_overflowPositions.Count; ii++)
-            {
-                int position = Math.Min(m_overflowPositions[ii], count);
-                m_overflowPositions[ii] = position - droppedBefore[position];
-            }
-
-            for (int ii = 0; ii < droppedBefore[count]; ii++)
-            {
-                m_discardedEventHandler?.Invoke();
-            }
-
-            if (m_discardOldest)
-            {
-                if (!m_overflowAtStart)
-                {
-                    m_overflowAtStart = true;
-                    m_overflowEventHandler?.Invoke();
-                }
-                return;
-            }
-
-            foreach (int position in dropPositions)
-            {
-                if (!m_overflowPositions.Contains(position))
-                {
-                    m_overflowPositions.Add(position);
-                    m_overflowEventHandler?.Invoke();
-                }
-            }
-            m_overflowPositions.Sort();
         }
 
         /// <summary>
-        /// Dequeues an event, tolerating a durable queue that transiently reports no event
-        /// while it restores a persisted batch. The retry is bounded, because a queue that
-        /// permanently stops handing back the events it reports as queued would otherwise
-        /// spin a server thread forever.
+        /// Accounts for queued events that left the queue without being published.
         /// </summary>
-        /// <param name="fields">The event that was dequeued.</param>
-        private bool DequeueWithRetry(out EventFieldList fields)
+        /// <param name="count">The number of events removed from the queue.</param>
+        /// <param name="oldest">True when the oldest events were removed, else the newest.</param>
+        private void RemovePendingTransforms(long count, bool oldest)
         {
-            var spinWait = new SpinWait();
-            for (int attempt = 0; attempt <= kMaxDequeueAttempts; attempt++)
+            if (oldest)
             {
-                if (m_eventQueue.Dequeue(out fields))
+                while (count > 0 && m_pendingTransforms.Count > 0)
                 {
-                    return true;
+                    PendingTransform pending = m_pendingTransforms[0];
+                    int removed = (int)Math.Min(count, pending.Count);
+                    pending.Count -= removed;
+                    count -= removed;
+                    if (pending.Count == 0)
+                    {
+                        m_pendingTransforms.RemoveAt(0);
+                    }
                 }
-
-                if (m_eventQueue.ItemsInQueue == 0)
-                {
-                    return false;
-                }
-
-                spinWait.SpinOnce();
+                return;
             }
 
-            fields = null!;
-            return false;
+            // the newest events were removed: only the transforms of events still queued stay.
+            int remaining = m_eventQueue.ItemsInQueue;
+            for (int ii = 0; ii < m_pendingTransforms.Count; ii++)
+            {
+                PendingTransform pending = m_pendingTransforms[ii];
+                if (remaining <= 0)
+                {
+                    m_pendingTransforms.RemoveRange(ii, m_pendingTransforms.Count - ii);
+                    break;
+                }
+                pending.Count = Math.Min(pending.Count, remaining);
+                remaining -= pending.Count;
+            }
         }
 
         /// <summary>
-        /// The number of attempts to dequeue an event the queue reports as queued before the
-        /// queue is treated as broken.
+        /// A transform that applies to a number of the oldest queued events.
         /// </summary>
-        private const int kMaxDequeueAttempts = 10000;
+        private sealed class PendingTransform
+        {
+            public PendingTransform(int count, Func<EventFieldList, EventFieldList?> transform)
+            {
+                Count = count;
+                Transform = transform;
+            }
 
+            public int Count { get; set; }
+
+            public Func<EventFieldList, EventFieldList?> Transform { get; set; }
+        }
+
+        private readonly List<PendingTransform> m_pendingTransforms = [];
         private bool m_discardOldest;
         private bool m_overflowAtStart;
         private readonly List<int> m_overflowPositions = [];
@@ -553,10 +592,10 @@ namespace Opc.Ua.Server
     internal static partial class EventQueueHandlerLog
     {
         /// <summary>
-        /// Logs an event queue that stopped handing back its queued events during a rebuild.
+        /// Logs a queued event that could not be brought in line with a modified filter.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.EventQueueHandler + 0, Level = LogLevel.Warning,
-            Message = "Event queue returned {Dequeued} of {Queued} queued events for a rebuild.")]
-        public static partial void RebuildDequeueFailed(this ILogger logger, int dequeued, int queued);
+            Message = "A queued event could not be brought in line with the modified event filter and is dropped.")]
+        public static partial void QueuedEventTransformFailed(this ILogger logger, Exception exception);
     }
 }

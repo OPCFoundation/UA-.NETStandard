@@ -940,8 +940,8 @@ namespace Opc.Ua.Server
                 }
                 AggregationFilterHandler.Modification? aggregateChange = aggregateFilter?.PrepareChange(filterToUse);
 
-                // the queued events are rebuilt before anything is committed: when that
-                // fails the queue is restored and the item stays unmodified.
+                // the queued events are brought in line with the new select clauses and client
+                // handle when they are published; registering that cannot fail.
                 RebuildQueuedEventFields(
                     previousFilterToUse,
                     filterToUse,
@@ -992,7 +992,8 @@ namespace Opc.Ua.Server
         /// Event fields are resolved when the event is queued, but the client decodes every
         /// EventFieldList it receives after the modification with the new select clauses
         /// (Part 4, 7.25.3). Queued events are therefore resolved again from their filter
-        /// target. An event without one (restored from a durable or redundant queue) keeps
+        /// target when they are published. An event without one (restored from a durable or
+        /// redundant queue) keeps
         /// the values of the clauses selected before and reports the new ones as null; only
         /// an event none of whose fields is still selected is dropped, which is reported to
         /// the client as an event queue overflow.
@@ -1018,7 +1019,7 @@ namespace Opc.Ua.Server
             {
                 if (previousClientHandle != clientHandle)
                 {
-                    m_eventQueueHandler.RebuildQueuedEvents(fields =>
+                    m_eventQueueHandler.TransformQueuedEvents(fields =>
                     {
                         fields.ClientHandle = clientHandle;
                         return fields;
@@ -1038,7 +1039,7 @@ namespace Opc.Ua.Server
             // without a filter target, e.g. restored from a durable queue.
             int[]? previousIndexes = null;
 
-            m_eventQueueHandler.RebuildQueuedEvents(fields =>
+            m_eventQueueHandler.TransformQueuedEvents(fields =>
             {
                 if (fields.Handle is not IFilterTarget target)
                 {
@@ -1902,75 +1903,30 @@ namespace Opc.Ua.Server
                         SubscriptionId,
                         Id);
 
-                    EventFieldList? overflowEvent = null;
-
-                    if (m_eventQueueHandler.Overflow)
+                    // with discardOldest TRUE the overflow event is placed at the beginning
+                    // of the queue (Part 4 5.13.1.5).
+                    if (m_discardOldest && m_eventQueueHandler.Overflow)
                     {
-                        // construct event.
-                        var e = new EventQueueOverflowEventState(null);
-
-                        var message = new TranslationInfo(
-                            "EventQueueOverflowEventState",
-                            "en-US",
-                            "Events lost due to queue overflow.");
-
-                        ISystemContext systemContext = new ServerSystemContext(m_server, context);
-
-                        e.Initialize(
-                            systemContext,
-                            null,
-                            EventSeverity.Low,
-                            new LocalizedText(message));
-
-                        e.SetChildValue(
-                            systemContext,
-                            BrowseNames.SourceNode,
-                            ObjectIds.Server,
-                            false);
-                        e.SetChildValue(systemContext, BrowseNames.SourceName, "Internal", false);
-
-                        // fetch the event fields. The overflow path is reached only
-                        // when m_eventQueueHandler is active, which guarantees an
-                        // EventFilter has been configured for this monitored item.
-                        overflowEvent = GetEventFields(
-                            new FilterContext(
-                                m_server.NamespaceUris,
-                                m_server.TypeTree,
-                                Session?.PreferredLocales!,
-                                m_server.Telemetry),
-                            (EventFilter)FilterToUse!,
-                            e);
-                    }
-
-                    // place overflow event at the beginning of the queue.
-                    if (overflowEvent != null && m_discardOldest)
-                    {
-                        notifications.Enqueue(overflowEvent);
+                        notifications.Enqueue(CreateEventQueueOverflowEventFields(context));
                         EventQueueOverflowReported();
                         maxNotificationsPerPublish--;
                     }
+
                     m_eventQueueHandler.Publish(
                         context,
                         notifications,
                         maxNotificationsPerPublish,
                         out bool overflowEventDue);
 
-                    moreValuesToPublish = m_eventQueueHandler?.ItemsInQueue > 0;
-
-                    // place overflow event after the events queued before the loss.
-                    if (overflowEvent != null && !m_discardOldest)
+                    // with discardOldest FALSE it follows the events queued before the loss.
+                    if (overflowEventDue)
                     {
-                        if (overflowEventDue)
-                        {
-                            notifications.Enqueue(overflowEvent);
-                            EventQueueOverflowReported();
-                        }
-                        else
-                        {
-                            moreValuesToPublish = true;
-                        }
+                        notifications.Enqueue(CreateEventQueueOverflowEventFields(context));
+                        EventQueueOverflowReported();
                     }
 
+                    moreValuesToPublish =
+                        m_eventQueueHandler.ItemsInQueue > 0 || m_eventQueueHandler.Overflow;
                     m_logger.MONITOREDITEMPublishQueueSizeQueueSize(
                         notifications.Count,
                         SubscriptionId,
@@ -1984,6 +1940,47 @@ namespace Opc.Ua.Server
 
                 return moreValuesToPublish;
             }
+        }
+
+        /// <summary>
+        /// Creates the fields of an EventQueueOverflowEventType event for this item.
+        /// </summary>
+        private EventFieldList CreateEventQueueOverflowEventFields(OperationContext context)
+        {
+            // construct event.
+            var e = new EventQueueOverflowEventState(null);
+
+            var message = new TranslationInfo(
+                "EventQueueOverflowEventState",
+                "en-US",
+                "Events lost due to queue overflow.");
+
+            ISystemContext systemContext = new ServerSystemContext(m_server, context);
+
+            e.Initialize(
+                systemContext,
+                null,
+                EventSeverity.Low,
+                new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Internal", false);
+
+            // fetch the event fields. The overflow path is reached only
+            // when m_eventQueueHandler is active, which guarantees an
+            // EventFilter has been configured for this monitored item.
+            return GetEventFields(
+                new FilterContext(
+                    m_server.NamespaceUris,
+                    m_server.TypeTree,
+                    Session?.PreferredLocales!,
+                    m_server.Telemetry),
+                (EventFilter)FilterToUse!,
+                e);
         }
 
         /// <summary>

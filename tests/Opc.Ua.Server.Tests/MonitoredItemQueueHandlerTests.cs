@@ -286,11 +286,11 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// A durable queue transiently returns no event while it restores a persisted batch.
-        /// A rebuild must keep going instead of treating that as the end of the queue, which
-        /// would publish the remaining events in the old layout ahead of the rebuilt ones.
+        /// Queued events are brought in line with a modification when they are published, so
+        /// such a queue can neither reorder them nor leave some in the old layout.
         /// </summary>
         [Test]
-        public void EventRebuildRetriesTransientlyFailingDequeue()
+        public void EventTransformKeepsOrderWhenDequeueFailsTransiently()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queue = new FlakyEventQueue(telemetry);
@@ -302,14 +302,51 @@ namespace Opc.Ua.Server.Tests
             }
 
             queue.FailEveryOtherDequeue = true;
-            handler.RebuildQueuedEvents(fields => NewEvent(fields.EventFields[0].GetInt32() + 10));
-            queue.FailEveryOtherDequeue = false;
+            handler.TransformQueuedEvents(fields => NewEvent(fields.EventFields[0].GetInt32() + 10));
+            handler.QueueEvent(NewEvent(20));
 
             var notifications = new Queue<EventFieldList>();
-            Assert.That(handler.Publish(null!, notifications, 10), Is.EqualTo(4u));
+            for (int attempt = 0; attempt < 20 && handler.ItemsInQueue > 0; attempt++)
+            {
+                handler.Publish(null!, notifications, 10);
+            }
+
             Assert.That(
                 notifications.Select(n => n.EventFields[0].GetInt32()),
-                Is.EqualTo(new[] { 10, 11, 12, 13 }));
+                Is.EqualTo(new[] { 10, 11, 12, 13, 20 }));
+            Assert.That(handler.Overflow, Is.False);
+        }
+
+        /// <summary>
+        /// Transforms of successive modifications compose for the events queued before the
+        /// first one, and an event the transform drops is reported by an overflow event at
+        /// its position (discardOldest FALSE).
+        /// </summary>
+        [Test]
+        public void EventTransformsComposeAndReportDroppedEventsInPlace()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new EventMonitoredItemQueue(false, 1, telemetry);
+            queue.SetQueueSize(10, false);
+            using var handler = new EventQueueHandler(queue, false, telemetry);
+            handler.QueueEvent(NewEvent(1));
+            handler.QueueEvent(NewEvent(2));
+            handler.TransformQueuedEvents(fields => NewEvent(fields.EventFields[0].GetInt32() * 10));
+            handler.QueueEvent(NewEvent(3));
+            handler.TransformQueuedEvents(fields =>
+                fields.EventFields[0].GetInt32() == 20 ? null : NewEvent(fields.EventFields[0].GetInt32() + 1));
+
+            var notifications = new Queue<EventFieldList>();
+            handler.Publish(null!, notifications, 10, out bool overflowEventDue);
+
+            // 1 -> 10 -> 11 is published, 2 -> 20 is dropped, the overflow event follows 11.
+            Assert.That(notifications.Select(n => n.EventFields[0].GetInt32()), Is.EqualTo(new[] { 11 }));
+            Assert.That(overflowEventDue, Is.True);
+
+            notifications.Clear();
+            handler.Publish(null!, notifications, 10, out overflowEventDue);
+            Assert.That(notifications.Select(n => n.EventFields[0].GetInt32()), Is.EqualTo(new[] { 4 }));
+            Assert.That(overflowEventDue, Is.False);
             Assert.That(handler.Overflow, Is.False);
         }
 

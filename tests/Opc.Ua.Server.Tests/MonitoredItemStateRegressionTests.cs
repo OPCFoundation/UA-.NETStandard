@@ -578,7 +578,6 @@ namespace Opc.Ua.Server.Tests
             };
             ModifyEventItem(item, modified, clientHandle: 5);
 
-            Assert.That(item.ItemsInQueue, Is.Zero);
             List<EventFieldList> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].Handle, Is.AssignableTo<EventQueueOverflowEventState>());
@@ -586,11 +585,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A modification whose rebuild of the queued events fails must neither lose those
-        /// events nor leave the item half modified.
+        /// A modification is committed without touching the queued events; they are brought
+        /// in line when published. An event that cannot be resolved with the new select
+        /// clauses is dropped then and reported by an overflow event, the others are kept.
         /// </summary>
         [Test]
-        public void FailedRebuildKeepsQueuedEventsAndLeavesItemUnmodified()
+        public void EventFailingTheModifiedFilterIsDroppedAtPublish()
         {
             using var harness = new Harness();
             var filter = new EventFilter
@@ -599,39 +599,23 @@ namespace Opc.Ua.Server.Tests
                 WhereClause = new ContentFilter()
             };
             using MonitoredItem item = harness.CreateEventItem(filter);
-            var first = new NamedFieldTarget();
-            var second = new NamedFieldTarget();
-            item.QueueEvent(first);
-            item.QueueEvent(second);
+            item.QueueEvent(new NamedFieldTarget());
 
             var modified = new EventFilter
             {
                 SelectClauses = [CreateSelectClause(NamedFieldTarget.Failing), CreateSelectClause("A")],
                 WhereClause = new ContentFilter()
             };
-            Assert.Throws<InvalidOperationException>(
-                () => item.ModifyAttributes(
-                    DiagnosticsMasks.None,
-                    TimestampsToReturn.Both,
-                    9,
-                    modified,
-                    modified,
-                    null,
-                    0,
-                    1,
-                    discardOldest: true));
+            ModifyEventItem(item, modified, clientHandle: 9);
 
-            Assert.That(item.ClientHandle, Is.EqualTo(5u));
-            Assert.That(item.Filter, Is.SameAs(filter));
-            Assert.That(item.QueueSize, Is.EqualTo(10u));
+            Assert.That(item.ClientHandle, Is.EqualTo(9u));
+            Assert.That(item.Filter, Is.SameAs(modified));
             List<EventFieldList> published = PublishEvents(item);
-            Assert.That(published, Has.Count.EqualTo(2));
-            Assert.That(published[0].Handle, Is.SameAs(first));
-            Assert.That(published[1].Handle, Is.SameAs(second));
-            Assert.That(published[0].ClientHandle, Is.EqualTo(5u));
-            Assert.That(published[0].EventFields.ToArray(), Is.EqualTo(new[] { Variant.From("A") }));
+            Assert.That(published, Has.Count.EqualTo(1));
+            Assert.That(published[0].Handle, Is.AssignableTo<EventQueueOverflowEventState>());
+            Assert.That(published[0].ClientHandle, Is.EqualTo(9u));
+            Assert.That(item.ItemsInQueue, Is.Zero);
         }
-
         /// <summary>
         /// A rejected select clause returns a null field. It is rejected once for the
         /// filter, not validated again (and failing again) for every event.
