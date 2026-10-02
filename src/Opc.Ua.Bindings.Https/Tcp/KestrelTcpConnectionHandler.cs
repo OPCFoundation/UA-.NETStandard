@@ -69,6 +69,7 @@ namespace Opc.Ua.Bindings
                 lease.SetAbortAction(connection.Abort);
                 uint channelId = m_owner.NextChannelId();
                 TcpListenerChannel? channel = null;
+                bool registered = false;
                 try
                 {
                     connection.ConnectionClosed.ThrowIfCancellationRequested();
@@ -80,6 +81,7 @@ namespace Opc.Ua.Bindings
                     lease.Attach(transport);
                     channel = m_owner.CreateChannel();
                     m_owner.RegisterChannel(channelId, channel);
+                    registered = true;
                     channel.Attach(channelId, lease);
 
                     // Registry removal is not physical close: reverse-connect can
@@ -97,6 +99,10 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
+                    if (!registered)
+                    {
+                        m_owner.ReleaseChannelReservation();
+                    }
                     m_owner.UnregisterChannel(channelId);
                     channel?.Dispose();
                 }

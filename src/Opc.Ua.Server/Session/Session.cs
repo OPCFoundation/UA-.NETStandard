@@ -1178,9 +1178,15 @@ namespace Opc.Ua.Server
                 catch (Exception e)
                     when (e is not OperationCanceledException)
                 {
+                    // Every decryption, padding, layout, signature or nonce error must
+                    // look the same to the client (OPC 10000-4 7.40.2.1). The cause is
+                    // logged here only: attaching it as the inner result would let a
+                    // client that asks for inner diagnostics tell the failures apart
+                    // and use the server key as a decryption oracle.
+                    m_server.Telemetry.CreateLogger<Session>()
+                        .IdentityTokenDecryptionFailed(e, Id, securityPolicyUri);
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenInvalid,
-                        e,
                         "Could not decrypt identity token.");
                 }
                 finally
@@ -1602,5 +1608,20 @@ namespace Opc.Ua.Server
             string sessionName,
             string secureChannelId,
             string identity);
+
+        /// <summary>
+        /// Logs the server-side cause of a user identity token decryption failure that is
+        /// reported to the client only as Bad_IdentityTokenInvalid.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerEventIds.Session + 0,
+            Level = LogLevel.Warning,
+            Message = "Could not decrypt the user identity token of session {SessionId} " +
+                "(SecurityPolicyUri={SecurityPolicyUri}).")]
+        public static partial void IdentityTokenDecryptionFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId sessionId,
+            string? securityPolicyUri);
     }
 }
