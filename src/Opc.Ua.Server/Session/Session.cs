@@ -642,7 +642,11 @@ namespace Opc.Ua.Server
         /// certificate, but the certificate does not establish a trusted application
         /// identity for role assignment (OPC 10000-3 4.9, OPC 10000-18 4.4.4).
         /// </summary>
-        internal bool ClientCertificateValidated { get; set; } = true;
+        internal bool ClientCertificateValidated
+        {
+            get => ClientCertificateProvenance.IsValidated(this);
+            set => ClientCertificateProvenance.SetValidated(this, value);
+        }
 
         /// <summary>
         /// Creates a new ephemeral key for the policy, signed with the server certificate.

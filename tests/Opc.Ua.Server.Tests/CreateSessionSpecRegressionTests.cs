@@ -361,6 +361,59 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// PR review 4166517268: the accepted-certificate provenance is recorded for
+        /// every ISession implementation, so a session from a custom CreateSession
+        /// factory whose certificate error was accepted is not granted
+        /// TrustedApplication (Part 3 4.9) either.
+        /// </summary>
+        [Test]
+        public async Task AcceptedCertificateErrorDoesNotGrantTrustedApplicationToCustomSessionAsync()
+        {
+            using Certificate untrusted = CreateClientCertificate("CN=Accepted Untrusted Custom Session");
+            (ServerFixture<AcceptingServer> fixture, string pkiRoot) =
+                await StartAcceptingAsync().ConfigureAwait(false);
+            try
+            {
+                AcceptingServer server = fixture.Server;
+                EndpointDescription endpoint = server.GetEndpoints().Find(
+                    candidate => candidate.SecurityMode == MessageSecurityMode.SignAndEncrypt);
+                Assert.That(endpoint, Is.Not.Null);
+
+                var customSession = new Moq.Mock<ISession>();
+                customSession.SetupGet(s => s.ClientCertificate).Returns(untrusted);
+                customSession.SetupGet(s => s.EndpointDescription).Returns(endpoint);
+                ClientCertificateProvenance.SetValidated(customSession.Object, false);
+
+                var channel = new SecureChannelContext(
+                    "roles-custom", endpoint, RequestEncoding.Binary,
+                    untrusted.RawData, endpoint.ServerCertificate.ToArray());
+                using var context = new OperationContext(
+                    new RequestHeader(), channel, RequestType.ActivateSession, RequestLifetime.None);
+                MethodInfo addMandatoryRoles = typeof(SessionManager).GetMethod(
+                    "AddMandatoryRoles", BindingFlags.Instance | BindingFlags.NonPublic);
+                object sessionManager = server.CurrentInstance.SessionManager;
+
+                var untrustedIdentity = (IUserIdentity)addMandatoryRoles.Invoke(
+                    sessionManager, [customSession.Object, context, new UserIdentity()]);
+                Assert.That(
+                    untrustedIdentity.GrantedRoleIds.ToArray(),
+                    Has.No.Member(ObjectIds.WellKnownRole_TrustedApplication));
+
+                ClientCertificateProvenance.SetValidated(customSession.Object, true);
+                var trustedIdentity = (IUserIdentity)addMandatoryRoles.Invoke(
+                    sessionManager, [customSession.Object, context, new UserIdentity()]);
+                Assert.That(
+                    trustedIdentity.GrantedRoleIds.ToArray(),
+                    Has.Member(ObjectIds.WellKnownRole_TrustedApplication));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+                DeleteDirectory(pkiRoot);
+            }
+        }
+
+        /// <summary>
         /// Accepting one certificate error does not skip the checks that follow it:
         /// an ApplicationUri mismatch after an accepted trust error still fails.
         /// </summary>

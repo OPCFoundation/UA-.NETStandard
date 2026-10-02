@@ -1489,9 +1489,9 @@ namespace Opc.Ua.Server
             // override accepted still signs the session but grants neither
             // TrustedApplication nor application-based role mappings.
             Certificate? applicationCertificate =
-                session is Session { ClientCertificateValidated: false }
-                    ? null
-                    : session.ClientCertificate;
+                ClientCertificateProvenance.IsValidated(session)
+                    ? session.ClientCertificate
+                    : null;
 
             // Assign TrustedApplication role per OPC UA Part 3 §4.9.
             if (applicationCertificate != null &&

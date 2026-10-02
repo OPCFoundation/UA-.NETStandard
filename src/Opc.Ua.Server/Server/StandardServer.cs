@@ -818,9 +818,11 @@ namespace Opc.Ua.Server
 
                 session = result.Session;
 
-                if (clientCertificateErrorAccepted && session is Session serverSession)
+                // recorded for every ISession implementation, so a session from a
+                // custom CreateSession factory is not treated as a trusted application.
+                if (clientCertificateErrorAccepted)
                 {
-                    serverSession.ClientCertificateValidated = false;
+                    ClientCertificateProvenance.SetValidated(session, false);
                 }
 
                 // Part 5 12.11: SessionDiagnostics.ServerUri reports the serverUri of
