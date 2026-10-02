@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -323,6 +324,27 @@ namespace Opc.Ua.Server
             Queue<EventFieldList> notifications,
             uint maxNotificationsPerPublish)
         {
+            return Publish(context, notifications, maxNotificationsPerPublish, out _);
+        }
+
+        /// <summary>
+        /// Publish Events
+        /// </summary>
+        /// <param name="context">System context</param>
+        /// <param name="notifications">Notifications</param>
+        /// <param name="maxNotificationsPerPublish">the maximum number of notifications to enqueue per call</param>
+        /// <param name="overflowEventDue">
+        /// With discardOldest FALSE: true when every event queued before the pending overflow
+        /// event was published and the caller appends the overflow event now.
+        /// </param>
+        internal uint Publish(
+            OperationContext context,
+            Queue<EventFieldList> notifications,
+            uint maxNotificationsPerPublish,
+            out bool overflowEventDue)
+        {
+            overflowEventDue = false;
+
             // with discardOldest FALSE a pending overflow event keeps the position it was
             // placed at, so only the events queued before it are published ahead of it.
             long eventsBeforeOverflow = !m_discardOldest && m_overflowPositions.Count > 0
@@ -365,11 +387,15 @@ namespace Opc.Ua.Server
                         m_overflowPositions[ii] - (int)notificationCount);
                 }
 
-                // the caller appends the overflow event when it still fits into the publish,
-                // which is only the case once the events queued before it have been published.
-                if (notificationCount < maxNotificationsPerPublish)
+                // the caller appends the overflow event when it still fits into the publish
+                // and the events queued before it have been published. A queue that
+                // transiently returns no event (a durable queue restoring a batch) must not
+                // move the overflow event ahead of the events that preceded the loss.
+                if (notificationCount < maxNotificationsPerPublish &&
+                    (m_overflowPositions[0] == 0 || m_eventQueue.ItemsInQueue == 0))
                 {
                     m_overflowPositions.RemoveAt(0);
+                    overflowEventDue = true;
                 }
             }
 
@@ -388,9 +414,19 @@ namespace Opc.Ua.Server
             var rebuilt = new List<EventFieldList>(count);
             var dropPositions = new List<int>();
             int[] droppedBefore = new int[count + 1];
-            for (int ii = 0; ii < count && m_eventQueue.Dequeue(out EventFieldList fields); ii++)
+            for (int ii = 0; ii < count; ii++)
             {
                 droppedBefore[ii + 1] = droppedBefore[ii];
+                if (!DequeueWithRetry(out EventFieldList fields))
+                {
+                    // the queue no longer hands back the events it reports as queued.
+                    m_logger.RebuildDequeueFailed(ii, count);
+                    for (int jj = ii + 2; jj <= count; jj++)
+                    {
+                        droppedBefore[jj] = droppedBefore[ii];
+                    }
+                    break;
+                }
                 EventFieldList? replacement = rebuild(fields);
                 if (replacement == null)
                 {
@@ -447,6 +483,41 @@ namespace Opc.Ua.Server
             m_overflowPositions.Sort();
         }
 
+        /// <summary>
+        /// Dequeues an event, tolerating a durable queue that transiently reports no event
+        /// while it restores a persisted batch. The retry is bounded, because a queue that
+        /// permanently stops handing back the events it reports as queued would otherwise
+        /// spin a server thread forever.
+        /// </summary>
+        /// <param name="fields">The event that was dequeued.</param>
+        private bool DequeueWithRetry(out EventFieldList fields)
+        {
+            var spinWait = new SpinWait();
+            for (int attempt = 0; attempt <= kMaxDequeueAttempts; attempt++)
+            {
+                if (m_eventQueue.Dequeue(out fields))
+                {
+                    return true;
+                }
+
+                if (m_eventQueue.ItemsInQueue == 0)
+                {
+                    return false;
+                }
+
+                spinWait.SpinOnce();
+            }
+
+            fields = null!;
+            return false;
+        }
+
+        /// <summary>
+        /// The number of attempts to dequeue an event the queue reports as queued before the
+        /// queue is treated as broken.
+        /// </summary>
+        private const int kMaxDequeueAttempts = 10000;
+
         private bool m_discardOldest;
         private bool m_overflowAtStart;
         private readonly List<int> m_overflowPositions = [];
@@ -454,5 +525,18 @@ namespace Opc.Ua.Server
         private readonly Action? m_overflowEventHandler;
         private readonly IEventMonitoredItemQueue m_eventQueue;
         private readonly ILogger m_logger;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for EventQueueHandler.
+    /// </summary>
+    internal static partial class EventQueueHandlerLog
+    {
+        /// <summary>
+        /// Logs an event queue that stopped handing back its queued events during a rebuild.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.EventQueueHandler + 0, Level = LogLevel.Warning,
+            Message = "Event queue returned {Dequeued} of {Queued} queued events for a rebuild.")]
+        public static partial void RebuildDequeueFailed(this ILogger logger, int dequeued, int queued);
     }
 }

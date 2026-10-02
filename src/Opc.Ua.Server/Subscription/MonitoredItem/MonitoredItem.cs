@@ -1820,17 +1820,18 @@ namespace Opc.Ua.Server
                         EventQueueOverflowReported();
                         maxNotificationsPerPublish--;
                     }
-                    uint notificationCount = m_eventQueueHandler.Publish(
+                    m_eventQueueHandler.Publish(
                         context,
                         notifications,
-                        maxNotificationsPerPublish);
+                        maxNotificationsPerPublish,
+                        out bool overflowEventDue);
 
                     moreValuesToPublish = m_eventQueueHandler?.ItemsInQueue > 0;
 
-                    // place overflow event at the end of the queue if queue is empty.
+                    // place overflow event after the events queued before the loss.
                     if (overflowEvent != null && !m_discardOldest)
                     {
-                        if (notificationCount < maxNotificationsPerPublish)
+                        if (overflowEventDue)
                         {
                             notifications.Enqueue(overflowEvent);
                             EventQueueOverflowReported();
