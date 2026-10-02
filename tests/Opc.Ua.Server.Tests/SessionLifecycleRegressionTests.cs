@@ -314,10 +314,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(serverInternal.ServerDiagnostics.SessionAbortCount, Is.EqualTo(abortsBefore + 1));
 
                 // Another close has claimed the second session: the termination stays out of it.
-                Assert.That(SessionTermination.TryClaimClose(sessions[1]), Is.True);
+                Assert.That(((ServerSession)sessions[1]).MarkClosing(), Is.True);
                 await serverInternal.TerminateSessionAsync(sessions[1].Id, false, logger).ConfigureAwait(false);
                 Assert.That(serverInternal.ServerDiagnostics.SessionAbortCount, Is.EqualTo(abortsBefore + 1));
-                await serverInternal.CloseClaimedSessionAsync(sessions[1], false).ConfigureAwait(false);
+                await serverInternal.SessionManager.CloseSessionAsync(sessions[1].Id).ConfigureAwait(false);
                 Assert.That(serverInternal.SessionManager.GetSessions(), Is.Empty);
             }
             finally
