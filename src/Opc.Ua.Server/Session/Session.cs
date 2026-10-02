@@ -635,6 +635,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Whether the client application certificate passed the server's validation
+        /// when the session was created. <c>false</c> when an
+        /// <see cref="StandardServer.OnApplicationCertificateError"/> override accepted
+        /// a validation error: the session may still activate and sign with the
+        /// certificate, but the certificate does not establish a trusted application
+        /// identity for role assignment (OPC 10000-3 4.9, OPC 10000-18 4.4.4).
+        /// </summary>
+        internal bool ClientCertificateValidated { get; set; } = true;
+
+        /// <summary>
         /// Creates a new ephemeral key for the policy, signed with the server certificate.
         /// </summary>
         private EphemeralKeyType CreateEphemeralKey(string securityPolicyUri, out Nonce nonce)

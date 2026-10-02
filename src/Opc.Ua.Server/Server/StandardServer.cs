@@ -651,6 +651,7 @@ namespace Opc.Ua.Server
             CertificateCollection? clientIssuerCertificates = null;
             Certificate? parsedClientCertificate = null;
             string? clientCertificateThumbprint = null;
+            bool clientCertificateErrorAccepted = false;
             try
             {
                 // The serverUri is not checked: Part 4 5.7.2.2 says the parameter
@@ -816,6 +817,11 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 session = result.Session;
+
+                if (clientCertificateErrorAccepted && session is Session serverSession)
+                {
+                    serverSession.ClientCertificateValidated = false;
+                }
 
                 // Part 5 12.11: SessionDiagnostics.ServerUri reports the serverUri of
                 // the CreateSession request, although the Server otherwise ignores it.
@@ -994,6 +1000,10 @@ namespace Opc.Ua.Server
                     ReportAuditCertificateEvent(parsedClientCertificate!, e);
 
                     OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
+
+                    // accepted: the session may use the certificate, but it did not
+                    // pass validation and grants no application-based roles.
+                    clientCertificateErrorAccepted = true;
                 }
                 catch
                 {

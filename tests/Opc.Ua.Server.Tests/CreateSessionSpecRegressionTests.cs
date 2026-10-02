@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -294,6 +295,58 @@ namespace Opc.Ua.Server.Tests
                 ISession session = server.CurrentInstance.SessionManager.GetSession(response.AuthenticationToken);
                 Assert.That(session.ClientCertificate, Is.Not.Null);
                 Assert.That(session.ClientCertificate.Thumbprint, Is.EqualTo(untrusted.Thumbprint));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+                DeleteDirectory(pkiRoot);
+            }
+        }
+
+        /// <summary>
+        /// K21: a client certificate whose validation error an override accepted still
+        /// signs the session, but it is not a trusted application identity: the
+        /// session is not granted TrustedApplication (Part 3 4.9) or application-based
+        /// role mappings (Part 18 4.4.4) from it.
+        /// </summary>
+        [Test]
+        public async Task AcceptedCertificateErrorDoesNotGrantTrustedApplicationAsync()
+        {
+            using Certificate untrusted = CreateClientCertificate("CN=Accepted Untrusted Client Roles");
+            (ServerFixture<AcceptingServer> fixture, string pkiRoot) =
+                await StartAcceptingAsync().ConfigureAwait(false);
+            try
+            {
+                AcceptingServer server = fixture.Server;
+                CreateSessionResponse response = await CreateSecuredAsync(
+                    server, untrusted, kApplicationUri).ConfigureAwait(false);
+                var session = (Opc.Ua.Server.Session)server.CurrentInstance.SessionManager
+                    .GetSession(response.AuthenticationToken);
+                Assert.That(session.ClientCertificateValidated, Is.False);
+
+                EndpointDescription endpoint = session.EndpointDescription;
+                var channel = new SecureChannelContext(
+                    "roles", endpoint, RequestEncoding.Binary,
+                    untrusted.RawData, endpoint.ServerCertificate.ToArray());
+                using var context = new OperationContext(
+                    new RequestHeader(), channel, RequestType.ActivateSession, RequestLifetime.None);
+                MethodInfo addMandatoryRoles = typeof(SessionManager).GetMethod(
+                    "AddMandatoryRoles", BindingFlags.Instance | BindingFlags.NonPublic);
+                object sessionManager = server.CurrentInstance.SessionManager;
+
+                var untrustedIdentity = (IUserIdentity)addMandatoryRoles.Invoke(
+                    sessionManager, [session, context, new UserIdentity()]);
+                Assert.That(
+                    untrustedIdentity.GrantedRoleIds.ToArray(),
+                    Has.No.Member(ObjectIds.WellKnownRole_TrustedApplication));
+
+                // the same session with a validated certificate is a trusted application.
+                session.ClientCertificateValidated = true;
+                var trustedIdentity = (IUserIdentity)addMandatoryRoles.Invoke(
+                    sessionManager, [session, context, new UserIdentity()]);
+                Assert.That(
+                    trustedIdentity.GrantedRoleIds.ToArray(),
+                    Has.Member(ObjectIds.WellKnownRole_TrustedApplication));
             }
             finally
             {

@@ -1491,8 +1491,17 @@ namespace Opc.Ua.Server
                     m_server.NamespaceUris);
             }
 
+            // Only a client certificate that passed validation identifies the
+            // application. One whose validation error an OnApplicationCertificateError
+            // override accepted still signs the session but grants neither
+            // TrustedApplication nor application-based role mappings.
+            Certificate? applicationCertificate =
+                session is Session { ClientCertificateValidated: false }
+                    ? null
+                    : session.ClientCertificate;
+
             // Assign TrustedApplication role per OPC UA Part 3 §4.9.
-            if (session.ClientCertificate != null &&
+            if (applicationCertificate != null &&
                 context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
             {
                 if (effectiveIdentity is RoleBasedIdentity rbi)
@@ -1516,7 +1525,7 @@ namespace Opc.Ua.Server
             {
                 IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
-                    session.ClientCertificate,
+                    applicationCertificate,
                     context.ChannelContext?.EndpointDescription);
 
                 if (dynamicRoleIds.Count > 0)
