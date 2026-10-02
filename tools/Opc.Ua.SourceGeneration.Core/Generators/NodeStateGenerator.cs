@@ -769,8 +769,7 @@ namespace Opc.Ua.SourceGeneration
                     root.SymbolicId.Namespace));
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
-                    root.SymbolicName.Namespace));
+                GetNamespaceUriExpression(root.SymbolicName.Namespace));
 
             switch (root)
             {
@@ -1101,11 +1100,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             bool isMethodOverrideWithDifferentClass =
-                instance is MethodDesign &&
-                instance.IsOverridden() &&
-                !instance.IsOverriddenWithSameClass(
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces);
+                IsMethodOverrideWithDifferentClass(instance);
             if (node.IsNotExplicitlyDefined ||
                 (instance.IsOverridden() && !isMethodOverrideWithDifferentClass))
             {
@@ -1751,10 +1746,26 @@ namespace Opc.Ua.SourceGeneration
                     instance.SymbolicName.Namespace));
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
-                    instance.SymbolicName.Namespace));
+                GetNamespaceUriExpression(instance.SymbolicName.Namespace));
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Returns the expression for a browse name's namespace URI: the
+        /// model's namespace constant when the model declares the namespace,
+        /// otherwise the URI as a literal.
+        /// </summary>
+        /// <remarks>
+        /// An inherited child keeps the browse namespace of the model that
+        /// declared it, which can be one the consuming model only reaches
+        /// through a referenced assembly - DI below a Robotics subtype - and so
+        /// has no constant for.
+        /// </remarks>
+        private string GetNamespaceUriExpression(string namespaceUri)
+        {
+            return m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(namespaceUri)
+                ?? namespaceUri.AsStringLiteral();
         }
 
         private TemplateString LoadTemplate_ListOfNodeStateInitializers(ILoadContext context)
@@ -1902,8 +1913,7 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
-                    root.SymbolicName.Namespace));
+                GetNamespaceUriExpression(root.SymbolicName.Namespace));
             context.Template.AddReplacement(
                 Tokens.DescriptionValue,
                 GetDescriptionValue(root));
@@ -4311,7 +4321,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (instance.IsOverridden())
+                if (instance.IsOverridden() &&
+                    !IsMethodOverrideWithDifferentClass(instance))
                 {
                     continue;
                 }
@@ -4319,6 +4330,22 @@ namespace Opc.Ua.SourceGeneration
             }
 
             return additionalChildren;
+        }
+
+        /// <summary>
+        /// Returns whether a method overrides the supertype's method with
+        /// another method state class. The subtype then declares a field and a
+        /// property of its own that hide the supertype's, so it also has to
+        /// enumerate and remove the child itself: the supertype's field stays
+        /// empty.
+        /// </summary>
+        private bool IsMethodOverrideWithDifferentClass(InstanceDesign instance)
+        {
+            return instance is MethodDesign &&
+                instance.IsOverridden() &&
+                !instance.IsOverriddenWithSameClass(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces);
         }
 
         private List<InstanceDesign> GetChildrenWithProperties(

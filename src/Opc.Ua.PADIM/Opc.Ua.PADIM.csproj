@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).PADIM</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.PADIM</PackageId>
+    <RootNamespace>Opc.Ua.PADIM</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108;CS0109</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Source-generated OPC 30081 Process Automation Device Information Model (PADIM) and its required OPC UA IRDI dictionary, over the OPC 10000-100 DI base model.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.ProcessValues" />
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.IRDI.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.PADIM.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.PADIM.NodeIds.csv" />
+  </ItemGroup>
+  <!-- IRDI ships in the same assembly as PADIM because PADIM is unusable
+       without it: the PADIM NodeSet carries several hundred HasDictionaryEntry
+       references into the IRDI namespace, the dictionary entries every PADIM
+       property is classified by. Splitting them would create a package nobody
+       can consume alone. Both models are inputs of one compilation, so the
+       PADIM -> IRDI dependency resolves locally.
+
+       Name is pinned to IRDI: the URI-derived default would be
+       "DictionaryIRDI" (the URI is .../UA/Dictionary/IRDI), which would surface
+       as Namespaces.DictionaryIRDI and AddOpcUaDictionaryIRDI.
+
+       IRDI has no identifier file - the OPC Foundation does not publish one for
+       it - so it carries no drift guard. PADIM's published table is tab
+       separated with an "ID/Browsename/Node Class" header rather than the usual
+       comma separated "SymbolicName,NodeId,NodeClass";
+       tools/nodesets/derive-identifier-table.py reads both shapes.
+
+       Note the PADIM NodeSet lists its own namespace third in NamespaceUris
+       (DI, IRDI, PADIM). That is harmless - NodeSetToModelDesign.Import takes
+       Models[0].ModelUri as the target, not NamespaceUris[0]. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.IRDI.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/Dictionary/IRDI</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>IRDI</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.IRDI</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.PADIM.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/PADIM/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>PADIM</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.PADIM</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.PADIM.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.PADIM.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

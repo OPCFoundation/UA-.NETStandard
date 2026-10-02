@@ -1210,70 +1210,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Unescapes any reserved characters in the uri.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        internal static void UnescapeUri(
-            string text,
-            int start,
-            int index,
-            StringBuilder buffer)
-        {
-            for (int ii = start; ii < index; ii++)
-            {
-                char ch = text[ii];
-
-                switch (ch)
-                {
-                    case '%':
-                        if (ii + 2 >= index)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        ushort value = 0;
-
-                        int digit = kHexDigits.IndexOf(
-                            char.ToUpperInvariant(text[++ii]),
-                            StringComparison.Ordinal);
-
-                        if (digit == -1)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        value += (ushort)digit;
-                        value <<= 4;
-
-                        digit = kHexDigits.IndexOf(
-                            char.ToUpperInvariant(text[++ii]),
-                            StringComparison.Ordinal);
-
-                        if (digit == -1)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        value += (ushort)digit;
-
-                        char unencodedChar = Convert.ToChar(value);
-
-                        buffer.Append(unencodedChar);
-                        break;
-                    default:
-                        buffer.Append(ch);
-                        break;
-                }
-            }
-        }
-
-        /// <summary>
         /// Internal try parse method that returns error message on failure.
         /// </summary>
         /// <param name="text">The ExpandedNodeId value as string.</param>
@@ -1335,12 +1271,16 @@ namespace Opc.Ua
                         return false;
                     }
 
-                    var buffer = new StringBuilder();
-                    UnescapeUri(text, 4, index, buffer);
-                    namespaceUri = buffer.ToString();
+                    // The escapes are RFC 3986 UTF-8 octets, decoded exactly
+                    // like the context parser does (Part 6 5.1.12).
+                    if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out namespaceUri))
+                    {
+                        error = NodeIdParseError.InvalidNamespaceUri;
+                        return false;
+                    }
 
                     // "nsu=;" has no namespace uri (Part 6 5.1.12).
-                    if (namespaceUri.Length == 0)
+                    if (string.IsNullOrWhiteSpace(namespaceUri))
                     {
                         error = NodeIdParseError.InvalidNamespaceFormat;
                         return false;
@@ -1409,10 +1349,9 @@ namespace Opc.Ua
                     return false;
                 }
 
-                string serverUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
-
                 // "svu=;" has no server uri (Part 6 5.1.12).
-                if (string.IsNullOrEmpty(serverUri))
+                if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? serverUri) ||
+                    string.IsNullOrWhiteSpace(serverUri))
                 {
                     error = NodeIdParseError.InvalidServerUriFormat;
                     return false;
@@ -1479,10 +1418,9 @@ namespace Opc.Ua
                     return false;
                 }
 
-                namespaceUri = CoreUtils.UnescapeUri(text[4..index]);
-
                 // "nsu=;" has no namespace uri (Part 6 5.1.12).
-                if (string.IsNullOrEmpty(namespaceUri))
+                if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out namespaceUri) ||
+                    string.IsNullOrWhiteSpace(namespaceUri))
                 {
                     error = NodeIdParseError.InvalidNamespaceFormat;
                     return false;
@@ -1554,11 +1492,6 @@ namespace Opc.Ua
                 _ => new NodeId(nodeId.NumericIdentifier, namespaceIndex)
             };
         }
-
-        /// <summary>
-        /// The set of hexadecimal digits used for decoding escaped URIs.
-        /// </summary>
-        private const string kHexDigits = "0123456789ABCDEF";
 
         /// <summary>
         /// Inner data structure to hold the additional data

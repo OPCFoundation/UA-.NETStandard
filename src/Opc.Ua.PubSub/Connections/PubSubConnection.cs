@@ -84,6 +84,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly List<PubSubDiscoveryCollector> m_discoveryCollectors = [];
         private readonly Dictionary<ActionCorrelationKey, PendingActionRequest> m_pendingActions = [];
         private readonly Dictionary<ActionHandlerKey, ActionResponder> m_actionHandlers = [];
+        private readonly HashSet<InboundMetaDataIdentity> m_inboundMetaDataIdentities = [];
         private int m_chunkSequenceNumber;
         private int m_discoverySequenceNumber;
         private int m_actionRequestId;
@@ -677,7 +678,7 @@ namespace Opc.Ua.PubSub.Connections
         private static int NextJitterMilliseconds(int minInclusive, int maxExclusive)
         {
             // Down-level-safe replacement for RandomNumberGenerator.GetInt32, which is
-            // unavailable on net472/net48/netstandard2.0. Used only for non-deterministic
+            // unavailable on net48. Used only for non-deterministic
             // discovery probe jitter (Part 14 §7.2.4.6.12.2).
             uint range = (uint)(maxExclusive - minInclusive);
             byte[] buffer = new byte[4];
@@ -911,69 +912,18 @@ namespace Opc.Ua.PubSub.Connections
                     bool frameSecured = false;
                     bool singleFrame = true;
 
-                    if (UadpDecoder.TryReadOuterPrefix(framePayload,
-                        out int prefixLength,
-                        out bool securityEnabled,
-                        out bool chunkMessage,
-                        out PublisherId framePublisherId,
-                        out ushort frameWriterGroupId))
+                    if (UadpDecoder.TryReadPrefix(framePayload, out UadpPrefixInfo framePrefix))
                     {
-                        if (chunkMessage)
-                        {
-                            ReadOnlyMemory<byte>? reassembled;
-                            try
-                            {
-                                reassembled = TryReassembleChunk(
-                                    framePayload, prefixLength,
-                                    framePublisherId, frameWriterGroupId);
-                            }
-                            catch (Exception ex)
-                            {
-                                // Fail-soft: a malformed or hostile chunk
-                                // must not terminate the receive loop.
-                                m_diagnostics.Increment(
-                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
-                                m_logger.InboundUadpChunkReassemblyThrew(ex);
-                                continue;
-                            }
-                            if (reassembled is null)
-                            {
-                                continue;
-                            }
-                            framePayload = reassembled.Value;
-                            // The message was reassembled from multiple chunk
-                            // frames, so no single wire frame faithfully
-                            // represents it; disable the raw-frame fast path.
-                            singleFrame = false;
-
-                            // Re-read the reassembled message's own outer prefix so
-                            // the security gate below is applied to the inner UADP
-                            // NetworkMessage. The chunk envelope carries no message
-                            // security; messages are encoded and security-wrapped
-                            // before they are chunked, so the reassembled payload is
-                            // the complete (secured or plain) NetworkMessage. Without
-                            // this re-entry a chunked frame would bypass signature,
-                            // encryption and replay verification (SA-REGR-01).
-                            if (!UadpDecoder.TryReadOuterPrefix(framePayload,
-                                out prefixLength,
-                                out securityEnabled,
-                                out bool reassembledChunk,
-                                out framePublisherId,
-                                out frameWriterGroupId) ||
-                                reassembledChunk)
-                            {
-                                // Fail-soft: a reassembled payload that is not a
-                                // well-formed, non-chunk UADP message is dropped
-                                // without terminating the receive loop.
-                                m_diagnostics.Increment(
-                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
-                                m_logger.ReassembledUadpPayloadInvalid();
-                                continue;
-                            }
-                        }
+                        int prefixLength = framePrefix.PrefixLength;
+                        bool securityEnabled = framePrefix.SecurityEnabled;
+                        PublisherId framePublisherId = framePrefix.PublisherId;
+                        ushort frameWriterGroupId = framePrefix.WriterGroupId;
 
                         // Unified inbound message-security enforcement applied to
-                        // both single-datagram and reassembled-chunk frames.
+                        // single NetworkMessages and to every chunk NetworkMessage:
+                        // each chunk is secured on its own (Part 14 §7.2.4.4.4), so
+                        // chunks are verified, decrypted and replay-checked before
+                        // they reach the reassembler.
                         if (RequiresInboundSecurity)
                         {
                             // Fail-closed: a secured reader never accepts
@@ -1013,6 +963,33 @@ namespace Opc.Ua.PubSub.Connections
                             framePayload = unwrapped.Value;
                         }
 
+                        if (framePrefix.ChunkMessage)
+                        {
+                            ReadOnlyMemory<byte>? reassembled;
+                            try
+                            {
+                                reassembled = TryReassembleChunk(framePayload, framePrefix);
+                            }
+                            catch (Exception ex)
+                            {
+                                // Fail-soft: a malformed or hostile chunk
+                                // must not terminate the receive loop.
+                                m_diagnostics.Increment(
+                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
+                                m_logger.InboundUadpChunkReassemblyThrew(ex);
+                                continue;
+                            }
+                            if (reassembled is null)
+                            {
+                                continue;
+                            }
+                            framePayload = reassembled.Value;
+                            // The message was reassembled from multiple chunk
+                            // frames, so no single wire frame faithfully
+                            // represents it; disable the raw-frame fast path.
+                            singleFrame = false;
+                        }
+
                         frameSecured = securityEnabled;
                     }
                     else if (RequiresInboundSecurity)
@@ -1039,6 +1016,8 @@ namespace Opc.Ua.PubSub.Connections
                         continue;
                     }
 
+                    // Only a frame whose security wrapper was verified above is authenticated.
+                    bool frameAuthenticated = frameSecured && m_securityWrapper is not null;
                     PubSubNetworkMessage? message;
                     try
                     {
@@ -1067,7 +1046,7 @@ namespace Opc.Ua.PubSub.Connections
                     if (message is UadpDiscoveryResponseMessage discoveryResponse)
                     {
                         RouteInboundDiscoveryResponse(discoveryResponse);
-                        _ = TryRouteInboundMetaData(message);
+                        _ = TryRouteInboundMetaData(message, frameAuthenticated);
                         continue;
                     }
                     if (message is UadpActionRequestMessage actionRequest)
@@ -1086,7 +1065,7 @@ namespace Opc.Ua.PubSub.Connections
                     {
                         continue;
                     }
-                    if (TryRouteInboundMetaData(message))
+                    if (TryRouteInboundMetaData(message, frameAuthenticated))
                     {
                         continue;
                     }
@@ -1134,28 +1113,132 @@ namespace Opc.Ua.PubSub.Connections
         /// §7.3.4.8</see>.
         /// </summary>
         /// <param name="message">Decoded inbound NetworkMessage.</param>
+        /// <param name="authenticated"><see langword="true"/> when the
+        /// frame carried verified message security.</param>
         /// <returns><see langword="true"/> when the message was a
-        /// metadata frame and was registered (so callers should skip
-        /// the data-side dispatch).</returns>
-        internal bool TryRouteInboundMetaData(PubSubNetworkMessage message)
+        /// metadata frame (so callers should skip the data-side
+        /// dispatch).</returns>
+        /// <remarks>
+        /// Metadata frames are not trusted blindly. Only identities that
+        /// a configured DataSetReader of this connection would accept
+        /// are registered (a reader with a wildcard PublisherId or
+        /// DataSetWriterId accepts any value for that part), and at most
+        /// <see cref="MaxInboundMetaDataIdentities"/> distinct identities
+        /// are registered per connection, so a flood of fabricated
+        /// identities cannot grow the registry without bound.
+        /// </remarks>
+        internal bool TryRouteInboundMetaData(
+            PubSubNetworkMessage message,
+            bool authenticated = false)
         {
-            return TryRouteInboundMetaData(m_metaDataRegistry, message, m_logger);
+            return TryRouteInboundMetaData(
+                m_metaDataRegistry,
+                message,
+                m_logger,
+                authenticated,
+                AdmitInboundMetaDataIdentity);
         }
 
         /// <summary>
-        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage)"/>
+        /// Maximum number of distinct (PublisherId, WriterGroupId,
+        /// DataSetWriterId) identities one connection registers from
+        /// inbound metadata frames.
+        /// </summary>
+        internal const int MaxInboundMetaDataIdentities = 1024;
+
+        /// <summary>
+        /// Admits an inbound metadata identity when a configured
+        /// DataSetReader would accept it and the per-connection identity
+        /// budget is not exhausted.
+        /// </summary>
+        private bool AdmitInboundMetaDataIdentity(in DataSetMetaDataKey key)
+        {
+            if (!IsExpectedMetaDataSource(key.PublisherId, key.DataSetWriterId))
+            {
+                return false;
+            }
+            var identity = new InboundMetaDataIdentity(
+                key.PublisherId,
+                key.WriterGroupId,
+                key.DataSetWriterId);
+            lock (m_gate)
+            {
+                if (m_inboundMetaDataIdentities.Contains(identity))
+                {
+                    return true;
+                }
+                if (m_inboundMetaDataIdentities.Count >= MaxInboundMetaDataIdentities)
+                {
+                    return false;
+                }
+                m_inboundMetaDataIdentities.Add(identity);
+                return true;
+            }
+        }
+
+        private bool IsExpectedMetaDataSource(PublisherId publisherId, ushort dataSetWriterId)
+        {
+            for (int i = 0; i < m_readerGroups.Count; i++)
+            {
+                ArrayOf<IDataSetReader> readers = m_readerGroups[i].DataSetReaders;
+                for (int j = 0; j < readers.Count; j++)
+                {
+                    if (readers[j] is not DataSetReader reader)
+                    {
+                        continue;
+                    }
+                    if (reader.DataSetWriterId != 0 && reader.DataSetWriterId != dataSetWriterId)
+                    {
+                        continue;
+                    }
+                    PublisherId expected = reader.ExpectedPublisherId;
+                    if (expected.IsNull ||
+                        expected.Equals(publisherId) ||
+                        (expected.Type is PublisherIdType.Byte or PublisherIdType.UInt16 or
+                            PublisherIdType.UInt32 or PublisherIdType.UInt64 &&
+                        !publisherId.IsNull &&
+                        string.Equals(expected.ToString(), publisherId.ToString(), StringComparison.Ordinal)))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Decides whether an inbound metadata identity may be registered.
+        /// </summary>
+        /// <param name="key">Identity of the inbound metadata.</param>
+        /// <returns><see langword="true"/> to register it.</returns>
+        internal delegate bool InboundMetaDataAdmission(in DataSetMetaDataKey key);
+
+        /// <summary>
+        /// Static counterpart of <see cref="TryRouteInboundMetaData(PubSubNetworkMessage, bool)"/>
         /// used by tests and by the receive loop. Dispatches the
         /// JSON / UADP metadata variants into the supplied registry.
         /// </summary>
         /// <param name="registry">Target registry.</param>
         /// <param name="message">Decoded NetworkMessage.</param>
         /// <param name="logger">Logger for diagnostic events.</param>
+        /// <param name="authenticated">
+        /// <see langword="true"/> when the frame carried verified message
+        /// security. Only then is an older MajorVersion discarded as
+        /// stale; for unauthenticated frames the latest announcement
+        /// replaces the entry, so a forged announcement with a far-future
+        /// MajorVersion cannot pin the registry and shadow the real
+        /// publisher's metadata.
+        /// </param>
+        /// <param name="admit">Optional admission check; identities it
+        /// rejects are not registered.</param>
         /// <returns>Whether the message was recognised as metadata.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         internal static bool TryRouteInboundMetaData(
             IDataSetMetaDataRegistry registry,
             PubSubNetworkMessage message,
-            ILogger logger)
+            ILogger logger,
+            bool authenticated = false,
+            InboundMetaDataAdmission? admit = null)
         {
             if (registry is null)
             {
@@ -1201,8 +1284,15 @@ namespace Opc.Ua.PubSub.Connections
                 classId,
                 meta.ConfigurationVersion?.MajorVersion ?? 0);
 
+            if (admit is not null && !admit(in key))
+            {
+                logger?.IgnoringUnexpectedInboundMetadata(writerId);
+                return true;
+            }
+
             MetaDataMatchResult existing = registry.TryGet(in key, out DataSetMetaDataType? current);
-            if (existing == MetaDataMatchResult.MajorVersionMismatch &&
+            if (authenticated &&
+                existing == MetaDataMatchResult.MajorVersionMismatch &&
                 current?.ConfigurationVersion is { } currentVersion &&
                 currentVersion.MajorVersion > key.MajorVersion)
             {
@@ -1847,14 +1937,39 @@ namespace Opc.Ua.PubSub.Connections
             {
                 return response;
             }
+            // The MessageId of every JSON discovery message is a globally
+            // unique identifier (Part 14 §7.2.5.5 Tables 188-192), so it is
+            // left empty for the encoder to generate instead of reusing the
+            // discovery sequence number.
+            DataSetMetaDataType? metaData = response.DataSetMetaData ?? response.MetaData;
+            if (response.DiscoveryType == UadpDiscoveryType.DataSetMetaData && metaData is not null)
+            {
+                ResolveWriterNames(
+                    response.WriterGroupId,
+                    response.DataSetWriterId,
+                    out string writerGroupName,
+                    out string dataSetWriterName);
+                return new JsonMetaDataMessage
+                {
+                    PublisherId = response.PublisherId,
+                    WriterGroupId = response.WriterGroupId,
+                    DataSetWriterId = response.DataSetWriterId,
+                    WriterGroupName = writerGroupName,
+                    DataSetWriterName = dataSetWriterName,
+                    DataSetClassId = response.DataSetClassId,
+                    MetaData = metaData,
+                    MetaDataPayload = metaData
+                };
+            }
             return new JsonDiscoveryMessage
             {
                 PublisherId = response.PublisherId,
-                MessageId = response.SequenceNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 DiscoveryType = response.DiscoveryType,
                 ApplicationInformation = response.ApplicationInformation,
                 ApplicationStatus = response.ApplicationStatus,
-                Connection = response.Connection,
+                Connection = response.Connection is null
+                    ? null
+                    : ToJsonDiscoveryConnection(response.Connection),
                 DataSetWriterId = response.DataSetWriterId,
                 WriterConfiguration = response.WriterConfiguration,
                 DataSetWriterIds = [.. response.DataSetWriterIds],
@@ -1862,6 +1977,77 @@ namespace Opc.Ua.PubSub.Connections
                 PublisherEndpoints = [.. response.PublisherEndpoints],
                 Status = response.StatusCode
             };
+        }
+
+        /// <summary>
+        /// Returns a copy of <paramref name="connection"/> without the
+        /// content Part 14 §7.2.5.5.6 Table 192 excludes from a
+        /// <c>ua-connection</c> message: the ReaderGroups, the Address and
+        /// the configuration properties of the connection, its
+        /// WriterGroups and their DataSetWriters.
+        /// </summary>
+        /// <param name="connection">Connection configuration.</param>
+        /// <returns>The reduced copy.</returns>
+        private static PubSubConnectionDataType ToJsonDiscoveryConnection(
+            PubSubConnectionDataType connection)
+        {
+            var result = (PubSubConnectionDataType)connection.Clone();
+            result.Address = ExtensionObject.Null;
+            result.ConnectionProperties = [];
+            result.ReaderGroups = [];
+            if (!result.WriterGroups.IsNull)
+            {
+                foreach (WriterGroupDataType group in result.WriterGroups)
+                {
+                    group.GroupProperties = [];
+                    if (group.DataSetWriters.IsNull)
+                    {
+                        continue;
+                    }
+                    foreach (DataSetWriterDataType writer in group.DataSetWriters)
+                    {
+                        writer.DataSetWriterProperties = [];
+                    }
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Looks up the WriterGroup and DataSetWriter names that
+        /// Part 14 §7.2.5.5.2 Table 188 requires on a <c>ua-metadata</c>
+        /// message.
+        /// </summary>
+        /// <param name="writerGroupId">WriterGroupId, when known.</param>
+        /// <param name="dataSetWriterId">DataSetWriterId.</param>
+        /// <param name="writerGroupName">The WriterGroup name, or empty.</param>
+        /// <param name="dataSetWriterName">The DataSetWriter name, or empty.</param>
+        private void ResolveWriterNames(
+            ushort? writerGroupId,
+            ushort dataSetWriterId,
+            out string writerGroupName,
+            out string dataSetWriterName)
+        {
+            for (int groupIndex = 0; groupIndex < m_writerGroups.Count; groupIndex++)
+            {
+                WriterGroup group = m_writerGroups[groupIndex];
+                if (writerGroupId is ushort id && group.WriterGroupId != id)
+                {
+                    continue;
+                }
+                for (int writerIndex = 0; writerIndex < group.DataSetWriters.Count; writerIndex++)
+                {
+                    IDataSetWriter writer = group.DataSetWriters[writerIndex];
+                    if (writer.DataSetWriterId == dataSetWriterId)
+                    {
+                        writerGroupName = group.Name ?? string.Empty;
+                        dataSetWriterName = writer.Name ?? string.Empty;
+                        return;
+                    }
+                }
+            }
+            writerGroupName = string.Empty;
+            dataSetWriterName = string.Empty;
         }
 
         private string? ResolveDiscoveryTopic(UadpDiscoveryResponseMessage response)
@@ -2237,7 +2423,7 @@ namespace Opc.Ua.PubSub.Connections
             CancellationToken cancellationToken)
         {
             string? topic = ResolveDataTopic(writerGroup, networkMessage);
-            await SendNetworkMessageAsync(networkMessage, topic, cancellationToken)
+            await SendNetworkMessageAsync(networkMessage, topic, writerGroup, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -2260,9 +2446,18 @@ namespace Opc.Ua.PubSub.Connections
             return provider.BuildDataTopic(PublisherId, writerGroup.Configuration, dataSetWriterId);
         }
 
+        private ValueTask SendNetworkMessageAsync(
+            PubSubNetworkMessage networkMessage,
+            string? topic,
+            CancellationToken cancellationToken)
+        {
+            return SendNetworkMessageAsync(networkMessage, topic, writerGroup: null, cancellationToken);
+        }
+
         private async ValueTask SendNetworkMessageAsync(
             PubSubNetworkMessage networkMessage,
             string? topic,
+            WriterGroup? writerGroup,
             CancellationToken cancellationToken)
         {
             IPubSubTransport? transport;
@@ -2321,9 +2516,7 @@ namespace Opc.Ua.PubSub.Connections
                 payload.Length > m_maxNetworkMessageSize &&
                 networkMessage is UadpNetworkMessage uadpForChunk)
             {
-                await SendChunkedAsync(
-                    transport, payload, uadpForChunk.PublisherId, uadpForChunk.WriterGroupId,
-                    cancellationToken)
+                await SendChunkedAsync(transport, uadpForChunk, context, writerGroup, cancellationToken)
                     .ConfigureAwait(false);
                 return;
             }
@@ -2345,21 +2538,34 @@ namespace Opc.Ua.PubSub.Connections
             return encoder.EncodeAsync(networkMessage, context, cancellationToken);
         }
 
+        /// <summary>
+        /// Sends a UADP NetworkMessage that exceeds the maximum
+        /// NetworkMessage size as chunk NetworkMessages (Part 14
+        /// §7.2.4.4.4). Each chunk carries a piece of one DataSetMessage and
+        /// is secured on its own when the connection applies message
+        /// security.
+        /// </summary>
         private async ValueTask SendChunkedAsync(
             IPubSubTransport transport,
-            ReadOnlyMemory<byte> encoded,
-            PublisherId publisherId,
-            ushort? writerGroupId,
+            UadpNetworkMessage message,
+            PubSubNetworkMessageContext context,
+            WriterGroup? writerGroup,
             CancellationToken cancellationToken)
         {
             ushort sequenceNumber = unchecked(
                 (ushort)Interlocked.Increment(ref m_chunkSequenceNumber));
-            var chunker = new UadpChunker();
-            IReadOnlyList<byte[]> chunkFrames;
+            UadpSecurityWrapper? wrapper = m_securityWrapper;
+            IReadOnlyList<UadpChunkFrame> chunkFrames;
             try
             {
-                chunkFrames = chunker.Split(
-                    encoded, sequenceNumber, m_maxNetworkMessageSize);
+                chunkFrames = UadpEncoder.EncodeChunks(
+                    message,
+                    context,
+                    m_maxNetworkMessageSize,
+                    wrapper is null ? 0 : GetSecurityOverhead(wrapper),
+                    securityEnabled: wrapper is not null,
+                    sequenceNumber,
+                    writerGroup is null ? null : writerGroup.ReserveNetworkSequenceNumbers);
             }
             catch (Exception ex)
             {
@@ -2369,13 +2575,57 @@ namespace Opc.Ua.PubSub.Connections
                     $"UADP chunking failed: {ex.Message}");
                 throw;
             }
-            foreach (byte[] chunk in chunkFrames)
+            foreach (UadpChunkFrame chunk in chunkFrames)
             {
-                ReadOnlyMemory<byte> envelope = UadpEncoder.WriteChunkEnvelope(
-                    chunk, publisherId, writerGroupId);
-                await transport.SendAsync(envelope, topic: null, cancellationToken)
+                ReadOnlyMemory<byte> frame = chunk.Frame;
+                if (wrapper is not null)
+                {
+                    frame = await WrapChunkAsync(wrapper, chunk, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                await transport.SendAsync(frame, topic: null, cancellationToken)
                     .ConfigureAwait(false);
             }
+        }
+
+        private async ValueTask<ReadOnlyMemory<byte>> WrapChunkAsync(
+            UadpSecurityWrapper wrapper,
+            UadpChunkFrame chunk,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await wrapper
+                    .WrapAsync(
+                        chunk.Frame[..chunk.PayloadOffset],
+                        chunk.Frame[chunk.PayloadOffset..],
+                        m_securityWrapOptions,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.EncryptionErrors);
+                m_diagnostics.RecordError(
+                    StatusCodes.BadSecurityChecksFailed,
+                    $"UADP security wrap failed: {ex.Message}");
+                m_logger.UadpSecurityWrapFailed(ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Worst-case bytes the security wrapper adds to a chunk: the
+        /// SecurityHeader (flags, token id, nonce length and nonce) and the
+        /// signature.
+        /// </summary>
+        private static int GetSecurityOverhead(UadpSecurityWrapper wrapper)
+        {
+            return 1 + 4 + 1 + wrapper.Policy.NonceLength + wrapper.Policy.SignatureLength;
         }
 
         internal ValueTask SendTranscodedFrameAsync(
@@ -2402,18 +2652,26 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger.NoTransportOpen(Name);
                 return;
             }
-            if (m_maxNetworkMessageSize > 0 &&
-                frame.Length > m_maxNetworkMessageSize &&
-                UadpDecoder.TryReadOuterPrefix(frame,
-                    out _, out _, out bool chunkMessage,
-                    out PublisherId publisherId, out ushort writerGroupId) &&
-                !chunkMessage)
+            if (m_maxNetworkMessageSize > 0 && frame.Length > m_maxNetworkMessageSize)
             {
-                await SendChunkedAsync(
-                    transport, frame, publisherId,
-                    writerGroupId == 0 ? null : writerGroupId, cancellationToken)
-                    .ConfigureAwait(false);
-                return;
+                // Only unsecured DataSetMessage NetworkMessages can be split
+                // into chunk NetworkMessages here; a secured frame would have
+                // to be secured per chunk, which needs the original payload.
+                IReadOnlyList<UadpChunkFrame>? chunks = UadpChunker.TrySplitNetworkMessage(
+                    frame,
+                    m_maxNetworkMessageSize,
+                    securityOverhead: 0,
+                    securityEnabled: false,
+                    unchecked((ushort)Interlocked.Increment(ref m_chunkSequenceNumber)));
+                if (chunks is not null)
+                {
+                    foreach (UadpChunkFrame chunk in chunks)
+                    {
+                        await transport.SendAsync(chunk.Frame, topic: null, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    return;
+                }
             }
             if (properties.Count > 0 && transport is IPubSubHeaderTransport headerTransport)
             {
@@ -2509,14 +2767,18 @@ namespace Opc.Ua.PubSub.Connections
                 : "Uadp";
         }
 
+        /// <summary>
+        /// Feeds a (verified and decrypted) chunk NetworkMessage into the
+        /// reassembler and, once the payload is complete, returns the
+        /// cleartext NetworkMessage rebuilt from the chunk header and the
+        /// reassembled DataSetMessage (Part 14 §7.2.4.4.4).
+        /// </summary>
         private ReadOnlyMemory<byte>? TryReassembleChunk(
             ReadOnlyMemory<byte> frame,
-            int prefixLength,
-            PublisherId publisherId,
-            ushort writerGroupId)
+            in UadpPrefixInfo prefix)
         {
             m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksReceived);
-            ReadOnlyMemory<byte> inner = frame[prefixLength..];
+            ReadOnlyMemory<byte> inner = frame[prefix.PrefixLength..];
             if (!UadpChunker.TryParseChunk(inner,
                 out _, out _, out _, out _))
             {
@@ -2528,8 +2790,9 @@ namespace Opc.Ua.PubSub.Connections
             }
             int pendingBefore = m_reassembler.PendingCount;
             if (!m_reassembler.TryAddChunk(
-                publisherId, writerGroupId, inner,
-                out ReadOnlyMemory<byte>? reassembled))
+                prefix.PublisherId, prefix.WriterGroupId, prefix.ChunkDataSetWriterId, inner,
+                out ReadOnlyMemory<byte>? reassembled) ||
+                reassembled is null)
             {
                 int pendingAfter = m_reassembler.PendingCount;
                 if (pendingAfter < pendingBefore)
@@ -2540,7 +2803,8 @@ namespace Opc.Ua.PubSub.Connections
                 return null;
             }
             m_diagnostics.Increment(PubSubDiagnosticsCounterKind.ChunksReassembled);
-            return reassembled;
+            return UadpChunker.ComposeReassembledNetworkMessage(
+                frame.Span, prefix, reassembled.Value.Span);
         }
 
         private async ValueTask<ReadOnlyMemory<byte>?> TryUnwrapInboundAsync(
@@ -2634,6 +2898,11 @@ namespace Opc.Ua.PubSub.Connections
                 owner?.RemoveReceivedSink(m_sink);
             }
         }
+
+        private readonly record struct InboundMetaDataIdentity(
+            PublisherId PublisherId,
+            ushort WriterGroupId,
+            ushort DataSetWriterId);
 
         private readonly record struct DiscoveryThrottleKey(
             UadpDiscoveryType DiscoveryType,
@@ -2963,10 +3232,6 @@ namespace Opc.Ua.PubSub.Connections
             Message = "Inbound UADP chunk reassembly threw; dropping frame.")]
         public static partial void InboundUadpChunkReassemblyThrew(this ILogger logger, Exception exception);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 5, Level = LogLevel.Warning,
-            Message = "Reassembled UADP payload is not a valid non-chunk NetworkMessage; dropping frame.")]
-        public static partial void ReassembledUadpPayloadInvalid(this ILogger logger);
-
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 6, Level = LogLevel.Warning,
             Message = "Dropping unsecured inbound frame on connection '{Connection}' requiring {Mode}.")]
         public static partial void DroppingUnsecuredInboundFrame(
@@ -3008,6 +3273,11 @@ namespace Opc.Ua.PubSub.Connections
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 12, Level = LogLevel.Debug,
             Message = "Registered inbound metadata for writer {WriterId} (major {Major}).")]
         public static partial void RegisteredInboundMetadata(this ILogger logger, ushort writerId, uint major);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 21, Level = LogLevel.Debug,
+            Message = "Ignoring inbound metadata for writer {WriterId}: no configured DataSetReader " +
+                "expects it or the connection's metadata identity budget is exhausted.")]
+        public static partial void IgnoringUnexpectedInboundMetadata(this ILogger logger, ushort writerId);
 
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 13, Level = LogLevel.Error,
             Message = "Inbound metadata registration failed for writer {WriterId}.")]

@@ -198,12 +198,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Verifies issuer-only configuration supplies chain material without establishing a trust anchor.
+        /// Verifies issuer-only configuration establishes a trust anchor for a leaf-only peer chain.
         /// </summary>
         [TestCase("Peers")]
         [TestCase("Users")]
         [TestCase("Https")]
-        public async Task ExplicitIssuerChainAloneDoesNotEstablishTrustAsync(string scope)
+        public async Task ExplicitIssuerChainEstablishesTrustAsync(string scope)
         {
             SecurityConfiguration configuration = CreateConfiguration();
             GetIssuerList(configuration, scope).TrustedCertificates =
@@ -217,9 +217,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateValidationResult result = await manager.ValidateAsync(m_leaf, GetScope(scope))
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted),
-                "The explicit issuers must complete the chain without making its leaf trusted.");
-            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.IsValid, Is.True);
         }
 
         /// <summary>

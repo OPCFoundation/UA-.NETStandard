@@ -86,7 +86,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         private const string VariantSetBlockPattern = "^\\s*variantSet\\s+\"([^\"]+)\"\\s*=\\s*\\{(.*)$";
 
         // The regular-expression source generator (System.Text.RegularExpressions.GeneratedRegex) is
-        // only available on net8.0+. On the down-level library targets (net472/net48/netstandard2.1)
+        // only available on net8.0+. On the down-level library target (net48)
         // fall back to cached, precompiled Regex instances so the same accessors compile everywhere.
 #if NET8_0_OR_GREATER
         [GeneratedRegex(PrimPattern, RegexOptions.CultureInvariant)]
@@ -2098,7 +2098,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         }
 
         // Ordinal single-character containment without String.Contains(char, StringComparison),
-        // which is unavailable on the down-level library targets (net472/net48).
+        // which is unavailable on the down-level library target (net48).
         private static bool ContainsChar(string value, char c)
         {
             for (int i = 0; i < value.Length; i++)

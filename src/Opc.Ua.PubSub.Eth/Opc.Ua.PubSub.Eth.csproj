@@ -33,7 +33,7 @@
       SharpPcap (and transitive PacketDotNet) provide the opt-in cross-platform /
       Windows libpcap/Npcap frame backend reached only via WithPcap(). Pinned as a
       native-code dependency in Directory.Packages.props (SDL policy). PacketDotNet
-      has no netstandard asset (NU1701 on netstandard2.1), so the reference and the
+      has no .NET Framework asset (NU1701 on net48), so the reference and the
       pcap backend (#if NET8_0_OR_GREATER) are restricted to net8.0+ — matching the
       Opc.Ua.Core.Diagnostics TFM strategy. The native AF_PACKET (Linux) / BPF
       (macOS) and in-memory backends do not use it and work on every TFM.
@@ -44,7 +44,7 @@
   <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
     <!--
       System.Net.NetworkInformation is an in-box assembly on modern TFMs
-      (netstandard2.1, net8.0+); only the .NET Framework targets need an
+      (net8.0+); only the .NET Framework targets need an
       explicit reference to the framework assembly.
     -->
     <Reference Include="System.Net.NetworkInformation" />

@@ -227,6 +227,22 @@ namespace Opc.Ua.SourceGeneration
                         : null,
                     IsAbstract = type.IsAbstract
                 };
+                if (type is VariableTypeDesign variableTypeDesign)
+                {
+                    // A consumer that types a variable with this VariableType
+                    // has to know the restriction to decide whether the
+                    // generated state class needs a template parameter. Without
+                    // it the consumer's DataTypeNode stays null and the node
+                    // state generator dereferences it (see
+                    // ModelDesignExtensions.GetNodeStateClassName).
+                    entry.DataTypeName = variableTypeDesign.DataType?.Name ?? string.Empty;
+                    entry.DataTypeNamespace =
+                        variableTypeDesign.DataType?.Namespace ?? string.Empty;
+                    entry.ValueRank = variableTypeDesign.ValueRankSpecified
+                        ? (int)variableTypeDesign.ValueRank
+                        : null;
+                }
+
                 if (type is DataTypeDesign dataType)
                 {
                     entry.IsEnumeration = dataType.IsEnumeration;
@@ -298,6 +314,39 @@ namespace Opc.Ua.SourceGeneration
                                 ModellingRule = modellingRule,
                                 InstanceKind = instanceKind
                             };
+                            // A child re-declared from a base type in another
+                            // namespace keeps that namespace on its browse
+                            // name. Carrying it only when it differs from the
+                            // declaring model keeps the payload unchanged for
+                            // the common case.
+                            string childBrowseNamespace =
+                                child.SymbolicName?.Namespace ?? string.Empty;
+                            if (childBrowseNamespace.Length > 0 &&
+                                !string.Equals(
+                                    childBrowseNamespace,
+                                    targetUri,
+                                    StringComparison.Ordinal))
+                            {
+                                entryChild.BrowseNameNamespace = childBrowseNamespace;
+                            }
+                            // Likewise only a reference type that departs from
+                            // the kind default needs carrying; the consumer
+                            // applies the default for everything else.
+                            if (child.ReferenceType != null &&
+                                !(string.Equals(
+                                        child.ReferenceType.Name,
+                                        ModelDependencyV1.GetDefaultReferenceTypeName(instanceKind),
+                                        StringComparison.Ordinal) &&
+                                    string.Equals(
+                                        child.ReferenceType.Namespace,
+                                        ModelDependencyV1.OpcUaNamespaceUri,
+                                        StringComparison.Ordinal)))
+                            {
+                                entryChild.ReferenceTypeName =
+                                    child.ReferenceType.Name ?? string.Empty;
+                                entryChild.ReferenceTypeNamespace =
+                                    child.ReferenceType.Namespace ?? string.Empty;
+                            }
                             if (child is VariableDesign variable)
                             {
                                 var effectiveVariable =

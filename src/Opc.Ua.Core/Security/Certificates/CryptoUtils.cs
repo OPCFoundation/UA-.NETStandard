@@ -1627,6 +1627,17 @@ namespace Opc.Ua
 
             if (!signOnly)
             {
+                // OPC 10000-6 §6.7.2.5.1: the encrypted data is a whole number of
+                // cipher blocks (the IV is one block long). Only block (CBC) ciphers
+                // have that property; counter mode data may end mid block.
+                if ((algorithm is SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc) &&
+                    iv.Length > 0 &&
+                    data.Count % iv.Length != 0)
+                {
+                    throw new CryptographicException(
+                        "The encrypted data is not a multiple of the block size.");
+                }
+
                 if (cipher != null)
                 {
                     cipher.Decrypt(
@@ -1661,6 +1672,7 @@ namespace Opc.Ua
             if (signingKey != null && verifier != null)
             {
                 int hashLength = verifier.GetSignatureLength(signatureAlgorithm);
+                ThrowIfShorterThanSignature(data, hashLength);
                 int signedLength = data.Offset + data.Count - hashLength;
 
                 if (!verifier.Verify(
@@ -1691,6 +1703,7 @@ namespace Opc.Ua
                 {
                     HMAC signer = hmac ?? ownedHmac!;
                     int hashLength = signer.HashSize / 8;
+                    ThrowIfShorterThanSignature(data, hashLength);
                     int signedLength = data.Offset + data.Count - hashLength;
 
 #if NET6_0_OR_GREATER
@@ -1750,6 +1763,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Rejects a signed buffer too short to hold its signature.
+        /// </summary>
+        /// <exception cref="CryptographicException"></exception>
+        private static void ThrowIfShorterThanSignature(ArraySegment<byte> data, int hashLength)
+        {
+            if (data.Count < hashLength)
+            {
+                throw new CryptographicException("Invalid signature.");
+            }
+        }
+
+        /// <summary>
         /// Zeros a buffer so that sensitive key material does not linger in memory.
         /// </summary>
         /// <param name="buffer">
@@ -1757,7 +1782,7 @@ namespace Opc.Ua
         /// </param>
         public static void ZeroMemory(Span<byte> buffer)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             CryptographicOperations.ZeroMemory(buffer);
 #else
             buffer.Clear();
@@ -1779,7 +1804,7 @@ namespace Opc.Ua
         /// </returns>
         public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             return CryptographicOperations.FixedTimeEquals(left, right);
 #else
             if (left.Length != right.Length)

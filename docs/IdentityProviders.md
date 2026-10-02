@@ -756,7 +756,7 @@ their concrete `IssuerVerificationKey` instances according to their lifetime.
 The helper
 deliberately uses
 `byte[]` overloads (no `System.IdentityModel.Tokens.Jwt`) so it works
-on netstandard2.1 / net472 / net48 / net8+/net9+/net10+ and is
+on net48 / net8+/net9+/net10+ and is
 AOT-friendly.
 
 Supported JWS algorithms (RFC 7518 §3.1):

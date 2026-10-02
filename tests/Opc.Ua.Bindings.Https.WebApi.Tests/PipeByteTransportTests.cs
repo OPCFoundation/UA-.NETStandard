@@ -374,10 +374,32 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             // size = 4 in the header (< minimum 8 byte UASC header)
             byte[] bad = new byte[8];
-            BinaryPrimitives.WriteUInt32BigEndian(bad, TcpMessageType.Hello); // message type
-            BinaryPrimitives.WriteInt32LittleEndian(bad.AsSpan(4), 4);        // size = 4
+            BinaryPrimitives.WriteUInt32LittleEndian(bad, TcpMessageType.Hello); // message type
+            BinaryPrimitives.WriteInt32LittleEndian(bad.AsSpan(4), 4);           // size = 4
 
             await WriteToServerInputAsync(ctx, bad).ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None)
+                    .ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
+        }
+
+        /// <summary>
+        /// A chunk with an unknown message type is rejected at the framing
+        /// layer with <see cref="StatusCodes.BadTcpMessageTypeInvalid"/>, as the
+        /// socket transport does.
+        /// </summary>
+        [TestCase(0x464C4548u, TestName = "ByteSwappedHello")] // "FLEH" on the wire
+        [TestCase(0x4F504E58u, TestName = "UnknownChunkType")] // "OPNX" on the wire
+        public async Task ReceiveChunkAsyncRejectsUnknownMessageTypeAsync(uint messageType)
+        {
+            using var ctx = new TestConnectionContext();
+            using var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+
+            byte[] chunk = BuildValidChunk(size: 32);
+            BinaryPrimitives.WriteUInt32BigEndian(chunk, messageType);
+            await WriteToServerInputAsync(ctx, chunk).ConfigureAwait(false);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
@@ -474,13 +496,54 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         /// <summary>
+        /// Closing the transport while one send is blocked on backpressure and
+        /// another is queued behind it must fail both with
+        /// <see cref="StatusCodes.BadConnectionClosed"/> instead of orphaning
+        /// the queued sender forever.
+        /// </summary>
+        [Test]
+        public async Task CloseFailsBlockedAndQueuedSendsWithBadConnectionClosedAsync()
+        {
+            using var ctx = new TestConnectionContext();
+            var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
+
+            // Larger than the default pipe pause threshold: the flush blocks
+            // because the test never reads ServerOutput.
+            Task blocked = transport.SendChunkAsync(
+                new ReadOnlyMemory<byte>(new byte[128 * 1024]), CancellationToken.None).AsTask();
+            Task queued = transport.SendChunkAsync(
+                new ReadOnlyMemory<byte>(new byte[8]), CancellationToken.None).AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(blocked.IsCompleted, Is.False);
+            Assert.That(queued.IsCompleted, Is.False);
+
+            transport.Close();
+
+            foreach (Task send in new[] { blocked, queued })
+            {
+                Exception? error = null;
+                try
+                {
+                    await send.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    error = ex;
+                }
+                Assert.That(error, Is.TypeOf<ServiceResultException>());
+                Assert.That(((ServiceResultException)error!).StatusCode,
+                    Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+            }
+        }
+
+        /// <summary>
         /// Helper: build a valid UASC chunk with a Hello message type and
         /// the given total <paramref name="size"/> (header + body).
         /// </summary>
         private static byte[] BuildValidChunk(int size)
         {
             byte[] buffer = new byte[size];
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, TcpMessageType.Hello);
+            BinaryPrimitives.WriteUInt32LittleEndian(buffer, TcpMessageType.Hello);
             BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(4), size);
             for (int i = 8; i < size; i++)
             {

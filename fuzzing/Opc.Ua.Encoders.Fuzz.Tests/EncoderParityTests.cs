@@ -262,7 +262,7 @@ namespace Opc.Ua.Fuzzing
             string serialized = FuzzableCode.EncodeJsonMessage(message, options);
             using JsonDocument document = JsonDocument.Parse(serialized);
             JsonElement diagnostic = document.RootElement
-                .GetProperty("UaBody").GetProperty("ResponseHeader").GetProperty("ServiceDiagnostics");
+                .GetProperty("ResponseHeader").GetProperty("ServiceDiagnostics");
 
             Assert.That(diagnostic.GetProperty("SymbolicId").GetInt32(), Is.Zero);
             Assert.That(diagnostic.GetProperty("NamespaceUri").GetInt32(), Is.Zero);
@@ -319,13 +319,16 @@ namespace Opc.Ua.Fuzzing
             request.MaxAge = 0;
             string serialized = FuzzableCode.EncodeJsonMessage(request, options);
             using JsonDocument document = JsonDocument.Parse(serialized);
-            JsonElement body = document.RootElement.GetProperty("UaBody");
+            // The message body is inline next to its type id (Part 6 5.4.9, 5.4.2.16).
+            JsonElement body = document.RootElement;
             JsonElement timestampMode = body.GetProperty("TimestampsToReturn");
 
-            // The message envelope retains its type id; RawData suppresses artifacts inside UaBody.
+            // The message envelope retains its type id; RawData suppresses artifacts inside the body.
             Assert.That(document.RootElement.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=629"));
             JsonElement header = body.GetProperty("RequestHeader").GetProperty("AdditionalHeader");
-            Assert.That(header.TryGetProperty("UaTypeId", out _), Is.EqualTo(!options.SuppressArtifacts));
+            // The AdditionalHeader is an ExtensionObject (abstract Structure), so RawData keeps
+            // its UaTypeId (Part 6 5.4.1).
+            Assert.That(header.TryGetProperty("UaTypeId", out _), Is.True);
             // A structure's abstract Variant still carries its type; retired unwrapped Variants are not emitted.
             Assert.That(
                 header.GetProperty("Parameters")[0].GetProperty("Value").GetProperty("UaType").GetInt32(),
@@ -364,16 +367,17 @@ namespace Opc.Ua.Fuzzing
             };
             string serialized = FuzzableCode.EncodeJsonMessage(response, options);
             using JsonDocument document = JsonDocument.Parse(serialized);
-            JsonElement value = document.RootElement.GetProperty("UaBody").GetProperty("Results")[0];
+            JsonElement value = document.RootElement.GetProperty("Results")[0];
             JsonElement status = value.GetProperty("Status");
 
             Assert.That(value.GetProperty("Value").GetString(), Is.EqualTo("status payload"));
             Assert.That(status.ValueKind, Is.EqualTo(JsonValueKind.Object));
             Assert.That(status.GetProperty("Code").GetUInt32(), Is.EqualTo(StatusCodes.BadDataLost));
+            // RawData omits type artifacts only; the Symbol follows OmitStatusCodeSymbol.
             Assert.That(
                 status.TryGetProperty("Symbol", out JsonElement symbol),
-                Is.EqualTo(!options.OmitStatusCodeSymbol && !options.SuppressArtifacts));
-            if (!options.OmitStatusCodeSymbol && !options.SuppressArtifacts)
+                Is.EqualTo(!options.OmitStatusCodeSymbol));
+            if (!options.OmitStatusCodeSymbol)
             {
                 Assert.That(symbol.GetString(), Is.EqualTo("BadDataLost"));
             }
@@ -391,10 +395,11 @@ namespace Opc.Ua.Fuzzing
             using JsonDocument schema = JsonDocument.Parse(metadata);
 
             Assert.That(raw.RootElement.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=671"));
-            Assert.That(CountTypeArtifacts(raw.RootElement.GetProperty("UaBody")), Is.Zero);
-            Assert.That(CountTypeArtifacts(schema.RootElement.GetProperty("UaBody")), Is.GreaterThanOrEqualTo(10));
+            // Only the envelope keeps its UaTypeId; the body is inline next to it.
+            Assert.That(CountTypeArtifacts(raw.RootElement), Is.EqualTo(1));
+            Assert.That(CountTypeArtifacts(schema.RootElement), Is.GreaterThanOrEqualTo(11));
             Assert.That(
-                raw.RootElement.GetProperty("UaBody").GetProperty("NodesToWrite").GetArrayLength(),
+                raw.RootElement.GetProperty("NodesToWrite").GetArrayLength(),
                 Is.EqualTo(10));
 
             string restored = FuzzableCode.RestoreJsonArtifacts(serialized, metadata, FuzzableCode.MessageContext);
@@ -424,7 +429,7 @@ namespace Opc.Ua.Fuzzing
         public void MetadataRestorationAddsOnlyMissingArtifactsAndDoesNotRepairPayloadScalars()
         {
             const string serialized =
-                """{"UaBody":{"Results":[{"Value":"changed"},{"Value":99}],"Sequence":8}}""";
+                """{"Results":[{"Value":"changed"},{"Value":99}],"Sequence":8}""";
 
             string restored = FuzzableCode.RestoreJsonArtifacts(
                 serialized,
@@ -432,7 +437,7 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.MessageContext);
 
             using JsonDocument result = JsonDocument.Parse(restored);
-            JsonElement body = result.RootElement.GetProperty("UaBody");
+            JsonElement body = result.RootElement;
             JsonElement values = body.GetProperty("Results");
             Assert.That(result.RootElement.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=634"));
             Assert.That(values.GetArrayLength(), Is.EqualTo(2));
@@ -449,7 +454,7 @@ namespace Opc.Ua.Fuzzing
         {
             const string serialized = """
                 {"UaTypeId":"i=999",
-                 "UaBody":{"Results":[{"UaType":6,"Value":"changed"},{"Value":99}],"Sequence":8}}
+                 "Results":[{"UaType":6,"Value":"changed"},{"Value":99}],"Sequence":8}
                 """;
 
             string restored = FuzzableCode.RestoreJsonArtifacts(
@@ -458,22 +463,22 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.MessageContext);
 
             using JsonDocument result = JsonDocument.Parse(restored);
-            JsonElement values = result.RootElement.GetProperty("UaBody").GetProperty("Results");
+            JsonElement values = result.RootElement.GetProperty("Results");
             Assert.That(result.RootElement.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=999"));
             Assert.That(values[0].GetProperty("UaType").GetInt32(), Is.EqualTo(6));
             Assert.That(values[0].GetProperty("Value").GetString(), Is.EqualTo("changed"));
             Assert.That(values[1].GetProperty("UaType").GetInt32(), Is.EqualTo(7));
         }
 
-        [TestCase("""{"UaBody":[]}""", "payload shape")]
-        [TestCase("""{"UaBody":{"Results":{},"Sequence":7}}""", "payload shape")]
-        [TestCase("""{"UaBody":{"Results":[{"Value":null},{"Value":42}],"Sequence":7}}""", "payload shape")]
-        [TestCase("""{"UaBody":{"Results":[{"Value":"original"},{"Value":42}]}}""", "lost field 'Sequence'")]
-        [TestCase("""{"UaBody":{"Results":[{},{"Value":42}],"Sequence":7}}""", "lost field 'Value'")]
-        [TestCase("""{"UaBody":{"Results":[{"Value":"original"}],"Sequence":7}}""", "array length")]
-        [TestCase("""{"UaBody":{"Results":[{"Value":"original"},{"Value":42},{}],"Sequence":7}}""", "array length")]
+        [TestCase("[]", "payload shape")]
+        [TestCase("""{"Results":{},"Sequence":7}""", "payload shape")]
+        [TestCase("""{"Results":[{"Value":null},{"Value":42}],"Sequence":7}""", "payload shape")]
+        [TestCase("""{"Results":[{"Value":"original"},{"Value":42}]}""", "lost field 'Sequence'")]
+        [TestCase("""{"Results":[{},{"Value":42}],"Sequence":7}""", "lost field 'Value'")]
+        [TestCase("""{"Results":[{"Value":"original"}],"Sequence":7}""", "array length")]
+        [TestCase("""{"Results":[{"Value":"original"},{"Value":42},{}],"Sequence":7}""", "array length")]
         [TestCase(
-            """{"UaBody":{"Results":[{"Value":"original","Unexpected":1},{"Value":42}],"Sequence":7}}""",
+            """{"Results":[{"Value":"original","Unexpected":1},{"Value":42}],"Sequence":7}""",
             "Unexpected RawData JSON field 'Unexpected'")]
         public void MetadataRestorationRejectsStructuralPayloadCorruption(string serialized, string failure)
         {
@@ -488,7 +493,7 @@ namespace Opc.Ua.Fuzzing
             JsonEncoderOptions options = FindMode(modeName);
             ReadRequest original = Testcases.CreateRichReadRequest();
             JsonNode payload = JsonNode.Parse(FuzzableCode.EncodeJsonMessage(original, options));
-            payload["UaBody"]["MaxAge"] = 1001;
+            payload["MaxAge"] = 1001;
             string corrupted = payload.ToJsonString();
 
             IEncodeable decoded = FuzzableCode.DecodeJsonWithMetadata(
@@ -512,7 +517,7 @@ namespace Opc.Ua.Fuzzing
             JsonEncoderOptions options = FindMode(modeName);
             ReadRequest original = Testcases.CreateRichReadRequest();
             JsonNode payload = JsonNode.Parse(FuzzableCode.EncodeJsonMessage(original, options));
-            JsonArray nodes = payload["UaBody"]["NodesToRead"].AsArray();
+            JsonArray nodes = payload["NodesToRead"].AsArray();
             nodes.RemoveAt(5);
 
             Assert.That(original.NodesToRead.Count, Is.EqualTo(6));
@@ -694,7 +699,7 @@ namespace Opc.Ua.Fuzzing
 
             using var decoder = new JsonDecoder(serialized, targetContext);
             decoder.SetMappingTables(sourceContext.NamespaceUris, sourceContext.ServerUris);
-            IEncodeable decoded = decoder.ReadEncodeable<IEncodeable>("UaBody", original.TypeId);
+            IEncodeable decoded = decoder.DecodeMessage<IEncodeable>();
             Assert.That(decoded, Is.TypeOf<ReadRequest>());
             AssertRemappedIdentifiers(original, (ReadRequest)decoded, sourceContext, targetContext);
             Assert.That(Utils.IsEqual(CreateRemappedRequest(sourceContext, targetContext), decoded), Is.True);
@@ -1041,7 +1046,7 @@ namespace Opc.Ua.Fuzzing
         private const string k_artifactSchema =
             """
             {"UaTypeId":"i=634",
-             "UaBody":{"Results":[{"UaType":12,"Value":"original"},{"UaType":7,"Value":42}],"Sequence":7}}
+             "Results":[{"UaType":12,"Value":"original"},{"UaType":7,"Value":42}],"Sequence":7}
             """;
 
         private static readonly string[] s_modeNames =

@@ -316,7 +316,7 @@ namespace Opc.Ua.Server.Hosting
 
         private static string ReplaceOrdinal(string value, string oldValue, string newValue)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             return value.Replace(oldValue, newValue, StringComparison.Ordinal);
 #else
             return value.Replace(oldValue, newValue);

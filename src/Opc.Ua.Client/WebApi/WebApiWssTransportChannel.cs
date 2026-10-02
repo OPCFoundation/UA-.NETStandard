@@ -117,7 +117,7 @@ namespace Opc.Ua.Client.WebApi
         /// <c>ClientWebSocketOptions.RemoteCertificateValidationCallback</c>,
         /// which is only available on .NET 7 or later. When the assembly is
         /// compiled for an older target framework (for example
-        /// <c>netstandard2.1</c>) the callback cannot be wired up and this
+        /// <c>net48</c>) the callback cannot be wired up and this
         /// probe returns <see langword="false"/>, allowing callers and tests to
         /// react at runtime instead of assuming compile-time availability.
         /// </remarks>
@@ -254,10 +254,8 @@ namespace Opc.Ua.Client.WebApi
             // longer present an arbitrary certificate and be silently
             // trusted.
             // RemoteCertificateValidationCallback was added in .NET 7;
-            // on legacy TFMs (net472 / net48 / netstandard2.x) the
-            // property does not exist, so the channel falls back to the
-            // OS-level TLS chain check (see also the
-            // HttpsTransportListener doc note about legacy-TFM WSS).
+            // on net48 the property does not exist, so the channel falls
+            // back to the OS-level TLS chain check.
 #if NET7_0_OR_GREATER
             ws.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, errors) =>
                 ValidateServerCertificate(sender, certificate, chain, errors, quotas.CertificateValidator);

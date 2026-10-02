@@ -38,6 +38,7 @@ using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Server
@@ -138,15 +139,48 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
+        /// Selects the built-in identity authenticators <see cref="OnServerStarted"/>
+        /// registers. <c>null</c> (the default) registers all of them.
+        /// </summary>
+        /// <remarks>
+        /// The hosted GDS sets this from the options of the GDS builder's
+        /// <c>AddDefaultIdentityAuthenticators</c>, so the GDS keeps its own
+        /// UserName and X.509 authenticators instead of the generic ones. The
+        /// UserName authenticator grants the roles the <see cref="IUserDatabase"/>
+        /// assigns; the X.509 authenticator validates the certificate against
+        /// <see cref="DefaultAuthenticatorOptions.UserCertificateTrustList"/> and
+        /// grants AuthenticatedUser.
+        /// </remarks>
+        internal DefaultAuthenticatorOptions? BuiltInAuthenticatorOptions { get; set; }
+
+        /// <summary>
         /// Called after the server has been started.
         /// </summary>
         protected override void OnServerStarted(IServerInternal server)
         {
             base.OnServerStarted(server);
 
-            server.IdentityRegistry.Register(new AnonymousAuthenticator());
-            server.IdentityRegistry.Register(new GlobalDiscoverySampleUserNameAuthenticator(this));
-            server.IdentityRegistry.Register(new GlobalDiscoverySampleX509Authenticator(this));
+            DefaultAuthenticatorOptions? options = BuiltInAuthenticatorOptions;
+            if (options == null || options.EnableAnonymous)
+            {
+                server.IdentityRegistry.Register(new AnonymousAuthenticator());
+            }
+            else
+            {
+                server.IdentityRegistry.Register(new AnonymousRejectingAuthenticator());
+            }
+            if (options == null || options.EnableUserNamePassword)
+            {
+                server.IdentityRegistry.Register(new GlobalDiscoverySampleUserNameAuthenticator(
+                    this,
+                    options?.UserDatabase ?? m_userDatabase));
+            }
+            if (options == null || options.EnableX509)
+            {
+                server.IdentityRegistry.Register(new GlobalDiscoverySampleX509Authenticator(
+                    this,
+                    options?.UserCertificateTrustList ?? TrustListIdentifier.Users));
+            }
             if (m_enableApplicationSelfAdminProvider)
             {
                 server.IdentityRegistry.RegisterAugmenter(
@@ -289,14 +323,14 @@ namespace Opc.Ua.Gds.Server
         /// Verifies that a certificate user token is trusted.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void VerifyX509IdentityToken(X509IdentityToken token)
+        private void VerifyX509IdentityToken(X509IdentityToken token, TrustListIdentifier trustList)
         {
             using Certificate? userCertificate = token.CertificateData.IsEmpty
                 ? null
                 : Certificate.FromRawData(token.CertificateData);
             try
             {
-                // Validate against the Users trust list using the new
+                // Validate against the user trust list using the new
                 // CertificateManager pipeline. Throws on validation failure.
                 // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
                 // using scope extends past the await.
@@ -304,7 +338,7 @@ namespace Opc.Ua.Gds.Server
                 CertificateValidationResult result = CertificateManager!
                     .ValidateAsync(
                         userCertificate!,
-                        TrustListIdentifier.Users)
+                        trustList)
                     .GetAwaiter().GetResult();
 #pragma warning restore CA2025
                 if (!result.IsValid)
@@ -346,20 +380,39 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private bool VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
+        /// <summary>
+        /// Rejects anonymous identity tokens when the default identity
+        /// authenticator options disable anonymous access.
+        /// </summary>
+        private sealed class AnonymousRejectingAuthenticator : IUserTokenAuthenticator
         {
-            return m_userDatabase.CheckCredentials(
-                userTokenHandler.UserName,
-                userTokenHandler.DecryptedPassword);
+            public UserTokenType TokenType => UserTokenType.Anonymous;
+
+            public string? IssuedTokenProfileUri => null;
+
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<AuthenticationResult>(
+                    AuthenticationResult.Reject(new ServiceResult(
+                        StatusCodes.BadIdentityTokenRejected,
+                        new LocalizedText(
+                            "Anonymous access is disabled by the server identity configuration."))));
+            }
         }
 
         private sealed class GlobalDiscoverySampleUserNameAuthenticator : IUserTokenAuthenticator
         {
             private readonly GlobalDiscoverySampleServer m_server;
+            private readonly IUserDatabase m_userDatabase;
 
-            public GlobalDiscoverySampleUserNameAuthenticator(GlobalDiscoverySampleServer server)
+            public GlobalDiscoverySampleUserNameAuthenticator(
+                GlobalDiscoverySampleServer server,
+                IUserDatabase userDatabase)
             {
                 m_server = server ?? throw new ArgumentNullException(nameof(server));
+                m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
             }
 
             public UserTokenType TokenType => UserTokenType.UserName;
@@ -384,7 +437,9 @@ namespace Opc.Ua.Gds.Server
             {
                 try
                 {
-                    if (!m_server.VerifyPassword(userNameToken))
+                    if (!m_userDatabase.CheckCredentials(
+                        userNameToken.UserName,
+                        userNameToken.DecryptedPassword))
                     {
                         return AuthenticationResult.Reject(
                             new ServiceResult(
@@ -392,9 +447,9 @@ namespace Opc.Ua.Gds.Server
                                 new LocalizedText("Invalid username or password.")));
                     }
 
-                    IEnumerable<Role> roles = m_server.m_userDatabase.GetUserRoles(userNameToken.UserName);
+                    IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
                     IReadOnlyList<NodeId>? administeredAppIds =
-                        (m_server.m_userDatabase as IGdsUserDatabase)?
+                        (m_userDatabase as IGdsUserDatabase)?
                             .GetAdministeredApplicationIds(userNameToken.UserName);
                     var identity = new GdsRoleBasedIdentity(
                         new UserIdentity(userNameToken),
@@ -421,10 +476,14 @@ namespace Opc.Ua.Gds.Server
         private sealed class GlobalDiscoverySampleX509Authenticator : IUserTokenAuthenticator
         {
             private readonly GlobalDiscoverySampleServer m_server;
+            private readonly TrustListIdentifier m_trustList;
 
-            public GlobalDiscoverySampleX509Authenticator(GlobalDiscoverySampleServer server)
+            public GlobalDiscoverySampleX509Authenticator(
+                GlobalDiscoverySampleServer server,
+                TrustListIdentifier trustList)
             {
                 m_server = server ?? throw new ArgumentNullException(nameof(server));
+                m_trustList = trustList;
             }
 
             public UserTokenType TokenType => UserTokenType.Certificate;
@@ -448,7 +507,7 @@ namespace Opc.Ua.Gds.Server
             {
                 try
                 {
-                    m_server.VerifyX509IdentityToken((X509IdentityToken)x509Token.Token);
+                    m_server.VerifyX509IdentityToken((X509IdentityToken)x509Token.Token, m_trustList);
                     var identity = new GdsRoleBasedIdentity(
                         new UserIdentity(x509Token),
                         [Role.AuthenticatedUser],

@@ -1791,7 +1791,25 @@ services
 ```
 
 `Action<>` and `IConfiguration` overloads are available for
-`ConfigureRoles`, `AddDefaultIdentityAuthenticators`, and `AddJwtIssuer`.
+`AddDefaultIdentityAuthenticators` and `AddJwtIssuer`; `ConfigureRoles`
+takes an `IConfiguration` section. The role manager it registers maps
+identities to Roles on the GDS, unless a regular server (`AddServer`)
+shares the container, which then owns it.
+
+UserName and X.509 tokens are handled by the GDS's own authenticators,
+not the generic `UserNamePasswordAuthenticator` and `X509Authenticator`,
+also when an `IUserManagement` is registered or a regular server shares
+the container. The UserName authenticator grants the Roles
+`IUserDatabase` assigns (DiscoveryAdmin, CertificateAuthorityAdmin, ...;
+OPC 10000-12 §6.2, §7.2). The X.509 authenticator validates the user
+certificate against the configured user trust list and grants
+AuthenticatedUser; it does not read Roles from `IUserDatabase`. Use
+`ConfigureRoles` identity mapping rules to give certificate users a GDS
+Role. The `EnableAnonymous`,
+`EnableUserNamePassword`, `EnableX509`, `UserDatabase` and
+`UserCertificateTrustList` options select and configure them. An
+authenticator added with `AddIdentityAuthenticator<T>()` replaces the
+built-in for its token type.
 `AddIdentityAugmenter<T>()` registers post-authentication identity
 augmenters; `AddGdsApplicationSelfAdminProvider()` registers the built-in
 OPC 10000-12 §7.2 SelfAdmin provider and is also wired by the GDS
@@ -1802,7 +1820,43 @@ for cloud KMS, HSM, or external token-service signing.
 
 `GdsServerHostedService` consumes these forwarded registrations during
 startup and adds them to the same identity registry used by regular OPC
-UA hosted servers.
+UA hosted servers, before the endpoints open.
+
+`GdsServerOptions.UserTokenPolicies` (bindable from
+`OpcUa:Gds:Server:UserTokenPolicies`) lists the user token types the GDS
+endpoints advertise. When it is empty the GDS advertises Anonymous and
+UserName, leaving out a type `AddDefaultIdentityAuthenticators` disables:
+Anonymous lets a registered application pull its certificates (OPC
+10000-12 §7.6), while `RegisterApplication` needs DiscoveryAdmin or the
+ApplicationAdmin Privilege (§6.5.6), so an administrator logs in with a
+user name.
+
+### Startup tasks (GDS server)
+
+The hosted GDS runs startup tasks the way the regular hosted server does:
+pre-startup tasks while the server starts, and startup tasks in
+registration order once it is running, where a failing task stops the
+startup. A startup task is the supported signal that the GDS is
+listening. `GdsReadiness` below stands for a readiness type of your own.
+
+```csharp
+services
+    .AddOpcUa()
+    .AddGdsServer(opt => opt.ApplicationName = "MyGds")
+    .AddPreStartupTask<MyGdsPreStartupTask>()
+    .AddStartupTask<MyGdsReadinessTask>()
+    .AddStartupTask((sp, context, cancellationToken) =>
+    {
+        // e.g. flip a readiness probe once the GDS is listening
+        sp.GetRequiredService<GdsReadiness>().MarkReady();
+        return ValueTask.CompletedTask;
+    });
+```
+
+Tasks registered through `IGdsServerBuilder` run on the GDS only. Tasks
+registered directly as `IServerStartupTask` or `IServerPreStartupTask`
+run on the GDS only when no regular server (`AddServer`) shares the
+container, so a task meant for the regular server does not run twice.
 
 See [Identity Providers](IdentityProviders.md) for the full reference.
 
@@ -1930,8 +1984,7 @@ compatibility.
 
 Notes:
 
-- The source generator targets net8.0+. On older TFMs (net48 /
-  netstandard2.0 / netstandard2.1) the generator is a no-op and the
+- The source generator targets net8.0+. On older TFMs (net48) the generator is a no-op and the
   reflection-based binder is used — those TFMs don't support
   PublishAot anyway.
 - Options properties whose type is an interface or a non-default-

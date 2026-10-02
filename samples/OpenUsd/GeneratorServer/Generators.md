@@ -41,21 +41,23 @@ wire formats for clients that cache NodeIds across builds.
 
 ### The Machinery dependency
 
-The specification composes three Machinery types — `MachineryItemState_StateMachineType`,
-`MachineryOperationModeStateMachineType` and `MachineIdentificationType` — that the
-reduced Machinery nodeset carried by the pump sample does not define. The full
-official nodeset defines them but **does not survive the model source generator**
-(it fails with `MODELGEN003`), and it declares a dependency on the IA namespace
-through a single optional `Stacklight` member that a generating set does not have.
+The specification composes three Machinery types —
+`MachineryItemState_StateMachineType`,
+`MachineryOperationModeStateMachineType` and `MachineIdentificationType`. They
+come from the shared [`Opc.Ua.Machinery`](../../../src/Opc.Ua.Machinery)
+package, referenced like any other model library; the Generators model resolves
+them through that assembly's `[assembly: ModelDependencyAttribute]` payload.
 
-`Model/prepare_machinery_nodeset.py` therefore derives a reduced-but-sufficient
-set from the official nodeset by whitelist, strips the references left dangling
-and drops the IA dependency. Deriving it mechanically keeps the provenance
-checkable, and the whitelist is the only thing to edit when more types are needed.
+This sample used to vendor a reduced Machinery nodeset instead, derived from the
+official one by a whitelist script, because the full official nodeset did not
+survive the model source generator — it failed with `MODELGEN003`. Two defects
+in the cross-assembly dependency machinery caused that, and both are fixed; see
+[Machinery.md](../../../docs/Machinery.md#generator-gaps-found-while-adding-these-models).
 
-Removing the IA URI is index-safe because it is the last entry in
-`NamespaceUris`, so the Machinery (1) and DI (2) indices used throughout the file
-do not move.
+One consequence of dropping the reduction: it had also removed the IA
+dependency, which the full model carries through the optional `Stacklight`
+member of `MonitoringType/Status`. `GeneratorNodeManager` now registers the IA
+namespace and loads the IA model alongside Machinery.
 
 ## Simulation design
 

@@ -423,7 +423,7 @@ namespace Opc.Ua.Bindings
             string? reason = null;
             int reasonLength = decoder.ReadInt32(null);
 
-            if (reasonLength is > 0 and < TcpMessageLimits.MaxErrorReasonLength)
+            if (reasonLength is > 0 and <= TcpMessageLimits.MaxErrorReasonLength)
             {
                 byte[] reasonBytes = new byte[reasonLength];
 

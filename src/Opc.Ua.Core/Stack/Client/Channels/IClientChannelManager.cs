@@ -130,7 +130,7 @@ namespace Opc.Ua
             IManagedTransportChannel channel,
             CancellationToken ct = default);
 
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Trigger a reconnect of the supplied managed channel, consulting
         /// the shared <paramref name="budget"/> so channel-level retries

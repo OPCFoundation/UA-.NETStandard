@@ -518,7 +518,7 @@ namespace Opc.Ua.XRegistry.Client
                     end++;
                 }
                 if (end == 0 ||
-#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_1_OR_GREATER
+#if NETCOREAPP2_1_OR_GREATER
                     !int.TryParse(patchPart.AsSpan(0, end), out pat))
 #else
                     !int.TryParse(patchPart.Substring(0, end), out pat))

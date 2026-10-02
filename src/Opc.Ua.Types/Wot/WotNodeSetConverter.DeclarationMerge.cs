@@ -504,7 +504,7 @@ namespace Opc.Ua.Wot
                 return true;
             }
             if (!int.TryParse(
-#if NETSTANDARD2_0 || NET472 || NET48
+#if NETSTANDARD2_0 || NET48
                     browseName.Substring(0, separator),
 #else
                     browseName.AsSpan(0, separator),

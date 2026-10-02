@@ -34,7 +34,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET7_0_OR_GREATER
 using System.Runtime.CompilerServices;
 #endif
 
@@ -48,12 +48,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET7_0_OR_GREATER
     partial
 #endif
     class UtilsIsEqualTests
     {
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET7_0_OR_GREATER
         [LibraryImport("msvcrt")]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

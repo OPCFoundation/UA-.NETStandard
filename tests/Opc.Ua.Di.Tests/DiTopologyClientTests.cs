@@ -190,6 +190,172 @@ namespace Opc.Ua.Di.Tests
             Assert.That(result, Is.Empty);
         }
 
+        [Test]
+        public async Task EnumerateFollowsEveryContinuationPoint()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            var first = new ByteString(new byte[] { 1 });
+            var second = new ByteString(new byte[] { 2 });
+            SetupBrowseReturns(sessionMock, new BrowseResult
+            {
+                StatusCode = StatusCodes.Good,
+                ContinuationPoint = first,
+                References = new ReferenceDescription[]
+                {
+                    MakeReference("device-1", "Device 1", "DeviceType")
+                }
+            });
+            var pages = new Queue<BrowseNextResponse>(
+            [
+                NextPage(second, MakeReference("device-2", "Device 2", "DeviceType")),
+                NextPage(ByteString.Empty, MakeReference("device-3", "Device 3", "DeviceType"))
+            ]);
+            var followed = new List<ByteString>();
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    false,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader?, bool, ArrayOf<ByteString>, CancellationToken>(
+                    (_, _, points, _) => followed.Add(points[0]))
+                .ReturnsAsync(() => pages.Dequeue());
+
+            var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
+            List<TopologyEntry> result = await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false);
+
+            Assert.That(
+                result.Select(entry => entry.DisplayName),
+                Is.EqualTo(s_pagedDevices));
+            Assert.That(followed, Is.EqualTo(new[] { first, second }));
+        }
+
+        [Test]
+        public void EnumeratePropagatesAFailedBrowseCall()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            sessionMock
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+
+            var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        [Test]
+        public void CancellingTheEnumerationReleasesTheContinuationPoint()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            var first = new ByteString(new byte[] { 1 });
+            SetupBrowseReturns(sessionMock, new BrowseResult
+            {
+                StatusCode = StatusCodes.Good,
+                ContinuationPoint = first,
+                References = new ReferenceDescription[]
+                {
+                    MakeReference("device-1", "Device 1", "DeviceType")
+                }
+            });
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    false,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new System.OperationCanceledException());
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    true,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(NextPage(ByteString.Empty));
+
+            var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
+
+            Assert.ThrowsAsync<System.OperationCanceledException>(
+                async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false));
+            sessionMock.Verify(
+                s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    true,
+                    It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == first),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        private static readonly string[] s_pagedDevices = ["Device 1", "Device 2", "Device 3"];
+
+        [Test]
+        public void AFailedBrowseNextReleasesTheContinuationPoint()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            var first = new ByteString(new byte[] { 1 });
+            SetupBrowseReturns(sessionMock, new BrowseResult
+            {
+                StatusCode = StatusCodes.Good,
+                ContinuationPoint = first,
+                References = new ReferenceDescription[]
+                {
+                    MakeReference("device-1", "Device 1", "DeviceType")
+                }
+            });
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    false,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    true,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(NextPage(ByteString.Empty));
+
+            var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            sessionMock.Verify(
+                s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    true,
+                    It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == first),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        private static BrowseNextResponse NextPage(
+            ByteString continuationPoint,
+            params ReferenceDescription[] references)
+        {
+            return new BrowseNextResponse
+            {
+                ResponseHeader = new ResponseHeader(),
+                Results = new BrowseResult[]
+                {
+                    new()
+                    {
+                        StatusCode = StatusCodes.Good,
+                        ContinuationPoint = continuationPoint,
+                        References = references
+                    }
+                }
+            };
+        }
+
         private static async Task<List<TopologyEntry>> CollectAsync(
             IAsyncEnumerable<TopologyEntry> source)
         {

@@ -373,7 +373,7 @@ namespace Opc.Ua.PubSub.Eth.Channels
         }
 
         // SYSLIB1054 (source-generated LibraryImport) is unavailable on the
-        // net472/net48/netstandard2.1 targets this channel also builds for, and
+        // net48 target this channel also builds for, and
         // classic DllImport of these blittable libc calls remains NativeAOT
         // compatible, so the interop stays on DllImport across all TFMs.
 #pragma warning disable SYSLIB1054

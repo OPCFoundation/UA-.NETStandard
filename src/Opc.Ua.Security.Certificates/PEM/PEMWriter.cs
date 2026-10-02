@@ -30,7 +30,7 @@
 using System;
 using System.IO;
 using System.Text;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
@@ -71,7 +71,7 @@ namespace Opc.Ua.Security.Certificates
             return EncodeAsPEM(certificate.RawData, "CERTIFICATE");
         }
 
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         /// <summary>
         /// Returns a byte array containing the public key in PEM format.
         /// </summary>
@@ -295,7 +295,7 @@ namespace Opc.Ua.Security.Certificates
             int offset = 0;
             while (base64.Length - offset > lineLength)
             {
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 textWriter.WriteLine(base64.AsSpan(offset, lineLength));
 #else
                 textWriter.WriteLine(base64.Substring(offset, lineLength));
@@ -306,7 +306,7 @@ namespace Opc.Ua.Security.Certificates
             int length = base64.Length - offset;
             if (length > 0)
             {
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 textWriter.WriteLine(base64.AsSpan(offset, length));
 #else
                 textWriter.WriteLine(base64.Substring(offset, length));
