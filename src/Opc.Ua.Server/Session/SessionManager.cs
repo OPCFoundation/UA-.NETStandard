@@ -399,6 +399,15 @@ namespace Opc.Ua.Server
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
 
+                // A client certificate whose validation error was accepted establishes
+                // no trusted application identity. Recorded before the session is
+                // published, so a concurrent request, role evaluation or a derived
+                // manager mirroring the session never reads it as validated.
+                if (context.ClientCertificateErrorAccepted)
+                {
+                    ClientCertificateProvenance.SetValidated(session, false);
+                }
+
                 // Part 5 12.11: MaxResponseMessageSize is a mandatory field of
                 // SessionDiagnosticsDataType and reports the CreateSession request
                 // value. Set before InitializeAsync publishes the diagnostics node.

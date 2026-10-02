@@ -505,6 +505,23 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// PR review 4168294597: the session manager records that the client
+        /// certificate's validation error was accepted before it publishes the Session,
+        /// so a derived manager (e.g. one mirroring the Session after the base
+        /// CreateSessionAsync returns) never reads it as validated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AcceptedCertificateErrorIsRecordedBeforeTheSessionIsPublishedAsync(bool errorAccepted)
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateSessionAsync(certificateErrorAccepted: errorAccepted)
+                .ConfigureAwait(false);
+
+            Assert.That(ClientCertificateProvenance.IsValidated(created.Session), Is.EqualTo(!errorAccepted));
+        }
+
+        /// <summary>
         /// PR review 4168294669: a CreateSession that is rejected with Bad_NonceInvalid
         /// for reusing another Session's clientNonce does not close the oldest
         /// non-activated Session at the cap to make room for itself.
@@ -718,8 +735,12 @@ namespace Opc.Ua.Server.Tests
 
             public GatedAnonymousAuthenticator Authenticator { get; } = new();
 
-            public async Task<CreateSessionResult> CreateSessionAsync(ByteString clientNonce = default)
+            public async Task<CreateSessionResult> CreateSessionAsync(
+                ByteString clientNonce = default,
+                bool certificateErrorAccepted = false)
             {
+                OperationContext context = CreateContext(RequestType.CreateSession);
+                context.ClientCertificateErrorAccepted = certificateErrorAccepted;
                 // The session owns the client certificate once created; a rejected
                 // CreateSession leaves it with the caller.
                 Certificate clientCertificate = m_certificate.AddRef();
@@ -727,7 +748,7 @@ namespace Opc.Ua.Server.Tests
                 try
                 {
                     created = await Manager.CreateSessionAsync(
-                        CreateContext(RequestType.CreateSession),
+                        context,
                         m_certificate,
                         "lifecycle-regression",
                         clientNonce.IsEmpty ? ByteString.From(new byte[32]) : clientNonce,

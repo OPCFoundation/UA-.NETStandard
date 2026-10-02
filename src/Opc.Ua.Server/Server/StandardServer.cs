@@ -801,7 +801,9 @@ namespace Opc.Ua.Server
                     context.ChannelContext!.EndpointDescription!, certificates, SecurityPolicyRegistry);
                 Certificate instanceCertificate = instanceEntry?.Certificate!;
 
-                // create the session.
+                // create the session. The session manager marks the Session as not
+                // validated before it publishes it, so nothing reads it as validated.
+                context.ClientCertificateErrorAccepted = clientCertificateErrorAccepted;
                 CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
                         context,
                         instanceCertificate,
@@ -820,6 +822,8 @@ namespace Opc.Ua.Server
 
                 // recorded for every ISession implementation, so a session from a
                 // custom CreateSession factory is not treated as a trusted application.
+                // SessionManager already did so before publishing the session; this
+                // covers a session manager that does not derive from it.
                 if (clientCertificateErrorAccepted)
                 {
                     ClientCertificateProvenance.SetValidated(session, false);
