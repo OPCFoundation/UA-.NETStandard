@@ -383,9 +383,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Boolean));
                 Assert.That(variant, Is.EqualTo(same));
+                // Every absent value equals Variant.Null, so for equality to
+                // stay transitive a null matrix of another type is equal too.
                 Assert.That(
                     variant,
-                    Is.Not.EqualTo(new Variant(default(MatrixOf<int>))));
+                    Is.EqualTo(new Variant(default(MatrixOf<int>))));
+                Assert.That(
+                    variant,
+                    Is.Not.EqualTo(Variant.From(new[] { true }.ToArrayOf().ToMatrix(1, 1))));
             });
         }
 
@@ -653,17 +658,29 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     Assert.That(IsEqual(a, a), Is.True, type.ToString());
                     Assert.That(IsEqual(a, b), Is.True, type.ToString());
                     Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()), type.ToString());
+                    Assert.That(a.CompareTo(b), Is.Zero, type.ToString());
                 }
 
                 // the boxed null ArrayOf spelling equals the payload-less one
                 Variant nullInt32s = Variant.CreateDefault(TypeInfo.Arrays.Int32);
                 Assert.That(IsEqual(Variant.From(ArrayOf<int>.Null), nullInt32s), Is.True);
 
-                // a typed null still differs from a value and from another type
+                // a typed null still differs from a value
                 Assert.That(IsEqual(nullInt32s, Variant.From(s_oneTwoThree.ToArrayOf())), Is.False);
+
+                // Equality is transitive: typed nulls of unrelated types each
+                // equal Variant.Null, so they equal each other too.
                 Variant nullBooleans = Variant.CreateDefault(TypeInfo.Arrays.Boolean);
                 Variant nullStrings = Variant.CreateDefault(TypeInfo.Arrays.String);
-                Assert.That(IsEqual(nullBooleans, nullStrings), Is.False);
+                Assert.That(IsEqual(nullBooleans, Variant.Null), Is.True);
+                Assert.That(IsEqual(nullStrings, Variant.Null), Is.True);
+                Assert.That(IsEqual(nullBooleans, nullStrings), Is.True);
+                Assert.That(nullBooleans.CompareTo(nullStrings), Is.Zero);
+                Assert.That(nullBooleans.CompareTo(Variant.Null), Is.Zero);
+
+                // a zero value is not absent and stays apart from Variant.Null
+                Assert.That(IsEqual(new Variant(0), Variant.Null), Is.False);
+                Assert.That(new Variant(0).CompareTo(Variant.Null), Is.Not.Zero);
             });
         }
 
