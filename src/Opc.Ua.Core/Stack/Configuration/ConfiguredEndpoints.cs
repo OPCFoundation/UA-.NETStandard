@@ -627,7 +627,7 @@ namespace Opc.Ua
                 {
                     if (fields.Length > 0)
                     {
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if NET8_0_OR_GREATER
                         securityMode = Enum.Parse<MessageSecurityMode>(fields[0], false);
 #else
                         securityMode = (MessageSecurityMode)Enum.Parse(
@@ -747,7 +747,7 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(server.ApplicationUri))
                 {
-#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if NET5_0_OR_GREATER
                     servers.TryAdd(server.ApplicationUri!, server);
 #else
                     servers.TryAdd(server.ApplicationUri!, server);

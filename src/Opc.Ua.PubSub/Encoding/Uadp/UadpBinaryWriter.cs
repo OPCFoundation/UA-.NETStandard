@@ -242,7 +242,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public void WriteGuid(Guid value)
         {
             EnsureCapacity(16);
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
             value.TryWriteBytes(new Span<byte>(Buffer, Origin + m_position, 16));
 #else
             byte[] tmp = value.ToByteArray();

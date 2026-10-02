@@ -35,7 +35,7 @@ services.AddOpcUa()
 
 ## Target frameworks
 
-`net8.0`, `net9.0`, `net10.0`. .NET Framework and netstandard consumers use the base distributed package without Kubernetes integration.
+`net8.0`, `net9.0`, `net10.0`. .NET Framework consumers use the base distributed package without Kubernetes integration.
 
 ## Additional documentation
 

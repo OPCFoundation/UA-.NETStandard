@@ -8,7 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
     <!-- CS0618: shim members reference [Obsolete] APIs internally - expected and intentional.
-         CS0419: on TFMs where System.Runtime forwards ObsoleteAttribute (net472/net48/netstandard2.1),
+         CS0419: on TFMs where System.Runtime forwards ObsoleteAttribute (net48),
                  the cref in OpcUaShimAttribute.cs binds ambiguously across the BCL+forwarder pair.
                  The compiler picks System.ObsoleteAttribute either way; harmless for packaging. -->
     <NoWarn>$(NoWarn);CS0618;CS0419</NoWarn>

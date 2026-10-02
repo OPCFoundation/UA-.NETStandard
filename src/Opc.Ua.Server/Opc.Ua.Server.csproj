@@ -40,7 +40,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="System.Threading.RateLimiting" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Reference Include="System.Net.Http" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />

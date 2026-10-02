@@ -281,8 +281,8 @@ namespace Opc.Ua.Server
                     previousCredentialId = existingState.CredentialId?.Value;
                 }
 
-                secret = await DecodeSecretAsync(
-                    context, credentialSecret, certificateThumbprint, securityPolicyUri, ct).ConfigureAwait(false);
+                secret = DecodeSecret(
+                    context, credentialSecret, certificateThumbprint, securityPolicyUri);
                 ct.ThrowIfCancellationRequested();
                 var credential = new KeyCredential(secret, DateTime.MaxValue, subject, []);
                 await m_store.UpdateAsync(credentialId, credential, ct).ConfigureAwait(false);
@@ -322,12 +322,11 @@ namespace Opc.Ua.Server
         /// Accepts a plaintext secret or validates and decrypts its RSA encrypted-secret envelope.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async ValueTask<byte[]> DecodeSecretAsync(
+        private byte[] DecodeSecret(
             ISystemContext context,
             ByteString encrypted,
             string thumbprint,
-            string policyUri,
-            CancellationToken ct)
+            string policyUri)
         {
             if (string.IsNullOrEmpty(policyUri))
             {
@@ -377,9 +376,9 @@ namespace Opc.Ua.Server
                     }
                 }
                 using var decryptor = EncryptedSecret.CreateForRsa(context.AsMessageContext(), policyUri, receiver);
-                (bool success, byte[]? decoded) = await decryptor.TryDecryptAsync(encoded, null, ct)
-                    .ConfigureAwait(false);
-                if (!success || decoded == null)
+                // TryDecryptRsa (unlike TryDecrypt) reports a receiver certificate or policy
+                // mismatch in the header with its own status code.
+                if (!decryptor.TryDecryptRsa(encoded, null, out byte[]? decoded) || decoded == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                 }

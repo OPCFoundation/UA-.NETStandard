@@ -127,6 +127,10 @@ namespace Opc.Ua.Bindings
 
                 ClientCertificate = clientCertificate;
                 ClientCertificateChain = clientCertificateChain;
+
+                // the server must answer with the policy the client asked for;
+                // never fall back to an unsecured channel.
+                RequireConfiguredSecurityPolicy();
             }
             else
             {
@@ -151,6 +155,8 @@ namespace Opc.Ua.Bindings
 
             // save the endpoint.
             EndpointDescription = endpoint;
+            m_requestedSecurityMode = endpoint.SecurityMode;
+            m_requestedSecurityPolicyUri = endpoint.SecurityPolicyUri;
             m_url = new Uri(endpoint.EndpointUrl);
         }
 
@@ -759,11 +765,29 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                // verify server certificate.
-                CompareCertificates(ServerCertificate, serverCertificate, true);
+                // a secured channel must stay on the policy and mode the client
+                // requested (OPC 10000-4 §5.6.2.1); the response cannot revise them.
+                if (m_requestedSecurityMode != MessageSecurityMode.None &&
+                    (SecurityMode != m_requestedSecurityMode ||
+                        SecurityPolicyUri != m_requestedSecurityPolicyUri))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "The OpenSecureChannel response uses security policy {0} instead of {1}.",
+                        SecurityPolicyUri,
+                        m_requestedSecurityPolicyUri ?? SecurityPolicies.None);
+                }
 
-                // check for replay attacks.
-                if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelResponse"))
+                // verify server certificate. A secured response is signed with
+                // the server's key, so it always carries the server certificate.
+                CompareCertificates(
+                    ServerCertificate,
+                    serverCertificate,
+                    m_requestedSecurityMode == MessageSecurityMode.None);
+
+                // check for replay attacks. After a reconnect the responses the server
+                // sent on the dropped socket are lost, so the number may skip ahead.
+                if (!VerifySequenceNumberCore(sequenceNumber, "ProcessOpenSecureChannelResponse", m_reconnecting))
                 {
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
@@ -1270,19 +1294,30 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnHandshakeComplete(IAsyncResult? result)
         {
+            if (result is not WriteOperation operation)
+            {
+                return;
+            }
+
             using (Gate.Enter())
             {
+                // The callback is queued, so a renewal scheduled by the response
+                // that completed this operation can already have replaced it.
+                // That newer handshake is still in flight and only completes
+                // once its response gets the gate - never wait for it here.
+                if (!ReferenceEquals(m_handshakeOperation, operation))
+                {
+                    m_requests.TryRemove(operation.RequestId, out _);
+                    return;
+                }
+
                 ServiceResult? error = null;
                 try
                 {
-                    if (m_handshakeOperation == null)
-                    {
-                        return;
-                    }
-
                     m_logger.UaSCClientLog24(ChannelId);
 
-                    m_handshakeOperation.End(int.MaxValue);
+                    // the callback only runs once the operation completed.
+                    operation.End(0);
 
                     return;
                 }
@@ -1306,7 +1341,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    OperationCompleted(m_handshakeOperation);
+                    OperationCompleted(operation);
                     m_reconnecting = false;
                 }
 
@@ -1865,7 +1900,7 @@ namespace Opc.Ua.Bindings
             if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
             {
                 m_logger.InvalidResponseSequence(ChannelId, sequenceNumber);
-                var error = new ServiceResult(StatusCodes.BadSecurityChecksFailed);
+                var error = new ServiceResult(StatusCodes.BadSequenceNumberInvalid);
                 operation?.Fault(true, error);
                 ForceReconnect(error);
                 return false;
@@ -1959,6 +1994,8 @@ namespace Opc.Ua.Bindings
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private byte[]? m_oscRequestSignature;
+        private readonly MessageSecurityMode m_requestedSecurityMode;
+        private readonly string? m_requestedSecurityPolicyUri;
     }
 
     /// <summary>

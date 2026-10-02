@@ -3800,7 +3800,7 @@ namespace Opc.Ua.Schema.Model
                 {
                     if (name == dataType.SymbolicName.Name)
                     {
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if NET8_0_OR_GREATER
                         basicDataType = Enum.Parse<BasicDataType>(
                             dataType.SymbolicName.Name);
 #else

@@ -302,8 +302,8 @@ Not all curves are supported by all OS platforms and not all .NET implementation
 **ECC security policies require the .NET 8 or later build of the stack.**
 OPC UA Part 6 feeds the raw ECDH shared secret into HKDF. The older
 `ECDiffieHellman.DeriveKeyMaterial` API applies a hash first and is not a
-compatible substitute. Consequently the .NET Framework 4.7.2/4.8 and
-.NET Standard 2.1 builds do not advertise or accept the built-in ECC
+compatible substitute. Consequently the .NET Framework 4.8
+builds do not advertise or accept the built-in ECC
 SecureChannel or user-token policies, even when loaded by a newer runtime.
 `SecurityPolicies.GetInfo` returns `null` for those unavailable policies.
 Use a .NET 8+ application and the matching stack assets for ECC endpoints,

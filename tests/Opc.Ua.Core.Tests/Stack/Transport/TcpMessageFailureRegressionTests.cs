@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         [Test]
         public async Task ResponseSequenceFailureCompletesPendingRequestWithoutWaitingForTimeoutAsync(
-            [Values(4u, 5u, 6u)] uint sequence)
+            [Values(4u, 5u, 6u, 7u)] uint sequence)
         {
             var logger = new CaptureLogger();
             var factory = new Mock<ILoggerFactory>();
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         failure = error;
                     }
                     Assert.That(failure, Is.Not.Null);
-                    Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                    Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSequenceNumberInvalid));
                     Assert.That(channel.CurrentState, Is.Not.EqualTo(TcpChannelState.Open));
                     Assert.That(closes, Is.GreaterThan(0));
                     Assert.That(logger.Messages, Has.Some.Contains("BadSequenceNumberInvalid"));

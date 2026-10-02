@@ -29,7 +29,7 @@
 
 // CA1835: The byte[]-based ReadAsync/WriteAsync overload is used
 // throughout because the test fixture targets all TFMs of the parent
-// project (incl. net472/net48 which do not expose the Memory<byte>
+// project (incl. net48 which does not expose the Memory<byte>
 // overrides). The behaviour is identical on net10+.
 #pragma warning disable CA1835
 

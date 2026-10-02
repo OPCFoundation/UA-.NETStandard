@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Tests
     /// Test helper that yields an empty <see cref="IAsyncEnumerable{T}"/>.
     /// Replaces <c>System.Linq.AsyncEnumerable.Empty</c>, which is only
     /// available on the modern .NET target frameworks and not on the
-    /// <c>net48</c> / <c>net472</c> / <c>netstandard2.1</c> test matrix.
+    /// <c>net48</c> test matrix.
     /// </summary>
     public static class TestAsyncEnumerable
     {

@@ -278,7 +278,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 value = Guid.Empty;
                 return false;
             }
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
             value = new Guid(new ReadOnlySpan<byte>(m_buffer, m_origin + m_position, 16));
 #else
             byte[] tmp = new byte[16];

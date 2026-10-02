@@ -874,7 +874,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result!.Parameters, Has.Count.EqualTo(1));
             Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
             Variant value = result.Parameters[0].Value;
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
             Assert.That(SecurityPolicies.Default.GetInfo(policyUri), Is.Not.Null);
             Assert.That(value.TypeInfo, Is.EqualTo(TypeInfo.Scalars.ExtensionObject));
             Assert.That(value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey), Is.True);

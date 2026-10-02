@@ -212,7 +212,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
