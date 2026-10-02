@@ -314,6 +314,12 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             bool reserved = false;
 
+            // A request that is rejected for a duplicate clientNonce must not close
+            // another Session to make room for itself, so the nonce is checked before
+            // the cap eviction. The check under the lock below stays authoritative
+            // for concurrent creations.
+            ThrowIfClientNonceInUse(context, clientNonce);
+
             // Part 4 5.7.2.1: at the cap, the oldest Session that was never
             // activated is closed to make room, so Sessions that are created
             // and abandoned cannot lock legitimate Clients out.
@@ -328,23 +334,8 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
 
-                // check for same Nonce in another session. A None channel does
-                // not require a random nonce, so a client reusing one there is
-                // not rejected.
-                if (!clientNonce.IsEmpty &&
-                    context.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.None)
-                {
-                    // iterate over key/value pairs in the dictionary with a thread safe iterator
-                    foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
-                    {
-                        ByteString sessionClientNonce =
-                            sessionKeyValueIterator.Value?.ClientNonce ?? default;
-                        if (sessionClientNonce == clientNonce)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadNonceInvalid);
-                        }
-                    }
-                }
+                // check for same Nonce in another session.
+                ThrowIfClientNonceInUse(context, clientNonce);
 
                 // always assign a hard-to-guess id. A secure channel id does not
                 // make a sequential token safe: HTTPS (and the HTTPS hosted
@@ -407,6 +398,15 @@ namespace Opc.Ua.Server
                     m_maxRequestAge,
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
+
+                // A client certificate whose validation error was accepted establishes
+                // no trusted application identity. Recorded before the session is
+                // published, so a concurrent request, role evaluation or a derived
+                // manager mirroring the session never reads it as validated.
+                if (context.ClientCertificateErrorAccepted)
+                {
+                    ClientCertificateProvenance.SetValidated(session, false);
+                }
 
                 // Part 5 12.11: MaxResponseMessageSize is a mandatory field of
                 // SessionDiagnosticsDataType and reports the CreateSession request
@@ -506,6 +506,31 @@ namespace Opc.Ua.Server
                 RevisedSessionTimeout = revisedSessionTimeout,
                 ServerNonce = serverNonce
             };
+        }
+
+        /// <summary>
+        /// Rejects a clientNonce that another Session already uses with
+        /// Bad_NonceInvalid (Part 4 5.7.2.2). A None channel does not require a
+        /// random nonce, so a client reusing one there is not rejected.
+        /// </summary>
+        private void ThrowIfClientNonceInUse(OperationContext context, ByteString clientNonce)
+        {
+            if (clientNonce.IsEmpty ||
+                context.ChannelContext?.EndpointDescription?.SecurityMode == MessageSecurityMode.None)
+            {
+                return;
+            }
+
+            // iterate over key/value pairs in the dictionary with a thread safe iterator
+            foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
+            {
+                ByteString sessionClientNonce =
+                    sessionKeyValueIterator.Value?.ClientNonce ?? default;
+                if (sessionClientNonce == clientNonce)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                }
+            }
         }
 
         /// <summary>
@@ -647,7 +672,7 @@ namespace Opc.Ua.Server
 
                     if (!m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
                         !ReferenceEquals(currentSession, session) ||
-                        session.IsClosing)
+                        SessionTermination.IsClosingOrClaimed(session))
                     {
                         // A timeout or server termination may already be tearing the
                         // session down; it then waits for this lock only to remove it.
@@ -841,7 +866,7 @@ namespace Opc.Ua.Server
                     // meanwhile has already abandoned the session's subscriptions, so
                     // reporting a successful activation would hand the client a session that
                     // is removed as soon as this lock is released (OPC 10000-4 5.7.2.1).
-                    if (session.IsClosing)
+                    if (SessionTermination.IsClosingOrClaimed(session))
                     {
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
@@ -1071,7 +1096,7 @@ namespace Opc.Ua.Server
             // Session diagnostics callbacks can query membership while holding a Session lock.
             // Probe Session state without the index lock, then check that the snapshot is still current.
             if (!session.Activated ||
-                session.IsClosing ||
+                SessionTermination.IsClosingOrClaimed(session) ||
                 session.HasExpired ||
                 !string.Equals(binding.SecureChannelId, channelContext.SecureChannelId, StringComparison.Ordinal) ||
                 !session.IsSecureChannelValid(channelContext.SecureChannelId) ||
@@ -1110,7 +1135,7 @@ namespace Opc.Ua.Server
                 // and a timeout or termination can start closing it.
                 if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
                     !ReferenceEquals(current, session) ||
-                    session.IsClosing)
+                    SessionTermination.IsClosingOrClaimed(session))
                 {
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
@@ -1298,6 +1323,13 @@ namespace Opc.Ua.Server
                 // validate request header.
                 session!.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
+                // A Session rejects requests itself once it is closing; a custom ISession
+                // whose close was only claimed by the server cannot, so it is checked here.
+                if (SessionTermination.IsClosingOrClaimed(session))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
+
                 // Lazily reconcile the RoleManager subscription. The
                 // RoleManager is bound during server startup, after
                 // SessionManager construction, so we
@@ -1324,7 +1356,7 @@ namespace Opc.Ua.Server
                 if ((sre.StatusCode == StatusCodes.BadSessionClosed ||
                         sre.StatusCode == StatusCodes.BadSessionNotActivated) &&
                     session != null &&
-                    !session.IsClosing &&
+                    !SessionTermination.IsClosingOrClaimed(session) &&
                     session.HasExpired)
                 {
                     // The request found the session timed out before the session monitor
@@ -1989,7 +2021,7 @@ namespace Opc.Ua.Server
         private bool IsCapEvictionCandidate(ISession session)
         {
             return !session.Activated &&
-                !session.IsClosing &&
+                !SessionTermination.IsClosingOrClaimed(session) &&
                 m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state) &&
                 !state.IsCommitting &&
                 !state.ActivationInFlight &&

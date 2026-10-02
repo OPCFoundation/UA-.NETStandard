@@ -801,7 +801,9 @@ namespace Opc.Ua.Server
                     context.ChannelContext!.EndpointDescription!, certificates, SecurityPolicyRegistry);
                 Certificate instanceCertificate = instanceEntry?.Certificate!;
 
-                // create the session.
+                // create the session. The session manager marks the Session as not
+                // validated before it publishes it, so nothing reads it as validated.
+                context.ClientCertificateErrorAccepted = clientCertificateErrorAccepted;
                 CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
                         context,
                         instanceCertificate,
@@ -820,6 +822,8 @@ namespace Opc.Ua.Server
 
                 // recorded for every ISession implementation, so a session from a
                 // custom CreateSession factory is not treated as a trusted application.
+                // SessionManager already did so before publishing the session; this
+                // covers a session manager that does not derive from it.
                 if (clientCertificateErrorAccepted)
                 {
                     ClientCertificateProvenance.SetValidated(session, false);
@@ -1229,7 +1233,7 @@ namespace Opc.Ua.Server
         private ISession GetActivatedSessionOrThrowClosed(NodeId authenticationToken)
         {
             ISession? session = ServerInternal.SessionManager.GetSession(authenticationToken);
-            if (session == null || session.IsClosing)
+            if (session == null || SessionTermination.IsClosingOrClaimed(session))
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -3605,7 +3609,8 @@ namespace Opc.Ua.Server
             // requests (OPC 10000-4 5.7.2.1). The close marks the Session closing before it
             // sweeps the registered requests under the request manager lock, and registration
             // takes the same lock, so a request the sweep missed sees the mark here.
-            if (context.Session?.IsClosing == true)
+            if (context.Session is ISession admittedSession &&
+                SessionTermination.IsClosingOrClaimed(admittedSession))
             {
                 CountRejectedRequest(serverInternal, requestType, StatusCodes.BadSessionClosed);
                 context.Dispose();

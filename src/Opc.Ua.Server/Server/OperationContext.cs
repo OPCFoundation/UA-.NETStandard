@@ -257,6 +257,18 @@ namespace Opc.Ua.Server
         internal NodeId ActivationTargetSessionId { get; set; }
 
         /// <summary>
+        /// Whether a CreateSession request's client certificate is kept although an
+        /// <see cref="StandardServer.OnApplicationCertificateError"/> override accepted a
+        /// validation error for it.
+        /// </summary>
+        /// <remarks>
+        /// Assigned before the session manager creates the Session, so the Session is
+        /// marked as not validated (<see cref="ClientCertificateProvenance"/>) before it is
+        /// published to other requests, to role evaluation or to a session mirror.
+        /// </remarks>
+        internal bool ClientCertificateErrorAccepted { get; set; }
+
+        /// <summary>
         /// Updates the status code (thread safe).
         /// </summary>
         /// <param name="statusCode">The status code.</param>

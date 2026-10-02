@@ -30,7 +30,9 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -503,6 +505,77 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// PR review 4168294597: the session manager records that the client
+        /// certificate's validation error was accepted before it publishes the Session,
+        /// so a derived manager (e.g. one mirroring the Session after the base
+        /// CreateSessionAsync returns) never reads it as validated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AcceptedCertificateErrorIsRecordedBeforeTheSessionIsPublishedAsync(bool errorAccepted)
+        {
+            using var harness = new Harness();
+            CreateSessionResult created = await harness.CreateSessionAsync(certificateErrorAccepted: errorAccepted)
+                .ConfigureAwait(false);
+
+            Assert.That(ClientCertificateProvenance.IsValidated(created.Session), Is.EqualTo(!errorAccepted));
+        }
+
+        /// <summary>
+        /// PR review 4168294669: a CreateSession that is rejected with Bad_NonceInvalid
+        /// for reusing another Session's clientNonce does not close the oldest
+        /// non-activated Session at the cap to make room for itself.
+        /// </summary>
+        [Test]
+        public async Task DuplicateClientNonceAtCapDoesNotEvictAsync()
+        {
+            using var harness = new Harness(maxSessionCount: 2, securityMode: MessageSecurityMode.SignAndEncrypt);
+            ByteString firstNonce = Nonce.CreateRandomNonceData(32).ToByteString();
+            ByteString secondNonce = Nonce.CreateRandomNonceData(32).ToByteString();
+            CreateSessionResult first = await harness.CreateSessionAsync(firstNonce).ConfigureAwait(false);
+            CreateSessionResult second = await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
+            Assert.That(harness.Manager.GetSession(first.AuthenticationToken), Is.SameAs(first.Session));
+            Assert.That(harness.Manager.GetSession(second.AuthenticationToken), Is.SameAs(second.Session));
+            Assert.That(first.Session.IsClosing, Is.False);
+            Assert.That(harness.Diagnostics.SessionAbortCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// PR review 4168294838: a custom <see cref="ISession"/> has no closing mark the
+        /// server can set, so a close that claimed it is recorded beside it. Request
+        /// admission still rejects it with Bad_SessionClosed, like a closing Session.
+        /// </summary>
+        [Test]
+        public async Task RequestOnClaimedCustomSessionIsRejectedAsync()
+        {
+            using var harness = new Harness();
+            var custom = new Mock<ISession>();
+            custom.SetupGet(s => s.Id).Returns(new NodeId(4242u, 1));
+            custom.SetupGet(s => s.Activated).Returns(true);
+            var token = new NodeId(Nonce.CreateRandomNonceData(32).ToByteString());
+            harness.AddSession(token, custom.Object);
+
+            using (OperationContext admitted = await harness.ValidateAsync(token, RequestType.Read).ConfigureAwait(false))
+            {
+                Assert.That(admitted.Session, Is.SameAs(custom.Object));
+            }
+            Assert.That(SessionTermination.IsClosingOrClaimed(custom.Object), Is.False);
+
+            Assert.That(SessionTermination.TryClaimClose(custom.Object), Is.True);
+
+            Assert.That(custom.Object.IsClosing, Is.False);
+            Assert.That(SessionTermination.IsClosingOrClaimed(custom.Object), Is.True);
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ValidateAsync(token, RequestType.Read).ConfigureAwait(false))!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+        }
+
+        /// <summary>
         /// Accepts anonymous tokens like <see cref="AnonymousAuthenticator"/>, optionally
         /// holding the authentication until the test opens the gate.
         /// </summary>
@@ -538,7 +611,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private sealed class Harness : IDisposable
         {
-            public Harness(bool recordOrder = false, int maxSessionCount = 10, bool auditing = false)
+            public Harness(
+                bool recordOrder = false,
+                int maxSessionCount = 10,
+                bool auditing = false,
+                MessageSecurityMode securityMode = MessageSecurityMode.None)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 Server.Setup(s => s.Telemetry).Returns(telemetry);
@@ -624,8 +701,10 @@ namespace Opc.Ua.Server.Tests
                 Endpoint = new EndpointDescription
                 {
                     EndpointUrl = "opc.tcp://localhost/lifecycle",
-                    SecurityPolicyUri = SecurityPolicies.None,
-                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = securityMode == MessageSecurityMode.None
+                        ? SecurityPolicies.None
+                        : SecurityPolicies.Basic256Sha256,
+                    SecurityMode = securityMode,
                     UserIdentityTokens =
                     [
                         new UserTokenPolicy
@@ -656,8 +735,12 @@ namespace Opc.Ua.Server.Tests
 
             public GatedAnonymousAuthenticator Authenticator { get; } = new();
 
-            public async Task<CreateSessionResult> CreateSessionAsync()
+            public async Task<CreateSessionResult> CreateSessionAsync(
+                ByteString clientNonce = default,
+                bool certificateErrorAccepted = false)
             {
+                OperationContext context = CreateContext(RequestType.CreateSession);
+                context.ClientCertificateErrorAccepted = certificateErrorAccepted;
                 // The session owns the client certificate once created; a rejected
                 // CreateSession leaves it with the caller.
                 Certificate clientCertificate = m_certificate.AddRef();
@@ -665,10 +748,10 @@ namespace Opc.Ua.Server.Tests
                 try
                 {
                     created = await Manager.CreateSessionAsync(
-                        CreateContext(RequestType.CreateSession),
+                        context,
                         m_certificate,
                         "lifecycle-regression",
-                        ByteString.From(new byte[32]),
+                        clientNonce.IsEmpty ? ByteString.From(new byte[32]) : clientNonce,
                         new ApplicationDescription
                         {
                             ApplicationUri = "urn:opcfoundation:test:session-lifecycle"
@@ -716,6 +799,14 @@ namespace Opc.Ua.Server.Tests
                     new SecureChannelContext(kChannelId, Endpoint, RequestEncoding.Binary),
                     requestType,
                     RequestLifetime.None).ConfigureAwait(false);
+            }
+
+            public void AddSession(NodeId authenticationToken, ISession session)
+            {
+                var sessions = (ConcurrentDictionary<NodeId, ISession>)typeof(SessionManager)
+                    .GetField("m_sessions", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(Manager)!;
+                Assert.That(sessions.TryAdd(authenticationToken, session), Is.True);
             }
 
             public void Dispose()
