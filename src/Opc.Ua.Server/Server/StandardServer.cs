@@ -3552,6 +3552,17 @@ namespace Opc.Ua.Server
                     context.SessionId);
             }
 
+            // An ActivateSession runs without a Session context, so record which Session it
+            // targets: closing that Session aborts the activation like any other of its
+            // outstanding requests (OPC 10000-4 5.7.2.1) instead of waiting for it to finish.
+            // A close that marked the Session closing before this registration is seen by the
+            // activation itself once it holds the Session's activation gate.
+            if (requestType == RequestType.ActivateSession && context.Session == null)
+            {
+                context.ActivationTargetSessionId = serverInternal.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken)?.Id ?? default;
+            }
+
             // Hand the validated request over to its execution scope. The context owns the scope
             // from here, so disposing the context completes the request.
             context.AttachRequestScope(requestManager.EnterRequestScope(context));
@@ -3569,11 +3580,18 @@ namespace Opc.Ua.Server
             }
 
             // A Cancel that ran while this request was still queued cancels it now
-            // (OPC 10000-4 5.7.5.2).
+            // (OPC 10000-4 5.7.5.2). A failing cancellation callback is logged rather than
+            // thrown, so the request is still completed and rejected with the Cancel's status.
             if (requestManager.IsCancelledBeforeAdmission(context))
             {
-                context.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
-                context.Dispose();
+                try
+                {
+                    requestManager.TryCancelRequest(context, StatusCodes.BadRequestCancelledByClient);
+                }
+                finally
+                {
+                    context.Dispose();
+                }
                 throw new ServiceResultException(StatusCodes.BadRequestCancelledByClient);
             }
 
@@ -4820,20 +4838,8 @@ namespace Opc.Ua.Server
             // is torn down.
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
 
-            // No request can close a session any more: every session still open is terminated
-            // by the server, which is audited once per session (OPC 10000-5 6.4.7).
-            foreach (ISession session in serverInternal.SessionManager.GetSessions())
-            {
-                if (!session.IsClosing)
-                {
-                    serverInternal.ReportAuditCloseSessionEvent(
-                        null!,
-                        session,
-                        m_logger,
-                        "Session/Terminated");
-                }
-            }
-
+            // Sessions still open are terminated by the server; SessionManager.ShutdownAsync
+            // audits each of them once its close completed (OPC 10000-5 6.4.7).
             await RunShutdownStageAsync(
                     failures,
                     serverInternal.DrainRoleStateBindingAsync)

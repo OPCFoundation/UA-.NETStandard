@@ -651,8 +651,11 @@ namespace Opc.Ua.Server
             {
                 foreach (OperationContext request in m_requests.Values)
                 {
+                    // an in-flight ActivateSession has no Session context yet, but it is
+                    // aborted with the Session it is activating.
                     if (request.RequestId != excludedRequestId &&
-                        request.SessionId == sessionId)
+                        (request.SessionId == sessionId ||
+                            request.ActivationTargetSessionId == sessionId))
                     {
                         matchingRequests.Add(request);
                     }
@@ -680,7 +683,7 @@ namespace Opc.Ua.Server
         /// caller, which is in the middle of cancelling other requests (or closing a Session).
         /// </summary>
         /// <returns><c>true</c> when this call cancelled the request.</returns>
-        private bool TryCancelRequest(OperationContext request, StatusCode statusCode)
+        internal bool TryCancelRequest(OperationContext request, StatusCode statusCode)
         {
             try
             {

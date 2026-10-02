@@ -245,6 +245,18 @@ namespace Opc.Ua.Server
         internal DateTime ClientTimestamp { get; }
 
         /// <summary>
+        /// The id of the Session an ActivateSession request is activating, or null.
+        /// </summary>
+        /// <remarks>
+        /// An ActivateSession request runs without a Session context (its Session is not
+        /// activated yet, so <see cref="Session"/> and <see cref="SessionId"/> stay null), but a
+        /// close of the Session it targets still has to abort it like any other outstanding
+        /// request of that Session (OPC 10000-4 5.7.2.1). It is assigned before the request is
+        /// registered with the request manager and never changes afterwards.
+        /// </remarks>
+        internal NodeId ActivationTargetSessionId { get; set; }
+
+        /// <summary>
         /// Updates the status code (thread safe).
         /// </summary>
         /// <param name="statusCode">The status code.</param>

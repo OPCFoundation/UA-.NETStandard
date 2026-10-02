@@ -227,6 +227,11 @@ namespace Opc.Ua.Server
             // is decremented, rather than the sessions only being disposed.
             foreach (ISession session in DetachAllSessions())
             {
+                // The monitor has stopped, so no timeout can claim the session any more. A
+                // session a client close or a timeout claimed before is audited by that close;
+                // every other session is terminated by the server, which is audited once per
+                // session (OPC 10000-5 6.4.7) through the same close claim.
+                bool terminated = SessionTermination.TryClaimClose(session);
                 try
                 {
                     RaiseSessionEvent(session, SessionEventReason.Closing);
@@ -240,6 +245,10 @@ namespace Opc.Ua.Server
                 {
                     session.Dispose();
                     m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount--);
+                    if (terminated)
+                    {
+                        m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Terminated");
+                    }
                 }
             }
         }

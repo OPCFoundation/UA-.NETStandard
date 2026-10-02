@@ -92,6 +92,41 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         [Test]
+        public void TryCancelConcurrentCallersFirstStatusWins()
+        {
+            // a client Cancel, a Session close and the request timeout race to cancel the same
+            // request; exactly one of them may claim it, and its status must be the one reported.
+            for (int iteration = 0; iteration < 2000; iteration++)
+            {
+                using var lifetime = new RequestLifetime();
+                using var barrier = new Barrier(2);
+                bool timeoutWon = false;
+                bool cancelWon = false;
+
+                var timeout = new Thread(() =>
+                {
+                    barrier.SignalAndWait();
+                    timeoutWon = lifetime.TryCancel(StatusCodes.BadTimeout);
+                });
+                var cancel = new Thread(() =>
+                {
+                    barrier.SignalAndWait();
+                    cancelWon = lifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
+                });
+                timeout.Start();
+                cancel.Start();
+                timeout.Join();
+                cancel.Join();
+
+                Assert.That(timeoutWon ^ cancelWon, Is.True, $"Iteration {iteration}: exactly one caller must win.");
+                Assert.That(
+                    lifetime.StatusCode,
+                    Is.EqualTo(timeoutWon ? StatusCodes.BadTimeout : StatusCodes.BadRequestCancelledByClient),
+                    $"Iteration {iteration}: the winner's status must be reported.");
+            }
+        }
+
+        [Test]
         public void TryCancel_AfterDispose_ReturnsFalse()
         {
             var lifetime = new RequestLifetime();

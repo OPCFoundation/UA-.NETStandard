@@ -218,6 +218,54 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A session still open at shutdown is terminated by the server and audited once,
+        /// after its close completed and the session monitor stopped (OPC 10000-5 6.4.7).
+        /// </summary>
+        [Test]
+        public async Task ShutdownAuditsEachRemainingSessionOnceAsync()
+        {
+            using var harness = new Harness(auditing: true);
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            int closingAtAudit = -1;
+            int closing = 0;
+            harness.Manager.SessionClosing += (_, _) => Interlocked.Increment(ref closing);
+            harness.Server.Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback<ISystemContext, AuditEventState>((_, e) =>
+                {
+                    lock (harness.Audits)
+                    {
+                        closingAtAudit = Volatile.Read(ref closing);
+                        harness.Audits.Add(e.SourceName?.Value ?? string.Empty);
+                    }
+                });
+            harness.Audits.Clear();
+
+            await harness.Manager.ShutdownAsync().ConfigureAwait(false);
+
+            Assert.That(harness.Audits, Is.EqualTo(s_terminatedAudit));
+            Assert.That(closingAtAudit, Is.EqualTo(1), "The termination is audited after the close.");
+            Assert.That(created.Session.IsClosing, Is.True);
+        }
+
+        /// <summary>
+        /// A session that another close (a client close or a timeout) claimed before shutdown
+        /// is audited by that close, not again as terminated by the shutdown.
+        /// </summary>
+        [Test]
+        public async Task ShutdownDoesNotAuditASessionAnotherCloseClaimedAsync()
+        {
+            using var harness = new Harness(auditing: true);
+            CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
+            Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
+            harness.Audits.Clear();
+
+            await harness.Manager.ShutdownAsync().ConfigureAwait(false);
+
+            Assert.That(harness.Audits, Is.Empty);
+            Assert.That(harness.Manager.GetSession(created.AuthenticationToken), Is.Null);
+        }
+
+        /// <summary>
         /// LC-6: requests rejected by session validation are counted in the server's
         /// RejectedRequestsCount, security rejections also in SecurityRejectedRequestsCount.
         /// </summary>
