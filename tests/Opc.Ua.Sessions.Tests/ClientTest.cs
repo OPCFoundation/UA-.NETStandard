@@ -1032,13 +1032,14 @@ namespace Opc.Ua.Sessions.Tests
                 await session1.ReadValueAsync<ServerStatusDataType>(
                     VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
 
-            if (StatusCodes.BadSecureChannelClosed != sre.StatusCode)
-            {
-                Assert.That(
-                    sre.StatusCode,
-                    Is.EqualTo(StatusCodes.BadNotConnected),
-                    sre.Message);
-            }
+            // the Session is closed as well, so the client refuses the request
+            // (it would go out without authenticationToken, which is a
+            // session-less invocation per Part 4 §6.3.1) before it reaches the
+            // closed channel.
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid),
+                sre.Message);
 
             session1.Dispose();
         }
