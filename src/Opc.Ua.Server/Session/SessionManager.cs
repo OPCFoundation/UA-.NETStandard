@@ -109,6 +109,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets or sets the built-in Session-less Service invocation
+        /// (OPC 10000-4 §6.3). <see langword="null"/>, the default, disables
+        /// it unless a <see cref="ValidateSessionLessRequest"/> handler
+        /// decides.
+        /// </summary>
+        public SessionlessInvocationOptions? SessionlessInvocation { get; set; }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -1300,6 +1308,15 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                 {
+                    // Session-less invocation (OPC 10000-4 §6.3) is limited to
+                    // the View (without RegisterNodes/UnregisterNodes),
+                    // Attribute, Method, NodeManagement and Query Service Sets;
+                    // everything else needs a Session.
+                    if (!IsSessionlessService(requestType))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    }
+
                     EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
 
                     if (handler != null)
@@ -1317,6 +1334,28 @@ namespace Opc.Ua.Server
                         return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, args.Identity);
                     }
 
+                    if (SessionlessInvocation is { } sessionless)
+                    {
+                        IUserIdentity identity = await ValidateSessionlessRequestAsync(
+                                requestHeader.AuthenticationToken,
+                                secureChannelContext,
+                                sessionless,
+                                requestLifetime.CancellationToken)
+                            .ConfigureAwait(false);
+                        return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, identity);
+                    }
+
+                    // No authenticationToken at all is a Session-less call; a
+                    // Server without support answers Bad_ServiceUnsupported
+                    // (§6.3.1). A token that names no Session stays
+                    // Bad_SessionIdInvalid, which is what a Client whose
+                    // Session expired needs to see.
+                    if (requestHeader.AuthenticationToken.IsNull)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadServiceUnsupported,
+                            "Session-less Service invocation is not enabled on this Server.");
+                    }
                     throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                 }
 
@@ -1384,6 +1423,135 @@ namespace Opc.Ua.Server
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
             }
+        }
+
+        /// <summary>
+        /// Returns whether a Service may be invoked without a Session
+        /// (OPC 10000-4 §6.3.1): the View (without RegisterNodes and
+        /// UnregisterNodes), Attribute, Method, NodeManagement and Query
+        /// Service Sets.
+        /// </summary>
+        /// <param name="requestType">The Service.</param>
+        /// <returns>
+        /// <see langword="true"/> if the Service may be invoked without a
+        /// Session; otherwise <see langword="false"/>.
+        /// </returns>
+        public static bool IsSessionlessService(RequestType requestType)
+        {
+            return requestType is
+                RequestType.Browse or
+                RequestType.BrowseNext or
+                RequestType.TranslateBrowsePathsToNodeIds or
+                RequestType.Read or
+                RequestType.HistoryRead or
+                RequestType.Write or
+                RequestType.HistoryUpdate or
+                RequestType.Call or
+                RequestType.AddNodes or
+                RequestType.AddReferences or
+                RequestType.DeleteNodes or
+                RequestType.DeleteReferences or
+                RequestType.QueryFirst or
+                RequestType.QueryNext;
+        }
+
+        /// <summary>
+        /// Determines the identity a Session-less request runs as, per
+        /// <paramref name="options"/>.
+        /// </summary>
+        /// <param name="authenticationToken">
+        /// The <c>authenticationToken</c> of the request header.
+        /// </param>
+        /// <param name="secureChannelContext">The channel the request arrived on.</param>
+        /// <param name="options">The Session-less invocation options.</param>
+        /// <param name="cancellationToken">Cancels the validation.</param>
+        /// <returns>The identity the request runs as.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="secureChannelContext"/> or <paramref name="options"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The request carries no acceptable identity.
+        /// </exception>
+        protected virtual async ValueTask<IUserIdentity> ValidateSessionlessRequestAsync(
+            NodeId authenticationToken,
+            SecureChannelContext secureChannelContext,
+            SessionlessInvocationOptions options,
+            CancellationToken cancellationToken)
+        {
+            if (secureChannelContext == null)
+            {
+                throw new ArgumentNullException(nameof(secureChannelContext));
+            }
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            EndpointDescription? endpoint = secureChannelContext.EndpointDescription;
+
+            if (!authenticationToken.IsNull)
+            {
+                // An Access Token (§6.3.1). Session tokens are UInt32 or
+                // ByteString NodeIds; a String NodeId carries the token itself.
+                if (!options.AcceptAccessTokens ||
+                    !authenticationToken.TryGetValue(out string accessToken) ||
+                    string.IsNullOrEmpty(accessToken))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                }
+
+                // "The SecureChannel shall have encryption enabled to prevent
+                // eavesdroppers from seeing the Access Token." HTTPS encrypts
+                // at the transport.
+                if (endpoint == null || !IsConfidential(endpoint))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityModeInsufficient,
+                        "An Access Token requires an encrypted SecureChannel.");
+                }
+
+                var tokenHandler = new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    System.Text.Encoding.UTF8.GetBytes(accessToken));
+                var policy = new UserTokenPolicy
+                {
+                    TokenType = UserTokenType.IssuedToken,
+                    IssuedTokenType = Profiles.JwtUserToken
+                };
+                AuthenticationResult result = await m_server.IdentityRegistry
+                    .AuthenticateAsync(
+                        new AuthenticationContext(tokenHandler, policy, endpoint, m_server.MessageContext),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (result.Outcome == AuthenticationOutcome.Accepted && result.Identity != null)
+                {
+                    return result.Identity;
+                }
+
+                m_logger.SessionlessAccessTokenRejected(result.Outcome);
+                throw new ServiceResultException(
+                    result.Error ?? new ServiceResult(StatusCodes.BadIdentityTokenRejected));
+            }
+
+            if (options.AllowAnonymous)
+            {
+                return new UserIdentity();
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadIdentityTokenInvalid,
+                "The Session-less request carries no Access Token.");
+        }
+
+        /// <summary>
+        /// Returns whether the channel of <paramref name="endpoint"/> keeps
+        /// an Access Token confidential: SignAndEncrypt, or an HTTPS
+        /// endpoint, whose transport encrypts.
+        /// </summary>
+        private static bool IsConfidential(EndpointDescription endpoint)
+        {
+            return endpoint.SecurityMode == MessageSecurityMode.SignAndEncrypt ||
+                (endpoint.EndpointUrl != null && Utils.IsUriHttpsScheme(endpoint.EndpointUrl));
         }
 
         /// <summary>
@@ -2621,5 +2789,11 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 18, Level = LogLevel.Warning,
+            Message = "Server - Rejected the access token of a session-less request ({Outcome}).")]
+        public static partial void SessionlessAccessTokenRejected(
+            this ILogger logger,
+            AuthenticationOutcome outcome);
     }
 }

@@ -230,6 +230,8 @@ Assumes the client or server path.
 - [REST binding](WebApi.md) — OpenAPI mapping, encoding negotiation, and HTTP
   authentication.
 - [Reverse Connect](ReverseConnect.md) — server-initiated connections.
+- [Session-less invocation](SessionlessInvocation.md) — let clients call
+  Read, Browse, Call and the other §6.3 Services without a Session.
 - [PubSub external-server adapter](PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
   — bind PubSub to an OPC UA server through a managed client session. Assumes
   the client and PubSub paths.

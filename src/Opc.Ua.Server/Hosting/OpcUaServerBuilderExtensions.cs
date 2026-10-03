@@ -1014,6 +1014,37 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Enables Session-less Service invocation (OPC 10000-4 §6.3): the
+        /// View (except RegisterNodes/UnregisterNodes), Attribute, Method,
+        /// NodeManagement and Query Services without CreateSession, with the
+        /// caller identified by an Access Token in the RequestHeader.
+        /// </summary>
+        /// <remarks>
+        /// Without this, a request that carries no authenticationToken is
+        /// answered with Bad_ServiceUnsupported. Anonymous callers stay
+        /// rejected unless <see cref="SessionlessInvocationOptions.AllowAnonymous"/>
+        /// is set. The options apply to the session manager the server uses,
+        /// including one created by a registered session manager factory.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Optional configuration of the accepted identities.</param>
+        /// <returns>The server builder.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddSessionlessInvocation(
+            this IOpcUaServerBuilder builder,
+            Action<SessionlessInvocationOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            var options = new SessionlessInvocationOptions();
+            configure?.Invoke(options);
+            builder.Services.AddSingleton(options);
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a session manager factory used by the hosted server.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
