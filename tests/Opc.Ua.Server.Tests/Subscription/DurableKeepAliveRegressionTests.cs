@@ -45,9 +45,10 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(1, 1000.0, 0u, 3u)]
         [TestCase(1, 1000.0, 10u, 10u)]
-        [TestCase(1, 1000.0, 3599u, 3599u)]
-        [TestCase(1, 1000.0, 3600u, 3600u)]
-        [TestCase(1, 1000.0, 3601u, 3600u)]
+        [TestCase(1, 1000.0, 1199u, 1199u)]
+        [TestCase(1, 1000.0, 1200u, 1200u)]
+        [TestCase(1, 1000.0, 1201u, 1200u)]
+        [TestCase(1, 1000.0, 3601u, 1200u)]
         [TestCase(24, 1000.0, 10u, 10u)]
         [TestCase(2000, 1000.0, 10u, 10u)]
         [TestCase(int.MaxValue, 1000.0, 10u, 10u)]
@@ -60,6 +61,34 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(manager.KeepAlive(interval, requested, true), Is.EqualTo(expected));
                 Assert.That(manager.KeepAlive(interval, 10, false), Is.EqualTo(10));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the keep-alive is capped at a third of the maximum lifetime, so the
+        /// lifetime raised to three keep-alive intervals stays within the configured maximum.
+        /// </summary>
+        [TestCase(1000.0, 10u, 10u)]
+        [TestCase(1000.0, 20u, 20u)]
+        [TestCase(1000.0, 21u, 20u)]
+        [TestCase(1000.0, 10000u, 20u)]
+        [TestCase(7000.0, 10u, 2u)]
+        [TestCase(30000.0, 10u, 1u)]
+        public void KeepAliveIsCappedSoTheRevisedLifetimeStaysWithinTheMaximum(
+            double interval, uint requested, uint expected)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new RevisionHooks(server.Object, 24))
+            {
+                uint keepAlive = manager.KeepAlive(interval, requested, false);
+                Assert.That(keepAlive, Is.EqualTo(expected));
+                uint lifetime = manager.OrdinaryLifetime(interval, keepAlive, 0);
+                Assert.That(lifetime, Is.EqualTo(3 * keepAlive));
+                if (interval * 3 <= 60000)
+                {
+                    Assert.That(lifetime * interval, Is.LessThanOrEqualTo(60000));
+                }
             }
         }
 
@@ -157,6 +186,14 @@ namespace Opc.Ua.Server.Tests
             public uint Lifetime(double interval, uint keepAlive, uint count)
             {
                 return CalculateLifetimeCount(interval, keepAlive, count, true);
+            }
+
+            /// <summary>
+            /// Revises an ordinary lifetime count using the supplied publishing interval and keep-alive count.
+            /// </summary>
+            public uint OrdinaryLifetime(double interval, uint keepAlive, uint count)
+            {
+                return CalculateLifetimeCount(interval, keepAlive, count, false);
             }
         }
     }

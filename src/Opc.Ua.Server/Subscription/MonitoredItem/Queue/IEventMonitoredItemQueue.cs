@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
         void SetQueueSize(uint queueSize, bool discardOldest);
 
         /// <summary>
-        /// Checks the last 1k queue entries if the event is already in there
+        /// Checks the last (newest) 1k queue entries if the event is already in there
         /// used to detect duplicate instances of the same event being reported via multiple paths.
         /// </summary>
         /// <param name="instance">the event to chack for duplicates</param>

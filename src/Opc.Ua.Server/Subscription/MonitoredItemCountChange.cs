@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,31 +27,39 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Mirrored retransmission state for a subscription.
+    /// Counts the monitored items a create or delete call actually added to or removed
+    /// from a subscription. The subscription updates it under its lock in the same step
+    /// that changes <see cref="ISubscription.MonitoredItemCount"/>, so a reader can tell
+    /// which items of an in-flight call are already part of the subscription.
     /// </summary>
-    public sealed class SubscriptionRetransmissionState
+    internal sealed class MonitoredItemCountChange
     {
         /// <summary>
-        /// The next sequence number the subscription should assign.
+        /// The net number of items added (positive) or removed (negative) so far.
         /// </summary>
-        public uint NextSequenceNumber { get; set; }
+        public int Count => Volatile.Read(ref m_count);
 
         /// <summary>
-        /// Sent notifications that remain available for republish.
+        /// Records that one item was added to the subscription.
         /// </summary>
-        public ArrayOf<NotificationMessage> SentMessages { get; set; } = [];
+        public void Increment()
+        {
+            Interlocked.Increment(ref m_count);
+        }
 
         /// <summary>
-        /// The sequence number of the oldest message in <see cref="SentMessages"/> that is
-        /// queued for a Publish response but was not yet returned, or 0 when every message
-        /// was sent (or the mirror does not track it).
+        /// Records that one item was removed from the subscription.
         /// </summary>
-        /// <remarks>
-        /// Populated by stores that implement <see cref="ISubscriptionRetransmissionSendStateStore"/>.
-        /// </remarks>
-        public uint FirstUnsentSequenceNumber { get; set; }
+        public void Decrement()
+        {
+            Interlocked.Decrement(ref m_count);
+        }
+
+        private int m_count;
     }
 }

@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Historian
                 systemContext.OperationContext,
                 server.Telemetry);
             EventFilter.Result validation = details.Filter.Validate(filterContext);
-            if (ServiceResult.IsBad(validation.Status))
+            if (ServiceResult.IsBad(validation.Status) || validation.HasSelectClauseErrors)
             {
                 return StatusCodes.BadEventFilterInvalid;
             }

@@ -27,31 +27,26 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Mirrored retransmission state for a subscription.
+    /// Extends persisted subscription state with the triggering links between its
+    /// monitored items (OPC 10000-4 §5.13.1.6).
     /// </summary>
-    public sealed class SubscriptionRetransmissionState
+    public interface IStoredSubscriptionTriggering : IStoredSubscription
     {
         /// <summary>
-        /// The next sequence number the subscription should assign.
+        /// Gets or sets the triggering links of the subscription.
         /// </summary>
-        public uint NextSequenceNumber { get; set; }
-
-        /// <summary>
-        /// Sent notifications that remain available for republish.
-        /// </summary>
-        public ArrayOf<NotificationMessage> SentMessages { get; set; } = [];
-
-        /// <summary>
-        /// The sequence number of the oldest message in <see cref="SentMessages"/> that is
-        /// queued for a Publish response but was not yet returned, or 0 when every message
-        /// was sent (or the mirror does not track it).
-        /// </summary>
+        /// <value>
+        /// The identifiers of the linked monitored items keyed by the identifier of their
+        /// triggering monitored item, or <c>null</c> when no links were persisted.
+        /// </value>
         /// <remarks>
-        /// Populated by stores that implement <see cref="ISubscriptionRetransmissionSendStateStore"/>.
+        /// Stores that did not persist this field restore the subscription without links.
         /// </remarks>
-        public uint FirstUnsentSequenceNumber { get; set; }
+        IReadOnlyDictionary<uint, IReadOnlyList<uint>>? TriggeringLinks { get; set; }
     }
 }

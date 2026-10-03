@@ -3742,6 +3742,13 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(result.Status);
                 }
 
+                // HistoryRead has no per-clause filter result, so keep rejecting a filter
+                // with any invalid select clause.
+                if (result.HasSelectClauseErrors)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEventFilterInvalid);
+                }
+
                 // read the event history.
                 HistoryReadEvents(
                     context,
@@ -5116,13 +5123,13 @@ namespace Opc.Ua.Server
                 MaxQueueSize,
                 MaxDurableQueueSize);
 
-            // validate the monitoring filter.
-
+            // validate the monitoring filter against the sampling interval the item gets,
+            // so the revised processing interval is at least twice it (Part 4 7.22.4).
             ServiceResult error = ValidateMonitoringFilter(
                 context,
                 handle,
                 itemToCreate.ItemToMonitor.AttributeId,
-                samplingInterval,
+                GetGroupSamplingInterval(samplingInterval),
                 revisedQueueSize,
                 parameters.Filter,
                 out MonitoringFilter filterToUse,
@@ -5334,6 +5341,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the sampling interval a data item with the revised sampling interval gets
+        /// once a sampling group rounds it to a supported rate.
+        /// </summary>
+        private double GetGroupSamplingInterval(double samplingInterval)
+        {
+            return m_monitoredItemManager is SamplingGroupMonitoredItemManager samplingGroups
+                ? samplingGroups.GetGroupSamplingInterval(samplingInterval)
+                : samplingInterval;
+        }
+
+        /// <summary>
         /// Validates the monitoring filter specified by the client.
         /// </summary>
         protected virtual StatusCode ValidateMonitoringFilter(
@@ -5443,12 +5461,12 @@ namespace Opc.Ua.Server
                     context,
                     QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
                 {
-                    return StatusCodes.BadMonitoredItemFilterUnsupported;
+                    return StatusCodes.BadDeadbandFilterInvalid;
                 }
 
                 if (!property.Value.TryGetStructure(out range!))
                 {
-                    return StatusCodes.BadMonitoredItemFilterUnsupported;
+                    return StatusCodes.BadDeadbandFilterInvalid;
                 }
 
                 filterToUse = deadbandFilter;
@@ -5476,15 +5494,9 @@ namespace Opc.Ua.Server
             uint queueSize,
             ServerAggregateFilter filterToUse)
         {
-            if (filterToUse.ProcessingInterval < samplingInterval)
-            {
-                filterToUse.ProcessingInterval = samplingInterval;
-            }
-
-            if (filterToUse.ProcessingInterval < Server.AggregateManager.MinimumProcessingInterval)
-            {
-                filterToUse.ProcessingInterval = Server.AggregateManager.MinimumProcessingInterval;
-            }
+            filterToUse.ReviseProcessingInterval(
+                samplingInterval,
+                Server.AggregateManager.MinimumProcessingInterval);
 
             DateTimeUtc currentTime = ((Server as ITimeProviderProvider)?.TimeProvider ??
                 TimeProvider.System).GetUtcNow().UtcDateTime;
@@ -5635,13 +5647,13 @@ namespace Opc.Ua.Server
                 MaxQueueSize,
                 MaxDurableQueueSize);
 
-            // validate the monitoring filter.
-
+            // validate the monitoring filter against the sampling interval the item gets,
+            // so the revised processing interval is at least twice it (Part 4 7.22.4).
             ServiceResult? error = ValidateMonitoringFilter(
                 context,
                 handle,
                 datachangeItem.AttributeId,
-                samplingInterval,
+                GetGroupSamplingInterval(samplingInterval),
                 revisedQueueSize,
                 parameters.Filter,
                 out MonitoringFilter filterToUse,
@@ -5743,7 +5755,13 @@ namespace Opc.Ua.Server
                     if (ServiceResult.IsGood(errors[ii]))
                     {
                         deletedItems.Add(monitoredItems[ii]);
-                        RemoveNodeFromComponentCache(systemContext, handle);
+
+                        // only MonitoredNode items hold a component-cache reference;
+                        // sampling-group items never took one (see create).
+                        if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
+                        {
+                            RemoveNodeFromComponentCache(systemContext, handle);
+                        }
                     }
                 }
             }
