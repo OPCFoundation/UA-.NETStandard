@@ -45,6 +45,11 @@ namespace Opc.Ua.Robotics
         public DataValue Mass { get; init; } = DataValue.Null;
 
         /// <summary>
+        /// The Mass variable to subscribe to, or <see cref="NodeId.Null"/> when not published.
+        /// </summary>
+        public NodeId MassId { get; init; } = NodeId.Null;
+
+        /// <summary>
         /// Engineering metadata for the load mass.
         /// </summary>
         public RoboticsEngineeringValue MassEngineering { get; init; } = new();
