@@ -47,11 +47,12 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// <see cref="ConformanceUnits"/> and <see cref="ServerProfiles"/> are
     /// a snapshot computed by the last <see cref="RefreshAsync"/> call
-    /// (empty until the first call). <see cref="ConformanceUnitsManager.Register"/>
-    /// reads a contributor's properties once, so callers must
-    /// <see cref="RefreshAsync"/> before registering, and again — followed
-    /// by re-registering — whenever a provider is added, removed, or its
-    /// capabilities change.
+    /// (empty until the first call). <see cref="ConformanceUnitsManager"/>
+    /// reads a registered contributor's properties on every
+    /// <see cref="ConformanceUnitsManager.PublishAsync"/>, so callers must
+    /// <see cref="RefreshAsync"/> before the server publishes, and again —
+    /// followed by <see cref="ConformanceUnitsManager.PublishAsync"/> —
+    /// whenever a provider is added, removed, or its capabilities change.
     /// </para>
     /// <para>
     /// Only Server-side profiles are considered; this contributor
