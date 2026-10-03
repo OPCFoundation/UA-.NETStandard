@@ -227,7 +227,10 @@ namespace Opc.Ua.Robotics.Client
                 .ConfigureAwait(false);
             NodeId operationId = operation?.ObjectId ?? NodeId.Null;
             (NodeId currentStateId, RoboticsOperationState? currentState) = await ReadOperationStateAsync(
-                operationId, RoboticsBrowseNames.SystemOperationStateMachine, cancellationToken).ConfigureAwait(false);
+                operationId,
+                RoboticsBrowseNames.SystemOperationStateMachine,
+                s_systemOperationStates,
+                cancellationToken).ConfigureAwait(false);
             return new ControllerSnapshot
             {
                 Identification = await ReadIdentificationAsync(controller, cancellationToken).ConfigureAwait(false),
@@ -367,7 +370,10 @@ namespace Opc.Ua.Robotics.Client
                 .ConfigureAwait(false);
             NodeId operationId = operation?.ObjectId ?? NodeId.Null;
             (NodeId currentStateId, RoboticsOperationState? currentState) = await ReadOperationStateAsync(
-                operationId, RoboticsBrowseNames.TaskControlStateMachine, cancellationToken).ConfigureAwait(false);
+                operationId,
+                RoboticsBrowseNames.TaskControlStateMachine,
+                s_taskControlStates,
+                cancellationToken).ConfigureAwait(false);
             return new TaskControlSnapshot
             {
                 Identification = await ReadIdentificationAsync(taskControl, cancellationToken).ConfigureAwait(false),
@@ -1039,15 +1045,19 @@ namespace Opc.Ua.Robotics.Client
         /// <summary>
         /// Reads the <c>CurrentState</c> variable of the operation state machine
         /// <paramref name="stateMachineBrowseName"/> below <paramref name="operation"/>.
-        /// The state is told by the NodeId in <c>CurrentState/Id</c>, which names one of
-        /// the machine's Idle, Ready or Executing state objects whatever language the
-        /// server localizes <c>CurrentState</c> to; the state name is the fallback when
-        /// the server exposes no such Id. A missing machine or a failed read yields no
-        /// state instead of an error, so the rest of the snapshot is still returned.
+        /// The state is told by the NodeId in <c>CurrentState/Id</c>, whatever language
+        /// the server localizes <c>CurrentState</c> to: the Idle, Ready or Executing
+        /// state the Robotics model declares on the machine type
+        /// (<paramref name="typeStates"/>), or a state object the server instantiated
+        /// below the machine. The state name is used only when the server exposes no
+        /// <c>CurrentState/Id</c>; an Id that is unreadable or names another state
+        /// yields no state, as do a missing machine and a failed <c>CurrentState</c>
+        /// read, so the rest of the snapshot is still returned.
         /// </summary>
         private async Task<(NodeId CurrentStateId, RoboticsOperationState? CurrentState)> ReadOperationStateAsync(
             NodeId operation,
             string stateMachineBrowseName,
+            OperationStateIds typeStates,
             CancellationToken cancellationToken)
         {
             if (operation.IsNull)
@@ -1060,34 +1070,78 @@ namespace Opc.Ua.Robotics.Client
                 operation,
                 [currentState, UaChildPath(currentState, UaBrowseNames.Id)],
                 cancellationToken).ConfigureAwait(false);
-            if (nodes[0].IsNull)
+            if (nodes[0].IsNull || !StatusCode.IsGood(values[0].StatusCode))
             {
                 return (nodes[0], null);
             }
-            if (StatusCode.IsGood(values[1].StatusCode) && values[1].WrappedValue.TryGetValue(out NodeId stateId))
+            if (nodes[1].IsNull)
             {
-                ArrayOf<NodeId> states = await ResolveChildrenAsync(
-                    operation,
-                    [
-                        [.. machine, .. MemberPath(RoboticsBrowseNames.Idle)],
-                        [.. machine, .. MemberPath(RoboticsBrowseNames.Ready)],
-                        [.. machine, .. MemberPath(RoboticsBrowseNames.Executing)]
-                    ],
-                    cancellationToken).ConfigureAwait(false);
-                if (!stateId.IsNull && stateId == states[0])
-                {
-                    return (nodes[0], RoboticsOperationState.Idle);
-                }
-                if (!stateId.IsNull && stateId == states[1])
-                {
-                    return (nodes[0], RoboticsOperationState.Ready);
-                }
-                if (!stateId.IsNull && stateId == states[2])
-                {
-                    return (nodes[0], RoboticsOperationState.Executing);
-                }
+                return (nodes[0], ToOperationState(values[0]));
             }
-            return (nodes[0], ToOperationState(values[0]));
+            if (!StatusCode.IsGood(values[1].StatusCode) ||
+                !values[1].WrappedValue.TryGetValue(out NodeId stateId) ||
+                stateId.IsNull)
+            {
+                return (nodes[0], null);
+            }
+            RoboticsOperationState? state = ToOperationState(stateId, typeStates);
+            if (state != null)
+            {
+                return (nodes[0], state);
+            }
+            ArrayOf<NodeId> states = await ResolveChildrenAsync(
+                operation,
+                [
+                    [.. machine, .. MemberPath(RoboticsBrowseNames.Idle)],
+                    [.. machine, .. MemberPath(RoboticsBrowseNames.Ready)],
+                    [.. machine, .. MemberPath(RoboticsBrowseNames.Executing)]
+                ],
+                cancellationToken).ConfigureAwait(false);
+            return (nodes[0], ToOperationState(stateId, states[0], states[1], states[2]));
+        }
+
+        /// <summary>
+        /// The operation state the model state <paramref name="stateId"/> is, the
+        /// numeric ids of <paramref name="typeStates"/> mapped to the index the
+        /// session gives the Robotics namespace; null when it is none of them.
+        /// </summary>
+        private RoboticsOperationState? ToOperationState(NodeId stateId, OperationStateIds typeStates)
+        {
+            int ns = Session.NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
+            if (ns < 0)
+            {
+                return null;
+            }
+            return ToOperationState(
+                stateId,
+                new NodeId(typeStates.Idle, (ushort)ns),
+                new NodeId(typeStates.Ready, (ushort)ns),
+                new NodeId(typeStates.Executing, (ushort)ns));
+        }
+
+        /// <summary>
+        /// The operation state <paramref name="stateId"/> names among the given state
+        /// nodes, a null one never matching; null when it names none of them.
+        /// </summary>
+        private static RoboticsOperationState? ToOperationState(
+            NodeId stateId,
+            NodeId idle,
+            NodeId ready,
+            NodeId executing)
+        {
+            if (!idle.IsNull && stateId == idle)
+            {
+                return RoboticsOperationState.Idle;
+            }
+            if (!ready.IsNull && stateId == ready)
+            {
+                return RoboticsOperationState.Ready;
+            }
+            if (!executing.IsNull && stateId == executing)
+            {
+                return RoboticsOperationState.Executing;
+            }
+            return null;
         }
 
         private async Task<string?> ReadChildStringAsync(
@@ -1268,5 +1322,32 @@ namespace Opc.Ua.Robotics.Client
             }
             return null;
         }
+
+        /// <summary>
+        /// The Idle, Ready and Executing states the Robotics model declares on the
+        /// SystemOperationStateMachineType.
+        /// </summary>
+        private static readonly OperationStateIds s_systemOperationStates = new(
+            SystemOperationStateMachineTypeIds.StateIds.Idle,
+            SystemOperationStateMachineTypeIds.StateIds.Ready,
+            SystemOperationStateMachineTypeIds.StateIds.Executing);
+
+        /// <summary>
+        /// The Idle, Ready and Executing states the Robotics model declares on the
+        /// TaskControlStateMachineType.
+        /// </summary>
+        private static readonly OperationStateIds s_taskControlStates = new(
+            TaskControlStateMachineTypeIds.StateIds.Idle,
+            TaskControlStateMachineTypeIds.StateIds.Ready,
+            TaskControlStateMachineTypeIds.StateIds.Executing);
+
+        /// <summary>
+        /// The numeric ids of the Idle, Ready and Executing states of an operation
+        /// state machine type in the Robotics namespace.
+        /// </summary>
+        /// <param name="Idle">The id of the Idle state.</param>
+        /// <param name="Ready">The id of the Ready state.</param>
+        /// <param name="Executing">The id of the Executing state.</param>
+        private readonly record struct OperationStateIds(uint Idle, uint Ready, uint Executing);
     }
 }

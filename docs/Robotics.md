@@ -666,12 +666,17 @@ motor temperature are read once and carry no NodeId.
 operation state machine: `CurrentStateId` is the `CurrentState` variable of the
 `SystemOperationStateMachine` or `TaskControlStateMachine`, and `CurrentState`
 is the `RoboticsOperationState` it named when read. The state is told by the
-NodeId in `CurrentState/Id`, matched against the machine's `Idle`, `Ready` and
-`Executing` state objects, so it does not depend on the language the server
-localizes the state name to; the name is used only when the server publishes
-no such Id. `CurrentState` is `null`
-when the state machine is absent, its read failed, or it names a state other
-than `Idle`, `Ready` or `Executing`; the rest of the snapshot is still
+NodeId in `CurrentState/Id`, so it does not depend on the language the server
+localizes the state name to. The Id is matched against the `Idle`, `Ready` and
+`Executing` states the Robotics model declares on
+`SystemOperationStateMachineType` and `TaskControlStateMachineType` (the
+NodeIds a server publishes when it does not instantiate the states, mapped to
+the session's index of the Robotics namespace), and against state objects a
+server instantiates below the machine. The state name is used only when
+`CurrentState` has no `Id` property. `CurrentState` is `null` when the state
+machine is absent, the read of `CurrentState` failed, its `Id` cannot be read
+or names a state other than `Idle`, `Ready` or `Executing`, or, without an
+`Id`, the name is another state's; the rest of the snapshot is still
 returned. `ControllerSnapshot.SystemOperationId` is the SystemOperation object.
 
 `RoboticsComponentIdentification` includes the DI `HardwareRevision`,

@@ -39,8 +39,8 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using RoboticsBrowseNames = Opc.Ua.Robotics.BrowseNames;
 using DiBrowseNames = Opc.Ua.Di.BrowseNames;
+using RoboticsBrowseNames = Opc.Ua.Robotics.BrowseNames;
 
 namespace Opc.Ua.Robotics.Client.Tests
 {
@@ -297,6 +297,92 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 Assert.That(controller.CurrentState, Is.EqualTo(RoboticsOperationState.Executing));
                 Assert.That(task.CurrentState, Is.EqualTo(RoboticsOperationState.Ready));
+            });
+        }
+
+        [Test]
+        public async Task TheOperationStateIsMatchedByTheStateIdsTheModelDeclaresOnTheMachineType()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            // The Robotics model declares Idle, Ready and Executing on the state machine
+            // types; a server that does not instantiate them publishes the type states'
+            // NodeIds, mapped to its own index of the Robotics namespace.
+            h.AddOperationState(
+                h.SystemOperationId,
+                RoboticsBrowseNames.SystemOperationStateMachine,
+                h.SystemStateMachineId,
+                h.SystemCurrentStateId,
+                "Bereit");
+            h.AddOperationState(
+                h.TaskControlOperationId,
+                RoboticsBrowseNames.TaskControlStateMachine,
+                h.TaskControlStateMachineId,
+                h.TaskCurrentStateId,
+                "Ausf\u00fchrung");
+            h.SetCurrentStateId(
+                h.SystemCurrentStateId,
+                NodeId.Create(
+                    SystemOperationStateMachineTypeIds.StateIds.Ready,
+                    global::Opc.Ua.Robotics.Namespaces.Robotics,
+                    h.NamespaceUris));
+            h.SetCurrentStateId(
+                h.TaskCurrentStateId,
+                NodeId.Create(
+                    TaskControlStateMachineTypeIds.StateIds.Executing,
+                    global::Opc.Ua.Robotics.Namespaces.Robotics,
+                    h.NamespaceUris));
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.CurrentState, Is.EqualTo(RoboticsOperationState.Ready));
+                Assert.That(task.CurrentState, Is.EqualTo(RoboticsOperationState.Executing));
+            });
+        }
+
+        [Test]
+        public async Task ABadCurrentStateReadsAsNoStateEvenWithAMatchingStateId()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            h.AddStateNodes(
+                h.SystemStateMachineId, h.SystemCurrentStateId,
+                new NodeId(1920, 2), new NodeId(1921, 2), new NodeId(1922, 2),
+                new NodeId(1922, 2));
+            h.SetBadQuality(h.SystemCurrentStateId);
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.CurrentStateId, Is.EqualTo(h.SystemCurrentStateId));
+                Assert.That(controller.CurrentState.HasValue, Is.False, "a bad CurrentState is no state");
+            });
+        }
+
+        [Test]
+        public async Task APublishedStateIdThatNamesNoKnownStateIsNotOverriddenByTheStateName()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            // Both name a state in their text, but the Id the server publishes is
+            // unknown for the controller and unreadable for the task control.
+            h.SetCurrentStateId(h.SystemCurrentStateId, new NodeId(4711, 2));
+            h.SetCurrentStateId(h.TaskCurrentStateId, new NodeId(1922, 2));
+            h.SetBadQuality(h.Resolve(h.TaskCurrentStateId, RoboticsSessionHarness.Ua(Opc.Ua.BrowseNames.Id)));
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.CurrentStateId, Is.EqualTo(h.SystemCurrentStateId));
+                Assert.That(controller.CurrentState.HasValue, Is.False, "an unknown state Id is no state");
+                Assert.That(task.CurrentStateId, Is.EqualTo(h.TaskCurrentStateId));
+                Assert.That(task.CurrentState.HasValue, Is.False, "an unreadable state Id is no state");
             });
         }
 
@@ -909,6 +995,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             /// Registers an operation state machine below its operation object with
             /// a CurrentState variable that names <paramref name="stateName"/>; no
             /// value when <paramref name="stateName"/> is null, so its read fails.
+            /// CurrentState has no Id property until <see cref="SetCurrentStateId"/>
+            /// adds one, so the client falls back to the state name.
             /// </summary>
             public void AddOperationState(
                 NodeId operation,
@@ -919,8 +1007,6 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 AddChild(operation, Rob(stateMachineBrowseName), stateMachine);
                 AddChild(stateMachine, Ua(Opc.Ua.BrowseNames.CurrentState), currentState);
-                // CurrentState/Id holds the NodeId of the state, not its name.
-                AddValueChild(currentState, Ua(Opc.Ua.BrowseNames.Id), new NodeId(999, 2));
                 if (stateName == null)
                 {
                     m_values.Remove(currentState);
@@ -969,7 +1055,16 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddChild(stateMachine, Rob(RoboticsBrowseNames.Idle), idle);
                 AddChild(stateMachine, Rob(RoboticsBrowseNames.Ready), ready);
                 AddChild(stateMachine, Rob(RoboticsBrowseNames.Executing), executing);
-                m_values[Resolve(currentState, Ua(Opc.Ua.BrowseNames.Id))] = Variant.From(activeState);
+                SetCurrentStateId(currentState, activeState);
+            }
+
+            /// <summary>
+            /// Publishes the CurrentState/Id property of <paramref name="currentState"/>
+            /// holding <paramref name="stateId"/>, the NodeId of the active state.
+            /// </summary>
+            public void SetCurrentStateId(NodeId currentState, NodeId stateId)
+            {
+                AddValueChild(currentState, Ua(Opc.Ua.BrowseNames.Id), stateId);
             }
 
             public void AddStateReads(NodeId stateMachine, string stateName)
