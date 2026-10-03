@@ -165,6 +165,16 @@ namespace Opc.Ua.Pumps.Server
         }
 
         /// <summary>
+        /// Deterministic test seam invoked by
+        /// <see cref="CreatePumpAsync(QualifiedName, NodeState?, CancellationToken)"/>
+        /// after the new pump is attached to its parent, registered and made a
+        /// root notifier, and before the creation completes. Lets a test fail
+        /// the registration at its last step and prove the rollback. Always
+        /// <c>null</c> in production.
+        /// </summary>
+        internal Func<PumpState, Task>? PumpRegisteredForTest { get; set; }
+
+        /// <summary>
         /// Creates a pump below the Device Integration <c>DeviceSet</c> and
         /// registers it.
         /// </summary>
@@ -180,6 +190,11 @@ namespace Opc.Ua.Pumps.Server
         /// The returned builder is live - the pump is already registered, so
         /// groups materialised through the builder are visible to clients as
         /// soon as they are added.
+        /// </para>
+        /// <para>
+        /// A creation that fails while the pump is registered is undone: the
+        /// pump is removed from its parent and from the address space, so the
+        /// name can be used again.
         /// </para>
         /// </remarks>
         /// <param name="browseName">
@@ -259,9 +274,23 @@ namespace Opc.Ua.Pumps.Server
                 // before a client can subscribe to it.
                 pump.EventNotifier |= EventNotifiers.SubscribeToEvents;
 
-                await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
-                    .ConfigureAwait(false);
-                await AddRootNotifierAsync(pump, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
+                        .ConfigureAwait(false);
+                    await AddRootNotifierAsync(pump, cancellationToken).ConfigureAwait(false);
+                    if (PumpRegisteredForTest != null)
+                    {
+                        await PumpRegisteredForTest(pump).ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                    // Left in place, the half-registered pump would keep its
+                    // name taken: a retry fails with BadBrowseNameDuplicated.
+                    await RemoveUnregisteredPumpAsync(deviceSet, pump).ConfigureAwait(false);
+                    throw;
+                }
 
                 if (m_options.OrganizeIntoMachinesFolder && !TryAddToMachinesFolder(pump))
                 {
@@ -349,6 +378,46 @@ namespace Opc.Ua.Pumps.Server
         }
 
         /// <summary>
+        /// Undoes a pump creation that failed after the pump was attached to
+        /// its parent: deletes what was registered of it (its nodes, its root
+        /// notifier and the references to it) and detaches it from the parent.
+        /// </summary>
+        /// <remarks>
+        /// A failure of the cleanup is logged rather than thrown, so the caller
+        /// sees the exception that failed the creation.
+        /// </remarks>
+        private async ValueTask RemoveUnregisteredPumpAsync(NodeState parent, PumpState pump)
+        {
+            try
+            {
+                // Only the node this call registered is deleted; a node of the
+                // same NodeId that belongs to someone else is left alone.
+                if (ReferenceEquals(FindPredefinedNode(pump.NodeId), pump))
+                {
+                    await DeleteNodeAsync(SystemContext, pump.NodeId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.PumpRollbackFailed(ex, pump.BrowseName.Name);
+            }
+
+            try
+            {
+                // Deleting a registered pump detaches it already; a pump that
+                // failed before it was registered, or whose deletion failed, is
+                // still attached. The parent is caller supplied and RemoveChild
+                // is virtual, so a failing detach is caught like a failing delete.
+                parent.RemoveChild(pump);
+            }
+            catch (Exception ex)
+            {
+                m_logger.PumpRollbackFailed(ex, pump.BrowseName.Name);
+            }
+        }
+
+        /// <summary>
         /// Resolves the Device Integration <c>DeviceSet</c>, which is where
         /// OPC 40223 pumps belong.
         /// </summary>
@@ -405,6 +474,15 @@ namespace Opc.Ua.Pumps.Server
                 "is reachable from the DeviceSet only.")]
         public static partial void MachinesFolderUnavailable(
             this ILogger logger,
+            string? name);
+
+        [LoggerMessage(
+            EventId = PumpsServerEventIds.PumpsNodeManager + 2,
+            Level = LogLevel.Error,
+            Message = "Could not remove pump '{Name}' after its creation failed.")]
+        public static partial void PumpRollbackFailed(
+            this ILogger logger,
+            Exception exception,
             string? name);
     }
 }

@@ -79,5 +79,25 @@ namespace Opc.Ua.Robotics
         /// A URI or location for the component manual.
         /// </summary>
         public string? DeviceManual { get; init; }
+
+        /// <summary>
+        /// The DI HardwareRevision, when published.
+        /// </summary>
+        public string? HardwareRevision { get; init; }
+
+        /// <summary>
+        /// The DI SoftwareRevision, when published.
+        /// </summary>
+        public string? SoftwareRevision { get; init; }
+
+        /// <summary>
+        /// The DI ManufacturerUri, when published.
+        /// </summary>
+        public string? ManufacturerUri { get; init; }
+
+        /// <summary>
+        /// The DI ProductInstanceUri, when published.
+        /// </summary>
+        public string? ProductInstanceUri { get; init; }
     }
 }

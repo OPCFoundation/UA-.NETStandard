@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -438,6 +439,11 @@ namespace Opc.Ua.Di.Server
         /// device parent when <paramref name="parent"/> is
         /// <see langword="null"/>) and registers it with the manager.
         /// </summary>
+        /// <remarks>
+        /// A creation that fails while the device is registered is undone:
+        /// the device is removed from its parent and from the address space,
+        /// so the name can be used again.
+        /// </remarks>
         /// <param name="browseName">Browse name of the new device.</param>
         /// <param name="parent">
         /// Optional explicit parent; when <see langword="null"/>, the
@@ -472,6 +478,11 @@ namespace Opc.Ua.Di.Server
         /// Creates a new device of type <typeparamref name="TDevice"/>
         /// under the resolved parent and registers it with the manager.
         /// </summary>
+        /// <remarks>
+        /// A creation that fails while the device is registered is undone:
+        /// the device is removed from its parent and from the address space,
+        /// so the name can be used again.
+        /// </remarks>
         /// <typeparam name="TDevice">Concrete device state class.</typeparam>
         /// <param name="browseName">Browse name of the new device.</param>
         /// <param name="typeDefinitionId">
@@ -578,10 +589,61 @@ namespace Opc.Ua.Di.Server
 
             effectiveParent.AddChild(device);
 
-            await AddPredefinedNodeAsync(SystemContext, device, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await AddPredefinedNodeAsync(SystemContext, device, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // Left in place, the half-registered device would keep its
+                // name taken: a retry fails with BadBrowseNameDuplicated.
+                await RemoveUnregisteredDeviceAsync(effectiveParent, device).ConfigureAwait(false);
+                throw;
+            }
 
             return new DeviceBuilder<TDevice>(this, device, GetOrCreateBuilder());
+        }
+
+        /// <summary>
+        /// Undoes a device creation that failed after the device was attached
+        /// to its parent: deletes what was registered of it (its nodes and the
+        /// references to it) and detaches it from the parent.
+        /// </summary>
+        /// <remarks>
+        /// A failure of the cleanup is logged rather than thrown, so the caller
+        /// sees the exception that failed the creation.
+        /// </remarks>
+        private async ValueTask RemoveUnregisteredDeviceAsync(NodeState parent, ComponentState device)
+        {
+            try
+            {
+                // Only the node this call registered is deleted; a node of the
+                // same NodeId that belongs to someone else is left alone.
+                if (ReferenceEquals(FindPredefinedNode(device.NodeId), device))
+                {
+                    await DeleteNodeAsync(SystemContext, device.NodeId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.DeviceRollbackFailed(ex, device.BrowseName.Name);
+            }
+
+            try
+            {
+                // Deleting a registered device detaches it already; a device
+                // that failed before it was registered, or whose deletion
+                // failed, is still attached. The parent is caller supplied and
+                // RemoveChild is virtual, so a failing detach is caught like a
+                // failing delete.
+                parent.RemoveChild(device);
+            }
+            catch (Exception ex)
+            {
+                m_logger.DeviceRollbackFailed(ex, device.BrowseName.Name);
+            }
         }
 
         /// <summary>
@@ -1015,5 +1077,15 @@ namespace Opc.Ua.Di.Server
                 return true;
             }
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="DiNodeManager"/>.
+    /// </summary>
+    internal static partial class DiNodeManagerLog
+    {
+        [LoggerMessage(EventId = DiServerEventIds.DiNodeManager + 0, Level = LogLevel.Error,
+            Message = "Could not remove device '{Name}' after its creation failed.")]
+        public static partial void DeviceRollbackFailed(this ILogger logger, Exception ex, string? name);
     }
 }
