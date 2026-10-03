@@ -72,6 +72,8 @@ namespace Opc.Ua.Server.Tests
                     server.CurrentInstance.UpdateServerDiagnostics(diagnostics =>
                     {
                         Assert.That(diagnostics.CurrentSessionCount, Is.Zero);
+                        // Part 5 12.9: a rolled back session was never established.
+                        Assert.That(diagnostics.CumulatedSessionCount, Is.Zero);
                         Assert.That(diagnostics.RejectedSessionCount, Is.EqualTo(1));
                         Assert.That(diagnostics.RejectedRequestsCount, Is.EqualTo(1));
                     });

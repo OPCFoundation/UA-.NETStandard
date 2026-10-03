@@ -627,7 +627,7 @@ namespace Opc.Ua.Server
                     {
                         if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
-                            ContinuationPoint? cp = context.Session
+                            ContinuationPoint? cp = context.Session?
                                 .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
                             cp?.Dispose();
                         }
@@ -786,7 +786,9 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(context.OperationStatus);
                     }
 
-                    ContinuationPoint? cp = context.Session.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
+                    // A session-less request (Part 4 §6.3.1) holds no continuation points, so every
+                    // supplied point is unknown and reported as Bad_ContinuationPointInvalid below.
+                    ContinuationPoint? cp = context.Session?.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
                     ContinuationPoint? ownedCp = cp;
                     try
                     {
@@ -882,7 +884,7 @@ namespace Opc.Ua.Server
                     {
                         if (!result.ContinuationPoint.IsEmpty)
                         {
-                            context.Session.ContinuationPoints.RestoreBrowse(result.ContinuationPoint)?.Dispose();
+                            context.Session?.ContinuationPoints.RestoreBrowse(result.ContinuationPoint)?.Dispose();
                         }
                     }
                 }
@@ -1033,12 +1035,16 @@ namespace Opc.Ua.Server
                     referenceList = referencesToKeep;
                     if (currentCp != null && referenceList.Count >= currentCp.MaxResultsToReturn)
                     {
-                        if (!assignContinuationPoint)
+                        // A session-less request (Part 4 §6.3.1) has nowhere to keep a
+                        // continuation point, so the overflowing node is reported with
+                        // Bad_NoContinuationPoints (Part 4 §7.38.2).
+                        ISession? session = context!.Session;
+                        if (!assignContinuationPoint || session == null)
                         {
                             return (StatusCodes.BadNoContinuationPoints, null, referenceList);
                         }
                         currentCp.Id = Guid.NewGuid();
-                        context!.Session!.ContinuationPoints.SaveBrowse(currentCp);
+                        session.ContinuationPoints.SaveBrowse(currentCp);
                         ContinuationPoint retainedCp = currentCp;
                         currentCp = null;
                         return (ServiceResult.Good, retainedCp, referenceList);
@@ -1359,20 +1365,41 @@ namespace Opc.Ua.Server
                 diagnosticInfos.Add(diagnosticInfo!);
             }
 
+            // keep the points this request continues or creates from being evicted by its own
+            // later operations or by a concurrent request until the response has been produced
+            // (Part 4 §7.9). The scope lives until the method returns; it is begun synchronously
+            // so it is the current HistoryRead of the node manager calls awaited below.
+            SessionContinuationPoints? sessionContinuationPoints = validItems && !releaseContinuationPoints
+                ? context.Session?.ContinuationPoints as SessionContinuationPoints
+                : null;
+            using IDisposable? historyRequest = sessionContinuationPoints?.BeginHistoryRequest(nodesToRead);
+
             // call each node manager.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                try
                 {
-                    await nodeManager.HistoryReadAsync(
-                         context,
-                        details!,
-                        timestampsToReturn,
-                        releaseContinuationPoints,
-                        nodesToRead,
-                        results,
-                        errors,
-                        cancellationToken).ConfigureAwait(false);
+                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    {
+                        await nodeManager.HistoryReadAsync(
+                            context,
+                            details!,
+                            timestampsToReturn,
+                            releaseContinuationPoints,
+                            nodesToRead,
+                            results,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                catch
+                {
+                    // the service faults, so the client never receives the continuation
+                    // points saved for its operations and could not release them
+                    // (Part 4 §7.9); free them like Browse does.
+                    ReleaseUnreturnedHistoryContinuationPoints(
+                        context, sessionContinuationPoints, historyRequest, nodesToRead, results);
+                    throw;
                 }
 
                 for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1413,6 +1440,60 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
+        }
+
+        /// <summary>
+        /// Releases the history continuation points a faulted HistoryRead saved for its
+        /// operations, since the response that would carry them is never sent. This includes the
+        /// points a node manager saved before it faulted without assigning them to a result.
+        /// </summary>
+        private void ReleaseUnreturnedHistoryContinuationPoints(
+            OperationContext context,
+            SessionContinuationPoints? sessionContinuationPoints,
+            IDisposable? historyRequest,
+            ArrayOf<HistoryReadValueId> nodesToRead,
+            List<HistoryReadResult> results)
+        {
+            if (sessionContinuationPoints != null && historyRequest != null)
+            {
+                try
+                {
+                    sessionContinuationPoints.ReleaseSavedHistory(historyRequest);
+                }
+                catch (Exception e)
+                {
+                    // cleanup must not replace the error that faulted the request.
+                    m_logger.HistoryContinuationReleaseFailed(e);
+                }
+            }
+
+            ISessionContinuationPoints? continuationPoints = context.Session?.ContinuationPoints;
+            if (continuationPoints == null)
+            {
+                return;
+            }
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                HistoryReadResult result = results[ii];
+                // skip a point the client supplied itself: it was not created by this request.
+                if (result == null ||
+                    result.ContinuationPoint.IsEmpty ||
+                    (ii < nodesToRead.Count &&
+                        nodesToRead[ii] != null &&
+                        nodesToRead[ii].ContinuationPoint.Equals(result.ContinuationPoint)))
+                {
+                    continue;
+                }
+                try
+                {
+                    continuationPoints.ReleaseHistory(result.ContinuationPoint);
+                }
+                catch (Exception e)
+                {
+                    // cleanup must not replace the error that faulted the request.
+                    m_logger.HistoryContinuationReleaseFailed(e);
+                }
+            }
         }
 
         /// <summary>
@@ -3836,5 +3917,10 @@ namespace Opc.Ua.Server
             Message = "Could not resolve browse target {TargetId}; continuing with the remaining references.")]
         public static partial void BrowseReferenceTargetFailed(
             this ILogger logger, Exception exception, ExpandedNodeId targetId);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManagerServiceDispatcher + 1, Level = LogLevel.Warning,
+            Message = "Could not release a history continuation point of a failed HistoryRead request.")]
+        public static partial void HistoryContinuationReleaseFailed(
+            this ILogger logger, Exception exception);
     }
 }

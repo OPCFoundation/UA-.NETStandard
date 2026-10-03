@@ -946,6 +946,13 @@ namespace Opc.Ua.Server
 
             lock (m_diagnosticsLock)
             {
+                // The diagnostics are created with the server object during startup; a request
+                // rejected before that (e.g. Bad_ServerHalted) has nothing to count yet.
+                if (ServerDiagnostics == null)
+                {
+                    return;
+                }
+
                 update.Invoke(ServerDiagnostics);
 
                 // mark diagnostic nodes dirty
@@ -1044,17 +1051,51 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
+            await TryCloseSessionAsync(context, sessionId, deleteSubscriptions, false, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Closes the specified session and reports whether this call performed the teardown.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sessionId">The session identifier.</param>
+        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        /// <param name="alreadyClaimed">
+        /// <c>true</c> when the caller has already marked the session closing itself.
+        /// </param>
+        /// <param name="cancellationToken">The cancellationToken</param>
+        /// <returns>
+        /// <c>false</c> when another close of the same session was already in progress.
+        /// </returns>
+        internal async ValueTask<bool> TryCloseSessionAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            bool alreadyClaimed = false,
+            CancellationToken cancellationToken = default)
+        {
             // Only the first caller to mark the session closing performs the teardown. If the
             // session is already closing another close is in progress, so return without racing it.
-            if (!MarkSessionClosing(sessionId))
+            if (!alreadyClaimed && !MarkSessionClosing(sessionId))
             {
-                return;
+                return false;
             }
 
             CancellationToken closeCancellationToken = CancellationToken.None;
 
             try
             {
+                // OPC 10000-4 5.7.2.1: when a Session is terminated, all outstanding requests on
+                // the Session are aborted with Bad_SessionClosed. The CloseSession request that
+                // drives this close is the one request that must still complete normally. This
+                // runs inside the try, so a failure here cannot leave the Session marked closing
+                // but still registered.
+                RequestManager?.CancelSessionRequests(
+                    sessionId,
+                    GetRequestId(context),
+                    StatusCodes.BadSessionClosed);
+
                 await NodeManager.SessionClosingAsync(
                     context,
                     sessionId,
@@ -1076,6 +1117,17 @@ namespace Opc.Ua.Server
                 // down. The original failure still propagates to the caller.
                 await SessionManager.CloseSessionAsync(sessionId, closeCancellationToken).ConfigureAwait(false);
             }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the id of the request a server-internal close runs for, or 0 when the close
+        /// was not requested by a client (timeout or termination pass no context).
+        /// </summary>
+        private static uint GetRequestId(OperationContext? context)
+        {
+            return context?.RequestId ?? 0;
         }
 
         /// <summary>
@@ -1095,7 +1147,7 @@ namespace Opc.Ua.Server
             {
                 if (session.Id == sessionId)
                 {
-                    return (session as Session)?.MarkClosing() ?? true;
+                    return SessionTermination.TryClaimClose(session);
                 }
             }
 
