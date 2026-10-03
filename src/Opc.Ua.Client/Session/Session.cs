@@ -1577,7 +1577,7 @@ namespace Opc.Ua.Client
             lock (m_lock)
             {
                 // save session id and cookie in base
-                base.SessionCreated(sessionId, sessionCookie);
+                SessionCreated(sessionId, sessionCookie);
             }
 
             m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
@@ -4776,6 +4776,39 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public override void SessionCreated(NodeId sessionId, NodeId sessionCookie)
+        {
+            base.SessionCreated(sessionId, sessionCookie);
+            if (!sessionCookie.IsNull)
+            {
+                m_hadSession = true;
+            }
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A request with a null authenticationToken is a session-less
+        /// invocation (OPC 10000-4 §6.3.1). Once this Session has been
+        /// created, a request without token is not sent: after the Session
+        /// was closed, it fails locally with Bad_SessionIdInvalid instead of
+        /// reaching the Server as a session-less invocation. CreateSession
+        /// and ActivateSession are not affected.
+        /// </remarks>
+        protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
+        {
+            base.UpdateRequestHeader(request, useDefaults);
+
+            if (m_hadSession &&
+                request.RequestHeader.AuthenticationToken.IsNull &&
+                request is not (CreateSessionRequest or ActivateSessionRequest))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionIdInvalid,
+                    "The Session has been closed.");
+            }
+        }
+
+        /// <inheritdoc/>
         protected override void RequestCompleted(
             IServiceRequest request,
             IServiceResponse response,
@@ -6755,6 +6788,7 @@ namespace Opc.Ua.Client
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
 
+        private volatile bool m_hadSession;
         private readonly Lock m_lock = new();
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
