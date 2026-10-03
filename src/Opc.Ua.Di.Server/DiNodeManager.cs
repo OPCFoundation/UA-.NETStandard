@@ -598,11 +598,19 @@ namespace Opc.Ua.Di.Server
             {
                 m_logger.DeviceRollbackFailed(ex, device.BrowseName.Name);
             }
-            finally
+
+            try
             {
                 // Deleting a registered device detaches it already; a device
-                // that failed before it was registered is still attached.
+                // that failed before it was registered, or whose deletion
+                // failed, is still attached. The parent is caller supplied and
+                // RemoveChild is virtual, so a failing detach is caught like a
+                // failing delete.
                 parent.RemoveChild(device);
+            }
+            catch (Exception ex)
+            {
+                m_logger.DeviceRollbackFailed(ex, device.BrowseName.Name);
             }
         }
 

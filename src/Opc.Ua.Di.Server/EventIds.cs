@@ -44,9 +44,9 @@ namespace Opc.Ua
     internal static class DiServerEventIds
     {
         public const int DefaultLockService = 0;
-        public const int DiPostSetupRunner = 10;
-        public const int SoftwareUpdateFileTransferManager = 20;
-        public const int SoftwareUpdateStateMachineDispatcher = 30;
-        public const int DiNodeManager = 40;
+        public const int DiNodeManager = 10;
+        public const int DiPostSetupRunner = 20;
+        public const int SoftwareUpdateFileTransferManager = 30;
+        public const int SoftwareUpdateStateMachineDispatcher = 40;
     }
 }

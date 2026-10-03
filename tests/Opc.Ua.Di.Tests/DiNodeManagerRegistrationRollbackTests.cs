@@ -29,13 +29,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Di.Tests
 {
@@ -210,13 +213,55 @@ namespace Opc.Ua.Di.Tests
             });
         }
 
+        [Test]
+        public void AFailingDetachDoesNotReplaceTheOriginalFailure()
+        {
+            // The parent is supplied by the caller and RemoveChild is virtual.
+            // A detach that threw during the rollback escaped and replaced the
+            // exception that failed the creation.
+            using var logs = new RecordingLoggerProvider(LogLevel.Error);
+            m_manager.Server.Telemetry.LoggerFactory.AddProvider(logs);
+            var parent = new DetachRefusingState(Name("DetachRefusingParent"));
+            BaseObjectState? extension = null;
+            m_manager.Registering = node =>
+            {
+                if (ReferenceEquals(node, extension))
+                {
+                    throw new InvalidOperationException("Registration failed.");
+                }
+            };
+
+            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await CreateDeviceWithExtensionAsync(
+                    Name("DetachRefused"),
+                    device => extension = new BaseObjectState(device),
+                    parent).ConfigureAwait(false));
+
+            RecordedLogRecord[] detachFailures =
+                [.. logs.Records.Where(r => r.Exception?.Message == DetachRefusingState.Refusal)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(extension, Is.Not.Null, "the registration reached the extension");
+                Assert.That(error!.Message, Is.EqualTo("Registration failed."), "the original failure surfaces");
+                Assert.That(
+                    detachFailures,
+                    Has.Length.EqualTo(2),
+                    "the delete and the detach both fail on the parent, and both are logged");
+                Assert.That(
+                    detachFailures.Select(r => r.LogLevel),
+                    Is.All.EqualTo(LogLevel.Error),
+                    "the cleanup failure is an error");
+            });
+        }
+
         /// <summary>
         /// Creates a device of <c>DeviceType</c> through the factory overload
         /// with one more child, which the device factory adds last.
         /// </summary>
         private ValueTask<IDeviceBuilder<DeviceState>> CreateDeviceWithExtensionAsync(
             QualifiedName name,
-            Func<DeviceState, BaseObjectState> createExtension)
+            Func<DeviceState, BaseObjectState> createExtension,
+            NodeState? parent = null)
         {
             return m_manager.CreateDeviceAsync(
                 name,
@@ -234,7 +279,8 @@ namespace Opc.Ua.Di.Tests
                     extension.TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType;
                     device.AddChild(extension);
                     return device;
-                });
+                },
+                parent);
         }
 
         private QualifiedName Name(string name)
@@ -332,6 +378,29 @@ namespace Opc.Ua.Di.Tests
             }
 
             private readonly Action m_creating;
+        }
+
+        /// <summary>
+        /// A parent whose detach fails, the way an arbitrary caller supplied
+        /// parent overriding <see cref="NodeState.RemoveChild"/> can fail.
+        /// </summary>
+        private sealed class DetachRefusingState : BaseObjectState
+        {
+            public const string Refusal = "Detach refused.";
+
+            public DetachRefusingState(QualifiedName browseName)
+                : base(null)
+            {
+                NodeId = new NodeId("DetachRefusingParent", browseName.NamespaceIndex);
+                BrowseName = browseName;
+                DisplayName = new LocalizedText("DetachRefusingParent");
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType;
+            }
+
+            public override void RemoveChild(BaseInstanceState child)
+            {
+                throw new NotSupportedException(Refusal);
+            }
         }
     }
 }
