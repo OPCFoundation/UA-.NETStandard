@@ -146,6 +146,28 @@ has just created in a long store path, so the tests keep their PKI folders
 directly below the temp folder. The project is a `*.Tests.csproj`, so CI runs it
 on every pull-request test leg like any other test project.
 
+The same `LegacyServerInteropTests` and `LegacyClientInteropTests` also run
+against peers built on other OPC UA stacks, in
+[`tests/Opc.Ua.Interop.Peers`](../tests/Opc.Ua.Interop.Peers): `node-opcua`
+(Node.js) and `milo` (Eclipse Milo, Java). A peer speaks the same command line and
+output protocol as the 1.5 peer: `server` prints `PEER-INFO {json}` (stack,
+version, application URI, software version) and then the ready line; `client`
+prints one `RESULT {json}` line per check. Select a peer with three variables:
+
+| Variable | node-opcua | Milo |
+| --- | --- | --- |
+| `OPCUA_INTEROP_PEER_HOST` | path of `node` | path of `java` |
+| `OPCUA_INTEROP_PEER_HOST_ARGUMENTS` | (unset) | `-jar` |
+| `OPCUA_INTEROP_LEGACY_PEER` | `.../node-opcua/peer.mjs` | `.../milo/target/milo-peer.jar` |
+
+Install the peer first (`npm ci` in its folder, or `mvn -q package` for Milo).
+Known defects of a stack are listed in the peer's `expected-differences.json`,
+keyed by check name or `Fixture.Test`; a listed failure is reported as
+inconclusive with its reason, a listed test that passes as a warning. The
+[`Foreign stack interop`](../.github/workflows/interop-foreign.yml) workflow
+runs both peers on Windows, Linux and macOS nightly, on demand and for pull
+requests labelled `interop`; it is not a required check.
+
 Channel recovery regressions use `ManagedSessionReconnectTests` in the client
 test project and `ClientChannelManagerManagedTests` / `ReconnectDeadlineTests`
 in the core test project. The composed fixture scripts an in-process transport

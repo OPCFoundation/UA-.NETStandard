@@ -27,58 +27,63 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
-using NUnit.Framework;
 
 namespace Opc.Ua.Interop.Tests
 {
     /// <summary>
-    /// One "RESULT {json}" line of the legacy peer in client mode.
+    /// The "PEER-INFO {json}" line a peer prints before it is ready: which
+    /// stack it is and what its server reports about itself, so the tests
+    /// compare against the peer instead of hard-coding the 1.5.378 peer.
     /// </summary>
-    public sealed class PeerCheckResult
+    public sealed class PeerInfo
     {
-        public string Check { get; private set; }
-        public bool Passed { get; private set; }
-        public string Message { get; private set; }
-        public long Milliseconds { get; private set; }
+        /// <summary>
+        /// The stack value of the 1.5.378 peer.
+        /// </summary>
+        public const string LegacyStack = "UA-.NETStandard";
 
-        public static PeerCheckResult Parse(string json)
+        /// <summary>
+        /// The stack, e.g. UA-.NETStandard, node-opcua or Eclipse Milo.
+        /// </summary>
+        public string Stack { get; private set; }
+
+        /// <summary>
+        /// The stack version.
+        /// </summary>
+        public string Version { get; private set; }
+
+        /// <summary>
+        /// The application URI of the peer.
+        /// </summary>
+        public string ApplicationUri { get; private set; }
+
+        /// <summary>
+        /// The BuildInfo.SoftwareVersion the peer's server reports.
+        /// </summary>
+        public string SoftwareVersion { get; private set; }
+
+        /// <summary>
+        /// Whether the peer is the 1.5.x .NET peer.
+        /// </summary>
+        public bool IsLegacy => Stack == LegacyStack;
+
+        public static PeerInfo Parse(string json)
         {
             using var document = JsonDocument.Parse(json);
             JsonElement root = document.RootElement;
-            return new PeerCheckResult
+            return new PeerInfo
             {
-                Check = root.GetProperty("check").GetString(),
-                Passed = root.GetProperty("outcome").GetString() == "Passed",
-                Message = root.GetProperty("message").GetString(),
-                Milliseconds = root.GetProperty("milliseconds").GetInt64()
+                Stack = Get(root, "stack"),
+                Version = Get(root, "version"),
+                ApplicationUri = Get(root, "applicationUri"),
+                SoftwareVersion = Get(root, "softwareVersion")
             };
         }
 
-        /// <summary>
-        /// Asserts that the named check ran and passed; the failure message
-        /// carries the peer's reason and its full output.
-        /// </summary>
-        public static void AssertPassed(
-            IReadOnlyList<PeerCheckResult> results,
-            string check,
-            string peerOutput)
+        private static string Get(JsonElement root, string name)
         {
-            PeerCheckResult result = results.FirstOrDefault(r => r.Check == check);
-            if (result == null)
-            {
-                Assert.Fail(
-                    $"The 1.5 client did not run '{check}'." + Environment.NewLine + peerOutput);
-                return;
-            }
-            ExpectedDifferences.Apply(check, result.Passed, result.Message);
-            Assert.That(
-                result.Passed,
-                Is.True,
-                $"1.5 client check '{check}' failed: {result.Message}" + Environment.NewLine + peerOutput);
+            return root.TryGetProperty(name, out JsonElement value) ? value.GetString() : null;
         }
     }
 }

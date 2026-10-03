@@ -1,0 +1,11 @@
+{
+  "name": "opc-ua-interop-peer-node-opcua",
+  "version": "1.0.0",
+  "private": true,
+  "description": "node-opcua interop peer for the Opc.Ua.Interop.Tests suite",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "node-opcua": "2.186.15"
+  }
+}
