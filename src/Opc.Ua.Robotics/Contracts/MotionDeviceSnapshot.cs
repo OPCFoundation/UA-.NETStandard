@@ -50,6 +50,11 @@ namespace Opc.Ua.Robotics
         public DataValue SpeedOverride { get; init; } = DataValue.Null;
 
         /// <summary>
+        /// The SpeedOverride variable to subscribe to, or <see cref="NodeId.Null"/> when not published.
+        /// </summary>
+        public NodeId SpeedOverrideId { get; init; } = NodeId.Null;
+
+        /// <summary>
         /// Axis instance NodeIds contained by the motion device.
         /// </summary>
         public ArrayOf<NodeId> AxisIds { get; init; } = [];
