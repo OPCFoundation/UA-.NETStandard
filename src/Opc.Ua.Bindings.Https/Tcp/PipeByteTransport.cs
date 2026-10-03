@@ -115,6 +115,13 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadConnectionClosed,
                     "Transport closed while writing chunk.");
             }
+            catch (Exception ex) when (IsWriterClosedByClose(ex))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    ex,
+                    "Transport closed while writing chunk.");
+            }
             finally
             {
                 m_sendLock.Release();
@@ -153,6 +160,13 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConnectionClosed,
+                    "Transport closed while writing buffer collection.");
+            }
+            catch (Exception ex) when (IsWriterClosedByClose(ex))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    ex,
                     "Transport closed while writing buffer collection.");
             }
             finally
@@ -354,6 +368,21 @@ namespace Opc.Ua.Bindings
                 linkedCts.Dispose();
                 throw;
             }
+        }
+
+        /// <summary>
+        /// A sender that holds the send lock can race <see cref="Close"/>,
+        /// which completes the output writer without taking the lock. The
+        /// writer then rejects the write (InvalidOperationException from a
+        /// completed pipe) and that must surface as
+        /// <see cref="StatusCodes.BadConnectionClosed"/>. Close sets the
+        /// closed flag before completing the writer, so the flag is set
+        /// whenever the writer fails for that reason.
+        /// </summary>
+        private bool IsWriterClosedByClose(Exception ex)
+        {
+            return ex is not ServiceResultException and not OperationCanceledException &&
+                Volatile.Read(ref m_closed) != 0;
         }
 
         private void ThrowIfClosed()

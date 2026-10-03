@@ -74,14 +74,53 @@ namespace Quickstarts.Servers
             IBatchPersistor batchPersistor)
         {
             IsDurable = queue.IsDurable;
-            m_enqueueBatch = queue.EnqueueBatch!;
-            m_eventBatches = queue.EventBatches;
-            m_dequeueBatch = queue.DequeueBatch!;
-            QueueSize = queue.QueueSize;
-            ItemsInQueue = 0;
             MonitoredItemId = queue.MonitoredItemId;
+            QueueSize = queue.QueueSize;
             m_batchPersistor = batchPersistor;
             m_logger = NullLogger<DurableEventMonitoredItemQueue>.Instance;
+
+            m_enqueueBatch = queue.EnqueueBatch ?? new EventBatch([], kBatchSize, MonitoredItemId);
+            // a null dequeue batch means it was the enqueue batch when the queue was stored.
+            m_dequeueBatch = queue.DequeueBatch ?? m_enqueueBatch;
+
+            // batches that come back without events hold nothing to deliver; dropping them
+            // keeps Dequeue from promoting an empty batch while events remain queued.
+            if (queue.EventBatches != null)
+            {
+                foreach (EventBatch batch in queue.EventBatches)
+                {
+                    if (batch?.Events != null && batch.Events.Count > 0)
+                    {
+                        m_eventBatches.Add(batch);
+                    }
+                }
+            }
+
+            if (m_dequeueBatch != m_enqueueBatch && m_dequeueBatch.Events.Count == 0)
+            {
+                if (m_eventBatches.Count > 0)
+                {
+                    m_dequeueBatch = m_eventBatches[0];
+                    m_eventBatches.RemoveAt(0);
+                }
+                else
+                {
+                    m_dequeueBatch = m_enqueueBatch;
+                }
+            }
+
+            // the stored format has no count: derive it from the restored events so that
+            // Dequeue, the duplicate check and the queue size handling see them.
+            int itemsInQueue = m_enqueueBatch.Events.Count;
+            if (m_dequeueBatch != m_enqueueBatch)
+            {
+                itemsInQueue += m_dequeueBatch.Events.Count;
+            }
+            foreach (EventBatch batch in m_eventBatches)
+            {
+                itemsInQueue += batch.Events.Count;
+            }
+            ItemsInQueue = itemsInQueue;
         }
 
         /// <inheritdoc/>
@@ -220,33 +259,54 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            int maxCount =
+            // a duplicate is the same instance reported again through another notifier
+            // path, so it sits among the most recently queued events: scan from the newest
+            // (the enqueue batch, then the stored batches from the latest backwards, then
+            // the dequeue batch, which holds the oldest events).
+            int remaining =
                 ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents
                     ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents
                     : ItemsInQueue;
 
-            for (int i = 0; i < maxCount; i++)
+            if (ContainsHandle(m_enqueueBatch.Events, instance, ref remaining))
             {
-                // Check in the enqueue batch
-                if (i < m_enqueueBatch.Events.Count &&
-                    m_enqueueBatch.Events[i] is EventFieldList processedEvent)
+                return true;
+            }
+
+            for (int batch = m_eventBatches.Count - 1; batch >= 0 && remaining > 0; batch--)
+            {
+                // older batches are persisted (no events in memory) and hold no recent duplicate.
+                List<EventFieldList>? events = m_eventBatches[batch].Events;
+                if (events == null)
                 {
-                    if (ReferenceEquals(instance, processedEvent.Handle))
-                    {
-                        return true;
-                    }
+                    return false;
                 }
-                // If the enqueue batch is smaller than maxCount, check in the first stored batch
-                else if (i >= m_enqueueBatch.Events.Count && m_eventBatches.Count > 0)
+                if (ContainsHandle(events, instance, ref remaining))
                 {
-                    int indexInStoredBatch = i - m_enqueueBatch.Events.Count;
-                    if (indexInStoredBatch < m_eventBatches[^1].Events.Count &&
-                        m_eventBatches[^1].Events[
-                            indexInStoredBatch] is EventFieldList storedEvent &&
-                        ReferenceEquals(instance, storedEvent.Handle))
-                    {
-                        return true;
-                    }
+                    return true;
+                }
+            }
+
+            return m_dequeueBatch != m_enqueueBatch &&
+                m_dequeueBatch.Events != null &&
+                ContainsHandle(m_dequeueBatch.Events, instance, ref remaining);
+        }
+
+        /// <summary>
+        /// Scans the events from the newest to the oldest for an event raised for the
+        /// instance, checking at most <paramref name="remaining"/> events.
+        /// </summary>
+        private static bool ContainsHandle(
+            List<EventFieldList> events,
+            IFilterTarget instance,
+            ref int remaining)
+        {
+            for (int i = events.Count - 1; i >= 0 && remaining > 0; i--, remaining--)
+            {
+                if (events[i] is EventFieldList queuedEvent &&
+                    EventMonitoredItemQueue.IsEventRaisedFor(queuedEvent, instance))
+                {
+                    return true;
                 }
             }
             return false;
@@ -358,16 +418,50 @@ namespace Quickstarts.Servers
         /// </summary>
         public StorableEventQueue ToStorableQueue()
         {
+            // the stored queue gets detached copies of resident batches: a batch spilled to
+            // disk is loaded back (its file is keyed by a batch id that does not survive a
+            // restart) and a batch whose spill is in flight is copied before the persistor
+            // can clear its events, so the copies stay stable while they are encoded.
+            EventBatch enqueueBatch = DetachBatch(m_enqueueBatch);
+            EventBatch dequeueBatch = ReferenceEquals(m_dequeueBatch, m_enqueueBatch)
+                ? enqueueBatch
+                : DetachBatch(m_dequeueBatch);
+
             return new StorableEventQueue
             {
                 IsDurable = IsDurable,
                 MonitoredItemId = MonitoredItemId,
-                DequeueBatch = m_dequeueBatch,
-                EnqueueBatch = m_enqueueBatch,
-                EventBatches = m_eventBatches,
+                DequeueBatch = dequeueBatch,
+                EnqueueBatch = enqueueBatch,
+                EventBatches = m_eventBatches.ConvertAll(DetachBatch),
                 QueueSize = QueueSize
             };
         }
+
+        /// <summary>
+        /// Returns a resident copy of the batch that the persistor cannot change.
+        /// </summary>
+        private EventBatch DetachBatch(EventBatch batch)
+        {
+            for (int attempt = 0; attempt < kMaxDetachAttempts; attempt++)
+            {
+                // the persistor clears the events of a spilled batch under this lock.
+                lock (batch)
+                {
+                    if (!batch.IsPersisted && batch.Events != null)
+                    {
+                        return new EventBatch([.. batch.Events], batch.BatchSize, batch.MonitoredItemId);
+                    }
+                }
+
+                m_batchPersistor.RestoreSynchronously(batch);
+            }
+
+            m_logger.SpilledBatchNotLoadedForStore(MonitoredItemId);
+            return new EventBatch([], batch.BatchSize, batch.MonitoredItemId);
+        }
+
+        private const int kMaxDetachAttempts = 3;
 
         /// <inheritdoc/>
         public void Dispose()

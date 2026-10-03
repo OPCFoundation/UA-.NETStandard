@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    OPC UA peer built from the released 1.5.378 NuGet packages. The interop tests in
+    tests/Opc.Ua.Interop.Tests start it as a separate process, because the 1.5 and 2.0
+    stacks share assembly names and namespaces and cannot be loaded into one process.
+
+    Override the package version with -p:LegacyStackVersion=<version>.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- CI only installs the latest SDK/runtime; run on whatever major is present. -->
+    <RollForward>LatestMajor</RollForward>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Opc.Ua.Interop.LegacyPeer</AssemblyName>
+    <RootNamespace>Opc.Ua.Interop.LegacyPeer</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <LegacyStackVersion Condition="'$(LegacyStackVersion)' == ''">1.5.378.176</LegacyStackVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Server" Version="$(LegacyStackVersion)" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="$(LegacyStackVersion)" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Configuration" Version="$(LegacyStackVersion)" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes" Version="$(LegacyStackVersion)" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers" Version="$(LegacyStackVersion)" />
+  </ItemGroup>
+</Project>

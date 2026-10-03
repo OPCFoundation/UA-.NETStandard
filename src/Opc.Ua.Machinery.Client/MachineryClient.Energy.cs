@@ -175,6 +175,11 @@ namespace Opc.Ua.Machinery.Client
         /// Reads one OPC 34100 metering point: its application tag and every
         /// measurement value below it.
         /// </summary>
+        /// <remarks>
+        /// Each measurement carries the NodeId of its variable, so a client
+        /// that wants live values subscribes to it without browsing the
+        /// point again. A measurement whose value cannot be read is left out.
+        /// </remarks>
         /// <param name="meteringPoint">The metering point to read.</param>
         /// <param name="cancellationToken">Cancels the operation.</param>
         public async ValueTask<MachineryMeteringPoint?> ReadMeteringPointAsync(
@@ -196,7 +201,7 @@ namespace Opc.Ua.Machinery.Client
                 Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
                 cancellationToken).ConfigureAwait(false);
 
-            var names = new List<QualifiedName>();
+            var variables = new List<MachineEntry>();
             var measurements = new List<MachineryMeasurementValue>();
             await foreach (MachineEntry child in EnumerateChildVariablesAsync(
                     meteringPoint,
@@ -204,21 +209,38 @@ namespace Opc.Ua.Machinery.Client
             {
                 if (child.BrowseName != applicationTagName)
                 {
-                    names.Add(child.BrowseName);
+                    variables.Add(child);
                 }
             }
-            if (names.Count > 0)
+            if (variables.Count > 0)
             {
-                Dictionary<QualifiedName, Variant> readings = await ReadChildValuesAsync(
-                    meteringPoint,
-                    names,
-                    Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
-                    cancellationToken).ConfigureAwait(false);
-                foreach (QualifiedName name in names)
+                // The browse already returned the NodeIds, so the values are
+                // read by them in one batched Read.
+                var reads = new ReadValueId[variables.Count];
+                for (int ii = 0; ii < variables.Count; ii++)
                 {
-                    if (readings.TryGetValue(name, out Variant reading))
+                    reads[ii] = new ReadValueId
                     {
-                        measurements.Add(new MachineryMeasurementValue(name, reading));
+                        NodeId = variables[ii].NodeId,
+                        AttributeId = Attributes.Value
+                    };
+                }
+                ReadResponse read = await Session.ReadAsync(
+                    requestHeader: null,
+                    maxAge: 0,
+                    timestampsToReturn: TimestampsToReturn.Neither,
+                    nodesToRead: reads.ToArrayOf(),
+                    ct: cancellationToken).ConfigureAwait(false);
+                for (int ii = 0; ii < read.Results.Count && ii < variables.Count; ii++)
+                {
+                    if (StatusCode.IsGood(read.Results[ii].StatusCode))
+                    {
+                        measurements.Add(new MachineryMeasurementValue(
+                            variables[ii].BrowseName,
+                            read.Results[ii].WrappedValue)
+                        {
+                            NodeId = variables[ii].NodeId
+                        });
                     }
                 }
             }

@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Tests
                 var subMock = new Mock<ISubscriptionPublishPipeline>();
                 subMock.Setup(s => s.Id).Returns((uint)(i + 1));
                 subMock.Setup(s => s.Priority).Returns((byte)(i % 5));
-                subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+                subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
                 subs.Add(subMock);
                 queue.Add(subMock.Object);
             }
