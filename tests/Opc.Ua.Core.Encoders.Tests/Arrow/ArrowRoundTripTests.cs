@@ -1,0 +1,670 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Apache.Arrow.Ipc;
+using Apache.Arrow.Types;
+using NUnit.Framework;
+using Opc.Ua;
+
+namespace Opc.Ua.Core.Tests
+{
+    /// <summary>
+    /// Verifies that the Arrow experimental encoder preserves OPC UA built-ins, composite values, presence
+    /// markers, and typed schema columns through round-trip serialization.
+    /// </summary>
+    [TestFixture]
+    public sealed class ArrowRoundTripTests
+    {
+        private static readonly int[] MatrixValues = [1, 2, 3, 4];
+        private static readonly int[] ExpectedMatrixDimensions = [1, 2];
+        private static readonly string[] ArrayStringValues = ["a", null!, string.Empty];
+        private static readonly string[] SchemaStringValues = ["a", "b"];
+        private static readonly bool[] VariantBooleanValues = [true, false];
+        private static readonly float[] VariantFloatValues = [1.25f, 2.5f];
+        private static readonly sbyte[] VariantSByteValues = [-1, 2];
+        private static readonly byte[] VariantByteValues = [1, 2];
+        private static readonly short[] VariantInt16Values = [-3, 4];
+        private static readonly ushort[] VariantUInt16Values = [3, 4];
+        private static readonly int[] VariantInt32Values = [-5, 6];
+        private static readonly uint[] VariantUInt32Values = [5, 6];
+        private static readonly long[] VariantInt64Values = [-7, 8];
+        private static readonly ulong[] VariantUInt64Values = [7, 8];
+        private static readonly float[] TypedFloatValues = [1.5f, -2.5f];
+        private static readonly double[] TypedDoubleValues = [1.25d, -2.5d];
+        private static readonly double[] VariantDoubleValues = [-1.25d, -2.5d];
+        private static readonly string[] VariantStringValues = ["a", null!];
+        private static readonly DateTimeUtc[] VariantDateTimeValues = [new(11L), default];
+        private static readonly Uuid[] VariantUuidValues =
+        [
+            new(Guid.Parse("11112222-3333-4444-5555-666677778888")),
+            default
+        ];
+        private static readonly ByteString[] VariantByteStringValues = [ByteString.From(1, 2), default];
+        private static readonly XmlElement[] VariantXmlElementValues = [XmlElement.From("<x/>"), default];
+        private static readonly NodeId[] VariantNodeIdValues = [new(1u, 1), NodeId.Null];
+        private static readonly ExpandedNodeId[] VariantExpandedNodeIdValues =
+        [
+            new(new NodeId(2u, 2), "urn:a", 3),
+            ExpandedNodeId.Null
+        ];
+        private static readonly ExpandedNodeId[] TypedExpandedNodeIdValues =
+        [
+            new(new NodeId(2u, 2)),
+            ExpandedNodeId.Null
+        ];
+        private static readonly StatusCode[] VariantStatusCodeValues = [new(0x80340000), StatusCodes.Good];
+        private static readonly QualifiedName[] VariantQualifiedNameValues = [new("q", 1), QualifiedName.Null];
+        private static readonly LocalizedText[] VariantLocalizedTextValues = [new("en", "t"), LocalizedText.Null];
+        private static readonly EnumValue[] TypedEnumValueValues = [new(1), new(2)];
+        private static readonly EnumValue[] VariantEnumValueValues = [new(1), new(-2)];
+        private static readonly DayOfWeek[] TypedDayOfWeekValues = [DayOfWeek.Monday, DayOfWeek.Sunday];
+        private static readonly ExtensionObject[] VariantExtensionObjectValues =
+        [
+            new(new ExpandedNodeId(new NodeId(1u, 2)), ByteString.From(3)),
+            ExtensionObject.Null
+        ];
+        private static readonly Range[] EncodeableRangeValues =
+        [
+            new() { Low = 1, High = 2 },
+            new() { Low = 3, High = 4 }
+        ];
+        private static readonly Variant[] ExtensionObjectVariantValues =
+        [
+            new(new ExtensionObject(new Range { Low = 4.0, High = 5.0 }))
+        ];
+        private static readonly DataValue[] DataValueArrayValues = [new(new Variant(7))];
+
+        private static IServiceMessageContext Context
+        {
+            get
+            {
+                return ServiceMessageContext.CreateEmpty(null!);
+            }
+        }
+
+        private static IServiceMessageContext FullContext
+        {
+            get
+            {
+                return new ServiceMessageContext(null!, EncodeableFactory.Create());
+            }
+        }
+
+        [Test]
+        public void ArrowEncoderAndDecoderReportArrowEncodingType()
+        {
+            using var stream = new MemoryStream();
+            using var encoder = new ArrowEncoder(stream, Context, true);
+            Assert.That(encoder.EncodingType, Is.EqualTo(EncodingType.Arrow));
+
+            byte[] bytes = Encode(e => e.WriteInt32(null, 7));
+            using var decoder = new ArrowDecoder(bytes, Context);
+            Assert.That(decoder.EncodingType, Is.EqualTo(EncodingType.Arrow));
+        }
+
+        [Test]
+        public void ArrowBuiltInsRoundTripWithFloatBits()
+        {
+            Assert.That(RoundTrip(e => e.WriteBoolean(null, true), d => d.ReadBoolean(null)), Is.True);
+            Assert.That(
+                RoundTrip(e => e.WriteSByte(null, sbyte.MinValue), d => d.ReadSByte(null)),
+                Is.EqualTo(sbyte.MinValue));
+            Assert.That(
+                RoundTrip(e => e.WriteUInt64(null, ulong.MaxValue), d => d.ReadUInt64(null)),
+                Is.EqualTo(ulong.MaxValue));
+            Assert.That(
+                BitConverter.SingleToInt32Bits(RoundTrip(e => e.WriteFloat(null, -0.0f), d => d.ReadFloat(null))),
+                Is.EqualTo(BitConverter.SingleToInt32Bits(-0.0f)));
+            Assert.That(float.IsNaN(RoundTrip(e => e.WriteFloat(null, float.NaN), d => d.ReadFloat(null))), Is.True);
+            Assert.That(
+                RoundTrip(e => e.WriteDouble(null, double.PositiveInfinity), d => d.ReadDouble(null)),
+                Is.EqualTo(double.PositiveInfinity));
+            Assert.That(
+                RoundTrip(e => e.WriteDateTime(null, DateTimeUtc.MaxValue), d => d.ReadDateTime(null)),
+                Is.EqualTo(DateTimeUtc.MaxValue));
+            Assert.That(RoundTrip(e => e.WriteString(null, null), d => d.ReadString(null)), Is.Null);
+            Assert.That(
+                RoundTrip(e => e.WriteByteString(null, ByteString.From(1, 2, 3)), d => d.ReadByteString(null)),
+                Is.EqualTo(ByteString.From(1, 2, 3)));
+        }
+
+        [Test]
+        public void ArrowNodeIdKindsRoundTrip()
+        {
+            RoundTripEqual(new NodeId(123u, 2));
+            RoundTripEqual(new NodeId("name", 3));
+            RoundTripEqual(new NodeId(Guid.Parse("00112233-4455-6677-8899-aabbccddeeff"), 4));
+            RoundTripEqual(new NodeId(ByteString.From(0xaa, 0xbb), 5));
+        }
+
+        [Test]
+        public void ArrowArraysVariantMatrixDataValueExtensionObjectAndDiagnosticsRoundTrip()
+        {
+            var strings = new ArrayOf<string>(ArrayStringValues);
+            Assert.That(
+                RoundTrip(e => e.WriteStringArray(null, strings), d => d.ReadStringArray(null)),
+                Is.EqualTo(strings));
+
+            Variant matrix = new Variant(new ArrayOf<int>(MatrixValues).ToMatrix(2, 2));
+            Assert.That(RoundTrip(e => e.WriteVariant(null, matrix), d => d.ReadVariant(null)), Is.EqualTo(matrix));
+
+            var value = new DataValue(
+                new Variant("payload"),
+                new StatusCode(0x80340000),
+                new DateTimeUtc(123456789L),
+                new DateTimeUtc(987654321L),
+                10,
+                20);
+            Assert.That(RoundTrip(e => e.WriteDataValue(null, value), d => d.ReadDataValue(null)), Is.EqualTo(value));
+
+            var extension = new ExtensionObject(new ExpandedNodeId(new NodeId(1u, 2)), ByteString.From(9, 8, 7));
+            Assert.That(
+                RoundTrip(e => e.WriteExtensionObject(null, extension), d => d.ReadExtensionObject(null)),
+                Is.EqualTo(extension));
+
+            var diagnostic = new DiagnosticInfo
+            {
+                SymbolicId = 1,
+                AdditionalInfo = "info",
+                InnerStatusCode = new StatusCode(0x80010000),
+                InnerDiagnosticInfo = new DiagnosticInfo { SymbolicId = 2 }
+            };
+            Assert.That(
+                RoundTrip(e => e.WriteDiagnosticInfo(null, diagnostic), d => d.ReadDiagnosticInfo(null)),
+                Is.EqualTo(diagnostic));
+        }
+
+        [TestCaseSource(nameof(VariantBuiltInRoundTripCases))]
+        public void ArrowVariantBuiltInBodiesRoundTrip(Variant value)
+        {
+            Assert.That(RoundTrip(e => e.WriteVariant(null, value), d => d.ReadVariant(null)), Is.EqualTo(value));
+        }
+
+        [Test]
+        public void ArrowUnionAndOptionalPresenceSignalsRoundTrip()
+        {
+            byte[] bytes = Encode(e =>
+            {
+                e.WriteSwitchField(2, out _);
+                e.WriteEncodingMask(0b101);
+                e.WriteInt32("presentZero", 0);
+                e.WriteString("presentNull", null);
+            });
+
+            using var decoder = new ArrowDecoder(bytes, Context);
+            Assert.That(decoder.ReadSwitchField(Array.Empty<string>(), out _), Is.EqualTo(2));
+            Assert.That(decoder.ReadEncodingMask(Array.Empty<string>()), Is.EqualTo(0b101));
+            Assert.That(decoder.HasField("presentZero"), Is.True);
+            Assert.That(decoder.HasField("absent"), Is.False);
+            Assert.That(decoder.ReadInt32("presentZero"), Is.Zero);
+            Assert.That(decoder.ReadString("presentNull"), Is.Null);
+        }
+
+        [Test]
+        public void ArrowSchemaUsesTypedColumns()
+        {
+            AssertArrowType(e => e.WriteInt32(null, 42), typeof(Int32Type));
+            AssertArrowType(e => e.WriteGuid(null, new Uuid(Guid.NewGuid())), typeof(FixedSizeBinaryType));
+            AssertArrowType(e => e.WriteNodeId(null, new NodeId(123u, 2)), typeof(StructType));
+            AssertArrowType(e => e.WriteStringArray(null, new ArrayOf<string>(SchemaStringValues)), typeof(ListType));
+            AssertArrowType(e => e.WriteVariant(null, new Variant(123)), typeof(UnionType));
+        }
+
+        [Test]
+        public void ArrowEncodeableScalarRoundTripsThroughBinaryBody()
+        {
+            IServiceMessageContext context = FullContext;
+            var value = new Range { Low = 1.5, High = 9.5 };
+
+            Range viaNew = RoundTripWith(
+                context,
+                e => e.WriteEncodeable<Range>(null, value),
+                d => d.ReadEncodeable<Range>(null));
+            Assert.That(viaNew.Low, Is.EqualTo(1.5));
+            Assert.That(viaNew.High, Is.EqualTo(9.5));
+
+            Range viaTypeId = RoundTripWith(
+                context,
+                e => e.WriteEncodeable(null, value, value.TypeId),
+                d => d.ReadEncodeable<Range>(null, value.TypeId));
+            Assert.That(viaTypeId.IsEqual(value), Is.True);
+        }
+
+        [Test]
+        public void ArrowEncodeableArrayAndMatrixRoundTrip()
+        {
+            IServiceMessageContext context = FullContext;
+            var values = new ArrayOf<Range>(EncodeableRangeValues);
+
+            ArrayOf<Range> arrayViaNew = RoundTripWith(
+                context,
+                e => e.WriteEncodeableArray<Range>(null, values),
+                d => d.ReadEncodeableArray<Range>(null));
+            Assert.That(arrayViaNew.Count, Is.EqualTo(2));
+            Assert.That(arrayViaNew[1].High, Is.EqualTo(4));
+
+            ArrayOf<Range> arrayViaTypeId = RoundTripWith(
+                context,
+                e => e.WriteEncodeableArray(null, values, values[0].TypeId),
+                d => d.ReadEncodeableArray<Range>(null, values[0].TypeId));
+            Assert.That(arrayViaTypeId[0].Low, Is.EqualTo(1));
+
+            MatrixOf<Range> matrix = values.ToMatrix(1, 2);
+            MatrixOf<Range> matrixViaNew = RoundTripWith(
+                context,
+                e => e.WriteEncodeableMatrix<Range>(null, matrix),
+                d => d.ReadEncodeableMatrix<Range>(null));
+            Assert.That(matrixViaNew.Dimensions, Is.EqualTo(ExpectedMatrixDimensions));
+            Assert.That(matrixViaNew.Span[1].High, Is.EqualTo(4));
+
+            MatrixOf<Range> matrixViaTypeId = RoundTripWith(
+                context,
+                e => e.WriteEncodeableMatrix(null, matrix, values[0].TypeId),
+                d => d.ReadEncodeableMatrix<Range>(null, values[0].TypeId));
+            Assert.That(matrixViaTypeId.Span[0].Low, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ArrowEncodeableAsExtensionObjectRoundTrip()
+        {
+            IServiceMessageContext context = FullContext;
+            var value = new Range { Low = 5.5, High = 6.5 };
+
+            Range scalar = RoundTripWith(
+                context,
+                e => e.WriteEncodeableAsExtensionObject(null, value),
+                d => d.ReadEncodeableAsExtensionObject<Range>(null));
+            Assert.That(scalar.IsEqual(value), Is.True);
+
+            var values = new ArrayOf<Range>(EncodeableRangeValues);
+            ArrayOf<Range> array = RoundTripWith(
+                context,
+                e => e.WriteEncodeableArrayAsExtensionObjects(null, values),
+                d => d.ReadEncodeableArrayAsExtensionObjects<Range>(null));
+            Assert.That(array.Count, Is.EqualTo(2));
+            Assert.That(array[1].High, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ArrowConcreteExtensionObjectResolvesToEncodeable()
+        {
+            IServiceMessageContext context = FullContext;
+            var extension = new ExtensionObject(new Range { Low = 7.0, High = 8.0 });
+
+            ExtensionObject result = RoundTripWith(
+                context,
+                e => e.WriteExtensionObject(null, extension),
+                d => d.ReadExtensionObject(null));
+
+            Assert.That(result.TryGetValue(out IEncodeable body), Is.True);
+            Assert.That(body, Is.TypeOf<Range>());
+            Assert.That(((Range)body).High, Is.EqualTo(8.0));
+        }
+
+        [Test]
+        public void ArrowEncodeableUnregisteredTypeIdThrows()
+        {
+            IServiceMessageContext context = FullContext;
+            var value = new Range { Low = 1, High = 2 };
+            byte[] bytes = EncodeWith(context, e => e.WriteEncodeable<Range>(null, value));
+            var unknownTypeId = new ExpandedNodeId(new NodeId(999999u, 3));
+
+            using var decoder = new ArrowDecoder(bytes, context);
+            Assert.That(
+                () => decoder.ReadEncodeable<Range>(null, unknownTypeId),
+                Throws.TypeOf<NotSupportedException>());
+        }
+
+        [Test]
+        public void ArrowDataValueWithExtensionObjectResolves()
+        {
+            IServiceMessageContext context = FullContext;
+            var value = new DataValue(
+                new Variant(new ExtensionObject(new Range { Low = 2.0, High = 3.0 })),
+                new StatusCode(0x40000000),
+                new DateTimeUtc(1L),
+                new DateTimeUtc(2L),
+                1,
+                2);
+
+            DataValue result = RoundTripWith(
+                context,
+                e => e.WriteDataValue(null, value),
+                d => d.ReadDataValue(null));
+
+            Assert.That(result.WrappedValue.GetExtensionObject().TryGetValue(out IEncodeable body), Is.True);
+            Assert.That(((Range)body).High, Is.EqualTo(3.0));
+            Assert.That(result.StatusCode, Is.EqualTo(new StatusCode(0x40000000)));
+        }
+
+        [Test]
+        public void ArrowVariantAndDataValueArraysRoundTrip()
+        {
+            IServiceMessageContext context = FullContext;
+
+            var variants = new ArrayOf<Variant>(ExtensionObjectVariantValues);
+            ArrayOf<Variant> variantResult = RoundTripWith(
+                context,
+                e => e.WriteVariantArray(null, variants),
+                d => d.ReadVariantArray(null));
+            Assert.That(variantResult.Count, Is.EqualTo(1));
+            Assert.That(variantResult[0].GetExtensionObject().TryGetValue(out IEncodeable body), Is.True);
+            Assert.That(((Range)body).Low, Is.EqualTo(4.0));
+
+            var dataValues = new ArrayOf<DataValue>(DataValueArrayValues);
+            ArrayOf<DataValue> dataValueResult = RoundTripWith(
+                context,
+                e => e.WriteDataValueArray(null, dataValues),
+                d => d.ReadDataValueArray(null));
+            Assert.That(dataValueResult.Count, Is.EqualTo(1));
+            Assert.That(dataValueResult[0].WrappedValue.GetInt32(), Is.EqualTo(7));
+        }
+
+        [Test]
+        public void ArrowEncodeableAsExtensionObjectThrowsForRawBinaryBody()
+        {
+            // Empty context: the type id is unregistered so the decoder keeps the raw binary body.
+            var extension = new ExtensionObject(new ExpandedNodeId(new NodeId(1u, 2)), ByteString.From(1, 2, 3));
+            byte[] bytes = Encode(e => e.WriteExtensionObject(null, extension));
+
+            using var decoder = new ArrowDecoder(bytes, Context);
+            Assert.That(
+                () => decoder.ReadEncodeableAsExtensionObject<Range>(null),
+                Throws.TypeOf<NotSupportedException>());
+        }
+
+        [Test]
+        public void ArrowTypedScalarColumnsRoundTrip()
+        {
+            var uuid = new Uuid(Guid.Parse("11112222-3333-4444-5555-666677778888"));
+            var expandedNodeId = new ExpandedNodeId(new NodeId(3u, 4), "urn:test", 5);
+            var xml = XmlElement.From("<a/>");
+
+            Assert.That(RoundTrip(e => e.WriteByte(null, byte.MaxValue), d => d.ReadByte(null)), Is.EqualTo(byte.MaxValue));
+            Assert.That(RoundTrip(e => e.WriteInt16(null, short.MinValue), d => d.ReadInt16(null)), Is.EqualTo(short.MinValue));
+            Assert.That(RoundTrip(e => e.WriteUInt16(null, ushort.MaxValue), d => d.ReadUInt16(null)), Is.EqualTo(ushort.MaxValue));
+            Assert.That(RoundTrip(e => e.WriteInt32(null, int.MinValue), d => d.ReadInt32(null)), Is.EqualTo(int.MinValue));
+            Assert.That(RoundTrip(e => e.WriteUInt32(null, uint.MaxValue), d => d.ReadUInt32(null)), Is.EqualTo(uint.MaxValue));
+            Assert.That(RoundTrip(e => e.WriteInt64(null, long.MinValue), d => d.ReadInt64(null)), Is.EqualTo(long.MinValue));
+            Assert.That(RoundTrip(e => e.WriteGuid(null, uuid), d => d.ReadGuid(null)), Is.EqualTo(uuid));
+            Assert.That(RoundTrip(e => e.WriteXmlElement(null, xml), d => d.ReadXmlElement(null)), Is.EqualTo(xml));
+            Assert.That(
+                RoundTrip(e => e.WriteExpandedNodeId(null, expandedNodeId), d => d.ReadExpandedNodeId(null)),
+                Is.EqualTo(expandedNodeId));
+            Assert.That(
+                RoundTrip(e => e.WriteStatusCode(null, new StatusCode(0x80340000)), d => d.ReadStatusCode(null)),
+                Is.EqualTo(new StatusCode(0x80340000)));
+            Assert.That(
+                RoundTrip(e => e.WriteQualifiedName(null, new QualifiedName("q", 2)), d => d.ReadQualifiedName(null)),
+                Is.EqualTo(new QualifiedName("q", 2)));
+            Assert.That(
+                RoundTrip(e => e.WriteLocalizedText(null, new LocalizedText("en", "t")), d => d.ReadLocalizedText(null)),
+                Is.EqualTo(new LocalizedText("en", "t")));
+            Assert.That(
+                RoundTrip(e => e.WriteEnumerated(null, new EnumValue(5)), d => d.ReadEnumerated(null)).Value,
+                Is.EqualTo(5));
+            Assert.That(
+                RoundTrip(e => e.WriteEnumerated(null, DayOfWeek.Friday), d => d.ReadEnumerated<DayOfWeek>(null)),
+                Is.EqualTo(DayOfWeek.Friday));
+        }
+
+        [Test]
+        public void ArrowTypedArrayColumnsRoundTrip()
+        {
+            var booleans = new ArrayOf<bool>(VariantBooleanValues);
+            var sbytes = new ArrayOf<sbyte>(VariantSByteValues);
+            var bytes = new ArrayOf<byte>(VariantByteValues);
+            var int16s = new ArrayOf<short>(VariantInt16Values);
+            var uint16s = new ArrayOf<ushort>(VariantUInt16Values);
+            var int32s = new ArrayOf<int>(VariantInt32Values);
+            var uint32s = new ArrayOf<uint>(VariantUInt32Values);
+            var int64s = new ArrayOf<long>(VariantInt64Values);
+            var uint64s = new ArrayOf<ulong>(VariantUInt64Values);
+            var floats = new ArrayOf<float>(TypedFloatValues);
+            var doubles = new ArrayOf<double>(TypedDoubleValues);
+            var strings = new ArrayOf<string>(VariantStringValues);
+            var dateTimes = new ArrayOf<DateTimeUtc>(VariantDateTimeValues);
+            var guids = new ArrayOf<Uuid>(VariantUuidValues);
+            var byteStrings = new ArrayOf<ByteString>(VariantByteStringValues);
+            var xmlElements = new ArrayOf<XmlElement>(VariantXmlElementValues);
+            var nodeIds = new ArrayOf<NodeId>(VariantNodeIdValues);
+            var expandedNodeIds = new ArrayOf<ExpandedNodeId>(TypedExpandedNodeIdValues);
+            var statusCodes = new ArrayOf<StatusCode>(VariantStatusCodeValues);
+            var qualifiedNames = new ArrayOf<QualifiedName>(VariantQualifiedNameValues);
+            var localizedTexts = new ArrayOf<LocalizedText>(VariantLocalizedTextValues);
+            var enumValues = new ArrayOf<EnumValue>(TypedEnumValueValues);
+            var enums = new ArrayOf<DayOfWeek>(TypedDayOfWeekValues);
+
+            Assert.That(RoundTrip(e => e.WriteBooleanArray(null, booleans), d => d.ReadBooleanArray(null)), Is.EqualTo(booleans));
+            Assert.That(RoundTrip(e => e.WriteSByteArray(null, sbytes), d => d.ReadSByteArray(null)), Is.EqualTo(sbytes));
+            Assert.That(RoundTrip(e => e.WriteByteArray(null, bytes), d => d.ReadByteArray(null)), Is.EqualTo(bytes));
+            Assert.That(RoundTrip(e => e.WriteInt16Array(null, int16s), d => d.ReadInt16Array(null)), Is.EqualTo(int16s));
+            Assert.That(RoundTrip(e => e.WriteUInt16Array(null, uint16s), d => d.ReadUInt16Array(null)), Is.EqualTo(uint16s));
+            Assert.That(RoundTrip(e => e.WriteInt32Array(null, int32s), d => d.ReadInt32Array(null)), Is.EqualTo(int32s));
+            Assert.That(RoundTrip(e => e.WriteUInt32Array(null, uint32s), d => d.ReadUInt32Array(null)), Is.EqualTo(uint32s));
+            Assert.That(RoundTrip(e => e.WriteInt64Array(null, int64s), d => d.ReadInt64Array(null)), Is.EqualTo(int64s));
+            Assert.That(RoundTrip(e => e.WriteUInt64Array(null, uint64s), d => d.ReadUInt64Array(null)), Is.EqualTo(uint64s));
+            Assert.That(RoundTrip(e => e.WriteFloatArray(null, floats), d => d.ReadFloatArray(null)), Is.EqualTo(floats));
+            Assert.That(RoundTrip(e => e.WriteDoubleArray(null, doubles), d => d.ReadDoubleArray(null)), Is.EqualTo(doubles));
+            Assert.That(RoundTrip(e => e.WriteStringArray(null, strings), d => d.ReadStringArray(null)), Is.EqualTo(strings));
+            Assert.That(RoundTrip(e => e.WriteDateTimeArray(null, dateTimes), d => d.ReadDateTimeArray(null)), Is.EqualTo(dateTimes));
+            Assert.That(RoundTrip(e => e.WriteGuidArray(null, guids), d => d.ReadGuidArray(null)), Is.EqualTo(guids));
+            Assert.That(RoundTrip(e => e.WriteByteStringArray(null, byteStrings), d => d.ReadByteStringArray(null)), Is.EqualTo(byteStrings));
+            Assert.That(RoundTrip(e => e.WriteXmlElementArray(null, xmlElements), d => d.ReadXmlElementArray(null)), Is.EqualTo(xmlElements));
+            Assert.That(RoundTrip(e => e.WriteNodeIdArray(null, nodeIds), d => d.ReadNodeIdArray(null)), Is.EqualTo(nodeIds));
+            Assert.That(
+                RoundTrip(e => e.WriteExpandedNodeIdArray(null, expandedNodeIds), d => d.ReadExpandedNodeIdArray(null)),
+                Is.EqualTo(expandedNodeIds));
+            Assert.That(
+                RoundTrip(e => e.WriteStatusCodeArray(null, statusCodes), d => d.ReadStatusCodeArray(null)),
+                Is.EqualTo(statusCodes));
+            Assert.That(
+                RoundTrip(e => e.WriteQualifiedNameArray(null, qualifiedNames), d => d.ReadQualifiedNameArray(null)),
+                Is.EqualTo(qualifiedNames));
+            Assert.That(
+                RoundTrip(e => e.WriteLocalizedTextArray(null, localizedTexts), d => d.ReadLocalizedTextArray(null)),
+                Is.EqualTo(localizedTexts));
+            Assert.That(
+                RoundTrip(e => e.WriteEnumeratedArray(null, enumValues), d => d.ReadEnumeratedArray(null)),
+                Is.EqualTo(enumValues));
+            Assert.That(
+                RoundTrip(e => e.WriteEnumeratedArray(null, enums), d => d.ReadEnumeratedArray<DayOfWeek>(null)),
+                Is.EqualTo(enums));
+        }
+
+        /// <summary>
+        /// Encodes and decodes a <see cref="NodeId"/> with Arrow and asserts that the identifier kind is preserved.
+        /// </summary>
+        private static void RoundTripEqual(NodeId value)
+        {
+            Assert.That(RoundTrip(e => e.WriteNodeId(null, value), d => d.ReadNodeId(null)), Is.EqualTo(value));
+        }
+
+        private static IEnumerable<TestCaseData> VariantBuiltInRoundTripCases()
+        {
+            foreach (Variant value in VariantScalarCases())
+            {
+                yield return new TestCaseData(value).SetName($"ArrowVariantScalar{value.TypeInfo.BuiltInType}RoundTrip");
+            }
+
+            foreach (Variant value in VariantArrayCases())
+            {
+                yield return new TestCaseData(value).SetName($"ArrowVariantArray{value.TypeInfo.BuiltInType}RoundTrip");
+            }
+
+            foreach (Variant value in VariantMatrixCases())
+            {
+                yield return new TestCaseData(value).SetName($"ArrowVariantMatrix{value.TypeInfo.BuiltInType}RoundTrip");
+            }
+        }
+
+        private static IEnumerable<Variant> VariantScalarCases()
+        {
+            yield return new Variant(true);
+            yield return new Variant((sbyte)-2);
+            yield return new Variant((byte)3);
+            yield return new Variant((short)-4);
+            yield return new Variant((ushort)5);
+            yield return new Variant(-6);
+            yield return new Variant(7u);
+            yield return new Variant(-8L);
+            yield return new Variant(9ul);
+            yield return new Variant(1.25f);
+            yield return new Variant(-2.5d);
+            yield return new Variant("text");
+            yield return new Variant(new DateTimeUtc(123456789L));
+            yield return new Variant(new Uuid(Guid.Parse("00112233-4455-6677-8899-aabbccddeeff")));
+            yield return new Variant(ByteString.From(1, 2, 3));
+            yield return new Variant(XmlElement.From("<a/>"));
+            yield return new Variant(new NodeId("node", 2));
+            yield return new Variant(new ExpandedNodeId(new NodeId(3u, 4), "urn:test", 5));
+            yield return new Variant(new StatusCode(0x80340000));
+            yield return new Variant(new QualifiedName("name", 6));
+            yield return new Variant(new LocalizedText("en-US", "hello"));
+            yield return new Variant(new ExtensionObject(new ExpandedNodeId(new NodeId(1u, 2)), ByteString.From(9, 8)));
+            yield return Variant.From(new EnumValue(42));
+        }
+
+        private static IEnumerable<Variant> VariantArrayCases()
+        {
+            yield return new Variant(new ArrayOf<bool>(VariantBooleanValues));
+            yield return new Variant(new ArrayOf<sbyte>(VariantSByteValues));
+            yield return new Variant(new ArrayOf<byte>(VariantByteValues));
+            yield return new Variant(new ArrayOf<short>(VariantInt16Values));
+            yield return new Variant(new ArrayOf<ushort>(VariantUInt16Values));
+            yield return new Variant(new ArrayOf<int>(VariantInt32Values));
+            yield return new Variant(new ArrayOf<uint>(VariantUInt32Values));
+            yield return new Variant(new ArrayOf<long>(VariantInt64Values));
+            yield return new Variant(new ArrayOf<ulong>(VariantUInt64Values));
+            yield return new Variant(new ArrayOf<float>(VariantFloatValues));
+            yield return new Variant(new ArrayOf<double>(VariantDoubleValues));
+            yield return new Variant(new ArrayOf<string>(VariantStringValues));
+            yield return new Variant(new ArrayOf<DateTimeUtc>(VariantDateTimeValues));
+            yield return new Variant(new ArrayOf<Uuid>(VariantUuidValues));
+            yield return new Variant(new ArrayOf<ByteString>(VariantByteStringValues));
+            yield return new Variant(new ArrayOf<XmlElement>(VariantXmlElementValues));
+            yield return new Variant(new ArrayOf<NodeId>(VariantNodeIdValues));
+            yield return new Variant(new ArrayOf<ExpandedNodeId>(VariantExpandedNodeIdValues));
+            yield return new Variant(new ArrayOf<StatusCode>(VariantStatusCodeValues));
+            yield return new Variant(new ArrayOf<QualifiedName>(VariantQualifiedNameValues));
+            yield return new Variant(new ArrayOf<LocalizedText>(VariantLocalizedTextValues));
+            yield return new Variant(new ArrayOf<ExtensionObject>(VariantExtensionObjectValues));
+            yield return Variant.From(new ArrayOf<EnumValue>(VariantEnumValueValues));
+        }
+
+        private static IEnumerable<Variant> VariantMatrixCases()
+        {
+            yield return new Variant(new ArrayOf<bool>(VariantBooleanValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<sbyte>(VariantSByteValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<byte>(VariantByteValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<short>(VariantInt16Values).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<ushort>(VariantUInt16Values).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<int>(VariantInt32Values).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<uint>(VariantUInt32Values).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<long>(VariantInt64Values).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<ulong>(VariantUInt64Values).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<float>(VariantFloatValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<double>(VariantDoubleValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<string>(VariantStringValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<DateTimeUtc>(VariantDateTimeValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<Uuid>(VariantUuidValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<ByteString>(VariantByteStringValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<XmlElement>(VariantXmlElementValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<NodeId>(VariantNodeIdValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<ExpandedNodeId>(VariantExpandedNodeIdValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<StatusCode>(VariantStatusCodeValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<QualifiedName>(VariantQualifiedNameValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<LocalizedText>(VariantLocalizedTextValues).ToMatrix(1, 2));
+            yield return new Variant(new ArrayOf<ExtensionObject>(VariantExtensionObjectValues).ToMatrix(1, 2));
+            yield return Variant.From(new ArrayOf<EnumValue>(VariantEnumValueValues).ToMatrix(1, 2));
+        }
+
+        /// <summary>
+        /// Serializes a value with the supplied Arrow writer delegate and reads it back with the matching decoder.
+        /// </summary>
+        private static T RoundTrip<T>(Action<ArrowEncoder> write, Func<ArrowDecoder, T> read)
+        {
+            byte[] bytes = Encode(write);
+            using var decoder = new ArrowDecoder(bytes, Context);
+            return read(decoder);
+        }
+
+        /// <summary>
+        /// Writes an Arrow payload to an in-memory stream and returns the completed record-batch bytes.
+        /// </summary>
+        private static byte[] Encode(Action<ArrowEncoder> write)
+        {
+            return EncodeWith(Context, write);
+        }
+
+        /// <summary>
+        /// Serializes a value with the supplied context and Arrow writer delegate and reads it back.
+        /// </summary>
+        private static T RoundTripWith<T>(
+            IServiceMessageContext context,
+            Action<ArrowEncoder> write,
+            Func<ArrowDecoder, T> read)
+        {
+            byte[] bytes = EncodeWith(context, write);
+            using var decoder = new ArrowDecoder(bytes, context);
+            return read(decoder);
+        }
+
+        /// <summary>
+        /// Writes an Arrow payload using the supplied context and returns the completed record-batch bytes.
+        /// </summary>
+        private static byte[] EncodeWith(IServiceMessageContext context, Action<ArrowEncoder> write)
+        {
+            using var stream = new MemoryStream();
+            using (var encoder = new ArrowEncoder(stream, context, leaveOpen: true))
+            {
+                write(encoder);
+                encoder.Close();
+            }
+            return stream.ToArray();
+        }
+
+        /// <summary>
+        /// Confirms that a single encoded Arrow field uses the expected typed Arrow column instead of a binary blob.
+        /// </summary>
+        private static void AssertArrowType(Action<ArrowEncoder> write, Type expectedType)
+        {
+            using var reader = new ArrowStreamReader(Encode(write));
+            using var batch = reader.ReadNextRecordBatch();
+
+            Assert.That(batch, Is.Not.Null);
+            Assert.That(batch!.ColumnCount, Is.EqualTo(1));
+            Assert.That(batch.Schema.GetFieldByIndex(0).DataType, Is.TypeOf(expectedType));
+            Assert.That(batch.Schema.GetFieldByIndex(0).DataType, Is.Not.TypeOf<BinaryType>());
+        }
+    }
+}
