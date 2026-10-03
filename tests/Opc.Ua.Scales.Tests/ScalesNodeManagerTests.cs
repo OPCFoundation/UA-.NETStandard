@@ -32,11 +32,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.PackML;
 using Opc.Ua.Scales.Server;
 using Opc.Ua.Scales.Server.Builders;
 using Opc.Ua.Scales.Server.Runtime;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Scales.Tests
 {
@@ -306,6 +308,42 @@ namespace Opc.Ua.Scales.Tests
             await AssertTheNameCanBeUsedAgainAsync(deviceSet, "Broken").ConfigureAwait(false);
         }
 
+        [Test]
+        public void AFailingDetachDoesNotReplaceThePublicationFailure()
+        {
+            // The parent is supplied by the caller and RemoveChild is virtual.
+            // A detach that threw during the rollback escaped and replaced the
+            // exception that failed the creation.
+            using var logs = new RecordingLoggerProvider(LogLevel.Error);
+            m_fixture.Server.Telemetry.LoggerFactory.AddProvider(logs);
+            var parent = new DetachRefusingState(m_fixture.Name("DetachRefusingParent"));
+            m_fixture.Manager.PublishedForTest = _ => throw new InvalidOperationException("Registration failed.");
+
+            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await m_fixture.Manager.CreateScaleAsync(
+                    m_fixture.Name("Broken"),
+                    ScaleKind.Simple,
+                    b => FullScale(b, "Broken"),
+                    parent).ConfigureAwait(false));
+            m_fixture.Manager.PublishedForTest = null;
+
+            RecordedLogRecord[] detachFailures =
+                [.. logs.Records.Where(r => r.Exception?.Message == DetachRefusingState.Refusal)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(error!.Message, Is.EqualTo("Registration failed."), "the original failure surfaces");
+                Assert.That(
+                    detachFailures,
+                    Has.Length.EqualTo(2),
+                    "the delete and the detach both fail on the parent, and both are logged");
+                Assert.That(
+                    detachFailures.Select(r => r.LogLevel),
+                    Is.All.EqualTo(LogLevel.Error),
+                    "the cleanup failure is an error");
+                Assert.That(m_fixture.Manager.Scales, Has.Count.EqualTo(0));
+            });
+        }
+
         private NodeState DeviceSet()
         {
             return m_fixture.Manager.FindPredefinedNode(NodeId.Create(
@@ -355,6 +393,29 @@ namespace Opc.Ua.Scales.Tests
             }
 
             private readonly Action m_creating;
+        }
+
+        /// <summary>
+        /// A parent whose detach fails, the way an arbitrary caller supplied
+        /// parent overriding <see cref="NodeState.RemoveChild"/> can fail.
+        /// </summary>
+        private sealed class DetachRefusingState : BaseObjectState
+        {
+            public const string Refusal = "Detach refused.";
+
+            public DetachRefusingState(QualifiedName browseName)
+                : base(null)
+            {
+                NodeId = new NodeId("DetachRefusingParent", browseName.NamespaceIndex);
+                BrowseName = browseName;
+                DisplayName = new LocalizedText("DetachRefusingParent");
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType;
+            }
+
+            public override void RemoveChild(BaseInstanceState child)
+            {
+                throw new NotSupportedException(Refusal);
+            }
         }
 
         [Test]

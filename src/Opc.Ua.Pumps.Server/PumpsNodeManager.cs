@@ -402,11 +402,18 @@ namespace Opc.Ua.Pumps.Server
             {
                 m_logger.PumpRollbackFailed(ex, pump.BrowseName.Name);
             }
-            finally
+
+            try
             {
                 // Deleting a registered pump detaches it already; a pump that
-                // failed before it was registered is still attached.
+                // failed before it was registered, or whose deletion failed, is
+                // still attached. The parent is caller supplied and RemoveChild
+                // is virtual, so a failing detach is caught like a failing delete.
                 parent.RemoveChild(pump);
+            }
+            catch (Exception ex)
+            {
+                m_logger.PumpRollbackFailed(ex, pump.BrowseName.Name);
             }
         }
 

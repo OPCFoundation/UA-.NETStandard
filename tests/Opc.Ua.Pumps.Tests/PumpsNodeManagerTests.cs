@@ -31,9 +31,11 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Builders;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Pumps.Tests
 {
@@ -287,6 +289,41 @@ namespace Opc.Ua.Pumps.Tests
         }
 
         [Test]
+        public async Task AFailingDetachDoesNotReplaceTheRegistrationFailureAsync()
+        {
+            // The parent is supplied by the caller and RemoveChild is virtual.
+            // A detach that threw during the rollback escaped and replaced the
+            // exception that failed the creation.
+            await using var fixture = new PumpsServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            using var logs = new RecordingLoggerProvider(LogLevel.Error);
+            fixture.Server.Telemetry.LoggerFactory.AddProvider(logs);
+            var parent = new DetachRefusingState(fixture.Manager.InstanceNamespaceIndex);
+            fixture.Manager.PumpRegisteredForTest = _ =>
+                throw new InvalidOperationException("Registration failed.");
+
+            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await fixture.Manager.CreatePumpAsync(fixture.PumpName("Pump_1"), parent)
+                    .ConfigureAwait(false));
+
+            RecordedLogRecord[] detachFailures =
+                [.. logs.Records.Where(r => r.Exception?.Message == DetachRefusingState.Refusal)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(error!.Message, Is.EqualTo("Registration failed."), "the original failure surfaces");
+                Assert.That(
+                    detachFailures,
+                    Has.Length.EqualTo(2),
+                    "the delete and the detach both fail on the parent, and both are logged");
+                Assert.That(
+                    detachFailures.Select(r => r.LogLevel),
+                    Is.All.EqualTo(LogLevel.Error),
+                    "the cleanup failure is an error");
+                Assert.That(fixture.Manager.Pumps.Count, Is.Zero);
+            });
+        }
+
+        [Test]
         public async Task EveryPumpGetsItsOwnInstanceNodeIdsAsync()
         {
             // Two pumps that shared the type-level NodeIds of their children
@@ -376,6 +413,29 @@ namespace Opc.Ua.Pumps.Tests
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// A parent whose detach fails, the way an arbitrary caller supplied
+        /// parent overriding <see cref="NodeState.RemoveChild"/> can fail.
+        /// </summary>
+        private sealed class DetachRefusingState : BaseObjectState
+        {
+            public const string Refusal = "Detach refused.";
+
+            public DetachRefusingState(ushort namespaceIndex)
+                : base(null)
+            {
+                NodeId = new NodeId("DetachRefusingParent", namespaceIndex);
+                BrowseName = new QualifiedName("DetachRefusingParent", namespaceIndex);
+                DisplayName = new LocalizedText("DetachRefusingParent");
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType;
+            }
+
+            public override void RemoveChild(BaseInstanceState child)
+            {
+                throw new NotSupportedException(Refusal);
+            }
         }
     }
 }

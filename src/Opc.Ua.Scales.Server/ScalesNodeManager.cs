@@ -581,11 +581,18 @@ namespace Opc.Ua.Scales.Server
             {
                 m_scalesLogger.PublicationRollbackFailed(ex, node.BrowseName.Name);
             }
-            finally
+
+            try
             {
                 // Deleting a registered node detaches it already; a node that
-                // failed before it was registered is still attached.
+                // failed before it was registered, or whose deletion failed, is
+                // still attached. The parent is caller supplied and RemoveChild
+                // is virtual, so a failing detach is caught like a failing delete.
                 parent.RemoveChild(node);
+            }
+            catch (Exception ex)
+            {
+                m_scalesLogger.PublicationRollbackFailed(ex, node.BrowseName.Name);
             }
         }
 
