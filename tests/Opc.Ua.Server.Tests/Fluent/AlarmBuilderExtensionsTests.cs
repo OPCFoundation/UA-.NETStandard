@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
@@ -312,6 +311,124 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => variable.CreateLimitAlarm(new QualifiedName("OverTemp", kNs)));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void CreateAlarmAttachesTheFactoryStateLikeTheDedicatedHelpers()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+            NodeState? handedParent = null;
+
+            IAlarmBuilder<TripAlarmState> ab = nb.CreateAlarm(
+                new QualifiedName("Trip", kNs),
+                parent =>
+                {
+                    handedParent = parent;
+                    return new TripAlarmState(parent);
+                });
+
+            var references = new List<IReference>();
+            root.GetReferences(b.Context, references);
+            Assert.Multiple(() =>
+            {
+                Assert.That(handedParent, Is.SameAs(root));
+                Assert.That(ab.Alarm, Is.InstanceOf<TripAlarmState>());
+                Assert.That(ab.Builder, Is.SameAs(nb));
+                Assert.That(ab.Alarm.Parent, Is.SameAs(root));
+                Assert.That(ab.Alarm.BrowseName, Is.EqualTo(new QualifiedName("Trip", kNs)));
+                Assert.That(ab.Alarm.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasCondition));
+                Assert.That(
+                    ab.Alarm.NodeId.IdentifierAsString,
+                    Does.Contain("Root").And.Contain("Trip"));
+                Assert.That(ab.Alarm.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.TripAlarmType));
+                Assert.That(ab.Alarm.EnabledState!.Id!.Value, Is.True);
+                Assert.That(ab.Alarm.SourceNode!.Value, Is.EqualTo(root.NodeId));
+                Assert.That(ab.Alarm.SourceName!.Value, Is.EqualTo("Root"));
+                Assert.That(ab.Alarm.ConditionName!.Value, Is.EqualTo("Trip"));
+                Assert.That(root.EventNotifier & EventNotifiers.SubscribeToEvents, Is.Not.Zero);
+                Assert.That(
+                    references,
+                    Has.Exactly(1).Matches<IReference>(reference =>
+                        reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
+                        !reference.IsInverse &&
+                        reference.TargetId == ab.Alarm.NodeId));
+            });
+        }
+
+        [Test]
+        public void CreateAlarmAcceptsAConditionThatIsNoAlarm()
+        {
+            (NodeManagerBuilder b, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            IAlarmBuilder<AcknowledgeableConditionState> ab = nb.CreateAlarm(
+                new QualifiedName("Inspection", kNs),
+                parent => new AcknowledgeableConditionState(parent))
+                .OnAcknowledge((ctx, condition, eventId, comment) => ServiceResult.Good);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => ab.WithLimits(high: 1.0));
+            Assert.Multiple(() =>
+            {
+                Assert.That(ab.Alarm.OnAcknowledge, Is.Not.Null);
+                Assert.That(ab.Alarm.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.AcknowledgeableConditionType));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            });
+        }
+
+        [Test]
+        public void CreateAlarmNullArgsThrow()
+        {
+            (NodeManagerBuilder b, _, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+            INodeBuilder nullBuilder = null!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentNullException>(() => nullBuilder.CreateAlarm(
+                    new QualifiedName("X", kNs),
+                    parent => new OffNormalAlarmState(parent)));
+                Assert.Throws<ArgumentNullException>(() => nb.CreateAlarm(
+                    QualifiedName.Null,
+                    parent => new OffNormalAlarmState(parent)));
+                Assert.Throws<ArgumentNullException>(() => nb.CreateAlarm<OffNormalAlarmState>(
+                    new QualifiedName("X", kNs),
+                    null!));
+            });
+        }
+
+        [Test]
+        public void CreateAlarmRejectsAFactoryWithoutAnAlarm()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            Assert.Throws<InvalidOperationException>(() => nb.CreateAlarm<OffNormalAlarmState>(
+                new QualifiedName("X", kNs),
+                _ => null!));
+
+            var references = new List<IReference>();
+            root.GetReferences(b.Context, references);
+            Assert.That(
+                references,
+                Has.None.Matches<IReference>(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource),
+                "a refused alarm leaves the parent untouched");
+        }
+
+        [Test]
+        public void CreateAlarmOnVariableThrowsBadTypeMismatch()
+        {
+            (NodeManagerBuilder b, _, BaseDataVariableState src) = CreateBuilder();
+            IVariableBuilder<double> variable = b.Variable<double>(src.NodeId);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => variable.CreateAlarm(
+                    new QualifiedName("Trip", kNs),
+                    parent => new TripAlarmState(parent)));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }

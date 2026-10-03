@@ -40,6 +40,7 @@ namespace Opc.Ua.Server
     /// and <c>Server/ServerCapabilities/ServerProfileArray</c> (OPC UA Part 7).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The published set is derived from the contributions of every registered
     /// node manager (or other feature) implementing
     /// <see cref="IConformanceContributor"/> rather than a fixed hard-coded list,
@@ -48,6 +49,14 @@ namespace Opc.Ua.Server
     /// present. Registrations are aggregated and de-duplicated, then written to
     /// the address space through the <see cref="IDiagnosticsNodeManager"/>,
     /// mirroring how <see cref="ModellingRulesManager"/> delegates to it.
+    /// </para>
+    /// <para>
+    /// The manager keeps the registered contributors and reads them again on
+    /// every <see cref="PublishAsync"/>, because the capabilities describe the
+    /// current configuration of the server (OPC 10000-5 §6.3.2): a unit or
+    /// profile a contributor no longer reports disappears with the next
+    /// publish. The profiles the server declares in its configuration stay.
+    /// </para>
     /// </remarks>
     public class ConformanceUnitsManager : IDisposable
     {
@@ -58,7 +67,6 @@ namespace Opc.Ua.Server
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_conformanceUnits = [];
-            m_serverProfiles = new HashSet<string>(StringComparer.Ordinal);
         }
 
         /// <summary>
@@ -75,7 +83,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            // No unmanaged resources held.
+            if (disposing && !m_disposed)
+            {
+                m_disposed = true;
+                m_publishLock.Dispose();
+            }
         }
 
         /// <summary>
@@ -85,7 +97,8 @@ namespace Opc.Ua.Server
         /// The browse name of the conformance unit.
         /// </param>
         /// <returns>
-        /// True if the conformance unit is currently advertised.
+        /// True if the conformance unit is supported as of the last
+        /// registration or publish.
         /// </returns>
         public bool IsSupported(QualifiedName conformanceUnit)
         {
@@ -101,9 +114,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Registers the conformance units and server profiles a contributor
-        /// enables.
+        /// Registers a contributor whose conformance units and server profiles
+        /// the server advertises.
         /// </summary>
+        /// <remarks>
+        /// Registering a contributor again has no further effect; the
+        /// contributor is read again on every <see cref="PublishAsync"/>.
+        /// </remarks>
         /// <param name="contributor">
         /// The contributor whose supported units and profiles are added.
         /// </param>
@@ -117,50 +134,115 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                foreach (QualifiedName unit in contributor.ConformanceUnits)
+                if (!m_contributors.Contains(contributor))
                 {
-                    if (!unit.IsNull)
-                    {
-                        m_conformanceUnits.Add(unit);
-                    }
-                }
-                foreach (string profile in contributor.ServerProfiles)
-                {
-                    if (!string.IsNullOrEmpty(profile))
-                    {
-                        m_serverProfiles.Add(profile);
-                    }
+                    m_contributors.Add(contributor);
                 }
             }
+            Aggregate();
         }
 
         /// <summary>
-        /// Publishes the aggregated conformance units and server profiles to the
-        /// address space through the diagnostics node manager.
+        /// Removes a contributor; its units and profiles disappear with the
+        /// next <see cref="PublishAsync"/> unless another contributor reports
+        /// them.
+        /// </summary>
+        /// <param name="contributor">The contributor to remove.</param>
+        /// <returns><see langword="true"/> when the contributor was registered.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="contributor"/> is <c>null</c>.</exception>
+        public bool Unregister(IConformanceContributor contributor)
+        {
+            if (contributor == null)
+            {
+                throw new ArgumentNullException(nameof(contributor));
+            }
+
+            bool removed;
+            lock (m_lock)
+            {
+                removed = m_contributors.Remove(contributor);
+            }
+            if (removed)
+            {
+                Aggregate();
+            }
+            return removed;
+        }
+
+        /// <summary>
+        /// Reads every registered contributor again and publishes the
+        /// aggregated conformance units and server profiles to the address
+        /// space through the diagnostics node manager.
         /// </summary>
         /// <param name="cancellationToken">A cancellation token.</param>
         public async ValueTask PublishAsync(CancellationToken cancellationToken = default)
         {
-            ArrayOf<QualifiedName> units;
-            ArrayOf<string> profiles;
+            // Publishing is serialized, so the address space ends with the
+            // set read last.
+            await m_publishLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                (ArrayOf<QualifiedName> units, ArrayOf<string> profiles) = Aggregate();
+                await m_server.DiagnosticsNodeManager
+                    .PublishConformanceUnitsAsync(units, profiles, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_publishLock.Release();
+            }
+        }
 
+        /// <summary>
+        /// Reads the contributors and replaces the aggregated sets.
+        /// </summary>
+        /// <remarks>
+        /// The contributors are read outside the lock: computing what they
+        /// support may take locks of their own.
+        /// </remarks>
+        private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) Aggregate()
+        {
+            IConformanceContributor[] contributors;
             lock (m_lock)
             {
-                var orderedUnits = new List<QualifiedName>(m_conformanceUnits);
-                orderedUnits.Sort(
-                    (left, right) => string.CompareOrdinal(left.Name, right.Name));
-                units = orderedUnits.ToArrayOf();
-                profiles = new List<string>(m_serverProfiles).ToArrayOf();
+                contributors = [.. m_contributors];
             }
 
-            await m_server.DiagnosticsNodeManager
-                .PublishConformanceUnitsAsync(units, profiles, cancellationToken)
-                .ConfigureAwait(false);
+            var units = new HashSet<QualifiedName>();
+            var profiles = new HashSet<string>(StringComparer.Ordinal);
+            var orderedProfiles = new List<string>();
+            foreach (IConformanceContributor contributor in contributors)
+            {
+                foreach (QualifiedName unit in contributor.ConformanceUnits)
+                {
+                    if (!unit.IsNull)
+                    {
+                        units.Add(unit);
+                    }
+                }
+                foreach (string profile in contributor.ServerProfiles)
+                {
+                    if (!string.IsNullOrEmpty(profile) && profiles.Add(profile))
+                    {
+                        orderedProfiles.Add(profile);
+                    }
+                }
+            }
+
+            var orderedUnits = new List<QualifiedName>(units);
+            orderedUnits.Sort((left, right) => string.CompareOrdinal(left.Name, right.Name));
+            lock (m_lock)
+            {
+                m_conformanceUnits = units;
+            }
+            return (orderedUnits.ToArrayOf(), orderedProfiles.ToArrayOf());
         }
 
         private readonly Lock m_lock = new();
+        private readonly SemaphoreSlim m_publishLock = new(1, 1);
         private readonly IServerInternal m_server;
-        private readonly HashSet<QualifiedName> m_conformanceUnits;
-        private readonly HashSet<string> m_serverProfiles;
+        private readonly List<IConformanceContributor> m_contributors = [];
+        private HashSet<QualifiedName> m_conformanceUnits;
+        private bool m_disposed;
     }
 }
