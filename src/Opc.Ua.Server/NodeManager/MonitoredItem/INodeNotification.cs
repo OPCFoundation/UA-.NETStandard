@@ -55,6 +55,14 @@ namespace Opc.Ua.Server
         /// <see cref="IDataChangeMonitoredItem2.DataEncoding"/> at queue time.
         /// </summary>
         public Dictionary<uint, DataValue> AttributeSnapshots { get; set; } = [];
+
+        /// <summary>
+        /// Value snapshots read at enqueue time in the context of each Value monitored item's
+        /// subscriber, keyed by monitored item id. Only captured when the reporter was denied
+        /// reading a value whose user access level depends on the user, so a subscriber that may
+        /// read it receives the value of this change rather than a later one.
+        /// </summary>
+        public Dictionary<uint, DataValue>? SubscriberValueSnapshots { get; set; }
     }
 
     /// <summary>

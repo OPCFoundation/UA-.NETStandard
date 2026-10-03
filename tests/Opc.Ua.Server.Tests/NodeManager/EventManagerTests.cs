@@ -249,6 +249,61 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Part 4 7.21: a NaN sampling interval on create is revised to the publishing interval
+        /// instead of being echoed back.
+        /// </summary>
+        [Test]
+        public void CreateMonitoredItemRevisesNaNSamplingIntervalToPublishingInterval()
+        {
+            EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
+
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, new MonitoredItemIdFactory(),
+                TimestampsToReturn.Both, 750.0, NewCreateRequest(double.NaN, 5),
+                new EventFilter(), false);
+
+            Assert.That(((MonitoredItem)item).SamplingInterval, Is.EqualTo(750.0));
+        }
+
+        /// <summary>
+        /// Part 4 7.21: any negative sampling interval on modify selects the publishing interval
+        /// of the subscription; the negative value is never returned as the revised interval.
+        /// </summary>
+        [TestCase(-1.0)]
+        [TestCase(-5.0)]
+        [TestCase(double.NaN)]
+        public void ModifyMonitoredItemRevisesNegativeSamplingIntervalToPublishingInterval(
+            double requestedSamplingInterval)
+        {
+            EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, new MonitoredItemIdFactory(),
+                TimestampsToReturn.Both, 1000.0, NewCreateRequest(500.0, 5),
+                new EventFilter(), false);
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(s => s.PublishingInterval).Returns(250.0);
+            item.SubscriptionCallback = subscription.Object;
+
+            manager.ModifyMonitoredItem(
+                NewContext(),
+                item,
+                TimestampsToReturn.Both,
+                new MonitoredItemModifyRequest
+                {
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 42,
+                        SamplingInterval = requestedSamplingInterval,
+                        QueueSize = 5,
+                        DiscardOldest = true
+                    }
+                },
+                new EventFilter());
+
+            Assert.That(((MonitoredItem)item).SamplingInterval, Is.EqualTo(250.0));
+        }
+
+        /// <summary>
         /// Regression for the CTT "Auditing Connections" failures: the CTT audit
         /// subscription requests QueueSize 1 on Server.EventNotifier. Every event
         /// raised between two publishes must still be delivered.

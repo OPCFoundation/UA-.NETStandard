@@ -459,6 +459,18 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     removed = m_history?.Remove(local) == true;
+
+                    // The point consumed the slot its request reserved to continue an operation;
+                    // give it back in the same step, so a concurrent save cannot take it before
+                    // the request restores the continuation it claimed (Part 4 §7.9). A request
+                    // that has already ended released its reservations and gets nothing back.
+                    HistoryRequestScope? reservedBy = local.ReservedBy;
+                    local.ReservedBy = null;
+                    if (removed && reservedBy != null && !reservedBy.Ended)
+                    {
+                        reservedBy.Reservations++;
+                        m_reservedHistory++;
+                    }
                 }
                 if (removed)
                 {
@@ -493,6 +505,7 @@ namespace Opc.Ua.Server
                             return null;
                         }
                         m_history.RemoveAt(i);
+                        ReserveForContinuedOperation(id);
                         return restored.Value;
                     }
                 }
@@ -579,6 +592,7 @@ namespace Opc.Ua.Server
                     if (!candidate.Portable)
                     {
                         m_history.RemoveAt(i);
+                        ReserveForContinuedOperation(id);
                         return candidate.Value;
                     }
                     if (candidate.Claiming || m_historyStore == null)
@@ -610,7 +624,7 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            bool removed = RemoveClaimedHistory(restored);
+            bool removed = RemoveClaimedHistory(restored, reserve: claimed);
             if (!removed)
             {
                 return null;
@@ -636,13 +650,58 @@ namespace Opc.Ua.Server
         }
 
         private bool RemoveClaimedHistory(
-            HistoryContinuationPoint continuationPoint)
+            HistoryContinuationPoint continuationPoint,
+            bool reserve)
         {
             lock (m_lock)
             {
                 List<HistoryContinuationPoint>? history = m_history;
-                return history != null && history.Remove(continuationPoint);
+                if (history == null || !history.Remove(continuationPoint))
+                {
+                    return false;
+                }
+                if (reserve)
+                {
+                    ReserveForContinuedOperation(continuationPoint.Id);
+                }
+                return true;
             }
+        }
+
+        /// <summary>
+        /// Keeps the slot of a continuation point that the current HistoryRead request restored
+        /// to continue an operation the client supplied, so that a concurrent request cannot take
+        /// it before the operation saves its successor: continuing a halted operation must not fail
+        /// for lack of continuation points (Part 4 §7.9). The reservation is consumed by the next
+        /// point the request saves, or released when the request ends. Called under the lock.
+        /// </summary>
+        private void ReserveForContinuedOperation(Guid id)
+        {
+            if (m_maxHistory == 0)
+            {
+                return;
+            }
+            HistoryRequestScope? current = GetCurrentHistoryRequest();
+            if (current == null || !current.IsClientSupplied(id))
+            {
+                return;
+            }
+            current.Reservations++;
+            m_reservedHistory++;
+        }
+
+        /// <summary>
+        /// Returns the in-flight HistoryRead request of the calling asynchronous flow that
+        /// belongs to this holder, or <c>null</c>.
+        /// </summary>
+        private HistoryRequestScope? GetCurrentHistoryRequest()
+        {
+            HistoryRequestScope? current = s_currentHistoryRequest.Value;
+            return current != null &&
+                ReferenceEquals(current.Owner, this) &&
+                !current.Ended
+                ? current
+                : null;
         }
 
         private static bool TryGetHistoryContinuationPointId(
@@ -698,14 +757,21 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                while (m_maxHistory > 0 && m_history.Count >= m_maxHistory)
+                // a request that continues an operation uses the slot it reserved when it
+                // restored the point; any other save must also leave the slots reserved by
+                // in-flight requests free.
+                HistoryRequestScope? current = GetCurrentHistoryRequest();
+                bool useReservation = current != null && current.Reservations > 0;
+                while (!useReservation &&
+                    m_maxHistory > 0 &&
+                    m_history.Count + m_reservedHistory >= m_maxHistory)
                 {
                     int evictionIndex = FindEvictableHistoryIndex();
                     if (evictionIndex < 0)
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadNoContinuationPoints,
-                            "All history continuation slots are being persisted or claimed.");
+                            "All history continuation slots are being persisted, claimed, used or reserved by an in-flight request.");
                     }
                     HistoryContinuationPoint old =
                         m_history[evictionIndex];
@@ -729,6 +795,22 @@ namespace Opc.Ua.Server
                     Timestamp = DateTime.UtcNow
                 };
                 m_history.Add(stored);
+
+                // The client has not received this point yet: keep it until the HistoryRead
+                // that saved it has returned its response. Only that request's scope pins it,
+                // so an unrelated in-flight HistoryRead of the session does not keep points of
+                // already completed requests from being freed (Part 4 §7.9).
+                if (current != null)
+                {
+                    if (useReservation)
+                    {
+                        current.Reservations--;
+                        m_reservedHistory--;
+                        stored.ReservedBy = current;
+                    }
+                    current.Pin(stored);
+                    current.RecordSaved(stored);
+                }
                 return stored;
             }
         }
@@ -745,6 +827,7 @@ namespace Opc.Ua.Server
                 }
                 continuationPoint.Portable = portable;
                 continuationPoint.PendingPersistence = false;
+                continuationPoint.ReservedBy = null;
                 return true;
             }
         }
@@ -758,12 +841,249 @@ namespace Opc.Ua.Server
             for (int i = 0; i < m_history.Count; i++)
             {
                 HistoryContinuationPoint candidate = m_history[i];
-                if (!candidate.PendingPersistence && !candidate.Claiming)
+                if (!candidate.PendingPersistence &&
+                    !candidate.Claiming &&
+                    candidate.Pins == 0)
                 {
                     return i;
                 }
             }
             return -1;
+        }
+
+        /// <summary>
+        /// Marks the start of a HistoryRead request. Until the returned scope is disposed, the
+        /// history continuation points the request continues and every point the request saves
+        /// are excluded from eviction, so the limit makes a further operation fail with
+        /// Bad_NoContinuationPoints instead of dropping a point of the same request or one the
+        /// request is about to continue (Part 4 §7.9: only points from prior requests are freed
+        /// automatically, and continuing a halted operation never fails for lack of points).
+        /// </summary>
+        /// <param name="nodesToRead">The operations of the request.</param>
+        /// <returns>The scope to dispose once the response has been produced.</returns>
+        /// <remarks>
+        /// The scope becomes the current HistoryRead of the calling asynchronous flow, so the
+        /// points saved by the node managers the request awaits are attributed to it. This
+        /// method is synchronous on purpose: the value set here stays in the caller's
+        /// execution context until the scope is disposed.
+        /// </remarks>
+        internal IDisposable BeginHistoryRequest(ArrayOf<HistoryReadValueId> nodesToRead)
+        {
+            var scope = new HistoryRequestScope(this, s_currentHistoryRequest.Value);
+            s_currentHistoryRequest.Value = scope;
+            if (!HasHistoryContinuationPoint(nodesToRead))
+            {
+                return scope;
+            }
+            lock (m_lock)
+            {
+                if (m_closed || m_history == null)
+                {
+                    return scope;
+                }
+                for (int ii = 0; ii < nodesToRead.Count; ii++)
+                {
+                    HistoryReadValueId? nodeToRead = nodesToRead[ii];
+                    if (nodeToRead == null ||
+                        !TryGetHistoryContinuationPointId(
+                            nodeToRead.ContinuationPoint,
+                            out Guid id))
+                    {
+                        continue;
+                    }
+                    scope.RecordClientSupplied(id);
+                    foreach (HistoryContinuationPoint candidate in m_history)
+                    {
+                        if (candidate.Id == id)
+                        {
+                            scope.Pin(candidate);
+                            break;
+                        }
+                    }
+                }
+            }
+            return scope;
+        }
+
+        private static bool HasHistoryContinuationPoint(ArrayOf<HistoryReadValueId> nodesToRead)
+        {
+            for (int ii = 0; ii < nodesToRead.Count; ii++)
+            {
+                HistoryReadValueId? nodeToRead = nodesToRead[ii];
+                if (nodeToRead != null && nodeToRead.ContinuationPoint.Length == 16)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Releases the history continuation points a faulted HistoryRead request saved, since
+        /// the response that would return them to the client is never sent (Part 4 §7.9). The
+        /// points are tracked by the request scope, so a point a node manager saved before it
+        /// failed without assigning it to a result is released as well. A point whose identifier
+        /// the client supplied in the request is kept, since the client still holds it.
+        /// </summary>
+        /// <param name="historyRequest">The scope returned by <see cref="BeginHistoryRequest"/>.</param>
+        internal void ReleaseSavedHistory(IDisposable historyRequest)
+        {
+            if (historyRequest is not HistoryRequestScope scope ||
+                !ReferenceEquals(scope.Owner, this))
+            {
+                return;
+            }
+
+            List<HistoryContinuationPoint>? released = null;
+            lock (m_lock)
+            {
+                List<HistoryContinuationPoint>? saved = scope.TakeSaved();
+                if (saved == null || m_history == null)
+                {
+                    return;
+                }
+                foreach (HistoryContinuationPoint candidate in saved)
+                {
+                    // a point still being persisted or claimed is cleaned up by that operation.
+                    if (scope.IsClientSupplied(candidate.Id) ||
+                        candidate.PendingPersistence ||
+                        candidate.Claiming ||
+                        !m_history.Remove(candidate))
+                    {
+                        continue;
+                    }
+                    (released ??= []).Add(candidate);
+                }
+            }
+
+            if (released == null)
+            {
+                return;
+            }
+            foreach (HistoryContinuationPoint continuationPoint in released)
+            {
+                if (continuationPoint.Portable)
+                {
+                    TryScheduleHistoryRemoval(
+                        continuationPoint.OwnerSessionId,
+                        continuationPoint.Id);
+                }
+                continuationPoint.Value.Dispose();
+            }
+        }
+
+        private void EndHistoryRequest(HistoryRequestScope scope)
+        {
+            lock (m_lock)
+            {
+                scope.Ended = true;
+                scope.UnpinAll();
+                _ = scope.TakeSaved();
+                m_reservedHistory -= scope.Reservations;
+                scope.Reservations = 0;
+            }
+        }
+
+        /// <summary>
+        /// Tracks the history continuation points pinned by one in-flight HistoryRead request.
+        /// All members except the owner and the previous scope are accessed under the owner's lock.
+        /// </summary>
+        private sealed class HistoryRequestScope : IDisposable
+        {
+            public HistoryRequestScope(
+                SessionContinuationPoints owner,
+                HistoryRequestScope? previous)
+            {
+                Owner = owner;
+                m_previous = previous;
+            }
+
+            /// <summary>
+            /// The holder whose points this scope pins.
+            /// </summary>
+            public SessionContinuationPoints Owner { get; }
+
+            /// <summary>
+            /// Set once the request has returned its response; a late save is not pinned then.
+            /// </summary>
+            public bool Ended { get; set; }
+
+            /// <summary>
+            /// The slots this request holds for the successors of the points it restored to
+            /// continue operations the client supplied.
+            /// </summary>
+            public int Reservations { get; set; }
+
+            public void Pin(HistoryContinuationPoint continuationPoint)
+            {
+                continuationPoint.Pins++;
+                (m_pinned ??= []).Add(continuationPoint);
+            }
+
+            /// <summary>
+            /// Records a point the request saved, so a faulted request can release it.
+            /// </summary>
+            public void RecordSaved(HistoryContinuationPoint continuationPoint)
+            {
+                (m_saved ??= []).Add(continuationPoint);
+            }
+
+            /// <summary>
+            /// Returns and forgets the points the request saved.
+            /// </summary>
+            public List<HistoryContinuationPoint>? TakeSaved()
+            {
+                List<HistoryContinuationPoint>? saved = m_saved;
+                m_saved = null;
+                return saved;
+            }
+
+            /// <summary>
+            /// Records a continuation point identifier the client supplied in the request.
+            /// </summary>
+            public void RecordClientSupplied(Guid id)
+            {
+                (m_clientSupplied ??= []).Add(id);
+            }
+
+            /// <summary>
+            /// Reports whether the client supplied the identifier in the request.
+            /// </summary>
+            public bool IsClientSupplied(Guid id)
+            {
+                return m_clientSupplied?.Contains(id) == true;
+            }
+
+            public void UnpinAll()
+            {
+                if (m_pinned == null)
+                {
+                    return;
+                }
+                foreach (HistoryContinuationPoint continuationPoint in m_pinned)
+                {
+                    continuationPoint.Pins--;
+                }
+                m_pinned = null;
+            }
+
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    if (ReferenceEquals(s_currentHistoryRequest.Value, this))
+                    {
+                        s_currentHistoryRequest.Value = m_previous;
+                    }
+                    Owner.EndHistoryRequest(this);
+                }
+            }
+
+            private readonly HistoryRequestScope? m_previous;
+            private List<HistoryContinuationPoint>? m_pinned;
+            private List<HistoryContinuationPoint>? m_saved;
+            private HashSet<Guid>? m_clientSupplied;
+            private int m_disposed;
         }
 
         /// <summary>
@@ -1049,8 +1369,15 @@ namespace Opc.Ua.Server
             public bool Portable;
             public bool PendingPersistence;
             public bool Claiming;
+            public int Pins;
             public IHistoryContinuationPoint Value = null!;
             public DateTime Timestamp;
+
+            /// <summary>
+            /// The request whose reserved slot this point consumed when it was saved, so the
+            /// reservation can be given back if the point is dropped because persisting it failed.
+            /// </summary>
+            public HistoryRequestScope? ReservedBy;
         }
 
         private readonly Func<NodeId> m_sessionIdProvider;
@@ -1064,6 +1391,13 @@ namespace Opc.Ua.Server
         private List<HistoryContinuationPoint>? m_history;
         private Dictionary<Guid, NodeId>? m_mirroredBrowseOwners;
         private Dictionary<Guid, NodeId>? m_mirroredHistoryOwners;
+        private int m_reservedHistory;
         private bool m_closed;
+
+        /// <summary>
+        /// The HistoryRead request of the current asynchronous flow; it pins the history
+        /// continuation points saved while it is in flight.
+        /// </summary>
+        private static readonly AsyncLocal<HistoryRequestScope?> s_currentHistoryRequest = new();
     }
 }

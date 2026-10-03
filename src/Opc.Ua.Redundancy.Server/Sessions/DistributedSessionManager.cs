@@ -493,6 +493,12 @@ namespace Opc.Ua.Redundancy.Server
                     entry.ClientUserTokenType,
                     entry.ClientUserId);
 
+                // The restored session carries the original certificate provenance: a
+                // certificate whose validation error was accepted on the active replica
+                // (or of an entry that predates the mirrored provenance) does not become
+                // a trusted application identity after failover (OPC 10000-3 4.9).
+                ClientCertificateProvenance.SetValidated(session, entry.ClientCertificateValidated);
+
                 // Ownership transferred to the session; prevent the finally below
                 // from disposing handles the session now manages.
                 clientCertificate = null;
@@ -541,6 +547,9 @@ namespace Opc.Ua.Redundancy.Server
                 ClientUserId = null,
                 ClientUserTokenType = UserTokenType.Anonymous,
                 HasActivatedUserIdentity = false,
+                // The base CreateSessionAsync records the provenance before it
+                // publishes the session, so it is final here.
+                ClientCertificateValidated = ClientCertificateProvenance.IsValidated(result.Session),
                 SecurityPolicyUri = endpoint.SecurityPolicyUri ?? string.Empty,
                 SecurityMode = (int)endpoint.SecurityMode,
                 EndpointUrl = endpointUrl ?? string.Empty,
@@ -598,7 +607,8 @@ namespace Opc.Ua.Redundancy.Server
 
         private static bool HasValidClientUserIdState(SharedSessionEntry entry)
         {
-            if (entry.SecurityStateVersion != SharedSessionEntry.CurrentSecurityStateVersion ||
+            if (entry.SecurityStateVersion is < SharedSessionEntry.MinimumRestorableSecurityStateVersion or
+                    > SharedSessionEntry.CurrentSecurityStateVersion ||
                 !entry.HasActivatedUserIdentity)
             {
                 return false;

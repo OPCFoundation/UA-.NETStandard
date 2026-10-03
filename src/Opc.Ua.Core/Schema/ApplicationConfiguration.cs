@@ -1394,6 +1394,30 @@ namespace Opc.Ua
         [DataTypeField(Order = 40)]
         public int MaxFailedAuthenticationAttempts { get; set; } = 5;
 
+        /// <summary>
+        /// The maximum number of monitored items the server supports across all
+        /// subscriptions. CreateMonitoredItems returns Bad_TooManyMonitoredItems for the
+        /// items that exceed it (Part 4 §5.13.2.4). The value is published in
+        /// <c>Server.ServerCapabilities.MaxMonitoredItems</c>.
+        /// A value of zero or less means the server does not impose a limit (the default,
+        /// compatible with earlier versions).
+        /// </summary>
+        /// <value>The maximum number of monitored items in the server.</value>
+        [DataTypeField(Order = 41)]
+        public int MaxMonitoredItemCount { get; set; }
+
+        /// <summary>
+        /// The maximum number of monitored items per subscription. CreateMonitoredItems
+        /// returns Bad_TooManyMonitoredItems for the items that exceed it (Part 4
+        /// §5.13.2.4). The value is published in
+        /// <c>Server.ServerCapabilities.MaxMonitoredItemsPerSubscription</c>.
+        /// A value of zero or less means the server does not impose a limit (the default,
+        /// compatible with earlier versions).
+        /// </summary>
+        /// <value>The maximum number of monitored items per subscription.</value>
+        [DataTypeField(Order = 42)]
+        public int MaxMonitoredItemsPerSubscription { get; set; }
+
         private ArrayOf<UserTokenPolicy> m_userTokenPolicies;
         private ArrayOf<string> m_serverProfileArray;
         private ArrayOf<string> m_serverCapabilities;

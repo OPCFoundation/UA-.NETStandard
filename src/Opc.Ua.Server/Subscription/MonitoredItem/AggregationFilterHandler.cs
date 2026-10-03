@@ -206,10 +206,26 @@ namespace Opc.Ua.Server
 
             while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
             {
-                m_queueProcessedValue(processedValue);
+                QueueProcessedValue(processedValue);
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Stamps a processed value with the end of its processing interval as ServerTimestamp
+        /// (Part 4 §7.22.4) and hands it to the monitored item. The calculators are shared with
+        /// HistoryReadProcessed and stamp both timestamps with the interval start.
+        /// </summary>
+        private void QueueProcessedValue(DataValue processedValue)
+        {
+            if (Filter is ServerAggregateFilter aggregateFilter && !processedValue.IsNull)
+            {
+                processedValue = processedValue.WithServerTimestamp(
+                    aggregateFilter.GetProcessingIntervalEnd(processedValue.SourceTimestamp));
+            }
+
+            m_queueProcessedValue(processedValue);
         }
 
         /// <summary>
@@ -268,12 +284,12 @@ namespace Opc.Ua.Server
 
             while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
             {
-                m_queueProcessedValue(processedValue);
+                QueueProcessedValue(processedValue);
             }
 
             if (m_calculator.TryGetProcessedValue(true, out DataValue partialValue))
             {
-                m_queueProcessedValue(partialValue);
+                QueueProcessedValue(partialValue);
             }
         }
 
