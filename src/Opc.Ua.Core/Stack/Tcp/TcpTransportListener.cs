@@ -1728,12 +1728,15 @@ namespace Opc.Ua.Bindings
                             if (serverChannel != channel)
                             {
                                 responseRetained = serverChannel.SendResponse(requestId, response);
+                                NotifyResponseDispatched(context);
                                 return;
                             }
                         }
                         // if we could not find a new channel, just log the error
                         throw;
                     }
+
+                    NotifyResponseDispatched(context);
                 }
             }
             catch (Exception e)
@@ -1787,6 +1790,20 @@ namespace Opc.Ua.Bindings
                 {
                     (response as IPooledEncodeable)?.Reuse();
                 }
+            }
+        }
+
+        private void NotifyResponseDispatched(SecureChannelContext context)
+        {
+            try
+            {
+                context.ResponseDispatched?.Invoke();
+            }
+            catch (Exception e)
+            {
+                // A callback that throws must not fault the request loop; the
+                // response itself has already been handed to the transport.
+                m_logger.TcpTransportResponseDispatchedCallbackFailed(e);
             }
         }
 
@@ -2159,5 +2176,15 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 34, Level = LogLevel.Debug,
             Message = "Refused TCP connection closed before Bad_TcpNotEnoughResources could be sent.")]
         public static partial void TcpResourceRejectionFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Reports a callback failure after a response has been handed to the transport.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 35, Level = LogLevel.Error,
+            Message = "TCPLISTENER - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void TcpTransportResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            Exception? exception);
     }
 }

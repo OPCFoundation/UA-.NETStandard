@@ -905,6 +905,20 @@ namespace Opc.Ua.Bindings
             _ = DispatchRequestAsync(channel, requestId, request);
         }
 
+        private void NotifyResponseDispatched(SecureChannelContext context)
+        {
+            try
+            {
+                context.ResponseDispatched?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                // A callback that throws must not fault the request loop; the
+                // response has already been handed to the transport.
+                Logger.KestrelResponseDispatchedCallbackFailed(ex);
+            }
+        }
+
         private async Task DispatchRequestAsync(
             TcpListenerChannel channel,
             uint requestId,
@@ -931,6 +945,7 @@ namespace Opc.Ua.Bindings
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
                 ((TcpServerChannel)channel).SendResponse(requestId, response);
+                NotifyResponseDispatched(context);
             }
             catch (Exception ex)
             {
@@ -1126,6 +1141,16 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 7, Level = LogLevel.Error,
             Message = "Kestrel TCP failed to close one or more admitted connections during listener shutdown.")]
         public static partial void KestrelTcpAdmissionStopFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Reports a callback failure after a response has been handed to the transport.
+        /// </summary>
+        [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 8, Level = LogLevel.Error,
+            Message = "KestrelTcp - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void KestrelResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            Exception? exception);
 
         [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpChannelLifetime + 0, Level = LogLevel.Warning,
             Message = "KestrelTcp maximum channel count reached ({ChannelCount}/{MaxChannelCount}) and no unused channel could be reclaimed.")]

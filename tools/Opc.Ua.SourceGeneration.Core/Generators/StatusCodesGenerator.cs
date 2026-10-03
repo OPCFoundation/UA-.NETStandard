@@ -231,6 +231,7 @@ namespace Opc.Ua.SourceGeneration
         private Dictionary<string, int> LoadIdentifiers(string identifiersFile)
         {
             var identifiers = new Dictionary<string, int>();
+            var names = new Dictionary<int, string>();
             int maxId = 1;
 
             using TextReader reader = m_context.FileSystem.CreateTextReader(identifiersFile);
@@ -273,6 +274,21 @@ namespace Opc.Ua.SourceGeneration
                     maxId = uid + 1;
                 }
 
+                // Two status codes sharing an identifier differ only in their severity
+                // bits, so the collision produces valid but wrong constants instead of a
+                // compile error. Fail the generator rather than emit them.
+                if (names.TryGetValue(uid, out string existing))
+                {
+                    throw new InvalidOperationException(CoreUtils.Format(
+                        "{0} declares identifier {1} for both '{2}' and '{3}'. " +
+                        "Status code identifiers shall be unique.",
+                        identifiersFile,
+                        uid,
+                        existing,
+                        name));
+                }
+
+                names[uid] = name;
                 identifiers[name] = uid;
             }
             return identifiers;

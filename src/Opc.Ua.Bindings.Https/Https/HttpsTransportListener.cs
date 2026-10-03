@@ -2082,10 +2082,28 @@ namespace Opc.Ua.Bindings
                     .ConfigureAwait(false);
 
                 serverChannel.SendResponse(requestId, response);
+                NotifyResponseDispatched(context);
             }
             catch (Exception ex)
             {
                 m_logger.ErrorProcessingRequest(ex, requestId);
+            }
+        }
+
+        /// <summary>
+        /// Notifies the service after dispatch without allowing callback failures to fault the request loop.
+        /// </summary>
+        private void NotifyResponseDispatched(SecureChannelContext context)
+        {
+            try
+            {
+                context.ResponseDispatched?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                // A callback that throws must not fault the request loop; the
+                // response has already been handed to the transport.
+                m_logger.HttpsResponseDispatchedCallbackFailed(ex);
             }
         }
 
@@ -3271,5 +3289,15 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 14, Level = LogLevel.Error,
             Message = "WSSLISTENER - failed to close one or more admitted connections during listener shutdown.")]
         public static partial void WssAdmissionStopFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Reports a callback failure after a response has been handed to the transport.
+        /// </summary>
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 15, Level = LogLevel.Error,
+            Message = "HTTPSLISTENER - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void HttpsResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            Exception exception);
     }
 }
