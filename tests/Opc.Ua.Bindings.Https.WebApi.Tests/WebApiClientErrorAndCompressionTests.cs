@@ -30,10 +30,14 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -44,7 +48,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 {
     /// <summary>
     /// How <see cref="WebApiClient"/> reports HTTP failures (as
-    /// <see cref="ServiceResultException"/>s).
+    /// <see cref="ServiceResultException"/>s) and handles gzip compressed
+    /// responses (OPC 10000-6 §7.4.5).
     /// </summary>
     [TestFixture]
     [Category("WebApiClient")]
@@ -191,6 +196,186 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 async () => await client.ReadAsync(new ReadRequest(), cts.Token).ConfigureAwait(false));
         }
 
+        [Test]
+        public async Task AcceptCompressedResponsesAdvertisesGzipAndDecompressesAsync()
+        {
+            IServiceMessageContext context = CreateContext();
+            var expected = new ReadResponse { ResponseHeader = new ResponseHeader { RequestHandle = 42 } };
+            HttpRequestMessage? seen = null;
+            using var handler = new StubHandler(request =>
+            {
+                seen = request;
+                return GzipResponse(WebApiBodyCodec.EncodeBody(expected, context));
+            });
+            using WebApiClient client = CreateClient(handler, new WebApiClientOptions
+            {
+                MessageContext = context,
+                AcceptCompressedResponses = true
+            });
+
+            ReadResponse response = await client.ReadAsync(new ReadRequest()).ConfigureAwait(false);
+
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(42u));
+            Assert.That(seen!.Headers.AcceptEncoding.Select(e => e.Value), Does.Contain("gzip"));
+        }
+
+        [Test]
+        public async Task SharedClientCarriesAcceptEncodingPerRequestAsync()
+        {
+            IServiceMessageContext context = CreateContext();
+            HttpRequestMessage? seen = null;
+            using var handler = new StubHandler(request =>
+            {
+                seen = request;
+                return GzipResponse(WebApiBodyCodec.EncodeBody(new ReadResponse(), context));
+            });
+            using var http = new HttpClient(handler, disposeHandler: false);
+            using var client = new WebApiClient(http, s_baseAddress, new WebApiClientOptions
+            {
+                MessageContext = context,
+                AcceptCompressedResponses = true
+            });
+
+            await client.ReadAsync(new ReadRequest()).ConfigureAwait(false);
+
+            Assert.That(seen!.Headers.AcceptEncoding.Select(e => e.Value), Does.Contain("gzip"));
+            Assert.That(http.DefaultRequestHeaders.AcceptEncoding, Is.Empty, "a shared client is never mutated");
+        }
+
+        [Test]
+        public async Task GzipResponseIsDecompressedEvenWhenNotAskedForAsync()
+        {
+            IServiceMessageContext context = CreateContext();
+            HttpRequestMessage? seen = null;
+            using var handler = new StubHandler(request =>
+            {
+                seen = request;
+                return GzipResponse(WebApiBodyCodec.EncodeBody(new ReadResponse(), context));
+            });
+            using WebApiClient client = CreateClient(handler, new WebApiClientOptions { MessageContext = context });
+
+            ReadResponse response = await client.ReadAsync(new ReadRequest()).ConfigureAwait(false);
+
+            Assert.That(response, Is.Not.Null);
+            Assert.That(seen!.Headers.AcceptEncoding, Is.Empty);
+        }
+
+        [Test]
+        public void GzipBodyIsBoundedByMaxMessageSizeAfterInflating()
+        {
+            // 1 MiB of zeros compresses to about 1 KiB; the budget applies
+            // to the inflated body.
+            ServiceMessageContext context = CreateContext();
+            context.MaxMessageSize = 64 * 1024;
+            using var handler = new StubHandler(_ => GzipResponse(new byte[1024 * 1024]));
+            using WebApiClient client = CreateClient(handler, new WebApiClientOptions { MessageContext = context });
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+        }
+
+        [Test]
+        public void CorruptGzipIsADecodingError()
+        {
+            using var handler = new StubHandler(_ =>
+            {
+                // A complete gzip header followed by a deflate block of the
+                // reserved block type 3, which no inflater accepts.
+                var content = new ByteArrayContent(
+                    [0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x07, 0x00]);
+                content.Headers.ContentEncoding.Add("gzip");
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+            });
+            using WebApiClient client = CreateClient(handler, new WebApiClientOptions { MessageContext = CreateContext() });
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(error.InnerException, Is.InstanceOf<InvalidDataException>());
+        }
+
+        [Test]
+        public void UnsupportedContentEncodingIsRejected()
+        {
+            using var handler = new StubHandler(_ =>
+            {
+                var content = new ByteArrayContent([1, 2, 3]);
+                content.Headers.ContentEncoding.Add("br");
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+            });
+            using WebApiClient client = CreateClient(handler, new WebApiClientOptions { MessageContext = CreateContext() });
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(error.Message, Does.Contain("br"));
+        }
+
+        [Test]
+        public async Task IdentityContentEncodingIsReadAsIsAsync()
+        {
+            IServiceMessageContext context = CreateContext();
+            using var handler = new StubHandler(_ =>
+            {
+                var content = new ByteArrayContent(WebApiBodyCodec.EncodeBody(new ReadResponse(), context));
+                content.Headers.ContentEncoding.Add("identity");
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+            });
+            using WebApiClient client = CreateClient(handler, new WebApiClientOptions { MessageContext = context });
+
+            ReadResponse response = await client.ReadAsync(new ReadRequest()).ConfigureAwait(false);
+
+            Assert.That(response, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// The response stream belongs to the <see cref="HttpContent"/>, which
+        /// the caller disposes with the response; the reader must not dispose
+        /// it, with or without gzip.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResponseStreamIsLeftToItsContentAsync(bool gzip)
+        {
+            byte[] body = Encoding.UTF8.GetBytes("{\"Value\":1}");
+            using var stream = new TrackingStream(gzip ? Gzip(body) : body);
+            using var content = new StreamOwningContent(stream);
+            if (gzip)
+            {
+                content.Headers.ContentEncoding.Add("gzip");
+            }
+
+            byte[] read = await HttpResponseBodyReader.ReadAsync(content, 1024, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(read, Is.EqualTo(body));
+            Assert.That(stream.IsDisposed, Is.False, "The reader disposed the stream of the content.");
+            content.Dispose();
+            Assert.That(stream.IsDisposed, Is.True);
+        }
+
+        private static HttpResponseMessage GzipResponse(byte[] body)
+        {
+            var content = new ByteArrayContent(Gzip(body));
+            content.Headers.ContentType = new MediaTypeHeaderValue(WebApiMediaType.ContentType);
+            content.Headers.ContentEncoding.Add("gzip");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+        }
+
+        private static byte[] Gzip(byte[] body)
+        {
+            using var buffer = new MemoryStream();
+            using (var gzip = new GZipStream(buffer, CompressionLevel.Fastest, leaveOpen: true))
+            {
+                gzip.Write(body, 0, body.Length);
+            }
+            return buffer.ToArray();
+        }
+
         private static ServiceMessageContext CreateContext()
         {
             return ServiceMessageContext.CreateEmpty(new TestTelemetryContext());
@@ -223,6 +408,64 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
 
             private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> m_respond;
+        }
+
+        /// <summary>
+        /// Content that hands out the stream it owns, as the content of an
+        /// HTTP response does, and disposes it with itself.
+        /// </summary>
+        private sealed class StreamOwningContent : HttpContent
+        {
+            public StreamOwningContent(Stream stream)
+            {
+                m_stream = stream;
+            }
+
+            protected override Task<Stream> CreateContentReadStreamAsync()
+            {
+                return Task.FromResult(m_stream);
+            }
+
+            protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+            {
+                return m_stream.CopyToAsync(stream);
+            }
+
+            protected override bool TryComputeLength(out long length)
+            {
+                length = 0;
+                return false;
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_stream.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            private readonly Stream m_stream;
+        }
+
+        /// <summary>
+        /// A memory stream that records whether it was disposed.
+        /// </summary>
+        private sealed class TrackingStream : MemoryStream
+        {
+            public TrackingStream(byte[] buffer)
+                : base(buffer, writable: false)
+            {
+            }
+
+            public bool IsDisposed { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                IsDisposed = true;
+                base.Dispose(disposing);
+            }
         }
 
         private sealed class TestTelemetryContext : TelemetryContextBase

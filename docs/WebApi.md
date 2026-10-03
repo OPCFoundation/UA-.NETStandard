@@ -23,6 +23,7 @@ mounted on the same Kestrel host as the binary and
 - [Long-poll `/publish`](#long-poll-publish)
 - [Client integration](#client-integration)
 - [Client errors](#client-errors)
+- [Compressed responses](#compressed-responses)
 - [Related plans and follow-ups](#related-plans-and-follow-ups)
 
 - **Server side**: ASP.NET Core Minimal-API endpoints (one `MapPost`
@@ -355,6 +356,26 @@ HTTP (no connection, failed TLS handshake) gets the StatusCode the HTTPS
 transport channel reports for the same failure, for example
 `Bad_NotConnected` for a refused connection. Cancelling the caller's
 token still throws `OperationCanceledException`.
+
+## Compressed responses
+
+OPC 10000-6 §7.4.5 lets JSON messages be compressed with gzip (IETF RFC
+1952), announced by `Content-Encoding: gzip`. On the client,
+`WebApiClientOptions.AcceptCompressedResponses = true` sends
+`Accept-Encoding: gzip` (on a shared `HttpClient` per request, without
+changing its default headers):
+
+```csharp
+using WebApiClient client = WebApiClient.Create(
+    new Uri("https://server:4843/"),
+    new WebApiClientOptions { AcceptCompressedResponses = true });
+```
+
+A gzip response is inflated whether it was asked for or not. The
+`MaxMessageSize` limit applies to the inflated body, a corrupt gzip body
+is `Bad_DecodingError`, and a content coding other than gzip or identity
+is rejected with `Bad_DecodingError`. The HTTPS binary channel reads its
+responses through the same code.
 
 ## Related plans and follow-ups
 

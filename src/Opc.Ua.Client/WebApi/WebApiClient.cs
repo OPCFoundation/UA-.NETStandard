@@ -75,6 +75,12 @@ namespace Opc.Ua.Client.WebApi
         private readonly MediaTypeWithQualityHeaderValue m_acceptHeader;
 
         /// <summary>
+        /// <c>Accept-Encoding: gzip</c> when
+        /// <see cref="WebApiClientOptions.AcceptCompressedResponses"/> is set.
+        /// </summary>
+        private static readonly StringWithQualityHeaderValue s_gzipEncoding = new("gzip");
+
+        /// <summary>
         /// Base address applied per request when this instance does not own
         /// the HttpClient; <see langword="null"/> when the client carries it.
         /// </summary>
@@ -166,6 +172,11 @@ namespace Opc.Ua.Client.WebApi
                 }
                 m_httpClient.DefaultRequestHeaders.Accept.Clear();
                 m_httpClient.DefaultRequestHeaders.Accept.Add(m_acceptHeader);
+                if (m_options.AcceptCompressedResponses &&
+                    !m_httpClient.DefaultRequestHeaders.AcceptEncoding.Contains(s_gzipEncoding))
+                {
+                    m_httpClient.DefaultRequestHeaders.AcceptEncoding.Add(s_gzipEncoding);
+                }
 
                 if (m_options.RequestTimeout.HasValue)
                 {
@@ -380,6 +391,10 @@ namespace Opc.Ua.Client.WebApi
                     requestMessage.Headers.Authorization = m_authorization;
                 }
                 requestMessage.Headers.Accept.Add(m_acceptHeader);
+                if (m_options.AcceptCompressedResponses)
+                {
+                    requestMessage.Headers.AcceptEncoding.Add(s_gzipEncoding);
+                }
             }
 
             TimeSpan requestTimeout = m_httpClient.Timeout;
@@ -419,6 +434,8 @@ namespace Opc.Ua.Client.WebApi
                             m_httpClient.DefaultRequestHeaders.Authorization != null);
                 }
 
+                // A gzip body (Part 6 §7.4.5) is inflated by the reader
+                // within the MaxMessageSize budget.
                 payload = await HttpResponseBodyReader.ReadAsync(
                     response.Content, m_messageContext.MaxMessageSize, linkedCts.Token).ConfigureAwait(false);
             }
