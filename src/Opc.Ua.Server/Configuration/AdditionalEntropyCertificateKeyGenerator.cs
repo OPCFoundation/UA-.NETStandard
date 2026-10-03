@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
     /// determines the key on every supported target framework. For ECC
     /// certificate types the DRBG derives the private scalar and the platform
     /// computes the public point; on runtimes that cannot import a
-    /// private-only EC scalar (.NET Framework / netstandard2.1) genuine
+    /// private-only EC scalar (.NET Framework) genuine
     /// additional-entropy incorporation is unavailable, so an ECC
     /// regenerate-key request fails with <see cref="StatusCodes.BadNotSupported"/>
     /// rather than silently generating a key that ignores the caller nonce —
@@ -111,7 +111,7 @@ namespace Opc.Ua.Server
         /// Genuine incorporation of the §7.10.10 <c>Nonce</c> into an ECC private
         /// key requires importing a private-only EC scalar, which is only
         /// possible on .NET 5 or later. On target frameworks that cannot import
-        /// such a scalar (.NET Framework / <c>netstandard2.1</c>) an ECC
+        /// such a scalar (.NET Framework) an ECC
         /// regenerate-key request fails with
         /// <see cref="StatusCodes.BadNotSupported"/>, so this probe returns
         /// <see langword="false"/> there. RSA regenerate-key requests remain
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server
                 CryptoUtils.ZeroMemory(parameters.D);
             }
 #else
-            // .NET Framework / netstandard2.1 cannot import a private-only EC
+            // .NET Framework cannot import a private-only EC
             // scalar (Q is a required field) and this assembly has no EC point-
             // multiplication primitive to derive the public point for an
             // arbitrary named curve, so the caller-supplied §7.10.10 additional

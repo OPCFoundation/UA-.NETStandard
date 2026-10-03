@@ -141,7 +141,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         [Test]
         public void JsonEncoderArraySegmentStreamNoSpan()
         {
-#if NET6_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET6_0_OR_GREATER
             using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager);
 #else
             using var arraySegmentStream = new ArraySegmentStream(m_bufferManager);

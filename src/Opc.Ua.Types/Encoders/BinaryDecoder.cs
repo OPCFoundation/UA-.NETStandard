@@ -627,7 +627,11 @@ namespace Opc.Ua
                 expandedNodeId = expandedNodeId.WithServerIndex(serverIndex);
             }
 
+            // Part 6 5.2.2.10: when the NamespaceUri is present the encoded
+            // NamespaceIndex is 0 and carries no meaning, so there is no index
+            // to map. WithNamespaceIndex would also discard the decoded uri.
             if (m_namespaceMappings != null &&
+                string.IsNullOrEmpty(expandedNodeId.NamespaceUri) &&
                 m_namespaceMappings.Length > expandedNodeId.NamespaceIndex)
             {
                 expandedNodeId = expandedNodeId.WithNamespaceIndex(

@@ -38,7 +38,7 @@ namespace System.Net.Sockets
     /// </summary>
     public static class Polyfills
     {
-#if NETSTANDARD2_0 || NETSTANDARD2_1 || NETFRAMEWORK
+#if NETSTANDARD2_0 || NETFRAMEWORK
         /// <summary>
         /// Asynchronously establishes a connection to a remote endpoint and observes cancellation.
         /// </summary>

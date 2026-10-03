@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Xml;
-#if !NETSTANDARD2_1_OR_GREATER && !NET6_0_OR_GREATER
+#if !NET6_0_OR_GREATER
 using System.Linq;
 #endif
 
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server
             // get translation for multiLanguage request
             if (isMultilanguageRequested)
             {
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
                 Dictionary<string, string> translations =
                     defaultText.Translations != null
                         ? new Dictionary<string, string>(defaultText.Translations)

@@ -216,7 +216,14 @@ namespace Opc.Ua.Machinery.Client
     /// </summary>
     /// <param name="BrowseName">The measurement's browse name.</param>
     /// <param name="Value">The reading.</param>
-    public sealed record MachineryMeasurementValue(QualifiedName BrowseName, Variant Value);
+    public sealed record MachineryMeasurementValue(QualifiedName BrowseName, Variant Value)
+    {
+        /// <summary>
+        /// The NodeId of the variable the reading was taken from - the node a
+        /// client subscribes to for live values.
+        /// </summary>
+        public NodeId NodeId { get; init; }
+    }
 
     /// <summary>
     /// One OPC 34100 <c>EnergyMeasurementType</c> metering point below an

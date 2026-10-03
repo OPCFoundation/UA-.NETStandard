@@ -3191,16 +3191,17 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that revising an aggregate reuses the monitored item's retained queue.
+        /// Verifies that a modify requesting queue size 0 revises the aggregate with the default
+        /// queue size 1 instead of the previous queue size.
         /// </summary>
         [Test]
-        public async Task ModifyMonitoredItemsAsyncUsesRetainedQueueForAggregateRevisionAsync()
+        public async Task ModifyMonitoredItemsAsyncUsesDefaultQueueForAggregateRevisionAsync()
         {
             using ITestNodeManager manager = CreateManager();
             Assume.That(
                 m_useSamplingGroups &&
                 manager is TestableAsyncCustomNodeManager,
-                "The retained-zero queue rule belongs to sampling groups.");
+                "Covers the sampling-group modify path.");
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var aggregateId = new NodeId("SupportedAggregate", nsIdx);
@@ -3300,13 +3301,127 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 modifyFilterErrors[0],
                 Is.InstanceOf<AggregateFilterResult>());
+            // Part 4 7.21: queueSize 0 on modify selects the default queue size 1 for
+            // data items; the previous queue size is not retained.
             Assert.That(
                 ((AggregateFilterResult)modifyFilterErrors[0])
                     .RevisedStartTime.ToDateTime(),
-                Is.EqualTo(now.UtcDateTime.AddSeconds(-3)));
+                Is.EqualTo(now.UtcDateTime));
             Assert.That(
                 ((ISampledDataChangeMonitoredItem)monitoredItems[0]).QueueSize,
-                Is.EqualTo(4));
+                Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// The revised processing interval of an aggregate item is at least twice the sampling
+        /// interval the item reports, including the rounding a sampling group applies
+        /// (Part 4 7.22.4), on create and on modify.
+        /// </summary>
+        [Test]
+        public async Task AggregateProcessingIntervalIsTwiceTheRevisedSamplingIntervalAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var aggregateId = new NodeId("SupportedAggregate", nsIdx);
+            using AggregateManager aggregateManager =
+                CreateAndSetupAggregateManager(aggregateId, minimumProcessingInterval: 100);
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("RoundedSamplingVariable", nsIdx);
+            variable.BrowseName = new QualifiedName("RoundedSamplingVariable", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentRead;
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            // with the default sampling rates the group (500, 250, 2) rounds 800 ms up to 1000 ms.
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId
+                {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value
+                },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 800,
+                    QueueSize = 4,
+                    Filter = new ExtensionObject(new AggregateFilter
+                    {
+                        AggregateType = aggregateId,
+                        StartTime = DateTime.UtcNow,
+                        ProcessingInterval = 1000,
+                        AggregateConfiguration = new AggregateConfiguration()
+                    })
+                }
+            };
+            var createErrors = new List<ServiceResult> { null };
+            var createFilterErrors = new List<MonitoringFilterResult> { null };
+            var monitoredItems = new List<IMonitoredItem> { null };
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                [itemToCreate],
+                createErrors,
+                createFilterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            var item = (ISampledDataChangeMonitoredItem)monitoredItems[0];
+            Assert.That(createFilterErrors[0], Is.InstanceOf<AggregateFilterResult>());
+            Assert.That(
+                ((AggregateFilterResult)createFilterErrors[0]).RevisedProcessingInterval,
+                Is.GreaterThanOrEqualTo(2 * item.SamplingInterval));
+            if (m_useSamplingGroups)
+            {
+                Assert.That(item.SamplingInterval, Is.EqualTo(1000));
+            }
+
+            var itemToModify = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 800,
+                    QueueSize = 4,
+                    Filter = new ExtensionObject(new AggregateFilter
+                    {
+                        AggregateType = aggregateId,
+                        StartTime = DateTime.UtcNow,
+                        ProcessingInterval = 1000,
+                        AggregateConfiguration = new AggregateConfiguration()
+                    })
+                }
+            };
+            var modifyErrors = new List<ServiceResult> { null };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+            await manager.ModifyMonitoredItemsAsync(
+                new OperationContext(
+                    new RequestHeader(),
+                    null,
+                    RequestType.ModifyMonitoredItems,
+                    RequestLifetime.None,
+                    m_mockSession.Object),
+                TimestampsToReturn.Both,
+                monitoredItems,
+                [itemToModify],
+                modifyErrors,
+                modifyFilterErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(modifyErrors[0]), Is.True);
+            Assert.That(modifyFilterErrors[0], Is.InstanceOf<AggregateFilterResult>());
+            Assert.That(
+                ((AggregateFilterResult)modifyFilterErrors[0]).RevisedProcessingInterval,
+                Is.GreaterThanOrEqualTo(2 * item.SamplingInterval));
         }
 
         /// <summary>
@@ -7169,10 +7284,11 @@ namespace Opc.Ua.Server.Tests
                     queueSize: 4,
                     filter).ConfigureAwait(false);
 
+            // Part 4 §7.22.4: at least twice the revised sampling interval.
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).ProcessingInterval,
-                Is.EqualTo(200));
+                Is.EqualTo(400));
         }
 
         /// <summary>
@@ -7239,10 +7355,12 @@ namespace Opc.Ua.Server.Tests
                     queueSize: 4,
                     filter).ConfigureAwait(false);
 
+            // the retained window starts at now - 3 s; the revised start stays on the requested
+            // 250 ms boundary (startTime + n * processingInterval, Part 4 §7.22.4).
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).StartTime.ToDateTime(),
-                Is.EqualTo(now.UtcDateTime.AddSeconds(-3)));
+                Is.EqualTo(requestedStart.AddSeconds(6)));
         }
 
         /// <summary>
@@ -8303,7 +8421,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that aggregate processing intervals are raised to the monitored item's sampling interval.
+        /// Verifies that aggregate processing intervals are raised to twice the monitored item's sampling interval
+        /// (Part 4 §7.22.4).
         /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToSamplingIntervalAsync()
@@ -8335,7 +8454,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.InstanceOf<ServerAggregateFilter>());
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).ProcessingInterval,
-                Is.EqualTo(200));
+                Is.EqualTo(400));
         }
 
         /// <summary>
@@ -8538,10 +8657,10 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that a percentage deadband without an engineering-unit range returns
-        /// BadMonitoredItemFilterUnsupported.
+        /// BadDeadbandFilterInvalid (Part 8 §7.3.2 Table 61).
         /// </summary>
         [Test]
-        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadMonitoredItemFilterUnsupportedAsync()
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadDeadbandFilterInvalidAsync()
         {
             using ITestNodeManager manager = CreateManager();
 
@@ -8559,7 +8678,48 @@ namespace Opc.Ua.Server.Tests
                 10,
                 filter).ConfigureAwait(false);
 
-            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemFilterUnsupported));
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadDeadbandFilterInvalid));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies that a percentage deadband whose EURange property does not hold a Range
+        /// returns BadDeadbandFilterInvalid (Part 8 §7.3.2 Table 61).
+        /// </summary>
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithNonRangeEURangeReturnsBadDeadbandFilterInvalidAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+
+            SetupNumericTypeTree();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("V", nsIdx),
+                BrowseName = new QualifiedName("V", nsIdx),
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar
+            };
+            var euRangeProperty = new PropertyState(variable)
+            {
+                NodeId = new NodeId("EURange", nsIdx),
+                BrowseName = new QualifiedName(BrowseNames.EURange),
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                Value = new Variant(42.0)
+            };
+            variable.AddChild(euRangeProperty);
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Percent, DeadbandValue = 10.0 });
+
+            AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadDeadbandFilterInvalid));
             Assert.That(result.FilterToUse, Is.Null);
         }
 

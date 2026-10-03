@@ -1782,7 +1782,7 @@ namespace Opc.Ua
         /// </param>
         public static void ZeroMemory(Span<byte> buffer)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             CryptographicOperations.ZeroMemory(buffer);
 #else
             buffer.Clear();
@@ -1804,7 +1804,7 @@ namespace Opc.Ua
         /// </returns>
         public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             return CryptographicOperations.FixedTimeEquals(left, right);
 #else
             if (left.Length != right.Length)

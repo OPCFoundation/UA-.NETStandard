@@ -1355,7 +1355,8 @@ namespace Opc.Ua.Server.Tests
                             RemoveReference,
                             context => CreateMonitoredItem(
                                 context.Server, context.NodeManager, context.Handle,
-                                context.Handle.NodeId, context.MonitoredItemId)));
+                                context.Handle.NodeId, context.MonitoredItemId),
+                            initialValueQueued: false));
                     }
                 }
 

@@ -129,7 +129,7 @@ namespace Opc.Ua.XRegistry.Client
                     {
                         break;
                     }
-#if NETSTANDARD2_0 || NETFRAMEWORK
+#if NETFRAMEWORK
                     byte[] buffer = chunk.Span.ToArray();
                     document.Write(buffer, 0, buffer.Length);
 #else

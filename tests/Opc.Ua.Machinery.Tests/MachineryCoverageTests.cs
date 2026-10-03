@@ -423,7 +423,7 @@ namespace Opc.Ua.Machinery.Tests
         [Test]
         public async Task EnergyCarriersMassFlowAndDuplicateResourceAsync()
         {
-#pragma warning disable CA2263 // Non-generic GetValues keeps net472/net48 building.
+#pragma warning disable CA2263 // Non-generic GetValues keeps net48 building.
             foreach (MachineryEnergyCarrier carrier in
                 (MachineryEnergyCarrier[])Enum.GetValues(typeof(MachineryEnergyCarrier)))
 #pragma warning restore CA2263

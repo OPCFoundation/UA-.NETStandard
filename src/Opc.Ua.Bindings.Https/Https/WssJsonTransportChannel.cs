@@ -211,7 +211,7 @@ namespace Opc.Ua.Bindings
                     payload = memory.ToArray();
                 }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await ws.SendAsync(
                     new ReadOnlyMemory<byte>(payload, 0, payload.Length),
                     WebSocketMessageType.Text,

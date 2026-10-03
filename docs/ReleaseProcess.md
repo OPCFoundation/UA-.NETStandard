@@ -582,14 +582,11 @@ fails the promotion instead of being silently skipped.
    appears. Do not expect any `.Debug` package ID on nuget.org; inspect
    GitHub Packages for those IDs instead.
 
-4. Tag the released commit and publish the GitHub Release, binding both to
-   the exact source SHA the candidate was built from (recorded in the
-   promotion manifest as `commit`):
-   ```powershell
-   git tag 2.0.0 <commit-sha-from-manifest>
-   git push origin 2.0.0
-   gh release create 2.0.0 --target <commit-sha-from-manifest> --generate-notes
-   ```
+4. The successful promotion automatically creates the version tag and GitHub
+   Release, both bound to the exact source SHA recorded in the promotion
+   manifest as `commit`. On a recovery re-run, it verifies that any existing
+   tag and Release already point to that same candidate, and fails rather than
+   moving either one.
 
 5. Record the [release handoff](#release-handoff-template) in the GitHub
    Release description or the tracking issue.
@@ -668,6 +665,13 @@ What stays the same for the GitHub Packages preview feed:
    partial preview publication exactly as in
    [Failed or partial release](#failed-or-partial-release), keeping
    `channel=preview` on the re-run.
+
+5. Confirm the promotion created a prerelease GitHub Release and version tag
+   for the exact candidate commit:
+   ```powershell
+   git rev-parse 2.0.0-preview.6
+   gh release view 2.0.0-preview.6 --json targetCommitish,isPrerelease
+   ```
 
 ## Failed or partial release
 

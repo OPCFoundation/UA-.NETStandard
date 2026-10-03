@@ -1498,7 +1498,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             buffer.Position = 0;
             // TODO: SHA256.HashData(ReadOnlySpan<byte>) is only available on .NET 5+;
-            // this project also targets net472/net48/netstandard2.1, where the instance
+            // this project also targets net48, where the instance
             // ComputeHash API is the portable equivalent. Revisit if the minimum TFM
             // floor is ever raised to drop those targets.
 #pragma warning disable CA1850
@@ -1816,7 +1816,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             byte[] buffer,
             CancellationToken cancellationToken)
         {
-#if NETFRAMEWORK || NETSTANDARD2_0
+#if NETFRAMEWORK
             return await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)
                 .ConfigureAwait(false);
 #else

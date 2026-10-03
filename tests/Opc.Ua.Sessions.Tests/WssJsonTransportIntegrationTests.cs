@@ -115,17 +115,6 @@ namespace Opc.Ua.Sessions.Tests
             }
         }
 
-        private static void SkipIfWssUnsupported()
-        {
-            if (!HttpsTransportListener.IsWssTransportSupported)
-            {
-                Assert.Ignore(
-                    "The WSS transport listener is unavailable in this build of " +
-                    "Opc.Ua.Bindings.Https (the netstandard2.1 Kestrel hosting cannot open a " +
-                    "WebSocket listener on a modern .NET runtime).");
-            }
-        }
-
         [Test]
         public void ServerExposesWssEndpointWithSecurityNone()
         {
@@ -149,7 +138,6 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task AnonymousSessionOverWssBinaryOpensWithoutMutualTlsAsync()
         {
-            SkipIfWssUnsupported();
             EndpointDescription wss = m_server.GetEndpoints()
                 .ToArray()
                 .First(ep =>
@@ -181,7 +169,6 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task GetEndpointsOverWssJsonReturnsServerEndpointsAsync()
         {
-            SkipIfWssUnsupported();
             // Discovery does not yet advertise the JSON sub-protocol explicitly
             // (Part 3 reverted in 469d65b0). Synthesize the JSON-targeted
             // endpoint description from the existing SM-None WSS endpoint so

@@ -364,7 +364,7 @@ namespace Opc.Ua.Client.Subscriptions
             // propagated exception (the
             // Register(Action<object?, CancellationToken>, object?)
             // overload was only added in .NET 5 and is unavailable on
-            // net48/net472/netstandard2.1, so the closure capture is
+            // net48, so the closure capture is
             // the only portable form).
             using CancellationTokenRegistration reg = ct.Register(() =>
             {

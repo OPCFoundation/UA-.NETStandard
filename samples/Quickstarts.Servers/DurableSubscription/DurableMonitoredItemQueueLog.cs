@@ -49,5 +49,10 @@ namespace Quickstarts.Servers
             Message = "Dequeue failed for monitoreditem {MonitoredItemId} as queue could not be " +
                 "restored in time.")]
         public static partial void DequeueFailedBeforeRestore(this ILogger logger, uint monitoredItemId);
+
+        [LoggerMessage(
+            EventId = QuickstartsServersEventIds.DurableMonitoredItemQueue + 3, Level = LogLevel.Warning,
+            Message = "Could not load a spilled event batch of monitored item {MonitoredItemId} to store it.")]
+        public static partial void SpilledBatchNotLoadedForStore(this ILogger logger, uint monitoredItemId);
     }
 }

@@ -336,6 +336,13 @@ namespace Opc.Ua.Encoders
                     // XML writes a field like the typed writer of its type
                     // (OPC 10000-6 5.3.5), which needs the type of a null
                     // value too. (Json writes a null Variant as a null field.)
+                    if (property.TypeInfo.BuiltInType is BuiltInType.Variant or
+                        BuiltInType.Number or
+                        BuiltInType.Integer or
+                        BuiltInType.UInteger)
+                    {
+                        variant = ToVariantElements(variant);
+                    }
                     if (variant.IsNull &&
                         (encoder.EncodingType == EncodingType.Binary ||
                         (encoder.EncodingType == EncodingType.Xml && !property.TypeInfo.IsMatrix)))
@@ -352,6 +359,31 @@ namespace Opc.Ua.Encoders
                     }
                     break;
             }
+        }
+
+        /// <summary>
+        /// OPC 10000-6 5.1.6: the elements of a BaseDataType, Number, Integer
+        /// or UInteger array or matrix field are Variants, which is how every
+        /// decoder reads them. A value of a concrete type (e.g. Int32[]) is
+        /// lifted into Variants so it is not written as a raw typed array.
+        /// </summary>
+        private static Variant ToVariantElements(in Variant value)
+        {
+            if (value.IsNull ||
+                value.TypeInfo.IsScalar ||
+                value.TypeInfo.BuiltInType is BuiltInType.Variant or
+                    BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger)
+            {
+                return value;
+            }
+            ArrayOf<Variant> elements = value.Expand();
+            if (value.TypeInfo.IsMatrix && value.Raw is IMatrixOf matrix)
+            {
+                return Variant.From(elements.ToMatrix(matrix.Dimensions));
+            }
+            return Variant.From(elements);
         }
 
         /// <summary>

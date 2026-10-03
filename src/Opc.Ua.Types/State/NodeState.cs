@@ -4724,10 +4724,9 @@ namespace Opc.Ua
                         value = Variant.FromStructure(rolePermissions);
                         return result;
                     }
-                    if (result != null)
-                    {
-                        return result;
-                    }
+                    // An optional attribute without a value, also after a read
+                    // handler, is not supported by the node (Part 4, Read:
+                    // Bad_AttributeIdInvalid); Good with a null value is invalid.
                     break;
                 case Attributes.UserRolePermissions:
                     ArrayOf<RolePermissionType> userRolePermissions = UserRolePermissions;
@@ -4745,10 +4744,6 @@ namespace Opc.Ua
                     if (!userRolePermissions.IsNull)
                     {
                         value = Variant.FromStructure(userRolePermissions);
-                        return result;
-                    }
-                    if (result != null)
-                    {
                         return result;
                     }
                     break;
@@ -4769,15 +4764,19 @@ namespace Opc.Ua
                         value = (ushort)accessRestrictions.GetValueOrDefault();
                         return result;
                     }
-                    if (result != null)
-                    {
-                        return result;
-                    }
                     break;
             }
 
-            return ServiceResult.Create(StatusCodes.BadAttributeIdInvalid, null);
+            return s_badAttributeIdInvalid;
         }
+
+        /// <summary>
+        /// The result of reading an attribute the node does not support.
+        /// Shared because the permission checks of every service request
+        /// read the optional security attributes of each node.
+        /// </summary>
+        private static readonly ServiceResult s_badAttributeIdInvalid =
+            new(StatusCodes.BadAttributeIdInvalid);
 
         /// <summary>
         /// When overridden in a derived class, iReads the value for the value attribute.

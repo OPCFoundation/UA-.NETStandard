@@ -69,7 +69,7 @@ namespace Opc.Ua
                     {
                         builder.Append('.');
                     }
-#if NET5_0_OR_GREATER || NETSTANDARD2_1
+#if NET5_0_OR_GREATER
                     builder.Append(fields[ii].AsSpan(3));
 #else
                     builder.Append(fields[ii][3..]);
