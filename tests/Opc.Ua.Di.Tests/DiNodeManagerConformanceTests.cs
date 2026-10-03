@@ -31,8 +31,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.SoftwareUpdate;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Tests
 {
@@ -150,9 +152,35 @@ namespace Opc.Ua.Di.Tests
             }
         }
 
+        [Test]
+        public async Task FacetFollowsAMandatoryUnitAnOverrideAddsAsync()
+        {
+            DiServerFixture fixture = new((server, configuration) =>
+                new OfflineNodeManager(server, configuration));
+            try
+            {
+                await fixture.StartAsync().ConfigureAwait(false);
+
+                Assert.That(Units(fixture.Manager), Is.SupersetOf(s_mandatoryUnits[DeviceIntegrationHost]));
+                Assert.That(
+                    fixture.Manager.ServerProfiles.ToList(),
+                    Does.Contain(DeviceIntegrationHost),
+                    "The facet follows the units the override advertises.");
+            }
+            finally
+            {
+                await fixture.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         private string[] Units()
         {
-            return [.. m_fixture.Manager.ConformanceUnits.ToList().Select(unit => unit.Name ?? string.Empty)];
+            return Units(m_fixture.Manager);
+        }
+
+        private static string[] Units(DiNodeManager manager)
+        {
+            return [.. manager.ConformanceUnits.ToList().Select(unit => unit.Name ?? string.Empty)];
         }
 
         private async Task CreateSoftwareUpdateAsync(string deviceName, SoftwareLoadingMode mode)
@@ -175,6 +203,34 @@ namespace Opc.Ua.Di.Tests
                         break;
                 }
             });
+        }
+
+        /// <summary>
+        /// A companion manager that builds the offline representation the
+        /// DI Offline unit asks for and so appends that unit to the base set.
+        /// </summary>
+        private sealed class OfflineNodeManager : DiNodeManager
+        {
+            /// <summary>
+            /// Creates the manager for <paramref name="server"/>.
+            /// </summary>
+            public OfflineNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+                : base(server, configuration)
+            {
+            }
+
+            /// <inheritdoc/>
+            public override ArrayOf<QualifiedName> ConformanceUnits
+            {
+                get
+                {
+                    var units = new List<QualifiedName>(base.ConformanceUnits.ToList())
+                    {
+                        new("DI Offline")
+                    };
+                    return units.ToArrayOf();
+                }
+            }
         }
     }
 }

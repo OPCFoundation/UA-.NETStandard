@@ -932,10 +932,14 @@ namespace Opc.Ua.Di.Server
         /// <summary>
         /// Advertises each facet whose mandatory conformance units are all advertised.
         /// </summary>
+        /// <remarks>
+        /// Reads the units through the virtual <see cref="ConformanceUnits"/>,
+        /// so a unit a subclass appends counts toward the DI facets as well.
+        /// </remarks>
         private ArrayOf<string> BuildServerProfiles()
         {
             var units = new HashSet<QualifiedName>();
-            foreach (QualifiedName unit in BuildConformanceUnits())
+            foreach (QualifiedName unit in ConformanceUnits)
             {
                 units.Add(unit);
             }
