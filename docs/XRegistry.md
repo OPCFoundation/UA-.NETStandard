@@ -33,6 +33,11 @@ Thing Model documents.
 - [Well-known identifiers](#well-known-identifiers)
 - [Related documentation](#related-documentation)
 
+The [xRegistry OPC UA / HTTP bridge](XRegistryBridge.md) builds on this substrate
+to provide write-through gateways and durable bidirectional reconciliation.
+Its experimental transaction extension is opt-in; existing native registration
+and clean-FileType-Close behavior remains unchanged.
+
 ## Packages
 
 | Package | Depends on | Contains |

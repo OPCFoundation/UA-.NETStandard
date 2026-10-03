@@ -59,3 +59,50 @@ options.GroupsAttributeName = "groups";
 options.ResourcesAttributeName = "resources";
 options.ResourceDocumentAttributeName = "schema";
 ```
+
+## Opt-in transactional endpoint
+
+`Protocol.XRegistryTransactionalEndpoint` adds an atomic generation provider for
+upgraded bridge deployments without changing the existing registration managers.
+It preserves explicit-zero and arbitrary-width HTTP epoch guards, prepares responses
+before publication, and retains caller-scoped operation outcomes. Register it with
+`AddXRegistryTransactions`; inject `IXRegistryTransactionStore` to select persistence.
+
+`InMemoryXRegistryTransactionStore` does not advertise durable replay.
+`FileXRegistryTransactionStore` provides exclusive local writer ownership, staged
+durable publication and fail-closed recovery. All native writers in an opted-in
+deployment must route through the same endpoint.
+An initialization marker distinguishes pristine storage from missing previously
+committed data; missing data or recovery artifacts never start an empty registry.
+
+The provider qualifies supported model features rather than silently coercing
+unsupported domain semantics. See the repository's `docs/XRegistryBridge.md` for
+the model profile, native/HTTP semantic differences and deployment limits.
+
+The opt-in provider supports conditional attributes, allow-listed includes,
+imported Resource type identity, xrefs, Group constraints, SemVer ordering,
+query/pagination and atomic model-plus-data updates. An injectable domain
+validator checks explicitly advertised formats; the built-in JSON/XML validator
+claims syntax and identical-document compatibility, not arbitrary schema validation.
+
+`IXRegistryDocumentStore` and `FileXRegistryDocumentStore` add immutable SHA-256
+blob references without duplicating all documents in each metadata generation.
+Corrupt or missing content fails closed. Explicit journal acknowledgment can
+retire response bodies while retaining permanent replay barriers; it never
+turns a retired operation ID into a new operation.
+
+Persistent short links are opt-in through `ShortLinksEnabled`. Explicit,
+write-authorized `IXRegistryShortLinkMaintenance.InitializeShortLinksAsync`
+initializes the bounded catalog and upgrades transactional storage to format 2;
+ordinary reads never backfill or publish state. `ShortLinkPrefix` defaults to
+`/_s`, and `MaxShortLinks` bounds the catalog. Existing aliases survive restart
+and disable/re-enable; deleting an entity retires its alias permanently instead
+of addressing a replacement incarnation. Disabling suppresses `shortself`
+advertisement while preserving existing routes and catalog maintenance.
+
+`IXRegistryAddressResolver` retains the presented alias in `AddressPath`.
+The provider revalidates it atomically with publication, and caller-scoped replay
+retains the original request digest even after alias retirement. Alias allocation,
+retirement and response encoding belong to the same mutation candidate.
+The public root and prefix are pinned by initialization; restore the matching
+configuration and complete store together rather than silently changing either.
