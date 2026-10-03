@@ -81,6 +81,19 @@ namespace Opc.Ua.Server
             Configuration = configuration;
             TimeFlowsBackward = endTime < startTime;
 
+            // slices advance by the processing interval, so a NaN, infinite, negative or
+            // sub-tick interval would never move past the start time.
+            if (double.IsNaN(processingInterval) ||
+                double.IsInfinity(processingInterval) ||
+                processingInterval < 0 ||
+                (processingInterval > 0 && processingInterval * TimeSpan.TicksPerMillisecond < 1))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(processingInterval),
+                    processingInterval,
+                    "The processingInterval must be zero or a finite, positive number of at least one tick.");
+            }
+
             if (processingInterval == 0)
             {
                 if (endTime == DateTimeUtc.MinValue || startTime == DateTimeUtc.MinValue)

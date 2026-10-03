@@ -519,6 +519,123 @@ namespace Opc.Ua.Server.Tests.Redundancy
             session.Dispose();
         }
 
+        /// <summary>
+        /// PR review 4168294597: a restored Session carries the certificate provenance
+        /// of the original, so a certificate whose validation error was accepted on the
+        /// active replica is not a trusted application identity after failover.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RestoredSessionKeepsTheClientCertificateProvenance(bool validated)
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
+            Mock<IServerInternal> server = CreateRestoreServerMock(true);
+            using DistributedSessionManager manager = CreateManager(
+                registry,
+                server: server.Object,
+                serverCertificateProvider: _ => serverCertificate.AddRef());
+            SharedSessionEntry entry = CreateSecureEntry(clientCertificate) with
+            {
+                ClientCertificateValidated = validated
+            };
+
+            ISession? session = InvokeReconstructSession(
+                manager,
+                entry,
+                entry.AuthenticationToken,
+                CreateContext(clientCertificate.RawData));
+
+            Assert.That(session, Is.Not.Null);
+            Assert.That(IsClientCertificateValidated(session!), Is.EqualTo(validated));
+            session!.Dispose();
+        }
+
+        /// <summary>
+        /// PR review 4168294597: an entry written before the provenance was mirrored is
+        /// still restorable; its certificate is treated as not validated.
+        /// </summary>
+        [Test]
+        public async Task AuthorizeAcceptsVersionThreeSecurityStateAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 14)) with
+            {
+                SecurityStateVersion = 3
+            };
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
+        }
+
+        /// <summary>
+        /// PR review 4168294597: the provenance is recorded before the base session
+        /// manager publishes the Session, so the mirror written by the
+        /// CreateSessionAsync override already sees a certificate whose validation
+        /// error was accepted as not validated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateSessionMirrorsTheClientCertificateProvenanceAsync(bool errorAccepted)
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
+            Mock<IServerInternal> server = CreateRestoreServerMock(true);
+            using DistributedSessionManager manager = CreateManager(
+                registry,
+                sessionStore: sessionStore,
+                server: server.Object);
+            using OperationContext context = CreateContext(clientCertificate.RawData);
+            typeof(OperationContext)
+                .GetProperty("ClientCertificateErrorAccepted", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(context, errorAccepted);
+
+            Certificate sessionClientCertificate = clientCertificate.AddRef();
+            CreateSessionResult result;
+            try
+            {
+                result = await manager.CreateSessionAsync(
+                    context,
+                    serverCertificate,
+                    "provenance",
+                    ByteString.From(CreateBytes(32, 15)),
+                    new ApplicationDescription { ApplicationUri = "urn:test:client" },
+                    "opc.tcp://localhost:4840",
+                    sessionClientCertificate,
+                    [],
+                    60_000,
+                    0).ConfigureAwait(false);
+            }
+            catch
+            {
+                sessionClientCertificate.Dispose();
+                throw;
+            }
+
+            Assert.That(IsClientCertificateValidated(result.Session), Is.EqualTo(!errorAccepted));
+            SharedSessionEntry? mirrored = await sessionStore
+                .TryGetAsync(result.AuthenticationToken)
+                .ConfigureAwait(false);
+            Assert.That(mirrored, Is.Not.Null);
+            Assert.That(mirrored!.ClientCertificateValidated, Is.EqualTo(!errorAccepted));
+        }
+
         [Test]
         public void SecureRestoreWithoutClientCertificateChainIsRejected()
         {
@@ -751,6 +868,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 BindingFlags.Instance | BindingFlags.NonPublic)!;
             var task = (ValueTask<ISession?>)method.Invoke(manager, [authenticationToken, context, default(CancellationToken)])!;
             return await task.ConfigureAwait(false);
+        }
+
+        private static bool IsClientCertificateValidated(ISession session)
+        {
+            MethodInfo method = typeof(SessionManager).Assembly
+                .GetType("Opc.Ua.Server.ClientCertificateProvenance", throwOnError: true)!
+                .GetMethod("IsValidated", BindingFlags.Static | BindingFlags.Public)!;
+            return (bool)method.Invoke(null, [session])!;
         }
 
         private static int GetCertificateRefCount(Certificate certificate)
