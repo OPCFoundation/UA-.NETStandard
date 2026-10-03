@@ -342,13 +342,14 @@ namespace Opc.Ua.Di.Tests
                     Does.Contain("http://opcfoundation.org/UA-Profile/Server/StandardUA2017"));
                 Assert.That(
                     profiles,
-                    Does.Contain("http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost"));
+                    Does.Not.Contain("http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost"),
+                    "The facet mandates DI Offline, which a DeviceSet alone does not meet.");
 
                 Assert.That(
                     TryGetQualifiedNameArray(unitsValue.WrappedValue, out List<QualifiedName> units),
                     Is.True);
                 Assert.That(units.Select(unit => unit.Name), Does.Contain("DI DeviceTopology"));
-                Assert.That(units.Select(unit => unit.Name), Does.Contain("DI Offline"));
+                Assert.That(units.Select(unit => unit.Name), Does.Not.Contain("DI Offline"));
             }).ConfigureAwait(false);
         }
 

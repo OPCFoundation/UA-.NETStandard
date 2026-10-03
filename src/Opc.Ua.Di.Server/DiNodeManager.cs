@@ -89,6 +89,38 @@ namespace Opc.Ua.Di.Server
         private readonly HashSet<SoftwareLoadingMode> m_softwareUpdateLoadingModes = [];
 
         /// <summary>
+        /// The DI 1.05 server facets with the conformance units the OPC
+        /// Foundation profile database marks mandatory for them, those of
+        /// the included Software Update Base facet folded in.
+        /// </summary>
+        private static readonly ArrayOf<DiFacet> s_facets =
+        [
+            new(ServerProfileUris.DeviceIntegrationHost,
+                [ConformanceUnitNames.DeviceTopology, ConformanceUnitNames.Offline]),
+            new(ServerProfileUris.Locking, [ConformanceUnitNames.Locking]),
+            new(ServerProfileUris.SoftwareUpdateBase, [ConformanceUnitNames.SoftwareUpdate]),
+            new(ServerProfileUris.FileSystemLoading,
+                [
+                    ConformanceUnitNames.SoftwareUpdate,
+                    ConformanceUnitNames.SoftwareUpdateFileSystemLoading,
+                    ConformanceUnitNames.SoftwareUpdateInstallationForFileSystem
+                ]),
+            new(ServerProfileUris.DirectLoading,
+                [
+                    ConformanceUnitNames.SoftwareUpdate,
+                    ConformanceUnitNames.SoftwareUpdateDirectLoading,
+                    ConformanceUnitNames.SoftwareUpdateUpdateStatus
+                ]),
+            new(ServerProfileUris.CachedLoading,
+                [
+                    ConformanceUnitNames.SoftwareUpdate,
+                    ConformanceUnitNames.SoftwareUpdateCachedLoading,
+                    ConformanceUnitNames.SoftwareUpdateInstallationForCachedLoading,
+                    ConformanceUnitNames.SoftwareUpdateUpdateStatus
+                ])
+        ];
+
+        /// <summary>
         /// Initialises a new <see cref="DiNodeManager"/> without DI-
         /// hosting integration. Use this constructor for manual
         /// (non-<c>AddOpcUaDi</c>) wiring.
@@ -921,8 +953,10 @@ namespace Opc.Ua.Di.Server
             var units = new List<QualifiedName>();
             if (HasDeviceSet())
             {
+                // "DI Offline" asks for offline and online representations of
+                // the devices and the methods that transfer data between them.
+                // This manager builds neither, so a DeviceSet does not meet it.
                 units.Add(new QualifiedName(ConformanceUnitNames.DeviceTopology));
-                units.Add(new QualifiedName(ConformanceUnitNames.Offline));
             }
             if (HasWiredLockingService())
             {
@@ -938,53 +972,47 @@ namespace Opc.Ua.Di.Server
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdatePrepareForUpdate));
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateResumeUpdate));
             }
-            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Package))
-            {
-                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateFileSystemLoading));
-                units.Add(new QualifiedName(
-                    ConformanceUnitNames.SoftwareUpdateInstallationForFileSystem));
-            }
+
+            // SoftwareLoadingMode.Package builds a PackageLoadingType rather
+            // than the FileSystemLoadingType "DI SU FileSystem Loading" asks
+            // for, and every Installation offers InstallSoftwarePackage, which
+            // "DI SU Installation for File System" rules out, as well as
+            // InstallFiles, which "DI SU Installation for Cached Loading"
+            // rules out. No SoftwareUpdate carries the UpdateStatus variable
+            // "DI SU UpdateStatus" asks for. None of these units is claimed.
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Direct))
             {
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateDirectLoading));
-                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateUpdateStatus));
             }
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Cached))
             {
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateCachedLoading));
-                units.Add(new QualifiedName(
-                    ConformanceUnitNames.SoftwareUpdateInstallationForCachedLoading));
-                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateUpdateStatus));
             }
             return units.ToArrayOf();
         }
 
+        /// <summary>
+        /// Advertises each facet whose mandatory conformance units are all advertised.
+        /// </summary>
+        /// <remarks>
+        /// Reads the units through the virtual <see cref="ConformanceUnits"/>,
+        /// so a unit a subclass appends counts toward the DI facets as well.
+        /// </remarks>
         private ArrayOf<string> BuildServerProfiles()
         {
+            var units = new HashSet<QualifiedName>();
+            foreach (QualifiedName unit in ConformanceUnits)
+            {
+                units.Add(unit);
+            }
+
             var profiles = new List<string>();
-            if (HasDeviceSet())
+            foreach (DiFacet facet in s_facets)
             {
-                profiles.Add(ServerProfileUris.DeviceIntegrationHost);
-            }
-            if (HasWiredLockingService())
-            {
-                profiles.Add(ServerProfileUris.Locking);
-            }
-            if (m_softwareUpdateLoadingModes.Count > 0)
-            {
-                profiles.Add(ServerProfileUris.SoftwareUpdateBase);
-            }
-            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Package))
-            {
-                profiles.Add(ServerProfileUris.FileSystemLoading);
-            }
-            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Direct))
-            {
-                profiles.Add(ServerProfileUris.DirectLoading);
-            }
-            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Cached))
-            {
-                profiles.Add(ServerProfileUris.CachedLoading);
+                if (facet.IsMetBy(units))
+                {
+                    profiles.Add(facet.Profile);
+                }
             }
             return profiles.ToArrayOf();
         }
@@ -1025,6 +1053,29 @@ namespace Opc.Ua.Di.Server
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// A server facet and the conformance units it mandates.
+        /// </summary>
+        /// <param name="Profile">The facet URI.</param>
+        /// <param name="MandatoryUnits">The names of the mandatory units.</param>
+        private readonly record struct DiFacet(string Profile, ArrayOf<string> MandatoryUnits)
+        {
+            /// <summary>
+            /// Gets whether every mandatory unit is in <paramref name="units"/>.
+            /// </summary>
+            public bool IsMetBy(HashSet<QualifiedName> units)
+            {
+                foreach (string unit in MandatoryUnits)
+                {
+                    if (!units.Contains(new QualifiedName(unit)))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
     }
 
