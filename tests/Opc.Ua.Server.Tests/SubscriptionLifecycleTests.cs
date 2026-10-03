@@ -154,6 +154,12 @@ namespace Opc.Ua.Server.Tests
                 ?? throw new InvalidOperationException("Property SentMessages not found");
             var sentMessages = (List<NotificationMessage>)sentMessagesProperty.GetValue(messageQueue);
             sentMessages.AddRange(messages);
+
+            // the injected messages were sent (returned by a Publish response).
+            FieldInfo lastSentField = messageQueue.GetType().GetField("m_lastSentMessage",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_lastSentMessage not found");
+            lastSentField.SetValue(messageQueue, sentMessages.Count);
         }
 
         [Test]
@@ -409,6 +415,24 @@ namespace Opc.Ua.Server.Tests
             subscription.SetSubscriptionDurable(maxLifetimeCount: newLifetimeCount);
 
             Assert.That(subscription.Diagnostics.MaxLifetimeCount, Is.EqualTo(newLifetimeCount));
+        }
+
+        /// <summary>
+        /// Review U9: the durable lifetime is at least three keep-alive intervals, so the
+        /// subscription cannot expire before its keep-alive is due.
+        /// </summary>
+        [Test]
+        public void SetSubscriptionDurableKeepsTheLifetimeAtLeastThreeKeepAlives()
+        {
+            m_queueFactoryMock.Setup(f => f.SupportsDurableQueues).Returns(true);
+            using Subscription subscription = CreateSubscription(
+                publishingInterval: 2_000_000,
+                maxLifetimeCount: 3,
+                maxKeepAliveCount: 1);
+
+            subscription.SetSubscriptionDurable(maxLifetimeCount: 1);
+
+            Assert.That(subscription.Diagnostics.MaxLifetimeCount, Is.EqualTo(3u));
         }
 
         [Test]

@@ -104,6 +104,11 @@ namespace Opc.Ua
         public const int EventMonitoredItemQueue = 140;
 
         /// <summary>
+        /// Event identifier offset for event queue handling messages.
+        /// </summary>
+        public const int EventQueueHandler = 160;
+
+        /// <summary>
         /// Event identifier offset for event source registry messages.
         /// </summary>
         public const int EventSourceRegistry = 150;

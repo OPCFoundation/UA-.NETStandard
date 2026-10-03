@@ -649,6 +649,23 @@ OPC 40001-2 does not fix where they hang — its examples put them on a sensor
 component, on the machine, and below `Monitoring` — so every object below the
 item whose type is `ProcessValueType` counts.
 
+A metering point's measurements are read with one browse and one batched
+`Read`. Each `MachineryMeasurementValue` carries the `NodeId` of the variable
+its reading came from next to the value, so a client that wants live values
+subscribes to those nodes without browsing the point again:
+
+```csharp
+MachineryMeteringPoint? main = await machinery.ReadMainMeteringPointAsync(resource, ct);
+foreach (MachineryMeasurementValue measurement in main!.Measurements)
+{
+    subscription.TryAddMonitoredItem(
+        measurement.BrowseName.Name!,
+        measurement.NodeId,
+        options => options with { SamplingInterval = TimeSpan.FromSeconds(1) },
+        out _);
+}
+```
+
 State observation rides the generated `*StateMachineTypeClient` proxies, which
 inherit `GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync` and
 `WaitForStateAsync` from `FiniteStateMachineTypeClient` — so a vendor subtype of

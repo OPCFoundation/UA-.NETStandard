@@ -72,8 +72,22 @@ namespace Opc.Ua.OneFuzz
         internal static string Relative(string root, string path)
         {
             string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
-            if (relative == ".." || relative.StartsWith("../", StringComparison.Ordinal) ||
-                Path.IsPathRooted(relative))
+            if (Escapes(relative))
+            {
+                // The host resolves symbolic links in the paths it reports (the
+                // dependency resolver answers /private/var/... on macOS, where /var
+                // is a link), while the drop root is the path it was given. Compare
+                // against the root's real location too; links inside the drop are
+                // still rejected, because every caller resolves the result segment
+                // by segment through Resolve.
+                string realRoot = RealDirectory(root);
+                if (!string.Equals(realRoot, Path.GetFullPath(root), StringComparison.Ordinal))
+                {
+                    relative = Path.GetRelativePath(realRoot, path).Replace('\\', '/');
+                }
+            }
+
+            if (Escapes(relative))
             {
                 throw new InvalidDataException($"Dependency escaped the published drop: {path}");
             }
@@ -139,5 +153,61 @@ namespace Opc.Ua.OneFuzz
             files.Sort(StringComparer.Ordinal);
             return files;
         }
+
+        /// <summary>
+        /// Gets whether a relative path leaves the directory it is relative to.
+        /// </summary>
+        private static bool Escapes(string relative)
+        {
+            return relative == ".." ||
+                relative.StartsWith("../", StringComparison.Ordinal) ||
+                Path.IsPathRooted(relative);
+        }
+
+        /// <summary>
+        /// Returns the path of a directory with every symbolic link along it
+        /// resolved, the way the host reports the files below it.
+        /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// The links along the path do not resolve within a bounded number of hops.
+        /// </exception>
+        private static string RealDirectory(string directory)
+        {
+            string full = Path.GetFullPath(directory);
+            for (int hops = 0; hops < kMaxLinkHops; hops++)
+            {
+                string? linked = null;
+                string current = Path.GetPathRoot(full) ?? string.Empty;
+                string[] segments = full[current.Length..].Split(
+                    Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+                for (int ii = 0; ii < segments.Length && linked == null; ii++)
+                {
+                    string next = Path.Combine(current, segments[ii]);
+                    FileSystemInfo? target = Directory.Exists(next)
+                        ? new DirectoryInfo(next).ResolveLinkTarget(returnFinalTarget: true)
+                        : null;
+                    if (target == null)
+                    {
+                        current = next;
+                        continue;
+                    }
+
+                    // A link target may itself run through links (a target below
+                    // /var on macOS), so resolution restarts on the rewritten path.
+                    linked = Path.GetFullPath(Path.Combine([target.FullName, .. segments[(ii + 1)..]]));
+                }
+
+                if (linked == null)
+                {
+                    return current;
+                }
+
+                full = linked;
+            }
+
+            throw new InvalidDataException($"Too many levels of links below the drop root: {directory}");
+        }
+
+        private const int kMaxLinkHops = 40;
     }
 }

@@ -478,17 +478,23 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateServerDiagnosticsInvokesTheUpdateUnderTheLock()
+        public void UpdateServerDiagnosticsIsANoOpUntilTheServerObjectIsCreated()
         {
             using ServerInternalData data = CreateServerInternalData();
 
-            // ServerDiagnostics is only populated once the server object is created, so
-            // this asserts the callback is invoked rather than inspecting the payload.
+            // ServerDiagnostics is only populated once the server object is created. A request
+            // rejected while the server is still starting (e.g. a CreateSession refused with
+            // Bad_ServerHalted) is counted before that; counting it must not turn the rejection
+            // into a NullReferenceException.
             bool invoked = false;
 
-            data.UpdateServerDiagnostics(_ => invoked = true);
+            Assert.DoesNotThrow(() => data.UpdateServerDiagnostics(diagnostics =>
+            {
+                invoked = true;
+                diagnostics.RejectedSessionCount++;
+            }));
 
-            Assert.That(invoked, Is.True);
+            Assert.That(invoked, Is.False);
         }
 
         [Test]

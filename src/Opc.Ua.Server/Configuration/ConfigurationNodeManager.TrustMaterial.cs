@@ -222,9 +222,11 @@ namespace Opc.Ua.Server
                 SessionManager = Server.SessionManager,
                 CertificateValidator = m_configuration.CertificateManager,
                 // A server-initiated close carries no client OperationContext,
-                // matching the SessionManager's own timeout-driven close path.
+                // matching the SessionManager's own timeout-driven close path. A
+                // session whose certificate is no longer trusted is closed because
+                // of an error, so it is counted in SessionAbortCount and audited.
                 CloseSessionAsync = (sessionId, deleteSubscriptions, ct) =>
-                    Server.CloseSessionAsync(null!, sessionId, deleteSubscriptions, ct)
+                    Server.TerminateSessionAsync(sessionId, deleteSubscriptions, m_logger, ct)
             };
 
             return m_trustListEffectHandler.ApplyAsync(context, cancellationToken);

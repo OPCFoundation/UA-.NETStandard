@@ -683,7 +683,9 @@ namespace Opc.Ua.Server.Tests
                     null!,
                     default).ConfigureAwait(false))!;
 
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            // An unknown policy is Bad_IdentityTokenInvalid (Part 4 5.7.3.3), as on the
+            // regular decoding path.
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]

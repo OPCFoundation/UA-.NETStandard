@@ -142,6 +142,52 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 AssertJobListNotificationsAsync(machinery, jobProvider, session, ct));
         }
 
+        /// <summary>
+        /// Every measurement of a metering point carries the NodeId of the
+        /// variable its reading came from, so a client can subscribe to it
+        /// without browsing the point again.
+        /// </summary>
+        [Test]
+        public Task MeteringPointMeasurementsCarryTheNodeIdOfTheirVariableAsync()
+        {
+            return RunAgainstPressAsync(async (machinery, _, _, session, ct) =>
+            {
+                var machines = new List<MachineEntry>();
+                await foreach (MachineEntry entry in machinery
+                    .EnumerateMachinesAsync(ct)
+                    .ConfigureAwait(false))
+                {
+                    machines.Add(entry);
+                }
+                var resources = new List<MachineEntry>();
+                await foreach (MachineEntry entry in machinery
+                    .EnumerateEnergyResourcesAsync(machines[0].NodeId, ct)
+                    .ConfigureAwait(false))
+                {
+                    resources.Add(entry);
+                }
+                MachineEntry air = resources.Find(entry => entry.BrowseName.Name == "CompressedAir")!;
+
+                MachineryMeteringPoint? main = await machinery
+                    .ReadMainMeteringPointAsync(air.NodeId, ct)
+                    .ConfigureAwait(false);
+                Assert.That(main, Is.Not.Null);
+                var points = new List<MachineryMeteringPoint> { main! };
+                await foreach (MachineryMeteringPoint subMeter in machinery
+                    .ReadSubMetersAsync(main!.NodeId, ct)
+                    .ConfigureAwait(false))
+                {
+                    points.Add(subMeter);
+                }
+                Assert.That(points, Has.Count.EqualTo(2), "Main and the ClampingCylinders sub-meter");
+
+                foreach (MachineryMeteringPoint point in points)
+                {
+                    await AssertMeasurementNodeIdsAsync(session, point, ct).ConfigureAwait(false);
+                }
+            });
+        }
+
         private static async Task RunAgainstPressAsync(
             Func<MachineryClient,
                 PressConfigurator,
@@ -656,6 +702,60 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 nested.Add(entry);
             }
             Assert.That(nested, Is.Empty);
+        }
+
+        /// <summary>
+        /// Reads the browse name and the value behind every measurement's
+        /// NodeId: the node has to be the variable the reading came from.
+        /// </summary>
+        private static async Task AssertMeasurementNodeIdsAsync(
+            ClientSession session,
+            MachineryMeteringPoint point,
+            CancellationToken ct)
+        {
+            MachineryMeasurementValue[] measurements = [.. point.Measurements];
+            Assert.That(measurements, Is.Not.Empty, point.ApplicationTag);
+            Assert.That(
+                measurements.All(measurement => !measurement.NodeId.IsNull),
+                Is.True,
+                point.ApplicationTag + ": every measurement has a NodeId");
+            Assert.That(
+                measurements.Select(measurement => measurement.NodeId),
+                Is.Unique,
+                point.ApplicationTag + ": every measurement has its own NodeId");
+
+            var reads = new List<ReadValueId>();
+            foreach (MachineryMeasurementValue measurement in measurements)
+            {
+                reads.Add(new ReadValueId { NodeId = measurement.NodeId, AttributeId = Attributes.BrowseName });
+                reads.Add(new ReadValueId { NodeId = measurement.NodeId, AttributeId = Attributes.Value });
+            }
+            ReadResponse response = await session.ReadAsync(
+                requestHeader: null,
+                maxAge: 0,
+                timestampsToReturn: TimestampsToReturn.Neither,
+                nodesToRead: reads.ToArray().ToArrayOf(),
+                ct: ct).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(reads.Count));
+            Assert.Multiple(() =>
+            {
+                for (int ii = 0; ii < measurements.Length; ii++)
+                {
+                    MachineryMeasurementValue measurement = measurements[ii];
+                    Assert.That(
+                        response.Results[2 * ii].WrappedValue.TryGetValue(out QualifiedName browseName),
+                        Is.True);
+                    Assert.That(
+                        browseName,
+                        Is.EqualTo(measurement.BrowseName),
+                        "the NodeId is the measurement's variable");
+                    Assert.That(
+                        response.Results[(2 * ii) + 1].WrappedValue,
+                        Is.EqualTo(measurement.Value),
+                        measurement.BrowseName.Name + ": the reading came from that variable");
+                }
+            });
         }
 
         private static async Task AssertJobsAsync(
