@@ -108,15 +108,15 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
         /// <summary>
         /// A user identity token signature that carries an unexpected /
-        /// mismatched signature algorithm must be surfaced as the token-level
-        /// <see cref="StatusCodes.BadIdentityTokenInvalid"/>, not the
+        /// mismatched signature algorithm must be surfaced as
+        /// <see cref="StatusCodes.BadUserSignatureInvalid"/>, not the
         /// channel-level <see cref="StatusCodes.BadSecurityChecksFailed"/> that
         /// the shared <see cref="SecurityPolicies.VerifySignatureData"/> raises
-        /// internally (OPC UA Part 4 ActivateSession user identity token
-        /// validation). Regression for CTT Security User X509 018.
+        /// internally (OPC UA Part 4 5.7.3.3). Regression for CTT Security User
+        /// X509 018, which prefers BadUserSignatureInvalid on secure channels.
         /// </summary>
         [Test]
-        public void VerifyWithMismatchedSignatureAlgorithmYieldsBadIdentityTokenInvalid()
+        public void VerifyWithMismatchedSignatureAlgorithmYieldsBadUserSignatureInvalid()
         {
             using Certificate cert = CertificateBuilder
                 .Create("CN=X509HandlerWrongAlg, O=OPC Foundation")
@@ -147,8 +147,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
             Assert.That(
                 ex.StatusCode,
-                Is.EqualTo(StatusCodes.BadIdentityTokenInvalid),
-                "A user-token signature with a mismatched algorithm must be a token-level fault.");
+                Is.EqualTo(StatusCodes.BadUserSignatureInvalid),
+                "A user-token signature with a mismatched algorithm is an invalid user signature.");
         }
     }
 }

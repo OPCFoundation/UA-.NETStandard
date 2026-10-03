@@ -303,9 +303,10 @@ namespace Opc.Ua.Server
                         m_overflow = default;
                         m_overflowPending = false;
                     }
+                    // a value replaced because the next sampling interval has not elapsed
+                    // is sampling, not a queue overflow: it is not counted as a discard
+                    // (Part 5 12.15 MonitoringQueueOverflowCount).
                     m_dataValueQueue.OverwriteLastValue(replacement, error);
-
-                    m_discardedValueHandler?.Invoke();
 
                     return false;
                 }
@@ -459,9 +460,9 @@ namespace Opc.Ua.Server
                     m_discardedValueHandler?.Invoke();
                     ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, lastValue);
 
-                    // the newest value reports the loss.
-                    m_overflow = value;
-                    m_overflowPending = true;
+                    // the newest value reports the loss. The Overflow bit is stored with the
+                    // queued value, so a durable queue keeps it across a restore.
+                    SetOverflowBit(ref value, ref error);
 
                     // overwrite last value
                     m_dataValueQueue.OverwriteLastValue(value, error);

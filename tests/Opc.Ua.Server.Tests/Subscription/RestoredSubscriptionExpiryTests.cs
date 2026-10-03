@@ -77,7 +77,9 @@ namespace Opc.Ua.Server.Tests
                     PublishingInterval = 1_000,
                     MaxKeepaliveCount = 1,
                     MaxLifetimeCount = 3,
-                    LifetimeCounter = 2,
+                    // every publishing cycle advances the lifetime (OPC 10000-4 §5.14.1.4), so
+                    // one cycle consumes the next unit and the following one expires it.
+                    LifetimeCounter = 1,
                     MaxMessageCount = 10,
                     SequenceNumber = 1,
                     UserIdentityToken = storeAnonymousToken ? new AnonymousIdentityToken() : null,

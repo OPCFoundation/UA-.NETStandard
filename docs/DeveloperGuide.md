@@ -114,6 +114,39 @@ Conventions and requirements:
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
+Wire compatibility with the released 1.5 stack is covered by
+[`tests/Opc.Ua.Interop.Tests`](../tests/Opc.Ua.Interop.Tests), in both
+directions (2.0 client to 1.5 server and 1.5 client to 2.0 server):
+
+- sessions over None, the RSA policies and the ECC policies, with anonymous and
+  user name logon, and the read, write, browse, call and subscription services;
+- the existing 2.0 `ClientTest` workers that do not depend on the in-process
+  server, run against the 1.5 Quickstarts reference server
+  (`ClientTestFramework.ExternalServerUrl`);
+- custom data types (structures, unions, optional fields, enumerations) loaded,
+  decoded and written back with the other side's complex type system;
+- certificate trust with auto-accept off: untrusted peers, CA-issued
+  certificates, revoked certificates;
+- message sizes and service limits: multi-chunk messages, values above the
+  peer's encoding limits, responses above the client's MaxMessageSize,
+  operation limits, browse continuation points and security token renewal.
+
+The 1.5 side is
+[`tests/Opc.Ua.Interop.LegacyPeer`](../tests/Opc.Ua.Interop.LegacyPeer), a
+console application built from the `OPCFoundation.NetStandard.Opc.Ua.*` NuGet
+packages and started as a child process, because the two stacks share assembly
+names and cannot be loaded into one process. It deliberately does not import the
+repository build settings. In server mode it hosts either a small interop server
+with deliberately tight limits or the 1.5 Quickstarts reference server; in client
+mode it runs named checks and prints one JSON result line per check, which the
+tests report as separate results. The test project builds it and copies it to
+`legacy-peer/` next to the tests; pass `-p:LegacyStackVersion=<version>` to test
+another 1.5 release, or set `OPCUA_INTEROP_LEGACY_PEER` to the path of a
+prebuilt `Opc.Ua.Interop.LegacyPeer.dll`. 1.5.378 cannot reload a certificate it
+has just created in a long store path, so the tests keep their PKI folders
+directly below the temp folder. The project is a `*.Tests.csproj`, so CI runs it
+on every pull-request test leg like any other test project.
+
 Channel recovery regressions use `ManagedSessionReconnectTests` in the client
 test project and `ClientChannelManagerManagedTests` / `ReconnectDeadlineTests`
 in the core test project. The composed fixture scripts an in-process transport

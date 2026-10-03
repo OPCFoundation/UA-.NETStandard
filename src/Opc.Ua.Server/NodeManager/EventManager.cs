@@ -201,13 +201,13 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // calculate sampling interval.
-                double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-
-                if (samplingInterval < 0)
-                {
-                    samplingInterval = publishingInterval;
-                }
+                // calculate sampling interval: a negative value or NaN selects the
+                // publishing interval of the subscription (Part 4 7.21).
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    itemToCreate.RequestedParameters.SamplingInterval,
+                    publishingInterval,
+                    MinimumSamplingIntervals.Continuous,
+                    0);
 
                 // limit the queue size.
                 uint revisedQueueSize = CalculateRevisedQueueSize(
@@ -334,6 +334,20 @@ namespace Opc.Ua.Server
                     monitoredItem.IsDurable,
                     itemToModify.RequestedParameters.QueueSize);
 
+                // a negative value or NaN selects the publishing interval of the
+                // subscription (Part 4 7.21), never the raw requested value.
+                double defaultSamplingInterval = monitoredItem.SamplingInterval;
+                if (monitoredItem.SubscriptionCallback is ISubscription subscription)
+                {
+                    defaultSamplingInterval = subscription.PublishingInterval;
+                }
+
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    itemToModify.RequestedParameters.SamplingInterval,
+                    defaultSamplingInterval,
+                    MinimumSamplingIntervals.Continuous,
+                    0);
+
                 // modify the attributes.
                 monitoredItem.ModifyAttributes(
                     context.DiagnosticsMask,
@@ -342,7 +356,7 @@ namespace Opc.Ua.Server
                     filter,
                     filter,
                     null!,
-                    itemToModify.RequestedParameters.SamplingInterval,
+                    samplingInterval,
                     revisedQueueSize,
                     itemToModify.RequestedParameters.DiscardOldest);
             }

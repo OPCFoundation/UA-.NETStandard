@@ -176,6 +176,10 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteString(null, entry.ClientUserId);
             encoder.WriteInt32(null, (int)entry.ClientUserTokenType);
             encoder.WriteBoolean(null, entry.HasActivatedUserIdentity);
+            if (entry.SecurityStateVersion >= 4)
+            {
+                encoder.WriteBoolean(null, entry.ClientCertificateValidated);
+            }
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : new ByteString(buffer);
         }
@@ -219,7 +223,8 @@ namespace Opc.Ua.Redundancy.Server
                 return versionOne;
             }
 
-            if (securityStateVersion != SharedSessionEntry.CurrentSecurityStateVersion)
+            if (securityStateVersion is < SharedSessionEntry.MinimumRestorableSecurityStateVersion or
+                > SharedSessionEntry.CurrentSecurityStateVersion)
             {
                 return entry with
                 {
@@ -235,6 +240,16 @@ namespace Opc.Ua.Redundancy.Server
                 ClientUserTokenType = (UserTokenType)decoder.ReadInt32(null),
                 HasActivatedUserIdentity = decoder.ReadBoolean(null)
             };
+
+            // Version 3 predates the mirrored certificate provenance: the certificate
+            // is treated as not validated (fail closed).
+            if (securityStateVersion >= 4)
+            {
+                decoded = decoded with
+                {
+                    ClientCertificateValidated = decoder.ReadBoolean(null)
+                };
+            }
 
             EnsureFullyDecoded(decoder, payload);
             return decoded;

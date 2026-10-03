@@ -152,6 +152,21 @@ namespace Opc.Ua.Redundancy.Server
         public bool HasActivatedUserIdentity { get; init; }
 
         /// <summary>
+        /// Whether the client application certificate passed the server's validation
+        /// when the Session was created. <c>false</c> when an
+        /// <c>OnApplicationCertificateError</c> override accepted a validation error:
+        /// the restored Session may still sign with the certificate, but it is not a
+        /// trusted application identity for role assignment (OPC 10000-3 4.9,
+        /// OPC 10000-18 4.4.4), exactly like the original Session.
+        /// </summary>
+        /// <remarks>
+        /// An entry written before this state was mirrored (security state version 3)
+        /// is decoded with <c>false</c>: the provenance of its certificate is unknown, so
+        /// the restored Session fails closed and is granted no application-based roles.
+        /// </remarks>
+        public bool ClientCertificateValidated { get; init; }
+
+        /// <summary>
         /// Optional opaque, caller-encrypted secret material. May be a null
         /// <see cref="ByteString"/>.
         /// </summary>
@@ -164,8 +179,15 @@ namespace Opc.Ua.Redundancy.Server
         /// Version 3 stores the identity continuity key in <see cref="ClientUserId"/>.
         /// Entries written by an earlier version carry a differently derived value,
         /// so they are treated as missing security state and fail closed rather
-        /// than being compared against a key computed by this version.
+        /// than being compared against a key computed by this version. Version 4 adds
+        /// <see cref="ClientCertificateValidated"/>; a version 3 entry is still
+        /// restorable, with the certificate treated as not validated.
         /// </remarks>
-        public const uint CurrentSecurityStateVersion = 3;
+        public const uint CurrentSecurityStateVersion = 4;
+
+        /// <summary>
+        /// The oldest persisted Session security state version that can be restored.
+        /// </summary>
+        internal const uint MinimumRestorableSecurityStateVersion = 3;
     }
 }

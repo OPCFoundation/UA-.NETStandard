@@ -373,6 +373,48 @@ namespace Opc.Ua.Tools.Tests
         }
 
         [Test]
+        public void ReleaseWorkflowTagsThePublishedCandidate()
+        {
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+            int tagStep = workflow.IndexOf("- name: Tag published package candidate", StringComparison.Ordinal);
+            int lastPostCheck = workflow.LastIndexOf("-RequirePresent", StringComparison.Ordinal);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(tagStep, Is.GreaterThan(lastPostCheck), "Tagging must follow both feed post-checks.");
+                Assert.That(lastPostCheck, Is.GreaterThanOrEqualTo(0));
+                Assert.That(
+                    workflow,
+                    Does.Contain("$releaseObject.draft"),
+                    "A recovered draft release must not be accepted as published.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("$env:RELEASE_CHANNEL -ceq 'preview'"),
+                    "Preview promotions must produce a prerelease GitHub Release.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("contents: write"),
+                    "The promotion workflow needs permission to create the immutable release tag.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("- name: Tag published package candidate"),
+                    "Every published candidate must be tagged after both feeds have accepted its packages.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("repos/$env:GITHUB_REPOSITORY/git/refs"),
+                    "The package version must create a Git tag through the GitHub API.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("Existing tag '$tag' does not point to candidate commit"),
+                    "A retry must reject a tag that points away from the candidate.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("gh @arguments"),
+                    "The package version must also get a corresponding GitHub Release.");
+            });
+        }
+
+        [Test]
         public async Task GetPreviewPackageBuildNumberMatchesCommittedPropsFileAsync()
         {
             string repositoryRoot = FindRepositoryRoot();
