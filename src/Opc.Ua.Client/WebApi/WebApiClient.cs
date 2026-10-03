@@ -391,22 +391,46 @@ namespace Opc.Ua.Client.WebApi
             }
             using CancellationTokenSource timeout = TimeProvider.System.CreateCancellationTokenSource(requestTimeout);
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
-            using HttpResponseMessage response = await m_httpClient
-                .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token)
-                .ConfigureAwait(false);
 
-            // Translate throttling (HTTP 429/503, e.g. a rate limiter gate) into
-            // BadServerTooBusy with the Retry-After hint, like HttpsTransportChannel.
-            if ((int)response.StatusCode == 429 ||
-                response.StatusCode == HttpStatusCode.ServiceUnavailable)
+            // HTTP failures surface as a ServiceResultException with a
+            // StatusCode, like in the transport channels. A cancellation the
+            // caller requested stays an OperationCanceledException.
+            byte[] payload;
+            try
             {
-                throw HttpsTransportChannel.CreateServerTooBusyException(response);
+                using HttpResponseMessage response = await m_httpClient
+                    .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token)
+                    .ConfigureAwait(false);
+
+                // Translate throttling (HTTP 429/503, e.g. a rate limiter gate) into
+                // BadServerTooBusy with the Retry-After hint, like HttpsTransportChannel.
+                if ((int)response.StatusCode == 429 ||
+                    response.StatusCode == HttpStatusCode.ServiceUnavailable)
+                {
+                    throw HttpsTransportChannel.CreateServerTooBusyException(response);
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw WebApiHttpErrors.FromResponse(
+                        response,
+                        route.Path,
+                        credentialsSent: m_authorization != null ||
+                            m_httpClient.DefaultRequestHeaders.Authorization != null);
+                }
+
+                payload = await HttpResponseBodyReader.ReadAsync(
+                    response.Content, m_messageContext.MaxMessageSize, linkedCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                throw WebApiHttpErrors.FromTimeout(ex, route.Path, requestTimeout);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw WebApiHttpErrors.FromRequestFailure(ex, route.Path);
             }
 
-            response.EnsureSuccessStatusCode();
-
-            byte[] payload = await HttpResponseBodyReader.ReadAsync(
-                response.Content, m_messageContext.MaxMessageSize, linkedCts.Token).ConfigureAwait(false);
             IEncodeable decoded = WebApiBodyCodec
                 .DecodeBody(
                     route.ResponseType,

@@ -22,6 +22,7 @@ mounted on the same Kestrel host as the binary and
 - [Hosting modes](#hosting-modes)
 - [Long-poll `/publish`](#long-poll-publish)
 - [Client integration](#client-integration)
+- [Client errors](#client-errors)
 - [Related plans and follow-ups](#related-plans-and-follow-ups)
 
 - **Server side**: ASP.NET Core Minimal-API endpoints (one `MapPost`
@@ -324,6 +325,36 @@ ReadResponse response = await session.ReadAsync(new ReadRequest
 
 The companion `UseWssOpenApiEndpoint(url)` shortcut binds the same
 session model to the WebSocket `opcua+openapi` sub-protocol.
+
+## Client errors
+
+Errors of a processed request come back in the OPC UA response
+(`ResponseHeader.ServiceResult`, HTTP 200). An HTTP error status means
+the request did not reach the service. `WebApiClient` (and therefore
+`ManagedSession` over `UseWebApiEndpoint`) reports it as a
+`ServiceResultException`:
+
+| HTTP | StatusCode |
+| --- | --- |
+| 400 | `Bad_DecodingError` (the server could not decode the body) |
+| 401 | `Bad_IdentityTokenInvalid` when the client sent no credentials, `Bad_UserAccessDenied` when it did |
+| 403 | `Bad_UserAccessDenied` |
+| 404, 405, 501 | `Bad_ServiceUnsupported` (the route is not mapped) |
+| 408, 504 | `Bad_Timeout` |
+| 413 | `Bad_RequestTooLarge` |
+| 415 | `Bad_DataEncodingUnsupported` |
+| 429, 503 | `Bad_ServerTooBusy`, with a `Retry-After` header as `RetryAfterMs=<n>` in `AdditionalInfo` |
+| 500 | `Bad_InternalError` |
+| any other | `Bad_CommunicationError` |
+
+The message names the HTTP status, the reason phrase and the route, and
+the inner exception is an `HttpRequestException` (on .NET 5 and later
+with its `StatusCode` set). An elapsed `RequestTimeout` or
+`HttpClient.Timeout` is `Bad_RequestTimeout`. A request that fails below
+HTTP (no connection, failed TLS handshake) gets the StatusCode the HTTPS
+transport channel reports for the same failure, for example
+`Bad_NotConnected` for a refused connection. Cancelling the caller's
+token still throws `OperationCanceledException`.
 
 ## Related plans and follow-ups
 
