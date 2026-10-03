@@ -471,12 +471,46 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
             }
 
+            // The reporter may be denied a value whose user access level depends on the user
+            // (Part 3 5.6.3). A subscriber that may read it must still receive the value of
+            // this change, so it is read now in each subscriber's context.
+            Dictionary<uint, DataValue>? subscriberValueSnapshots = null;
+            if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
+                reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
+                node is BaseVariableState { OnReadUserAccessLevel: not null })
+            {
+                ServerSystemContext serverContext = GetSubscriberContextTemplate(context);
+                long generation = Volatile.Read(ref m_permissionGeneration);
+                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+                {
+                    if (kvp.Value.AttributeId != Attributes.Value)
+                    {
+                        continue;
+                    }
+
+                    ServerSystemContext subscriberContext = GetOrCreateContext(serverContext, kvp.Value, generation);
+                    (_, DataValue subscriberValue) = await node.ReadAttributeAsync(
+                        subscriberContext,
+                        Attributes.Value,
+                        default,
+                        QualifiedName.Null,
+                        new DataValue(
+                            default,
+                            StatusCodes.Good,
+                            DateTime.MinValue,
+                            m_timeProvider.GetUtcNow().UtcDateTime),
+                        cancellationToken).ConfigureAwait(false);
+                    (subscriberValueSnapshots ??= [])[kvp.Key] = subscriberValue;
+                }
+            }
+
             var notification = new DataChangeSnapshot
             {
                 Context = context,
                 NodeId = node.NodeId,
                 Changes = changes,
-                AttributeSnapshots = attributeSnapshots
+                AttributeSnapshots = attributeSnapshots,
+                SubscriberValueSnapshots = subscriberValueSnapshots
             };
 
             try
@@ -735,6 +769,33 @@ namespace Opc.Ua.Server
 
                     if (snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
                     {
+                        // The snapshot was read in the reporter's context. A user dependent
+                        // UserAccessLevel is evaluated again for the subscriber (Part 3 5.6.3).
+                        if (Node is BaseVariableState variable &&
+                            variable.OnReadUserAccessLevel != null)
+                        {
+                            byte userAccessLevel = variable.UserAccessLevel;
+                            variable.OnReadUserAccessLevel(contextToUse, variable, ref userAccessLevel);
+
+                            if ((userAccessLevel & AccessLevels.CurrentRead) == 0)
+                            {
+                                QueueError(monitoredItem, new ServiceResult(StatusCodes.BadUserAccessDenied));
+                                continue;
+                            }
+
+                            // the reporter could not read the value, but the subscriber can:
+                            // use the value of this change read in the subscriber's context
+                            // when it was reported, never a later value of the node.
+                            if (snapshotValue.StatusCode == StatusCodes.BadUserAccessDenied &&
+                                snapshot.SubscriberValueSnapshots != null &&
+                                snapshot.SubscriberValueSnapshots.TryGetValue(
+                                    monitoredItem.Id,
+                                    out DataValue subscriberValue))
+                            {
+                                snapshotValue = subscriberValue;
+                            }
+                        }
+
                         DataValue valueToQueue = ApplyRangeAndEncoding(contextToUse, monitoredItem, snapshotValue);
                         monitoredItem.QueueValue(valueToQueue, valueToQueue.StatusCode);
                     }
@@ -826,12 +887,11 @@ namespace Opc.Ua.Server
             {
                 ct.ThrowIfCancellationRequested();
                 long generation = Volatile.Read(ref m_permissionGeneration);
-                ServerSystemContext? cachedContext = snapshot.Context is ServerSystemContext serverContext
-                    ? GetOrCreateContext(serverContext, monitoredItem, generation)
-                    : null;
-                using OperationContext? ownedContext =
-                    cachedContext == null ? new OperationContext(monitoredItem) : null;
-                OperationContext operationContext = cachedContext?.OperationContext ?? ownedContext!;
+                // the subscriber's own context, also when the reporter's context is not a
+                // ServerSystemContext: every access check of the item uses its identity.
+                ServerSystemContext cachedContext = GetOrCreateContext(
+                    GetSubscriberContextTemplate(snapshot.Context), monitoredItem, generation);
+                OperationContext operationContext = cachedContext.OperationContext!;
                 ServiceResult result;
                 if (m_permissionCache.TryGetValue(
                     monitoredItem.Id,
@@ -853,7 +913,7 @@ namespace Opc.Ua.Server
                 }
                 if (generation == Volatile.Read(ref m_permissionGeneration))
                 {
-                    return (result, cachedContext ?? snapshot.Context);
+                    return (result, cachedContext);
                 }
             }
         }
@@ -1061,6 +1121,19 @@ namespace Opc.Ua.Server
 
         private readonly TimeSpan m_cacheLifetime = TimeSpan.FromMinutes(5);
 
+        /// <summary>
+        /// Returns the context subscriber contexts are copied from: the reporter's context
+        /// when it is a <see cref="ServerSystemContext"/>, else a context of the server.
+        /// </summary>
+        private ServerSystemContext GetSubscriberContextTemplate(ISystemContext reporterContext)
+        {
+            return reporterContext as ServerSystemContext ??
+                LazyInitializer.EnsureInitialized(
+                    ref m_subscriberContextTemplate,
+                    () => new ServerSystemContext(m_server))!;
+        }
+
+        private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;

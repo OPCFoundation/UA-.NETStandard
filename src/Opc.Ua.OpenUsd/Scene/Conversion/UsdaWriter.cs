@@ -829,7 +829,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         }
 
         // Ordinal single-character containment without String.Contains(char, StringComparison),
-        // which is unavailable on the down-level library targets (net472/net48).
+        // which is unavailable on the down-level library target (net48).
         private static bool ContainsChar(string value, char c)
         {
             for (int i = 0; i < value.Length; i++)

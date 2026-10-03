@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.FileSystem
     /// </para>
     /// </remarks>
     public sealed class UaFileStream : Stream
-#if !(NETSTANDARD2_1_OR_GREATER || NET)
+#if !NET
         , IAsyncDisposable
 #endif
     {
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.FileSystem
             return WriteCoreAsync(buffer, offset, count, cancellationToken);
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
         /// <inheritdoc/>
         public override async ValueTask<int> ReadAsync(
             Memory<byte> buffer,
@@ -504,7 +504,7 @@ namespace Opc.Ua.Client.FileSystem
             }
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
         private async ValueTask<int> ReadIntoSpanAsync(
             Memory<byte> buffer,
             CancellationToken ct)

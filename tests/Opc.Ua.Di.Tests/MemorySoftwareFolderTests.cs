@@ -98,7 +98,7 @@ namespace Opc.Ua.Di.Tests
 
             using Stream reader = await folder.OpenVersionAsync("1.0.0").ConfigureAwait(false);
             byte[] buffer = new byte[100];
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
             int read = await reader.ReadAsync(buffer.AsMemory()).ConfigureAwait(false);
 #else
             int read = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);

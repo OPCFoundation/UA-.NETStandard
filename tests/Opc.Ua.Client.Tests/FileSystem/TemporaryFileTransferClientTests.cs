@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             public async Task WriteSomeBytesAsync(UaTemporaryWriteFile temp)
             {
                 byte[] payload = [1, 2, 3];
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
                 await temp.Stream
                     .WriteAsync(payload.AsMemory(), CancellationToken.None)
                     .ConfigureAwait(false);

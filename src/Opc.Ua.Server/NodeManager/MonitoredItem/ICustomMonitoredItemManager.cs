@@ -33,6 +33,14 @@ namespace Opc.Ua.Server
 {
     internal interface ICustomMonitoredItemManager
     {
+        /// <summary>
+        /// Creates a custom monitored item from the factory.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="initialValueQueued"/> is true when the node manager reads
+        /// and queues the initial value itself after the item is created, so the
+        /// manager must not take an additional immediate sample.
+        /// </remarks>
         ISampledDataChangeMonitoredItem CreateCustomMonitoredItem(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
@@ -51,7 +59,8 @@ namespace Opc.Ua.Server
             MonitoredItemIdFactory monitoredItemIdFactory,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            MonitoredItemFactory factory);
+            MonitoredItemFactory factory,
+            bool initialValueQueued);
     }
 
     internal static class CustomMonitoredItemValidation

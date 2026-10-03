@@ -304,6 +304,55 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(loaded.HasActivatedUserIdentity, Is.False);
         }
 
+        /// <summary>
+        /// PR review 4168294597: the client certificate provenance is mirrored, so a
+        /// restored Session is not a trusted application when the original was not.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ClientCertificateProvenanceRoundTripsAsync(bool validated)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-provenance-" + validated) with
+            {
+                ClientCertificateValidated = validated
+            };
+
+            await store.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.SecurityStateVersion, Is.EqualTo(SharedSessionEntry.CurrentSecurityStateVersion));
+            Assert.That(loaded.ClientCertificateValidated, Is.EqualTo(validated));
+        }
+
+        /// <summary>
+        /// PR review 4168294597: an entry written before the provenance was mirrored
+        /// (security state version 3) still decodes, with the certificate treated as
+        /// not validated (fail closed).
+        /// </summary>
+        [Test]
+        public async Task VersionThreeEntryDecodesWithAnUnvalidatedCertificateAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-version-three") with
+            {
+                SecurityStateVersion = 3,
+                ClientCertificateValidated = true
+            };
+
+            await store.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.SecurityStateVersion, Is.EqualTo(3));
+            Assert.That(loaded.HasActivatedUserIdentity, Is.True);
+            Assert.That(loaded.ClientUserId, Is.EqualTo(entry.ClientUserId));
+            Assert.That(loaded.ClientCertificateValidated, Is.False);
+        }
+
         [Test]
         public async Task KeyspaceDoesNotExposeRawTokenAsync()
         {

@@ -22,6 +22,7 @@
   - [Request completion is owned by `OperationContext`](#request-completion-is-owned-by-operationcontext)
   - [`Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`](#opcuaserverisession-isclosing-and-invalidatecontinuationpoints)
   - [`Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal](#opcuaserverisubscription-the-publish-pipeline-is-server-internal)
+  - [`EventFilter.Validate` accepts partially valid select clauses](#eventfiltervalidate-accepts-partially-valid-select-clauses)
   - [PubSub](#pubsub)
   - [Reverse connect](#reverse-connect)
   - [`IMessageSocket` abstraction removed](#imessagesocket-abstraction-removed)
@@ -453,6 +454,31 @@ For the public operations that remain, obtain a subscription with
 in the Publish request, not in direct calls into the subscription's internal
 publishing state machine.
 
+### `EventFilter.Validate` accepts partially valid select clauses
+
+**Behaviour change.** `EventFilter.Validate(IFilterContext)` no longer sets `Result.Status` to
+`Bad_EventFilterInvalid` when only some select clauses are invalid. Following Part 4 §7.22.3, the
+server creates (or modifies) an event monitored item as long as at least one select clause is
+valid: each rejected clause is reported in `EventFilterResult.SelectClauseResults` and its event
+field is returned as null. `Result.Status` stays Bad when there is no select clause, no valid
+select clause, or an invalid where clause.
+
+The new `EventFilter.Result.HasSelectClauseErrors` reports whether any select clause was rejected.
+Code that validates an `EventFilter` itself and cannot return per-clause results (a custom
+HistoryRead or HistoryUpdate of events, an event store, a custom node manager) must check it
+alongside the status to keep the 1.5.x behaviour:
+
+```csharp
+EventFilter.Result result = filter.Validate(filterContext);
+if (ServiceResult.IsBad(result.Status) || result.HasSelectClauseErrors)
+{
+    return StatusCodes.BadEventFilterInvalid;
+}
+```
+
+The built-in `CustomNodeManager2`, `AsyncCustomNodeManager` and the historian event update
+validator already do this, so HistoryRead and HistoryUpdate of events still reject such filters.
+
 ### PubSub
 
 PubSub has source-breaking package and API changes. See the
@@ -517,7 +543,7 @@ services
 > package. Reference that package directly; Server and GDS packages do not
 > pull the optional binding transitively. The Kestrel-hosted `opc.tcp://` listener
 > (`AddKestrelOpcTcpTransport()`) is available on `net8.0`+ only; on the
-> .NET Framework / netstandard targets keep the default raw-socket
+> .NET Framework targets keep the default raw-socket
 > `opc.tcp` listener that ships in `Opc.Ua.Core`.
 
 Every `Add*Transport()` extension installs an `ITransportBindingConfigurator` instance into the `IServiceCollection`. The `DefaultTransportBindingRegistry` singleton runs every registered configurator in registration order at first resolution time, so the **last** registration for a given URI scheme wins — exactly the same semantics `SetBinding` had, but scoped per `IServiceProvider`.

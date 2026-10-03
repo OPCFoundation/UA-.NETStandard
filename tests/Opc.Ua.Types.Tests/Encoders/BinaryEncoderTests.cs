@@ -2343,7 +2343,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(123, 0)));
-            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
+            // Part 6 5.2.2.15: a null body has no valid Length, so no body is
+            // encoded (0x00) instead of a Binary body with Length -1.
+            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
+            Assert.That(decoder.Position, Is.EqualTo(result.Length));
         }
 
         [Test]

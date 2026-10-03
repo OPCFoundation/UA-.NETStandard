@@ -133,8 +133,7 @@ If you reference a `.Debug` package, do one of the following:
 
 ## Target Frameworks (only Opc.Ua.Types changes)
 
-The main library target matrix includes `net472`, `net48`, `netstandard2.1`,
-`net8.0`, `net9.0`, and `net10.0`. `Opc.Ua.Types` additionally targets
+The main library target matrix includes `net48`, `net8.0`, `net9.0`, and `net10.0`. Version 2.0 drops `net472` and `netstandard2.1`: consumers on .NET Framework 4.7.2 must move to .NET Framework 4.8, and `netstandard2.1` consumers to `net8.0` or later. `Opc.Ua.Types` additionally targets
 `netstandard2.0`: its project uses `$(LibCoreTargetFrameworks);netstandard2.0`.
 A Types-only consumer does not need to retarget merely because it uses
 `netstandard2.0`. Higher-level packages can have different requirements; check
@@ -149,7 +148,7 @@ See [platform support](https://github.com/OPCFoundation/UA-.NETStandard/blob/mas
 | Package | Status in 2.0 | Referenced by |
 |---|---|---|
 | `Makaretu.Dns.Multicast` 0.27.0 | Added | `src/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj`; previously vendored in-tree |
-| `Microsoft.Bcl.TimeProvider` 10.0.11 | Added | `src/Opc.Ua.Core`, `src/Opc.Ua.Core.Types`; backs `TimeProvider` on net472/net48 |
+| `Microsoft.Bcl.TimeProvider` 10.0.11 | Added | `src/Opc.Ua.Core`, `src/Opc.Ua.Core.Types`; backs `TimeProvider` on net48 |
 | `Microsoft.CodeAnalysis.Analyzers` 4.14.0 | Added (pinned) | Centralised pin only, no direct reference; holds the analyzer closure on the `roslyn.props` band |
 | `Microsoft.CodeAnalysis.Common` 5.0.0 | Added | `tools/SourceGeneratorVariant.targets`, `tools/MigrationAnalyzerVariant.targets` |
 | `Microsoft.CodeAnalysis.CSharp` 5.0.0 | Added | `tools/SourceGeneratorVariant.targets`, `tools/MigrationAnalyzerVariant.targets` |
@@ -173,7 +172,7 @@ See [platform support](https://github.com/OPCFoundation/UA-.NETStandard/blob/mas
 
 ## ASP.NET Core packages are versioned per target framework
 
-`Microsoft.AspNetCore.Authentication.Certificate`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.Mvc.Testing` and `Microsoft.AspNetCore.TestHost` ship one band per .NET major and, unlike the `Microsoft.Extensions.*` packages, carry no `netstandard2.0` asset and do not roll forward across majors - a `net8.0` project cannot consume the `10.0.x` band. `Directory.Packages.props` therefore selects the version from `$(TargetFramework)`: `net8.0` gets `8.0.30`, `net9.0` gets `9.0.19`, and every other TFM (including `net10.0` and the `net10.0` shell that legacy `netstandard2.0`/`netstandard2.1` `$(CustomTestTarget)` builds fall back to) gets `10.0.11`.
+`Microsoft.AspNetCore.Authentication.Certificate`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.Mvc.Testing` and `Microsoft.AspNetCore.TestHost` ship one band per .NET major and, unlike the `Microsoft.Extensions.*` packages, carry no `netstandard2.0` asset and do not roll forward across majors - a `net8.0` project cannot consume the `10.0.x` band. `Directory.Packages.props` therefore selects the version from `$(TargetFramework)`: `net8.0` gets `8.0.30`, `net9.0` gets `9.0.19`, and every other TFM (including `net10.0`) gets `10.0.11`.
 
 Consumers that pin these packages themselves are unaffected. Consumers that inherit them transitively through `Opc.Ua.Bindings.Https` receive the band matching their own target framework.
 

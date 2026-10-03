@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Extracting the raw ECDHE shared secret requires
         /// <c>ECDiffieHellman.DeriveRawSecretAgreement</c>, which is only
         /// available on .NET 8 or later. When the assembly is compiled for an
-        /// older target framework (for example <c>netstandard2.1</c>) this probe
+        /// older target framework (<c>net48</c>) this probe
         /// returns <see langword="false"/>.
         /// </remarks>
         public static bool IsRawSharedSecretSupported =>

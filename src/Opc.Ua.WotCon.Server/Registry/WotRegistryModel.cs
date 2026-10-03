@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             using var sha = SHA256.Create();
             // TODO: SHA256.HashData is only available on .NET 5+; this project also
-            // targets net472/net48/netstandard2.1, where the instance ComputeHash API
+            // targets net48, where the instance ComputeHash API
             // is the portable equivalent. Revisit if the minimum TFM floor is ever
             // raised to drop those targets.
 #pragma warning disable CA1850

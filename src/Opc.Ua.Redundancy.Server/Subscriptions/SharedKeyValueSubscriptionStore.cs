@@ -57,6 +57,7 @@ namespace Opc.Ua.Redundancy.Server
     public sealed class SharedKeyValueSubscriptionStore :
         ISubscriptionStore,
         ISubscriptionRetransmissionDeltaStore,
+        ISubscriptionRetransmissionSendStateStore,
         IContinuationPointStore,
         IAsyncDisposable
     {
@@ -293,6 +294,13 @@ namespace Opc.Ua.Redundancy.Server
             {
                 namespaceUris = CreateNamespaceTable(decoder.ReadStringArray(null));
                 serverUris = CreateStringTable(decoder.ReadStringArray(null));
+
+                // Optional trailing field: records written before it existed end here, and
+                // readers that predate it ignore it.
+                if (decoder.Position < payload.Length)
+                {
+                    state.FirstUnsentSequenceNumber = decoder.ReadUInt32(null);
+                }
             }
 
             var messages = new List<NotificationMessage>();
@@ -308,7 +316,19 @@ namespace Opc.Ua.Redundancy.Server
                     messages.Add(message);
                 }
             }
-            messages.Sort(static (left, right) => left.SequenceNumber.CompareTo(right.SequenceNumber));
+            // oldest first: sequence numbers roll over (Part 4 7.38), so order them by their
+            // distance below the next sequence number rather than by value.
+            uint nextSequenceNumber = state.NextSequenceNumber;
+            if (nextSequenceNumber != 0)
+            {
+                messages.Sort((left, right) =>
+                    unchecked(nextSequenceNumber - right.SequenceNumber).CompareTo(
+                        unchecked(nextSequenceNumber - left.SequenceNumber)));
+            }
+            else
+            {
+                messages.Sort(static (left, right) => left.SequenceNumber.CompareTo(right.SequenceNumber));
+            }
             state.SentMessages = [.. messages];
             return state;
         }
@@ -376,6 +396,25 @@ namespace Opc.Ua.Redundancy.Server
                     state.PendingMessages[message.SequenceNumber] = message;
                     state.PendingDeletes.Remove(message.SequenceNumber);
                 }
+            }
+
+            SignalDrain();
+        }
+
+        /// <inheritdoc/>
+        public void StoreFirstUnsentSequenceNumber(
+            uint subscriptionId,
+            uint nextSequenceNumber,
+            uint firstUnsentSequenceNumber)
+        {
+            lock (m_retransmissionLock)
+            {
+                // The state record carries both values; a pending state created here (for
+                // example after a restore on a fresh replica) must not persist Next = 0.
+                PendingRetransmissionState state = GetPendingState(subscriptionId);
+                state.NextSequenceNumber = nextSequenceNumber;
+                state.FirstUnsentSequenceNumber = firstUnsentSequenceNumber;
+                state.StateDirty = true;
             }
 
             SignalDrain();
@@ -520,6 +559,7 @@ namespace Opc.Ua.Redundancy.Server
                 PendingRetransmissionState state = GetPendingState(subscriptionId);
                 state.ClearRequested = true;
                 state.StateDirty = false;
+                state.FirstUnsentSequenceNumber = 0;
                 state.KnownMessages.Clear();
                 state.PendingMessages.Clear();
                 state.PendingDeletes.Clear();
@@ -560,8 +600,10 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask DrainPendingAsync(CancellationToken cancellationToken)
         {
-            foreach (RetransmissionBatch batch in TakePendingBatches())
+            List<RetransmissionBatch> batches = TakePendingBatches();
+            for (int ii = 0; ii < batches.Count; ii++)
             {
+                RetransmissionBatch batch = batches[ii];
                 try
                 {
                     if (batch.ClearRequested)
@@ -585,7 +627,9 @@ namespace Opc.Ua.Redundancy.Server
                                 key,
                                 m_protector.Protect(
                                     RecordProtectionContext.Create("subscription-retransmission-state", key),
-                                    EncodeRetransmissionState(batch.NextSequenceNumber)),
+                                    EncodeRetransmissionState(
+                                        batch.NextSequenceNumber,
+                                        batch.FirstUnsentSequenceNumber)),
                                 cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -616,7 +660,11 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 catch
                 {
-                    Requeue(batch);
+                    // Requeue the failed batch and every batch not yet written.
+                    for (int jj = ii; jj < batches.Count; jj++)
+                    {
+                        Requeue(batches[jj]);
+                    }
                     throw;
                 }
             }
@@ -672,6 +720,7 @@ namespace Opc.Ua.Redundancy.Server
                     batches.Add(new RetransmissionBatch(
                         subscriptionId,
                         state.NextSequenceNumber,
+                        state.FirstUnsentSequenceNumber,
                         state.StateDirty,
                         [.. state.PendingMessages.Values],
                         [.. state.PendingDeletes],
@@ -703,11 +752,21 @@ namespace Opc.Ua.Redundancy.Server
             {
                 PendingRetransmissionState state = GetPendingState(batch.SubscriptionId);
                 state.ClearRequested |= batch.ClearRequested;
-                state.NextSequenceNumber = batch.NextSequenceNumber;
+
+                // A state change stored while the batch was in flight is newer; keep it.
+                if (!state.StateDirty)
+                {
+                    state.NextSequenceNumber = batch.NextSequenceNumber;
+                    state.FirstUnsentSequenceNumber = batch.FirstUnsentSequenceNumber;
+                }
                 state.StateDirty |= batch.StateDirty;
                 foreach (NotificationMessage message in batch.Messages)
                 {
-                    state.PendingMessages[message.SequenceNumber] = message;
+                    // Acknowledged while the batch was in flight: do not resurrect it.
+                    if (!state.PendingDeletes.Contains(message.SequenceNumber))
+                    {
+                        state.PendingMessages[message.SequenceNumber] = message;
+                    }
                 }
                 foreach (uint sequenceNumber in batch.Deletes)
                 {
@@ -985,7 +1044,8 @@ namespace Opc.Ua.Redundancy.Server
                 SequenceNumber = subscription.SequenceNumber,
                 UserIdentityToken = subscription.UserIdentityToken,
                 SentMessages = subscription.SentMessages ?? [],
-                MonitoredItems = subscription.MonitoredItems.Select(CloneMonitoredItem).ToList()
+                MonitoredItems = subscription.MonitoredItems.Select(CloneMonitoredItem).ToList(),
+                TriggeringLinks = (subscription as IStoredSubscriptionTriggering)?.TriggeringLinks
             };
         }
 
@@ -1035,11 +1095,17 @@ namespace Opc.Ua.Redundancy.Server
 
         private ByteString Encode(StoredSubscription subscription)
         {
+            // Only subscriptions with triggering links need the newer format; writing the
+            // previous one otherwise keeps snapshots readable by replicas that predate it
+            // during a rolling upgrade.
+            int version = subscription.TriggeringLinks is { Count: > 0 }
+                ? TriggeringLinksDefinitionFormatVersion
+                : OwnerStateDefinitionFormatVersion;
             using var encoder = new BinaryEncoder(m_context);
-            encoder.WriteInt32(null, DefinitionFormatVersion);
+            encoder.WriteInt32(null, version);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
-            EncodeSubscription(encoder, subscription, DefinitionFormatVersion);
+            EncodeSubscription(encoder, subscription, version);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -1054,13 +1120,14 @@ namespace Opc.Ua.Redundancy.Server
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
 
-        private ByteString EncodeRetransmissionState(uint nextSequenceNumber)
+        private ByteString EncodeRetransmissionState(uint nextSequenceNumber, uint firstUnsentSequenceNumber)
         {
             using var encoder = new BinaryEncoder(m_context);
             encoder.WriteInt32(null, RetransmissionStateFormatVersion);
             encoder.WriteUInt32(null, nextSequenceNumber);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
+            encoder.WriteUInt32(null, firstUnsentSequenceNumber);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -1235,6 +1302,21 @@ namespace Opc.Ua.Redundancy.Server
             {
                 EncodeMonitoredItem(encoder, item, version);
             }
+
+            if (version >= TriggeringLinksDefinitionFormatVersion)
+            {
+                IReadOnlyDictionary<uint, IReadOnlyList<uint>>? triggeringLinks =
+                    subscription.TriggeringLinks;
+                encoder.WriteInt32(null, triggeringLinks?.Count ?? 0);
+                if (triggeringLinks != null)
+                {
+                    foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
+                    {
+                        encoder.WriteUInt32(null, link.Key);
+                        encoder.WriteUInt32Array(null, [.. link.Value ?? []]);
+                    }
+                }
+            }
         }
 
         private static StoredSubscription DecodeSubscription(BinaryDecoder decoder, int version)
@@ -1276,6 +1358,24 @@ namespace Opc.Ua.Redundancy.Server
                 items.Add(DecodeMonitoredItem(decoder, version));
             }
             subscription.MonitoredItems = items;
+
+            if (version >= TriggeringLinksDefinitionFormatVersion)
+            {
+                int linkCount = decoder.ReadInt32(null);
+                if (linkCount > 0)
+                {
+                    var triggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>(linkCount);
+                    for (int ii = 0; ii < linkCount; ii++)
+                    {
+                        uint triggeringItemId = decoder.ReadUInt32(null);
+                        ArrayOf<uint> linkedItemIds = decoder.ReadUInt32Array(null);
+                        triggeringLinks[triggeringItemId] = linkedItemIds.IsNull
+                            ? []
+                            : linkedItemIds.Memory.ToArray();
+                    }
+                    subscription.TriggeringLinks = triggeringLinks;
+                }
+            }
             return subscription;
         }
 
@@ -1441,7 +1541,8 @@ namespace Opc.Ua.Redundancy.Server
             return version is LegacyDefinitionFormatVersion or
                 LifecycleStateDefinitionFormatVersion or
                 FilteredRetainDefinitionFormatVersion or
-                OwnerStateDefinitionFormatVersion;
+                OwnerStateDefinitionFormatVersion or
+                TriggeringLinksDefinitionFormatVersion;
         }
 
         private static string ContinuationPointPrefixFor(NodeId ownerSessionId)
@@ -1455,9 +1556,7 @@ namespace Opc.Ua.Redundancy.Server
         private const int LifecycleStateDefinitionFormatVersion = 2;
         private const int FilteredRetainDefinitionFormatVersion = 3;
         private const int OwnerStateDefinitionFormatVersion = 5;
-
-        private const int DefinitionFormatVersion =
-            OwnerStateDefinitionFormatVersion;
+        private const int TriggeringLinksDefinitionFormatVersion = 6;
 
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
@@ -1591,6 +1690,11 @@ namespace Opc.Ua.Redundancy.Server
             public uint NextSequenceNumber { get; set; }
 
             /// <summary>
+            /// Gets or sets the oldest retained sequence number not yet returned by a Publish response (0 = none).
+            /// </summary>
+            public uint FirstUnsentSequenceNumber { get; set; }
+
+            /// <summary>
             /// Gets or sets a value indicating whether the retransmission queue should be cleared.
             /// </summary>
             public bool ClearRequested { get; set; }
@@ -1610,6 +1714,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly record struct RetransmissionBatch(
             uint SubscriptionId,
             uint NextSequenceNumber,
+            uint FirstUnsentSequenceNumber,
             bool StateDirty,
             NotificationMessage[] Messages,
             uint[] Deletes,

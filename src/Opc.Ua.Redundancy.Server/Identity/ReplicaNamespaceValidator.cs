@@ -395,7 +395,7 @@ namespace Opc.Ua.Redundancy.Server
         public void WriteByteString(string? fieldName, ByteString value)
         {
         }
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         public void WriteByteString(string? fieldName, ReadOnlySpan<byte> value)
         {
         }
