@@ -1127,7 +1127,7 @@ namespace Opc.Ua
                 // check if certificate issuer is trusted.
                 if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
                 {
-                    string message = issuers.Count > 0
+                    string message = issuers.Count > 0 && !chainIncomplete
                         ? "Certificate Issuer is not trusted. The issuer chain was built, but none of its CAs " +
                             "is a trusted certificate; issuer certificates only complete the chain. Add the CA " +
                             "to the trusted certificates to trust the certificates it issues."
