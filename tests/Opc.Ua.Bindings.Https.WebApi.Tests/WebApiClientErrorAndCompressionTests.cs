@@ -276,6 +276,42 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
         }
 
+        /// <summary>
+        /// The declared Content-Length of a gzip body is its compressed size,
+        /// which the gzip header and trailer can make larger than the inflated
+        /// body; only the inflated size counts against MaxMessageSize.
+        /// </summary>
+        [Test]
+        public async Task GzipBodyLargerThanTheLimitButInflatingWithinItIsReadAsync()
+        {
+            byte[] body = Encoding.UTF8.GetBytes("{}");
+            byte[] compressed = Gzip(body);
+            const int maxMessageSize = 16;
+            Assert.That(compressed, Has.Length.GreaterThan(maxMessageSize));
+            using var content = new ByteArrayContent(compressed);
+            content.Headers.ContentEncoding.Add("gzip");
+            content.Headers.ContentLength = compressed.Length;
+
+            byte[] read = await HttpResponseBodyReader.ReadAsync(content, maxMessageSize, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(read, Is.EqualTo(body));
+        }
+
+        [Test]
+        public void PlainBodyDeclaringMoreThanTheLimitIsRejectedUpFront()
+        {
+            byte[] body = new byte[32];
+            using var content = new ByteArrayContent(body);
+            content.Headers.ContentLength = body.Length;
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await HttpResponseBodyReader.ReadAsync(content, 16, CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+        }
+
         [Test]
         public void CorruptGzipIsADecodingError()
         {

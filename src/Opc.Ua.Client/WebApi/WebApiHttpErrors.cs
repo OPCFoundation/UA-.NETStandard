@@ -43,9 +43,14 @@ namespace Opc.Ua.Client.WebApi
     /// <remarks>
     /// OPC UA errors of a processed request travel in the response body
     /// (<c>ResponseHeader.ServiceResult</c>, HTTP 200). An HTTP error status
-    /// means the request did not reach the service: the server refused it,
-    /// the route does not exist, the body was rejected, or the server is
-    /// unavailable. The HTTP status and reason stay in the message, and an
+    /// alone does not tell whether the service ran. The WebApi server of
+    /// this stack sends 400, 401, 403, 404, 405, 413 and 429 before it
+    /// invokes the service; for any other status the outcome is unknown.
+    /// The server answers 500 when it cannot encode the response of a
+    /// service that already ran, and a proxy or gateway can answer 502, 503
+    /// or 504 after the server executed the request, so a service that
+    /// changes state must not be retried blindly. The HTTP status and
+    /// reason stay in the message, and an
     /// <see cref="HttpRequestException"/> naming the status is the inner
     /// exception.
     /// </remarks>

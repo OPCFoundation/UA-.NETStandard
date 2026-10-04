@@ -330,9 +330,19 @@ session model to the WebSocket `opcua+openapi` sub-protocol.
 ## Client errors
 
 Errors of a processed request come back in the OPC UA response
-(`ResponseHeader.ServiceResult`, HTTP 200). An HTTP error status means
-the request did not reach the service. `WebApiClient` (and therefore
-`ManagedSession` over `UseWebApiEndpoint`) reports it as a
+(`ResponseHeader.ServiceResult`, HTTP 200). An HTTP error status alone
+does not tell whether the service ran. The WebApi server of this stack
+sends 400 (undecodable body), 401 and 403 (authentication and
+authorization), 404 and 405 (no matching route), 413 (request body over
+the limit) and 429 (rate limiting) before it invokes the service. For
+any other status the outcome is unknown: the server answers 500 when it
+cannot encode the response of a service that already ran, and a proxy
+or gateway can answer 502, 503 or 504 after the server executed the
+request. A status from a proxy or another server implementation tells
+only what that component reports. Retry a service that changes state,
+such as Write or Call, only when repeating it is harmless.
+`WebApiClient` (and therefore `ManagedSession` over
+`UseWebApiEndpoint`) reports the HTTP error as a
 `ServiceResultException`:
 
 | HTTP | StatusCode |

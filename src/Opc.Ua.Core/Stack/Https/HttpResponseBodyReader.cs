@@ -44,6 +44,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Checks both the declared and actual response size and reports oversized bodies as BadResponseTooLarge.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="content"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The body exceeds <paramref name="maxMessageSize"/> (BadResponseTooLarge), or it uses an
+        /// unsupported content coding or is corrupt gzip (BadDecodingError).
+        /// </exception>
         public static async ValueTask<byte[]> ReadAsync(
             HttpContent content,
             int maxMessageSize,
@@ -53,7 +60,14 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(content));
             }
-            if (maxMessageSize > 0 && content.Headers.ContentLength > maxMessageSize)
+            // OPC 10000-6 §7.4.5: a JSON body may be gzip compressed (RFC
+            // 1952) and then carries Content-Encoding: gzip. The limit applies
+            // to the inflated body, so a small compressed response cannot
+            // expand past MaxMessageSize. The declared Content-Length is the
+            // compressed size, which the gzip framing can make larger than the
+            // inflated body, so it only rejects an uncompressed body up front.
+            bool gzip = IsGzip(content);
+            if (!gzip && maxMessageSize > 0 && content.Headers.ContentLength > maxMessageSize)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadResponseTooLarge,
@@ -61,11 +75,6 @@ namespace Opc.Ua.Bindings
                     maxMessageSize);
             }
 
-            // OPC 10000-6 §7.4.5: a JSON body may be gzip compressed (RFC
-            // 1952) and then carries Content-Encoding: gzip. The limit below
-            // applies to the inflated body, so a small compressed response
-            // cannot expand past MaxMessageSize.
-            bool gzip = IsGzip(content);
             // The body stream belongs to the content, which the caller disposes
             // with the response; only the inflating wrapper is released here.
 #if NET5_0_OR_GREATER
