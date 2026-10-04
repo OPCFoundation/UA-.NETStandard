@@ -2149,10 +2149,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Configured issuers establish trust, but a missing CRL is rejected when unknown revocation status is enabled.
+        /// No certificate is trusted, and one CRL is missing
         /// </summary>
         [Theory]
-        public async Task VerifyMissingCRLWithIssuerTrustAsync(bool rejectUnknownRevocationStatus)
+        public async Task VerifyMissingCRLNoTrustAsync(bool rejectUnknownRevocationStatus)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -2180,19 +2180,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
-                    if (rejectUnknownRevocationStatus)
-                    {
-                        Assert.That(result.IsValid, Is.False);
-                        Assert.That(
-                            result.StatusCode,
-                            Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown)
-                                .Or.EqualTo(StatusCodes.BadCertificateIssuerRevocationUnknown));
-                    }
-                    else
-                    {
-                        Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-                        Assert.That(result.IsValid, Is.True);
-                    }
+                    Assert.That(result.IsValid, Is.False);
+                    Assert.That(
+                        result.StatusCode,
+                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 }
             }
         }
