@@ -39,8 +39,8 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using RoboticsBrowseNames = Opc.Ua.Robotics.BrowseNames;
 using DiBrowseNames = Opc.Ua.Di.BrowseNames;
+using RoboticsBrowseNames = Opc.Ua.Robotics.BrowseNames;
 
 namespace Opc.Ua.Robotics.Client.Tests
 {
@@ -178,6 +178,321 @@ namespace Opc.Ua.Robotics.Client.Tests
         }
 
         [Test]
+        public async Task SnapshotsCarryTheNodeIdsOfTheVariablesTheyRead()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            QualifiedName parameterSet = h.Di(DiBrowseNames.ParameterSet);
+            NodeId speedOverrideDecoy = h.Resolve(
+                h.MotionDeviceId, RoboticsSessionHarness.Ua(RoboticsBrowseNames.SpeedOverride));
+
+            RoboticsTopologySnapshot snapshot = await h.Client.ReadSystemAsync(h.SystemId).ConfigureAwait(false);
+
+            SafetyStateSnapshot safety = snapshot.SafetyStates[0];
+            TaskControlSnapshot task = snapshot.TaskControls[0];
+            SafetyFunctionSnapshot estop = safety.EmergencyStopFunctions[0];
+            Assert.Multiple(() =>
+            {
+                // The ParameterSet variables, not the decoys of the same name
+                // directly below the axis and the motion device.
+                Assert.That(snapshot.Axes[0].State.ActualPositionId, Is.EqualTo(h.AxisPositionId));
+                Assert.That(snapshot.Axes[0].State.ActualSpeedId, Is.EqualTo(h.AxisSpeedId));
+                Assert.That(snapshot.Axes[0].State.ActualAccelerationId, Is.EqualTo(h.AxisAccelerationId));
+                Assert.That(
+                    snapshot.MotionDevices[0].SpeedOverrideId,
+                    Is.EqualTo(h.Resolve(h.MotionDeviceId, parameterSet, h.Rob(RoboticsBrowseNames.SpeedOverride))));
+                Assert.That(snapshot.MotionDevices[0].SpeedOverrideId, Is.Not.EqualTo(speedOverrideDecoy));
+                Assert.That(
+                    safety.EmergencyStopId,
+                    Is.EqualTo(h.Resolve(h.SafetyId, parameterSet, h.Rob(RoboticsBrowseNames.EmergencyStop))));
+                Assert.That(
+                    safety.OperationalModeId,
+                    Is.EqualTo(h.Resolve(h.SafetyId, parameterSet, h.Rob(RoboticsBrowseNames.OperationalMode))));
+                Assert.That(
+                    safety.ProtectiveStopId,
+                    Is.EqualTo(h.Resolve(h.SafetyId, parameterSet, h.Rob(RoboticsBrowseNames.ProtectiveStop))));
+                Assert.That(
+                    estop.ActiveId,
+                    Is.EqualTo(h.Resolve(h.EmergencyFunctionId, h.Rob(RoboticsBrowseNames.Active))));
+                Assert.That(
+                    estop.EnabledId,
+                    Is.EqualTo(h.Resolve(h.EmergencyFunctionId, h.Rob(RoboticsBrowseNames.Enabled))));
+                Assert.That(
+                    task.ExecutionModeId,
+                    Is.EqualTo(h.Resolve(h.TaskControlId, parameterSet, h.Rob(RoboticsBrowseNames.ExecutionMode))));
+                Assert.That(
+                    task.TaskProgramLoadedId,
+                    Is.EqualTo(h.Resolve(
+                        h.TaskControlId, parameterSet, h.Rob(RoboticsBrowseNames.TaskProgramLoaded))));
+                Assert.That(
+                    task.TaskProgramNameId,
+                    Is.EqualTo(h.Resolve(h.TaskControlId, parameterSet, h.Rob(RoboticsBrowseNames.TaskProgramName))));
+                Assert.That(
+                    snapshot.TaskModules[0].IsReferencedId,
+                    Is.EqualTo(h.Resolve(h.TaskModuleId, h.Rob(RoboticsBrowseNames.IsReferenced))));
+                Assert.That(
+                    snapshot.Loads.ToList().Single(l => l.NodeId == h.FlangeLoadId).MassId,
+                    Is.EqualTo(h.Resolve(h.FlangeLoadId, h.Rob(RoboticsBrowseNames.Mass))));
+                Assert.That(
+                    snapshot.Gears[0].PitchId,
+                    Is.EqualTo(h.Resolve(h.GearId, h.Rob(RoboticsBrowseNames.Pitch))));
+            });
+        }
+
+        [Test]
+        public async Task SnapshotsReadTheStateOfTheOperationStateMachines()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.SystemOperationId, Is.EqualTo(h.SystemOperationId));
+                // The CurrentState variable itself: not its Id child, not the machine.
+                Assert.That(controller.CurrentStateId, Is.EqualTo(h.SystemCurrentStateId));
+                Assert.That(controller.CurrentState, Is.EqualTo(RoboticsOperationState.Executing));
+                Assert.That(task.TaskControlOperationId, Is.EqualTo(h.TaskControlOperationId));
+                Assert.That(task.CurrentStateId, Is.EqualTo(h.TaskCurrentStateId));
+                Assert.That(task.CurrentState, Is.EqualTo(RoboticsOperationState.Ready));
+            });
+        }
+
+        [Test]
+        public async Task TheOperationStateIsMatchedByStateNodeIdNotByLocalizedText()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            NodeId taskIdle = new(1910, 2);
+            NodeId taskExecuting = new(1911, 2);
+            NodeId systemIdle = new(1920, 2);
+            NodeId systemReady = new(1921, 2);
+            NodeId systemExecuting = new(1922, 2);
+            // A German server: the state names are localized, the state nodes are not.
+            h.AddOperationState(
+                h.SystemOperationId,
+                RoboticsBrowseNames.SystemOperationStateMachine,
+                h.SystemStateMachineId,
+                h.SystemCurrentStateId,
+                "Ausf\u00fchrung");
+            h.AddOperationState(
+                h.TaskControlOperationId,
+                RoboticsBrowseNames.TaskControlStateMachine,
+                h.TaskControlStateMachineId,
+                h.TaskCurrentStateId,
+                "Bereit");
+            h.AddStateNodes(
+                h.SystemStateMachineId, h.SystemCurrentStateId, systemIdle, systemReady, systemExecuting,
+                systemExecuting);
+            h.AddStateNodes(
+                h.TaskControlStateMachineId, h.TaskCurrentStateId, taskIdle, h.ReadyStateId, taskExecuting,
+                h.ReadyStateId);
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.CurrentState, Is.EqualTo(RoboticsOperationState.Executing));
+                Assert.That(task.CurrentState, Is.EqualTo(RoboticsOperationState.Ready));
+            });
+        }
+
+        [Test]
+        public async Task TheOperationStateIsMatchedByTheStateIdsTheModelDeclaresOnTheMachineType()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            // The Robotics model declares Idle, Ready and Executing on the state machine
+            // types; a server that does not instantiate them publishes the type states'
+            // NodeIds, mapped to its own index of the Robotics namespace.
+            h.AddOperationState(
+                h.SystemOperationId,
+                RoboticsBrowseNames.SystemOperationStateMachine,
+                h.SystemStateMachineId,
+                h.SystemCurrentStateId,
+                "Bereit");
+            h.AddOperationState(
+                h.TaskControlOperationId,
+                RoboticsBrowseNames.TaskControlStateMachine,
+                h.TaskControlStateMachineId,
+                h.TaskCurrentStateId,
+                "Ausf\u00fchrung");
+            h.SetCurrentStateId(
+                h.SystemCurrentStateId,
+                NodeId.Create(
+                    SystemOperationStateMachineTypeIds.StateIds.Ready,
+                    global::Opc.Ua.Robotics.Namespaces.Robotics,
+                    h.NamespaceUris));
+            h.SetCurrentStateId(
+                h.TaskCurrentStateId,
+                NodeId.Create(
+                    TaskControlStateMachineTypeIds.StateIds.Executing,
+                    global::Opc.Ua.Robotics.Namespaces.Robotics,
+                    h.NamespaceUris));
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.CurrentState, Is.EqualTo(RoboticsOperationState.Ready));
+                Assert.That(task.CurrentState, Is.EqualTo(RoboticsOperationState.Executing));
+            });
+        }
+
+        [Test]
+        public async Task ABadCurrentStateReadsAsNoStateEvenWithAMatchingStateId()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            h.AddStateNodes(
+                h.SystemStateMachineId, h.SystemCurrentStateId,
+                new NodeId(1920, 2), new NodeId(1921, 2), new NodeId(1922, 2),
+                new NodeId(1922, 2));
+            h.SetBadQuality(h.SystemCurrentStateId);
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.CurrentStateId, Is.EqualTo(h.SystemCurrentStateId));
+                Assert.That(controller.CurrentState.HasValue, Is.False, "a bad CurrentState is no state");
+            });
+        }
+
+        [Test]
+        public async Task APublishedStateIdThatNamesNoKnownStateIsNotOverriddenByTheStateName()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            // Both name a state in their text, but the Id the server publishes is
+            // unknown for the controller and unreadable for the task control.
+            h.SetCurrentStateId(h.SystemCurrentStateId, new NodeId(4711, 2));
+            h.SetCurrentStateId(h.TaskCurrentStateId, new NodeId(1922, 2));
+            h.SetBadQuality(h.Resolve(h.TaskCurrentStateId, RoboticsSessionHarness.Ua(Opc.Ua.BrowseNames.Id)));
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.CurrentStateId, Is.EqualTo(h.SystemCurrentStateId));
+                Assert.That(controller.CurrentState.HasValue, Is.False, "an unknown state Id is no state");
+                Assert.That(task.CurrentStateId, Is.EqualTo(h.TaskCurrentStateId));
+                Assert.That(task.CurrentState.HasValue, Is.False, "an unreadable state Id is no state");
+            });
+        }
+
+        [Test]
+        public async Task ABadQualityEngineeringValueReadsAsNoStructure()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            h.SetBadQuality(h.Resolve(h.MotorTemperatureId, RoboticsSessionHarness.Ua(Opc.Ua.BrowseNames.EURange)));
+
+            RoboticsTopologySnapshot snapshot = await h.Client.ReadSystemAsync(h.SystemId).ConfigureAwait(false);
+
+            MotorSnapshot motor = snapshot.Motors[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(motor.MotorTemperatureEngineering.Range, Is.Null, "a bad read is not a range");
+                Assert.That(motor.MotorTemperatureEngineering.EngineeringUnits?.UnitId, Is.EqualTo(h.Celsius.UnitId));
+            });
+        }
+
+        [Test]
+        public async Task AnUnknownOrUnreadableOperationStateReadsAsNull()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            // A state the client does not know, and a CurrentState whose read fails.
+            h.AddOperationState(
+                h.TaskControlOperationId,
+                RoboticsBrowseNames.TaskControlStateMachine,
+                h.TaskControlStateMachineId,
+                h.TaskCurrentStateId,
+                "Halted");
+            h.AddOperationState(
+                h.SystemOperationId,
+                RoboticsBrowseNames.SystemOperationStateMachine,
+                h.SystemStateMachineId,
+                h.SystemCurrentStateId,
+                null);
+
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(task.CurrentStateId, Is.EqualTo(h.TaskCurrentStateId));
+                Assert.That(task.CurrentState.HasValue, Is.False, "Halted is not an OPC 40010-1 operation state");
+                Assert.That(controller.CurrentStateId, Is.EqualTo(h.SystemCurrentStateId));
+                Assert.That(controller.CurrentState.HasValue, Is.False, "a failed read is no state, not an exception");
+                Assert.That(controller.Identification.SerialNumber, Is.EqualTo("ControllerSerial"));
+            });
+        }
+
+        [Test]
+        public async Task SnapshotsWithoutOperationsHaveNoStateIds()
+        {
+            RoboticsSessionHarness h = new();
+
+            ControllerSnapshot controller = await h.Client.ReadControllerAsync(h.ControllerId).ConfigureAwait(false);
+            TaskControlSnapshot task = await h.Client.ReadTaskControlAsync(h.TaskControlId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(controller.SystemOperationId.IsNull, Is.True);
+                Assert.That(controller.CurrentStateId.IsNull, Is.True);
+                Assert.That(controller.CurrentState.HasValue, Is.False);
+                Assert.That(task.TaskControlOperationId.IsNull, Is.True);
+                Assert.That(task.CurrentStateId.IsNull, Is.True);
+                Assert.That(task.CurrentState.HasValue, Is.False);
+                Assert.That(task.ExecutionModeId.IsNull, Is.True);
+                Assert.That(task.ExecutionMode.IsNull, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task IdentificationAndMotorValuesComeFromTheDiPropertiesAndTheParameterSet()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+
+            RoboticsTopologySnapshot snapshot = await h.Client.ReadSystemAsync(h.SystemId).ConfigureAwait(false);
+
+            RoboticsComponentIdentification robot = snapshot.MotionDevices[0].Identification;
+            MotorSnapshot motor = snapshot.Motors[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(robot.HardwareRevision, Is.EqualTo("MotionHardware"));
+                Assert.That(robot.SoftwareRevision, Is.EqualTo("MotionSoftware"), "DI namespace, not the decoy");
+                Assert.That(robot.ManufacturerUri, Is.EqualTo("urn:opc:Motion"));
+                Assert.That(robot.ProductInstanceUri, Is.EqualTo("urn:opc:Motion:1"));
+                Assert.That(motor.Identification.SoftwareRevision, Is.EqualTo("MotorSoftware"));
+
+                Assert.That(motor.MotorTemperatureId, Is.EqualTo(h.MotorTemperatureId));
+                Assert.That(motor.MotorTemperature.WrappedValue.TryGetValue(out double temperature), Is.True);
+                Assert.That(temperature, Is.EqualTo(41.5d), "the ParameterSet variable, not the decoy");
+                Assert.That(motor.MotorTemperatureEngineering.EngineeringUnits?.UnitId, Is.EqualTo(h.Celsius.UnitId));
+                Assert.That(motor.MotorTemperatureEngineering.Range?.Low, Is.EqualTo(-20d));
+                Assert.That(motor.MotorTemperatureEngineering.Range?.High, Is.EqualTo(120d));
+                Assert.That(motor.BrakeReleased.WrappedValue.TryGetValue(out bool released), Is.True);
+                Assert.That(released, Is.True);
+                Assert.That(
+                    motor.BrakeReleasedId,
+                    Is.EqualTo(h.Resolve(
+                        h.MotorId, h.Di(DiBrowseNames.ParameterSet), h.Rob(RoboticsBrowseNames.BrakeReleased))));
+                // EffectiveLoadRate is optional and not published here.
+                Assert.That(motor.EffectiveLoadRateId.IsNull, Is.True);
+                Assert.That(motor.EffectiveLoadRate.IsNull, Is.True);
+            });
+        }
+
+        [Test]
         public async Task ProgramsAsyncReturnsFileSystemClientAndFailsWhenAbsent()
         {
             RoboticsSessionHarness h = new();
@@ -271,8 +586,10 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 Assert.That(axis.ActualPosition.WrappedValue.TryGetValue(out double position), Is.True);
                 Assert.That(position, Is.EqualTo(12.5d));
+                Assert.That(axis.ActualPositionId, Is.EqualTo(h.AxisPositionId));
                 Assert.That(safety.EmergencyStop.WrappedValue.TryGetValue(out bool emergency), Is.True);
                 Assert.That(emergency, Is.False);
+                Assert.That(safety.EmergencyStopId.IsNull, Is.False);
             });
         }
 
@@ -388,6 +705,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             private readonly Dictionary<NodeId, List<ReferenceDescription>> m_browse = [];
             private readonly Dictionary<NodeId, Variant> m_values = [];
             private readonly HashSet<NodeId> m_continuationNodes = [];
+            private readonly HashSet<NodeId> m_badQualityNodes = [];
             private StatusCode m_callStatus = StatusCodes.Good;
             private int m_callOutput;
 
@@ -517,6 +835,20 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public NodeId CurrentStateIdNode { get; } = new(1701, 2);
 
+            public NodeId SystemCurrentStateId { get; } = new(1107, 2);
+
+            public NodeId TaskCurrentStateId { get; } = new(1607, 2);
+
+            public NodeId MotorTemperatureId { get; } = new(1404, 2);
+
+            public EUInformation Celsius { get; } = new()
+            {
+                NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                UnitId = 4408652,
+                DisplayName = new LocalizedText("en", "°C"),
+                Description = new LocalizedText("en", "degree Celsius")
+            };
+
             public void ConfigureCompleteTopology()
             {
                 // The layout of OPC 40010-1: folders and non-parameter members with
@@ -571,6 +903,13 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddComponent(PowerTrainId, Ref(MotorId, "Motor1", ObjectTypes.MotorType));
                 AddComponent(PowerTrainId, Ref(GearId, "Gear1", ObjectTypes.GearType));
                 AddIdentification(MotorId, "Motor");
+                // MotorTemperature with its unit and range, BrakeReleased; no
+                // EffectiveLoadRate. The same name directly below the motor is a decoy.
+                AddParameter(MotorId, RoboticsBrowseNames.MotorTemperature, 41.5d, MotorTemperatureId);
+                AddValueChild(MotorTemperatureId, Ua(Opc.Ua.BrowseNames.EngineeringUnits), Celsius);
+                AddValueChild(MotorTemperatureId, Ua(Opc.Ua.BrowseNames.EURange), new Range(120, -20));
+                AddParameter(MotorId, RoboticsBrowseNames.BrakeReleased, true);
+                AddValueChild(MotorId, Rob(RoboticsBrowseNames.MotorTemperature), -1d);
                 AddIdentification(GearId, "Gear");
                 AddValueChild(GearId, Rob(RoboticsBrowseNames.Pitch), 1.0d);
                 AddIdentification(DriveId, "Drive");
@@ -600,6 +939,20 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddValueChild(TaskModuleId, Rob(RoboticsBrowseNames.Name), "Module");
                 AddValueChild(TaskModuleId, Rob(RoboticsBrowseNames.Version), "1.0");
                 AddValueChild(TaskModuleId, Rob(RoboticsBrowseNames.IsReferenced), true);
+
+                AddChild(ControllerId, Rob(RoboticsBrowseNames.SystemOperation), SystemOperationId);
+                AddOperationState(
+                    SystemOperationId,
+                    RoboticsBrowseNames.SystemOperationStateMachine,
+                    SystemStateMachineId,
+                    SystemCurrentStateId,
+                    RoboticsBrowseNames.Executing);
+                AddOperationState(
+                    TaskControlOperationId,
+                    RoboticsBrowseNames.TaskControlStateMachine,
+                    TaskControlStateMachineId,
+                    TaskCurrentStateId,
+                    RoboticsBrowseNames.Ready);
 
                 AddRelationship(ControllerId, ReferenceTypes.Controls, MotionDeviceId);
                 AddRelationship(ControllerId, ReferenceTypes.HasSafetyStates, SafetyId);
@@ -636,6 +989,82 @@ namespace Opc.Ua.Robotics.Client.Tests
                     ReadySubstateMachineId);
                 }
                 AddStateReads(TaskControlStateMachineId, RoboticsBrowseNames.Ready);
+            }
+
+            /// <summary>
+            /// Registers an operation state machine below its operation object with
+            /// a CurrentState variable that names <paramref name="stateName"/>; no
+            /// value when <paramref name="stateName"/> is null, so its read fails.
+            /// CurrentState has no Id property until <see cref="SetCurrentStateId"/>
+            /// adds one, so the client falls back to the state name.
+            /// </summary>
+            public void AddOperationState(
+                NodeId operation,
+                string stateMachineBrowseName,
+                NodeId stateMachine,
+                NodeId currentState,
+                string? stateName)
+            {
+                AddChild(operation, Rob(stateMachineBrowseName), stateMachine);
+                AddChild(stateMachine, Ua(Opc.Ua.BrowseNames.CurrentState), currentState);
+                if (stateName == null)
+                {
+                    m_values.Remove(currentState);
+                }
+                else
+                {
+                    m_values[currentState] = Variant.From(new LocalizedText(stateName));
+                }
+            }
+
+            /// <summary>
+            /// The node the harness registered at <paramref name="path"/> below
+            /// <paramref name="start"/>, to compare a snapshot id against.
+            /// </summary>
+            public NodeId Resolve(NodeId start, params QualifiedName[] path)
+            {
+                NodeId current = start;
+                foreach (QualifiedName name in path)
+                {
+                    current = m_children[(current, name)];
+                }
+                return current;
+            }
+
+            /// <summary>
+            /// Makes every read of <paramref name="node"/> return its value with a bad status.
+            /// </summary>
+            public void SetBadQuality(NodeId node)
+            {
+                m_badQualityNodes.Add(node);
+            }
+
+            /// <summary>
+            /// Registers the Idle, Ready and Executing state objects of an operation state
+            /// machine and points its CurrentState/Id at <paramref name="activeState"/>, so
+            /// the state is known by NodeId whatever text the server localizes it to.
+            /// </summary>
+            public void AddStateNodes(
+                NodeId stateMachine,
+                NodeId currentState,
+                NodeId idle,
+                NodeId ready,
+                NodeId executing,
+                NodeId activeState)
+            {
+                AddChild(stateMachine, Rob(RoboticsBrowseNames.Idle), idle);
+                AddChild(stateMachine, Rob(RoboticsBrowseNames.Ready), ready);
+                AddChild(stateMachine, Rob(RoboticsBrowseNames.Executing), executing);
+                SetCurrentStateId(currentState, activeState);
+            }
+
+            /// <summary>
+            /// Publishes the CurrentState/Id property of <paramref name="currentState"/>
+            /// holding <paramref name="stateId"/>, the NodeId of the active state.
+            /// </summary>
+            public void SetCurrentStateId(NodeId currentState, NodeId stateId)
+            {
+                AddValueChild(currentState, Ua(Opc.Ua.BrowseNames.Id), stateId);
             }
 
             public void AddStateReads(NodeId stateMachine, string stateName)
@@ -766,7 +1195,12 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddValueChild(nodeId, Di(DiBrowseNames.ProductCode), name + "Code");
                 AddValueChild(nodeId, Di(DiBrowseNames.SerialNumber), name + "Serial");
                 AddValueChild(nodeId, Di(DiBrowseNames.DeviceManual), name + "Manual");
+                AddValueChild(nodeId, Di(DiBrowseNames.HardwareRevision), name + "Hardware");
+                AddValueChild(nodeId, Di(DiBrowseNames.SoftwareRevision), name + "Software");
+                AddValueChild(nodeId, Di(DiBrowseNames.ManufacturerUri), "urn:opc:" + name);
+                AddValueChild(nodeId, Di(DiBrowseNames.ProductInstanceUri), "urn:opc:" + name + ":1");
                 AddValueChild(nodeId, Ua(DiBrowseNames.SerialNumber), "wrong namespace");
+                AddValueChild(nodeId, Ua(DiBrowseNames.SoftwareRevision), "wrong namespace");
             }
 
             private void AddLoad(NodeId load)
@@ -909,7 +1343,9 @@ namespace Opc.Ua.Robotics.Client.Tests
                                 else
                                 {
                                     values.Add(m_values.TryGetValue(node.NodeId, out Variant variant)
-                                        ? Value(variant)
+                                        ? m_badQualityNodes.Contains(node.NodeId)
+                                            ? new DataValue(variant, StatusCodes.BadSensorFailure)
+                                            : Value(variant)
                                         : new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown));
                                 }
                             }
@@ -981,11 +1417,13 @@ namespace Opc.Ua.Robotics.Client.Tests
                 {
                     bool b => Variant.From(b),
                     int i => Variant.From(i),
+                    ushort u => Variant.From(u),
                     double d => Variant.From(d),
                     string s => Variant.From(s),
                     NodeId n => Variant.From(n),
                     QualifiedName q => Variant.From(q),
                     LocalizedText l => Variant.From(l),
+                    IEncodeable e => Variant.FromStructure(e),
                     _ => Variant.Null
                 };
             }

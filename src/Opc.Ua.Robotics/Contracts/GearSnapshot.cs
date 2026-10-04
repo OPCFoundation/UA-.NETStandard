@@ -48,5 +48,10 @@ namespace Opc.Ua.Robotics
         /// The optional pitch value, including status and timestamps.
         /// </summary>
         public DataValue Pitch { get; init; } = DataValue.Null;
+
+        /// <summary>
+        /// The Pitch variable to subscribe to, or <see cref="NodeId.Null"/> when not published.
+        /// </summary>
+        public NodeId PitchId { get; init; } = NodeId.Null;
     }
 }
