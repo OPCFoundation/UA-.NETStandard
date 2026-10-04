@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -242,6 +243,58 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void RegisteringAgainNeitherReadsNorChangesTheSupportedUnits()
+        {
+            var server = new Mock<IServerInternal>();
+            using var manager = new ConformanceUnitsManager(server.Object);
+
+            var contributor = new MutableContributor { ConformanceUnits = [new("Registered Unit")] };
+            manager.Register(contributor);
+            contributor.ConformanceUnits = [new("Changed Unit")];
+            contributor.Reads = 0;
+            manager.Register(contributor);
+
+            Assert.That(contributor.Reads, Is.Zero);
+            Assert.That(manager.IsSupported(new QualifiedName("Registered Unit")), Is.True);
+            Assert.That(manager.IsSupported(new QualifiedName("Changed Unit")), Is.False);
+        }
+
+        [Test]
+        public async Task UnregisterDuringAPublishIsNotUndoneByTheStaleReadAsync()
+        {
+            ArrayOf<QualifiedName> publishedUnits = default;
+            var diagnostics = new Mock<IDiagnosticsNodeManager>();
+            diagnostics
+                .Setup(d => d.PublishConformanceUnitsAsync(
+                    It.IsAny<ArrayOf<QualifiedName>>(),
+                    It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<ArrayOf<QualifiedName>, ArrayOf<string>, CancellationToken>(
+                    (units, _, _) => publishedUnits = units)
+                .Returns(default(ValueTask));
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.DiagnosticsNodeManager).Returns(diagnostics.Object);
+            using var manager = new ConformanceUnitsManager(server.Object);
+            using var withdrawn = new BlockingContributor([new("Withdrawn Unit")]);
+            manager.Register(withdrawn);
+            manager.Register(new FakeContributor(units: [new("Kept Unit")], profiles: []));
+
+            // The publish snapshots both contributors and blocks while reading
+            // the first; it is unregistered before the read completes.
+            withdrawn.BlockNextRead();
+            Task publish = Task.Run(async () => await manager.PublishAsync().ConfigureAwait(false));
+            Assert.That(withdrawn.WaitUntilReading(TimeSpan.FromSeconds(30)), Is.True);
+            Assert.That(manager.Unregister(withdrawn), Is.True);
+            Assert.That(manager.IsSupported(new QualifiedName("Withdrawn Unit")), Is.False);
+            withdrawn.CompleteRead();
+            await publish.ConfigureAwait(false);
+
+            Assert.That(manager.IsSupported(new QualifiedName("Withdrawn Unit")), Is.False);
+            Assert.That(manager.IsSupported(new QualifiedName("Kept Unit")), Is.True);
+            Assert.That(NamesOf(publishedUnits), Is.EqualTo(s_keptUnitNames));
+        }
+
+        [Test]
         public async Task UnregisterWithdrawsTheUnitsOfTheContributorAsync()
         {
             ArrayOf<QualifiedName> publishedUnits = default;
@@ -307,6 +360,59 @@ namespace Opc.Ua.Server.Tests
             public ArrayOf<string> ServerProfiles { get; set; }
 
             private ArrayOf<QualifiedName> m_units;
+        }
+
+        /// <summary>
+        /// A contributor whose next read of its units blocks until the test
+        /// completes it, so a registration change can happen during the read.
+        /// </summary>
+        private sealed class BlockingContributor : IConformanceContributor, IDisposable
+        {
+            public BlockingContributor(ArrayOf<QualifiedName> units)
+            {
+                m_units = units;
+            }
+
+            public ArrayOf<QualifiedName> ConformanceUnits
+            {
+                get
+                {
+                    if (Interlocked.Exchange(ref m_blockNextRead, 0) == 1)
+                    {
+                        m_reading.Set();
+                        m_completeRead.Wait(TimeSpan.FromSeconds(30));
+                    }
+                    return m_units;
+                }
+            }
+
+            public ArrayOf<string> ServerProfiles => [];
+
+            public void BlockNextRead()
+            {
+                Interlocked.Exchange(ref m_blockNextRead, 1);
+            }
+
+            public bool WaitUntilReading(TimeSpan timeout)
+            {
+                return m_reading.Wait(timeout);
+            }
+
+            public void CompleteRead()
+            {
+                m_completeRead.Set();
+            }
+
+            public void Dispose()
+            {
+                m_reading.Dispose();
+                m_completeRead.Dispose();
+            }
+
+            private readonly ArrayOf<QualifiedName> m_units;
+            private readonly ManualResetEventSlim m_reading = new();
+            private readonly ManualResetEventSlim m_completeRead = new();
+            private int m_blockNextRead;
         }
 
         private sealed class FakeContributor : IConformanceContributor

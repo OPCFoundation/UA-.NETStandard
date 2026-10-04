@@ -118,8 +118,9 @@ namespace Opc.Ua.Server
         /// the server advertises.
         /// </summary>
         /// <remarks>
-        /// Registering a contributor again has no further effect; the
-        /// contributor is read again on every <see cref="PublishAsync"/>.
+        /// Registering a contributor again has no effect and does not read it
+        /// again; every contributor is read again on each
+        /// <see cref="PublishAsync"/>.
         /// </remarks>
         /// <param name="contributor">
         /// The contributor whose supported units and profiles are added.
@@ -134,10 +135,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (!m_contributors.Contains(contributor))
+                if (m_contributors.Contains(contributor))
                 {
-                    m_contributors.Add(contributor);
+                    return;
                 }
+                m_contributors.Add(contributor);
+                m_registrationVersion++;
             }
             Aggregate();
         }
@@ -161,6 +164,10 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 removed = m_contributors.Remove(contributor);
+                if (removed)
+                {
+                    m_registrationVersion++;
+                }
             }
             if (removed)
             {
@@ -198,44 +205,57 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// The contributors are read outside the lock: computing what they
-        /// support may take locks of their own.
+        /// support may take locks of their own. A registration that changes
+        /// while they are read makes the read stale, so it is repeated with
+        /// the current contributors rather than replacing the set that
+        /// registration already committed.
         /// </remarks>
         private (ArrayOf<QualifiedName> Units, ArrayOf<string> Profiles) Aggregate()
         {
-            IConformanceContributor[] contributors;
-            lock (m_lock)
+            while (true)
             {
-                contributors = [.. m_contributors];
-            }
-
-            var units = new HashSet<QualifiedName>();
-            var profiles = new HashSet<string>(StringComparer.Ordinal);
-            var orderedProfiles = new List<string>();
-            foreach (IConformanceContributor contributor in contributors)
-            {
-                foreach (QualifiedName unit in contributor.ConformanceUnits)
+                IConformanceContributor[] contributors;
+                long registrationVersion;
+                lock (m_lock)
                 {
-                    if (!unit.IsNull)
+                    contributors = [.. m_contributors];
+                    registrationVersion = m_registrationVersion;
+                }
+
+                var units = new HashSet<QualifiedName>();
+                var profiles = new HashSet<string>(StringComparer.Ordinal);
+                var orderedProfiles = new List<string>();
+                foreach (IConformanceContributor contributor in contributors)
+                {
+                    foreach (QualifiedName unit in contributor.ConformanceUnits)
                     {
-                        units.Add(unit);
+                        if (!unit.IsNull)
+                        {
+                            units.Add(unit);
+                        }
+                    }
+                    foreach (string profile in contributor.ServerProfiles)
+                    {
+                        if (!string.IsNullOrEmpty(profile) && profiles.Add(profile))
+                        {
+                            orderedProfiles.Add(profile);
+                        }
                     }
                 }
-                foreach (string profile in contributor.ServerProfiles)
-                {
-                    if (!string.IsNullOrEmpty(profile) && profiles.Add(profile))
-                    {
-                        orderedProfiles.Add(profile);
-                    }
-                }
-            }
 
-            var orderedUnits = new List<QualifiedName>(units);
-            orderedUnits.Sort((left, right) => string.CompareOrdinal(left.Name, right.Name));
-            lock (m_lock)
-            {
-                m_conformanceUnits = units;
+                lock (m_lock)
+                {
+                    if (registrationVersion != m_registrationVersion)
+                    {
+                        continue;
+                    }
+                    m_conformanceUnits = units;
+                }
+
+                var orderedUnits = new List<QualifiedName>(units);
+                orderedUnits.Sort((left, right) => string.CompareOrdinal(left.Name, right.Name));
+                return (orderedUnits.ToArrayOf(), orderedProfiles.ToArrayOf());
             }
-            return (orderedUnits.ToArrayOf(), orderedProfiles.ToArrayOf());
         }
 
         private readonly Lock m_lock = new();
@@ -243,6 +263,7 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly List<IConformanceContributor> m_contributors = [];
         private HashSet<QualifiedName> m_conformanceUnits;
+        private long m_registrationVersion;
         private bool m_disposed;
     }
 }
