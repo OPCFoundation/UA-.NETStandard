@@ -181,6 +181,39 @@ reports a listed test that passes as a Warning, so a fixed stack is noticed.
 Add an entry only after confirming that the foreign stack, not the 2.0 stack,
 deviates from the specification; a 2.0 defect is fixed instead.
 
+### Current differences (2026-10-04)
+
+A snapshot of the `expected-differences.json` files for the stack versions in
+the table at the top; the JSON files are authoritative and give the evidence.
+✗ = expected difference, blank = passes, n/a = not tested (no server, or
+`EccInteropTests` not run for that peer).
+
+| Area | node-opcua 2.186.15 | Milo 1.1.7 | asyncua 2.0.1 | open62541 1.5.8 | async-opcua 0.19.0 | gopcua 0.9.1 |
+|---|---|---|---|---|---|---|
+| Structure with abstract Enumeration/Structure fields (`ComplexTypes`) | ✗ | ✗ Enumeration as Variant | ✗ | ✗ | ✗ | ✗ |
+| Wrong password status code | | ✗ `BadIdentityTokenInvalid` | | | | n/a |
+| MaxArrayLength enforced on write | | ✗ | ✗ | ✗ | | n/a |
+| `Bad_ResponseTooLarge` instead of closing | | | ✗ | ✗ | | n/a |
+| BrowseNext / browse paging | | | ✗ not implemented | | ✗ inconsistent order | n/a |
+| Operation limits (MaxNodesPerRead) enforced | | | ✗ | | | n/a |
+| Status of Call with missing arguments | | | ✗ `BadUnexpectedError` | | | n/a |
+| Write with wrong type rejected | | | | | ✗ | n/a |
+| Queue overflow info bits | | | ✗ none | | ✗ no InfoType bit | n/a |
+| SetTriggering | | | ✗ | | | n/a |
+| Republish error codes | | | ✗ answers Good | | | n/a |
+| Server.GetMonitoredItems (after TransferSubscriptions) | | | ✗ | | | n/a |
+| IndexRange on Read/Write | | | ✗ ignored | | | n/a |
+| Session survives transport loss (reconnect) | | | ✗ server | | ✗ client nonce | |
+| ConditionRefresh | | | | ✗ | ✗ | n/a |
+| X509 user token signature (client) | | | | | ✗ | |
+| ECC Sign-only key derivation (Part 6 6.8.1) | n/a | n/a | n/a | ✗ | n/a | n/a |
+| ECC policies available | n/a | n/a | n/a | | ✗ none | n/a |
+| `Aes256_Sha256_RsaPss` (OAEP padding) | | | | | | ✗ |
+
+AddNodes/DeleteNodes are not listed: servers without NodeManagement answer
+`Bad_ServiceUnsupported` or `Bad_NotSupported`, which the test reports as
+inconclusive by design.
+
 ## Adding a peer
 
 1. Create `tests/Opc.Ua.Interop.Peers/<stack>` with the peer, its lock or
