@@ -1870,6 +1870,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A Timestamp or ViewVersion without a ViewId selects a version of the
+        /// entire AddressSpace, which is not available: OPC 10000-4 Table 178
+        /// requires Bad_ViewTimestampInvalid / Bad_ViewVersionInvalid rather than
+        /// Bad_ViewIdUnknown, and Bad_ViewParameterMismatch when both are set.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task BrowseAsyncNullViewIdWithVersionParametersReturnsViewParameterErrorAsync(
+            bool setTimestamp,
+            bool setVersion)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("ViewParamParent", nsIdx);
+            parent.BrowseName = new QualifiedName("ViewParamParent", nsIdx);
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+
+            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            var continuationPoint = new ContinuationPoint
+            {
+                NodeToBrowse = handle,
+                Manager = manager,
+                View = new ViewDescription
+                {
+                    Timestamp = setTimestamp ? DateTimeUtc.Now : DateTimeUtc.MinValue,
+                    ViewVersion = setVersion ? 1u : 0u
+                },
+                BrowseDirection = BrowseDirection.Forward,
+                IncludeSubtypes = true,
+                ResultMask = BrowseResultMask.All
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BrowseAsync(
+                    new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None),
+                    continuationPoint,
+                    new List<ReferenceDescription>()).ConfigureAwait(false));
+
+            StatusCode expected = setTimestamp && setVersion
+                ? StatusCodes.BadViewParameterMismatch
+                : setTimestamp ? StatusCodes.BadViewTimestampInvalid : StatusCodes.BadViewVersionInvalid;
+            Assert.That(ex.StatusCode, Is.EqualTo(expected));
+        }
+
+        /// <summary>
         /// Issue #4415: the async node manager iterates a browser through
         /// <see cref="INodeBrowser.NextAsync"/>, so a browser whose references
         /// come from I/O can await that work. The browser here refuses the
