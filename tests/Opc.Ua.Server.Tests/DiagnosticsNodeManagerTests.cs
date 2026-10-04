@@ -43,6 +43,11 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class DiagnosticsNodeManagerTests
     {
+        private static readonly string[] s_declaredAndContributedProfiles =
+            ["urn:profile:declared", "urn:profile:contributed"];
+
+        private static readonly string[] s_declaredProfiles = ["urn:profile:declared"];
+
         private Mock<IServerInternal> m_serverMock;
         private Mock<ICoreNodeManager> m_coreNodeManagerMock;
         private Mock<ISubscriptionManager> m_subscriptionManagerMock;
@@ -120,6 +125,36 @@ namespace Opc.Ua.Server.Tests
             ResendDataMethodState resendData = manager.FindPredefinedNode<ResendDataMethodState>(MethodIds.Server_ResendData);
             Assert.That(resendData, Is.Not.Null, "ResendData should exist.");
             Assert.That(resendData.OnCallMethod, Is.Not.Null, "ResendData OnCallMethod should be wired.");
+        }
+
+        [Test]
+        public async Task PublishConformanceUnits_KeepsDeclaredProfilesAndWithdrawsContributedOnesAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            BaseVariableState profiles = manager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            BaseVariableState units = manager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ConformanceUnits);
+            ArrayOf<string> declared = ["urn:profile:declared"];
+            profiles.Value = Variant.From(declared);
+
+            await manager.PublishConformanceUnitsAsync(
+                [new QualifiedName("Contributed Unit")],
+                ["urn:profile:contributed", "urn:profile:declared"]).ConfigureAwait(false);
+            string[] first = profiles.Value.TryGetValue(out ArrayOf<string> afterFirst) ? afterFirst.ToArray()! : [];
+
+            await manager.PublishConformanceUnitsAsync([], []).ConfigureAwait(false);
+            string[] second = profiles.Value.TryGetValue(out ArrayOf<string> afterSecond) ? afterSecond.ToArray()! : [];
+
+            Assert.That(first, Is.EqualTo(s_declaredAndContributedProfiles));
+            Assert.That(second, Is.EqualTo(s_declaredProfiles));
+            Assert.That(
+                units.Value.TryGetValue(out ArrayOf<QualifiedName> unitsAfter) && unitsAfter.Count == 0,
+                Is.True);
         }
 
         [Test]
@@ -907,6 +942,32 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(permissionsOther.IsNull, Is.False);
             Assert.That(permissionsOther[0].Permissions, Is.EqualTo((uint)PermissionType.None),
                 "Other non-admin session should NOT have permissions on this session");
+
+            // 5. Any session may browse the server wide subscription array, whose entries are
+            // filtered per owning session; only an administrator may read its value.
+            NodeState subscriptionArray = manager.FindPredefinedNode<NodeState>(
+                VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
+            ArrayOf<RolePermissionType> permissionsArray = default;
+            subscriptionArray.OnReadUserRolePermissions(otherContext, subscriptionArray, ref permissionsArray);
+            Assert.That(permissionsArray[0].Permissions, Is.EqualTo((uint)PermissionType.Browse),
+                "Non-admin sessions may browse, but not read, the subscription diagnostics array");
+
+            permissionsArray = default;
+            subscriptionArray.OnReadUserRolePermissions(adminContext, subscriptionArray, ref permissionsArray);
+            Assert.That(((PermissionType)permissionsArray[0].Permissions).HasFlag(PermissionType.Read), Is.True,
+                "Admin should read the subscription diagnostics array");
+
+            foreach (NodeId arrayId in new[]
+            {
+                VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray,
+                VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray
+            })
+            {
+                NodeState arrayNode = manager.FindPredefinedNode<NodeState>(arrayId);
+                permissionsArray = default;
+                arrayNode.OnReadUserRolePermissions(otherContext, arrayNode, ref permissionsArray);
+                Assert.That(permissionsArray[0].Permissions, Is.EqualTo((uint)PermissionType.None), arrayId.ToString());
+            }
         }
 
         [Test]
