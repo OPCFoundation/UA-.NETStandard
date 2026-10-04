@@ -245,18 +245,22 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ServerTimestamp, Is.EqualTo(expectedTimestamp));
         }
 
+        /// <summary>
+        /// The calculation uses TreatUncertainAsBad = true, so the Uncertain raw value at the
+        /// interval start is equivalent to Bad (Part 13 §4.2.1.2) and is interpolated over.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void InterpolativeExactUncertainBoundaryPreservesUncertainRawValue(bool reverse)
+        public void InterpolativeExactUncertainBoundaryTreatedAsBadUsesSurroundingGoodValues(bool reverse)
         {
             DataValue result = ComputeInterpolativeBoundary(
                 StatusCodes.UncertainLastUsableValue,
                 reverse);
             DateTimeUtc expectedTimestamp = new(2024, 1, 1, 0, 0, 10);
 
-            Assert.That(result.WrappedValue.ConvertToDouble().GetDouble(), Is.EqualTo(123.0));
-            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
-            Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Raw));
+            Assert.That(result.WrappedValue.ConvertToDouble().GetDouble(), Is.EqualTo(100.0));
+            Assert.That(result.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+            Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Interpolated));
             Assert.That(result.SourceTimestamp, Is.EqualTo(expectedTimestamp));
             Assert.That(result.ServerTimestamp, Is.EqualTo(expectedTimestamp));
         }
