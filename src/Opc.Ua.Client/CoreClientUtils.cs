@@ -294,7 +294,8 @@ namespace Opc.Ua.Client
         /// With <paramref name="useSecurity"/> set, an endpoint without
         /// message security is never returned, except an HTTPS endpoint with
         /// SecurityMode None when the discovery URL is HTTPS (TLS protects it)
-        /// and no endpoint with message security matches.</returns>
+        /// and no endpoint with message security matches. An endpoint of the
+        /// OpenAPI mapping (REST) is never returned.</returns>
         public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
@@ -310,6 +311,15 @@ namespace Opc.Ua.Client
             for (int ii = 0; ii < endpoints.Count; ii++)
             {
                 EndpointDescription endpoint = endpoints[ii];
+
+                // A Session cannot be created over the OpenAPI mapping (Part 6
+                // §G.3), a REST binding that shares the URL and the message
+                // security mode of the binary HTTPS endpoint. Select by
+                // TransportProfileUri (Part 4 §5.5.4) instead of by list order.
+                if (IsOpenApiEndpoint(endpoint))
+                {
+                    continue;
+                }
 
                 // check for a match on the URL scheme.
                 if (endpoint.EndpointUrl != null &&
@@ -383,6 +393,7 @@ namespace Opc.Ua.Client
             {
                 bool tlsDiscovery = IsHttpsScheme(url.Scheme);
                 selectedEndpoint = endpoints.Find(e =>
+                    !IsOpenApiEndpoint(e) &&
                     e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true &&
                     (!useSecurity ||
                         IsSecureMode(e.SecurityMode) ||
@@ -399,6 +410,16 @@ namespace Opc.Ua.Client
         private static bool IsSecureMode(MessageSecurityMode mode)
         {
             return mode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
+        }
+
+        /// <summary>
+        /// Whether the endpoint uses the OpenAPI mapping (HTTPS or WSS)
+        /// rather than a transport a Session can be created over.
+        /// </summary>
+        private static bool IsOpenApiEndpoint(EndpointDescription endpoint)
+        {
+            return Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri) ||
+                Profiles.IsWssOpenApi(endpoint.TransportProfileUri);
         }
 
         /// <summary>
