@@ -77,7 +77,7 @@ namespace Opc.Ua.Server
             StartTime = startTime;
             EndTime = endTime;
             ProcessingInterval = processingInterval;
-            Stepped = stepped;
+            m_stepped = stepped;
             Configuration = configuration;
             TimeFlowsBackward = endTime < startTime;
 
@@ -140,6 +140,7 @@ namespace Opc.Ua.Server
             {
                 return CreateAtTimeNoDataValue(requestedTime);
             }
+
 
             int afterIndex = FindFirstValueAtOrAfter(
                 orderedValues,
@@ -288,6 +289,14 @@ namespace Opc.Ua.Server
             if (value.SourceTimestamp > m_endOfData)
             {
                 m_endOfData = value.SourceTimestamp;
+            }
+
+            // non-numeric values cannot be interpolated with a sloped line.
+            if (!m_nonNumericData &&
+                !value.WrappedValue.IsNull &&
+                !TypeInfo.IsNumericType(value.WrappedValue.TypeInfo.BuiltInType))
+            {
+                m_nonNumericData = true;
             }
 
             // ensure value list is always ordered from past to future.
@@ -490,9 +499,21 @@ namespace Opc.Ua.Server
         protected double ProcessingInterval { get; }
 
         /// <summary>
-        /// True if the data series requires stepped interpolation.
+        /// True if the data series requires stepped interpolation: the variable is
+        /// configured as Stepped, or its values are not numeric. Only numeric values
+        /// can be interpolated with a sloped line (Part 13 §5.4.2.3, Table 50), so
+        /// Boolean, String and other non-numeric values always use the value of the
+        /// prior raw value.
         /// </summary>
-        protected bool Stepped { get; }
+        protected bool Stepped => m_stepped || m_nonNumericData;
+
+        /// <summary>
+        /// True if values calculated by sloped interpolation are converted back to the
+        /// data type of the raw values (Part 4 §7.7.3), as aggregates that return the raw
+        /// data type need. TimeAverage and Total return a Double and use the real-valued
+        /// bound (Part 13 §3.1.8), so their calculator clears it.
+        /// </summary>
+        protected bool CastBoundsToSourceType { get; set; } = true;
 
         /// <summary>
         /// The configuration to use when processing.
@@ -976,7 +997,9 @@ namespace Opc.Ua.Server
                 int comparison = CompareTimestamps(timestamp, ii);
                 if (comparison == 0)
                 {
-                    if (StatusCode.IsNotBad(ii.Value.StatusCode))
+                    // Part 13 §4.2.1.2: with TreatUncertainAsBad an Uncertain raw value at
+                    // the timestamp is equivalent to Bad, so the value is interpolated.
+                    if (IsGood(ii.Value))
                     {
                         return ii.Value;
                     }
@@ -1009,7 +1032,8 @@ namespace Opc.Ua.Server
                     dataValue = SlopedInterpolate(
                         timestamp,
                         slice.EarlyBound.Value,
-                        slice.LateBound.Value);
+                        slice.LateBound.Value,
+                        CastBoundsToSourceType);
 
                     if (!ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
                     {
@@ -1030,7 +1054,8 @@ namespace Opc.Ua.Server
                         dataValue = SlopedInterpolate(
                             timestamp,
                             slice.SecondEarlyBound.Value,
-                            slice.EarlyBound.Value);
+                            slice.EarlyBound.Value,
+                            CastBoundsToSourceType);
                         dataValue = dataValue.WithStatus(dataValue.StatusCode
                             .WithCodeBits(StatusCodes.UncertainDataSubNormal));
                         return dataValue;
@@ -1102,6 +1127,25 @@ namespace Opc.Ua.Server
             DataValue earlyBound,
             DataValue lateBound)
         {
+            return SlopedInterpolate(timestamp, earlyBound, lateBound, true);
+        }
+
+        /// <summary>
+        /// Calculate the value at the timestamp using slopped interpolation.
+        /// </summary>
+        /// <param name="timestamp">The timestamp to calculate.</param>
+        /// <param name="earlyBound">The raw value before the timestamp.</param>
+        /// <param name="lateBound">The raw value after the timestamp.</param>
+        /// <param name="castToSourceType">
+        /// True to convert the result to the data type of the early bound (Part 4 §7.7.3);
+        /// false to return the calculated Double.
+        /// </param>
+        public static DataValue SlopedInterpolate(
+            DateTimeUtc timestamp,
+            DataValue earlyBound,
+            DataValue lateBound,
+            bool castToSourceType)
+        {
             try
             {
                 // can't interpolate if no start bound.
@@ -1142,7 +1186,9 @@ namespace Opc.Ua.Server
 
                 // convert back to original type.
                 var dataValue = new DataValue(
-                    CastToOriginalType(calculatedValue, earlyBound),
+                    castToSourceType
+                        ? CastToOriginalType(calculatedValue, earlyBound)
+                        : Variant.From(calculatedValue),
                     StatusCodes.Good,
                     timestamp,
                     timestamp);
@@ -1237,7 +1283,11 @@ namespace Opc.Ua.Server
                     // do sloped interpolation if two good bounds exist.
                     if (IsGood(endBound.Value))
                     {
-                        return SlopedInterpolate(timestamp, startBound.Value, endBound.Value);
+                        return SlopedInterpolate(
+                            timestamp,
+                            startBound.Value,
+                            endBound.Value,
+                            CastBoundsToSourceType);
                     }
                 }
 
@@ -1758,6 +1808,7 @@ namespace Opc.Ua.Server
             return low;
         }
 
+
         private static DataValue CreateAtTimeNoDataValue(
             DateTimeUtc timestamp)
         {
@@ -1778,6 +1829,8 @@ namespace Opc.Ua.Server
 
         private readonly ILogger m_logger;
         private readonly LinkedList<DataValue> m_values;
+        private readonly bool m_stepped;
+        private bool m_nonNumericData;
         private DateTimeUtc m_startOfData;
         private DateTimeUtc m_endOfData;
     }

@@ -60,8 +60,9 @@ namespace Opc.Ua.Server
         /// Publishes the supported conformance units to
         /// <c>Server/ServerCapabilities/ConformanceUnits</c> and merges the
         /// enabled server profiles into <c>Server/ServerCapabilities/ServerProfileArray</c>
-        /// (per OPC UA Part 7). Profiles already present (e.g. from configuration)
-        /// are preserved.
+        /// (per OPC UA Part 7). Profiles present before the first call (e.g. from
+        /// configuration) are preserved; the merged profiles of an earlier call
+        /// are replaced, so a profile left out is withdrawn.
         /// </summary>
         ValueTask PublishConformanceUnitsAsync(
             ArrayOf<QualifiedName> conformanceUnits,
