@@ -582,7 +582,7 @@ while letting PubSub drive the rest.
 
 * OPC UA Part 17 specification:
   https://reference.opcfoundation.org/v105/Core/docs/Part17/
-* [Asset Management Basics](AssetManagementBasics.md#discovery) — the
+* [Asset Management Basics](AMB.md#discovery) — the
   OPC 10000-110 categories `Assets`, `AssetsByProductInstanceUri` and
   `AssetsByAssetId`, which the AMB node manager serves with a registry of its
   own; `FindAlias` on `0:Aliases` does not search them.

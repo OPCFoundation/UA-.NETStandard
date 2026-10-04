@@ -9,7 +9,7 @@ manageable assets, and a client that finds and reads them with `AmbClient`.
 | [AmbServer](AmbServer/) | Serves a cooling pump, the flow sensor it relies on and a hydraulic press as assets, and simulates their health alarms and maintenance |
 | [AmbClient](AmbClient/) | Discovers every asset, prints a snapshot of each, the location hierarchies, adds and removes a documentation link, and streams health alarms and maintenance activities |
 
-The [Asset Management Basics developer guide](../../docs/AssetManagementBasics.md)
+The [Asset Management Basics developer guide](../../docs/AMB.md)
 explains every API used here.
 
 ## Run

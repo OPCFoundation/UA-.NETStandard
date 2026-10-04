@@ -167,7 +167,7 @@ models that each model depends on.
 
 - [Device Integration](DeviceIntegration.md) (OPC 10000-100; preview package) —
   devices, topology, and locking.
-- [Asset Management Basics](AssetManagementBasics.md) (OPC 10000-110; preview
+- [Asset Management Basics](AMB.md) (OPC 10000-110; preview
   package) — make devices, machines, pumps or scales manageable assets:
   discovery, identification, health alarms, maintenance, documentation links
   and locations. Read Device Integration first.
