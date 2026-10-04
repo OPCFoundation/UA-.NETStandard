@@ -934,14 +934,10 @@ namespace Opc.Ua.Server.Historian
                     ? StatusCode.IsGood(value.StatusCode)
                     : StatusCode.IsNotBad(value.StatusCode);
             }
-            bool IsPlaceholder(DataValue value)
-            {
-                return value.StatusCode == StatusCodes.BadNoData ||
-                    value.StatusCode == StatusCodes.BadBoundNotFound;
-            }
             bool NeedsMoreBounds(DataValue endValue, bool before)
             {
-                if (IsPlaceholder(endValue) || IsGoodBound(endValue))
+                // the provider reports a missing bound with Bad_BoundNotFound.
+                if (endValue.StatusCode == StatusCodes.BadBoundNotFound || IsGoodBound(endValue))
                 {
                     return false;
                 }
@@ -949,10 +945,13 @@ namespace Opc.Ua.Server.Historian
                     ? endValue.SourceTimestamp <= rawRequest.StartTime
                     : endValue.SourceTimestamp >= rawRequest.EndTime;
             }
-            async ValueTask<List<DataValue>> ReadMoreBoundsAsync(bool before)
+
+            // Returns the raw values beyond the end value that was read (null when the
+            // search limit was reached), in the order the request queues them.
+            async ValueTask<List<DataValue>?> ReadMoreBoundsAsync(bool before, DataValue endValue)
             {
                 var extra = new List<DataValue>();
-                await AddBoundingValuesAsync(
+                int found = await AddBoundingValuesAsync(
                     extra,
                     opContext,
                     raw,
@@ -962,31 +961,29 @@ namespace Opc.Ua.Server.Historian
                     requiredNonBad: before ? 2 : 1,
                     cancellationToken,
                     IsGoodBound).ConfigureAwait(false);
+                if (found < 0)
+                {
+                    return null;
+                }
 
-                // queue order follows the direction of the request.
+                // the end value and the entries at its timestamp came with the range read.
+                DateTimeUtc endTime = endValue.SourceTimestamp;
+                extra.RemoveAll(value => before
+                    ? value.SourceTimestamp >= endTime
+                    : value.SourceTimestamp <= endTime);
                 extra.Sort((a, b) => rawRequest.IsForward
                     ? a.SourceTimestamp.CompareTo(b.SourceTimestamp)
                     : b.SourceTimestamp.CompareTo(a.SourceTimestamp));
                 return extra;
             }
 
-            // Values are queued in the direction of the request; the raw value at or beyond
-            // an end is also among the extra values, so later duplicates are skipped.
-            DateTimeUtc? lastQueued = null;
-            bool Queue(DataValue value)
+            // queues a batch of bounding values and produces the outputs once.
+            bool QueueBounds(List<DataValue> batch)
             {
-                if (!IsPlaceholder(value))
+                foreach (DataValue value in batch)
                 {
-                    if (lastQueued != null &&
-                        (rawRequest.IsForward
-                            ? value.SourceTimestamp <= lastQueued.Value
-                            : value.SourceTimestamp >= lastQueued.Value))
-                    {
-                        return true;
-                    }
-                    lastQueued = value.SourceTimestamp;
+                    calculator.QueueRawValue(value);
                 }
-                calculator.QueueRawValue(value);
                 return FlushCalculator(
                     calculator,
                     values,
@@ -1008,22 +1005,27 @@ namespace Opc.Ua.Server.Historian
                 if (first && page.Values.Count > 0)
                 {
                     first = false;
-                    if (NeedsMoreBounds(page.Values[0].Value, leadingBefore))
+                    DataValue leadingValue = page.Values[0].Value;
+                    if (NeedsMoreBounds(leadingValue, leadingBefore))
                     {
-                        foreach (DataValue value in await ReadMoreBoundsAsync(leadingBefore)
-                            .ConfigureAwait(false))
+                        List<DataValue>? leading = await ReadMoreBoundsAsync(
+                            leadingBefore,
+                            leadingValue).ConfigureAwait(false);
+                        if (leading == null || !QueueBounds(leading))
                         {
-                            if (!Queue(value))
-                            {
-                                return StatusCodes.BadTooManyOperations;
-                            }
+                            return StatusCodes.BadTooManyOperations;
                         }
                     }
                 }
 
                 foreach (HistoricalDataValue sample in page.Values)
                 {
-                    if (!Queue(sample.Value))
+                    calculator.QueueRawValue(sample.Value);
+                    if (!FlushCalculator(
+                            calculator,
+                            values,
+                            partial: false,
+                            kMaxProcessedBufferedOutputs))
                     {
                         return StatusCodes.BadTooManyOperations;
                     }
@@ -1039,13 +1041,12 @@ namespace Opc.Ua.Server.Historian
 
             if (!first && NeedsMoreBounds(lastValue, !leadingBefore))
             {
-                foreach (DataValue value in await ReadMoreBoundsAsync(!leadingBefore)
-                    .ConfigureAwait(false))
+                List<DataValue>? trailing = await ReadMoreBoundsAsync(
+                    !leadingBefore,
+                    lastValue).ConfigureAwait(false);
+                if (trailing == null || !QueueBounds(trailing))
                 {
-                    if (!Queue(value))
-                    {
-                        return StatusCodes.BadTooManyOperations;
-                    }
+                    return StatusCodes.BadTooManyOperations;
                 }
             }
 

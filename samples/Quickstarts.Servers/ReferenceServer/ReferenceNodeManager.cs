@@ -682,12 +682,11 @@ namespace Quickstarts.ReferenceServer
                 InsertAnnotation = true,
                 ServerTimestampSupported = true,
                 Stepped = false,
-                StartOfArchive = new DateTimeUtc(s_fixedHistoryStart),
-                StartOfOnlineArchive = new DateTimeUtc(s_fixedHistoryStart)
+                StartOfArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000)),
+                StartOfOnlineArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000))
             };
-            var liveStartOfArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000));
             await EnableHistoricalEventsAsync(
-                liveStartOfArchive,
+                capabilities.StartOfArchive,
                 cancellationToken).ConfigureAwait(false);
 
             // The dedicated node whose historian does not support server
@@ -735,6 +734,16 @@ namespace Quickstarts.ReferenceServer
                     HistorianNodeCapabilities nodeCapabilities = noServerTimestamp
                         ? noServerTimestampCapabilities
                         : capabilities;
+
+                    // nodes with the fixed-date segment start their archive there.
+                    if (HasFixedHistorySegment(variable))
+                    {
+                        nodeCapabilities = nodeCapabilities with
+                        {
+                            StartOfArchive = new DateTimeUtc(s_fixedHistoryStart),
+                            StartOfOnlineArchive = new DateTimeUtc(s_fixedHistoryStart)
+                        };
+                    }
                     historianBuilder.Historize(
                         variable,
                         historyAccessLevel: 0,
@@ -788,7 +797,7 @@ namespace Quickstarts.ReferenceServer
                 await historianBuilder.DisposeAsync().ConfigureAwait(false);
             }
             await EnableStructuredHistoryAsync(
-                liveStartOfArchive,
+                capabilities.StartOfArchive,
                 cancellationToken).ConfigureAwait(false);
             await UpdateHistoricalConformanceClaimsAsync(
                 cancellationToken).ConfigureAwait(false);
@@ -1080,6 +1089,18 @@ namespace Quickstarts.ReferenceServer
             };
         }
 
+        /// <summary>
+        /// Scalar history nodes also get the fixed-date segment with the block of Bad values;
+        /// it must end before the samples relative to the server start begin.
+        /// </summary>
+        private static bool HasFixedHistorySegment(BaseVariableState variable)
+        {
+            DateTime fixedEnd = s_fixedHistoryStart.AddSeconds(FixedHistorySampleCount * 10);
+            return variable.DataType != DataTypeIds.DecimalDataType &&
+                variable.ValueRank < ValueRanks.OneDimension &&
+                fixedEnd < DateTime.UtcNow.AddSeconds(-10000);
+        }
+
         private async Task SeedHistoricalNodeAsync(BaseVariableState variable, CancellationToken cancellationToken)
         {
             NodeId nodeId = variable.NodeId;
@@ -1090,10 +1111,7 @@ namespace Quickstarts.ReferenceServer
             DateTime now = DateTime.UtcNow;
             var seed = new List<DataValue>(FixedHistorySampleCount + 1001);
 
-            // scalars also get the fixed-date segment with a block of Bad values; it must end
-            // before the samples relative to the server start begin.
-            DateTime fixedEnd = s_fixedHistoryStart.AddSeconds(FixedHistorySampleCount * 10);
-            if (!isStructure && !isMatrix && !isArray && fixedEnd < now.AddSeconds(-10000))
+            if (HasFixedHistorySegment(variable))
             {
                 for (int ii = 0; ii < FixedHistorySampleCount; ii++)
                 {

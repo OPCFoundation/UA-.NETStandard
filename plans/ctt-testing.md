@@ -4,7 +4,7 @@ How to run the OPC UA Compliance Test Tool (CTT) headless against `ConsoleRefere
 triage the results efficiently.
 
 **Known CTT defects.** Many test cases fail, warn or skip against the reference server because of defects in
-the CTT scripts or its native aggregate oracle, not in the server. They are listed with their Mantis issues in
+the CTT scripts or the native calculation of the expected aggregate values, not in the server. They are listed with their Mantis issues in
 [ctt-issues.md](ctt-issues.md), together with open questions, open server findings and CTT project
 configuration notes. Read that file before a run and treat the failures it lists as expected; only
 investigate what is not in it. When you find a new CTT defect, file it in Mantis and add the failing test, a
@@ -231,8 +231,8 @@ get evidence:
    `Column column="1"` from `data="2"` to `data="0"`. `addLog()` output then lands in the results as
    `ResultNode name="Log"`.
 3. `print()` output is **never** written to the results file; it only appears in the GUI output pane. Switch
-   the relevant `print()` calls in the copy to `addLog()` with a unique prefix. For aggregates, the oracle
-   comparison is `HAAggregateHelper.js` (`CompareValues`/`CompareHistoryData`); set `printResults = false`
+   the relevant `print()` calls in the copy to `addLog()` with a unique prefix. For aggregates, the comparison with the
+   expected values is `HAAggregateHelper.js` (`CompareValues`/`CompareHistoryData`); set `printResults = false`
    in `PerformAggregateCheck` so values are only logged for failing comparisons, and log the request (node,
    aggregate, start, end, interval, TreatUncertainAsBad, PercentDataGood/Bad, sloped, stepped).
 4. Restart the server and rerun the same selection against the copy. Parse the prefixed Log entries into a

@@ -589,6 +589,49 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that a stored BadNoData raw value at the interval start does not stop the live
+        /// read from passing the Good value before it, so the interpolated start bound exists.
+        /// </summary>
+        [Test]
+        public async Task DirectAndLiveIntervalStartingOnStoredBadNoDataUsesEarlierGoodBoundAsync()
+        {
+            var rawValues = new List<DataValue>(13);
+            for (int index = 0; index <= 12; index++)
+            {
+                rawValues.Add(CreateValue(
+                    index,
+                    index == 4 ? StatusCodes.BadNoData : StatusCodes.Good,
+                    index));
+            }
+            AggregateConfiguration configuration = CreateConfiguration(true);
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_TimeAverage,
+                rawValues,
+                AtSeconds(4),
+                AtSeconds(8),
+                4000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_TimeAverage,
+                rawValues,
+                AtSeconds(4),
+                AtSeconds(8),
+                4000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(results[0].WrappedValue.TryGetValue(out double average), Is.True);
+                Assert.That(average, Is.EqualTo(6.0).Within(1e-9));
+                Assert.That(StatusCode.IsBad(results[0].StatusCode), Is.False);
+            }
+        }
+
+        /// <summary>
         /// Verifies that Interpolative treats an Uncertain raw value at the interval start as Bad
         /// when TreatUncertainAsBad is set (Part 13 §4.2.1.2) and interpolates over it.
         /// </summary>
