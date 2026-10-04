@@ -640,6 +640,8 @@ func runClient() int {
 	timeoutSeconds, _ := strconv.Atoi(opt("timeout-seconds", "300"))
 	deadline, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
+	tokenSeconds, _ := strconv.Atoi(opt("token-test-seconds", "65"))
+	checkTimeout := time.Duration(tokenSeconds+45) * time.Second
 
 	started := time.Now()
 	policy := opt("policy", policyNone)
@@ -718,21 +720,42 @@ func runClient() int {
 				continue
 			}
 			t := time.Now()
-			err := func() (err error) {
+			// Each check runs with its own time limit, so a gopcua call that
+			// never returns (some ignore their context, e.g. Subscription.Cancel
+			// while the publish loop is paused) fails that check instead of
+			// stalling the remaining ones past the harness timeout.
+			checkCtx, checkCancel := context.WithTimeout(deadline, checkTimeout)
+			done := make(chan error, 1)
+			go func() {
 				defer func() {
 					if p := recover(); p != nil {
-						err = fmt.Errorf("panic: %v", p)
+						done <- fmt.Errorf("panic: %v", p)
 					}
 				}()
-				return check.fn(deadline, x)
+				done <- check.fn(checkCtx, x)
 			}()
+			var err error
+			select {
+			case err = <-done:
+			case <-time.After(checkTimeout + 5*time.Second):
+				err = fmt.Errorf("the check did not finish within %s", checkTimeout)
+				// The abandoned goroutine may still use the session.
+				x.c = nil
+			}
+			checkCancel()
 			report(check.name, err, t)
 			if err != nil {
 				x.ensureConnected(deadline)
 			}
 		}
 		t := time.Now()
-		report("CloseSession", x.c.Close(context.Background()), t)
+		if x.c == nil {
+			report("CloseSession", errors.New("no session left to close"), t)
+		} else {
+			closeCtx, closeCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			report("CloseSession", x.c.Close(closeCtx), t)
+			closeCancel()
+		}
 	} else if client != nil {
 		_ = client.Close(context.Background())
 	}

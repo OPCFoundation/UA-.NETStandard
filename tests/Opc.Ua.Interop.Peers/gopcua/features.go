@@ -95,8 +95,26 @@ func (x *ctx) subscribe(c context.Context, interval time.Duration) (*recorder, e
 
 func (r *recorder) cancel() {
 	if r != nil {
-		_ = r.sub.Cancel(context.Background())
+		c, done := cleanupContext()
+		defer done()
+		// Subscription.Cancel can block beyond its context while the publish
+		// loop is paused (e.g. after the subscription was transferred away).
+		finished := make(chan struct{})
+		go func() {
+			_ = r.sub.Cancel(c)
+			close(finished)
+		}()
+		select {
+		case <-finished:
+		case <-c.Done():
+		}
 	}
+}
+
+// cleanupContext bounds a deferred cleanup call, so a cleanup that the server
+// never answers cannot stall the next checks.
+func cleanupContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 10*time.Second)
 }
 
 func (r *recorder) dataOf(handle uint32) []*ua.DataValue {
@@ -510,7 +528,11 @@ func checkTransferSubscription(c context.Context, x *ctx) error {
 	if err != nil {
 		return fmt.Errorf("opening the second session failed: %w", err)
 	}
-	defer target.Close(context.Background())
+	defer func() {
+		cc, done := cleanupContext()
+		defer done()
+		_ = target.Close(cc)
+	}()
 	// gopcua has no API to adopt a transferred subscription: its publish loop
 	// only dispatches subscriptions it created (and pauses on
 	// BadNoSubscription), so session B sends its own Publish requests.
@@ -531,7 +553,9 @@ func checkTransferSubscription(c context.Context, x *ctx) error {
 		return fmt.Errorf("TransferSubscriptions returned %v", transfer.Results)
 	}
 	defer func() {
-		_ = target.Send(context.Background(), &ua.DeleteSubscriptionsRequest{SubscriptionIDs: []uint32{r.sub.SubscriptionID}},
+		cc, done := cleanupContext()
+		defer done()
+		_ = target.Send(cc, &ua.DeleteSubscriptionsRequest{SubscriptionIDs: []uint32{r.sub.SubscriptionID}},
 			func(ua.Response) error { return nil })
 	}()
 	written := int32(time.Now().UnixNano() & 0x7fffffff)

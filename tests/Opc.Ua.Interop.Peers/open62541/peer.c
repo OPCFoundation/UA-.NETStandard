@@ -311,9 +311,10 @@ static void addVariable(UA_Server *server, const char *name, const UA_DataType *
     attr.dataType = type->typeId;
     attr.accessLevel = UA_ACCESSLEVELMASK_READ | (writable ? UA_ACCESSLEVELMASK_WRITE : 0);
     attr.userAccessLevel = attr.accessLevel;
+    /* Must outlive the UA_Server_addVariableNode call below. */
+    UA_UInt32 dims[1] = {0};
     if(arrayLength > 0) {
         attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
-        UA_UInt32 dims[1] = {0};
         attr.arrayDimensions = dims;
         attr.arrayDimensionsSize = 1;
         UA_Variant_setArray(&attr.value, (void *)(uintptr_t)value, arrayLength, type);
