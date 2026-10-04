@@ -43,6 +43,11 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class DiagnosticsNodeManagerTests
     {
+        private static readonly string[] s_declaredAndContributedProfiles =
+            ["urn:profile:declared", "urn:profile:contributed"];
+
+        private static readonly string[] s_declaredProfiles = ["urn:profile:declared"];
+
         private Mock<IServerInternal> m_serverMock;
         private Mock<ICoreNodeManager> m_coreNodeManagerMock;
         private Mock<ISubscriptionManager> m_subscriptionManagerMock;
@@ -120,6 +125,36 @@ namespace Opc.Ua.Server.Tests
             ResendDataMethodState resendData = manager.FindPredefinedNode<ResendDataMethodState>(MethodIds.Server_ResendData);
             Assert.That(resendData, Is.Not.Null, "ResendData should exist.");
             Assert.That(resendData.OnCallMethod, Is.Not.Null, "ResendData OnCallMethod should be wired.");
+        }
+
+        [Test]
+        public async Task PublishConformanceUnits_KeepsDeclaredProfilesAndWithdrawsContributedOnesAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            BaseVariableState profiles = manager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            BaseVariableState units = manager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ConformanceUnits);
+            ArrayOf<string> declared = ["urn:profile:declared"];
+            profiles.Value = Variant.From(declared);
+
+            await manager.PublishConformanceUnitsAsync(
+                [new QualifiedName("Contributed Unit")],
+                ["urn:profile:contributed", "urn:profile:declared"]).ConfigureAwait(false);
+            string[] first = profiles.Value.TryGetValue(out ArrayOf<string> afterFirst) ? afterFirst.ToArray()! : [];
+
+            await manager.PublishConformanceUnitsAsync([], []).ConfigureAwait(false);
+            string[] second = profiles.Value.TryGetValue(out ArrayOf<string> afterSecond) ? afterSecond.ToArray()! : [];
+
+            Assert.That(first, Is.EqualTo(s_declaredAndContributedProfiles));
+            Assert.That(second, Is.EqualTo(s_declaredProfiles));
+            Assert.That(
+                units.Value.TryGetValue(out ArrayOf<QualifiedName> unitsAfter) && unitsAfter.Count == 0,
+                Is.True);
         }
 
         [Test]

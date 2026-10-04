@@ -129,7 +129,8 @@ namespace Opc.Ua.Server.Fluent
     /// Strongly-typed fluent builder for an alarm/condition state
     /// instance. Returned by the <c>CreateLimitAlarm</c> /
     /// <c>CreateExclusiveLimitAlarm</c> / <c>CreateOffNormalAlarm</c>
-    /// helpers on <see cref="INodeBuilder"/>.
+    /// helpers on <see cref="INodeBuilder"/>, and by <c>CreateAlarm</c> for
+    /// any other condition type.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -252,6 +253,46 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Creates an alarm of any condition type under the resolved
+        /// parent, for the types the dedicated helpers do not cover - a
+        /// companion specification's alarm or condition type, or a server
+        /// specific subtype. The alarm is attached and registered exactly
+        /// as the dedicated helpers attach theirs: it is enabled, the
+        /// parent becomes its <c>SourceNode</c>, <c>SourceName</c> and
+        /// event notifier, and a fluent node manager releases all of that
+        /// again on teardown.
+        /// </summary>
+        /// <typeparam name="TState">The condition state the factory creates.</typeparam>
+        /// <param name="parent">The Object the alarm is created on.</param>
+        /// <param name="browseName">The browse name of the alarm.</param>
+        /// <param name="factory">
+        /// Creates the uninitialized alarm for the parent it is handed, for
+        /// example <c>parent =&gt; new OffNormalAlarmState(parent)</c>. The
+        /// builder assigns the identity and initializes the alarm.
+        /// </param>
+        /// <returns>A builder for further configuration of the alarm.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="parent"/>, <paramref name="browseName"/> or
+        /// <paramref name="factory"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadTypeMismatch"/> when the parent is not an
+        /// Object.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="factory"/> returned <c>null</c>.
+        /// </exception>
+        public static IAlarmBuilder<TState> CreateAlarm<TState>(
+            this INodeBuilder parent,
+            QualifiedName browseName,
+            Func<NodeState, TState> factory)
+            where TState : ConditionState
+        {
+            TState alarm = AttachAlarm(parent, browseName, factory);
+            return new AlarmBuilder<TState>(parent, alarm);
+        }
+
+        /// <summary>
         /// Escape hatch: directly mutate the underlying alarm state.
         /// Use for properties not covered by the narrow MVP surface
         /// (e.g. severity table, retain flag, branches).
@@ -298,6 +339,7 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TState">The concrete alarm state created by the factory.</typeparam>
         /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="InvalidOperationException">The factory returned <c>null</c>.</exception>
         private static TState AttachAlarm<TState>(
             INodeBuilder parent,
             QualifiedName browseName,
@@ -325,7 +367,8 @@ namespace Opc.Ua.Server.Fluent
                     parent.Node.NodeClass);
             }
             string symbolicName = browseName.Name ?? string.Empty;
-            TState alarm = factory(parent.Node);
+            TState alarm = factory(parent.Node)
+                ?? throw new InvalidOperationException("The alarm factory returned no alarm.");
             alarm.SymbolicName = symbolicName;
             alarm.BrowseName = browseName;
             alarm.DisplayName = new LocalizedText(symbolicName);

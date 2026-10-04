@@ -1760,11 +1760,6 @@ namespace Opc.Ua.Server
                     conformanceUnitsNode.ClearChangeMasks(SystemContext, false);
                 }
 
-                if (serverProfiles.Count == 0)
-                {
-                    return;
-                }
-
                 BaseVariableState? profileArrayNode = FindPredefinedNode<BaseVariableState>(
                     VariableIds.Server_ServerCapabilities_ServerProfileArray);
 
@@ -1773,19 +1768,26 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // Preserve profiles already declared (e.g. from configuration) and
-                // append the contributed ones that are not already present.
-                var merged = new List<string>();
-                if (profileArrayNode.Value.TryGetValue(out ArrayOf<string> existing))
+                // The profiles the server declares itself (from configuration)
+                // are taken from the first publish on and always kept. The
+                // contributed ones are replaced on every publish, so a profile
+                // no contributor reports any more disappears.
+                if (m_declaredServerProfiles == null)
                 {
-                    foreach (string profile in existing)
+                    m_declaredServerProfiles = [];
+                    if (profileArrayNode.Value.TryGetValue(out ArrayOf<string> existing))
                     {
-                        if (!string.IsNullOrEmpty(profile))
+                        foreach (string profile in existing)
                         {
-                            merged.Add(profile);
+                            if (!string.IsNullOrEmpty(profile) && !m_declaredServerProfiles.Contains(profile))
+                            {
+                                m_declaredServerProfiles.Add(profile);
+                            }
                         }
                     }
                 }
+
+                var merged = new List<string>(m_declaredServerProfiles);
                 foreach (string profile in serverProfiles)
                 {
                     if (!string.IsNullOrEmpty(profile) && !merged.Contains(profile))
@@ -2745,6 +2747,7 @@ namespace Opc.Ua.Server
         private readonly ConcurrentDictionary<uint, ISampledDataChangeMonitoredItem> m_sampledItems;
         private readonly double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState? m_historyCapabilities;
+        private List<string>? m_declaredServerProfiles;
 
         /// <summary>
         /// Aggregates the per-node capabilities advertised by every
