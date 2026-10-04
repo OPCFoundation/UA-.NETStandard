@@ -8,7 +8,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 
 - "Resolved / fixed" in Mantis means the fix is in the CTT script repository. It ships with a script
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
-- The ids (1–19, C1–C53, U1–U4) are stable references for notes and commit messages; missing ids were
+- The ids (1–19, C1–C55, U1–U4) are stable references for notes and commit messages; missing ids were
   withdrawn or no longer fail against the reference server.
 - Mantis states were last checked on 2026-09-25.
 
@@ -128,6 +128,45 @@ CTT project configuration notes follow the tables. The procedure for running the
   per-condition state, which feeds itself (up to about 850 events in 15 s). In 8 of 28 Enable runs the CTT alarm
   thread then returned no events for the rest of the CU, although the server sent and the CTT acknowledged them,
   and the remaining test cases ran to 3 × Alarm Cycle Time. Held back: needs more investigation.
+- **C54. GDS AliasName Discovery `002.js`, `004.js`, `006.js`, `007.js`, `009.js`, `011.js`, `012.js`, `014.js`,
+  `015.js`** compare each AliasFor target the GDS replicated with the target read from the AliasName source
+  using `UaExpandedNodeId.equals()` (`AssertAliasNamesReplicated`, `library/GDS/AliasNameDiscoveryHelpers.js`
+  line 92). The source references its own node (`ns=5;i=10012`, ServerIndex 0); the GDS has to reference that
+  node on the source (OPC 10000-17 Annex C.1: "the ExpandedNodeId of all of the referenced NodeIds and the
+  ServerUri of the Server containing the NodeId"; OPC 10000-4 §7.16: ServerIndex is the index in the local
+  ServerArray, 0 is the local Server), so a conformant GDS never matches: *"AliasFor reference to
+  'AliasNameVar_Topic_1' (NodeId: ns=5;i=10006, NamespaceUri: , ServerIndex: 0) is missing on replicated
+  element 'Topic_Alias_1'"*. Fix: compare the identifier and the namespace URI of the source target with the
+  GDS target, and require the GDS target's ServerIndex to select the source's ApplicationUri in the GDS
+  ServerArray. With that comparison (a diagnostic script copy compared the identifier and required a ServerIndex
+  above 0) and the C55 fix, all 15 test cases pass. Draft Mantis text:
+  > **GDS AliasName Discovery: AssertAliasNamesReplicated compares AliasFor targets of different Servers with
+  > equals().** `AssertAliasNamesReplicated()` checks the replicated AliasFor references with
+  > `currentFindReference.NodeId.equals( currentSearchReference.NodeId )`. `currentFindReference` was browsed
+  > on the AliasName source, where the target is a local node (ServerIndex 0, namespace index of the source).
+  > On the GDS the same target is a node of another Server: Part 17 Annex C.1 requires the GDS to provide "the
+  > ExpandedNodeId of all of the referenced NodeIds and the ServerUri of the Server containing the NodeId", so
+  > the reference carries the ServerIndex of the source in the GDS ServerArray (Part 4 §7.16) and, because the
+  > GDS namespace table differs from the source's, the namespace URI instead of the source's namespace index.
+  > The two ExpandedNodeIds can never be equal, and every test case that registers a source fails with
+  > "AliasFor reference to ... is missing on replicated element". Please compare the identifier, resolve the
+  > source's namespace index to its URI (source NamespaceArray) and compare it with the GDS target's
+  > NamespaceUri, and check that the GDS ServerArray entry at the target's ServerIndex is the source's
+  > ApplicationUri.
+- **C55. GDS AliasName Discovery `001.js`, `005.js`, `010.js`, `013.js`** describe the check as "No Alias name
+  instances associated with remote alias servers are present under TagVariables/Topics" but fail on every
+  AliasNameType instance in the folders, also on aliases the GDS defines for its own nodes. A GDS that is also
+  an AliasName Server (the reference server in `--ctt` mode: `TIC101_PV`, `Devices.Heater_Power`,
+  `ServerEvents`, …) can never pass, although OPC 10000-17 does not forbid local aliases on a GDS. Fix: count only
+  aliases with an AliasFor reference to another Server (ServerIndex > 0). With that filter the four test cases
+  pass against the reference server; a GDS without own aliases passes unchanged.
+  Draft Mantis text:
+  > **GDS AliasName Discovery 001/005/010/013: "no remote aliases" check fails on the GDS's own aliases.** The
+  > test cases expect "No Alias name instances associated with remote alias servers" under TagVariables
+  > (i=23479) and Topics (i=23488) before anything is registered, but report every AliasNameType instance
+  > found there. A GDS that also exposes AliasNames for its own nodes (its AliasFor targets have ServerIndex 0)
+  > fails although it aggregated nothing. Please only report AliasNameType instances that have an AliasFor
+  > reference whose target ExpandedNodeId has a ServerIndex other than 0.
 - **Aggregate oracle differences.**
   - Non-numeric nodes: status-only aggregates (DurationGood/Bad, PercentGood/Bad, WorstQuality2, DurationInState*)
     differ on Boolean/String nodes from numeric nodes with the same status timeline, and the oracle returns
@@ -223,15 +262,26 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   earlier runs and changes the record counts every test expects. Delete that file before each run.
   Run the four GDS CUs in one run: the test cases within a CU depend on the records registered by
   its `initialize.js` and earlier test cases (`012.js` and `019.js` unregister and re-register them).
-- **GDS AliasName Discovery.** Not applicable: this CU belongs to the *GDS AliasName Server Facet*
-  (OPC 10000-17 Annex C.2: aggregate the AliasNames of registered Servers into TagVariables/Topics
-  and add their ServerUri to ServerArray), which `Opc.Ua.Gds.Server` does not implement, so `002.js`
-  and `004.js` fail on any GDS built from it. `001.js` additionally fails only against the reference
-  server: it expects empty TagVariables (`i=23479`) and Topics (`i=23488`) folders on a GDS without
-  registrations, but the reference server is itself an AliasName Server and exposes its own aliases
-  there (`Devices.Heater_Power`, `TIC101_PV`, `ServerEvents`, …). Deselect the CU until the facet is
-  implemented. `005.js`–`015.js` also need two or three AliasName sources configured
-  (`/Server Test/GDS/AliasName Discovery/AliasName Source N URL`).
+- **GDS AliasName Discovery.** The CU tests the *GDS AliasName Server Facet* (OPC 10000-17 Annex C). The
+  reference server in `--ctt` mode implements it: `Ctt.ReferenceServer.Config.xml` sets
+  `<EnableAliasNameAggregation>true</EnableAliasNameAggregation>` in its `GlobalDiscoveryServerConfiguration`,
+  so the GDS reads the AliasNames of every Server registered with the ServerCapability `ALIAS` before
+  RegisterApplication returns. `initialize.js` always uses the CTT's embedded server as the first source.
+  `005.js`–`009.js` need a second and `010.js`–`015.js` a third AliasName Server
+  (`/Server Test/GDS/AliasName Discovery/AliasName Source 1 URL`, `... Source 2 URL`, plus UserName/Password
+  if they do not allow Anonymous). `samples/UAReferenceServer.ctt.xml` leaves them empty because the repository
+  has no suitable server: a second reference server is no good source, as it has the same alias and category
+  names as the GDS host (`Devices`), and the checks match categories by name (see below). Each source must
+  - offer Anonymous on an endpoint the CTT selects (it prefers SecurityMode None) and trust the CTT and the GDS,
+  - use alias and category names that neither the other sources nor the GDS itself use: after a source is
+    unregistered, `CheckReplicationOfOtherCategories(AssertNotReplicated)` fails on any category of that name
+    that is still there, although Annex C.3 keeps a category another Server still provides,
+  - expose no optional children (`FindAliasVerbose`, `AddAliasesToCategory`, `LastChange`) on its own
+    categories: the check expects every hierarchical reference of a source category on the replicated one,
+    while the GDS exposes `FindAlias` only on the categories it merges.
+  `RegisterApplication` warns (*"delay in excess of ... ms"*) because it waits for the source to be read.
+  `001.js`, `005.js`, `010.js` and `013.js` fail against the reference server because of its own aliases (C55),
+  and the test cases that check AliasFor references fail on any conformant GDS (C54).
 - **GDS LDS-ME Connectivity.** `initialize.js` skips the CU unless QueryApplications with
   `ServerCapabilities = ["LDS"]` returns a record: register an LDS/LDS-ME with the GDS first. The
   reference server does not include an LDS.

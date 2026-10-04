@@ -27,28 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Opc.Ua.Gds.Server.AliasNames
 {
     /// <summary>
-    /// Centrally managed event id offsets for the source-generated log messages of the
-    /// Opc.Ua.Gds.Server assembly.
+    /// Pulls the AliasNames of a registered AliasName Server for the GDS
+    /// AliasName Server facet (OPC 10000-17 Annex C.1: "Pull all
+    /// AliasNameCategory instances").
     /// </summary>
-    /// <remarks>
-    /// Each per-file <c>&lt;ClassName&gt;Log</c> class allocates its event ids relative to the
-    /// offset constant below, using <c>offset + &lt;zero-based message index&gt;</c>. Every block
-    /// reserves at least five spare slots for future messages and is rounded up to the next
-    /// multiple of ten so that ids can be documented and managed from this single location. The
-    /// class name is prefixed with the assembly token to avoid CS0436 collisions with the
-    /// event-id classes of other assemblies exposed through <c>InternalsVisibleTo</c>.
-    /// </remarks>
-    internal static class GdsServerCommonEventIds
+    public interface IAliasNameSourceReader
     {
-        public const int ApplicationsNodeManager = 0;
-        public const int AuditEvents = 30;
-        public const int CertificateGroup = 40;
-        public const int GdsApplicationSelfAdminProvider = 50;
-        public const int GdsServerHostedService = 60;
-        public const int GlobalDiscoverySampleServer = 70;
-        public const int AliasNameAggregation = 80;
+        /// <summary>
+        /// Reads the AliasNames of <paramref name="application"/>.
+        /// </summary>
+        /// <param name="application">The registered application record;
+        /// its <c>DiscoveryUrls</c> locate the source.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The source's categories and aliases.</returns>
+        /// <exception cref="ServiceResultException">The source could not be
+        /// reached or read.</exception>
+        ValueTask<AliasNameSourceSnapshot> ReadAsync(
+            ApplicationRecordDataType application,
+            CancellationToken ct = default);
     }
 }
