@@ -323,6 +323,26 @@
         </xs:documentation>
       </xs:annotation>
     </xs:attribute>
+    <xs:attribute name="GuidId" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The GuidId is an alternate unique identifier for the node. It is used instead of the NumericId or
+            StringId when the node is imported from a NodeSet2 file that uses a Guid identifier.
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="OpaqueId" type="xs:base64Binary" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          <html:p>
+            The OpaqueId is an alternate unique identifier for the node. It is used instead of the NumericId,
+            StringId or GuidId when the node is imported from a NodeSet2 file that uses an Opaque identifier.
+          </html:p>
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
     <xs:attribute name="WriteAccess" type="xs:unsignedInt" use="optional" default="0">
       <xs:annotation>
         <xs:documentation>

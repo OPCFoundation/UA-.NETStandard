@@ -54,6 +54,7 @@ namespace Opc.Ua.Server
         /// certificate type); it may or may not currently resolve to a
         /// certificate on disk.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static CertificateIdentifier FindCertificateIdentifier(
             ServerCertificateGroup certificateGroup,
             NodeId certificateTypeId)
@@ -262,6 +263,7 @@ namespace Opc.Ua.Server
         /// alongside orphaned or half-imported issuers.
         /// </para>
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private async Task<ArrayOf<string>> ApplyCertificateSlotChangeAsync(
             ServerCertificateGroup certificateGroup,
             CertificateIdentifier existingCertIdentifier,
@@ -313,7 +315,7 @@ namespace Opc.Ua.Server
                             await appStore.AddAsync(
                                 removedCertificateBackup,
                                 passwordProvider?.GetPassword(existingCertIdentifier),
-                                ct).ConfigureAwait(false);
+                                CancellationToken.None).ConfigureAwait(false);
                             m_logger.RestoredPreviousCertificateAfterReplacementFailed(
                                 existingCertIdentifier.CertificateType);
                         }
@@ -376,8 +378,8 @@ namespace Opc.Ua.Server
                         existingCertIdentifier,
                         addCertificateWithKey,
                         removedCertificateBackup,
-                        newlyAddedIssuerThumbprints?.ToArrayOf() ?? ArrayOf<string>.Empty,
-                        ct).ConfigureAwait(false);
+                        newlyAddedIssuerThumbprints?.ToArrayOf() ?? [],
+                        CancellationToken.None).ConfigureAwait(false);
 
                     throw;
                 }
@@ -387,10 +389,9 @@ namespace Opc.Ua.Server
             {
                 if (m_configuration.CertificateManager is ICertificateLifecycle lifecycle)
                 {
-                    using Certificate certOnly = Certificate.FromRawData(addCertificateWithKey.RawData);
                     await lifecycle.UpdateApplicationCertificateAsync(
                         existingCertIdentifier.CertificateType,
-                        certOnly,
+                        addCertificateWithKey,
                         issuerChain: null,
                         ct).ConfigureAwait(false);
                 }
@@ -409,7 +410,7 @@ namespace Opc.Ua.Server
                     ct).ConfigureAwait(false);
             }
 
-            return newlyAddedIssuerThumbprints?.ToArrayOf() ?? ArrayOf<string>.Empty;
+            return newlyAddedIssuerThumbprints?.ToArrayOf() ?? [];
         }
 
         /// <summary>
@@ -446,7 +447,9 @@ namespace Opc.Ua.Server
                     .OpenStore(existingCertIdentifier, Server.Telemetry);
                 if (appStore != null)
                 {
-                    await appStore.DeleteAsync(committedCertificateWithKey.Thumbprint, ct)
+                    await appStore.DeleteAsync(
+                            committedCertificateWithKey.Thumbprint,
+                            CancellationToken.None)
                         .ConfigureAwait(false);
                     ICertificatePasswordProvider? passwordProvider = m_configuration
                         .SecurityConfiguration
@@ -454,7 +457,7 @@ namespace Opc.Ua.Server
                     await appStore.AddAsync(
                         removedCertificateBackup,
                         passwordProvider?.GetPassword(existingCertIdentifier),
-                        ct).ConfigureAwait(false);
+                        CancellationToken.None).ConfigureAwait(false);
                     m_logger.RestoredPreviousCertificateAfterIssuerImportFailed(
                         existingCertIdentifier.CertificateType);
                 }
@@ -471,7 +474,10 @@ namespace Opc.Ua.Server
             // own scope here so a hypothetical future change to that
             // contract can never mask the original issuer-import failure
             // this method was called to compensate.
-            await RemoveIssuerCertificatesAsync(certificateGroup, newlyAddedIssuerThumbprints, ct)
+            await RemoveIssuerCertificatesAsync(
+                    certificateGroup,
+                    newlyAddedIssuerThumbprints,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
         }
 
@@ -553,7 +559,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            using Certificate rotationCopy = Certificate.FromRawData(oldCertificateWithKey.RawData);
+            using var rotationCopy = Certificate.FromRawData(oldCertificateWithKey.RawData);
             collector.Add(new PendingCertificateRotation
             {
                 OldCertificate = rotationCopy.AddRef(),
@@ -592,6 +598,7 @@ namespace Opc.Ua.Server
         /// before deciding whether this additional delete is safe.
         /// </para>
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private void EnsureCertificateNotSoleEndpointReference(NodeId certificateTypeId)
         {
             if (m_configuration.CertificateManager is not ICertificateRegistry registry)
@@ -668,14 +675,15 @@ namespace Opc.Ua.Server
             // active certificate registry rather than the EndpointDescription's
             // ServerCertificate blob captured at startup: after a successful
             // certificate rotation that blob may be stale, so the live registry
-            // (keyed by the endpoint's SecurityPolicyUri, exactly as the channel
-            // handshake resolves the presented certificate) is authoritative for
+            // (using the endpoint's security and user-token policies) is authoritative for
             // which certificate/type is presented at this moment. When no
             // registry is available (an external/mocked IServerInternal) the
             // endpoint's own blob is the only source and is used as a fallback.
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
 
-            if (IsCertificateReferencedByEndpoint(deletedThumbprint!, endpoints, registry, Server.Telemetry))
+            if (IsCertificateReferencedByEndpoint(
+                deletedThumbprint!, endpoints, registry, Server.Telemetry,
+                (Server as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,

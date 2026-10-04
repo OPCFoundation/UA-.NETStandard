@@ -2,6 +2,21 @@
 
 > **When to read this:** Read this for the new ref-counted `Certificate` wrapper, the segregated-interface `CertificateManager` design, the `ICertificateProvider` cache, and the obsoleted `X509Certificate2` direct-exposure APIs.
 
+## Contents
+
+- [Centralised certificate cache via `ICertificateProvider`](#centralised-certificate-cache-via-icertificateprovider)
+- [Certificate Management](#certificate-management)
+  - [ECC security policies require .NET 8 or later](#ecc-security-policies-require-net-8-or-later)
+  - [Certificates with an empty distinguished name are always rejected](#certificates-with-an-empty-distinguished-name-are-always-rejected)
+  - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
+  - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
+  - [CertificateIdentifier is metadata-only](#certificateidentifier-is-metadata-only)
+  - [CertificateStoreIdentifier is a store description — `OpenStore` returns a caller-owned store](#certificatestoreidentifier-is-a-store-description--openstore-returns-a-caller-owned-store)
+  - [PushManagement transactions: TrustList/Certificate updates now require `ApplyChanges`](#pushmanagement-transactions-trustlistcertificate-updates-now-require-applychanges)
+  - [Optional ServerConfiguration surface now available (additive, opt-in)](#optional-serverconfiguration-surface-now-available-additive-opt-in)
+  - [`MaxTrustListSize` is advertised honestly and bounded by a safety ceiling](#maxtrustlistsize-is-advertised-honestly-and-bounded-by-a-safety-ceiling)
+  - [Obsoleted certificate APIs](#obsoleted-certificate-apis)
+
 ## Centralised certificate cache via `ICertificateProvider`
 
 A new public `ICertificateProvider` interface exposes the existing
@@ -38,6 +53,20 @@ UserIdentity userIdentity = await UserIdentity.CreateAsync(
 ```
 
 ## Certificate Management
+
+### ECC security policies require .NET 8 or later
+
+The built-in ECC SecureChannel and user-token policies are unavailable in the
+.NET Framework 4.7.2/4.8 and .NET Standard 2.1 builds. OPC UA Part 6 requires
+raw ECDH shared-secret agreement before HKDF; the older `DeriveKeyMaterial`
+API applies an additional hash and cannot interoperate with compliant peers.
+`SecurityPolicies.GetInfo` returns `null` for these policies on downlevel builds.
+
+**Migration:** target .NET 8 or later and use its matching stack assets for ECC,
+or configure a supported RSA security policy on both peers. Loading downlevel
+stack assets on a newer runtime does not restore raw-secret support.
+ECC certificate parsing and signing alone do not imply ECC policy support.
+See [ECC platform requirements](../../EccProfiles.md#known-limitations).
 
 ### Certificates with an empty distinguished name are always rejected
 
@@ -147,7 +176,7 @@ See [CertificateManager.md](../../CertificateManager.md) for the full API refere
 | `using var id = new CertificateIdentifier(...);` | `var id = new CertificateIdentifier(...);` (no `using`) |
 | `IList<CertificateIdentifier> issuers = ...; var cert = issuers[i].Certificate;` | `IList<CertificateIssuerReference> issuers = ...; var cert = issuers[i].Certificate;` |
 
-See [CertificateManager.md](../../CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
+See [CertificateManager.md](../../CertificateManager.md#materializing-a-certificate-from-a-certificateidentifier) for the resolver API this migration targets.
 
 ### CertificateStoreIdentifier is a store description — `OpenStore` returns a caller-owned store
 
@@ -221,7 +250,7 @@ through the new `ServerConfigurationOptions` argument on
 
 Previously, a `ServerConfiguration.MaxTrustListSize` of `0` (unlimited per OPC
 UA Part 12 §8.4.5) was advertised to Clients as `0` while the server silently
-enforced a hidden 1&nbsp;MiB cap on TrustList `Read`/`Write`. The advertised
+enforced a hidden 1 MiB cap on TrustList `Read`/`Write`. The advertised
 value and the enforced value could therefore disagree.
 
 The server now:
@@ -229,17 +258,17 @@ The server now:
 - **Advertises the honest effective limit.** `ServerConfiguration.MaxTrustListSize`
   now reports the value the TrustList handlers actually enforce — never `0`
   while a finite cap is in force. A server configured with `MaxTrustListSize = 0`
-  now advertises the safety ceiling (default 1&nbsp;MiB) instead of `0`.
+  now advertises the safety ceiling (default 1 MiB) instead of `0`.
 - **Adds a configurable resource-protection safety ceiling.**
   `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` (default
-  1&nbsp;MiB) bounds the actually-enforced size. The effective limit is:
+  1 MiB) bounds the actually-enforced size. The effective limit is:
   `MaxTrustListSize == 0` → the ceiling; `MaxTrustListSize` above the ceiling →
   the ceiling; otherwise → the configured `MaxTrustListSize`.
 
 **Migration action.** No action is required for the common cases
-(`MaxTrustListSize` of `0` or a finite value ≤ 1&nbsp;MiB); enforcement is
+(`MaxTrustListSize` of `0` or a finite value ≤ 1 MiB); enforcement is
 unchanged and only the advertised value becomes honest. **If you configured a
-finite `MaxTrustListSize` larger than 1&nbsp;MiB**, raise
+finite `MaxTrustListSize` larger than 1 MiB**, raise
 `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` to at least that
 value, otherwise the effective limit is clamped to the ceiling:
 
@@ -253,12 +282,12 @@ builder.ConfigureServerConfiguration(o =>
 
 The legacy `TrustList` constructor overloads (without an explicit safety
 ceiling) are unchanged and remain fully backward compatible: a finite size is
-honored exactly (never clamped) and `0` falls back to the 1&nbsp;MiB default.
+honored exactly (never clamped) and `0` falls back to the 1 MiB default.
 
 ### Obsoleted certificate APIs
 
-The following APIs are marked `[Obsolete]` and will be removed in the next minor version. They remain
-functional forwarders to the new design for binary-compatibility, but emit `CS0618` warnings when used.
+The following static factory methods remain `[Obsolete]` forwarders and emit
+`CS0618` when used. Migrate them to the instance-based factory and issuer APIs.
 
 | Obsolete API | Replacement |
 |-------------|-------------|
@@ -269,16 +298,25 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 | `CertificateFactory.RevokeCertificate(...)` | `DefaultCertificateIssuer.Instance.RevokeCertificates(...)` |
 | `CertificateFactory.CreateCertificateWithPEMPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(...)` |
 | `CertificateFactory.CreateCertificateWithPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPrivateKey(...)` |
-| `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via dependency injection or pass to the `CertificateManager` constructor |
+| `CertificateStoreType.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` through dependency injection or pass it to `CertificateManager`. This obsolete registration API is not a factory forwarder. |
+
+#### Removed certificate APIs
+
+The following types and properties are removed, not obsolete forwarders.
+Update callers before compiling against 2.0.
+
+| Removed API | Replacement |
+|-------------|-------------|
 | `CertificateValidator` (class) | `ICertificateManager` (composed of `ICertificateValidatorEx` for validation, `ICertificateRegistry` for app certs, `ICertificateTrustListManager` for trust lists, `ICertificateLifecycle` for change events). Construct via `CertificateManagerFactory.Create(securityConfiguration, telemetry, ...)` |
 | `ICertificateValidator` (interface) | `ICertificateValidatorEx` from `ICertificateManager`. The new interface returns a structured `CertificateValidationResult` (`IsValid`, `StatusCode`, `Errors`, `IsBeingTrustedTransiently`) instead of throwing. Per-error accept logic moves from the `CertificateValidation` event to the new `CertificateValidationOptions.AcceptError` callback. |
 | `CertificateTypesProvider` (class) | `ICertificateRegistry` (composed in `ICertificateManager`). Use `using CertificateEntry? e = manager.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri);` (caller-owned — dispose the entry). The entry already carries the chain: use `e.IssuerChain` / `e.GetEncodedChainBlob()`. |
-| `ApplicationConfiguration.CertificateValidator` (property) | `ApplicationConfiguration.CertificateManager` (parallel property — set in `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`) |
+| `CertificateValidatorAdapter` (class) | No legacy bridge; consume `ICertificateValidatorEx` or `ICertificateManager` directly. |
+| `ApplicationConfiguration.CertificateValidator` (property) | `ApplicationConfiguration.CertificateManager` (set in `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`) |
 | `ServerBase.CertificateValidator` (property) | `ServerBase.CertificateManager` |
 | `ServerBase.InstanceCertificateTypesProvider` (property) | `ServerBase.CertificateManager` (use `ICertificateRegistry` surface) |
 
 > **Lifecycle ordering.** `configuration.CertificateManager` is populated *inside* `await applicationInstance.CheckApplicationInstanceCertificatesAsync(...)`. Code that reads it before that call gets `null`. The required ordering is:
->
+
 > 1. Construct `new ApplicationInstance(telemetry)`.
 > 2. Load `ApplicationConfiguration` (e.g. via `LoadApplicationConfigurationAsync`).
 > 3. `await applicationInstance.CheckApplicationInstanceCertificatesAsync(silent: false, ..., ct);`.
@@ -286,8 +324,10 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 
 #### Migrating the `CertificateValidator.CertificateValidation` event
 
-The legacy event with mutable `e.Accept = true` mutability has been replaced by
-the structured `CertificateValidationOptions.AcceptError` callback:
+The legacy event with mutable `e.Accept = true` has been replaced by
+the structured `CertificateValidationOptions.AcceptError` callback. The following
+untrusted-certificate exception is for controlled development only; configure
+trust stores instead in production.
 
 ```csharp
 // Before:
@@ -307,7 +347,7 @@ var options = new CertificateValidationOptions
         error.StatusCode == StatusCodes.BadCertificateUntrusted
 };
 CertificateValidationResult result =
-    await applicationInstance.CertificateManager.ValidateAsync(cert, options: options);
+    await configuration.CertificateManager.ValidateAsync(cert, options: options);
 if (!result.IsValid)
 {
     throw new ServiceResultException(result.StatusCode);
@@ -319,17 +359,16 @@ if (!result.IsValid)
 `CertificateValidator.ValidateApplicationUri(...)` and
 `CertificateValidator.ValidateDomains(...)` are now exposed as extension
 methods on `ICertificateValidatorEx` in the
-`Opc.Ua.CertificateValidationExtensions` static class. Existing call sites
-that previously used the legacy class continue to work transparently.
+`Opc.Ua.CertificateValidationExtensions` static class. Change the receiver to
+`configuration.CertificateManager`; the removed legacy class is not a
+compatibility shim.
 
 > The `CertificateFactory.DefaultKeySize` / `DefaultLifeTime` / `DefaultHashSize` constants are
 > intentionally **not** marked obsolete; they remain the canonical default values used across
 > configuration sites.
 
-To suppress `CS0618` warnings while migrating, add at the top of affected files:
-```csharp
-#pragma warning disable CS0618 // Obsolete API usage during migration
-```
+Replace the obsolete calls rather than suppressing `CS0618` across a file.
+Warnings for forwarders do not imply that the removed APIs above are available.
 
 ---
 
@@ -338,4 +377,3 @@ To suppress `CS0618` warnings while migrating, add at the top of affected files:
 - Related: [identity.md](identity.md), [configuration.md](configuration.md), [sessions-subscriptions.md](sessions-subscriptions.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

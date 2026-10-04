@@ -258,11 +258,22 @@ public sealed class ModelInspectorBackendTests
             {
                 JsonNode document = JsonNode.Parse(schema.Text)!;
                 JsonNode properties = document["$defs"]!["Root"]!["properties"]!;
-                Assert.That(properties["NumberValue"]!["$ref"]!.GetValue<string>(), Is.EqualTo("#/$defs/Ua_Variant"));
-                Assert.That(properties["IntegerValue"]!["$ref"]!.GetValue<string>(), Is.EqualTo("#/$defs/Ua_Variant"));
-                Assert.That(properties["UIntegerValue"]!["$ref"]!.GetValue<string>(), Is.EqualTo("#/$defs/Ua_Variant"));
+                Assert.That(VariantReference("NumberValue"), Is.EqualTo("#/$defs/Ua_Variant"));
+                Assert.That(VariantReference("IntegerValue"), Is.EqualTo("#/$defs/Ua_Variant"));
+                Assert.That(VariantReference("UIntegerValue"), Is.EqualTo("#/$defs/Ua_Variant"));
                 Assert.That(schema.MediaType, Is.EqualTo("application/schema+json"));
                 Assert.That(schema.Extension, Is.EqualTo("json"));
+
+                string VariantReference(string name)
+                {
+                    JsonNode field = properties[name]!;
+                    if (format == UaSchemaFormat.JsonVerbose)
+                    {
+                        Assert.That(field["anyOf"]![1]!["type"]!.GetValue<string>(), Is.EqualTo("null"));
+                        field = field["anyOf"]![0]!;
+                    }
+                    return field["$ref"]!.GetValue<string>();
+                }
             }
             else
             {

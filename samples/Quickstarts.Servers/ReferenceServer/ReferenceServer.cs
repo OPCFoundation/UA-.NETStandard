@@ -195,11 +195,15 @@ namespace Quickstarts.ReferenceServer
             {
                 // FileSystem node manager — exposes the configured
                 // provider (defaults to a temp folder) under the standard
-                // Server.FileSystem object (i=16314).
+                // Server.FileSystem object (i=16314). The reference server is a
+                // test server, so anonymous clients may modify the mount too.
                 Opc.Ua.Server.FileSystem.IFileSystemProvider provider =
                     FileSystemProvider ?? CreateDefaultFileSystemProvider();
                 asyncNodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
-                    server, configuration, provider));
+                    server, configuration, provider)
+                {
+                    AllowAnonymousWrite = true
+                });
             }
 
             // OPC UA Part 17 — AliasName provider for the reference server.
@@ -458,6 +462,15 @@ namespace Quickstarts.ReferenceServer
                 }
             }
 
+            // Offer the application name in the advertised locales, so FindServers and
+            // GetEndpoints return a de-DE ApplicationName when the client asks for German.
+            string applicationName = configuration.ApplicationName ?? string.Empty;
+            resourceManager.Add(ApplicationNameKey, "en-US", applicationName);
+            resourceManager.Add(
+                ApplicationNameKey,
+                "de-DE",
+                applicationName.Replace("Reference Server", "Referenzserver", StringComparison.Ordinal));
+
             return resourceManager;
         }
 
@@ -487,6 +500,15 @@ namespace Quickstarts.ReferenceServer
             base.OnServerStarted(server);
 
             RegisterIdentityAuthenticators(server);
+
+            // Key the ApplicationName of the endpoints, so the resource manager translates it.
+            if (ServerDescription != null)
+            {
+                ServerDescription.ApplicationName = new LocalizedText(
+                    ApplicationNameKey,
+                    "en-US",
+                    ServerDescription.ApplicationName.Text ?? string.Empty);
+            }
 
             try
             {
@@ -866,6 +888,7 @@ namespace Quickstarts.ReferenceServer
             base.Dispose(disposing);
         }
 
+        private const string ApplicationNameKey = "ApplicationName";
         private CertificateManager? m_userCertificateValidator;
         private string? m_rejectedUserStorePath;
         private readonly ITelemetryContext m_telemetry;

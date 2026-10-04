@@ -103,10 +103,6 @@ namespace Opc.Ua.Server.Tests
             return identity.Object;
         }
 
-        // ----------------------------------------------------------------
-        // RoleManager.ResolveGrantedRoles integration (Part 18 §4.4.4)
-        // ----------------------------------------------------------------
-
         [Test]
         public void AddMandatoryRoles_RoleManagerGrantsRole_AddsToEffectiveIdentity()
         {
@@ -153,10 +149,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Observer), Is.False);
             Assert.That(result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Operator), Is.False);
         }
-
-        // ----------------------------------------------------------------
-        // MustChangePassword integration (Part 18 §5.2.8)
-        // ----------------------------------------------------------------
 
         [Test]
         public void AddMandatoryRoles_MustChangePasswordSet_RestrictsSessionToAnonymousRole()
@@ -227,7 +219,7 @@ namespace Opc.Ua.Server.Tests
                     "no role other than Anonymous may remain");
                 Assert.That(
                     ((RoleBasedIdentity)result).Roles,
-                    Is.EquivalentTo(new[] { Role.Anonymous }),
+                    Is.EquivalentTo([Role.Anonymous]),
                     "the Roles collection must be reduced to Anonymous as well");
                 // ChangePassword still has to identify the caller.
                 Assert.That(result.TokenType, Is.EqualTo(UserTokenType.UserName));
@@ -301,10 +293,6 @@ namespace Opc.Ua.Server.Tests
             userManagement.Verify(u => u.MustChangePassword(It.IsAny<string>()), Times.Never,
                 "MustChangePassword should only be consulted for USERNAME tokens.");
         }
-
-        // ----------------------------------------------------------------
-        // ComputeActivationStatus — Good_PasswordChangeRequired (Part 18 §5.2.8)
-        // ----------------------------------------------------------------
 
         [Test]
         public void ComputeActivationStatus_MustChangePasswordSet_ReturnsGoodPasswordChangeRequired()
@@ -385,10 +373,6 @@ namespace Opc.Ua.Server.Tests
                 "USERNAME identities without a DisplayName cannot be looked up — must return Good.");
             userManagement.Verify(u => u.MustChangePassword(It.IsAny<string>()), Times.Never);
         }
-
-        // ----------------------------------------------------------------
-        // Identity registry before legacy ImpersonateUser event
-        // ----------------------------------------------------------------
 
         [Test]
         public async Task AuthenticateUserIdentityAsyncRegistryAcceptedSkipsLegacyAndRoleManagerGrants()
@@ -509,10 +493,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(legacyCalls, Is.EqualTo(1));
         }
 
-        // ----------------------------------------------------------------
-        // Live re-evaluation on RoleConfigurationChanged (Part 18 §4.4.1)
-        // ----------------------------------------------------------------
-
         [Test]
         public void OnRoleConfigurationChanged_MarksAllSessionsStale()
         {
@@ -561,7 +541,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ReevaluateIdentityIfStale_NotStale_DoesNotInvokeRefresh()
+        public void ReevaluateIdentityIfStaleNotStaleDoesNotInvokeRefresh()
         {
             using TestableSessionManager manager = CreateManager();
 
@@ -571,16 +551,18 @@ namespace Opc.Ua.Server.Tests
 
             manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
 
-            session.Verify(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()), Times.Never,
+            session.Verify(s => s.CaptureIdentityRefreshSnapshot(), Times.Never);
+            session.Verify(s => s.TryRefreshEffectiveIdentity(
+                It.IsAny<IUserIdentity>(), It.IsAny<long>(), It.IsAny<IUserIdentity>()), Times.Never,
                 "Fresh sessions must not be refreshed.");
         }
 
         [Test]
-        public void ReevaluateIdentityIfStale_StaleSession_RefreshesWithLayeredIdentity()
+        public void ReevaluateIdentityIfStaleStaleSessionRefreshesWithLayeredIdentity()
         {
             // The RoleManager grants Observer to any AuthenticatedUser; the
             // re-evaluation should apply this on top of the original Identity
-            // and pass the result to RefreshEffectiveIdentity.
+            // and commit it using the captured identity generation.
             using var roleManager = new RoleManager();
             Assert.That(ServiceResult.IsGood(
                 roleManager.AddIdentity(
@@ -594,16 +576,24 @@ namespace Opc.Ua.Server.Tests
 
             using TestableSessionManager manager = CreateManager();
 
-            IUserIdentity originalIdentity = CreateUserNameIdentity("alice");
+            IUserIdentity originalIdentity = new RoleBasedIdentity(
+                CreateUserNameIdentity("alice"),
+                [Role.Operator],
+                m_serverMock.Object.NamespaceUris);
+            const long generation = 17;
             IUserIdentity? refreshed = null;
             var session = new Mock<ISession>();
             session.Setup(s => s.IsIdentityStale).Returns(true);
             session.Setup(s => s.Identity).Returns(originalIdentity);
             session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
+            session.Setup(s => s.CaptureIdentityRefreshSnapshot())
+                .Returns(new IdentityRefreshSnapshot(originalIdentity, generation));
             session.Setup(s => s.ClientCertificate)
                 .Returns((Security.Certificates.Certificate)null!);
-            session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
-                .Callback<IUserIdentity>(id => refreshed = id);
+            session.Setup(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, generation, It.IsAny<IUserIdentity>()))
+                .Callback<IUserIdentity, long, IUserIdentity>((_, _, id) => refreshed = id)
+                .Returns(true);
 
             SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
             manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
@@ -611,22 +601,32 @@ namespace Opc.Ua.Server.Tests
             Assert.That(refreshed, Is.Not.Null, "Stale session must be refreshed.");
             Assert.That(refreshed!.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Observer), Is.True,
                 "Refreshed identity must reflect the current RoleManager grants.");
+            Assert.That(refreshed.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Operator), Is.True,
+                "Refreshing dynamic roles must preserve roles from the original identity.");
+            session.Verify(s => s.CaptureIdentityRefreshSnapshot(), Times.Once);
+            session.Verify(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, generation, refreshed), Times.Once);
         }
 
         [Test]
-        public void ReevaluateIdentityIfStale_RefreshThrows_DoesNotPropagate()
+        public void ReevaluateIdentityIfStaleRefreshThrowsDoesNotPropagate()
         {
             using TestableSessionManager manager = CreateManager();
 
             IUserIdentity originalIdentity = CreateUserNameIdentity("alice");
+            const long generation = 23;
+            var failure = new InvalidOperationException("session disposed");
             var session = new Mock<ISession>();
             session.Setup(s => s.IsIdentityStale).Returns(true);
             session.Setup(s => s.Identity).Returns(originalIdentity);
             session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
+            session.Setup(s => s.CaptureIdentityRefreshSnapshot())
+                .Returns(new IdentityRefreshSnapshot(originalIdentity, generation));
             session.Setup(s => s.ClientCertificate)
                 .Returns((Security.Certificates.Certificate)null!);
-            session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
-                .Throws(new InvalidOperationException("session disposed"));
+            session.Setup(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, generation, It.IsAny<IUserIdentity>()))
+                .Throws(failure);
 
             SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
 
@@ -634,10 +634,13 @@ namespace Opc.Ua.Server.Tests
             // (e.g. mid-disposal race) must not poison the request pipeline.
             Assert.DoesNotThrow(
                 () => manager.PublicReevaluateIdentityIfStale(session.Object, channelContext));
+            session.Verify(s => s.CaptureIdentityRefreshSnapshot(), Times.Once);
+            session.Verify(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, generation, originalIdentity), Times.Once);
         }
 
         [Test]
-        public void ReevaluateIdentityIfStale_RuleRemoved_DropsPreviouslyGrantedRole()
+        public void ReevaluateIdentityIfStaleRuleRemovedDropsPreviouslyGrantedRole()
         {
             // Regression for PR #3778 review comment (romanett): when a role
             // grant is REMOVED from the role manager (e.g. RemoveIdentity),
@@ -661,16 +664,21 @@ namespace Opc.Ua.Server.Tests
 
             using TestableSessionManager manager = CreateManager();
             IUserIdentity originalIdentity = CreateUserNameIdentity("alice");
+            long generation = 31;
 
             IUserIdentity? refreshed = null;
             var session = new Mock<ISession>();
             session.Setup(s => s.IsIdentityStale).Returns(true);
             session.Setup(s => s.Identity).Returns(originalIdentity);
-            session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
+            session.Setup(s => s.EffectiveIdentity).Returns(() => refreshed ?? originalIdentity);
+            session.Setup(s => s.CaptureIdentityRefreshSnapshot())
+                .Returns(() => new IdentityRefreshSnapshot(originalIdentity, generation));
             session.Setup(s => s.ClientCertificate)
                 .Returns((Security.Certificates.Certificate)null!);
-            session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
-                .Callback<IUserIdentity>(id => refreshed = id);
+            session.Setup(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, It.Is<long>(value => value == generation), It.IsAny<IUserIdentity>()))
+                .Callback<IUserIdentity, long, IUserIdentity>((_, _, id) => refreshed = id)
+                .Returns(true);
 
             SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
 
@@ -679,6 +687,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(refreshed, Is.Not.Null);
             Assert.That(refreshed!.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Observer), Is.True,
                 "Before the rule is removed, alice must have the Observer role.");
+            session.Verify(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, 31, refreshed), Times.Once);
 
             // Admin removes the identity rule that granted Observer to alice.
             ServiceResult removeRule = roleManager.RemoveIdentity(
@@ -691,15 +701,18 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(removeRule), Is.True);
 
             // Second re-evaluation: rule is gone → Observer must NOT be granted.
-            refreshed = null;
+            generation++;
             manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
             Assert.That(refreshed, Is.Not.Null);
             Assert.That(refreshed!.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Observer), Is.False,
                 "After RemoveIdentity, the live re-evaluation must drop the previously granted Observer role.");
+            session.Verify(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, 32, refreshed), Times.Once);
+            session.Verify(s => s.CaptureIdentityRefreshSnapshot(), Times.Exactly(2));
         }
 
         [Test]
-        public void ReevaluateIdentityIfStale_RoleRemoved_DropsPreviouslyGrantedRole()
+        public void ReevaluateIdentityIfStaleRoleRemovedDropsPreviouslyGrantedRole()
         {
             // Stronger regression: removing the entire role from the manager
             // (RemoveRole) must also drop the role from active sessions on
@@ -725,29 +738,41 @@ namespace Opc.Ua.Server.Tests
 
             using TestableSessionManager manager = CreateManager();
             IUserIdentity originalIdentity = CreateUserNameIdentity("alice");
+            long generation = 41;
 
             IUserIdentity? refreshed = null;
             var session = new Mock<ISession>();
             session.Setup(s => s.IsIdentityStale).Returns(true);
             session.Setup(s => s.Identity).Returns(originalIdentity);
-            session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
+            session.Setup(s => s.EffectiveIdentity).Returns(() => refreshed ?? originalIdentity);
+            session.Setup(s => s.CaptureIdentityRefreshSnapshot())
+                .Returns(() => new IdentityRefreshSnapshot(originalIdentity, generation));
             session.Setup(s => s.ClientCertificate)
                 .Returns((Security.Certificates.Certificate)null!);
-            session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
-                .Callback<IUserIdentity>(id => refreshed = id);
+            session.Setup(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, It.Is<long>(value => value == generation), It.IsAny<IUserIdentity>()))
+                .Callback<IUserIdentity, long, IUserIdentity>((_, _, id) => refreshed = id)
+                .Returns(true);
 
             SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
 
             manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
+            Assert.That(refreshed, Is.Not.Null);
             Assert.That(refreshed!.GrantedRoleIds.Contains(customRoleId), Is.True,
                 "Before RemoveRole, alice must have the custom role.");
+            session.Verify(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, 41, refreshed), Times.Once);
 
             Assert.That(ServiceResult.IsGood(roleManager.RemoveRole(customRoleId)), Is.True);
 
-            refreshed = null;
+            generation++;
             manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
+            Assert.That(refreshed, Is.Not.Null);
             Assert.That(refreshed!.GrantedRoleIds.Contains(customRoleId), Is.False,
                 "After RemoveRole, the live re-evaluation must drop the removed role.");
+            session.Verify(s => s.TryRefreshEffectiveIdentity(
+                originalIdentity, 42, refreshed), Times.Once);
+            session.Verify(s => s.CaptureIdentityRefreshSnapshot(), Times.Exactly(2));
         }
 
         private static SecureChannelContext CreateSecureChannelContext(MessageSecurityMode securityMode)

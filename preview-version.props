@@ -1,0 +1,40 @@
+<Project>
+  <!--
+    Numbers the "-preview.N" suffix that version.targets appends to the
+    preview-only package families (see ApplyPreviewPackageVersion) whenever
+    the root package version is an exact stable release, such as "2.0.0" on
+    release/2.0 at the moment the release is cut. That root version carries
+    no prerelease tag of its own at that point, so there is no git-height
+    placeholder available to derive a number from; this property supplies an
+    explicit, auditable one instead.
+
+    This is a manually curated release value, not a computed one:
+    * It MUST sort strictly above every already-published "-preview.N" (or
+      legacy "-preview.YYYYMMDD") identifier for the same "OPCFoundation.
+      NetStandard.Opc.Ua.*" package IDs on both nuget.org and the GitHub
+      Packages feed, including every ".Debug" package variant. Note that
+      ordinary development keeps publishing "<base>-preview.{height}"
+      packages with a monotonically growing height, so a value that was
+      correct when it was picked goes stale on its own.
+      .azurepipelines/validate-preview-package-ordering.ps1 proves this
+      invariant against both feeds and fails the stable candidate build and
+      the release promotion when it no longer holds; the value below is a
+      headroom estimate, and that check - not this comment - is what
+      guarantees correctness.
+    * It is reset/re-picked independently for every new stable base version
+      (2.0.0, 2.0.1, 2.1.0, ...); do not carry a prior release's value
+      forward without checking published versions again.
+    * See docs/ReleaseProcess.md ("Common preflight" and the per-release
+      procedures) for the exact commands used to look up the currently
+      published preview numbers before changing this value.
+
+    While the root version itself is still a prerelease (for example
+    "2.0.0-preview.{height}" during ordinary development, or
+    "2.0.1-preview.{height}" while release/2.0 is stabilizing the next
+    patch), version.targets reuses that prerelease tag directly and this
+    property has no effect.
+  -->
+  <PropertyGroup>
+    <PreviewPackageBuildNumber Condition="'$(PreviewPackageBuildNumber)' == ''">100</PreviewPackageBuildNumber>
+  </PropertyGroup>
+</Project>

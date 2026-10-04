@@ -30,8 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -158,16 +160,27 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                ServiceResult result = await nodeManager
-                    .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    continue;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ServiceResult result = await nodeManager
+                        .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
+                        .ConfigureAwait(false);
+                    // An Uncertain verdict is not a denial, so it must not drop the event.
+                    if (!ServiceResult.IsBad(result))
+                    {
+                        monitoredItem.QueueEvent(e);
+                    }
                 }
-
-                monitoredItem.QueueEvent(e);
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception error) when (
+                    error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+                {
+                    TelemetryExtensions.CreateLogger<EventManager>(null).EventReceiverFailed(error, monitoredItem.Id);
+                }
             }
         }
 
@@ -208,31 +221,35 @@ namespace Opc.Ua.Server
                     monitoredItemId = monitoredItemIdFactory.GetNextId();
                 } while (!m_monitoredItems.TryAdd(monitoredItemId, null!));
 
-                // create the monitored item.
-                IEventMonitoredItem monitoredItem = new MonitoredItem(
-                    m_server,
-                    nodeManager,
-                    handle,
-                    subscriptionId,
-                    monitoredItemId,
-                    itemToCreate.ItemToMonitor,
-                    context.DiagnosticsMask,
-                    timestampsToReturn,
-                    itemToCreate.MonitoringMode,
-                    itemToCreate.RequestedParameters.ClientHandle,
-                    filter,
-                    filter,
-                    null,
-                    samplingInterval,
-                    revisedQueueSize,
-                    itemToCreate.RequestedParameters.DiscardOldest,
-                    MinimumSamplingIntervals.Continuous,
-                    createDurable);
-
-                // now save the monitored item.
-                Debug.Assert(m_monitoredItems[monitoredItemId] == null);
-                m_monitoredItems[monitoredItemId] = monitoredItem;
-                return monitoredItem;
+                try
+                {
+                    IEventMonitoredItem monitoredItem = new MonitoredItem(
+                        m_server,
+                        nodeManager,
+                        handle,
+                        subscriptionId,
+                        monitoredItemId,
+                        itemToCreate.ItemToMonitor,
+                        context.DiagnosticsMask,
+                        timestampsToReturn,
+                        itemToCreate.MonitoringMode,
+                        itemToCreate.RequestedParameters.ClientHandle,
+                        filter,
+                        filter,
+                        null,
+                        samplingInterval,
+                        revisedQueueSize,
+                        itemToCreate.RequestedParameters.DiscardOldest,
+                        MinimumSamplingIntervals.Continuous,
+                        createDurable);
+                    m_monitoredItems[monitoredItemId] = monitoredItem;
+                    return monitoredItem;
+                }
+                catch
+                {
+                    m_monitoredItems.Remove(monitoredItemId);
+                    throw;
+                }
             }
         }
 
@@ -349,7 +366,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return [.. m_monitoredItems.Values];
+                return [.. m_monitoredItems.Values.Where(item => item != null)];
             }
         }
 
@@ -358,5 +375,15 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private readonly uint m_maxEventQueueSize;
         private readonly uint m_maxDurableEventQueueSize;
+    }
+
+    internal static partial class EventManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.EventManager, Level = LogLevel.Error,
+            Message = "Event delivery to monitored item {MonitoredItemId} failed; other receivers will continue.")]
+        public static partial void EventReceiverFailed(
+            this ILogger logger,
+            Exception exception,
+            uint monitoredItemId);
     }
 }

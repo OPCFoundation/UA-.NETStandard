@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -48,11 +49,22 @@ namespace Opc.Ua
         /// Create an instance of the certificate store.
         /// </summary>
         public X509CertificateStore(ITelemetryContext telemetry)
+            : this(telemetry, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the platform store with an optional certificate-snapshot provider.
+        /// </summary>
+        internal X509CertificateStore(
+            ITelemetryContext telemetry,
+            Func<X509Store, X509Certificate2Collection>? getCertificates)
         {
             // defaults
             m_logger = telemetry.CreateLogger<X509CertificateStore>();
             m_storeName = "My";
             m_storeLocation = StoreLocation.CurrentUser;
+            m_getCertificates = getCertificates ?? (store => store.Certificates);
         }
 
         /// <inheritdoc/>
@@ -75,7 +87,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Syntax: StoreLocation\StoreName
+        /// Syntax: [X509Store:]StoreLocation\StoreName
         /// Example:
         ///   CurrentUser\My
         /// </remarks>
@@ -84,6 +96,10 @@ namespace Opc.Ua
             StorePath = location ?? throw new ArgumentNullException(nameof(location));
             NoPrivateKeys = noPrivateKeys;
             location = location.Trim();
+            if (location.StartsWith("X509Store:", StringComparison.OrdinalIgnoreCase))
+            {
+                location = location["X509Store:".Length..];
+            }
 
             if (string.IsNullOrEmpty(location))
             {
@@ -144,7 +160,7 @@ namespace Opc.Ua
         {
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
-            return Task.FromResult(CertificateCollection.From([.. store.Certificates]));
+            return Task.FromResult(CertificateCollection.From(m_getCertificates(store)));
         }
 
         /// <inheritdoc/>
@@ -162,17 +178,8 @@ namespace Opc.Ua
             {
                 store.Open(OpenFlags.ReadWrite);
                 using X509Certificate2 x509ForCheck = X509CertificateLoader.LoadCertificate(certificate.RawData);
-
-                // store.Certificates materialises a fresh handle per entry and
-                // nothing else releases them.
-                X509Certificate2Collection existing = store.Certificates;
-                bool alreadyPresent = existing.Contains(x509ForCheck);
-                foreach (X509Certificate2 present in existing)
-                {
-                    present.Dispose();
-                }
-
-                if (!alreadyPresent)
+                using CertificateCollection snapshot = CertificateCollection.From(m_getCertificates(store));
+                if (!snapshot.Any(existing => Utils.IsEqual(existing.RawData, certificate.RawData)))
                 {
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
@@ -245,25 +252,23 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
+            bool removed = false;
             using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
 
-                foreach (X509Certificate2 certificate in store.Certificates)
+                using CertificateCollection snapshot = CertificateCollection.From(m_getCertificates(store));
+                foreach (Certificate certificate in snapshot)
                 {
-                    // Each element is a fresh handle on the platform store's
-                    // certificate context; nothing else releases them.
-                    using (certificate)
+                    if (certificate.Thumbprint == thumbprint)
                     {
-                        if (certificate.Thumbprint == thumbprint)
-                        {
-                            store.Remove(certificate);
-                        }
+                        store.Remove(certificate.X509);
+                        removed = true;
                     }
                 }
             }
 
-            return Task.FromResult(true);
+            return Task.FromResult(removed);
         }
 
         /// <inheritdoc/>
@@ -275,22 +280,13 @@ namespace Opc.Ua
             store.Open(OpenFlags.ReadOnly);
 
             using var collection = new CertificateCollection();
+            using CertificateCollection snapshot = CertificateCollection.From(m_getCertificates(store));
 
-            foreach (X509Certificate2 certificate in store.Certificates)
+            foreach (Certificate certificate in snapshot)
             {
                 if (certificate.Thumbprint == thumbprint)
                 {
-                    // Certificate.From takes ownership of the handle; Add takes
-                    // its own reference, so the local one is released here.
-                    var cert = Certificate.From(certificate);
-                    collection.Add(cert);
-                    cert.Dispose();
-                }
-                else
-                {
-                    // Nothing took ownership of this handle on the platform
-                    // store's certificate context, so release it here.
-                    certificate.Dispose();
+                    collection.Add(certificate);
                 }
             }
 
@@ -524,6 +520,10 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Retrieves certificate snapshots whose handles are released after each store operation.
+        /// </summary>
+        private readonly Func<X509Store, X509Certificate2Collection> m_getCertificates;
         private readonly ILogger m_logger;
         private string m_storeName;
         private StoreLocation m_storeLocation;

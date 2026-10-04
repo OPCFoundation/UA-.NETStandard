@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,7 +42,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -153,6 +153,43 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        /// <summary>
+        /// Applies DI isolation overrides before startup, leaving externally supplied providers host-owned.
+        /// </summary>
+        internal static void ApplyResourceIsolation(
+            StandardServer server,
+            IServiceProvider services,
+            OpcUaServerOptions options)
+        {
+            ServerResourceIsolationOptions? isolation = services.GetService<ServerResourceIsolationOptions>();
+            if (isolation == null &&
+                (services.GetServices<IConfigureOptions<ServerResourceIsolationOptions>>().Any() ||
+                 services.GetServices<IPostConfigureOptions<ServerResourceIsolationOptions>>().Any()))
+            {
+                isolation = services.GetRequiredService<IOptions<ServerResourceIsolationOptions>>().Value;
+            }
+            server.ResourceIsolationOptions = isolation ?? options.ResourceIsolation;
+            server.ResourceIsolationClassifier = services.GetService<IResourceIsolationClassifier>();
+            if (services.GetService<IServerResourceIsolationProvider>() is { } provider)
+            {
+                server.ResourceIsolationProvider = provider;
+            }
+        }
+
+        /// <summary>
+        /// Applies an optional DI policy while preserving a policy supplied by the server factory when absent.
+        /// </summary>
+        internal static void ApplyRequestParking(ServerBase server, IServiceProvider services)
+        {
+            if (services.GetService<IRequestParkingPolicy>() is { } policy)
+            {
+                server.RequestParkingPolicy = policy;
+            }
+        }
+
+        /// <summary>
+        /// Applies host configuration and injected features before startup, then waits for host shutdown.
+        /// </summary>
         private async Task RunServerAsync(CancellationToken stoppingToken)
         {
             ICertificateManager? certificateManager =
@@ -251,6 +288,7 @@ namespace Opc.Ua.Server.Hosting
             m_server.HistoryContinuationPointStore =
                 m_services.GetService<IHistoryContinuationPointStore>();
             m_server.MonitoredItemQueueFactory = m_services.GetService<IMonitoredItemQueueFactory>();
+            ApplyRequestParking(m_server, m_services);
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
                 m_server.TransportBindings = transportBindings;
@@ -272,27 +310,40 @@ namespace Opc.Ua.Server.Hosting
                 m_server.RateLimitOptions = rateLimitOptions;
             }
 
+            // A registered budget bounds what incomplete messages may hold across
+            // all the listeners; without one the server sizes it from the
+            // maximum message size.
+            if (m_services.GetService<ChunkReassemblyBudget>() is { } chunkReassemblyBudget)
+            {
+                m_server.ChunkReassemblyBudget = chunkReassemblyBudget;
+            }
+            if (m_services.GetService<ISessionBindingProvider>() is { } sessionBindingProvider)
+            {
+                m_server.SessionBindingProvider = sessionBindingProvider;
+            }
+            ApplyResourceIsolation(m_server, m_services, m_options);
+
             foreach (OpcUaServerNodeManagerRegistration reg in
                 m_services.GetServices<OpcUaServerNodeManagerRegistration>())
             {
                 stoppingToken.ThrowIfCancellationRequested();
-                ArrayOf<IAsyncNodeManagerFactory> factories = reg.ResolveAsyncFactories(m_services, configuration);
-                foreach (IAsyncNodeManagerFactory factory in factories)
+                foreach (IAsyncNodeManagerFactory factory in reg.ResolveAsyncFactories(m_services, configuration))
                 {
                     m_server.AddNodeManager(factory ??
                         throw new InvalidOperationException(
                             "The node-manager factories callback returned a null factory."));
                 }
+
                 if (reg.SyncFactory is not null)
                 {
                     m_server.AddNodeManager(reg.SyncFactory);
                 }
             }
 
-            await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
-            await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
+            await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
 
             // Run post-start tasks (e.g. distributed address-space wiring)
             // now that the server is fully initialized and CurrentInstance is
@@ -343,7 +394,7 @@ namespace Opc.Ua.Server.Hosting
                 ? "OpcUaServer"
                 : m_options.ApplicationName;
             string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
-                ? Path.Combine(Path.GetTempPath(), "OPC Foundation", appName, "pki")
+                ? DefaultPkiRoot.Get(appName, m_logger)
                 : m_options.PkiRoot;
             string subject = string.IsNullOrEmpty(m_options.SubjectName)
                 ? $"CN={appName}, O=OPC Foundation, DC=localhost"
@@ -481,17 +532,42 @@ namespace Opc.Ua.Server.Hosting
             ICertificateValidatorEx? certificateValidator =
                 m_application?.ApplicationConfiguration?.CertificateManager;
 
-            var authenticators = new List<IUserTokenAuthenticator>();
-            foreach (OpcUaServerIdentityAuthenticatorRegistration registration in m_identityRegistrations)
+            List<IUserTokenAuthenticator> authenticators = CreateIdentityAuthenticators(
+                m_identityRegistrations,
+                m_services,
+                certificateValidator);
+            ServerConfiguration? serverConfiguration =
+                m_application?.ApplicationConfiguration?.ServerConfiguration;
+            if (authenticators.Exists(a => a is AnonymousRejectingAuthenticator) &&
+                m_options.UserTokenPolicies.Count == 0 &&
+                !HasSuppliedConfiguration &&
+                serverConfiguration != null)
             {
-                authenticators.AddRange(registration.CreateAuthenticators(
-                    m_services,
-                    certificateValidator));
+                // The Anonymous policy is only the implicit default: an endpoint lists the
+                // user identity tokens the Server accepts (Part 4 7.14, 7.41), so advertise
+                // the token types of the registered authenticators instead.
+                serverConfiguration.UserTokenPolicies = ReplaceDefaultAnonymousUserTokenPolicy(
+                    serverConfiguration.UserTokenPolicies,
+                    authenticators);
+                if (serverConfiguration.UserTokenPolicies.IsEmpty)
+                {
+                    // no authenticator accepts a token: the server falls back to the
+                    // Anonymous policy, which is always rejected.
+                    m_logger.UserTokenPolicyTokenTypeIsConfiguredWithout(UserTokenType.Anonymous);
+                }
             }
-
-            if (authenticators.Count == 0)
+            else if (authenticators.Exists(a => a is AnonymousRejectingAuthenticator))
             {
-                authenticators.Add(new AnonymousAuthenticator());
+                foreach (UserTokenType tokenType in
+                    GetAdvertisedUserTokenTypes(m_application?.ApplicationConfiguration))
+                {
+                    if (tokenType == UserTokenType.Anonymous)
+                    {
+                        // advertised but always rejected: clients will fail to connect.
+                        m_logger.UserTokenPolicyTokenTypeIsConfiguredWithout(tokenType);
+                        break;
+                    }
+                }
             }
 
             WarnForUnmatchedUserTokenPolicies(
@@ -502,8 +578,83 @@ namespace Opc.Ua.Server.Hosting
             {
                 // JWT issuer registrations expand to one authenticator per issuer because JwtAuthenticator
                 // validates one fixed IssuerUri through its resolver.
-                m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+                m_server.RegisterIdentityAuthenticator(authenticator);
             }
+        }
+
+        /// <summary>
+        /// Materializes the registered identity authenticators. Anonymous tokens are
+        /// rejected explicitly only when the default authenticator options disabled
+        /// anonymous access; otherwise an unhandled anonymous token falls through to
+        /// the session manager, which accepts it whenever the endpoint advertises it.
+        /// Custom authenticators alone do not disable anonymous access.
+        /// </summary>
+        internal static List<IUserTokenAuthenticator> CreateIdentityAuthenticators(
+            IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> registrations,
+            IServiceProvider services,
+            ICertificateValidatorEx? certificateValidator)
+        {
+            var authenticators = new List<IUserTokenAuthenticator>();
+            bool configuresDefaultAuthenticators = false;
+            foreach (OpcUaServerIdentityAuthenticatorRegistration registration in registrations)
+            {
+                configuresDefaultAuthenticators |= registration.ConfiguresDefaultAuthenticators;
+                authenticators.AddRange(registration.CreateAuthenticators(
+                    services,
+                    certificateValidator));
+            }
+
+            if (configuresDefaultAuthenticators &&
+                !authenticators.Exists(a => a.TokenType == UserTokenType.Anonymous))
+            {
+                authenticators.Add(new AnonymousRejectingAuthenticator());
+            }
+            else if (authenticators.Count == 0)
+            {
+                // no identity configuration at all: keep the anonymous default.
+                authenticators.Add(new AnonymousAuthenticator());
+            }
+
+            return authenticators;
+        }
+
+        /// <summary>
+        /// Removes the Anonymous policies and adds one policy for each non-anonymous token
+        /// type the authenticators accept that is not advertised yet.
+        /// </summary>
+        internal static ArrayOf<UserTokenPolicy> ReplaceDefaultAnonymousUserTokenPolicy(
+            ArrayOf<UserTokenPolicy> policies,
+            IReadOnlyList<IUserTokenAuthenticator> authenticators)
+        {
+            var result = new List<UserTokenPolicy>();
+            for (int i = 0; i < policies.Count; i++)
+            {
+                if (policies[i].TokenType != UserTokenType.Anonymous)
+                {
+                    result.Add(policies[i]);
+                }
+            }
+
+            foreach (IUserTokenAuthenticator authenticator in authenticators)
+            {
+                if (authenticator.TokenType == UserTokenType.Anonymous ||
+                    result.Exists(p =>
+                        p.TokenType == authenticator.TokenType &&
+                        (authenticator.TokenType != UserTokenType.IssuedToken ||
+                            p.IssuedTokenType == authenticator.IssuedTokenProfileUri)))
+                {
+                    continue;
+                }
+
+                var policy = new UserTokenPolicy(authenticator.TokenType);
+                if (authenticator.TokenType == UserTokenType.IssuedToken)
+                {
+                    policy.IssuedTokenType = authenticator.IssuedTokenProfileUri;
+                }
+                result.Add(policy);
+            }
+
+            return new ArrayOf<UserTokenPolicy>(result.ToArray());
         }
 
         private void RegisterIdentityAugmenters()
@@ -515,7 +666,7 @@ namespace Opc.Ua.Server.Hosting
 
             foreach (OpcUaServerIdentityAugmenterRegistration registration in m_augmenterRegistrations)
             {
-                m_server.CurrentInstance.IdentityRegistry.RegisterAugmenter(
+                m_server.RegisterIdentityAugmenter(
                     registration.CreateAugmenter(m_services));
             }
         }
@@ -618,6 +769,31 @@ namespace Opc.Ua.Server.Hosting
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Rejects anonymous identity tokens when the identity configuration
+        /// does not enable anonymous access.
+        /// </summary>
+        internal sealed class AnonymousRejectingAuthenticator : IUserTokenAuthenticator
+        {
+            /// <inheritdoc/>
+            public UserTokenType TokenType => UserTokenType.Anonymous;
+
+            /// <inheritdoc/>
+            public string? IssuedTokenProfileUri => null;
+
+            /// <inheritdoc/>
+            public ValueTask<AuthenticationResult> AuthenticateAsync(
+                AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<AuthenticationResult>(
+                    AuthenticationResult.Reject(new ServiceResult(
+                        StatusCodes.BadIdentityTokenRejected,
+                        new LocalizedText(
+                            "Anonymous access is disabled by the server identity configuration."))));
+            }
         }
 
         private async ValueTask StopApplicationAsync(CancellationToken cancellationToken)

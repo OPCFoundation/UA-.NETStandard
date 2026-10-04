@@ -76,20 +76,18 @@ namespace Opc.Ua.Di.Tests
             "Bearing/OpenUsdRepresentation/Stage",
             "Events",
             "Events/OverTempAlarm",
-            "Events/OverTempAlarm/",
-            "Events/OverTempAlarm/",
-            "Events/OverTempAlarm/",
-            "Events/OverTempAlarm/",
+            "Events/OverTempAlarm/HighHighLimit",
+            "Events/OverTempAlarm/HighLimit",
+            "Events/OverTempAlarm/LowLimit",
+            "Events/OverTempAlarm/LowLowLimit",
             "Events/OverTempAlarm/AckedState",
             "Events/OverTempAlarm/AckedState/Id",
             "Events/OverTempAlarm/Acknowledge",
             "Events/OverTempAlarm/Acknowledge/InputArguments",
-            "Events/OverTempAlarm/Acknowledge/OutputArguments",
             "Events/OverTempAlarm/ActiveState",
             "Events/OverTempAlarm/ActiveState/Id",
             "Events/OverTempAlarm/AddComment",
             "Events/OverTempAlarm/AddComment/InputArguments",
-            "Events/OverTempAlarm/AddComment/OutputArguments",
             "Events/OverTempAlarm/BranchId",
             "Events/OverTempAlarm/ClientUserId",
             "Events/OverTempAlarm/Comment",
@@ -98,11 +96,7 @@ namespace Opc.Ua.Di.Tests
             "Events/OverTempAlarm/ConditionClassName",
             "Events/OverTempAlarm/ConditionName",
             "Events/OverTempAlarm/Disable",
-            "Events/OverTempAlarm/Disable/InputArguments",
-            "Events/OverTempAlarm/Disable/OutputArguments",
             "Events/OverTempAlarm/Enable",
-            "Events/OverTempAlarm/Enable/InputArguments",
-            "Events/OverTempAlarm/Enable/OutputArguments",
             "Events/OverTempAlarm/EnabledState",
             "Events/OverTempAlarm/EnabledState/Id",
             "Events/OverTempAlarm/EventId",
@@ -613,21 +607,27 @@ namespace Opc.Ua.Di.Tests
         }
 
         /// <summary>
-        /// Documents a pre-existing gap this change does not alter: the alarm
-        /// the fluent builder attaches keeps the standard declaration NodeIds
-        /// for its condition children, because it is materialised outside the
-        /// generated instance helpers.
+        /// Fluent alarm descendants have distinct instance identifiers and do
+        /// not reuse the standard type declaration identifiers.
         /// </summary>
         [Test]
-        public void AlarmSubtreeKeepsStandardDeclarationNodeIds()
+        public void AlarmSubtreeHasUniqueInstanceNodeIds()
         {
-            List<PumpNode> alarmNodes = [.. CollectSubtree(m_configuredPump!)
+            List<PumpNode> alarmNodes =
+            [
+                .. CollectSubtree(m_configuredPump!),
+                .. CollectSubtree(m_secondPump!)
+            ];
+            alarmNodes = [.. alarmNodes
                 .Where(node => node.Path.StartsWith(AlarmSubtreePrefix, StringComparison.Ordinal))];
 
             Assert.That(alarmNodes, Is.Not.Empty);
             Assert.That(
-                alarmNodes.Where(node => !node.State.NodeId.IsNull),
-                Has.All.Matches<PumpNode>(node => node.State.NodeId.NamespaceIndex == 0));
+                alarmNodes,
+                Has.All.Matches<PumpNode>(node =>
+                    !node.State.NodeId.IsNull &&
+                    node.State.NodeId.NamespaceIndex == m_manager!.InstanceNamespaceIndex));
+            Assert.That(alarmNodes.Select(node => node.State.NodeId), Is.Unique);
         }
 
         /// <summary>

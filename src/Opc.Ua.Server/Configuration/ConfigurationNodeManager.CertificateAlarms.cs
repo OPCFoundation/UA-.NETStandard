@@ -118,6 +118,7 @@ namespace Opc.Ua.Server
                     // and ConditionRefresh.
                     if (node.CertificateExpired != null)
                     {
+                        node.CertificateExpired.EventNotifier |= EventNotifiers.SubscribeToEvents;
                         await AddPredefinedNodeAsync(
                                 context,
                                 node.CertificateExpired,
@@ -130,6 +131,7 @@ namespace Opc.Ua.Server
 
                     if (node.TrustListOutOfDate != null)
                     {
+                        node.TrustListOutOfDate.EventNotifier |= EventNotifiers.SubscribeToEvents;
                         await AddPredefinedNodeAsync(
                                 context,
                                 node.TrustListOutOfDate,

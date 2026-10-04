@@ -139,6 +139,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             };
 
             var tokenHandler = new UserNameIdentityTokenHandler(token);
+            StatusCode expected = SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null
+                ? StatusCodes.BadSecurityPolicyRejected
+                : StatusCodes.BadIdentityTokenInvalid;
             Assert.That(
                 async () => await tokenHandler.DecryptAsync(
                     certificate: null,
@@ -150,7 +153,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                     senderIssuerCertificates: null,
                     validator: null).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadIdentityTokenInvalid));
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expected));
         }
 
         [Test]
@@ -263,12 +266,15 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] signingKey = GetRandomBytes(securityPolicy.DerivedSignatureKeyLength);
             byte[] encryptingKey = GetRandomBytes(securityPolicy.SymmetricEncryptionKeyLength);
             byte[] iv = GetRandomBytes(securityPolicy.InitializationVectorLength);
-            byte[] keyData = Utils.Append(signingKey, encryptingKey, iv);
-
-            byte[] encryptedKeyData = SecurityPolicies.Default.Encrypt(
+            using var keyDataEncoder = new BinaryEncoder(context);
+            keyDataEncoder.WriteByteString(null, signingKey);
+            keyDataEncoder.WriteByteString(null, encryptingKey);
+            keyDataEncoder.WriteByteString(null, iv);
+            byte[] keyData = keyDataEncoder.CloseAndReturnBuffer();
+            byte[] encryptedKeyData = EncryptRsaRaw(
                 receiverCertificate,
-                securityPolicyUri,
-                keyData).Data;
+                securityPolicy,
+                keyData);
 
             byte[] plainPayload = CreatePayload(context, secret, nonce, securityPolicy.InitializationVectorLength);
             byte[] encryptedPayload = EncryptPayload(plainPayload, encryptingKey, iv);
@@ -364,6 +370,47 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             using ICryptoTransform encryptor = aes.CreateEncryptor();
 #pragma warning restore CA5401
             return encryptor.TransformFinalBlock(encryptedPayload, 0, encryptedPayload.Length);
+        }
+
+        private static byte[] EncryptRsaRaw(
+            Certificate receiverCertificate,
+            SecurityPolicyInfo securityPolicy,
+            byte[] plainText)
+        {
+            using RSA rsa = receiverCertificate.GetRSAPublicKey()
+                ?? throw new InvalidOperationException("The receiver certificate must have an RSA public key.");
+            RSAEncryptionPadding padding = GetRsaEncryptionPadding(securityPolicy);
+            int blockSize = securityPolicy.AsymmetricEncryptionAlgorithm switch
+            {
+                AsymmetricEncryptionAlgorithm.RsaOaepSha1 => (rsa.KeySize / 8) - 42,
+                AsymmetricEncryptionAlgorithm.RsaOaepSha256 => (rsa.KeySize / 8) - 66,
+                AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1 => (rsa.KeySize / 8) - 11,
+                _ => throw new NotSupportedException(securityPolicy.AsymmetricEncryptionAlgorithm.ToString())
+            };
+            int encryptedBlockSize = rsa.KeySize / 8;
+            byte[] encrypted = new byte[(plainText.Length + blockSize - 1) / blockSize * encryptedBlockSize];
+            int written = 0;
+
+            for (int offset = 0; offset < plainText.Length; offset += blockSize)
+            {
+                int count = Math.Min(blockSize, plainText.Length - offset);
+                byte[] block = rsa.Encrypt(plainText.AsSpan(offset, count).ToArray(), padding);
+                Buffer.BlockCopy(block, 0, encrypted, written, block.Length);
+                written += block.Length;
+            }
+
+            return encrypted;
+        }
+
+        private static RSAEncryptionPadding GetRsaEncryptionPadding(SecurityPolicyInfo securityPolicy)
+        {
+            return securityPolicy.AsymmetricEncryptionAlgorithm switch
+            {
+                AsymmetricEncryptionAlgorithm.RsaOaepSha1 => RSAEncryptionPadding.OaepSHA1,
+                AsymmetricEncryptionAlgorithm.RsaOaepSha256 => RSAEncryptionPadding.OaepSHA256,
+                AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1 => RSAEncryptionPadding.Pkcs1,
+                _ => throw new NotSupportedException(securityPolicy.AsymmetricEncryptionAlgorithm.ToString())
+            };
         }
 
         private static byte[] GetRandomBytes(int count)

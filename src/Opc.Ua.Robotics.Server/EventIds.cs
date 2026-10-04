@@ -43,5 +43,10 @@ namespace Opc.Ua.Robotics.Server
         /// A Robot Intent method was called before its host was started.
         /// </summary>
         public const int HostNotStarted = 15001;
+
+        /// <summary>
+        /// Node-manager host or base cleanup failed.
+        /// </summary>
+        public const int NodeManagerDisposalFailed = 15002;
     }
 }

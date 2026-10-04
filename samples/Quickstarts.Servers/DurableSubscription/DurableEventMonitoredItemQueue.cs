@@ -102,12 +102,13 @@ namespace Quickstarts.Servers
             value = null!;
             if (ItemsInQueue > 0)
             {
-                if (m_dequeueBatch.IsPersisted)
+                if (m_dequeueBatch.PersistingInProgress || m_dequeueBatch.IsPersisted)
                 {
                     m_logger.DequeueRequestedBeforeRestore(MonitoredItemId);
                     m_batchPersistor.RequestBatchRestore(m_dequeueBatch);
 
-                    if (!SpinWait.SpinUntil(() => !m_dequeueBatch.RestoreInProgress, 10))
+                    if (!SpinWait.SpinUntil(
+                        () => !m_dequeueBatch.PersistingInProgress && !m_dequeueBatch.IsPersisted, 10))
                     {
                         m_logger.DequeueFailedBeforeRestore(MonitoredItemId);
                         // Dequeue failed as queue could not be restored in time

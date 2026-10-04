@@ -94,6 +94,9 @@ namespace Opc.Ua.Bindings
             StartReceiveLoopWithBody(ReadReverseHelloOnceAsync);
         }
 
+        /// <summary>
+        /// Reads one ReverseHello chunk and leaves the transport ready for handoff without another pending receive.
+        /// </summary>
         private async Task ReadReverseHelloOnceAsync(
             IUaSCByteTransport transport,
             CancellationToken ct)
@@ -109,18 +112,23 @@ namespace Opc.Ua.Bindings
             }
             catch (ServiceResultException sre)
             {
-                OnTransportError(sre.Result);
+                OnTransportError(transport, sre.Result, ct);
                 return;
             }
             catch (Exception ex)
             {
-                OnTransportError(ServiceResult.Create(
+                OnTransportError(transport, ServiceResult.Create(
                     ex,
                     StatusCodes.BadTcpInternalError,
-                    ex.Message));
+                    ex.Message), ct);
                 return;
             }
 
+            if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+            {
+                BufferManager.ReturnBuffer(chunk.Array, nameof(ReadReverseHelloOnceAsync));
+                return;
+            }
             await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
         }
 

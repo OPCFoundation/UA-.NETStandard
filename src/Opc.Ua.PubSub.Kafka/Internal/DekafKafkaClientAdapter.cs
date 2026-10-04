@@ -255,13 +255,11 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             Headers headers = CreateHeaders(message);
             byte[] key = message.Key.IsEmpty ? null! : message.Key.ToArray();
             byte[] value = message.Value.IsEmpty ? [] : message.Value.ToArray();
-            var record = new ProducerMessage<byte[], byte[]>
-            {
-                Topic = message.Topic,
-                Key = key,
-                Value = value,
-                Headers = headers
-            };
+            ProducerMessage<byte[], byte[]> record = CreateProducerMessage(
+                message.Topic,
+                key,
+                value,
+                headers);
 
             await m_clientGate.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -630,14 +628,67 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                     "Dekaf mutual TLS requires both KafkaTlsOptions.ClientCertificatePath and " +
                     "KafkaTlsOptions.ClientKeyPath.");
             }
-            return new TlsConfig
-            {
-                CaCertificatePath = tls.CaCertificatePath,
-                ClientCertificatePath = tls.ClientCertificatePath,
-                ClientKeyPath = tls.ClientKeyPath,
-                ValidateServerCertificate = tls.ValidateServerCertificate
-            };
+            var config = new TlsConfig();
+            SetTlsConfigValue(config, "CaCertificatePath", tls.CaCertificatePath);
+            SetTlsConfigValue(config, "ClientCertificatePath", tls.ClientCertificatePath);
+            SetTlsConfigValue(config, "ClientKeyPath", tls.ClientKeyPath);
+            SetTlsConfigValue(config, "ValidateServerCertificate", tls.ValidateServerCertificate);
+            return config;
         }
+
+        private static void SetTlsConfigValue<T>(TlsConfig config, string propertyName, T value)
+        {
+            System.Reflection.PropertyInfo? property = typeof(TlsConfig).GetProperty(propertyName);
+            if (property?.SetMethod is null)
+            {
+                throw new NotSupportedException(
+                    $"The loaded Dekaf TLS configuration type does not expose a writable {propertyName} property.");
+            }
+            property.SetValue(config, value);
+        }
+
+        private static ProducerMessage<byte[], byte[]> CreateProducerMessage(
+            string topic,
+            byte[] key,
+            byte[] value,
+            Headers headers)
+        {
+#if NETFRAMEWORK
+            return new ProducerMessage<byte[], byte[]>
+            {
+                Topic = topic,
+                Key = key,
+                Value = value,
+                Headers = headers
+            };
+#else
+            var message = (ProducerMessage<byte[], byte[]>)
+                System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(
+                    typeof(ProducerMessage<byte[], byte[]>));
+            SetProducerMessageValue(message, "Topic", topic);
+            SetProducerMessageValue(message, "Key", key);
+            SetProducerMessageValue(message, "Value", value);
+            SetProducerMessageValue(message, "Headers", headers);
+            return message;
+#endif
+        }
+
+#if !NETFRAMEWORK
+        private static void SetProducerMessageValue<T>(
+            ProducerMessage<byte[], byte[]> message,
+            string propertyName,
+            T value)
+        {
+            System.Reflection.PropertyInfo? property = typeof(ProducerMessage<byte[], byte[]>)
+                .GetProperty(propertyName);
+            if (property?.SetMethod is null)
+            {
+                throw new NotSupportedException(
+                    $"The loaded Dekaf producer message type does not expose a writable {propertyName} property.");
+            }
+            property.SetValue(message, value);
+        }
+#endif
 
         private static void ValidateDekafSupport(KafkaConnectionOptions options)
         {

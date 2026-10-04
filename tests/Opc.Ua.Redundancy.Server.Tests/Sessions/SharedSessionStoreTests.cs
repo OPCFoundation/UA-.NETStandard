@@ -203,6 +203,44 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(loaded, Is.Null);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ProtectedSessionRejectsTransplantOrEmptyContextAsync(bool emptyContext)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(23));
+            var store = new SharedKeyValueSessionStore(kv, m_context, protector);
+            SharedSessionEntry source = NewEntry("source");
+            SharedSessionEntry target = emptyContext ? source : NewEntry("target");
+            await store.PutAsync(source).ConfigureAwait(false);
+            string sourceKey = SharedKeyValueSessionStore.KeyFor(source.AuthenticationToken);
+            string targetKey = SharedKeyValueSessionStore.KeyFor(target.AuthenticationToken);
+            (bool found, ByteString record) = await kv.TryGetAsync(sourceKey).ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            ByteString invalid = record;
+            if (emptyContext)
+            {
+                Assert.That(protector.TryUnprotectOwned(
+                    RecordProtectionContext.Create("session", sourceKey), record, out byte[] plaintext), Is.True);
+                try
+                {
+                    invalid = protector.Protect(default, ByteString.From(plaintext));
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(plaintext);
+                }
+            }
+            await kv.SetAsync(targetKey, invalid).ConfigureAwait(false);
+
+            Assert.That(await store.TryGetAsync(target.AuthenticationToken).ConfigureAwait(false), Is.Null);
+            await kv.SetAsync(sourceKey, record).ConfigureAwait(false);
+            SharedSessionEntry? retained = await store.TryGetAsync(source.AuthenticationToken).ConfigureAwait(false);
+            Assert.That(retained, Is.Not.Null);
+            Assert.That(retained!.AuthenticationToken, Is.EqualTo(source.AuthenticationToken));
+            Assert.That(retained.SecretMaterial, Is.EqualTo(source.SecretMaterial));
+        }
+
         [Test]
         public async Task CorruptSessionEntryIsRejectedAndLoggedAsync()
         {

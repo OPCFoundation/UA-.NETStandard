@@ -165,17 +165,61 @@ namespace Opc.Ua.PubSub.Tests.Security.Internal
             byte[] key = new byte[16];
             byte[] nonce = new byte[12];
             byte[] plaintext = new byte[16];
-            byte[] block0 = new byte[16];
-            byte[] block1 = new byte[16];
-            AesCtrTransform.EncryptOrDecrypt(key, nonce, plaintext, block0);
-            // Block 1 keystream differs from block 0.
+            byte[] first = new byte[16];
+            byte[] counter1 = new byte[16];
+            byte[] counter2 = new byte[16];
+            AesCtrTransform.EncryptOrDecrypt(key, nonce, plaintext, first);
             AesCtrTransform.EncryptOrDecryptWithStartingBlock(
                 key,
                 nonce,
                 1,
                 plaintext,
-                block1);
-            Assert.That(block1, Is.Not.EqualTo(block0));
+                counter1);
+            AesCtrTransform.EncryptOrDecryptWithStartingBlock(
+                key,
+                nonce,
+                2,
+                plaintext,
+                counter2);
+            // The first block uses counter value 1 (Part 14 Table 157).
+            Assert.That(counter1, Is.EqualTo(first));
+            Assert.That(counter2, Is.Not.EqualTo(first));
+        }
+
+        /// <summary>
+        /// RFC 3686 test vectors #1 and #2. Part 14 Table 157 uses the RFC 3686 counter
+        /// block layout: KeyNonce (4) | MessageNonce (8) | BlockCounter (4, big endian),
+        /// with the counter starting at 1.
+        /// </summary>
+        [TestCase(
+            "AE6852F8121067CC4BF7A5765577F39E",
+            "000000300000000000000000",
+            "53696E676C6520626C6F636B206D7367",
+            "E4095D4FB7A7B3792D6175A3261311B8")]
+        [TestCase(
+            "7E24067817FAE0D743D6CE1F32539163",
+            "006CB6DBC0543B59DA48D90B",
+            "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F",
+            "5104A106168A72D9790D41EE8EDAD388EB2E1EFC46DA57C8FCE630DF9141BE28")]
+        [TestSpec("7.2.4.4.3.2", Summary = "AES-CTR counter block starts with 1 (RFC 3686 vectors)")]
+        public void EncryptOrDecrypt_MatchesRfc3686Vector(
+            string keyHex,
+            string nonceHex,
+            string plaintextHex,
+            string ciphertextHex)
+        {
+            byte[] key = HexToBytes(keyHex);
+            byte[] nonce = HexToBytes(nonceHex);
+            byte[] plaintext = HexToBytes(plaintextHex);
+            byte[] expected = HexToBytes(ciphertextHex);
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] roundTrip = new byte[plaintext.Length];
+
+            AesCtrTransform.EncryptOrDecrypt(key, nonce, plaintext, ciphertext);
+            AesCtrTransform.EncryptOrDecrypt(key, nonce, ciphertext, roundTrip);
+
+            Assert.That(ciphertext, Is.EqualTo(expected));
+            Assert.That(roundTrip, Is.EqualTo(plaintext));
         }
 
         private static byte[] HexToBytes(string hex)

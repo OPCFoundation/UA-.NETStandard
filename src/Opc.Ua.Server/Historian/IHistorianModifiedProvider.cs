@@ -38,11 +38,11 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Modified history returns the prior versions of values that were
-    /// replaced and the values that were deleted, plus the
-    /// <see cref="ModificationInfo"/> describing each modification. The
-    /// "live" current value at each timestamp is <em>not</em> returned by
-    /// this call (it belongs to <see cref="IHistorianDataProvider.ReadRawAsync"/>).
+    /// Modified history returns explicit INSERT records and the prior versions
+    /// of replaced or deleted values, together with the <see cref="ModificationInfo"/>.
+    /// An INSERT record contains the inserted value, which may still be the current
+    /// raw value. Its existence alone does not imply <see cref="AggregateBits.ExtraData"/>.
+    /// Raw capture via <see cref="IHistorianBulkInsertProvider"/> need not log INSERT records.
     /// </para>
     /// </remarks>
     public interface IHistorianModifiedProvider
@@ -54,6 +54,9 @@ namespace Opc.Ua.Server.Historian
         /// <param name="request">Normalised modified read request.</param>
         /// <param name="resumeToken">Page resume token; empty on first page.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// A page of retained values and modification metadata, with a token when more entries remain.
+        /// </returns>
         ValueTask<HistorianPage<ModifiedDataValue>> ReadModifiedAsync(
             HistorianOperationContext context,
             HistorianModifiedReadRequest request,

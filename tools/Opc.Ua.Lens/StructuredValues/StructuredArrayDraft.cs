@@ -191,6 +191,11 @@ internal sealed class StructuredArrayDraft
         {
             m_ensureCurrent();
             Validate(value);
+            if (!m_isStructureField && !value.Dimensions.IsEmpty && value.Elements.IsEmpty)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingError,
+                    "A null or empty matrix cannot preserve its dimensions in a Variant.");
+            }
             Variant candidate = value.ToVariant(m_context);
             using (var encoder = new BinaryEncoder(m_context))
             {

@@ -12,6 +12,11 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
+    <ProjectReference Include="..\..\samples\OpenUsd\GeneratorServer\GeneratorServer.csproj" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />

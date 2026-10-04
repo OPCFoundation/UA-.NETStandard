@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -99,7 +97,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public async Task WaitForQueuedAckAsync(int count, int timeoutMs = 5000)
         {
             const int kPollIntervalMs = 10;
-            TimeSpan timeout = TimeSpan.FromMilliseconds(timeoutMs);
+            var timeout = TimeSpan.FromMilliseconds(timeoutMs);
             long start = TimeProvider.System.GetTimestamp();
             while (true)
             {
@@ -141,6 +139,22 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         {
             PublishingQuiescenceCalls++;
             return operation(ct);
+        }
+
+        /// <summary>
+        /// Optional override for <see cref="RunWithSessionAvailableAsync"/>,
+        /// e.g. to simulate a session that is not available. If null, runs
+        /// the operation.
+        /// </summary>
+        public Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>?
+            OnRunWithSessionAvailableAsync
+        { get; set; }
+
+        public ValueTask RunWithSessionAvailableAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct = default)
+        {
+            return OnRunWithSessionAvailableAsync?.Invoke(operation, ct) ?? operation(ct);
         }
 
         /// <summary>

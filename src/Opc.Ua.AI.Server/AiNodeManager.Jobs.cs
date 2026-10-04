@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,6 +66,7 @@ namespace Opc.Ua.AI.Server
             ByteString payload,
             string payloadUri,
             string contentType,
+            ArrayOf<Opc.Ua.KeyValuePair> parameters,
             CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -81,6 +83,24 @@ namespace Opc.Ua.AI.Server
 
             // Clause 8.4, as for Invoke: exactly one of Payload and PayloadUri.
             if (payload.IsNull == string.IsNullOrEmpty(payloadUri))
+            {
+                return new InvokeAsyncMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadInvalidArgument,
+                    Job = NodeId.Null
+                };
+            }
+
+            if (!string.IsNullOrEmpty(payloadUri))
+            {
+                return new InvokeAsyncMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadNotSupported,
+                    Job = NodeId.Null
+                };
+            }
+
+            if (!TryNormalizeParameters(parameters, out Dictionary<string, string>? normalized))
             {
                 return new InvokeAsyncMethodStateResult
                 {
@@ -153,7 +173,7 @@ namespace Opc.Ua.AI.Server
             // belongs to the job. Faults are recorded on the job rather than thrown
             // into a void, so an unobserved task cannot swallow one.
             _ = Task.Run(
-                () => RunJobAsync(job, deployment, body, contentType),
+                () => RunJobAsync(job, deployment, body, contentType, normalized),
                 CancellationToken.None);
 
             return new InvokeAsyncMethodStateResult
@@ -194,7 +214,8 @@ namespace Opc.Ua.AI.Server
             InferenceJobState job,
             DeploymentState deployment,
             byte[] payload,
-            string contentType)
+            string contentType,
+            IReadOnlyDictionary<string, string> parameters)
         {
             try
             {
@@ -210,6 +231,7 @@ namespace Opc.Ua.AI.Server
                     deployment,
                     payload,
                     contentType,
+                    parameters,
                     m_options.TransferInferenceTimeout.TotalMilliseconds,
                     CancellationToken.None).ConfigureAwait(false);
 

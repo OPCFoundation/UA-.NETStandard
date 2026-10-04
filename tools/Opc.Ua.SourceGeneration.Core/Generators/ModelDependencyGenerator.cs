@@ -219,6 +219,12 @@ namespace Opc.Ua.SourceGeneration
                     BaseTypeNamespace = type.BaseType?.Namespace,
                     NumericId = type.NumericIdSpecified ? type.NumericId : 0u,
                     StringId = string.IsNullOrEmpty(type.StringId) ? null : type.StringId,
+                    GuidId = type.GuidIdSpecified
+                        ? type.GuidId.ToString("D", CultureInfo.InvariantCulture)
+                        : null,
+                    OpaqueId = type.OpaqueId != null
+                        ? Convert.ToBase64String(type.OpaqueId)
+                        : null,
                     IsAbstract = type.IsAbstract
                 };
                 if (type is DataTypeDesign dataType)
@@ -237,7 +243,17 @@ namespace Opc.Ua.SourceGeneration
                                 name: field.Name ?? string.Empty,
                                 dataTypeName: field.DataType?.Name ?? string.Empty,
                                 dataTypeNamespace: field.DataType?.Namespace ?? string.Empty,
-                                valueRank: (int)field.ValueRank));
+                                valueRank: (int)field.ValueRank)
+                            {
+                                // A subtype in a consumer model needs these to
+                                // continue the encoding mask and publish the
+                                // inherited fields' definition correctly.
+                                IsOptional = field.IsOptional,
+                                AllowSubTypes = field.AllowSubTypes,
+                                ArrayDimensions = string.IsNullOrEmpty(field.ArrayDimensions)
+                                    ? null
+                                    : field.ArrayDimensions
+                            });
                         }
                         entry.Fields = fields;
                     }
@@ -313,6 +329,8 @@ namespace Opc.Ua.SourceGeneration
                                     effectiveVariable.HistorizingSpecified;
                                 entryChild.DefaultValueXml =
                                     effectiveVariable.DefaultValue?.OuterXml;
+                                entryChild.DefaultValueNamespaceUris =
+                                    GetDefaultValueNamespaceUris(effectiveVariable);
                             }
                             else if (child is MethodDesign method)
                             {
@@ -396,6 +414,24 @@ namespace Opc.Ua.SourceGeneration
             return payload;
         }
 
+        /// <summary>
+        /// The namespace table the indexes in the default value XML of the
+        /// variable refer to: the table recorded when the value was decoded
+        /// from a NodeSet or a dependency design, otherwise this design's own
+        /// namespaces - the table the producer resolves the value against.
+        /// </summary>
+        private string[] GetDefaultValueNamespaceUris(VariableDesign variable)
+        {
+            if (variable.DefaultValue == null)
+            {
+                return null;
+            }
+            NamespaceTable table =
+                (variable.DecodedValue != null ? variable.DecodedValueNamespaceUris : null) ??
+                ModelDesignExtensions.CreateDesignNamespaceTable(m_context.ModelDesign.Namespaces);
+            return table.ToArray();
+        }
+
         private static List<DependencyMethodArg> DependencyMethodArgs(Parameter[] args)
         {
             if (args == null || args.Length == 0)
@@ -424,8 +460,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            context.Template.AddReplacement(Tokens.ModelUri, EscapeForString(entry.ModelUri));
-            context.Template.AddReplacement(Tokens.Prefix, EscapeForString(entry.Prefix));
+            context.Template.AddReplacement(Tokens.ModelUri, SourceGenerationUtils.Escape(entry.ModelUri));
+            context.Template.AddReplacement(Tokens.Prefix, SourceGenerationUtils.Escape(entry.Prefix));
             context.Template.AddReplacement(Tokens.ModelVersion, FormatNullableLiteral(entry.Version));
             context.Template.AddReplacement(
                 Tokens.ModelPublicationDate,
@@ -436,18 +472,11 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static string EscapeForString(string value)
-        {
-            // Escape backslash and quote; everything else is safe for short URI / prefix strings.
-            return value.Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
-        }
-
         private static string FormatNullableLiteral(string value)
         {
             return string.IsNullOrEmpty(value)
                 ? "null"
-                : CoreUtils.Format("\"{0}\"", EscapeForString(value));
+                : CoreUtils.Format("\"{0}\"", SourceGenerationUtils.Escape(value));
         }
 
         private static string FormatDate(DateTime? d)

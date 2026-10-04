@@ -31,6 +31,7 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -140,6 +141,29 @@ namespace Opc.Ua.Core.Tests.Stack.State
             machine.SetState(m_context, Objects.ProgramStateMachineType_Halted);
 
             Assert.That(ReadAttribute(reset, Attributes.Executable), Is.True);
+        }
+
+        /// <summary>
+        /// Part 5 6.4.3: a cause refused in the current state is audited with Status FALSE
+        /// and is not reported as a program transition.
+        /// </summary>
+        [Test]
+        public void RefusedCauseIsAuditedAsFailed()
+        {
+            ProgramStateMachineState machine = CreateMachine(out MethodState start, out _);
+            machine.SetState(m_context, Objects.ProgramStateMachineType_Halted);
+
+            var events = new List<IFilterTarget>();
+            machine.SetAreEventsMonitored(m_context, true, false);
+            machine.OnReportEvent = (_, _, e) => events.Add(e);
+
+            ServiceResult result = machine.DoCause(
+                m_context, start, Methods.ProgramStateMachineType_Start, default, []);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(events, Has.Count.EqualTo(1));
+            Assert.That(events[0], Is.InstanceOf<AuditUpdateStateEventState>());
+            Assert.That(((AuditUpdateStateEventState)events[0]).Status.Value, Is.False);
         }
 
         /// <summary>

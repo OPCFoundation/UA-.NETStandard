@@ -230,11 +230,9 @@ namespace Opc.Ua.Vision.Server
         /// <summary>
         /// Asynchronously disposes the node manager.
         /// </summary>
-        public ValueTask DisposeAsync()
+        public override ValueTask DisposeAsync()
         {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-            return default;
+            return base.DisposeAsync();
         }
 
         /// <inheritdoc/>
@@ -242,7 +240,8 @@ namespace Opc.Ua.Vision.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+            await LoadPredefinedNodesAsync(SystemContext, externalReferences, cancellationToken)
+                .ConfigureAwait(false);
             RegisterEncodeables(SystemContext);
             m_root = await GetOrCreateRootAsync(externalReferences, cancellationToken).ConfigureAwait(false);
             if (m_runner != null)

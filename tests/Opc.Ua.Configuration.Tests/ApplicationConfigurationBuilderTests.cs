@@ -886,7 +886,7 @@ namespace Opc.Ua.Configuration.Tests
                         ],
                         m_pkiRoot)
                     .SetAutoAcceptUntrustedCertificates(true)
-                    .CreateAsync();
+                    .CreateAsync().ConfigureAwait(false);
 
                 SecurityConfiguration securityConfiguration = configuration.SecurityConfiguration;
                 Assert.That(securityConfiguration.ApplicationCertificates, Has.Count.EqualTo(1));
@@ -1014,7 +1014,11 @@ namespace Opc.Ua.Configuration.Tests
                     .AddEccSignPolicies();
 
                 ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
                 Assert.That(policies.Count, Is.GreaterThan(0));
+#else
+                Assert.That(policies, Is.Empty, "Raw ECDH policies require a net8+ stack build.");
+#endif
                 Assert.That(
                     policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.Sign),
                     Is.True);
@@ -1033,7 +1037,11 @@ namespace Opc.Ua.Configuration.Tests
                     .AddEccSignAndEncryptPolicies();
 
                 ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
                 Assert.That(policies.Count, Is.GreaterThan(0));
+#else
+                Assert.That(policies, Is.Empty, "Raw ECDH policies require a net8+ stack build.");
+#endif
                 Assert.That(
                     policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
                     Is.True);

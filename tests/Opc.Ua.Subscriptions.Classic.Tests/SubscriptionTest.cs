@@ -58,14 +58,21 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public override Task OneTimeSetUpAsync()
+        public override async Task OneTimeSetUpAsync()
         {
             // the tests can be run against server specified in .runsettings
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
             MaxChannelCount = 1000;
-            return OneTimeSetUpCoreAsync(securityNone: true);
+            await OneTimeSetUpCoreAsync(securityNone: true).ConfigureAwait(false);
+
+            // The per test sessions carry heavy publish load (up to 50
+            // subscriptions x 50 items at 100 ms). With the 10 s default a
+            // stall of a loaded CI runner lets the server expire the session
+            // and the test fails with BadSessionIdInvalid, so use the long
+            // timeout of the fixture-shared session for them as well.
+            ClientFixture.SessionTimeout = SharedSessionTimeout;
         }
 
         /// <summary>
@@ -450,66 +457,95 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             const int monitoredItemsPerSubscription = 50;
             const int subscriptions = 50;
             const int maxServerPublishRequest = 20;
+            // Server revises the requested publishing interval of 0 to 100 ms
+            const int samplingInterval = 100;
 
-            for (int i = 0; i < subscriptions; i++)
+            try
             {
-                var subscription = new TestableSubscription(Session.DefaultSubscription)
+                for (int i = 0; i < subscriptions; i++)
                 {
-                    PublishingInterval = 0,
-                    DisableMonitoredItemCache = true,
-                    PublishingEnabled = true,
-                    FastDataChangeCallback = (_, notification, __) =>
-                        Interlocked.Add(ref numOfNotifications, notification.MonitoredItems.Count)
-                };
+                    var subscription = new TestableSubscription(Session.DefaultSubscription)
+                    {
+                        PublishingInterval = 0,
+                        DisableMonitoredItemCache = true,
+                        PublishingEnabled = true,
+                        FastDataChangeCallback = (_, notification, __) =>
+                            Interlocked.Add(ref numOfNotifications, notification.MonitoredItems.Count)
+                    };
 
-                subscriptionList.Add(subscription);
-                var list = new List<MonitoredItem>();
-                IList<NodeId> nodeSet = GetTestSetFullSimulation(Session.NamespaceUris);
+                    subscriptionList.Add(subscription);
+                    var list = new List<MonitoredItem>();
+                    IList<NodeId> nodeSet = GetTestSetFullSimulation(Session.NamespaceUris);
 
-                for (int ii = 0; ii < monitoredItemsPerSubscription; ii++)
-                {
-                    NodeId nextNode = nodeSet[ii % nodeSet.Count];
-                    list.Add(
-                        new TestableMonitoredItem(subscription.DefaultItem)
-                        {
-                            StartNodeId = nextNode,
-                            SamplingInterval = 0
-                        });
+                    for (int ii = 0; ii < monitoredItemsPerSubscription; ii++)
+                    {
+                        NodeId nextNode = nodeSet[ii % nodeSet.Count];
+                        list.Add(
+                            new TestableMonitoredItem(subscription.DefaultItem)
+                            {
+                                StartNodeId = nextNode,
+                                // Sample at the revised publishing interval to keep
+                                // the server load of 2500 items bounded on CI hosts
+                                SamplingInterval = samplingInterval
+                            });
+                    }
+                    var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
+
+                    subscription.AddItems(list);
+                    Assert.ThrowsAsync<ServiceResultException>(
+                        () => subscription.CreateAsync());
+                    bool result = Session.AddSubscription(subscription);
+                    Assert.That(result, Is.True);
+                    await subscription.CreateAsync().ConfigureAwait(false);
+                    int publishInterval = (int)subscription.CurrentPublishingInterval;
+
+                    TestContext.Out.WriteLine(
+                        $"Id: {subscription.Id} CurrentPublishingInterval: {publishInterval}");
                 }
-                var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
 
-                subscription.AddItems(list);
-                Assert.ThrowsAsync<ServiceResultException>(
-                    () => subscription.CreateAsync());
-                bool result = Session.AddSubscription(subscription);
-                Assert.That(result, Is.True);
-                await subscription.CreateAsync().ConfigureAwait(false);
-                int publishInterval = (int)subscription.CurrentPublishingInterval;
+                var stopwatch = Stopwatch.StartNew();
 
-                TestContext.Out.WriteLine(
-                    $"Id: {subscription.Id} CurrentPublishingInterval: {publishInterval}");
+                await Task.Delay(1000).ConfigureAwait(false);
+
+                // verify that number of active publishrequests is never exceeded
+                while (stopwatch.ElapsedMilliseconds < testWaitTime)
+                {
+                    // use the sample server default for max publish request count
+                    Assert.That(
+                        Math.Max(maxServerPublishRequest, subscriptions),
+                        Is.GreaterThanOrEqualTo(Session.GoodPublishRequestCount),
+                        "No. of Good Publish Requests shall be at max count of subscriptions");
+                    await Task.Delay(100).ConfigureAwait(false);
+                }
+
+                foreach (Subscription subscription in subscriptionList)
+                {
+                    bool result = await Session.RemoveSubscriptionAsync(subscription)
+                        .ConfigureAwait(false);
+                    Assert.That(result, Is.True);
+                }
             }
-
-            var stopwatch = Stopwatch.StartNew();
-
-            await Task.Delay(1000).ConfigureAwait(false);
-
-            // verify that number of active publishrequests is never exceeded
-            while (stopwatch.ElapsedMilliseconds < testWaitTime)
+            finally
             {
-                // use the sample server default for max publish request count
-                Assert.That(
-                    Math.Max(maxServerPublishRequest, subscriptions),
-                    Is.GreaterThanOrEqualTo(Session.GoodPublishRequestCount),
-                    "No. of Good Publish Requests shall be at max count of subscriptions");
-                await Task.Delay(100).ConfigureAwait(false);
-            }
-
-            foreach (Subscription subscription in subscriptionList)
-            {
-                bool result = await Session.RemoveSubscriptionAsync(subscription)
-                    .ConfigureAwait(false);
-                Assert.That(result, Is.True);
+                // on failure remove what is left, so the 50 subscriptions and
+                // their publish load cannot leak into the following tests
+                foreach (Subscription subscription in subscriptionList)
+                {
+                    if (subscription.Session == null)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        await Session.RemoveSubscriptionAsync(subscription)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        TestContext.Out.WriteLine(
+                            $"Id: {subscription.Id} cleanup failed: {e.Message}");
+                    }
+                }
             }
         }
 

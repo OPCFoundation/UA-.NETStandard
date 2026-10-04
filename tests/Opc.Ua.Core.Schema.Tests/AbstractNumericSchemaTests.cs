@@ -58,10 +58,13 @@ namespace Opc.Ua.Schema.Tests
             {
                 JsonNode document = JsonNode.Parse(schema.ToSchemaString())!;
                 JsonNode properties = document["$defs"]!["NumericFields"]!["properties"]!;
-                Assert.That(properties["Scalar"]!.AsObject().ContainsKey("$ref"), Is.True,
+                JsonObject scalarSchema = WithoutNullBranch(properties["Scalar"]!);
+                JsonObject arraySchema = WithoutNullBranch(properties["Array"]!);
+                JsonObject elementSchema = WithoutNullBranch(arraySchema["items"]!);
+                Assert.That(scalarSchema.ContainsKey("$ref"), Is.True,
                     "Abstract numeric fields must not become unconstrained schemas.");
-                Assert.That(properties["Scalar"]!["$ref"]!.GetValue<string>(), Is.EqualTo("#/$defs/Ua_Variant"));
-                Assert.That(properties["Array"]!["items"]!["$ref"]!.GetValue<string>(),
+                Assert.That(scalarSchema["$ref"]!.GetValue<string>(), Is.EqualTo("#/$defs/Ua_Variant"));
+                Assert.That(elementSchema["$ref"]!.GetValue<string>(),
                     Is.EqualTo("#/$defs/Ua_Variant"));
                 Assert.That(document["$defs"]!["Ua_Variant"], Is.Not.Null);
             }
@@ -181,6 +184,17 @@ namespace Opc.Ua.Schema.Tests
 
             Assert.That(schema["$defs"]!["CustomRoot"]!["properties"]!["Value"]!["$ref"]!.GetValue<string>(),
                 Is.EqualTo("#/$defs/ApplicationNumber"));
+        }
+
+        private static JsonObject WithoutNullBranch(JsonNode schema)
+        {
+            if (schema["anyOf"] is JsonArray alternatives)
+            {
+                Assert.That(alternatives, Has.Count.EqualTo(2));
+                Assert.That(alternatives[1]!["type"]!.GetValue<string>(), Is.EqualTo("null"));
+                return alternatives[0]!.AsObject();
+            }
+            return schema.AsObject();
         }
 
         private static UaTypeDescription NumericType(BuiltInType builtInType)

@@ -256,6 +256,39 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// Regression: namespace URIs, XML namespaces and the model version were
+        /// emitted into string literals without (complete) escaping, so a
+        /// backslash, quote or line separator broke the generated Namespaces class.
+        /// </summary>
+        [Test]
+        public void EmitNamespaceAndVersionWithSpecialCharactersAreEscaped()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "urn:a\\d\"x",
+                XmlNamespace = "urn:types\u2028",
+                Prefix = "Test",
+                Name = "TestNamespace",
+                Version = "1.0\u2029"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            string output = EmitWithSingleObjectType(targetNamespace);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    output,
+                    Does.Contain("public const string TestNamespace = \"urn:a\\\\d\\\"x\";"));
+                Assert.That(
+                    output,
+                    Does.Contain("public const string TestNamespaceXsd = \"urn:types\\u2028\";"));
+                Assert.That(output, Does.Contain("public const string Target = \"1.0\\u2029\";"));
+            });
+        }
+
+        /// <summary>
         /// A distinct XML namespace still gets its own "...Xsd" constant, next to
         /// the plain one.
         /// </summary>
@@ -492,6 +525,110 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(
                 output,
                 Does.Not.Contain("public const string PumpType = \"Pump Type\";"));
+        }
+
+        /// <summary>
+        /// Regression: the reverse order of the test above. A DefaultInstanceBrowseName
+        /// visited first ("Device Set" -> key "DeviceSet") made a later child whose real
+        /// symbolic name is "DeviceSet" throw "Two nodes with the same symbolic name have
+        /// different browse names", so the outcome depended on declaration order.
+        /// </summary>
+        [Test]
+        public void EmitSymbolicNameAfterCollidingDefaultInstanceBrowseNameReplacesIt()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://test.org/UA/",
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            var fooType = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName("FooType", targetNamespace.Value),
+                SymbolicId = new System.Xml.XmlQualifiedName("FooType", targetNamespace.Value),
+                BrowseName = "FooType",
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new PropertyDesign
+                        {
+                            SymbolicName = new System.Xml.XmlQualifiedName(
+                                Types.BrowseNames.DefaultInstanceBrowseName,
+                                Types.Namespaces.OpcUa),
+                            BrowseName = Types.BrowseNames.DefaultInstanceBrowseName,
+                            DecodedValue = new QualifiedName("Device Set")
+                        }
+                    ]
+                },
+                HasChildren = true
+            };
+            var barType = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName("BarType", targetNamespace.Value),
+                SymbolicId = new System.Xml.XmlQualifiedName("BarType", targetNamespace.Value),
+                BrowseName = "BarType",
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new ObjectDesign
+                        {
+                            SymbolicName = new System.Xml.XmlQualifiedName(
+                                "DeviceSet", targetNamespace.Value),
+                            SymbolicId = new System.Xml.XmlQualifiedName(
+                                "BarType_DeviceSet", targetNamespace.Value),
+                            BrowseName = "DeviceSet"
+                        }
+                    ]
+                },
+                HasChildren = true
+            };
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([fooType, barType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            var generator = new ConstantsGenerator(m_context);
+            Assert.That(() => generator.Emit(), Throws.Nothing);
+
+            string output = System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.Constants.g.cs")));
+            Assert.That(
+                output,
+                Does.Contain("public const string DeviceSet = \"DeviceSet\";"),
+                "the symbolic name entry wins regardless of declaration order");
+        }
+
+        [Test]
+        public void Emit_TargetModelVersionEmitsModelVersionConstant()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://test.org/UA/",
+                Prefix = "Test",
+                Name = "TestNamespace",
+                Version = "0.1.0"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.TargetVersion).Returns("2.3.4");
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            string output = EmitWithSingleObjectType(targetNamespace);
+
+            Assert.That(output, Does.Contain("public const string Target = \"2.3.4\";"));
         }
 
         private string EmitWithSingleObjectType(Namespace targetNamespace)

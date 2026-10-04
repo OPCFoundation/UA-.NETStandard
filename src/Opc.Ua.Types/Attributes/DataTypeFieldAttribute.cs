@@ -69,8 +69,9 @@ namespace Opc.Ua
         /// <summary>
         /// Controls default value handling during encode/decode.
         /// <see cref="DefaultValueHandling.Exclude"/> (default)
-        /// omits defaults on write and preserves constructor
-        /// defaults on read when field is absent.
+        /// omits type defaults on write and preserves constructor
+        /// defaults on read when the field is absent from XML (a
+        /// field absent from JSON is the type default).
         /// <see cref="DefaultValueHandling.Include"/> always
         /// writes and reads.
         /// </summary>

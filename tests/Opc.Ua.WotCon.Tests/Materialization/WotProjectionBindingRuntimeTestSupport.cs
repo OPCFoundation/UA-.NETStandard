@@ -454,10 +454,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .Commit();
             }
 
+            var typeTable = new TypeTable(namespaceUris);
+            typeTable.AddSubtype(Ua.DataTypeIds.BaseDataType, NodeId.Null);
+            typeTable.AddSubtype(Ua.DataTypeIds.Structure, Ua.DataTypeIds.BaseDataType);
+            typeTable.AddSubtype(
+                ExpandedNodeId.ToNodeId(TestRootType.EncodingId, namespaceUris), Ua.DataTypeIds.Structure);
+            typeTable.AddSubtype(
+                ExpandedNodeId.ToNodeId(TestChildType.EncodingId, namespaceUris), Ua.DataTypeIds.Structure);
             var ctx = new SystemContext(TelemetryExtensions.InternalOnly__TelemetryHook())
             {
                 NamespaceUris = namespaceUris,
-                TypeTable = new TypeTable(namespaceUris),
+                TypeTable = typeTable,
                 NodeIdFactory = new TestNodeIdFactory(Ns),
                 EncodeableFactory = factory
             };

@@ -44,6 +44,11 @@ namespace Opc.Ua
     internal static class ServerEventIds
     {
         /// <summary>
+        /// Event identifier offset for runtime resource isolation.
+        /// </summary>
+        public const int ResourceIsolation = 700;
+
+        /// <summary>
         /// Event identifier offset for aggregate calculation messages.
         /// </summary>
         public const int AggregateCalculator = 0;
@@ -102,6 +107,11 @@ namespace Opc.Ua
         /// Event identifier offset for event source registry messages.
         /// </summary>
         public const int EventSourceRegistry = 150;
+
+        /// <summary>
+        /// Event identifier offset for materialized file-directory binding messages.
+        /// </summary>
+        public const int FileDirectoryBinder = 610;
 
         /// <summary>
         /// Event identifier offset for historian sample capture messages.
@@ -267,6 +277,46 @@ namespace Opc.Ua
         /// Event identifier offset for historian event capture messages.
         /// </summary>
         public const int HistorianEventCapture = 600;
+
+        /// <summary>
+        /// Event identifier offset for state-machine lifecycle messages.
+        /// </summary>
+        public const int StateMachineBuilder = 620;
+
+        /// <summary>
+        /// Event identifier offset for fluent state-machine lifecycle messages.
+        /// </summary>
+        public const int FluentStateMachineBuilder = 630;
+
+        /// <summary>
+        /// Event identifier offset for KeyCredential push messages.
+        /// </summary>
+        public const int KeyCredentialPushSubject = 640;
+
+        /// <summary>
+        /// Event identifier offset for asynchronous node-manager diagnostics.
+        /// </summary>
+        public const int AsyncCustomNodeManager = 650;
+
+        /// <summary>
+        /// Event identifier offset for pending certificate-key compensation.
+        /// </summary>
+        public const int PendingCertificateKey = 660;
+
+        /// <summary>
+        /// Event identifier offset for isolated event-delivery failures.
+        /// </summary>
+        public const int EventManager = 670;
+
+        /// <summary>
+        /// Event identifier offset for directory cursor cleanup.
+        /// </summary>
+        public const int DirectoryBrowser = 680;
+
+        /// <summary>
+        /// Event identifier offset for service-dispatch reference resolution.
+        /// </summary>
+        public const int NodeManagerServiceDispatcher = 690;
     }
 
     /// <summary>

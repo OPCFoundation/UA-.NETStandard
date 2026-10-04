@@ -88,6 +88,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task ServiceLevelCompositionRegistersOnlyOnePublisherAsync()
+        {
+            var builder = new DiTestServerBuilder();
+            var provider = new ConstantServiceLevelProvider(210);
+            builder.UseDistributedAddressSpace()
+                .AddServerServiceLevel(new ConstantServiceLevelProvider(240))
+                .AddServerServiceLevel(provider);
+
+            await using ServiceProvider services = builder.Services.BuildServiceProvider();
+
+            Assert.That(services.GetRequiredService<IServiceLevelProvider>(), Is.SameAs(provider));
+            Assert.That(services.GetServices<IServerStartupTask>().OfType<ServiceLevelStartupTask>().Count(),
+                Is.EqualTo(1));
+        }
+
+        [Test]
         public void UseDistributedAddressSpaceThrowsOnNullBuilder()
         {
             Assert.That(

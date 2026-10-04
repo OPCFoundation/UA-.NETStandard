@@ -75,8 +75,12 @@ namespace Opc.Ua.Positioning.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(rslCount, Is.EqualTo(46));
-                Assert.That(totalCount, Is.EqualTo(94));
+                // Includes the NamespaceMetadata objects (under Server/Namespaces)
+                // and the GPOS TypeDictionary variables (under OPCBinarySchema /
+                // OPCXmlSchema). Both are linked to their ns=0 parent only by an
+                // inverse HasComponent and used to be dropped by the NodeSet import.
+                Assert.That(rslCount, Is.EqualTo(54));
+                Assert.That(totalCount, Is.EqualTo(123));
                 Assert.That(
                     nodes.Any(node => node.NodeId == NodeId.Create(
                         Rsl.Objects.RelativeSpatialLocations,

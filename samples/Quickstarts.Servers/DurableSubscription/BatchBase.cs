@@ -63,7 +63,11 @@ namespace Quickstarts.Servers
         /// <summary>
         /// The batch has been persisted to disk
         /// </summary>
-        public bool IsPersisted { get; protected set; }
+        public bool IsPersisted
+        {
+            get => Volatile.Read(ref m_isPersisted);
+            protected set => Volatile.Write(ref m_isPersisted, value);
+        }
 
         /// <summary>
         /// Restore is currently in progress in a background thread
@@ -73,7 +77,11 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Peristing is currently in progress in a background thread
         /// </summary>
-        public bool PersistingInProgress { get; set; }
+        public bool PersistingInProgress
+        {
+            get => Volatile.Read(ref m_persistingInProgress);
+            set => Volatile.Write(ref m_persistingInProgress, value);
+        }
 
         /// <summary>
         /// Marks the batch as persisted and removes the data from memory
@@ -84,5 +92,15 @@ namespace Quickstarts.Servers
         /// Cancel this token to stop the persisting of the batch
         /// </summary>
         public CancellationTokenSource? CancelBatchPersist { get; set; }
+
+        /// <summary>
+        /// Records whether the batch data has been written to disk and released from memory.
+        /// </summary>
+        private bool m_isPersisted;
+
+        /// <summary>
+        /// Records whether a background persistence operation currently owns the batch.
+        /// </summary>
+        private bool m_persistingInProgress;
     }
 }

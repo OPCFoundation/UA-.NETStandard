@@ -94,8 +94,9 @@ namespace Opc.Ua.Server
                 case PerformUpdateType.Update:
                     return PermissionType.InsertHistory | PermissionType.ModifyHistory;
                 case PerformUpdateType.Replace:
-                case PerformUpdateType.Remove:
                     return PermissionType.ModifyHistory;
+                case PerformUpdateType.Remove:
+                    return PermissionType.DeleteHistory;
                 default:
                     Debug.Fail($"Unexpected update type {updateType}");
                     return PermissionType.ModifyHistory;
@@ -455,20 +456,6 @@ namespace Opc.Ua.Server
                 monitoredItems,
                 savedOwnerIdentity,
                 cancellationToken);
-        }
-
-        /// <summary>
-        /// Pre-hydrates monitored-item data/event queues from the configured
-        /// <see cref="ISubscriptionStore"/> so the synchronous monitored-item creation path can
-        /// consume them without blocking on an asynchronous store.
-        /// </summary>
-        /// <param name="itemsToRestore">The monitored items being restored.</param>
-        /// <param name="cancellationToken">A token to cancel the operation.</param>
-        private ValueTask PreHydrateMonitoredItemQueuesAsync(
-            IList<IStoredMonitoredItem> itemsToRestore,
-            CancellationToken cancellationToken)
-        {
-            return m_serviceDispatch.PreHydrateMonitoredItemQueuesAsync(itemsToRestore, cancellationToken);
         }
 
         /// <summary>
@@ -1076,9 +1063,8 @@ namespace Opc.Ua.Server
                 if (commonRoleIdPermissions.TryGetValue(currentRoleId, out PermissionType value))
                 {
                     userActualPermissions |= value;
-                    if ((value & requestedPermission) != PermissionType.None)
+                    if ((userActualPermissions & requestedPermission) == requestedPermission)
                     {
-                        // there is one role that current session has na is listed in requested role
                         return StatusCodes.Good;
                     }
                 }

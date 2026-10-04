@@ -30,7 +30,7 @@
 
 #nullable enable
 
-using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void ValidateNonceAcceptsAWellFormedNonce()
         {
             using TestChannel channel = CreateChannel();
-            using Nonce nonce = Nonce.CreateNonce(SecurityPolicyInfo.RSA_DH_AesGcm);
+            using var nonce = Nonce.CreateNonce(SecurityPolicyInfo.RSA_DH_AesGcm);
 
             byte[]? data = nonce.Data;
             Assert.That(data, Is.Not.Null);
@@ -130,6 +130,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using TestChannel channel = CreateChannel();
 
             Assert.That(channel.ValidateNonceForTest(new byte[NonceLength - 1]), Is.False);
+        }
+
+        [Test]
+        public void CreatingANewEphemeralNonceDisposesThePreviousKey()
+        {
+            using TestChannel channel = CreateChannel();
+
+            channel.CreateNonceForTest();
+            Nonce first = channel.LocalNonceForTest!;
+
+            channel.CreateNonceForTest();
+
+            object? firstKey = typeof(Nonce)
+                .GetField("m_ecdh", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(first);
+            Assert.That(firstKey, Is.Null);
+        }
+
+        /// <summary>
+        /// The AEAD nonce input LastSequenceNumber must be the number of the previously
+        /// sent chunk, also across the 32-bit wrap (OPC 10000-6 6.8.1).
+        /// </summary>
+        [Test]
+        public void LastSentSequenceNumberFollowsTheWrap()
+        {
+            using TestChannel channel = CreateChannel();
+            channel.SetNextSequenceNumberForTest(uint.MaxValue - 1);
+
+            uint previous = channel.NextSequenceNumberForTest();
+            Assert.That(previous, Is.EqualTo(uint.MaxValue - 1));
+            for (int ii = 0; ii < 3; ii++)
+            {
+                uint sent = channel.NextSequenceNumberForTest();
+                Assert.That(
+                    channel.LastSentSequenceNumber,
+                    Is.EqualTo(previous),
+                    $"chunk {sent} must use the previous chunk's sequence number.");
+                previous = sent;
+            }
+            Assert.That(previous, Is.EqualTo(1u));
         }
 
         private const int NonceLength = 384;
@@ -150,7 +190,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     bufferManager,
                     quotas,
                     (Certificate?)null,
-                    new List<EndpointDescription>(),
+                    [],
                     MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicies.RSA_DH_AesGcm,
                     telemetry)
@@ -161,6 +201,28 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 return ValidateNonce(null, nonce);
             }
+
+            public byte[] CreateNonceForTest()
+            {
+                return CreateNonce(null)!;
+            }
+
+            public uint NextSequenceNumberForTest()
+            {
+                return GetNewSequenceNumber();
+            }
+
+            public void SetNextSequenceNumberForTest(uint sequenceNumber)
+            {
+                // Non-legacy numbering returns the incremented counter minus one.
+                typeof(UaSCUaBinaryChannel)
+                    .GetField("m_sequenceNumber", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(this, (long)sequenceNumber);
+            }
+
+            public Nonce? LocalNonceForTest => typeof(UaSCUaBinaryChannel)
+                        .GetField("m_localNonce", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .GetValue(this) as Nonce;
         }
     }
 }

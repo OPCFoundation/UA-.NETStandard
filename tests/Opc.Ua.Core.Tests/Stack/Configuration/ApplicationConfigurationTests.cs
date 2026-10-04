@@ -421,7 +421,11 @@ namespace Opc.Ua.Core.Tests
             var config = new ApplicationConfiguration(m_telemetry);
             int calls = 0;
 
-            string value = config.GetOrAddProperty("key", () => { calls++; return "made"; });
+            string value = config.GetOrAddProperty("key", () =>
+            {
+                calls++;
+                return "made";
+            });
 
             Assert.That(value, Is.EqualTo("made"));
             Assert.That(calls, Is.EqualTo(1));
@@ -455,7 +459,7 @@ namespace Opc.Ua.Core.Tests
             const int callers = 32;
             using var start = new ManualResetEventSlim(false);
 
-            var results = new object[callers];
+            object[] results = new object[callers];
             var threads = new Thread[callers];
             for (int i = 0; i < callers; i++)
             {
@@ -463,7 +467,7 @@ namespace Opc.Ua.Core.Tests
                 threads[i] = new Thread(() =>
                 {
                     start.Wait();
-                    results[index] = config.GetOrAddProperty<object>("key", () => new object());
+                    results[index] = config.GetOrAddProperty("key", () => new object());
                 });
                 threads[i].Start();
             }
@@ -487,7 +491,7 @@ namespace Opc.Ua.Core.Tests
             var config = new ApplicationConfiguration(m_telemetry);
 
             Assert.That(
-                () => config.GetOrAddProperty<string>(null!, () => "x"),
+                () => config.GetOrAddProperty(null!, () => "x"),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(
                 () => config.GetOrAddProperty<string>("key", null!),
@@ -640,6 +644,53 @@ namespace Opc.Ua.Core.Tests
 
             ArrayOf<string> domains = config.GetServerDomainNames();
             Assert.That(domains.Count, Is.EqualTo(2));
+        }
+
+        [TestCase("https")]
+        [TestCase("opc.https")]
+        [TestCase("wss")]
+        [TestCase("opc.wss")]
+        [TestCase("HTTPS")]
+        [TestCase("Opc.Https")]
+        [TestCase("WSS")]
+        [TestCase("Opc.Wss")]
+        public void GetServerDomainNamesPreservesConfiguredLoopbackName(string scheme)
+        {
+            var config = new ApplicationConfiguration(m_telemetry)
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = [$"{scheme}://localhost:4843", $"{scheme}://LOCALHOST:4844"]
+                }
+            };
+            var expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "localhost",
+                Utils.GetHostName()
+            };
+
+            ArrayOf<string> domains = config.GetServerDomainNames();
+
+            Assert.That(domains.ToArray(), Is.EquivalentTo(expected));
+            Assert.That(domains.Count, Is.EqualTo(expected.Count));
+        }
+
+        [TestCase("https://127.0.0.1:4843", "127.0.0.1")]
+        [TestCase("https://[::1]:4843", "::1")]
+        public void GetServerDomainNamesPreservesIpAddressIdentity(string endpoint, string expected)
+        {
+            var config = new ApplicationConfiguration(m_telemetry)
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = [endpoint]
+                }
+            };
+
+            ArrayOf<string> domains = config.GetServerDomainNames();
+
+            Assert.That(domains.Count, Is.EqualTo(1));
+            Assert.That(domains[0], Is.EqualTo(expected));
         }
 
         [Test]

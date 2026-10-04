@@ -189,15 +189,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-#if NET5_0_OR_GREATER
                 await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
-#else
-                using (ct.Register(static s => ((Socket)s!).Dispose(), socket))
-                {
-                    await socket.ConnectAsync(endpoint).ConfigureAwait(false);
-                }
-                ct.ThrowIfCancellationRequested();
-#endif
 
                 lock (m_socketLock)
                 {
@@ -230,7 +222,9 @@ namespace Opc.Ua.Bindings
         public async ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
         {
             Socket socket = RequireConnectedSocket();
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using var linkedCts =
+                CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token);
+            await m_sendLock.WaitAsync(linkedCts.Token).ConfigureAwait(false);
             try
             {
                 int sent = 0;
@@ -276,7 +270,9 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(buffers));
             }
             Socket socket = RequireConnectedSocket();
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using var linkedCts =
+                CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token);
+            await m_sendLock.WaitAsync(linkedCts.Token).ConfigureAwait(false);
             try
             {
                 // Socket.SendAsync(IList<ArraySegment<byte>>) is a vectored send
@@ -391,7 +387,7 @@ namespace Opc.Ua.Bindings
             {
                 ShutdownAndDispose(socket);
             }
-            m_sendLock.Dispose();
+            m_sendCancellation.Cancel();
         }
 
         /// <summary>
@@ -552,7 +548,19 @@ namespace Opc.Ua.Bindings
         private readonly BufferManager m_bufferManager;
         private int m_receiveBufferSize;
         private readonly ILogger m_logger;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "The semaphore must remain undisposed so queued send waiters can observe transport cancellation and unwind.")]
         private readonly SemaphoreSlim m_sendLock;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "The lifetime token remains available to concurrent send setup while close cancellation unwinds those sends.")]
+        private readonly CancellationTokenSource m_sendCancellation = new();
+
         private readonly Lock m_socketLock = new();
         private Socket? m_socket;
         private bool m_closed;
@@ -567,7 +575,7 @@ namespace Opc.Ua.Bindings
             Message = "Failed to connect socket to {IdnHost}:{Port}.")]
         public static partial void TcpByteTransportLogMessage0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? idnHost,
             int port);
 
@@ -575,7 +583,6 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error closing socket.")]
         public static partial void TcpByteTransportLogMessage1(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
     }
-
 }

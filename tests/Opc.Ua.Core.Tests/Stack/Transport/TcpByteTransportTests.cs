@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -86,6 +87,113 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void ConnectAsyncWithRefusedConnectionPreservesSocketException()
+        {
+            using var reserved = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            reserved.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)reserved.LocalEndPoint!).Port;
+            using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+
+            Assert.ThrowsAsync<SocketException>(
+                async () => await transport.ConnectAsync(
+                    new Uri($"opc.tcp://127.0.0.1:{port}"),
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(transport.LocalEndpoint, Is.Null);
+            Assert.That(transport.RemoteEndpoint, Is.Null);
+        }
+
+        [Test]
+        public async Task ConnectAsyncHonorsCancellationBeforeConnection()
+        {
+            using var cancellationSource = new CancellationTokenSource();
+            cancellationSource.Cancel();
+            using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+
+            OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(
+                async () => await transport.ConnectAsync(
+                    new Uri("opc.tcp://192.0.2.1:4840"),
+                    cancellationSource.Token).ConfigureAwait(false))!;
+
+            Assert.That(exception.CancellationToken, Is.EqualTo(cancellationSource.Token));
+            Assert.That(transport.LocalEndpoint, Is.Null);
+            Assert.That(transport.RemoteEndpoint, Is.Null);
+        }
+
+        [Test]
+        public async Task ConnectAsyncHonorsCancellationDuringConnection()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start(1);
+            using var _l = new ListenerScope(listener);
+            var endpoint = (IPEndPoint)listener.LocalEndpoint;
+            var connections = new List<(Socket Socket, Task ConnectTask)>();
+
+            try
+            {
+                Task? pendingConnect = null;
+                for (int ii = 0; ii < 16 && pendingConnect == null; ii++)
+                {
+                    var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+                    Task connectTask = socket.ConnectAsync(endpoint);
+                    connections.Add((socket, connectTask));
+                    Task completed = await Task
+                        .WhenAny(connectTask, Task.Delay(TimeSpan.FromMilliseconds(100)))
+                        .ConfigureAwait(false);
+                    if (completed == connectTask)
+                    {
+                        await connectTask.ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        pendingConnect = connectTask;
+                    }
+                }
+
+                Assert.That(pendingConnect, Is.Not.Null, "Could not saturate the listener backlog.");
+
+                using var cancellationSource = new CancellationTokenSource();
+                using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+                Task connect = transport
+                    .ConnectAsync(
+                        new Uri($"opc.tcp://127.0.0.1:{endpoint.Port}"),
+                        cancellationSource.Token)
+                    .AsTask();
+
+                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
+                Assert.That(connect.IsCompleted, Is.False);
+                cancellationSource.Cancel();
+
+                OperationCanceledException exception =
+                    Assert.CatchAsync<OperationCanceledException>(async () => await connect.ConfigureAwait(false))!;
+                Assert.That(exception.CancellationToken, Is.EqualTo(cancellationSource.Token));
+                Assert.That(transport.LocalEndpoint, Is.Null);
+                Assert.That(transport.RemoteEndpoint, Is.Null);
+            }
+            finally
+            {
+                foreach ((Socket socket, _) in connections)
+                {
+                    socket.Dispose();
+                }
+
+                foreach ((_, Task connectTask) in connections)
+                {
+                    try
+                    {
+                        await connectTask.ConfigureAwait(false);
+                    }
+                    catch (SocketException)
+                    {
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                    }
+                }
+            }
+        }
+
+        [Test]
         public async Task SendChunkAsyncRoundTripsBytesOverTheSocket()
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
@@ -109,7 +217,43 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Assert.That(n, Is.GreaterThan(0));
                     total += n;
                 }
+
                 Assert.That(received, Is.EqualTo(payload));
+            }
+        }
+
+        [Test]
+        public async Task ClosingTransportCompletesAQueuedSendWaiterAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                var sendLock = (SemaphoreSlim)typeof(TcpByteTransport)
+                    .GetField("m_sendLock", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(client)!;
+                sendLock.Wait();
+                try
+                {
+                    Task send = client.SendChunkAsync(
+                        BuildValidChunk(TcpMessageType.Hello, 64),
+                        CancellationToken.None).AsTask();
+
+                    await Task.Delay(25).ConfigureAwait(false);
+                    client.Close();
+
+                    Assert.That(
+                        await Task.WhenAny(send, Task.Delay(TimeSpan.FromSeconds(1)))
+                            .ConfigureAwait(false),
+                        Is.SameAs(send));
+                    Assert.That(send.IsCompleted, Is.True);
+                }
+                finally
+                {
+                    sendLock.Release();
+                }
             }
         }
 

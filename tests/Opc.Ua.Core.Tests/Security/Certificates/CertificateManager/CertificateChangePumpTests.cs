@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,6 +50,63 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [Parallelizable(ParallelScope.All)]
     public sealed class CertificateChangePumpTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OwnedStatesReleaseOnceOnReplacementDisposalAndProcessCompletionAsync(bool failProcess)
+        {
+            var subject = new CertificateChangeSubject();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var started = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var disposed = new ConcurrentDictionary<CertificateChangeKind, int>();
+            int processed = 0;
+            int errors = 0;
+            using var pump = new CertificateChangePump<CertificateChangeEvent>(
+                _ => true,
+                (_, evt) => evt,
+                async (_, _) =>
+                {
+                    Interlocked.Increment(ref processed);
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    if (failProcess)
+                    {
+                        throw new InvalidOperationException("Processing failed.");
+                    }
+                },
+                _ => Interlocked.Increment(ref errors),
+                task =>
+                {
+                    if (task != null)
+                    {
+                        started.TrySetResult(task);
+                    }
+                },
+                state => disposed.AddOrUpdate(state.Kind, 1, (_, count) => count + 1));
+            pump.Subscribe(subject);
+            subject.Notify(Event(CertificateChangeKind.CrlUpdated));
+            Task drain = await started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                subject.Notify(Event(CertificateChangeKind.TrustListUpdated));
+                subject.Notify(Event(CertificateChangeKind.CertificateRejected));
+                Assert.That(disposed[CertificateChangeKind.TrustListUpdated], Is.EqualTo(1));
+                Assert.That(disposed.ContainsKey(CertificateChangeKind.CrlUpdated), Is.False);
+                pump.Dispose();
+                Assert.That(disposed[CertificateChangeKind.CertificateRejected], Is.EqualTo(1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await drain.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            Assert.That(processed, Is.EqualTo(1));
+            Assert.That(errors, Is.EqualTo(failProcess ? 1 : 0));
+            Assert.That(disposed[CertificateChangeKind.CrlUpdated], Is.EqualTo(1));
+            Assert.That(disposed.Values, Is.All.EqualTo(1));
+        }
+
         private static CertificateChangeEvent Event(
             CertificateChangeKind kind,
             TrustListIdentifier? trustList = null)
@@ -60,6 +118,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 OldCertificate: null,
                 NewCertificate: null,
                 IssuerChain: null);
+        }
+
+        [Test]
+        public void ThrowingObserverDoesNotStopDeliveryToLaterObservers()
+        {
+            var subject = new CertificateChangeSubject();
+            var received = new List<CertificateChangeKind>();
+            int completed = 0;
+            using IDisposable first = subject.Subscribe(new DelegateObserver(
+                _ => throw new InvalidOperationException("observer failure"),
+                () => throw new InvalidOperationException("observer failure")));
+            using IDisposable second = subject.Subscribe(new DelegateObserver(
+                evt => received.Add(evt.Kind),
+                () => completed++));
+
+            Assert.DoesNotThrow(() => subject.Notify(Event(CertificateChangeKind.TrustListUpdated)));
+            Assert.DoesNotThrow(() => subject.Notify(Event(CertificateChangeKind.CrlUpdated)));
+            Assert.DoesNotThrow(subject.Complete);
+
+            Assert.That(received, Is.EqualTo(new[]
+            {
+                CertificateChangeKind.TrustListUpdated,
+                CertificateChangeKind.CrlUpdated
+            }));
+            Assert.That(completed, Is.EqualTo(1));
+        }
+
+        private sealed class DelegateObserver(
+            Action<CertificateChangeEvent> onNext,
+            Action onCompleted) : IObserver<CertificateChangeEvent>
+        {
+            public void OnCompleted()
+            {
+                onCompleted();
+            }
+
+            public void OnError(Exception error)
+            {
+            }
+
+            public void OnNext(CertificateChangeEvent value)
+            {
+                onNext(value);
+            }
         }
 
         [Test]

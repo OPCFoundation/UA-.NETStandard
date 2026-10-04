@@ -150,6 +150,51 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.Zero);
         }
 
+        /// <summary>
+        /// OPC 10000-21 §9.2.11: RegisterTickets shall be called from a Session
+        /// that has access to the RegistrarAdmin Role.
+        /// </summary>
+        [Test]
+        public async Task RegisterTicketsRequiresRegistrarAdminRole()
+        {
+            (SystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
+            var store = new MemoryTicketStore();
+            registrar.BindToTicketStore(store);
+            ArrayOf<ByteString> tickets = [new ByteString(new byte[] { 1, 2, 3 })];
+            byte[] password = "password"u8.ToArray();
+
+            var userContext = new SessionSystemContext(context.Telemetry)
+            {
+                NamespaceUris = context.NamespaceUris,
+                TypeTable = context.TypeTable,
+                UserIdentity = new UserIdentity("user", password)
+            };
+            (ServiceResult denied, _, _) = await CallAsync(
+                registrar.RegisterTickets!,
+                userContext,
+                registrar.NodeId,
+                Variant.From(tickets)).ConfigureAwait(false);
+            Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(await store.ListAsync().CountAsync().ConfigureAwait(false), Is.Zero);
+
+            var adminContext = new SessionSystemContext(context.Telemetry)
+            {
+                NamespaceUris = context.NamespaceUris,
+                TypeTable = context.TypeTable,
+                UserIdentity = new Opc.Ua.Server.RoleBasedIdentity(
+                    new UserIdentity("admin", password),
+                    [new Opc.Ua.Server.Role(Opc.Ua.Onboarding.ObjectIds.WellKnownRole_RegistrarAdmin, "RegistrarAdmin")],
+                    context.NamespaceUris)
+            };
+            (ServiceResult allowed, _, _) = await CallAsync(
+                registrar.RegisterTickets!,
+                adminContext,
+                registrar.NodeId,
+                Variant.From(tickets)).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(allowed), Is.True);
+            Assert.That(await store.ListAsync().CountAsync().ConfigureAwait(false), Is.EqualTo(1));
+        }
+
         [Test]
         public async Task RegisterTicketsReportsPerTicketStoreFailure()
         {

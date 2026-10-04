@@ -2,7 +2,29 @@
 
 > **When to read this:** Read this when hit by `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`, or by `[Obsolete]` warnings on built-in type APIs - covers every value-type and `Variant`-for-`object` migration. Maps to analyzer rules `UA0002`–`UA0008`, `UA0014`, and `UA0019`.
 
-### Several built in types are now immutable value types
+## Contents
+
+- [Several built in types are now immutable value types](#several-built-in-types-are-now-immutable-value-types)
+- [ByteString](#bytestring)
+- [ArrayOf and MatrixOf](#arrayof-and-matrixof)
+  - [Configuration collection types removed](#configuration-collection-types-removed)
+  - [Generated data type fields with ValueRank=OneOrMoreDimensions](#generated-data-type-fields-with-valuerankoneormoredimensions)
+- [DateTimeUtc](#datetimeutc)
+- [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
+- [StatusCode](#statuscode)
+- [NodeId/ExpandedNodeId](#nodeidexpandednodeid)
+- [Variant, DataValue and ExtensionObject](#variant-datavalue-and-extensionobject)
+  - [Deprecated boxing behavior](#deprecated-boxing-behavior)
+  - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
+- [DataValue](#datavalue)
+- [XmlElement](#xmlelement)
+- [EnumValue to represent the enumeration built in type](#enumvalue-to-represent-the-enumeration-built-in-type)
+- [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
+- [Other Data Types](#other-data-types)
+- [Obsoleted APIs and replacements](#obsoleted-apis-and-replacements)
+- [APIs permanently removed](#apis-permanently-removed)
+
+## Several built in types are now immutable value types
 
 The `Variant` and `TypeInfo`, `NodeId`, `ExpandedNodeId`, `ExtensionObject`, `LocalizedText` and `QualifiedName` are now `readonly struct`s. This is a large breaking change and affects existing usage:
 
@@ -10,7 +32,7 @@ The `Variant` and `TypeInfo`, `NodeId`, `ExpandedNodeId`, `ExtensionObject`, `Lo
 2. The default item can be created by assigning `default`, e.g. producing `NodeId.Null` for NodeId and `QualifiedName.Null` for QualifiedName. It is recommended to use the `Null` property on these types for readability and per your coding conventions.
 3. Any API that mutated an instance of one of these built in types must be replaced with methods that return a new value of the type, e.g. `NodeId.WithNamespaceIndex(ushort)` as setters were removed.
 
-### ByteString
+## ByteString
 
 Previously the OPC UA built-in type *ByteString* was represented as `byte[]`. This caused ambiguities with regards to it and the byte *array* type. This has changed and `ByteString` is now a type in the Opc.Ua namespace. It is a wrapper around `ReadOnlyMemory<byte>` and while `Variant` handles both still interchangeably, the generated API now simplifies mixing of byte arrays and `ByteString` without confusion.
 
@@ -29,7 +51,7 @@ To migrate, perform the following general replacements in your code:
 - If your code tried to set a byte in the ByteString, create a buffer `byte[]` and after changing convert to `ByteString` using `ByteString.From(buffer)` or `.ToByteString()` extension method
 - Perform changes only where you encounter build breaks. This should be enough to get into a working state. Later adjust the code as needed.
 
-### ArrayOf and MatrixOf
+## ArrayOf and MatrixOf
 
 Similar to `ByteString`, `ArrayOf<T>` and `MatrixOf<T>` are new type safe and sliceable generic value types representing non-scalar values. They are immutable meaning the values at an index inside them cannot be "set" unless they are converted to a `Span<T>` (and then reconverted to a `ArrayOf`/`MatrixOf`).
 
@@ -74,11 +96,11 @@ Note that equality operators and methods now compare the content of the Array an
     ArrayOf<int> i = c.ConvertAll(v => (int)v);
 ```
 
-#### Configuration collection types removed
+### Configuration collection types removed
 
 All `List<T>`-based collection wrappers for configuration types have been removed and replaced with `ArrayOf<T>`: `ServerSecurityPolicyCollection`, `TransportConfigurationCollection`, `SamplingRateGroupCollection`, `ReverseConnectClientCollection`, `ReverseConnectClientEndpointCollection`, `ServerRegistrationCollection`, `CertificateIdentifierCollection`, `CertificateGroupConfigurationCollection`, `OAuth2ServerSettingsCollection`, `OAuth2CredentialCollection`.
 
-#### Generated data type fields with ValueRank=OneOrMoreDimensions
+### Generated data type fields with ValueRank=OneOrMoreDimensions
 
 Previously, every structure field declared with `ValueRank="OneOrMoreDimensions"` in a model design was generated as `global::Opc.Ua.Variant`. The property is now typed as `global::Opc.Ua.MatrixOf<T>` (mirroring the `ArrayOf<T>` treatment already used for `ValueRank="Array"`). Encoding/decoding still flows through `Variant`, but the boxing/unboxing happens inside the encoder calls so consumers see the typed surface.
 
@@ -115,7 +137,7 @@ The element type follows the field's `DataType`:
 
 - `IDecoder` gained a parameterless `ReadEncodeableMatrix<T>(string? fieldName) where T : IEncodeable, new()` overload that mirrors the existing `ReadEncodeableArray<T>(string? fieldName)` shape. Custom `IDecoder` implementations should add this overload alongside the existing encoding-id variant.
 
-##### VariableType State classes, PropertyState instances, and service parameters
+#### VariableType State classes, PropertyState instances, and service parameters
 
 The same `MatrixOf<T>` opt-in now extends beyond structure data type fields to three sibling sites in the source generator:
 
@@ -148,7 +170,7 @@ For *concrete* matrix variable types (today only `XYArrayItemType`) and matrix-r
     }.ToMatrixOf(2);
 ```
 
-### DateTimeUtc
+## DateTimeUtc
 
 Previously the **DateTime** built in type was represented by the `System.DateTime` type. It is now represented by the `Opc.Ua.DateTimeUtc` type. This new type complies with the details of the spec without requiring external helper methods to be used. It's Value property returns the ticks, bounded by the information in Part 6 of the spec, and its time is always UTC. There are conversion operations to and from `DateTime`, but also `DateTimeOffset` and `long` and a minimal subset of `System.DateTime` API to allow for simpler porting. `DateTime` implicitly converts to `DateTimeUtc`, but not vice versa to force use of the new type.
 
@@ -158,11 +180,11 @@ Previously the **DateTime** built in type was represented by the `System.DateTim
 - Replace `DateTime.UtcNow` with `DateTimeUtc.Now` for UTC time "right now". `DateTime.Now` or `DateTime.Today` can be cast or replaced with its Utc variant, which is likely intended anyway as all date/time values in OPC UA are UTC.
 - When assigning a `DateTime` value to a `DateTimeUtc` variable, add a cast, or use the corresponding `DateTimeUtc` constructor.
 
-### QualifiedName and LocalizedText
+## QualifiedName and LocalizedText
 
 There is no implicit conversion from `string` to `QualifiedName` or `LocalizedText` anymore. For one, it flags areas where null assignment is happening implicitly, and secondly, it makes the API more explicit. E.g. previously it was possible to assign a string to a browse name which landed the browse name accidentally in namespace 0 instead of the owning namespace. If you know what you are doing you can explicitly cast the string, but it is suggested to use the new static `From` API instead.
 
-### StatusCode
+## StatusCode
 
 `StatusCode` contains now not only a uint code, but also a symbol.  Symbols are interned strings and using the `StatusCodes` constants therefore come with the symbol string. This removes the need to look up the symbolic id, however, when receiving a uint code it needs to be translated to a StatusCode constant to retain the Symbol. Older API has been obsoleted with proper instructions. Since types are immutable it is important to replace mutation calls with the proper replacement method and store the returned value.
 
@@ -180,7 +202,7 @@ A matching `GetHashCode(StatusCodeComparison comparison)` overload is available 
 
 When migrating code that compared `statusCode.Code` (the raw `uint`) against a `StatusCodes.XXX` constant, prefer the `==` operator (`statusCode == StatusCodes.XXX`) so the comparison ignores the non-code bits. Likewise replace comparisons against `statusCode.CodeBits` with the `==` operator.
 
-### NodeId/ExpandedNodeId
+## NodeId/ExpandedNodeId
 
 `NodeId`s with integer identifiers (the most common case) now do not box the integer identifier anymore into an object, making the entire NodeId heap allocation free (*).  ExpandedNodeId with integer identifiers only contain an allocated namespace Uri, which is mostly a const (interned) string, reducing small allocations across both types. Because both types are now immutable, they must be mutated using the provided `With<X>`. Access to the identifier in boxed form (object) is deprecated. Instead use the `TryGetValue(out uint/string/Guid/byte[])` API. If you need to get the identifier only to "stringify" it, use the `IdentifierAsText` property which avoids boxing integer identifiers.
 
@@ -188,7 +210,7 @@ There is no implicit conversion from `uint`/`Guid`/`string`/`byte[]` to `NodeId`
 
 > (*) Note that NodeId leverages the new `uint` field to cache the HashCode of a "non-uint" "Identifier", which provides faster lookup using NodeId/ExpandedNodeId as key.
 
-### Variant, DataValue and ExtensionObject
+## Variant, DataValue and ExtensionObject
 
 Previously the `Variant` was a *mutable* struct containing a `TypeInfo` and `Value` property allowing setting the inner state and returning `object`.  All value types thus were implicitly boxed to object and landing on the heap. The new `Variant` only boxes value types > 8 bytes in size (*), and stores the rest in a union.  `TypeInfo`, previously a class, also now is stored as a 4 byte type (with padding).
 
@@ -209,7 +231,7 @@ var output = session.Call(objectId, methodId,
 
 `null` arguments must be passed as `Variant.Null` (a literal `null` will not bind to the `params Variant[]` overload).
 
-#### Deprecated boxing behavior
+### Deprecated boxing behavior
 
 Access to the `Value` property of `Variant` is marked as [Obsolete] to discourage use in favor of casting to `<Type>` or `Get<Type>()` (both throw) or preferably `bool TryGetValue(out <Type> value)` calls. The same applies to the `Value` property of `DataValue`. The APIs perform any required conversion between `BuiltInType.Int32` and `BuiltInType.Enumeration` as well as arrays of `BuiltInType.Byte` and `BuiltInType.ByteString`. This also applies to the `Body` property of `ExtensionObject`. Here prefer the use of `TryGetValue<T>` and `TryGetBinary, TryGetJson, TryGetXml`.
 
@@ -223,7 +245,7 @@ To perform conversion from `<T>` to a Variant, helper methods are available in `
 > All other built in value types (`ExtensionObject`, `NodeId`, `QualifiedName`, `LocalizedText`, `Uuid`, etc.) are > 8 bytes in size and are therefore boxed when stored inside a Variant.
 > Future improvements will make certain types like `ArrayOf` be stored *spliced* inside the Variant (where the array pointer is stored in the object, and length/offset inside the union).
 
-#### Replacement of all use of System.Object in generated code and API
+### Replacement of all use of System.Object in generated code and API
 
 `Variant` is now the type reflecting the OPC UA Variant type in all API. That means all generated API now uses Variant instead of `System.Object` and all `Value` Properties are `Variant` too.  This provides type safety and removes the need for Reflection via `GetType()` when the underlying type already is `Variant`.
 
@@ -252,7 +274,7 @@ To migrate, perform the following general replacements in your code:
 - For Variable and VariableType node state classes that provide a narrowed "Value" via generic `<T>` any access to `T Value` incurs a heavy type check.  It is recommended to use `WrappedValue` instead when possible for assignment and access.
 - While most assignments work implicitly, use `TypeInfo.GetDefaultVariantValue` instead of `TypeInfo.GetDefaultValue` to initialize a variant value to a default that is `!= Variant.Null`.
 
-### DataValue
+## DataValue
 
 `DataValue` has been converted from a reference type (class) to a `readonly struct` to relieve GC pressure on hot subscription/encoder paths. The semantics are aligned with the other immutable built-in types (`NodeId`, `ExtensionObject`, etc.).
 
@@ -310,13 +332,13 @@ async Task EnqueueAsync(DataValue dv)
 }
 ```
 
-### XmlElement
+## XmlElement
 
 Previously the `XmlElement` built in type was represented by the `System.Xml.XmlElement` system type. While officially a deprecated, there is now a value type `XmlElement` that merely wraps a string but provides conversion operations to `System.Xml.XmlElement` and `System.Linq.Xml.XNode` as well as validation and equality/hashing operations. Normally you just need to remove `using System.Xml` and code continues working as is.  If you need to have access to the `System.Xml.XmlElement` cast or use the `ToXmlElement` method.
 
 > `XmlElement` types are compared via a normalized version of the XML `string` contained, which removes all whitespace before comparing. This can result in some ambiguity, but operates well enough for test operations. For complete equality, cast to XNode and use `DeepEquals`.
 
-### EnumValue to represent the enumeration built in type
+## EnumValue to represent the enumeration built in type
 
 `EnumValue` bundles a symbol with a integer value (same as `StatusCode`). While most API works with standard .net `enum` types, these do not work in scenarios where the enum value is the result of a `EnumDefinition`. For these
 cases the `EnumValue` overloads provide a similar experience to using `enum`. In addition, the `EnumValue` type
@@ -333,11 +355,11 @@ Variant v = new Variant(EnumValue.From(MyEnum.Value)); // or
 Variant v = Variant.From(MyEnum.Value);
 ```
 
-### ExtensionObject array helpers changed
+## ExtensionObject array helpers changed
 
 `ExtensionObject.ToArray(object, Type)` and `ToList<T>(object)` removed. Use `extensionObjects.GetStructuresOf<T>()` or `ExtensionObject.ToArray<T>(ArrayOf<ExtensionObject>)`.
 
-### Other Data Types
+## Other Data Types
 
 All generated data types implementing `IEncodeable` are now equality comparable using `==` and `!=` and implement `IEquatable<T>`. Equality defaults to the `IsEqual` implementation of the `IEncodeable` interface. In addition `ToString()` and `GetHashCode()` are implemented making all generated data types effectively equivalent to `record` classes with the exception of supporting `with` expressions.
 
@@ -348,7 +370,7 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - When comparing data type instances for reference equality, use `ReferenceEquals`, instead of `==` or `!=` operators. You can use the `RefEqualityComparer<T>` helper when creating Dictionaries that use the type as key and require reference equality semantics for it.
 - When testing for `null`, use `is null` for more performant code.
 
-### Obsoleted APIs and replacements
+## Obsoleted APIs and replacements
 
 - `NodeId(string text)` -> `NodeId.Parse(string)`
 - `NodeId(object identifier, ushort namespaceIndex)` -> typed constructors: `new NodeId(uint, ushort)`, `new NodeId(Guid, ushort)`, `new NodeId(string, ushort)`, `new NodeId(ByteString, ushort)`
@@ -376,7 +398,7 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - `new DataValue(StatusCode)` and `new DataValue(StatusCode, DateTimeUtc)` -> use `DataValue.FromStatusCode(StatusCode)` and `DataValue.FromStatusCode(StatusCode, DateTimeUtc)`. The constructors suffered from a C# overload resolution bug where `new DataValue(42)` silently resolved to `DataValue(StatusCode)` instead of `DataValue(Variant)`, losing the value.
 - `SessionManager.ImpersonateUser` -> register `IUserTokenAuthenticator` instances via `services.AddIdentityAuthenticator<T>()` or `server.CurrentInstance.IdentityRegistry.Register(...)`. The event remains functional as a fallback, but is now `[Obsolete]`; the in-box ReferenceServer, GlobalDiscoverySampleServer, and ConsoleReferenceClient samples use the provider model.
 
-### APIs permanently removed
+## APIs permanently removed
 
 - All `<Type>Collection` classes, e.g. Int32Collection or ArgumentCollection -> use `List<Type>` or `ArrayOf<T>`
 - `ICloneable`/`Clone()`/`MemberwiseClone()` on the immutable built-in types -> use assignment for copies

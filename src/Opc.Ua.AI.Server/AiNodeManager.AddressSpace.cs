@@ -113,7 +113,7 @@ namespace Opc.Ua.AI.Server
         /// <summary>
         /// The release of the companion specification this Server implements.
         /// </summary>
-        public const string SpecificationVersion = "0.2.0";
+        public const string SpecificationVersion = ModelVersions.Target;
 
         private static void AddExternalReference(
             NodeId sourceId,

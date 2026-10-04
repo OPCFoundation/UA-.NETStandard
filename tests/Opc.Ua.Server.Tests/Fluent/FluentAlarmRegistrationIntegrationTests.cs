@@ -103,9 +103,14 @@ namespace Opc.Ua.Server.Tests.Fluent
             h.Builder.Node(h.Source.NodeId)
                 .CreateLimitAlarm(new QualifiedName("OverTempAlarm", h.NamespaceIndex));
 
-            // The inverse edge is written directly onto the event source.
             Assert.That(
-                h.Source.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server),
+                h.Source.ReferenceExists(ReferenceTypeIds.HasNotifier, true, h.Root.NodeId),
+                Is.True);
+            Assert.That(
+                h.Root.ReferenceExists(ReferenceTypeIds.HasNotifier, false, h.Source.NodeId),
+                Is.True);
+            Assert.That(
+                h.Root.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server),
                 Is.True);
 
             // The forward edge is published through the node manager that owns
@@ -114,8 +119,49 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .ConfigureAwait(false);
 
             Assert.That(
-                h.ServerObject.ReferenceExists(ReferenceTypeIds.HasNotifier, false, h.Source.NodeId),
+                h.ServerObject.ReferenceExists(ReferenceTypeIds.HasNotifier, false, h.Root.NodeId),
                 Is.True);
+            Assert.That(h.Manager.IsRootNotifier(h.Source.NodeId), Is.False);
+            Assert.That(h.Manager.IsRootNotifier(h.Root.NodeId), Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SharedAlarmNotifierRegistrationLivesUntilLastReleaseAsync(bool preexisting)
+        {
+            using Harness h = CreateHarness();
+            if (preexisting)
+            {
+                h.Root.EventNotifier = EventNotifiers.SubscribeToEvents;
+                h.Manager.AddRootNotifier(h.Root);
+            }
+            AlarmEventSourceRegistration first =
+                FluentNodeRegistration.RegisterAlarmEventSource(h.Builder, h.Source);
+            AlarmEventSourceRegistration second =
+                FluentNodeRegistration.RegisterAlarmEventSource(h.Builder, h.Source);
+            var firstRelease = new AlarmRelease(
+                new ConditionState(null), h.Manager.SystemContext, first, enabledByUs: false);
+            var secondRelease = new AlarmRelease(
+                new ConditionState(null), h.Manager.SystemContext, second, enabledByUs: false);
+
+            await firstRelease.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(h.Manager.IsRootNotifier(h.Root.NodeId), Is.True);
+            Assert.That(h.Root.EventNotifier & EventNotifiers.SubscribeToEvents, Is.Not.Zero);
+            Assert.That(h.Source.EventNotifier & EventNotifiers.SubscribeToEvents, Is.Not.Zero);
+            Assert.That(h.Root.ReferenceExists(
+                ReferenceTypeIds.HasNotifier, false, h.Source.NodeId), Is.True);
+
+            await secondRelease.DisposeAsync().ConfigureAwait(false);
+            await firstRelease.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(h.Manager.IsRootNotifier(h.Root.NodeId), Is.EqualTo(preexisting));
+            Assert.That((h.Root.EventNotifier & EventNotifiers.SubscribeToEvents) != 0, Is.EqualTo(preexisting));
+            Assert.That(h.Source.EventNotifier & EventNotifiers.SubscribeToEvents, Is.Zero);
+            Assert.That(h.Root.ReferenceExists(
+                ReferenceTypeIds.HasNotifier, false, h.Source.NodeId), Is.False);
+            Assert.That(h.Source.ReferenceExists(
+                ReferenceTypeIds.HasNotifier, true, h.Root.NodeId), Is.False);
         }
 
         [Test]
@@ -185,6 +231,98 @@ namespace Opc.Ua.Server.Tests.Fluent
                     .GetManagerHandlePublicAsync(machine.StateMachine.CurrentState.NodeId)
                     .ConfigureAwait(false),
                 Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Verifies that fluent alarms register distinct descendants and enabling one does not affect another.
+        /// </summary>
+        [Test]
+        public async Task DistinctFluentAlarmsHaveUniqueIndexedDescendantsAndIndependentMethodsAsync()
+        {
+            using Harness harness = CreateHarness();
+            INodeBuilder source = harness.Builder.Node(harness.Source.NodeId);
+            NonExclusiveLimitAlarmState first =
+                source.CreateLimitAlarm(new QualifiedName("FirstAlarm", harness.NamespaceIndex)).Alarm;
+            NonExclusiveLimitAlarmState second =
+                source.CreateLimitAlarm(new QualifiedName("SecondAlarm", harness.NamespaceIndex)).Alarm;
+            var nodes = new List<BaseInstanceState>();
+            CollectAlarmChildren(harness.Builder.Context, first, nodes);
+            CollectAlarmChildren(harness.Builder.Context, second, nodes);
+            Assert.That(nodes.Select(node => node.NodeId), Is.Unique);
+            foreach (BaseInstanceState node in nodes)
+            {
+                Assert.That(node.NodeId.NamespaceIndex, Is.EqualTo(harness.NamespaceIndex), node.BrowseName.ToString());
+                Assert.That(harness.Manager.FindPredefinedNodePublic<NodeState>(node.NodeId), Is.SameAs(node));
+            }
+            var argumentErrors = new List<ServiceResult>();
+            var output = new List<Variant>();
+            ServiceResult disabled = await first.Disable!.CallAsync(
+                harness.Builder.Context, first.NodeId, [], argumentErrors, output).ConfigureAwait(false);
+            Assert.That(disabled.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(first.EnabledState!.Id!.Value, Is.False);
+            Assert.That(second.EnabledState!.Id!.Value, Is.True);
+            ServiceResult enabled = await first.Enable!.CallAsync(
+                harness.Builder.Context, first.NodeId, [], argumentErrors, output).ConfigureAwait(false);
+            Assert.That(enabled.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(first.EnabledState.Id.Value, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that configured limits are browsable scalar doubles whose node identities survive value updates.
+        /// </summary>
+        [Test]
+        public async Task ConfiguredLimitsAreTypedBrowsableAndRemainStableWhenUpdatedAsync()
+        {
+            using Harness harness = CreateHarness();
+            IAlarmBuilder<NonExclusiveLimitAlarmState> builder = harness.Builder.Node(harness.Source.NodeId)
+                .CreateLimitAlarm(new QualifiedName("ConfiguredLimits", harness.NamespaceIndex));
+            builder.WithLimits(highHigh: 100, high: 80, low: 20, lowLow: 0);
+            NonExclusiveLimitAlarmState alarm = builder.Alarm;
+            PropertyState<double>[] limits =
+                [alarm.HighHighLimit!, alarm.HighLimit!, alarm.LowLimit!, alarm.LowLowLimit!];
+            string[] names = [BrowseNames.HighHighLimit, BrowseNames.HighLimit, BrowseNames.LowLimit, BrowseNames.LowLowLimit];
+            double[] values = [100, 80, 20, 0];
+            IList<ReferenceDescription> references = await BrowseAsync(harness, alarm.NodeId).ConfigureAwait(false);
+            for (int i = 0; i < limits.Length; i++)
+            {
+                PropertyState<double> property = limits[i];
+                Assert.That(property.BrowseName.Name, Is.EqualTo(names[i]));
+                Assert.That(property.DataType, Is.EqualTo(DataTypeIds.Double));
+                Assert.That(property.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+                Assert.That(property.Value, Is.EqualTo(values[i]));
+                Assert.That(property.NodeId.NamespaceIndex, Is.EqualTo(harness.NamespaceIndex));
+                Assert.That(harness.Manager.FindPredefinedNodePublic<NodeState>(property.NodeId), Is.SameAs(property));
+                Assert.That(references.Select(reference => reference.BrowseName.Name), Has.Member(names[i]));
+            }
+            NodeId highId = alarm.HighLimit!.NodeId;
+            int count = harness.Manager.PredefinedNodes.Count;
+            builder.WithLimits(high: 88);
+            Assert.That(alarm.HighLimit.NodeId, Is.EqualTo(highId));
+            Assert.That(alarm.HighLimit, Is.SameAs(limits[1]));
+            Assert.That(alarm.HighLimit.Value, Is.EqualTo(88));
+            Assert.That(alarm.HighHighLimit!.Value, Is.EqualTo(100));
+            Assert.That(harness.Manager.PredefinedNodes, Has.Count.EqualTo(count));
+            NonExclusiveLimitAlarmState other = harness.Builder.Node(harness.Source.NodeId)
+                .CreateLimitAlarm(new QualifiedName("OtherLimits", harness.NamespaceIndex))
+                .WithLimits(high: 50).Alarm;
+            Assert.That(other.HighLimit!.NodeId, Is.Not.EqualTo(highId));
+            Assert.That(other.HighLimit.Value, Is.EqualTo(50));
+            Assert.That(other.LowLimit, Is.Null);
+        }
+
+        /// <summary>
+        /// Collects every alarm descendant to check registration and node identifier uniqueness.
+        /// </summary>
+        private static void CollectAlarmChildren(
+            ISystemContext context, NodeState parent, List<BaseInstanceState> result)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                result.Add(child);
+                CollectAlarmChildren(context, child, result);
+            }
         }
 
         private static async Task<IList<ReferenceDescription>> BrowseAsync(
@@ -303,7 +441,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             root.AddChild(source);
 
-            BaseDataVariableState<bool> flag = BaseDataVariableState<bool>.With<VariantBuilder>(source);
+            var flag = BaseDataVariableState<bool>.With<VariantBuilder>(source);
             flag.NodeId = new NodeId("Root_Events_Flag", ns);
             flag.BrowseName = new QualifiedName("Flag", ns);
             flag.DisplayName = new LocalizedText("Flag");

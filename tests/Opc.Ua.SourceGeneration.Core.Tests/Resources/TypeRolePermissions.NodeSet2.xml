@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/TypeRolePermissions/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/TypeRolePermissions/"
+           PublicationDate="2026-01-01T00:00:00Z"
+           Version="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2023-01-01T00:00:00Z"
+                     Version="1.05.03"/>
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+
+  <UAObjectType NodeId="ns=1;i=200" BrowseName="1:RestrictedObjectType" AccessRestrictions="1">
+    <DisplayName>RestrictedObjectType</DisplayName>
+    <RolePermissions>
+      <RolePermission Permissions="3">i=15644</RolePermission>
+    </RolePermissions>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=201</Reference>
+    </References>
+  </UAObjectType>
+
+  <UAMethod NodeId="ns=1;i=201" BrowseName="1:Reset" ParentNodeId="ns=1;i=200">
+    <DisplayName>Reset</DisplayName>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15644</RolePermission>
+    </RolePermissions>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=200</Reference>
+    </References>
+  </UAMethod>
+</UANodeSet>

@@ -298,6 +298,7 @@ namespace Opc.Ua.Client
             // fetch initial set of references.
             ByteString continuationPoint = results[0].ContinuationPoint;
             ArrayOf<ReferenceDescription> references = results[0].References;
+            int emptyRounds = references.IsEmpty ? 1 : 0;
 
             try
             {
@@ -342,23 +343,32 @@ namespace Opc.Ua.Client
                     if (!additionalReferences.IsEmpty)
                     {
                         references = references.AddItems(additionalReferences);
+                        emptyRounds = 0;
                     }
-                    else
+                    else if (!continuationPoint.IsEmpty &&
+                        ++emptyRounds >= kMaxEmptyBrowseNextRounds)
                     {
-                        m_logger.BrowserContinuationPointExistsButBrowse();
-                        break;
+                        // An empty page with a continuation point is a legal
+                        // "not done yet" answer (Part 4 §5.9.2.1), so it is
+                        // followed; a server that never makes progress would
+                        // otherwise keep this loop running forever. The catch
+                        // below releases the point.
+                        m_logger.BrowserServerReturnedEmptyReferencesBut(emptyRounds);
+                        throw new ServiceResultException(
+                            StatusCodes.BadNoData,
+                            "The server kept returning a continuation point without references.");
                     }
                 }
             }
-            catch (OperationCanceledException) when (!continuationPoint.IsEmpty)
+            catch (Exception) when (!continuationPoint.IsEmpty)
             {
                 // Release the continuation point before propagating: returning
                 // the partial list here would hand the caller a silently
                 // truncated result that looks like a complete browse. The
-                // release is best effort - cancellation is often caused by the
-                // very session or channel it would travel on, and letting that
-                // failure out would replace the cancellation the caller is
-                // waiting to see.
+                // release is best effort - cancellation or a failure is often
+                // caused by the very session or channel it would travel on,
+                // and letting that failure out would replace the exception the
+                // caller is waiting to see.
                 session = Session;
                 if (session != null)
                 {
@@ -452,13 +462,18 @@ namespace Opc.Ua.Client
                 if (ContinuationPointPolicy == ContinuationPointPolicy.Balanced &&
                     MaxBrowseContinuationPoints > 0)
                 {
-                    maxNodesPerBrowse =
-                        MaxBrowseContinuationPoints < maxNodesPerBrowse
-                            ? MaxBrowseContinuationPoints
-                            : maxNodesPerBrowse;
+                    if (maxNodesPerBrowse == 0 ||
+                        MaxBrowseContinuationPoints < maxNodesPerBrowse)
+                    {
+                        maxNodesPerBrowse = MaxBrowseContinuationPoints;
+                    }
                 }
 
-                // split input into batches
+                // split input into batches. MaxNodesPerBrowse is a UInt32 and
+                // servers may advertise values above int.MaxValue (e.g.
+                // 0xFFFFFFFF as "unlimited"); a batch that large is a single
+                // batch, and casting it would yield a negative batch size.
+                int batchSize = maxNodesPerBrowse > int.MaxValue ? 0 : (int)maxNodesPerBrowse;
                 int batchOffset = 0;
 
                 var nodesToBrowseForNextPass = new List<NodeId>();
@@ -468,7 +483,7 @@ namespace Opc.Ua.Client
 
                 // loop over the batches
                 foreach (ArrayOf<NodeId> nodesToBrowseBatch in
-                    nodesToBrowseForPass.ToArrayOf().Batch((int)maxNodesPerBrowse))
+                    nodesToBrowseForPass.ToArrayOf().Batch(batchSize))
                 {
                     int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
 
@@ -482,6 +497,7 @@ namespace Opc.Ua.Client
                         state.ReferenceTypeId,
                         state.IncludeSubtypes,
                         state.NodeClassMask,
+                        m_logger,
                         ct)
                     .ConfigureAwait(false);
 
@@ -566,7 +582,7 @@ namespace Opc.Ua.Client
                         passCount,
                         otherErrorsPerPass,
                         $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or " +
-                            $"{nameof(StatusCodes.BadContinuationPointInvalid)}");
+                        nameof(StatusCodes.BadContinuationPointInvalid));
                 }
                 if (otherErrorsPerPass == 0 &&
                     badCPInvalidErrorsPerPass == 0 &&
@@ -623,6 +639,18 @@ namespace Opc.Ua.Client
         /// the browse description (NodeId, BrowseDirection, ReferenceTypeId,
         /// IncludeSubtypes, NodeClassMask, ResultMask).
         /// </summary>
+        /// <remarks>
+        /// The stream is a sequence of pages. The first page holds one result
+        /// per entry of <paramref name="nodesToBrowse"/>, in request order.
+        /// Every following page holds one result per result of the previous
+        /// page that carried a non-empty ContinuationPoint, in the order of
+        /// those results, so a consumer correlates follow-up references with
+        /// their node by tracking which results carried a continuation point.
+        /// A result with a continuation point but no references is a legal
+        /// "not done yet" answer and is followed; after too many such pages in
+        /// a row the point is released and a <see cref="StatusCodes.BadNoData"/>
+        /// result takes its place.
+        /// </remarks>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="view">The view to browse.</param>
         /// <param name="nodesToBrowse">The set of browse operations to perform.</param>
@@ -646,84 +674,87 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(first.Results, nodesToBrowse);
             ClientBase.ValidateDiagnosticInfos(first.DiagnosticInfos, nodesToBrowse);
 
+            // Continuation points of the page being handed out. They are
+            // collected before the first result of the page is yielded, so a
+            // consumer that stops early releases every one of them, not just
+            // those of the results it already saw.
             var continuationPoints = new List<ByteString>();
-            for (int i = 0; i < first.Results.Count; i++)
-            {
-                BrowseResult result = first.Results[i];
-                if (StatusCode.IsGood(result.StatusCode) &&
-                    !result.ContinuationPoint.IsNull &&
-                    result.ContinuationPoint.Length != 0)
-                {
-                    if (result.References.Count > 0)
-                    {
-                        continuationPoints.Add(result.ContinuationPoint);
-                    }
-                    else
-                    {
-                        m_logger.BrowserServerReturnedEmptyReferencesBut();
-                        yield return new BrowseResult
-                        {
-                            StatusCode = StatusCodes.BadNoData
-                        };
-                        continue;
-                    }
-                }
-                yield return result;
-            }
-
             try
             {
-                while (continuationPoints.Count > 0)
+                ArrayOf<BrowseResult> page = first.Results;
+                List<int>? pageEmptyRounds = null;
+                while (true)
                 {
-                    BrowseNextResponse next = await session.BrowseNextAsync(
-                        requestHeader, false,
-                        continuationPoints.ToArrayOf(), ct).ConfigureAwait(false);
-                    ClientBase.ValidateResponse(
-                        next.Results, continuationPoints.ToArrayOf());
-                    ClientBase.ValidateDiagnosticInfos(
-                        next.DiagnosticInfos, continuationPoints.ToArrayOf());
-
-                    continuationPoints = [];
-                    for (int i = 0; i < next.Results.Count; i++)
+                    var pageResults = new BrowseResult[page.Count];
+                    var nextEmptyRounds = new List<int>();
+                    List<ByteString>? abandoned = null;
+                    for (int i = 0; i < page.Count; i++)
                     {
-                        BrowseResult result = next.Results[i];
+                        BrowseResult result = page[i];
                         if (StatusCode.IsGood(result.StatusCode) &&
                             !result.ContinuationPoint.IsNull &&
                             result.ContinuationPoint.Length != 0)
                         {
-                            if (result.References.Count > 0)
+                            // An empty page with a continuation point is a
+                            // legal "not done yet" answer (Part 4 §5.9.2.1),
+                            // so it is followed, but only for a bounded number
+                            // of consecutive rounds.
+                            int emptyRounds = result.References.Count == 0
+                                ? (pageEmptyRounds?[i] ?? 0) + 1
+                                : 0;
+                            if (emptyRounds >= kMaxEmptyBrowseNextRounds)
                             {
-                                continuationPoints.Add(result.ContinuationPoint);
-                            }
-                            else
-                            {
-                                m_logger.BrowserServerReturnedEmptyReferencesBut();
-                                yield return new BrowseResult
+                                m_logger.BrowserServerReturnedEmptyReferencesBut(emptyRounds);
+                                (abandoned ??= []).Add(result.ContinuationPoint);
+                                result = new BrowseResult
                                 {
                                     StatusCode = StatusCodes.BadNoData
                                 };
-                                continue;
+                            }
+                            else
+                            {
+                                continuationPoints.Add(result.ContinuationPoint);
+                                nextEmptyRounds.Add(emptyRounds);
                             }
                         }
+                        pageResults[i] = result;
+                    }
+
+                    if (abandoned != null)
+                    {
+                        await ReleaseContinuationPointsAsync(session, abandoned, m_logger)
+                            .ConfigureAwait(false);
+                    }
+
+                    foreach (BrowseResult result in pageResults)
+                    {
                         yield return result;
                     }
+
+                    if (continuationPoints.Count == 0)
+                    {
+                        break;
+                    }
+
+                    ArrayOf<ByteString> requested = continuationPoints.ToArrayOf();
+                    BrowseNextResponse next = await session.BrowseNextAsync(
+                        requestHeader, false, requested, ct).ConfigureAwait(false);
+
+                    // The server consumed the points it answered; the revised
+                    // ones are in the results.
+                    continuationPoints = [];
+                    ClientBase.ValidateResponse(next.Results, requested);
+                    ClientBase.ValidateDiagnosticInfos(next.DiagnosticInfos, requested);
+                    page = next.Results;
+                    pageEmptyRounds = nextEmptyRounds;
                 }
             }
             finally
             {
                 if (continuationPoints.Count > 0)
                 {
-                    try
-                    {
-                        await session.BrowseNextAsync(
-                            requestHeader, true,
-                            continuationPoints.ToArrayOf(),
-                            default).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.BrowserFailedReleaseContinuationPoints(ex);
-                    }
+                    await ReleaseContinuationPointsAsync(session, continuationPoints, m_logger)
+                        .ConfigureAwait(false);
                 }
             }
         }
@@ -744,6 +775,7 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool includeSubtypes,
             int nodeClassMask,
+            ILogger logger,
             CancellationToken ct = default)
         {
             requestHeader?.RequestHandle = 0;
@@ -781,6 +813,13 @@ namespace Opc.Ua.Client
             var nextResults = new List<List<ReferenceDescription>>();
             var nextErrors = new List<ReferenceWrapper<ServiceResult>>();
 
+            // Consecutive pages without references per followed point. An
+            // empty page with a continuation point is a legal "not done yet"
+            // answer (Part 4 §5.9.2.1) and is followed, but only for a bounded
+            // number of rounds so a server that never makes progress cannot
+            // keep this loop running forever.
+            var nextEmptyRounds = new List<int>();
+
             for (int ii = 0; ii < nodeIds.Count; ii++)
             {
                 if (!continuationPoints[ii].IsEmpty &&
@@ -789,6 +828,7 @@ namespace Opc.Ua.Client
                     nextContinuationPoints.Add(continuationPoints[ii]);
                     nextResults.Add(previousResults[ii]);
                     nextErrors.Add(previousErrors[ii]);
+                    nextEmptyRounds.Add(referenceDescriptions[ii].IsEmpty ? 1 : 0);
                 }
             }
             while (nextContinuationPoints.Count > 0)
@@ -813,20 +853,43 @@ namespace Opc.Ua.Client
 
                 previousResults = nextResults;
                 previousErrors = nextErrors;
+                List<int> previousEmptyRounds = nextEmptyRounds;
 
                 nextResults = [];
                 nextErrors = [];
                 nextContinuationPoints = [];
+                nextEmptyRounds = [];
+                List<ByteString>? abandoned = null;
 
                 for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
                 {
                     if (!revisedContinuationPoints[ii].IsEmpty &&
                         !StatusCode.IsBad(browseNextErrors[ii].StatusCode))
                     {
+                        int emptyRounds = browseNextResults[ii].IsEmpty
+                            ? previousEmptyRounds[ii] + 1
+                            : 0;
+                        if (emptyRounds >= kMaxEmptyBrowseNextRounds)
+                        {
+                            logger.BrowserServerReturnedEmptyReferencesBut(emptyRounds);
+                            previousErrors[ii].Reference = new ServiceResult(
+                                StatusCodes.BadNoData,
+                                LocalizedText.From(
+                                    "The server kept returning a continuation point without references."));
+                            (abandoned ??= []).Add(revisedContinuationPoints[ii]);
+                            continue;
+                        }
                         nextContinuationPoints.Add(revisedContinuationPoints[ii]);
                         nextResults.Add(previousResults[ii]);
                         nextErrors.Add(previousErrors[ii]);
+                        nextEmptyRounds.Add(emptyRounds);
                     }
+                }
+
+                if (abandoned != null)
+                {
+                    await ReleaseContinuationPointsAsync(session, abandoned, logger)
+                        .ConfigureAwait(false);
                 }
             }
             var finalErrors = new List<ServiceResult>(errorAnchors.Count);
@@ -836,6 +899,30 @@ namespace Opc.Ua.Client
             }
 
             return ResultSet.From(result.ConvertAll(l => (ArrayOf<ReferenceDescription>)l), finalErrors);
+        }
+
+        /// <summary>
+        /// Releases continuation points the browse stops following. Best
+        /// effort: a failure is logged, the server reclaims the points when
+        /// the session closes (Part 4 §7.9).
+        /// </summary>
+        private static async ValueTask ReleaseContinuationPointsAsync(
+            ISessionClient session,
+            List<ByteString> continuationPoints,
+            ILogger logger)
+        {
+            try
+            {
+                await session.BrowseNextAsync(
+                    null,
+                    true,
+                    continuationPoints.ToArrayOf(),
+                    default).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.BrowserFailedReleaseContinuationPoints(ex);
+            }
         }
 
         /// <summary>
@@ -945,6 +1032,43 @@ namespace Opc.Ua.Client
         private const int kMaxManagedBrowsePassesWithoutProgress = 100;
 
         /// <summary>
+        /// Consecutive pages without references a browse follows for one
+        /// continuation point before it gives up and releases the point. A
+        /// server that runs out of time may legally answer with zero
+        /// references and a continuation point (Part 4 §5.9.2.1), so one
+        /// empty page is not the end of the data; each such page already
+        /// took the server's processing time, so no extra back off is added.
+        /// </summary>
+        private const int kMaxEmptyBrowseNextRounds = 10;
+
+        /// <summary>
+        /// Guards a hand-written Browse/BrowseNext loop against a server that
+        /// never makes progress: counts consecutive pages without references
+        /// that still carry a continuation point and throws BadNoData after
+        /// <see cref="kMaxEmptyBrowseNextRounds"/> of them. An empty page with
+        /// a continuation point is legal (Part 4 §5.9.2.1) and is followed
+        /// until then. The caller must release the continuation point.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static void ThrowIfNoBrowseProgress(
+            ArrayOf<ReferenceDescription> references,
+            ByteString continuationPoint,
+            ref int emptyRounds)
+        {
+            if (!references.IsEmpty)
+            {
+                emptyRounds = 0;
+            }
+            else if (!continuationPoint.IsEmpty &&
+                ++emptyRounds >= kMaxEmptyBrowseNextRounds)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNoData,
+                    "The server kept returning a continuation point without references.");
+            }
+        }
+
+        /// <summary>
         /// Delay before the first retry of a managed browse pass that
         /// completed nothing.
         /// </summary>
@@ -1005,10 +1129,6 @@ namespace Opc.Ua.Client
     /// </summary>
     internal static partial class BrowserLog
     {
-        [LoggerMessage(EventId = ClientEventIds.Browser + 0, Level = LogLevel.Warning,
-            Message = "Browser: Continuation point exists, but the browse results are null/empty.")]
-        public static partial void BrowserContinuationPointExistsButBrowse(this ILogger logger);
-
         [LoggerMessage(EventId = ClientEventIds.Browser + 1, Level = LogLevel.Debug,
             Message = "ManagedBrowse: in pass {Pass}, {Count} error(s) occured with a status code {StatusCode}.")]
         public static partial void ManagedBrowsePassPassCountErrorS(
@@ -1022,13 +1142,12 @@ namespace Opc.Ua.Client
         public static partial void ManagedBrowseCompletedNoErrors(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.Browser + 3, Level = LogLevel.Warning,
-            Message = "Browser: Server returned empty references but a continuation point. Stopping to prevent" +
-                " denial of service.")]
-        public static partial void BrowserServerReturnedEmptyReferencesBut(this ILogger logger);
+            Message = "Browser: Server returned no references but a continuation point {Rounds} times in a" +
+                " row. Releasing the continuation point to prevent denial of service.")]
+        public static partial void BrowserServerReturnedEmptyReferencesBut(this ILogger logger, int rounds);
 
         [LoggerMessage(EventId = ClientEventIds.Browser + 4, Level = LogLevel.Error,
             Message = "Browser: Failed to release continuation points.")]
         public static partial void BrowserFailedReleaseContinuationPoints(this ILogger logger, Exception? exception);
     }
-
 }

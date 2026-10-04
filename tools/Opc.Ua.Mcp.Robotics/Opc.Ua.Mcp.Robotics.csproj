@@ -19,6 +19,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Tools.Tests" />
   </ItemGroup>

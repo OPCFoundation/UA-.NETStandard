@@ -51,8 +51,6 @@ namespace Opc.Ua.Server.Tests.Historian
         private static readonly DateTime BaseTime =
             new(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        // ─── IsTypeOf ───────────────────────────────────────────────────────
-
         /// <summary>
         /// Verifies that event type matching accepts a null requested type definition.
         /// </summary>
@@ -88,25 +86,20 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.False);
         }
 
-        // ─── GetAttributeValue – empty browse path ──────────────────────────
-
         /// <summary>
-        /// Verifies that an empty browse path with the NodeId attribute returns the event type.
+        /// Verifies that an unstored NodeId attribute is not replaced with the event type.
         /// </summary>
         [Test]
-        public void GetAttributeValueReturnsEventTypeForEmptyPathAndNodeIdAttribute()
+        public void GetAttributeValueReturnsNullForUnstoredNodeIdAttribute()
         {
             NodeId eventType = ObjectTypeIds.AuditEventType;
             HistorianEventRecord record = MakeRecord(eventType);
             var target = new HistorianEventFilterTarget(record);
 
-            // relativePath.Count == 0 && attributeId == Attributes.NodeId
-            // → returns new Variant(m_record.EventType)  (lines 107-112)
             Variant result = target.GetAttributeValue(
                 null!, NodeId.Null, [], Attributes.NodeId, NumericRange.Null);
 
-            Assert.That(result.TryGetValue(out NodeId resolved), Is.True);
-            Assert.That(resolved, Is.EqualTo(eventType));
+            Assert.That(result.IsNull, Is.True);
         }
 
         /// <summary>
@@ -124,8 +117,6 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
-
-        // ─── GetAttributeValue – multi-segment browse path ──────────────────
 
         /// <summary>
         /// Verifies that event attribute lookup resolves a multisegment field key.
@@ -168,8 +159,6 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
-
-        // ─── Helpers ─────────────────────────────────────────────────────────
 
         private static HistorianEventRecord MakeRecord(NodeId eventType)
         {

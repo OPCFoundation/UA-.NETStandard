@@ -77,8 +77,9 @@ namespace Opc.Ua.Server.Historian
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions,
                 OnEventDropped);
+            CancellationToken shutdownToken = m_shutdownCts.Token;
             m_consumer = Task.Run(
-                () => ConsumeAsync(m_shutdownCts.Token));
+                () => ConsumeAsync(shutdownToken));
         }
 
         /// <summary>
@@ -96,6 +97,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Snapshots a reported event and attempts to queue it for historical capture.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void Enqueue(
             ISystemContext context,
             NodeState notifier,
@@ -113,7 +115,7 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(eventInstance));
             }
-            if (m_disposed)
+            if (Volatile.Read(ref m_disposed) != 0)
             {
                 return;
             }
@@ -158,13 +160,16 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Closes the capture queue and waits for pending events to drain within the shutdown deadline.
         /// </summary>
+        /// <remarks>
+        /// A timeout cancels capture and is surfaced to the caller. Token resources remain alive
+        /// until an in-flight provider completes; its eventual failure is still observed.
+        /// </remarks>
         public async ValueTask DisposeAsync()
         {
-            if (m_disposed)
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
                 return;
             }
-            m_disposed = true;
             m_channel.Writer.TryComplete();
             try
             {
@@ -180,7 +185,26 @@ namespace Opc.Ua.Server.Historian
             }
             finally
             {
-                m_shutdownCts.Dispose();
+                if (m_consumer.IsCompleted)
+                {
+                    _ = m_consumer.Exception;
+                    m_shutdownCts.Dispose();
+                }
+                else
+                {
+                    // A timed-out provider still owns the token. This one-shot cleanup
+                    // only observes completion and disposes its source; it cannot capture this.
+                    _ = m_consumer.ContinueWith(
+                        static (completed, state) =>
+                        {
+                            _ = completed.Exception;
+                            ((CancellationTokenSource)state!).Dispose();
+                        },
+                        m_shutdownCts,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
             }
         }
 
@@ -292,9 +316,27 @@ namespace Opc.Ua.Server.Historian
                             cancellationToken).ConfigureAwait(false);
                     foreach (EventBatch events in batch.Values)
                     {
-                        await FlushAsync(
-                            events,
-                            cancellationToken).ConfigureAwait(false);
+                        try
+                        {
+                            await FlushAsync(
+                                events,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                            when (cancellationToken.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch (Exception exception)
+                        {
+                            Interlocked.Add(
+                                ref m_droppedEvents,
+                                events.Events.Count);
+                            m_logger.HistorianEventCaptureFlushFailed(
+                                exception,
+                                events.Notifier.NodeId,
+                                events.Events.Count);
+                        }
                     }
                 }
             }
@@ -356,6 +398,7 @@ namespace Opc.Ua.Server.Historian
             EventBatch batch,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             using var operationContext = new OperationContext(
                 new RequestHeader(),
                 null,
@@ -675,7 +718,7 @@ namespace Opc.Ua.Server.Historian
         private readonly Task m_consumer;
         private long m_droppedEvents;
         private long m_rejectedEvents;
-        private bool m_disposed;
+        private int m_disposed;
 
         private readonly record struct CaptureEvent(
             NodeState Notifier,
@@ -761,7 +804,8 @@ namespace Opc.Ua.Server.Historian
         [LoggerMessage(
             EventId = ServerEventIds.HistorianEventCapture + 5,
             Level = LogLevel.Warning,
-            Message = "The event historian rejected {Count} reported event(s) for {NodeId}; first status {StatusCode}.")]
+            Message = "The event historian rejected {Count} reported event(s) for {NodeId}; " +
+                "first status {StatusCode}.")]
         public static partial void HistorianEventCaptureRejected(
             this ILogger logger,
             NodeId nodeId,
@@ -779,5 +823,18 @@ namespace Opc.Ua.Server.Historian
             this ILogger logger,
             Exception exception,
             NodeId nodeId);
+
+        /// <summary>
+        /// Logs an event batch dropped after a historian provider failure.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerEventIds.HistorianEventCapture + 7,
+            Level = LogLevel.Warning,
+            Message = "The historian event capture flush for {NodeId} failed; {Count} event(s) were dropped.")]
+        public static partial void HistorianEventCaptureFlushFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId nodeId,
+            int count);
     }
 }

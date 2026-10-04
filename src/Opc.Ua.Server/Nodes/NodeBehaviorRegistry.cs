@@ -56,6 +56,15 @@ namespace Opc.Ua.Server.Nodes
     internal sealed class NodeBehaviorRegistry
     {
         /// <summary>
+        /// Creates an empty behavior registry without requiring a type hierarchy.
+        /// </summary>
+        public NodeBehaviorRegistry()
+        {
+            m_registrations = [];
+            m_resolvedChains = [];
+        }
+
+        /// <summary>
         /// Initializes a registry for one activation pass.
         /// </summary>
         public NodeBehaviorRegistry(
@@ -116,7 +125,7 @@ namespace Opc.Ua.Server.Nodes
         /// </remarks>
         public ArrayOf<INodeBehaviorFactory> ResolveFactories(NodeId typeDefinitionId)
         {
-            if (typeDefinitionId.IsNull)
+            if (typeDefinitionId.IsNull || IsEmpty)
             {
                 return [];
             }
@@ -160,7 +169,7 @@ namespace Opc.Ua.Server.Nodes
                     }
                 }
 
-                current = m_typeTree.FindSuperType(current);
+                current = m_typeTree!.FindSuperType(current);
                 isOwnType = false;
             }
 
@@ -209,7 +218,10 @@ namespace Opc.Ua.Server.Nodes
             return resolved;
         }
 
-        private readonly ITypeTable m_typeTree;
+        /// <summary>
+        /// Resolves inherited behavior registrations when the registry contains type mappings.
+        /// </summary>
+        private readonly ITypeTable? m_typeTree;
         private readonly Dictionary<NodeId, List<NodeBehaviorRegistration>> m_registrations;
         private readonly Dictionary<NodeId, ArrayOf<INodeBehaviorFactory>> m_resolvedChains;
     }

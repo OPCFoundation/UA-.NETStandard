@@ -77,6 +77,7 @@ namespace Opc.Ua.AI.Server
             DeploymentState deployment,
             ReadOnlyMemory<byte> payload,
             string contentType,
+            IReadOnlyDictionary<string, string> parameters,
             double timeoutMilliseconds,
             CancellationToken ct)
         {
@@ -88,6 +89,7 @@ namespace Opc.Ua.AI.Server
                 Model = ModelNameFor(model),
                 Payload = payload,
                 ContentType = contentType,
+                Parameters = parameters,
                 Timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds)
             };
 

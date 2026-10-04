@@ -30,7 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -48,6 +51,272 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class TrustListTransactionTests
     {
+        [Test]
+        [Combinatorial]
+        public async Task CommitAsyncLastCertificateStagingCallWins(
+            [Values] bool issuer,
+            [Values] bool initiallyPresent,
+            [Values] bool addLast)
+        {
+            string trustedPath = CreateTempDir();
+            string issuerPath = CreateTempDir();
+            await using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath, issuerPath);
+            using Certificate certificate = CertificateBuilder.Create("CN=Ordered Certificate").CreateForRSA();
+            using Certificate unrelated = CertificateBuilder.Create("CN=Unrelated Certificate").CreateForRSA();
+            using (ICertificateStore store = issuer
+                ? manager.OpenIssuerStore(TrustListIdentifier.Peers)
+                : manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await store.AddAsync(unrelated).ConfigureAwait(false);
+                if (initiallyPresent)
+                {
+                    await store.AddAsync(certificate).ConfigureAwait(false);
+                }
+            }
+
+            await using ITrustListTransaction transaction =
+                await manager.BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            for (int operation = 0; operation < 2; operation++)
+            {
+                bool add = operation == 1 ? addLast : !addLast;
+                if (issuer)
+                {
+                    await (add
+                        ? transaction.AddIssuerCertificateAsync(certificate)
+                        : transaction.RemoveIssuerCertificateAsync(certificate.Thumbprint.ToLowerInvariant()))
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await (add
+                        ? transaction.AddTrustedCertificateAsync(certificate)
+                        : transaction.RemoveTrustedCertificateAsync(certificate.Thumbprint.ToLowerInvariant()))
+                        .ConfigureAwait(false);
+                }
+            }
+            await transaction.CommitAsync().ConfigureAwait(false);
+
+            using ICertificateStore verify = issuer
+                ? manager.OpenIssuerStore(TrustListIdentifier.Peers)
+                : manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            using CertificateCollection remaining = await verify.EnumerateAsync().ConfigureAwait(false);
+            string[] expected = addLast
+                ? [unrelated.Thumbprint, certificate.Thumbprint]
+                : [unrelated.Thumbprint];
+            Assert.That(remaining.Select(value => value.Thumbprint), Is.EquivalentTo(expected));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CommitAsyncLastAddReplacesPreviouslyRemovedCertificateAsync(bool issuer)
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=Ordered Replacement").CreateForRSA();
+            var writes = new List<string>();
+            var store = new Mock<ICertificateStore>();
+            store.Setup(value => value.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Callback(() => writes.Add("remove"))
+                .ReturnsAsync(true);
+            store.Setup(value => value.FindByThumbprintAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => []);
+            store.Setup(value => value.AddAsync(
+                    It.IsAny<Certificate>(), It.IsAny<char[]>(), It.IsAny<CancellationToken>()))
+                .Callback<Certificate, char[], CancellationToken>((added, _, _) =>
+                {
+                    Assert.That(added, Is.SameAs(certificate));
+                    writes.Add("add");
+                })
+                .Returns(Task.CompletedTask);
+            var otherStore = new Mock<ICertificateStore>();
+            var manager = new Mock<ICertificateTrustListManager>();
+            manager.Setup(value => value.OpenTrustedStore(TrustListIdentifier.Peers))
+                .Returns(issuer ? otherStore.Object : store.Object);
+            manager.Setup(value => value.OpenIssuerStore(TrustListIdentifier.Peers))
+                .Returns(issuer ? store.Object : otherStore.Object);
+            await using var transaction = new TrustListTransaction(manager.Object, TrustListIdentifier.Peers);
+            string thumbprint = certificate.Thumbprint.ToLowerInvariant();
+            await (issuer
+                ? transaction.RemoveIssuerCertificateAsync(thumbprint)
+                : transaction.RemoveTrustedCertificateAsync(thumbprint)).ConfigureAwait(false);
+            await (issuer
+                ? transaction.AddIssuerCertificateAsync(certificate)
+                : transaction.AddTrustedCertificateAsync(certificate)).ConfigureAwait(false);
+
+            await transaction.CommitAsync().ConfigureAwait(false);
+
+            Assert.That(writes, Is.EqualTo(["remove", "add"]));
+            store.Verify(value => value.DeleteAsync(certificate.Thumbprint, It.IsAny<CancellationToken>()), Times.Once);
+            store.Verify(value => value.AddAsync(
+                It.IsAny<Certificate>(), null, It.IsAny<CancellationToken>()), Times.Once);
+            otherStore.Verify(value => value.DeleteAsync(
+                It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            otherStore.Verify(value => value.AddAsync(
+                It.IsAny<Certificate>(), It.IsAny<char[]>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        [Combinatorial]
+        public async Task CommitAsyncLastCrlStagingCallWins(
+            [Values] bool initiallyPresent,
+            [Values] bool addLast)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, CreateTempDir());
+            using Certificate issuer = CertificateBuilder.Create("CN=Ordered CRL").SetCAConstraint().CreateForRSA();
+            using Certificate otherIssuer = CertificateBuilder.Create("CN=Unrelated CRL")
+                .SetCAConstraint().CreateForRSA();
+            X509CRL crl = s_issuer.RevokeCertificates(issuer, null, null);
+            X509CRL unrelated = s_issuer.RevokeCertificates(otherIssuer, null, null);
+            using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await store.AddAsync(issuer).ConfigureAwait(false);
+                await store.AddAsync(otherIssuer).ConfigureAwait(false);
+                await store.AddCRLAsync(unrelated).ConfigureAwait(false);
+                if (initiallyPresent)
+                {
+                    await store.AddCRLAsync(crl).ConfigureAwait(false);
+                }
+            }
+
+            await using ITrustListTransaction transaction =
+                await manager.BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            for (int operation = 0; operation < 2; operation++)
+            {
+                bool add = operation == 1 ? addLast : !addLast;
+                await (add
+                    ? transaction.AddCrlAsync(new X509CRL(crl.RawData))
+                    : transaction.RemoveCrlAsync(new X509CRL(crl.RawData))).ConfigureAwait(false);
+            }
+            await transaction.CommitAsync().ConfigureAwait(false);
+
+            using ICertificateStore verify = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            X509CRLCollection remaining = await verify.EnumerateCRLsAsync().ConfigureAwait(false);
+            byte[][] expected = addLast ? [unrelated.RawData, crl.RawData] : [unrelated.RawData];
+            Assert.That(remaining.Select(value => value.RawData), Is.EquivalentTo(expected));
+            using CertificateCollection certificates = await verify.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(certificates.Select(value => value.Thumbprint),
+                Is.EquivalentTo([issuer.Thumbprint, otherIssuer.Thumbprint]));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MissingIssuerStoreRejectsBeforeAnyTrustedOrCrlWriteAsync(bool addIssuer)
+        {
+            using Certificate original = CertificateBuilder.Create("CN=Original Trust")
+                .SetCAConstraint().CreateForRSA();
+            using Certificate replacement = CertificateBuilder.Create("CN=Replacement Trust")
+                .SetCAConstraint().CreateForRSA();
+            X509CRL originalCrl = s_issuer.RevokeCertificates(original, null, null);
+            X509CRL replacementCrl = s_issuer.RevokeCertificates(replacement, null, null);
+            var store = new Mock<ICertificateStore>();
+            store.Setup(value => value.FindByThumbprintAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => []);
+            var manager = new Mock<ICertificateTrustListManager>();
+            manager.Setup(value => value.OpenTrustedStore(TrustListIdentifier.Peers)).Returns(store.Object);
+            await using var transaction = new TrustListTransaction(manager.Object, TrustListIdentifier.Peers);
+            await transaction.AddTrustedCertificateAsync(replacement).ConfigureAwait(false);
+            await transaction.RemoveTrustedCertificateAsync(original.Thumbprint).ConfigureAwait(false);
+            await transaction.AddCrlAsync(replacementCrl).ConfigureAwait(false);
+            await transaction.RemoveCrlAsync(originalCrl).ConfigureAwait(false);
+            await (addIssuer
+                ? transaction.AddIssuerCertificateAsync(replacement)
+                : transaction.RemoveIssuerCertificateAsync(original.Thumbprint)).ConfigureAwait(false);
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transaction.CommitAsync().ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            store.Verify(value => value.AddAsync(
+                It.IsAny<Certificate>(), It.IsAny<char[]>(), It.IsAny<CancellationToken>()), Times.Never);
+            store.Verify(value => value.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            store.Verify(value => value.AddCRLAsync(It.IsAny<X509CRL>(), It.IsAny<CancellationToken>()), Times.Never);
+            store.Verify(value => value.DeleteCRLAsync(
+                It.IsAny<X509CRL>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies re-adding an existing certificate is idempotent and removal followed by addition retains it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CommitAsyncRemoveThenAddKeepsCertificate(bool removeFirst)
+        {
+            string path = CreateTempDir();
+            await using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, path);
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Trust Transaction Replacement")
+                .CreateForRSA();
+            using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await store.AddAsync(certificate).ConfigureAwait(false);
+            }
+            await using ITrustListTransaction transaction =
+                await manager.BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            if (removeFirst)
+            {
+                await transaction.RemoveTrustedCertificateAsync(certificate.Thumbprint).ConfigureAwait(false);
+            }
+            await transaction.AddTrustedCertificateAsync(certificate).ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+            using ICertificateStore verify = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            using CertificateCollection remaining = await verify.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(remaining, Has.Count.EqualTo(1));
+            Assert.That(remaining[0].Thumbprint, Is.EqualTo(certificate.Thumbprint));
+        }
+
+        /// <summary>
+        /// Verifies a later store failure reports earlier trust changes and invalidates cached validation.
+        /// </summary>
+        [Test]
+        public async Task FailedCommitNotifiesAndInvalidatesPartiallyChangedTrustAsync()
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=Partial Trust Transaction").CreateForRSA();
+            var failure = new IOException("Injected issuer-store write failure.");
+            bool trusted = true;
+            var provider = new Mock<ICertificateStoreProvider>();
+            provider.SetupGet(value => value.StoreTypeName).Returns("AuditTransaction");
+            provider.Setup(value => value.SupportsStorePath(It.IsAny<string>())).Returns(true);
+            var store = new Mock<ICertificateStore>();
+            store.Setup(value => value.FindByThumbprintAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string thumbprint, CancellationToken _) => Task.FromResult<CertificateCollection>(
+                    trusted && thumbprint == certificate.Thumbprint
+                        ? [certificate]
+                        : []));
+            store.Setup(value => value.DeleteAsync(certificate.Thumbprint, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    trusted = false;
+                    return Task.FromResult(true);
+                });
+            store.Setup(value => value.AddAsync(It.IsAny<Certificate>(), null, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+            provider.Setup(value => value.CreateStore(m_telemetry)).Returns(store.Object);
+            await using var manager = new CertificateManager(m_telemetry, [provider.Object]);
+            manager.MapFromSecurityConfiguration(new SecurityConfiguration { UseValidatedCertificates = true });
+            manager.RegisterTrustList(TrustListIdentifier.Peers, "audit:trusted", "audit:issuers");
+            Assert.That((await manager.ValidateAsync(certificate).ConfigureAwait(false)).IsValid, Is.True);
+            var notifications = new List<CertificateChangeEvent>();
+            var observer = new Mock<IObserver<CertificateChangeEvent>>();
+            observer.Setup(value => value.OnNext(It.IsAny<CertificateChangeEvent>()))
+                .Callback<CertificateChangeEvent>(notifications.Add);
+            using IDisposable subscription = manager.CertificateChanges.Subscribe(observer.Object);
+            await using ITrustListTransaction transaction =
+                await manager.BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            await transaction.RemoveTrustedCertificateAsync(certificate.Thumbprint).ConfigureAwait(false);
+            await transaction.AddIssuerCertificateAsync(certificate).ConfigureAwait(false);
+            IOException thrown = Assert.ThrowsAsync<IOException>(
+                async () => await transaction.CommitAsync().ConfigureAwait(false));
+            Assert.That(thrown, Is.SameAs(failure));
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications[0].Kind, Is.EqualTo(CertificateChangeKind.TrustListUpdated));
+            Assert.That(notifications[0].TrustList, Is.EqualTo(TrustListIdentifier.Peers));
+            CertificateValidationResult result = await manager.ValidateAsync(certificate).ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+        }
+
         private static readonly ICertificateIssuer s_issuer = DefaultCertificateIssuer.Instance;
         private ITelemetryContext m_telemetry;
         private readonly List<string> m_tempDirs = [];
@@ -238,6 +507,150 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509CRLCollection crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
                 Assert.That(crls, Has.Count.EqualTo(1));
             }
+        }
+
+        /// <summary>
+        /// A CRL of a CA staged into (or held by) the issuer store is written to
+        /// the issuer store (IssuerCrls, OPC 10000-12 7.8.2.8). Before the fix every
+        /// CRL went to the trusted store, which could not find its issuer and failed
+        /// the commit halfway.
+        /// </summary>
+        [Test]
+        public async Task CommitAsyncRoutesIssuerCrlToIssuerStoreAsync()
+        {
+            string trustedPath = CreateTempDir();
+            string issuerPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath, issuerPath);
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=Issuer CRL CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate trustedCert = CertificateBuilder
+                .Create("CN=Issuer CRL Trusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            X509CRL crl = s_issuer.RevokeCertificates(caCert, null, null);
+
+            ITrustListTransaction transaction = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                await transaction.AddTrustedCertificateAsync(trustedCert).ConfigureAwait(false);
+                await transaction.AddIssuerCertificateAsync(caCert).ConfigureAwait(false);
+                await transaction.AddCrlAsync(crl).ConfigureAwait(false);
+                await transaction.CommitAsync().ConfigureAwait(false);
+            }
+
+            using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            using CertificateCollection trustedCerts = await trusted.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(trustedCerts, Has.Count.EqualTo(1));
+            Assert.That(await trusted.EnumerateCRLsAsync().ConfigureAwait(false), Is.Empty);
+            Assert.That(await issuers.EnumerateCRLsAsync().ConfigureAwait(false), Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A CRL whose issuer is in neither store fails the commit before any store
+        /// is changed.
+        /// </summary>
+        [Test]
+        public async Task CommitAsyncWithUnknownCrlIssuerChangesNothingAsync()
+        {
+            string trustedPath = CreateTempDir();
+            string issuerPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath, issuerPath);
+
+            using Certificate unknownCa = CertificateBuilder
+                .Create("CN=Unknown CRL CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate trustedCert = CertificateBuilder
+                .Create("CN=Unknown CRL Trusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            X509CRL crl = s_issuer.RevokeCertificates(unknownCa, null, null);
+
+            ITrustListTransaction transaction = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                await transaction.AddTrustedCertificateAsync(trustedCert).ConfigureAwait(false);
+                await transaction.AddCrlAsync(crl).ConfigureAwait(false);
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await transaction.CommitAsync().ConfigureAwait(false));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            }
+
+            using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            using CertificateCollection trustedCerts = await trusted.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(trustedCerts, Is.Empty);
+        }
+
+        /// <summary>
+        /// A staged CRL add or removal on stores that cannot hold CRLs (InMemory)
+        /// fails the commit with BadNotSupported before any store is changed.
+        /// Before the fix the store threw only on the CRL write, after the
+        /// certificate changes of both stores were applied.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CommitAsyncWithCrlOnStoreWithoutCrlSupportChangesNothingAsync(bool remove)
+        {
+            using var provider = new InMemoryStoreProvider();
+            await using var manager = new CertificateManager(m_telemetry, [provider]);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, "InMemory:tlt-trusted", "InMemory:tlt-issuers");
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=No CRL Support CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate trustedCert = CertificateBuilder
+                .Create("CN=No CRL Support Trusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate issuerCert = CertificateBuilder
+                .Create("CN=No CRL Support Issuer")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using (ICertificateStore setup = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await setup.AddAsync(caCert).ConfigureAwait(false);
+                await setup.AddAsync(trustedCert).ConfigureAwait(false);
+            }
+            X509CRL crl = s_issuer.RevokeCertificates(caCert, null, null);
+
+            ITrustListTransaction transaction = await manager
+                .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                await transaction.RemoveTrustedCertificateAsync(trustedCert.Thumbprint).ConfigureAwait(false);
+                await transaction.AddIssuerCertificateAsync(issuerCert).ConfigureAwait(false);
+                if (remove)
+                {
+                    await transaction.RemoveCrlAsync(crl).ConfigureAwait(false);
+                }
+                else
+                {
+                    await transaction.AddCrlAsync(crl).ConfigureAwait(false);
+                }
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await transaction.CommitAsync().ConfigureAwait(false));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            }
+
+            using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            using CertificateCollection trustedCerts = await trusted.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection issuerCerts = await issuers.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(trustedCerts, Has.Count.EqualTo(2));
+            Assert.That(issuerCerts, Is.Empty);
         }
 
         private string CreateTempDir()

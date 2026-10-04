@@ -183,6 +183,71 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             }
         }
 
+        [Test]
+        [CancelAfter(30_000)]
+        [Description("L1-GATE3: participant-spawned workers do not inherit reactivation bypass.")]
+        public async Task ReactivationBypassDoesNotFlowIntoParticipantWorkersAsync(CancellationToken ct)
+        {
+            ContractHarness harness = CreateHarness();
+            await using ConfiguredAsyncDisposable harnessAsyncDisposable = harness.ConfigureAwait(false);
+            ChaosBarrier reactivationBarrier = new(expectedParticipants: 1);
+            IManagedTransportChannel? originalChannel = null;
+            Task<IServiceResponse>? workerTask = null;
+            FakeParticipant participant = new(harness.Endpoint);
+            participant.ConfigureOnReconnect(async (reactivationChannel, attempt, participantCt) =>
+            {
+                _ = attempt;
+
+                await reactivationChannel.SendRequestAsync(
+                        CreateServerStatusReadRequest(),
+                        participantCt)
+                    .ConfigureAwait(false);
+                workerTask = Task.Run(
+                    () => originalChannel!
+                        .SendRequestAsync(CreateServerStatusReadRequest(), participantCt)
+                        .AsTask(),
+                    participantCt);
+                await reactivationBarrier.SignalAndWaitForReleaseAsync(participantCt)
+                    .ConfigureAwait(false);
+                return ParticipantReconnectResult.Reactivated;
+            });
+
+            originalChannel = await harness.Manager.GetAsync(participant, ct)
+                .ConfigureAwait(false);
+            Task? reconnectTask = null;
+
+            try
+            {
+                FakeTransport transport = AssertSingleTransport(harness);
+                reconnectTask = harness.Manager.ReconnectAsync(originalChannel, ct).AsTask();
+
+                await WaitForBarrierArrivalAsync(reactivationBarrier, ct).ConfigureAwait(false);
+                await Task.Delay(GateObservationWindow, ct).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(workerTask, Is.Not.Null);
+                    Assert.That(workerTask!.IsCompleted, Is.False);
+                    Assert.That(transport.RequestCount, Is.EqualTo(1));
+                });
+
+                reactivationBarrier.Release();
+                await reconnectTask.WaitAsync(DefaultWait, ct).ConfigureAwait(false);
+                await workerTask!.WaitAsync(DefaultWait, ct).ConfigureAwait(false);
+                await WaitForQuiescence.ForManagerAsync(harness.Manager, DefaultWait, ct: ct)
+                    .ConfigureAwait(false);
+
+                Assert.That(transport.RequestCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                reactivationBarrier.Release();
+                await IgnoreFailureAsync(reconnectTask).ConfigureAwait(false);
+                await IgnoreFailureAsync(workerTask).ConfigureAwait(false);
+                await originalChannel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
         private static Task[] StartServiceCalls(
             IManagedTransportChannel channel,
             long[] completionTimestamps,

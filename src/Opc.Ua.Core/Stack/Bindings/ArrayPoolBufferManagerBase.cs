@@ -107,7 +107,20 @@ namespace Opc.Ua.Bindings
                 return checked(size + m_metadataByteCount);
             }
 
-            return RoundUpToPoolBucket(checked(size + m_metadataByteCount));
+            int expectedSize = RoundUpToPoolBucket(checked(size + m_metadataByteCount));
+            bool usesSharedPool = m_maxBufferSize <= kSharedPoolThreshold - m_metadataByteCount;
+#if NET5_0_OR_GREATER
+            if (usesSharedPool)
+            {
+                return expectedSize;
+            }
+#endif
+            // Configurable pools, including Shared on .NET Framework, can fall
+            // back to the next bucket when the requested bucket is exhausted.
+            int largestBucket = usesSharedPool
+                ? kSharedPoolThreshold
+                : RoundUpToPoolBucket(checked(m_maxBufferSize + m_metadataByteCount));
+            return expectedSize < largestBucket ? expectedSize * 2 : expectedSize;
         }
 
         /// <inheritdoc/>

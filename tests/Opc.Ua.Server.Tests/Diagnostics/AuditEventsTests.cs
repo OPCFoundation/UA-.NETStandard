@@ -92,6 +92,55 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
+        /// Verifies that every validation error in a certificate error chain raises exactly one
+        /// audit event whose type and StatusCodeId both match that error.
+        /// </summary>
+        [Test]
+        public void ReportAuditCertificateEventReportsEachChainedErrorOnce()
+        {
+            using Certificate certificate = CreateCertificate();
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            // shape produced by the certificate validator: the first error wrapped in a copy of itself
+            var exception = new ServiceResultException(
+                new ServiceResult(
+                    StatusCodes.BadCertificateUntrusted,
+                    new ServiceResult(
+                        StatusCodes.BadCertificateUntrusted,
+                        new ServiceResult(StatusCodes.BadCertificateTimeInvalid))));
+
+            server.ReportAuditCertificateEvent(certificate, exception, s_logger);
+
+            Assert.That(server.Events, Has.Count.EqualTo(2));
+            Assert.That(server.Events[0], Is.TypeOf<AuditCertificateUntrustedEventState>());
+            Assert.That(
+                ((AuditCertificateEventState)server.Events[0]).StatusCodeId.Value,
+                Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(server.Events[1], Is.TypeOf<AuditCertificateExpiredEventState>());
+            Assert.That(
+                ((AuditCertificateEventState)server.Events[1]).StatusCodeId.Value,
+                Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        /// <summary>
+        /// Verifies that a single validation error without an inner result still raises an audit event.
+        /// </summary>
+        [Test]
+        public void ReportAuditCertificateEventWithSingleErrorEmits()
+        {
+            using Certificate certificate = CreateCertificate();
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditCertificateEvent(
+                certificate,
+                new ServiceResultException(StatusCodes.BadCertificateUntrusted),
+                s_logger);
+
+            var auditEvent = (AuditCertificateUntrustedEventState)server.Events.Single();
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
         /// Verifies that write-update audit reporting emits no event without a session user.
         /// </summary>
         [Test]
@@ -189,10 +238,32 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
-        /// Verifies that secure-channel-close auditing uses Uncertain status when the exception has no inner result.
+        /// Verifies that open-channel auditing reports a failed event when an exception has no service result.
         /// </summary>
         [Test]
-        public void ReportAuditCloseSecureChannelEventWithServiceResultExceptionWithoutInnerResultUsesUncertainStatus()
+        public void ReportAuditOpenSecureChannelEventWithNonServiceResultExceptionReportsBadStatus()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditOpenSecureChannelEvent(
+                "channel-5",
+                CreateEndpointDescription(),
+                CreateOpenSecureChannelRequest(),
+                null,
+                new System.Security.Cryptography.CryptographicException("decrypt failed"),
+                s_logger);
+
+            var auditEvent =
+                (AuditOpenSecureChannelEventState)server.Events.Single();
+            Assert.That(auditEvent.Status.Value, Is.False);
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Bad));
+        }
+
+        /// <summary>
+        /// Verifies that secure-channel-close auditing uses the service-result status when the exception has no inner result.
+        /// </summary>
+        [Test]
+        public void ReportAuditCloseSecureChannelEventWithServiceResultExceptionWithoutInnerResultUsesExceptionStatus()
         {
             CapturingAuditEventServer server = CreateAuditServer();
 
@@ -205,7 +276,25 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
             var auditEvent = (AuditChannelEventState)server.Events.Single();
             Assert.That(auditEvent.Status.Value, Is.False);
-            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+        }
+
+        /// <summary>
+        /// Verifies that close-channel auditing reports a failed event when an exception has no service result.
+        /// </summary>
+        [Test]
+        public void ReportAuditCloseSecureChannelEventWithNonServiceResultExceptionReportsBadStatus()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditCloseSecureChannelEvent(
+                "channel-4",
+                new InvalidOperationException("close failed"),
+                s_logger);
+
+            var auditEvent = (AuditChannelEventState)server.Events.Single();
+            Assert.That(auditEvent.Status.Value, Is.False);
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Bad));
         }
 
         /// <summary>

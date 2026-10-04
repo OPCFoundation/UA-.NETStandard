@@ -1656,9 +1656,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 (StatusCode certificateStatus, DateTimeUtc validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
                     application.Certificate.ToByteString()).ConfigureAwait(false);
-                //Status code needs to be Bad as the method builds a custom chain that does not know about the custom cert stores.
-                Assert.That(StatusCode.IsBad(certificateStatus.Code), Is.True);
-                Assert.That(validityTime.IsNull, Is.True);
+                // A good certificate issued by the GDS CA is checked against the
+                // CRLs of the GDS issuer store (OPC 10000-12 §7.9.11).
+                Assert.That(certificateStatus, Is.EqualTo(StatusCodes.Good));
+                Assert.That(validityTime.IsNull, Is.False);
             }
         }
 

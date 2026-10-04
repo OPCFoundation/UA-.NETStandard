@@ -61,6 +61,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private static readonly DateTime s_pastTo = new(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime s_futureFrom = new(2090, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime s_futureTo = new(2095, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        private const string kInMemoryStorePath = "InMemory:cvc";
 
         private ITelemetryContext m_telemetry;
         private readonly List<string> m_tempDirs = [];
@@ -350,6 +351,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task OpenSecureChannelReportsTheTimeErrorOfATrustedExpiredLeafAsync()
+        {
+            // UaSCBinaryChannel throws the validation result with ThrowIfInvalid; the server
+            // channel may report a validity period error to the client (Part 4 §6.1.3).
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            using CertificateCollection chain = Chain(m_expiredLeaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            ServiceResultException thrown = Assert.Throws<ServiceResultException>(result.ThrowIfInvalid);
+
+            Assert.That(
+                Bindings.TcpServerChannel.TryGetReportableCertificateError(
+                    thrown, out ServiceResultException reportable),
+                Is.True,
+                thrown.Result.ToLongString());
+            Assert.That(reportable.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        [Test]
+        public async Task OpenSecureChannelHidesTheTimeErrorOfAnUntrustedExpiredLeafAsync()
+        {
+            // the expired leaf is also untrusted: the validator nests the validity period error
+            // with the chain and trust list errors, which must hide it as Bad_SecurityChecksFailed.
+            CertificateValidationCore core = NewCore();
+            using CertificateCollection chain = Chain(m_expiredLeaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            ServiceResultException thrown = Assert.Throws<ServiceResultException>(result.ThrowIfInvalid);
+
+            Assert.That(
+                ContainsStatusCode(result, StatusCodes.BadCertificateUntrusted) ||
+                ContainsStatusCode(result, StatusCodes.BadCertificateChainIncomplete),
+                Is.True,
+                thrown.Result.ToLongString());
+            Assert.That(
+                Bindings.TcpServerChannel.TryGetReportableCertificateError(thrown, out _),
+                Is.False,
+                thrown.Result.ToLongString());
+        }
+
+        [Test]
         public async Task ValidateAsyncNotYetValidLeafReturnsBadCertificateTimeInvalidAsync()
         {
             string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
@@ -460,6 +505,268 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(
                 ContainsStatusCode(result, StatusCodes.BadCertificateRevocationUnknown), Is.True);
             Assert.That(result.IsSuppressible, Is.True);
+        }
+
+        /// <summary>
+        /// An intermediate CA supplied only in the peer's chain has no store behind
+        /// it; the revocation status of the leaf it issued must still be checked
+        /// (OPC 10000-4 6.1.3). Before the fix RejectUnknownRevocationStatus was
+        /// silently bypassed for such a chain.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncChainSuppliedIssuerWithoutCrlReportsRevocationUnknownAsync()
+        {
+            var rootCrl = new X509CRL(CrlBuilder
+                .Create(m_rootCa.SubjectName)
+                .CreateForRSA(m_rootCa));
+            string trustedDir = await WriteStoreAsync([m_rootCa], [rootCrl]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.RejectUnknownRevocationStatus = true;
+            using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(
+                ContainsStatusCode(result, StatusCodes.BadCertificateRevocationUnknown), Is.True);
+        }
+
+        /// <summary>
+        /// A CRL of a chain-supplied intermediate held by the trusted store revokes
+        /// the leaf it lists.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncChainSuppliedIssuerCrlRevokesLeafAsync()
+        {
+            var rootCrl = new X509CRL(CrlBuilder
+                .Create(m_rootCa.SubjectName)
+                .CreateForRSA(m_rootCa));
+            string trustedDir = await WriteStoreAsync([m_rootCa], [rootCrl]).ConfigureAwait(false);
+            var intermediateCrl = new X509CRL(CrlBuilder
+                .Create(m_intermediateCa.SubjectName)
+                .AddRevokedCertificate(m_leafUnderIntermediate)
+                .CreateForRSA(m_intermediateCa));
+            // The directory store only accepts a CRL whose issuer it holds, so
+            // drop the intermediate's CRL into the crl folder directly.
+            Directory.CreateDirectory(Path.Combine(trustedDir, "crl"));
+            File.WriteAllBytes(
+                Path.Combine(trustedDir, "crl", "intermediate.crl"),
+                intermediateCrl.RawData);
+            CertificateValidationCore core = NewCore(trustedDir);
+            using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(ContainsStatusCode(result, StatusCodes.BadCertificateRevoked), Is.True);
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        /// <summary>
+        /// A CA trusted only inline on a trust list without a store path is
+        /// accepted without a CRL, but a CRL of that CA held by the issuer store
+        /// still revokes the leaf it lists. Before the fix such an issuer got no
+        /// revocation check at all and the revoked leaf validated.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncInlineTrustedIssuerCrlInIssuerStoreRevokesLeafAsync(bool strict)
+        {
+            var crl = new X509CRL(CrlBuilder
+                .Create(m_rootCa.SubjectName)
+                .AddRevokedCertificate(m_leaf)
+                .CreateForRSA(m_rootCa));
+            string issuerDir = await WriteStoreAsync([]).ConfigureAwait(false);
+            // The directory store only accepts a CRL whose issuer it holds, so
+            // drop the root's CRL into the crl folder directly.
+            Directory.CreateDirectory(Path.Combine(issuerDir, "crl"));
+            File.WriteAllBytes(
+                Path.Combine(issuerDir, "crl", "root.crl"),
+                crl.RawData);
+            CertificateValidationCore core = NewCore();
+            core.Update(
+                TrustList(issuerDir),
+                new CertificateTrustList
+                {
+                    TrustedCertificates = [new CertificateIdentifier { RawData = m_rootCa.RawData }]
+                },
+                null);
+            core.RejectUnknownRevocationStatus = strict;
+            using CertificateCollection chain = Chain(m_leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(ContainsStatusCode(result, StatusCodes.BadCertificateRevoked), Is.True);
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        /// <summary>
+        /// A store that cannot hold CRLs (InMemory) gives no answer on the
+        /// revocation of a chain-supplied intermediate, so the "no valid CRL"
+        /// answer of the other store stands in either order. Before the fix the
+        /// BadNotSupported of the InMemory store won and the unknown revocation
+        /// status was accepted despite RejectUnknownRevocationStatus.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncChainSuppliedIssuerMixedStoresReportsRevocationUnknownAsync(
+            bool inMemoryTrustedStore)
+        {
+            var rootCrl = new X509CRL(CrlBuilder
+                .Create(m_rootCa.SubjectName)
+                .CreateForRSA(m_rootCa));
+            var inMemory = new CertificateIdentifierCollectionStore(m_telemetry);
+            string directory;
+            if (inMemoryTrustedStore)
+            {
+                await inMemory.AddAsync(m_rootCa).ConfigureAwait(false);
+                directory = NewTempDir();
+            }
+            else
+            {
+                directory = await WriteStoreAsync([m_rootCa], [rootCrl]).ConfigureAwait(false);
+            }
+            CertificateValidationCore core = NewCoreWithInMemoryStore(inMemory);
+            CertificateTrustList inMemoryList = TrustList(kInMemoryStorePath);
+            inMemoryList.StoreType = "InMemory";
+            core.Update(
+                inMemoryTrustedStore ? TrustList(directory) : inMemoryList,
+                inMemoryTrustedStore ? inMemoryList : TrustList(directory),
+                null);
+            core.RejectUnknownRevocationStatus = true;
+            using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(
+                ContainsStatusCode(result, StatusCodes.BadCertificateRevocationUnknown), Is.True);
+        }
+
+        /// <summary>
+        /// A chain whose root allows no intermediate CA (pathLenConstraint 0) but
+        /// that runs through one violates the basic constraints (RFC 5280 6.1.4).
+        /// Before the fix the platform's InvalidBasicConstraints status was dropped.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncPathLengthViolationIsRejectedAsync()
+        {
+            using Certificate constrainedRoot = CertificateBuilder
+                .Create("CN=CVC PathLen0 Root CA, O=OPC Foundation")
+                .SetNotBefore(s_rootFrom)
+                .SetNotAfter(s_rootTo)
+                .SetCAConstraint(0)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate subCa = CertificateBuilder
+                .Create("CN=CVC PathLen0 Sub CA, O=OPC Foundation")
+                .SetNotBefore(s_rootFrom)
+                .SetNotAfter(s_rootTo)
+                .SetCAConstraint(-1)
+                .SetIssuer(constrainedRoot)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CreateLeaf("CN=CVC PathLen0 Leaf", subCa, s_leafFrom, s_leafTo);
+            string trustedDir = await WriteStoreAsync([constrainedRoot]).ConfigureAwait(false);
+            string issuerDir = await WriteStoreAsync([subCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir, issuerDir);
+            using CertificateCollection chain = Chain(leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        /// <summary>
+        /// CertificateValidationOptions.TreatAsInvalid ("never trust the
+        /// certificate") on a trust list rejects a certificate or CA found there.
+        /// Before the fix the option was never read.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncTreatAsInvalidRejectsTrustedCertificateAsync(bool issuer)
+        {
+            string trustedDir = await WriteStoreAsync([issuer ? m_rootCa : m_selfSignedApp])
+                .ConfigureAwait(false);
+            CertificateValidationCore core = NewCore();
+            CertificateTrustList trustList = TrustList(trustedDir);
+            trustList.ValidationOptions = CertificateValidationOptions.TreatAsInvalid;
+            core.Update(null, trustList, null);
+            using CertificateCollection chain = Chain(issuer ? m_leaf : m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        /// <summary>
+        /// TreatAsInvalid set on an individual trust-list entry rejects the
+        /// certificate or CA it names even when the store behind the list also
+        /// holds it. Before the fix the store hit returned the store's options
+        /// only and the entry's flag was ignored.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncTreatAsInvalidEntryRejectsCertificateAlsoInStoreAsync(bool issuer)
+        {
+            Certificate trusted = issuer ? m_rootCa : m_selfSignedApp;
+            string trustedDir = await WriteStoreAsync([trusted]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore();
+            CertificateTrustList trustList = TrustList(trustedDir);
+            trustList.TrustedCertificates =
+            [
+                new CertificateIdentifier
+                {
+                    RawData = trusted.RawData,
+                    ValidationOptions = CertificateValidationOptions.TreatAsInvalid
+                }
+            ];
+            core.Update(null, trustList, null);
+            using CertificateCollection chain = Chain(issuer ? m_leaf : m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        /// <summary>
+        /// A certificate or CA the trust list marks TreatAsInvalid is reported as
+        /// Bad_CertificateUntrusted (OPC 10000-4 6.1.3 Trust List Check), but the
+        /// administrator's decision is final: AutoAcceptUntrustedCertificates must
+        /// not accept it the way it accepts an unknown certificate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ValidateAsyncAutoAcceptDoesNotAcceptTreatAsInvalidAsync(bool issuer)
+        {
+            string trustedDir = await WriteStoreAsync([issuer ? m_rootCa : m_selfSignedApp])
+                .ConfigureAwait(false);
+            CertificateValidationCore core = NewCore();
+            CertificateTrustList trustList = TrustList(trustedDir);
+            trustList.ValidationOptions = CertificateValidationOptions.TreatAsInvalid;
+            core.Update(null, trustList, null);
+            core.AutoAcceptUntrustedCertificates = true;
+            using CertificateCollection chain = Chain(issuer ? m_leaf : m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(result.IsSuppressible, Is.False);
         }
 
         [Test]
@@ -808,6 +1115,129 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 ContainsStatusCode(result, StatusCodes.BadCertificateUntrusted), Is.True);
         }
 
+        [TestCase(0, false)]
+        [TestCase(0, true)]
+        [TestCase(1, false)]
+        [TestCase(2, false)]
+        [TestCase(3, false)]
+        public async Task NativeCertificateCopiesAreReleasedAsync(int failOnCopy, bool expired)
+        {
+            var nativeCopies = new List<X509Certificate2>();
+            int copyAttempts = 0;
+            var copyFailure = new CryptographicException("Controlled native certificate copy failure.");
+            using var core = new CertificateValidationCore(
+                m_telemetry,
+                openStore: static _ => null,
+                copyNativeCertificate: certificate =>
+                {
+                    copyAttempts++;
+                    if (copyAttempts == failOnCopy)
+                    {
+                        throw copyFailure;
+                    }
+                    X509Certificate2 copy = certificate.AsX509Certificate2();
+                    nativeCopies.Add(copy);
+                    return copy;
+                });
+            core.Update(null, new CertificateTrustList
+            {
+                TrustedCertificates = [new CertificateIdentifier { RawData = m_rootCa.RawData }]
+            }, null);
+            using CertificateCollection chain = expired
+                ? Chain(m_expiredLeaf)
+                : Chain(m_leafUnderIntermediate, m_intermediateCa);
+            try
+            {
+                if (failOnCopy == 0)
+                {
+                    CertificateValidationResult result = await core.ValidateAsync(
+                        chain, null, null, CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.EqualTo(!expired));
+                    if (expired)
+                    {
+                        Assert.That(
+                            ContainsStatusCode(result, StatusCodes.BadCertificateTimeInvalid), Is.True);
+                    }
+                }
+                else
+                {
+                    CryptographicException exception = Assert.ThrowsAsync<CryptographicException>(
+                        async () => await core.ValidateAsync(
+                            chain, null, null, CancellationToken.None).ConfigureAwait(false));
+                    Assert.That(exception, Is.SameAs(copyFailure));
+                }
+                int expectedAttempts = failOnCopy == 0 ? expired ? 2 : 3 : failOnCopy;
+                Assert.That(copyAttempts, Is.EqualTo(expectedAttempts));
+                Assert.That(nativeCopies, Has.Count.EqualTo(
+                    failOnCopy == 0 ? expectedAttempts : expectedAttempts - 1));
+                foreach (X509Certificate2 copy in nativeCopies)
+                {
+                    Assert.That(copy.Handle, Is.EqualTo(IntPtr.Zero));
+                }
+                using RSA sourceKey = m_rootCa.GetRSAPublicKey();
+                Assert.That(sourceKey.KeySize, Is.EqualTo(2048));
+            }
+            finally
+            {
+                foreach (X509Certificate2 copy in nativeCopies)
+                {
+                    copy.Dispose();
+                }
+            }
+        }
+
+        [Test]
+        public void NativeIssuerCopiesAreReleasedWhenChainBuildThrows()
+        {
+            var nativeCopies = new List<X509Certificate2>();
+            bool issuerCopiesWereLive = false;
+            using var core = new CertificateValidationCore(
+                m_telemetry,
+                openStore: static _ => null,
+                copyNativeCertificate: certificate =>
+                {
+                    X509Certificate2 copy = certificate.AsX509Certificate2();
+                    nativeCopies.Add(copy);
+                    if (nativeCopies.Count == 3)
+                    {
+                        issuerCopiesWereLive =
+                            nativeCopies[0].Handle != IntPtr.Zero &&
+                            nativeCopies[1].Handle != IntPtr.Zero;
+                        copy.Dispose();
+                    }
+                    return copy;
+                });
+            core.Update(null, new CertificateTrustList
+            {
+                TrustedCertificates = [new CertificateIdentifier { RawData = m_rootCa.RawData }]
+            }, null);
+            using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
+            try
+            {
+                ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(
+                    async () => await core.ValidateAsync(
+                        chain, null, null, CancellationToken.None).ConfigureAwait(false));
+                Assert.That(exception.ParamName, Is.EqualTo("certificate"));
+                Assert.That(issuerCopiesWereLive, Is.True);
+                Assert.That(nativeCopies, Has.Count.EqualTo(3));
+                foreach (X509Certificate2 copy in nativeCopies)
+                {
+                    Assert.That(copy.Handle, Is.EqualTo(IntPtr.Zero));
+                }
+                using RSA issuerKey = m_intermediateCa.GetRSAPublicKey();
+                Assert.That(issuerKey.KeySize, Is.EqualTo(2048));
+                using RSA leafKey = m_leafUnderIntermediate.GetRSAPublicKey();
+                Assert.That(leafKey.KeySize, Is.EqualTo(2048));
+            }
+            finally
+            {
+                foreach (X509Certificate2 copy in nativeCopies)
+                {
+                    copy.Dispose();
+                }
+            }
+        }
+
         /// <summary>
         /// A trust list whose store is empty and whose TrustedCertificates names
         /// the given certificates, which is the shape the configuration file
@@ -880,6 +1310,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private CertificateValidationCore NewCore()
         {
             var core = new CertificateValidationCore(m_telemetry);
+            m_cores.Add(core);
+            return core;
+        }
+
+        /// <summary>
+        /// A core that opens <paramref name="inMemory"/> for the store path
+        /// <see cref="kInMemoryStorePath"/> and every other store as usual. The
+        /// core owns and disposes the in-memory store.
+        /// </summary>
+        private CertificateValidationCore NewCoreWithInMemoryStore(ICertificateStore inMemory)
+        {
+            ITelemetryContext telemetry = m_telemetry;
+            var core = new CertificateValidationCore(
+                telemetry,
+                identifier => identifier.StorePath == kInMemoryStorePath
+                    ? inMemory
+                    : identifier.OpenStore(telemetry));
             m_cores.Add(core);
             return core;
         }

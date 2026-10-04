@@ -1185,6 +1185,14 @@ namespace Opc.Ua.SourceGeneration
                         ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceStaticStringNodeIdPattern(
                         ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
+                    public void CreateOrReplaceDefaultRolePermissions(
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
+                    public void CreateOrReplaceDefaultUserRolePermissions(
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
+                    public void CreateOrReplaceDefaultAccessRestrictions(
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
+                    public void CreateOrReplaceModelVersion(
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class InstrumentDiagnosticAlarmState : BaseEventState
                 {

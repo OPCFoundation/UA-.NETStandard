@@ -132,12 +132,24 @@ namespace UaLens
         {
             public ILoggerFactory LoggerFactory { get; } = NullLoggerFactory.Instance;
 
+            public ActivitySource ActivitySource { get; } = new("UaLens.AttrProbe");
+
             public Meter CreateMeter()
             {
                 return new("UaLens.AttrProbe");
             }
 
-            public ActivitySource ActivitySource { get; } = new("UaLens.AttrProbe");
+            public Meter CreateMeter(System.Reflection.Assembly assembly)
+            {
+                ArgumentNullException.ThrowIfNull(assembly);
+                return CreateMeter();
+            }
+
+            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+            {
+                ArgumentNullException.ThrowIfNull(assembly);
+                return ActivitySource;
+            }
         }
     }
 }

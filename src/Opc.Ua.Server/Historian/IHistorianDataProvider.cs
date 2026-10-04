@@ -66,6 +66,9 @@ namespace Opc.Ua.Server.Historian
     {
         /// <summary>
         /// Reads one page of raw values from the archive.
+        /// Values that hide prior values at the same source timestamp, or
+        /// have associated annotations, must set the
+        /// <see cref="AggregateBits.ExtraData"/> status bit.
         /// </summary>
         /// <param name="context">Operation context.</param>
         /// <param name="request">Normalised raw read request.</param>
@@ -74,6 +77,10 @@ namespace Opc.Ua.Server.Historian
         /// returned by the previous call.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// Values in the requested time direction and a resume token when more remain.
+        /// Pages obey both client and server limits; open-ended cursors retain the remaining client quota.
+        /// </returns>
         ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
             HistorianOperationContext context,
             HistorianRawReadRequest request,
@@ -85,6 +92,11 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="StatusCodes.BadEntryExists"/> when a value already
         /// exists at the value's <c>SourceTimestamp</c>.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Values to insert, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One insertion status per input value, in request order.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> InsertAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -96,6 +108,11 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="StatusCodes.BadNoEntryExists"/> when no value exists
         /// at the value's <c>SourceTimestamp</c>.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Replacement values, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per input value and the successfully replaced prior values.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -105,6 +122,11 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Upsert — insert when absent, replace otherwise.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Values to insert or replace, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per input value and prior values for successful replacements.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -118,7 +140,12 @@ namespace Opc.Ua.Server.Historian
         /// <param name="context">Operation context.</param>
         /// <param name="nodeId">The historizing variable.</param>
         /// <param name="startTime">Inclusive lower bound.</param>
-        /// <param name="endTime">Exclusive upper bound.</param>
+        /// <param name="endTime">
+        /// Exclusive upper bound, always greater than <paramref name="startTime"/>:
+        /// the dispatcher rejects unspecified or reversed ranges and turns a
+        /// request with equal times (Part 11 6.9.5.1: delete the value at
+        /// startTime) into the one-tick range <c>[startTime, startTime + 1 tick)</c>.
+        /// </param>
         /// <param name="isDeleteModified">
         /// When true, only modified-history entries (replaced/deleted
         /// versions) are deleted; the live raw value at each timestamp
@@ -127,6 +154,7 @@ namespace Opc.Ua.Server.Historian
         /// also implements <see cref="IHistorianModifiedProvider"/>).
         /// </param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>The range-deletion status and any values removed for auditing.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> DeleteRawAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -140,6 +168,11 @@ namespace Opc.Ua.Server.Historian
         /// per-value with <see cref="StatusCodes.BadNoEntryExists"/> when
         /// no value exists at the requested timestamp.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="timestamps">Source timestamps to delete, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per requested timestamp and the successfully deleted values.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> DeleteAtTimeAsync(
             HistorianOperationContext context,
             NodeId nodeId,

@@ -64,14 +64,13 @@ internal sealed class ProviderSessionFactory : ISessionFactory, ISecurityPolicyR
 
     public ITelemetryContext Telemetry => m_inner.Telemetry;
 
-    public ISubscriptionEngineFactory? SubscriptionEngineFactory => m_inner.SubscriptionEngineFactory;
-
     public ISecurityPolicyRegistry? SecurityPolicyRegistry =>
         (m_inner as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry;
 
+    public ISubscriptionEngineFactory? SubscriptionEngineFactory => m_inner.SubscriptionEngineFactory;
+
     public ISessionFactory WithSubscriptionEngine(
-        ISubscriptionEngineFactory engineFactory,
-        TimeProvider? timeProvider = null)
+        ISubscriptionEngineFactory engineFactory, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(engineFactory);
         return new ProviderSessionFactory(

@@ -584,6 +584,152 @@ namespace Opc.Ua.Client.Tests
                     Times.Exactly(2));
         }
 
+        /// <summary>
+        /// When a later batch fails, the continuation points returned by the
+        /// completed batches are released before the error propagates (L3-2).
+        /// </summary>
+        [Test]
+        public void BrowseAsyncReleasesContinuationPointsOfCompletedBatchesOnFailure()
+        {
+            var nodesToBrowse = Enumerable.Repeat(new BrowseDescription(), 15).ToArrayOf();
+            using var sessionMock = SessionMock.Create();
+            sessionMock.OperationLimits.MaxNodesPerBrowse = 10;
+
+            var firstBatch = Enumerable.Range(0, 10).Select(_ => new BrowseResult()).ToList();
+            firstBatch[3].ContinuationPoint = ByteString.From([1, 2, 3]);
+            sessionMock.Channel
+                .SetupSequence(c => c.SendRequestAsync(
+                    It.Is<IServiceRequest>(r => r is BrowseRequest),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse { Results = firstBatch.ToArrayOf() })
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+
+            var released = new List<BrowseNextRequest>();
+            sessionMock.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<IServiceRequest>(r => r is BrowseNextRequest),
+                    It.IsAny<CancellationToken>()))
+                .Returns<IServiceRequest, CancellationToken>((r, _) =>
+                {
+                    var request = (BrowseNextRequest)r;
+                    released.Add(request);
+                    return new ValueTask<IServiceResponse>(new BrowseNextResponse
+                    {
+                        Results = Enumerable.Repeat(new BrowseResult(), request.ContinuationPoints.Count)
+                            .ToArrayOf()
+                    });
+                });
+
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await sessionMock.BrowseAsync(
+                    null,
+                    new ViewDescription(),
+                    1,
+                    nodesToBrowse,
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(released, Has.Count.EqualTo(1));
+            Assert.That(released[0].ReleaseContinuationPoints, Is.True);
+            Assert.That(released[0].ContinuationPoints.Count, Is.EqualTo(1));
+            Assert.That(released[0].ContinuationPoints[0], Is.EqualTo(ByteString.From([1, 2, 3])));
+        }
+
+        /// <summary>
+        /// Monitored items created by completed batches are deleted when a later
+        /// batch fails (L3-2).
+        /// </summary>
+        [Test]
+        public void CreateMonitoredItemsAsyncDeletesItemsOfCompletedBatchesOnFailure()
+        {
+            var itemsToCreate = Enumerable.Repeat(new MonitoredItemCreateRequest(), 15).ToArrayOf();
+            using var sessionMock = SessionMock.Create();
+            sessionMock.OperationLimits.MaxMonitoredItemsPerCall = 10;
+
+            ArrayOf<MonitoredItemCreateResult> firstBatch = Enumerable.Range(1, 10)
+                .Select(ii => new MonitoredItemCreateResult
+                {
+                    StatusCode = ii == 5 ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good,
+                    MonitoredItemId = (uint)ii
+                })
+                .ToArrayOf();
+            sessionMock.Channel
+                .SetupSequence(c => c.SendRequestAsync(
+                    It.Is<IServiceRequest>(r => r is CreateMonitoredItemsRequest),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateMonitoredItemsResponse { Results = firstBatch })
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTooManyOperations));
+
+            var deleted = new List<DeleteMonitoredItemsRequest>();
+            sessionMock.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<IServiceRequest>(r => r is DeleteMonitoredItemsRequest),
+                    It.IsAny<CancellationToken>()))
+                .Returns<IServiceRequest, CancellationToken>((r, _) =>
+                {
+                    var request = (DeleteMonitoredItemsRequest)r;
+                    deleted.Add(request);
+                    return new ValueTask<IServiceResponse>(new DeleteMonitoredItemsResponse
+                    {
+                        Results = Enumerable.Repeat((StatusCode)StatusCodes.Good, request.MonitoredItemIds.Count)
+                            .ToArrayOf()
+                    });
+                });
+
+            Assert.ThrowsAsync<ServiceResultException>(
+                async () => await sessionMock.CreateMonitoredItemsAsync(
+                    null,
+                    42,
+                    TimestampsToReturn.Both,
+                    itemsToCreate,
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(deleted, Has.Count.EqualTo(1));
+            Assert.That(deleted[0].SubscriptionId, Is.EqualTo(42u));
+            Assert.That(deleted[0].MonitoredItemIds.ToArray(),
+                Is.EqualTo(new uint[] { 1, 2, 3, 4, 6, 7, 8, 9, 10 }));
+        }
+
+        /// <summary>
+        /// Padding missing diagnostics must not skip rebasing the string table
+        /// indexes of the batch diagnostics (L3-3).
+        /// </summary>
+        [Test]
+        public void AddResponsesRebasesStringTableIndexesWhenPadding()
+        {
+            System.Reflection.MethodInfo addResponses = typeof(SessionClientBatched)
+                .GetMethod(
+                    "AddResponses",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                .MakeGenericMethod(typeof(StatusCode));
+
+            // An earlier batch (or the other list of SetTriggering) already filled
+            // the shared string table, but returned no diagnostics for this list.
+            var results = new List<StatusCode> { StatusCodes.Good };
+            var diagnosticInfos = new List<DiagnosticInfo>();
+            var stringTable = new List<string> { "a", "b" };
+            var batchDiagnostic = new DiagnosticInfo { SymbolicId = 0, LocalizedText = 1 };
+            string[] batchStrings = ["c", "d"];
+            string[] expectedStrings = ["a", "b", "c", "d"];
+            object[] args =
+            [
+                results,
+                diagnosticInfos,
+                stringTable,
+                new StatusCode[] { StatusCodes.BadNodeIdUnknown }.ToArrayOf(),
+                new[] { batchDiagnostic }.ToArrayOf(),
+                batchStrings.ToArrayOf()
+            ];
+
+            addResponses.Invoke(null, args);
+
+            Assert.That(diagnosticInfos, Has.Count.EqualTo(2));
+            Assert.That(diagnosticInfos[0], Is.Null);
+            Assert.That(stringTable, Is.EqualTo(expectedStrings));
+            Assert.That(batchDiagnostic.SymbolicId, Is.EqualTo(2));
+            Assert.That(batchDiagnostic.LocalizedText, Is.EqualTo(3));
+        }
+
         [Theory]
         public async Task BrowseAsyncShouldContainTraceContextInRequestHeaderAsync(
             RequestHeader requestHeader)
@@ -1985,9 +2131,16 @@ namespace Opc.Ua.Client.Tests
 
             sessionMock.Channel
                 .Verify(c => c.SendRequestAsync(
-                    It.IsAny<IServiceRequest>(),
+                    It.Is<IServiceRequest>(r => r is CreateMonitoredItemsRequest),
                     It.IsAny<CancellationToken>()),
                     Times.Exactly(2));
+
+            // The items created by the first batch are deleted again (L3-2).
+            sessionMock.Channel
+                .Verify(c => c.SendRequestAsync(
+                    It.Is<IServiceRequest>(r => r is DeleteMonitoredItemsRequest),
+                    It.IsAny<CancellationToken>()),
+                    Times.Once);
         }
 
         [Theory]
@@ -3116,6 +3269,63 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<IServiceRequest>(),
                     It.IsAny<CancellationToken>()),
                     Times.Exactly(2));
+        }
+
+        [TestCase(0u)]
+        [TestCase(5u)]
+        public async Task HistoryDeleteEventsUsesEventOperationLimitAsync(uint dataLimit)
+        {
+            using var session = SessionMock.Create();
+            session.OperationLimits.MaxNodesPerHistoryUpdateEvents = 2;
+            session.OperationLimits.MaxNodesPerHistoryUpdateData = dataLimit;
+            var batchSizes = new List<int>();
+            var requestedNodes = new List<NodeId>();
+            var details = Enumerable.Range(1, 5)
+                .Select(index => new ExtensionObject(new DeleteEventDetails
+                {
+                    NodeId = new NodeId((uint)index)
+                }))
+                .ToArrayOf();
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<IServiceRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((IServiceRequest request, CancellationToken _) =>
+                {
+                    if (request is not HistoryUpdateRequest update)
+                    {
+                        throw new InvalidOperationException("Expected HistoryUpdate.");
+                    }
+                    if (update.HistoryUpdateDetails.Count > 2)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTooManyOperations);
+                    }
+                    batchSizes.Add(update.HistoryUpdateDetails.Count);
+                    var results = new List<HistoryUpdateResult>();
+                    foreach (ExtensionObject detail in update.HistoryUpdateDetails)
+                    {
+                        Assert.That(detail.TryGetValue(out DeleteEventDetails delete), Is.True);
+                        requestedNodes.Add(delete.NodeId);
+                        results.Add(new HistoryUpdateResult
+                        {
+                            OperationResults = [(uint)requestedNodes.Count]
+                        });
+                    }
+                    return new HistoryUpdateResponse { Results = results };
+                });
+
+            HistoryUpdateResponse response = await session.HistoryUpdateAsync(
+                null, details, CancellationToken.None).ConfigureAwait(false);
+
+            int[] expectedBatchSizes = [2, 2, 1];
+            Assert.That(batchSizes, Is.EqualTo(expectedBatchSizes));
+            Assert.That(requestedNodes, Is.EqualTo(
+            [
+                new NodeId(1u), new NodeId(2u), new NodeId(3u), new NodeId(4u), new NodeId(5u)
+            ]));
+            Assert.That(
+                response.Results.ToList().Select(result => result.OperationResults[0]),
+                Is.EqualTo(new StatusCode[] { 1u, 2u, 3u, 4u, 5u }));
         }
 
         [Theory]

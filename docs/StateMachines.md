@@ -7,6 +7,36 @@ proxies and the existing `FiniteStateMachineState` server base.
 For the formal model, see
 [OPC UA Part 16 — State Machines](https://reference.opcfoundation.org/specs/OPC-10000-16/full).
 
+## Contents
+
+- [Two-mode unified builder](#two-mode-unified-builder)
+- [Quick reference](#quick-reference)
+- [Client side](#client-side)
+  - [Read the current state](#read-the-current-state)
+  - [Stream transitions](#stream-transitions)
+  - [Wait for a target state](#wait-for-a-target-state)
+  - [Enumerate states + transitions](#enumerate-states--transitions)
+  - [Alarm shelving alignment](#alarm-shelving-alignment)
+  - [Device Integration (DI) software-update alignment](#device-integration-di-software-update-alignment)
+  - [Vendor extensibility](#vendor-extensibility)
+- [Server side — definition mode](#server-side--definition-mode)
+- [Server side — lifecycle mode](#server-side--lifecycle-mode)
+  - [Stack-shipped state machine](#stack-shipped-state-machine)
+  - [Inside a fluent node-manager build pipeline](#inside-a-fluent-node-manager-build-pipeline)
+  - [Lifecycle ordering](#lifecycle-ordering)
+- [How the source-generator integrates](#how-the-source-generator-integrates)
+- [Guard clauses (fluent sugar)](#guard-clauses-fluent-sugar)
+- [Sub-state machines (hierarchical state)](#sub-state-machines-hierarchical-state)
+  - [Server side — `WithSubStateMachine`](#server-side--withsubstatemachine)
+  - [Server side — materialized state and transition nodes](#server-side--materialized-state-and-transition-nodes)
+  - [Executable causes](#executable-causes)
+  - [Client side — sub-SM observation](#client-side--sub-sm-observation)
+  - [Client side — typed sub-SM accessors (generated)](#client-side--typed-sub-sm-accessors-generated)
+  - [Fluent builder behavior — `HasSubStateMachine` is on the state node](#fluent-builder-behavior--hassubstatemachine-is-on-the-state-node)
+- [Extensibility recipes](#extensibility-recipes)
+- [Tests](#tests)
+- [See also](#see-also)
+
 ## Two-mode unified builder
 
 The server side ships **one** fluent builder — `StateMachineBuilder` —
@@ -268,6 +298,14 @@ public partial class MyNodeManager
 ensures the underlying node is a `FiniteStateMachineState` subclass
 at compile time — no runtime casts.
 
+The fluent pipeline retries an expired timed cause on subsequent simulation
+ticks if a guard rejects it. It warns only once for an unchanged rejected
+state, state revision, and status code; changing the status or entering a
+new state revision permits another warning. `BadInvalidState` remains
+silent but resets the previous rejection, so a later different failure is
+reported. Warning suppression does not delay retries or prevent recovery
+when the guard starts allowing the transition.
+
 ### Lifecycle ordering
 
 For every transition the dispatcher fires handlers in this order:
@@ -383,6 +421,14 @@ activates (and resets to its initial state unless
 `preserveOnReentry: true` is supplied); parent exits → child is
 suspended and rejects subsequent transitions until the next
 parent re-entry.
+
+Child synchronization completes before the parent's builder lifecycle handlers
+run or asynchronous handlers are scheduled. A parent `OnEnterState` handler can
+therefore call the child's `DoCause` or `DoTransition` without seeing an inactive
+child or having its transition overwritten by deferred initialization.
+Synchronization and these parent handlers run outside the parent's transition
+lock; transition-local source/destination snapshots and lifecycle ordering are
+preserved.
 
 ```csharp
 FluentFiniteStateMachineState parent = StateMachineBuilder
@@ -581,6 +627,9 @@ sub-SM transitions:
 Under the hood all discovered sub-SMs are subscribed once up-front and
 their notifications are multiplexed through a `Channel<T>`; sub-SM
 events are filtered against the parent's currently-active state.
+If any source fails (including a follow-up state read), the combined stream
+surfaces that exception and cancels the other sources immediately. A healthy
+sub-state-machine stream does not keep a failed parent stream silently alive.
 
 ### Client side — typed sub-SM accessors (generated)
 
@@ -642,14 +691,23 @@ Callers that passed the state machine's `ObjectId` to
   `Executable` / `UserExecutable` attributes from `IsCausePermitted`
   — see [Executable causes](#executable-causes).
 * **Drive auto-transitions.** `WithTimedTransition(fromStateId,
-  timeout, transitionId, causeId)` arms a `System.Threading.Timer`
-  on every entry into `fromStateId` (including the initial state)
-  and cancels it on exit. The timer fires `DoTransition(...)` on a
-  thread-pool thread, so the standard transition machinery (events,
-  audit, observers) runs as expected.
+  timeout, transitionId, causeId)` uses the server's `TimeProvider`
+  to arm one timer on entry into `fromStateId`, including the initial
+  state. Re-arming disposes the previous timer. A queued callback
+  cannot transition after reset, replacement, or exit/re-entry.
+  `StopTimedTransitions()` permanently stops that builder's automatic
+  transitions without removing the machine or its lifecycle observers.
+  Timer-only causes emit transition events, not fabricated Method audit
+  events; real Method calls retain their normal audit events.
 * **Escape hatch.** `ConfigureStateMachine(Action<TState>)` is
   invoked synchronously with the underlying state machine. Use it
   for properties or methods the builder doesn't surface directly.
+
+Transitions are serialized per machine. Before/after handlers retain
+per-invocation source and destination snapshots, including nested callbacks.
+If a before-handler changes the state, the stale outer transition is rejected
+with `BadInvalidState`. Transition events capture their state data before
+after-handlers run, so a nested transition cannot rewrite an earlier event.
 
 ## Tests
 

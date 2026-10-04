@@ -72,6 +72,10 @@ internal sealed class AdministrationWorkflowContext : IAsyncDisposable
         telemetry.SetupGet(t => t.LoggerFactory).Returns(factory.Object);
         telemetry.SetupGet(t => t.ActivitySource).Returns(ConnectionContext.Telemetry.ActivitySource);
         telemetry.Setup(t => t.CreateMeter()).Returns(() => ConnectionContext.Telemetry.CreateMeter());
+        telemetry.Setup(t => t.CreateMeter(It.IsAny<System.Reflection.Assembly>()))
+            .Returns((System.Reflection.Assembly assembly) => ConnectionContext.Telemetry.CreateMeter(assembly));
+        telemetry.Setup(t => t.GetActivitySource(It.IsAny<System.Reflection.Assembly>()))
+            .Returns((System.Reflection.Assembly assembly) => ConnectionContext.Telemetry.GetActivitySource(assembly));
         Telemetry = telemetry.Object;
         Host = new PluginHost(
             Workspace.Object, ConnectionContext.Connection, ConnectionContext.Browser, Telemetry);

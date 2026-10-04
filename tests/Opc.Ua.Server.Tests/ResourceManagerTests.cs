@@ -276,6 +276,23 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void TranslateUsesPartialLocaleWhenExactLocaleHasNoTranslation()
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.Add("greeting", "de-AT", "Servus");
+            resources.Add("other", "de-DE", "Andere");
+
+            LocalizedText translated = resources.Translate(
+                ["de-DE"],
+                "greeting",
+                "Hello");
+
+            Assert.That(translated.Locale, Is.EqualTo("de-AT"));
+            Assert.That(translated.Text, Is.EqualTo("Servus"));
+        }
+
+        [Test]
         public void TranslateRetainsOriginalFallbackForAnotherLocale()
         {
             var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
@@ -370,7 +387,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [TestCase(null)]
-        [TestCase(Opc.Ua.Namespaces.OpcUa)]
+        [TestCase(Ua.Namespaces.OpcUa)]
         public void TranslateStandardStatusUsesRegisteredTranslation(string namespaceUri)
         {
             var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
@@ -403,7 +420,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [TestCase("BadTimeout", "urn:custom-errors")]
-        [TestCase("CustomTimeout", Opc.Ua.Namespaces.OpcUa)]
+        [TestCase("CustomTimeout", Ua.Namespaces.OpcUa)]
         public void TranslateCustomSymbolicIdDoesNotUseStandardStatusTranslation(string name, string namespaceUri)
         {
             var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());

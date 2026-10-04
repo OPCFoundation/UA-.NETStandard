@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -153,6 +154,33 @@ namespace Opc.Ua
         protected abstract NodeState CreateCopy();
 
         /// <summary>
+        /// Whether a requested optional child still needs its declaration defaults.
+        /// </summary>
+        /// <param name="child">The requested optional child.</param>
+        protected static bool NeedsOptionalInitialization(BaseInstanceState child)
+        {
+            return !child.m_initializedFromSource && !child.IsCreated;
+        }
+
+        /// <summary>
+        /// Clones a child and assigns the copy to its new parent.
+        /// </summary>
+        /// <typeparam name="TChild">The child state type.</typeparam>
+        /// <param name="child">The child to copy, if present.</param>
+        /// <param name="parent">The parent of the copied child.</param>
+        protected static TChild? CloneChild<TChild>(TChild? child, NodeState parent)
+            where TChild : BaseInstanceState
+        {
+            if (child == null)
+            {
+                return null;
+            }
+            var copy = (TChild)child.Clone();
+            copy.Parent = parent;
+            return copy;
+        }
+
+        /// <summary>
         /// Copy all state to the target node state. This performs
         /// the actual deep copy of the node state.
         /// </summary>
@@ -163,7 +191,7 @@ namespace Opc.Ua
             target.SymbolicName = SymbolicName;
             target.NodeClass = NodeClass;
             target.m_nodeId = m_nodeId;
-            target.m_browseName = m_browseName;
+            target.SetBrowseNameAndInvalidateParentIndex(m_browseName);
             target.m_displayName = m_displayName;
             target.m_description = m_description;
             target.m_writeMask = m_writeMask;
@@ -191,7 +219,7 @@ namespace Opc.Ua
                 target.m_children = new List<BaseInstanceState>(children.Count);
                 for (int ii = 0; ii < children.Count; ii++)
                 {
-                    var child = (BaseInstanceState)children[ii].Clone();
+                    BaseInstanceState child = CloneChild(children[ii], target)!;
                     target.m_children.Add(child);
                 }
             }
@@ -208,6 +236,7 @@ namespace Opc.Ua
             // the source instead of the bits the property setters and
             // AddReferences above raise.
             target.m_changeMasks = m_changeMasks;
+            target.m_initializedFromSource = m_initializedFromSource;
         }
 
         /// <summary>
@@ -258,6 +287,7 @@ namespace Opc.Ua
         protected virtual void Initialize(ISystemContext context)
         {
             Initialize(context.Telemetry);
+            m_initializedFromSource = false;
 
             // defined by subclass.
         }
@@ -326,12 +356,13 @@ namespace Opc.Ua
         protected virtual void Initialize(ISystemContext context, NodeState source)
         {
             Initialize(context.Telemetry);
+            m_initializedFromSource = false;
 
             Handle = source.Handle;
             SymbolicName = source.SymbolicName;
             m_nodeId = source.m_nodeId;
             NodeClass = source.NodeClass;
-            m_browseName = source.m_browseName;
+            SetBrowseNameAndInvalidateParentIndex(source.m_browseName);
             m_displayName = source.m_displayName;
             m_description = source.m_description;
             m_writeMask = source.m_writeMask;
@@ -380,6 +411,7 @@ namespace Opc.Ua
                 IReference reference = references[ii];
                 AddReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
             }
+            m_initializedFromSource = true;
         }
 
         /// <summary>
@@ -483,7 +515,7 @@ namespace Opc.Ua
                     m_changeMasks |= NodeStateChangeMasks.NonValue;
                 }
 
-                m_browseName = value;
+                SetBrowseNameAndInvalidateParentIndex(value);
             }
         }
 
@@ -1238,7 +1270,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.BrowseName) != 0)
             {
-                m_browseName = decoder.ReadQualifiedName(null);
+                SetBrowseNameAndInvalidateParentIndex(decoder.ReadQualifiedName(null));
             }
 
             if (string.IsNullOrEmpty(SymbolicName) && !m_browseName.IsNull)
@@ -3234,42 +3266,96 @@ namespace Opc.Ua
                 }
             }
 
-            NodeStateChangeMasks changeMasks = m_changeMasks;
+            // take the reported bits before dispatching, so a change made while the
+            // handlers run (by another writer or by a handler) keeps its bit and is
+            // reported by the next call instead of being wiped afterwards.
+            NodeStateChangeMasks changeMasks = TakeChangeMasks();
 
             if (changeMasks != NodeStateChangeMasks.None)
             {
-                OnStateChanged?.Invoke(context, this, changeMasks);
-                StateChanged?.Invoke(context, this, changeMasks);
-
-                // Drive any asynchronous sinks too, so a node whose only state-changed sink is
-                // asynchronous (for example a monitored-item manager) is still notified when the
-                // synchronous API is used. Completes inline in the common case; a genuinely
-                // asynchronous sink blocks here - only synchronous callers pay that cost.
-                if (OnStateChangedAsync != null || StateChangedAsync != null)
+                try
                 {
-                    if (SynchronizationContext.Current == null)
-                    {
-                        // No ambient synchronization context (the normal server case): drive inline
-                        // and block only on the rare genuinely-asynchronous sink.
-                        ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
-                        if (!raise.IsCompletedSuccessfully)
-                        {
-                            raise.AsTask().GetAwaiter().GetResult();
-                        }
-                    }
-                    else
-                    {
-                        // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
-                        // run the sinks on the thread pool so a context-capturing continuation
-                        // cannot deadlock the blocking wait below.
-                        Task.Run(() =>
-                            RaiseStateChangedAsync(context, changeMasks, CancellationToken.None)
-                                .AsTask())
-                            .GetAwaiter().GetResult();
-                    }
+                    RaiseStateChanged(context, changeMasks);
+                }
+                catch
+                {
+                    // not reported: keep the bits for the next call.
+                    RestoreChangeMasks(changeMasks);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Atomically takes (reads and clears) the pending change masks. A bit set by a
+        /// concurrent setter is either taken here or stays set for the next call; it is
+        /// never lost as with a plain read followed by <c>&amp;=</c>.
+        /// </summary>
+        private NodeStateChangeMasks TakeChangeMasks()
+        {
+            ref int bits = ref Unsafe.As<NodeStateChangeMasks, int>(ref m_changeMasks);
+            return (NodeStateChangeMasks)Interlocked.Exchange(ref bits, 0);
+        }
+
+        /// <summary>
+        /// Atomically sets the change masks that were taken but could not be reported.
+        /// </summary>
+        private void RestoreChangeMasks(NodeStateChangeMasks changeMasks)
+        {
+            ref int bits = ref Unsafe.As<NodeStateChangeMasks, int>(ref m_changeMasks);
+            int current = Volatile.Read(ref bits);
+
+            while (true)
+            {
+                int previous = Interlocked.CompareExchange(
+                    ref bits,
+                    current | (int)changeMasks,
+                    current);
+
+                if (previous == current)
+                {
+                    return;
                 }
 
-                m_changeMasks = NodeStateChangeMasks.None;
+                current = previous;
+            }
+        }
+
+        /// <summary>
+        /// Invokes the synchronous and asynchronous state-changed sinks for
+        /// <see cref="ClearChangeMasks"/>.
+        /// </summary>
+        private void RaiseStateChanged(ISystemContext context, NodeStateChangeMasks changeMasks)
+        {
+            OnStateChanged?.Invoke(context, this, changeMasks);
+            StateChanged?.Invoke(context, this, changeMasks);
+
+            // Drive any asynchronous sinks too, so a node whose only state-changed sink is
+            // asynchronous (for example a monitored-item manager) is still notified when the
+            // synchronous API is used. Completes inline in the common case; a genuinely
+            // asynchronous sink blocks here - only synchronous callers pay that cost.
+            if (OnStateChangedAsync != null || StateChangedAsync != null)
+            {
+                if (SynchronizationContext.Current == null)
+                {
+                    // No ambient synchronization context (the normal server case): drive inline
+                    // and block only on the rare genuinely-asynchronous sink.
+                    ValueTask raise = RaiseStateChangedAsync(context, changeMasks, default);
+                    if (!raise.IsCompletedSuccessfully)
+                    {
+                        raise.AsTask().GetAwaiter().GetResult();
+                    }
+                }
+                else
+                {
+                    // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
+                    // run the sinks on the thread pool so a context-capturing continuation
+                    // cannot deadlock the blocking wait below.
+                    Task.Run(() =>
+                        RaiseStateChangedAsync(context, changeMasks, CancellationToken.None)
+                            .AsTask())
+                        .GetAwaiter().GetResult();
+                }
             }
         }
 
@@ -3299,15 +3385,24 @@ namespace Opc.Ua
                 }
             }
 
-            NodeStateChangeMasks changeMasks = m_changeMasks;
+            // take the reported bits before dispatching (see ClearChangeMasks).
+            NodeStateChangeMasks changeMasks = TakeChangeMasks();
 
             if (changeMasks != NodeStateChangeMasks.None)
             {
-                OnStateChanged?.Invoke(context, this, changeMasks);
-                StateChanged?.Invoke(context, this, changeMasks);
-                await RaiseStateChangedAsync(context, changeMasks, cancellationToken)
-                    .ConfigureAwait(false);
-                m_changeMasks = NodeStateChangeMasks.None;
+                try
+                {
+                    OnStateChanged?.Invoke(context, this, changeMasks);
+                    StateChanged?.Invoke(context, this, changeMasks);
+                    await RaiseStateChangedAsync(context, changeMasks, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // not reported: keep the bits for the next call.
+                    RestoreChangeMasks(changeMasks);
+                    throw;
+                }
             }
         }
 
@@ -3623,6 +3718,7 @@ namespace Opc.Ua
             OnAfterDelete(context);
 
             IsCreated = false;
+            m_initializedFromSource = false;
             ChangeMasks = NodeStateChangeMasks.Deleted;
             ClearChangeMasks(context, false);
         }
@@ -4587,6 +4683,27 @@ namespace Opc.Ua
                             return result;
                         }
                     }
+                    else if (userWriteMask == AttributeWriteMask.None)
+                    {
+                        // a UserWriteMask that is neither set nor computed per user is
+                        // not configured, and writes then only check the WriteMask (see
+                        // CheckUserWriteMask). Report the WriteMask so the attribute
+                        // describes what the current user can actually write (Part 3
+                        // 8.60: a clear bit means not writeable). A node cannot be made
+                        // read-only for all users with a UserWriteMask of 0; clear the
+                        // WriteMask or use OnReadUserWriteMask for that.
+                        userWriteMask = m_writeMask;
+                        NodeAttributeEventHandler<AttributeWriteMask>? onReadEffectiveWriteMask =
+                            OnReadWriteMask;
+                        if (onReadEffectiveWriteMask != null)
+                        {
+                            result = onReadEffectiveWriteMask(context, this, ref userWriteMask);
+                            if (!ServiceResult.IsGood(result))
+                            {
+                                return result;
+                            }
+                        }
+                    }
                     value = (uint)userWriteMask;
                     return result;
                 case Attributes.RolePermissions:
@@ -4738,6 +4855,20 @@ namespace Opc.Ua
                         "Cannot write to server timestamp");
                 }
 
+                // the Value of a VariableType is guarded by the ValueForVariableType bit of the
+                // UserWriteMask (Part 3 5.2.8); Variables use the UserAccessLevel instead.
+                if (NodeClass == NodeClass.VariableType)
+                {
+                    ServiceResult? valueWriteMaskResult = CheckUserWriteMask(
+                        context,
+                        AttributeWriteMask.ValueForVariableType);
+
+                    if (valueWriteMaskResult != null)
+                    {
+                        return valueWriteMaskResult;
+                    }
+                }
+
                 // call implementation.
                 try
                 {
@@ -4775,6 +4906,18 @@ namespace Opc.Ua
                     "Index range can only be specified for value attribute");
             }
 
+            // the UserWriteMask restricts which of the writable attributes the current user
+            // may write (Part 3 5.2.8), mirroring the UserAccessLevel check of the value path.
+            // Attributes the WriteMask does not allow are rejected by the handlers below.
+            ServiceResult? userWriteMaskResult = CheckUserWriteMask(
+                context,
+                GetAttributeWriteMask(attributeId));
+
+            if (userWriteMaskResult != null)
+            {
+                return userWriteMaskResult;
+            }
+
             // call implementation.
             try
             {
@@ -4786,6 +4929,97 @@ namespace Opc.Ua
                     StatusCodes.BadUnexpectedError,
                     "Failed to write non value attribute");
             }
+        }
+
+        /// <summary>
+        /// Checks the <see cref="UserWriteMask"/> for an attribute the
+        /// <see cref="WriteMask"/> allows to be written.
+        /// </summary>
+        /// <returns><c>null</c> if the write may proceed, otherwise the error.</returns>
+        private ServiceResult? CheckUserWriteMask(
+            ISystemContext context,
+            AttributeWriteMask attributeMask)
+        {
+            if (attributeMask == AttributeWriteMask.None || (WriteMask & attributeMask) == 0)
+            {
+                return null;
+            }
+
+            AttributeWriteMask userWriteMask = UserWriteMask;
+            NodeAttributeEventHandler<AttributeWriteMask>? onReadUserWriteMask =
+                OnReadUserWriteMask;
+
+            // a UserWriteMask that is neither set nor computed per user is treated as
+            // not configured (nodes built in code and NodeSets frequently leave it 0);
+            // a read of the attribute then reports the WriteMask, consistent with this.
+            bool userWriteMaskConfigured = onReadUserWriteMask != null ||
+                userWriteMask != AttributeWriteMask.None;
+
+            if (onReadUserWriteMask != null)
+            {
+                // a failing handler fails only this attribute, like the read path.
+                ServiceResult maskResult;
+
+                try
+                {
+                    maskResult = onReadUserWriteMask(context, this, ref userWriteMask);
+                }
+                catch (Exception e)
+                {
+                    return ServiceResult.Create(e,
+                        StatusCodes.BadUnexpectedError,
+                        "Failed to read UserWriteMask.");
+                }
+
+                if (ServiceResult.IsBad(maskResult))
+                {
+                    return maskResult;
+                }
+            }
+
+            if (userWriteMaskConfigured && (userWriteMask & attributeMask) == 0)
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the <see cref="AttributeWriteMask"/> bit that controls writing a
+        /// non-value attribute, or <see cref="AttributeWriteMask.None"/> if there is none.
+        /// </summary>
+        private static AttributeWriteMask GetAttributeWriteMask(uint attributeId)
+        {
+            return attributeId switch
+            {
+                Attributes.NodeId => AttributeWriteMask.NodeId,
+                Attributes.NodeClass => AttributeWriteMask.NodeClass,
+                Attributes.BrowseName => AttributeWriteMask.BrowseName,
+                Attributes.DisplayName => AttributeWriteMask.DisplayName,
+                Attributes.Description => AttributeWriteMask.Description,
+                Attributes.WriteMask => AttributeWriteMask.WriteMask,
+                Attributes.UserWriteMask => AttributeWriteMask.UserWriteMask,
+                Attributes.DataType => AttributeWriteMask.DataType,
+                Attributes.ValueRank => AttributeWriteMask.ValueRank,
+                Attributes.ArrayDimensions => AttributeWriteMask.ArrayDimensions,
+                Attributes.IsAbstract => AttributeWriteMask.IsAbstract,
+                Attributes.Symmetric => AttributeWriteMask.Symmetric,
+                Attributes.InverseName => AttributeWriteMask.InverseName,
+                Attributes.ContainsNoLoops => AttributeWriteMask.ContainsNoLoops,
+                Attributes.EventNotifier => AttributeWriteMask.EventNotifier,
+                Attributes.AccessLevel => AttributeWriteMask.AccessLevel,
+                Attributes.UserAccessLevel => AttributeWriteMask.UserAccessLevel,
+                Attributes.MinimumSamplingInterval => AttributeWriteMask.MinimumSamplingInterval,
+                Attributes.Historizing => AttributeWriteMask.Historizing,
+                Attributes.Executable => AttributeWriteMask.Executable,
+                Attributes.UserExecutable => AttributeWriteMask.UserExecutable,
+                Attributes.DataTypeDefinition => AttributeWriteMask.DataTypeDefinition,
+                Attributes.RolePermissions => AttributeWriteMask.RolePermissions,
+                Attributes.AccessRestrictions => AttributeWriteMask.AccessRestrictions,
+                Attributes.AccessLevelEx => AttributeWriteMask.AccessLevelEx,
+                _ => AttributeWriteMask.None
+            };
         }
 
         /// <summary>
@@ -5208,6 +5442,46 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Finds the child whose browse name equals <paramref name="browseName"/>, namespace
+        /// index included.
+        /// </summary>
+        /// <remarks>
+        /// Types with generated child slots override <see cref="FindChild(ISystemContext, QualifiedName)"/>
+        /// and resolve those slots by <see cref="QualifiedName.Name"/> only, and do not search the
+        /// child list for such a name. This method accepts a slot only when its full browse name
+        /// matches and otherwise searches the child list, so it finds the same children as
+        /// comparing the browse names of <see cref="GetChildren"/>.
+        /// </remarks>
+        /// <param name="context">The context to use.</param>
+        /// <param name="browseName">The browse name.</param>
+        /// <returns>The child if found. Null otherwise.</returns>
+        public BaseInstanceState? FindChildWithQualifiedName(ISystemContext context, QualifiedName browseName)
+        {
+            if (browseName.IsNull)
+            {
+                return null;
+            }
+
+            BaseInstanceState? child = FindChild(context, browseName, false, null);
+            if (child != null && child.BrowseName == browseName)
+            {
+                return child;
+            }
+
+            lock (m_childrenLock)
+            {
+                if (m_children == null)
+                {
+                    return null;
+                }
+
+                return m_children.Count >= kChildNameIndexThreshold
+                    ? FindIndexedChild(m_children, browseName)
+                    : FindFirstChild(m_children, browseName);
+            }
+        }
+
+        /// <summary>
         /// Finds the child with the specified browse path.
         /// </summary>
         /// <param name="context">The context to use.</param>
@@ -5425,6 +5699,12 @@ namespace Opc.Ua
             {
                 (m_children ??= []).Add(child);
                 m_changeMasks |= NodeStateChangeMasks.Children;
+
+                if (m_children.Count > kChildNameIndexThreshold &&
+                    s_childNameIndexes.TryGetValue(m_children, out ChildNameIndex? index))
+                {
+                    index.OnAdded(m_children, child);
+                }
             }
         }
 
@@ -5487,6 +5767,11 @@ namespace Opc.Ua
                             child.Parent = null;
                             m_children.RemoveAt(ii);
                             m_changeMasks |= NodeStateChangeMasks.Children;
+
+                            if (s_childNameIndexes.TryGetValue(m_children, out ChildNameIndex? index))
+                            {
+                                index.OnRemoved(m_children, child);
+                            }
                             return;
                         }
                     }
@@ -5771,36 +6056,22 @@ namespace Opc.Ua
                 return WriteAttribute(context, attributeId, default, value);
             }
 
-            List<BaseInstanceState>? children = null;
+            // find the child at the current level. FindChild also reaches the children
+            // generated types keep in fields, which are not stored in m_children.
+            BaseInstanceState? child = FindChild(context, componentPath[index], false, null);
 
-            lock (m_childrenLock)
+            if (child == null)
             {
-                if (m_children != null)
-                {
-                    children = [.. m_children];
-                }
+                return StatusCodes.BadNodeIdUnknown;
             }
 
             // recursively update children.
-            if (children != null)
-            {
-                for (int ii = 0; ii < children.Count; ii++)
-                {
-                    if (componentPath[index] != children[ii].BrowseName)
-                    {
-                        continue;
-                    }
-
-                    return children[ii].WriteChildAttribute(
-                        context,
-                        componentPath,
-                        index + 1,
-                        attributeId,
-                        value);
-                }
-            }
-
-            return StatusCodes.BadNodeIdUnknown;
+            return child.WriteChildAttribute(
+                context,
+                componentPath,
+                index + 1,
+                attributeId,
+                value);
         }
 
         /// <summary>
@@ -6154,22 +6425,29 @@ namespace Opc.Ua
             {
                 if (m_children != null)
                 {
-                    for (int ii = 0; ii < m_children.Count; ii++)
-                    {
-                        BaseInstanceState child = m_children[ii];
+                    BaseInstanceState? child = m_children.Count >= kChildNameIndexThreshold
+                        ? FindIndexedChild(m_children, browseName)
+                        : FindFirstChild(m_children, browseName);
 
-                        if (browseName == child.BrowseName)
+                    if (child != null)
+                    {
+                        if (createOrReplace && replacement != null)
                         {
-                            if (createOrReplace && replacement != null)
+                            for (int ii = 0; ii < m_children.Count; ii++)
                             {
-                                m_children[ii] = child = replacement;
-                                m_changeMasks |= NodeStateChangeMasks.Children;
-                                adopted = true;
+                                if (ReferenceEquals(m_children[ii], child))
+                                {
+                                    m_children[ii] = child = replacement;
+                                    break;
+                                }
                             }
 
-                            found = child;
-                            break;
+                            m_changeMasks |= NodeStateChangeMasks.Children;
+                            adopted = true;
+                            s_childNameIndexes.Remove(m_children);
                         }
+
+                        found = child;
                     }
                 }
             }
@@ -6199,6 +6477,212 @@ namespace Opc.Ua
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns the first child in <paramref name="children"/> with the browse name.
+        /// </summary>
+        private static BaseInstanceState? FindFirstChild(
+            List<BaseInstanceState> children,
+            QualifiedName browseName)
+        {
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                if (browseName == children[ii].BrowseName)
+                {
+                    return children[ii];
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the first child with the browse name using the browse name index of
+        /// the children list, building the index when it is missing or out of date.
+        /// Must be called while holding <see cref="m_childrenLock"/>.
+        /// </summary>
+        private BaseInstanceState? FindIndexedChild(
+            List<BaseInstanceState> children,
+            QualifiedName browseName)
+        {
+            if (!s_childNameIndexes.TryGetValue(children, out ChildNameIndex? index) ||
+                !index.IsCurrent(children))
+            {
+                s_childNameIndexes.Remove(children);
+                index = new ChildNameIndex(this, children);
+                s_childNameIndexes.Add(children, index);
+            }
+
+            if (!index.IsIndexed)
+            {
+                return FindFirstChild(children, browseName);
+            }
+
+            if (!index.TryFind(browseName, out BaseInstanceState? child))
+            {
+                return null;
+            }
+
+            if (browseName == child.BrowseName && ReferenceEquals(child.Parent, this))
+            {
+                return child;
+            }
+
+            // the index missed a change; fall back to the list and rebuild on next use.
+            s_childNameIndexes.Remove(children);
+            return FindFirstChild(children, browseName);
+        }
+
+        /// <summary>
+        /// Sets the browse name and drops the browse name index of the parent, which
+        /// may hold the child under its previous browse name.
+        /// </summary>
+        /// <remarks>
+        /// Both happen under the parent's children lock, so a concurrent
+        /// <see cref="FindChild(ISystemContext, QualifiedName)"/> never sees the new
+        /// name together with an index that still maps the old one, and misses the child.
+        /// </remarks>
+        private void SetBrowseNameAndInvalidateParentIndex(QualifiedName browseName)
+        {
+            if (m_browseName == browseName)
+            {
+                m_browseName = browseName;
+                return;
+            }
+
+            if (this is not BaseInstanceState { Parent: NodeState parent })
+            {
+                m_browseName = browseName;
+                return;
+            }
+
+            lock (parent.m_childrenLock)
+            {
+                m_browseName = browseName;
+
+                if (parent.m_children != null)
+                {
+                    s_childNameIndexes.Remove(parent.m_children);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Drops the browse name index of the children list so it is rebuilt on next use.
+        /// </summary>
+        internal void InvalidateChildNameIndex()
+        {
+            lock (m_childrenLock)
+            {
+                if (m_children != null)
+                {
+                    s_childNameIndexes.Remove(m_children);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A browse name index over a large children list. It keeps the first child
+        /// for each browse name, like the linear search it replaces. The index is
+        /// only used for lists whose children all have the owner as parent, because
+        /// the owner is told about renamed or re-parented children through
+        /// <see cref="BaseInstanceState.Parent"/>. All members are accessed while
+        /// holding the owner's children lock.
+        /// </summary>
+        private sealed class ChildNameIndex
+        {
+            public ChildNameIndex(NodeState owner, List<BaseInstanceState> children)
+            {
+                m_count = children.Count;
+
+                var byName = new Dictionary<QualifiedName, BaseInstanceState>(children.Count);
+                for (int ii = 0; ii < children.Count; ii++)
+                {
+                    BaseInstanceState child = children[ii];
+
+                    if (!ReferenceEquals(child.Parent, owner))
+                    {
+                        // e.g. cloned children still point at the original parent.
+                        return;
+                    }
+
+                    if (!byName.TryAdd(child.BrowseName, child))
+                    {
+                        m_hasDuplicates = true;
+                    }
+                }
+
+                m_byName = byName;
+            }
+
+            /// <summary>
+            /// Whether lookups can use the index; otherwise the list must be searched.
+            /// </summary>
+            public bool IsIndexed => m_byName != null;
+
+            /// <summary>
+            /// Whether the index still describes the children list.
+            /// </summary>
+            public bool IsCurrent(List<BaseInstanceState> children)
+            {
+                return m_byName == null || m_count == children.Count;
+            }
+
+            public bool TryFind(QualifiedName browseName, [NotNullWhen(true)] out BaseInstanceState? child)
+            {
+                child = null;
+                return m_byName != null && m_byName.TryGetValue(browseName, out child);
+            }
+
+            /// <summary>
+            /// Records a child appended to the list.
+            /// </summary>
+            public void OnAdded(List<BaseInstanceState> children, BaseInstanceState child)
+            {
+                if (m_byName == null || m_count + 1 != children.Count)
+                {
+                    m_count = -1;
+                    return;
+                }
+
+                m_count++;
+                if (!m_byName.TryAdd(child.BrowseName, child))
+                {
+                    m_hasDuplicates = true;
+                }
+            }
+
+            /// <summary>
+            /// Records a child removed from the list.
+            /// </summary>
+            public void OnRemoved(List<BaseInstanceState> children, BaseInstanceState child)
+            {
+                if (m_byName == null || m_count - 1 != children.Count)
+                {
+                    m_count = -1;
+                    return;
+                }
+
+                m_count--;
+                if (m_byName.TryGetValue(child.BrowseName, out BaseInstanceState? indexed) &&
+                    ReferenceEquals(indexed, child))
+                {
+                    if (m_hasDuplicates)
+                    {
+                        // another child with the same browse name may now come first.
+                        m_count = -1;
+                    }
+                    else
+                    {
+                        m_byName.Remove(child.BrowseName);
+                    }
+                }
+            }
+
+            private readonly Dictionary<QualifiedName, BaseInstanceState>? m_byName;
+            private int m_count;
+            private bool m_hasDuplicates;
         }
 
         private static Task ScheduleReportEventAsync(
@@ -6329,9 +6813,23 @@ namespace Opc.Ua
         protected List<BaseInstanceState>? m_children;
 
         /// <summary>
+        /// Children lists with at least this many entries are searched by browse name
+        /// through a <see cref="ChildNameIndex"/> instead of a linear scan.
+        /// </summary>
+        private const int kChildNameIndexThreshold = 64;
+
+        /// <summary>
+        /// Browse name indexes of large children lists. Kept outside the node so that
+        /// nodes with few children do not pay for the index.
+        /// </summary>
+        private static readonly ConditionalWeakTable<List<BaseInstanceState>, ChildNameIndex> s_childNameIndexes = new();
+
+        /// <summary>
         /// Indicates what has changed in the node.
         /// </summary>
         protected NodeStateChangeMasks m_changeMasks;
+
+        private bool m_initializedFromSource;
 
         /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
         private Lock? m_notifiersLock;

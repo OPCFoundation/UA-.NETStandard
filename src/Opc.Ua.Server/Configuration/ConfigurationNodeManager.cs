@@ -46,7 +46,10 @@ namespace Opc.Ua.Server
     /// certificate alarms and namespace metadata live in the sibling
     /// <c>ConfigurationNodeManager.*.cs</c> files.
     /// </summary>
-    public partial class ConfigurationNodeManager : DiagnosticsNodeManager, IConfigurationNodeManager
+    public partial class ConfigurationNodeManager :
+        DiagnosticsNodeManager,
+        IConfigurationNodeManager,
+        INodeManagerShutdown
     {
         /// <summary>
         /// Initializes the configuration and diagnostics manager.
@@ -231,7 +234,8 @@ namespace Opc.Ua.Server
             m_certificateGroups = [];
             m_configuration = configuration;
             m_namespaceMetadata = new NamespaceMetadataRegistry(this, m_logger);
-            m_alarmScheduler = new CertificateAlarmScheduler(m_timeProvider, m_logger);
+            m_alarmScheduler = new CertificateAlarmScheduler(
+                m_timeProvider, m_logger, () => m_configuration.CertificateManager);
             // TODO: configure cert groups in configuration
             var defaultApplicationGroup = new ServerCertificateGroup
             {
@@ -512,6 +516,10 @@ namespace Opc.Ua.Server
             {
                 await MaterializeRegisteredAliasNameNodesAsync(externalReferences, cancellationToken)
                     .ConfigureAwait(false);
+                if (m_aliasNameOptions.RefreshAliasNodesOnChange)
+                {
+                    EnableAliasNameRefresh();
+                }
             }
 
             await CreateCertificateAlarmsAsync(
@@ -532,8 +540,31 @@ namespace Opc.Ua.Server
         /// </summary>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
+            await PrepareForShutdownAsync().ConfigureAwait(false);
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerShutdown.PrepareForShutdownAsync()
+        {
+            return PrepareForShutdownAsync();
+        }
+
+        /// <summary>
+        /// Stops alarm and user-management work and drains deferred configuration effects before teardown.
+        /// </summary>
+        private async ValueTask PrepareForShutdownAsync()
+        {
             StopAlarmMonitoring();
             CancelPendingApplyChanges();
+
+            UserManagement.UserManagementBinding? userManagement =
+                Volatile.Read(ref m_userManagementBinding);
+            if (userManagement != null)
+            {
+                await userManagement.DisposeAsync().ConfigureAwait(false);
+                Interlocked.CompareExchange(ref m_userManagementBinding, null, userManagement);
+            }
 
             Task pending;
             Task pumpPending;
@@ -565,8 +596,6 @@ namespace Opc.Ua.Server
             {
                 m_logger.DeferredApplyChangesFaultedDuringShutdown(ex);
             }
-
-            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -670,10 +699,7 @@ namespace Opc.Ua.Server
             configNode.GetCertificates!.OnCall
                 = new GetCertificatesMethodStateMethodCallHandler(
                 GetCertificates);
-            if (configNode.SupportsTransactions != null)
-            {
-                configNode.SupportsTransactions.Value = true;
-            }
+            configNode.SupportsTransactions?.Value = true;
 
             ConfigureOptionalServerConfigurationSurface(systemContext, configNode, configuration);
 
@@ -684,8 +710,8 @@ namespace Opc.Ua.Server
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
             {
                 certGroup.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
-                certGroup.Node!.TrustList!.Handle = new TrustList(
-                    certGroup.Node.TrustList,
+                var trustList = new TrustList(
+                    certGroup.Node.TrustList!,
                     certGroup.TrustedStore,
                     certGroup.IssuerStore,
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
@@ -693,7 +719,16 @@ namespace Opc.Ua.Server
                     Server.Telemetry,
                     m_coordinator,
                     m_configuration.ServerConfiguration!.MaxTrustListSize,
-                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling);
+                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
+                    m_configuration.CertificateManager as ICertificateStoreResolver);
+                if (IsApplicationCertificateGroup(certGroup))
+                {
+                    // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
+                    // an ApplicationCertificateType TrustList are validated
+                    // with the OPC 10000-4 process.
+                    trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+                }
+                certGroup.Node.TrustList!.Handle = trustList;
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
@@ -755,22 +790,13 @@ namespace Opc.Ua.Server
             ServerConfigurationState configNode,
             ApplicationConfiguration configuration)
         {
-            if (configNode.ApplicationUri != null)
-            {
-                configNode.ApplicationUri.Value = configuration.ApplicationUri ?? string.Empty;
-            }
-            if (configNode.ProductUri != null)
-            {
-                configNode.ProductUri.Value = configuration.ProductUri ?? string.Empty;
-            }
-            if (configNode.ApplicationType != null)
-            {
-                configNode.ApplicationType.Value = configuration.ApplicationType;
-            }
+            configNode.ApplicationUri?.Value = configuration.ApplicationUri ?? string.Empty;
+            configNode.ProductUri?.Value = configuration.ProductUri ?? string.Empty;
+            configNode.ApplicationType?.Value = configuration.ApplicationType;
             if (configNode.ApplicationNames != null)
             {
                 configNode.ApplicationNames.Value = string.IsNullOrEmpty(configuration.ApplicationName)
-                    ? ArrayOf<LocalizedText>.Empty
+                    ? []
                     : ArrayOf.Wrapped(new LocalizedText(configuration.ApplicationName));
                 configNode.ApplicationNames.ValueRank = ValueRanks.OneDimension;
             }
@@ -823,34 +849,13 @@ namespace Opc.Ua.Server
                 m_timeProvider,
                 m_serverConfigurationOptions.ConfigurationFileActivityTimeout);
 
-            if (fileNode.ActivityTimeout != null)
-            {
-                fileNode.ActivityTimeout.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
-            }
-            if (fileNode.CurrentVersion != null)
-            {
-                fileNode.CurrentVersion.Value = fileProvider.CurrentVersion;
-            }
-            if (fileNode.LastUpdateTime != null)
-            {
-                fileNode.LastUpdateTime.Value = new DateTimeUtc(fileProvider.LastUpdateTime);
-            }
-            if (fileNode.SupportedDataType != null)
-            {
-                fileNode.SupportedDataType.Value = DataTypeIds.ApplicationConfigurationDataType;
-            }
-            if (fileNode.Writable != null)
-            {
-                fileNode.Writable.Value = true;
-            }
-            if (fileNode.UserWritable != null)
-            {
-                fileNode.UserWritable.Value = true;
-            }
-            if (fileNode.OpenCount != null)
-            {
-                fileNode.OpenCount.Value = 0;
-            }
+            fileNode.ActivityTimeout?.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
+            fileNode.CurrentVersion?.Value = fileProvider.CurrentVersion;
+            fileNode.LastUpdateTime?.Value = new DateTimeUtc(fileProvider.LastUpdateTime);
+            fileNode.SupportedDataType?.Value = DataTypeIds.ApplicationConfigurationDataType;
+            fileNode.Writable?.Value = true;
+            fileNode.UserWritable?.Value = true;
+            fileNode.OpenCount?.Value = 0;
 
             fileNode.ClearChangeMasks(systemContext, true);
         }
@@ -1024,7 +1029,7 @@ namespace Opc.Ua.Server
                 // Result status is Bad_InvalidState while a transaction is in
                 // flight; once completed the status is Good and the value is
                 // the ApplyChanges/CancelChanges outcome StatusCode.
-                diagnosticsNode.Result.Value = active ? (StatusCode)StatusCodes.Good : snapshot.Result;
+                diagnosticsNode.Result.Value = active ? StatusCodes.Good : snapshot.Result;
                 diagnosticsNode.Result.StatusCode = active ? StatusCodes.BadInvalidState : StatusCodes.Good;
                 diagnosticsNode.Result.Timestamp = now;
             }
@@ -1092,13 +1097,10 @@ namespace Opc.Ua.Server
         /// the type from the path alone (the single-argument constructor)
         /// would silently downgrade a configured custom store type to a
         /// directory store, making the push path write through a different
-        /// store implementation than the validator reads. The preserved type
-        /// resolves through <see cref="CertificateStoreIdentifier.OpenStore()"/>,
-        /// i.e. the built-in types plus any type registered via
-        /// <see cref="CertificateStoreType.RegisterCertificateStoreType"/>;
-        /// DI-registered <see cref="ICertificateStoreProvider"/>s are not
-        /// reachable through identifier-based store access (a pre-existing
-        /// limitation of the TrustList store plumbing).
+        /// store implementation than the validator reads. The TrustList uses
+        /// the configured manager's optional <see cref="ICertificateStoreResolver"/>
+        /// to resolve this metadata through instance-scoped providers. Without
+        /// that capability, identifier-based built-in store access is retained.
         /// </summary>
         private static CertificateStoreIdentifier CreateGroupStoreIdentifier(
             CertificateStoreIdentifier source)

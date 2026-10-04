@@ -29,8 +29,8 @@
 
 using System;
 using System.Net;
+using System.Net.Security;
 using System.Net.WebSockets;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,7 +45,10 @@ namespace Opc.Ua.Bindings
     /// (Part 6 §6.7.2) is mapped to exactly one WebSocket binary frame
     /// (<c>EndOfMessage = true</c>) per Part 6 §7.5.2 (opcua+uacp).
     /// </summary>
-    internal abstract class WebSocketByteTransportBase : IUaSCByteTransport, IDisposable
+    internal abstract class WebSocketByteTransportBase :
+        IUaSCByteTransport,
+        IUaSCByteTransportLimits,
+        IDisposable
     {
         protected WebSocketByteTransportBase(
             BufferManager bufferManager,
@@ -86,7 +89,8 @@ namespace Opc.Ua.Bindings
                     .ConfigureAwait(false);
 #else
                 ArraySegment<byte> segment;
-                if (MemoryMarshal.TryGetArray(chunk, out ArraySegment<byte> seg) && seg.Array != null)
+                if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(
+                    chunk, out ArraySegment<byte> seg) && seg.Array != null)
                 {
                     segment = seg;
                 }
@@ -170,8 +174,9 @@ namespace Opc.Ua.Bindings
         public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
             WebSocket socket = RequireOpenSocket();
+            int receiveBufferSize = Volatile.Read(ref m_receiveBufferSize);
             byte[] buffer = m_bufferManager.TakeBuffer(
-                m_receiveBufferSize,
+                receiveBufferSize,
                 nameof(ReceiveChunkAsync),
                 ct);
             int totalRead = 0;
@@ -212,13 +217,13 @@ namespace Opc.Ua.Bindings
                     }
 
                     totalRead += result.Count;
-                    if (totalRead > m_receiveBufferSize)
+                    if (totalRead > receiveBufferSize)
                     {
                         // Map to OPC UA error and tear down per Part 6 §7.5.2 (1009 too-big).
                         throw ServiceResultException.Create(
                             StatusCodes.BadTcpMessageTooLarge,
                             "WebSocket frame exceeds the negotiated max message size ({0} bytes).",
-                            m_receiveBufferSize);
+                            receiveBufferSize);
                     }
                     if (result.EndOfMessage)
                     {
@@ -232,13 +237,13 @@ namespace Opc.Ua.Bindings
                     // ever terminating the UASC chunk. Without this the next
                     // ReceiveAsync would get a zero-length destination and spin
                     // the loop (CPU DoS), because the size check above uses '>'.
-                    if (result.Count == 0 || totalRead >= m_receiveBufferSize)
+                    if (result.Count == 0 || totalRead >= receiveBufferSize)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadTcpMessageTooLarge,
                             "WebSocket continuation frame made no progress or exceeds the " +
                             "negotiated max message size ({0} bytes).",
-                            m_receiveBufferSize);
+                            receiveBufferSize);
                     }
                 }
             }
@@ -282,6 +287,21 @@ namespace Opc.Ua.Bindings
         public void Dispose()
         {
             Close();
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Also sizes the buffers later frames are received into, so that a
+        /// channel which negotiated small chunks does not keep a buffer of the
+        /// listener's maximum size alive for each chunk of an incomplete message.
+        /// </remarks>
+        void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
+        {
+            if (receiveBufferSize <= TcpMessageLimits.MessageTypeAndSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(receiveBufferSize));
+            }
+            Volatile.Write(ref m_receiveBufferSize, receiveBufferSize);
         }
 
         /// <summary>
@@ -328,7 +348,7 @@ namespace Opc.Ua.Bindings
         private WebSocket? m_socket;
         private int m_closed;
         private readonly BufferManager m_bufferManager;
-        private readonly int m_receiveBufferSize;
+        private int m_receiveBufferSize;
         private readonly SemaphoreSlim m_sendLock;
     }
 
@@ -412,7 +432,8 @@ namespace Opc.Ua.Bindings
                         (sender, cert, chain, errors) => ValidateRemoteCertificate(
                             validator,
                             cert as X509Certificate2,
-                            chain);
+                            chain,
+                            errors);
                 }
                 if (ClientTlsCertificate != null)
                 {
@@ -466,7 +487,8 @@ namespace Opc.Ua.Bindings
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             X509Certificate2? cert,
-            X509Chain? chain)
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
         {
             if (cert == null)
             {
@@ -474,6 +496,12 @@ namespace Opc.Ua.Bindings
             }
             try
             {
+                if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        "The TLS certificate host name does not match the endpoint.");
+                }
                 using CertificateCollection validation = CertificateValidationHelpers
                     .BuildValidationCertificateCollection(cert, chain);
                 // Run the async validator from the sync TLS callback; the

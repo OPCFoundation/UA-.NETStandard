@@ -43,9 +43,10 @@ namespace Opc.Ua
     /// Service calls via <see cref="ITransportChannel.SendRequestAsync"/>
     /// are gated by the manager: requests block until
     /// <see cref="State"/> is <see cref="ChannelState.Ready"/>. The
-    /// manager bypasses the gate for internal reactivation traffic that
-    /// runs on behalf of a participant's
-    /// <see cref="IReconnectParticipant.OnReconnectAsync"/> call.
+    /// manager supplies a separate, non-owning recovery view for a participant's
+    /// <see cref="IReconnectParticipant.OnReconnectAsync"/> call and any immediately following recreation.
+    /// Only that generation-bound view bypasses the gate; ordinary calls on the owning lease remain gated.
+    /// Disposing a recovery view does not release the owning lease.
     /// </para>
     /// <para>
     /// The <see cref="StateChanged"/> event is best-effort and may be

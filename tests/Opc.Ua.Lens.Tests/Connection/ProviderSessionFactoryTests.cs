@@ -45,6 +45,76 @@ namespace UaLens.Tests.Connection;
 public sealed class ProviderSessionFactoryTests
 {
     [Test]
+    public async Task EngineSpecializationKeepsTheIdentityProviderAndDoesNotModifyTheOriginalFactory()
+    {
+        (ApplicationConfiguration configuration, ConfiguredEndpoint endpoint, ConnectionProfile profile) = Setup();
+        var telemetry = DefaultTelemetry.Create(static _ => { });
+        var originalEngine = new Mock<ISubscriptionEngineFactory>();
+        var selectedEngine = new Mock<ISubscriptionEngineFactory>();
+        var original = new DefaultSessionFactory(telemetry) { SubscriptionEngineFactory = originalEngine.Object };
+        var configured = new Mock<ISessionFactory>(MockBehavior.Strict);
+        configured.SetupGet(value => value.SubscriptionEngineFactory).Returns(selectedEngine.Object);
+        configured.SetupGet(value => value.Telemetry).Returns(telemetry);
+        var inner = new Mock<ISessionFactory>(MockBehavior.Strict);
+        inner.SetupGet(value => value.SubscriptionEngineFactory).Returns(original.SubscriptionEngineFactory);
+        inner.Setup(value => value.WithSubscriptionEngine(selectedEngine.Object, TimeProvider.System))
+            .Returns(configured.Object);
+        var provider = new Mock<IClientIdentityProvider>();
+        provider.SetupGet(value => value.SupportedTokenTypes).Returns(new[] { UserTokenType.UserName });
+        provider.SetupGet(value => value.SupportedIssuedTokenProfileUris).Returns(Array.Empty<string>());
+        provider.Setup(value => value.CanSatisfyAsync(
+            It.IsAny<UserTokenPolicy>(), It.IsAny<IdentitySelectionContext>(), It.IsAny<CancellationToken>()))
+            .Returns(() => ValueTask.FromResult(CanSatisfyResult.Yes));
+        var identity = new UserIdentity(profile.IdentityName!, Guid.NewGuid().ToByteArray());
+        provider.Setup(value => value.GetIdentityAsync(
+            It.IsAny<UserTokenPolicy>(), It.IsAny<IdentitySelectionContext>(), It.IsAny<CancellationToken>()))
+            .Returns(() => ValueTask.FromResult<IUserIdentity>(identity));
+        var identities = new ConnectionSessionIdentityProvider(provider.Object);
+        var session = new Mock<ISession>();
+        configured.Setup(value => value.CreateAsync(
+            configuration, endpoint, false, true, "test", 60000, identity,
+            It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>())).ReturnsAsync(session.Object);
+        var factory = new ProviderSessionFactory(inner.Object, identities, profile);
+        ISessionFactory specialized = factory.WithSubscriptionEngine(selectedEngine.Object, TimeProvider.System);
+
+        await using (identities.ConfigureAwait(false))
+        {
+            ISession created = await specialized.CreateAsync(
+                configuration, endpoint, true, false, "test", 60000, null, default).ConfigureAwait(false);
+            Assert.That(created, Is.SameAs(session.Object));
+            Assert.That(specialized, Is.TypeOf<ProviderSessionFactory>().And.Not.SameAs(factory));
+            Assert.That(specialized.SubscriptionEngineFactory, Is.SameAs(selectedEngine.Object));
+            Assert.That(specialized.Telemetry, Is.SameAs(telemetry));
+            Assert.That(factory.SubscriptionEngineFactory, Is.SameAs(originalEngine.Object));
+            endpoint.Description.SecurityMode = MessageSecurityMode.None;
+            await Assert.ThatAsync(() => specialized.CreateAsync(
+                configuration, endpoint, false, true, "test", 60000, null, default),
+                Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+        }
+        configured.Verify(value => value.CreateAsync(
+            configuration, endpoint, false, true, "test", 60000, identity,
+            It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+        provider.Verify(value => value.GetIdentityAsync(
+            It.IsAny<UserTokenPolicy>(), It.IsAny<IdentitySelectionContext>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        inner.Verify(value => value.WithSubscriptionEngine(selectedEngine.Object, TimeProvider.System), Times.Once);
+    }
+
+    [Test]
+    public void EngineSpecializationRejectsNullBeforeCallingTheInnerFactory()
+    {
+        (_, _, ConnectionProfile profile) = Setup();
+        var inner = new Mock<ISessionFactory>(MockBehavior.Strict);
+        var provider = new Mock<IClientIdentityProvider>(MockBehavior.Strict);
+        var factory = new ProviderSessionFactory(inner.Object, provider.Object, profile);
+
+        Assert.That(() => factory.WithSubscriptionEngine(null!), Throws.ArgumentNullException);
+
+        inner.VerifyNoOtherCalls();
+        provider.VerifyNoOtherCalls();
+    }
+
+    [Test]
     public async Task InitialActivationAndRecreationAcquireSelectedIdentityInsteadOfOpeningAnonymously()
     {
         (ApplicationConfiguration configuration, ConfiguredEndpoint endpoint, ConnectionProfile profile) = Setup();

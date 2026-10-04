@@ -103,7 +103,7 @@ namespace Opc.Ua.Sessions.Tests
                 UriScheme = Utils.UriSchemeOpcWss,
                 HttpsMutualTls = false,
                 ReverseConnectTimeout = kMaxTimeout,
-                MaxChannelCount = 8,
+                MaxChannelCount = 103,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security,
                 TransportBindingRegistry = registry
             };

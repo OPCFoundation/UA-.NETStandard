@@ -31,6 +31,7 @@
 #pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -46,6 +47,92 @@ namespace Opc.Ua.Core.Tests.Security
     [NonParallelizable]
     public class SecurityPoliciesTests
     {
+        /// <summary>
+        /// Verifies provider-facing algorithm identifiers match the policy's specified key strength.
+        /// </summary>
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep, SymmetricEncryptionAlgorithm.Aes128Cbc,
+            SymmetricSignatureAlgorithm.HmacSha256, 16)]
+        [TestCase(SecurityPolicies.ECC_nistP384_AesGcm, SymmetricEncryptionAlgorithm.Aes256Gcm,
+            SymmetricSignatureAlgorithm.Aes256Gcm, 32)]
+        [TestCase(SecurityPolicies.ECC_curve448_AesGcm, SymmetricEncryptionAlgorithm.Aes256Gcm,
+            SymmetricSignatureAlgorithm.Aes256Gcm, 32)]
+        public void SecurityPolicySymmetricAlgorithmsMatchKeyLengths(
+            string uri,
+            SymmetricEncryptionAlgorithm encryption,
+            SymmetricSignatureAlgorithm signature,
+            int keyLength)
+        {
+            SecurityPolicyInfo policy = uri switch
+            {
+                SecurityPolicies.Aes128_Sha256_RsaOaep => SecurityPolicyInfo.Aes128_Sha256_RsaOaep,
+                SecurityPolicies.ECC_nistP384_AesGcm => SecurityPolicyInfo.ECC_nistP384_AesGcm,
+                _ => SecurityPolicyInfo.ECC_curve448_AesGcm
+            };
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(policy.SymmetricEncryptionAlgorithm, Is.EqualTo(encryption));
+                Assert.That(policy.SymmetricSignatureAlgorithm, Is.EqualTo(signature));
+                Assert.That(policy.SymmetricEncryptionKeyLength, Is.EqualTo(keyLength));
+            }
+        }
+
+        /// <summary>
+        /// Verifies an unknown URI cannot borrow support from a recognized policy name.
+        /// </summary>
+        [TestCase(SecurityPolicies.Basic256Sha256 + "Foo")]
+        [TestCase(SecurityPolicies.None + "Unknown")]
+        [TestCase("urn:unsupported:Basic256Sha256")]
+        [TestCase(nameof(SecurityPolicies.Basic256Sha256))]
+        public void ValidateSecurityPoliciesRejectsUnknownUriSubstrings(string uri)
+        {
+            var configuration = new ServerConfiguration
+            {
+                SecurityPolicies =
+                [
+                    new ServerSecurityPolicy
+                    {
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = uri
+                    },
+                    new ServerSecurityPolicy
+                    {
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                    }
+                ]
+            };
+            configuration.ValidateSecurityPolicies();
+            Assert.That(configuration.SecurityPolicies, Has.Count.EqualTo(1));
+            Assert.That(configuration.SecurityPolicies[0].SecurityPolicyUri,
+                Is.EqualTo(SecurityPolicies.Basic256Sha256));
+        }
+
+        /// <summary>
+        /// Verifies a registered but platform-disabled variant is not advertised through its supported base name.
+        /// </summary>
+        [Test]
+        public void ValidateSecurityPoliciesRejectsPlatformDisabledVariant()
+        {
+            const string uri = SecurityPolicies.Basic256Sha256 + "_AuditUnsupported";
+            using IDisposable registration = SecurityPolicies.Default.Register(new SecurityPolicyInfo(uri)
+            {
+                PlatformSupport = () => false
+            });
+            var configuration = new ServerConfiguration
+            {
+                SecurityPolicies =
+                [
+                    new ServerSecurityPolicy
+                    {
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicyUri = uri
+                    }
+                ]
+            };
+            configuration.ValidateSecurityPolicies();
+            Assert.That(configuration.SecurityPolicies, Is.Empty);
+        }
+
         [Test]
         public void LookupHelpersHandleKnownShortFullAndUnknownPolicies()
         {
@@ -179,7 +266,7 @@ namespace Opc.Ua.Core.Tests.Security
 
             using (ServiceProvider provider = services.BuildServiceProvider())
             {
-                var registry = provider.GetRequiredService<ISecurityPolicyRegistry>();
+                ISecurityPolicyRegistry registry = provider.GetRequiredService<ISecurityPolicyRegistry>();
 
                 Assert.That(registry, Is.Not.Null);
                 Assert.That(registry.GetInfo(policy.Uri), Is.SameAs(policy));
@@ -217,7 +304,7 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void EmptyPolicyEncryptDecryptAndSignAreNoOps()
         {
-            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
+            _ = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
             byte[] plainText = [1, 2, 3];
 
             EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, string.Empty, plainText);
@@ -250,6 +337,55 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(noneSignature.Algorithm, Is.Null);
             Assert.That(noneSignature.Signature.IsNull, Is.True);
             Assert.That(SecurityPolicies.Default.VerifySignatureData(noneSignature, SecurityPolicyInfo.None, certificate, plainText), Is.True);
+        }
+
+        [Test]
+        public async Task NoSecurityEncryptAndDecryptAreNoOpsAsync(
+            [Values(null, "", SecurityPolicies.None, "None")] string policyUri,
+            [Values] bool empty)
+        {
+            byte[] plainText = empty ? [] : [1, 2, 3];
+
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, policyUri, plainText);
+            Assert.That(encrypted.Algorithm, Is.Null);
+            Assert.That(encrypted.Data, Is.EqualTo(plainText));
+            Assert.That(SecurityPolicies.Default.Decrypt(null, policyUri, encrypted), Is.SameAs(encrypted.Data));
+            Assert.That(SecurityPolicies.Default.Decrypt(null, policyUri, null), Is.Null);
+            Assert.That(
+                await SecurityPolicies.Default.DecryptAsync(null, policyUri, encrypted).ConfigureAwait(false),
+                Is.SameAs(encrypted.Data));
+            Assert.That(
+                await SecurityPolicies.Default.DecryptAsync(null, policyUri, null).ConfigureAwait(false),
+                Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies absent or empty signatures are accepted only by the policy that does not require signing.
+        /// </summary>
+        [Test]
+        public void MissingSignatureIsAcceptedOnlyWithoutSigning(
+            [Values(SecurityPolicies.None, SecurityPolicies.Basic256Sha256,
+                SecurityPolicies.Aes128_Sha256_RsaOaep, SecurityPolicies.Aes256_Sha256_RsaPss)] string policyUri,
+            [Values("null", "missing", "empty")] string signatureKind)
+        {
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Missing Signature")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            SignatureData signature = signatureKind switch
+            {
+                "null" => null,
+                "missing" => new SignatureData(),
+                _ => new SignatureData
+                {
+                    Algorithm = SecurityAlgorithms.RsaSha256,
+                    Signature = ByteString.Empty
+                }
+            };
+
+            Assert.That(SecurityPolicies.Default.VerifySignatureData(
+                signature, policyUri, certificate, [1, 2, 3]),
+                Is.EqualTo(policyUri == SecurityPolicies.None));
         }
 
         [Test]
@@ -291,7 +427,7 @@ namespace Opc.Ua.Core.Tests.Security
                 Assert.Ignore("Policy is not supported by this platform.");
             }
 
-            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
+            _ = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
             using Certificate certificate = CertificateBuilder
                 .Create("CN=SecurityPolicies Encrypt")
                 .SetRSAKeySize(2048)
@@ -388,6 +524,54 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(
                 VerifyEnhancedSignature(signature, certificate, mutatedInputs),
                 Is.False);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 6.1.8 (Table 101): for an enhanced user token policy the
+        /// UserTokenSignature data on a SecurityMode None channel is
+        /// ServerNonce | HASH(ServerCertificate) | ClientNonce; otherwise the full
+        /// channel-bound data is signed, and legacy policies keep ServerCertificate | ServerNonce.
+        /// </summary>
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+        [TestCase(SecurityPolicies.Basic256Sha256)]
+        public void UserTokenSignatureDataFollowsChannelSecurityMode(string policyUri)
+        {
+            SecurityPolicyInfo policy = SecurityPolicies.Default.Find(policyUri)!;
+            byte[] thumbprint = [1];
+            byte[] serverNonce = [2, 2];
+            byte[] serverCertificate = [3, 3, 3];
+            byte[] serverChannelCertificate = [4];
+            byte[] clientCertificate = [5];
+            byte[] clientChannelCertificate = [6];
+            byte[] clientNonce = [7, 7];
+
+            byte[] none = policy.GetUserTokenSignatureData(
+                thumbprint, serverNonce, serverCertificate, serverChannelCertificate,
+                clientCertificate, clientChannelCertificate, clientNonce, MessageSecurityMode.None);
+            byte[] secured = policy.GetUserTokenSignatureData(
+                thumbprint, serverNonce, serverCertificate, serverChannelCertificate,
+                clientCertificate, clientChannelCertificate, clientNonce, MessageSecurityMode.SignAndEncrypt);
+            byte[] withoutMode = policy.GetUserTokenSignatureData(
+                thumbprint, serverNonce, serverCertificate, serverChannelCertificate,
+                clientCertificate, clientChannelCertificate, clientNonce);
+
+            Assert.That(secured, Is.EqualTo(withoutMode));
+            if (policy.SecureChannelEnhancements)
+            {
+                // CA1850: SHA256.HashData() is .NET 5+ only and the suite still targets net472/net48.
+#pragma warning disable CA1850
+                using var hash = System.Security.Cryptography.SHA256.Create();
+                Assert.That(policy.CertificateThumbprintAlgorithm, Is.EqualTo(CertificateThumbprintAlgorithm.SHA256));
+                byte[] expected = [.. serverNonce, .. hash.ComputeHash(serverCertificate), .. clientNonce];
+#pragma warning restore CA1850
+                Assert.That(none, Is.EqualTo(expected));
+            }
+            else
+            {
+                Assert.That(none, Is.EqualTo(withoutMode));
+                Assert.That(none, Is.EqualTo(new byte[] { 3, 3, 3, 2, 2 }));
+            }
         }
 
         private static bool VerifyEnhancedSignature(

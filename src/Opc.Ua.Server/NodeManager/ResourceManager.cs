@@ -309,6 +309,9 @@ namespace Opc.Ua.Server
             LocalizedText defaultText,
             TranslationInfo info)
         {
+            // a null LocaleId is legal wire input (Part 3 8.4) and means unknown.
+            preferredLocales = RemoveUnknownLocales(preferredLocales);
+
             // check for trivial case.
             if (string.IsNullOrEmpty(info.Text) && string.IsNullOrEmpty(info.Key))
             {
@@ -318,7 +321,7 @@ namespace Opc.Ua.Server
             defaultText = defaultText.WithTranslationInfo(info);
             bool isMultilanguageRequested =
                 preferredLocales.Count > 0 &&
-                preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
+                preferredLocales[0]?.ToLowerInvariant() is "mul" or "qst";
 
             // check for exact match.
             if (preferredLocales.Count > 0)
@@ -461,6 +464,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Removes the null (unknown) entries from the requested locales.
+        /// </summary>
+        private static ArrayOf<string> RemoveUnknownLocales(ArrayOf<string> preferredLocales)
+        {
+            for (int ii = 0; ii < preferredLocales.Count; ii++)
+            {
+                if (preferredLocales[ii] != null)
+                {
+                    continue;
+                }
+
+                var locales = new List<string>(preferredLocales.Count);
+                for (int jj = 0; jj < preferredLocales.Count; jj++)
+                {
+                    if (preferredLocales[jj] != null)
+                    {
+                        locales.Add(preferredLocales[jj]);
+                    }
+                }
+                return locales.ToArrayOf();
+            }
+            return preferredLocales;
+        }
+
+        /// <summary>
         /// Finds the best translation for the requested locales.
         /// </summary>
         private string? FindBestTranslation(
@@ -502,10 +530,10 @@ namespace Opc.Ua.Server
 
                     // all done if exact match found.
                     if (translationTable!.Locale!.Name == preferredLocales[jj] &&
-                        translationTable.Translations.TryGetValue(key, out translatedText))
+                        translationTable.Translations.TryGetValue(key, out string? exactMatch))
                     {
                         culture = translationTable.Locale;
-                        return translatedText;
+                        return exactMatch;
                     }
 
                     // check for matching language but different region.
@@ -583,7 +611,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if ((string.IsNullOrEmpty(namespaceUri) || namespaceUri == Opc.Ua.Namespaces.OpcUa) &&
+            if ((string.IsNullOrEmpty(namespaceUri) || namespaceUri == Ua.Namespaces.OpcUa) &&
                 symbolicId == new StatusCode(statusCode.Code).SymbolicId)
             {
                 return TranslateStatusCode(preferredLocales, statusCode, args, symbolicId);

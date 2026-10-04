@@ -49,6 +49,88 @@ namespace Opc.Ua.Subscriptions.Tests
     public class SubscriptionPublishTests : TestFixture
     {
         [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishPreservesAllInitialValuesBeyondRetransmissionBudgetAsync(CancellationToken ct)
+        {
+            const int kItemCount = 251;
+            Assert.That(ServerFixture.Config.ServerConfiguration.MaxMessageQueueSize * 10, Is.LessThan(kItemCount),
+                "The initial values must exceed the configured message budget.");
+            CreateSubscriptionResponse subscription = await Session.CreateSubscriptionAsync(
+                null, 100, 1000, 10, 10, true, 0, ct).ConfigureAwait(false);
+            uint id = subscription.SubscriptionId;
+            try
+            {
+                var requests = new MonitoredItemCreateRequest[kItemCount];
+                for (int index = 0; index < requests.Length; index++)
+                {
+                    requests[index] = new MonitoredItemCreateRequest
+                    {
+                        ItemToMonitor = new ReadValueId
+                        {
+                            NodeId = ToNodeId(Constants.ScalarStaticInt32),
+                            AttributeId = Attributes.Value
+                        },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters
+                        {
+                            ClientHandle = (uint)index + 1,
+                            SamplingInterval = 100,
+                            QueueSize = 1,
+                            DiscardOldest = true
+                        }
+                    };
+                }
+                CreateMonitoredItemsResponse created = await Session.CreateMonitoredItemsAsync(
+                    null, id, TimestampsToReturn.Both, requests, ct).ConfigureAwait(false);
+                Assert.That(created.Results, Has.Count.EqualTo(kItemCount));
+                foreach (MonitoredItemCreateResult result in created.Results)
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+
+                var handles = new HashSet<uint>();
+                ArrayOf<SubscriptionAcknowledgement> acknowledgements = [];
+                while (handles.Count < kItemCount)
+                {
+                    PublishResponse response = await Session.PublishAsync(
+                        new RequestHeader { TimeoutHint = 5000 }, acknowledgements, ct).ConfigureAwait(false);
+                    Assert.That(response.SubscriptionId, Is.EqualTo(id));
+                    acknowledgements = [];
+                    int count = 0;
+                    foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
+                    {
+                        Assert.That(notification.TryGetValue(out DataChangeNotification? data), Is.True);
+                        foreach (MonitoredItemNotification item in data!.MonitoredItems)
+                        {
+                            Assert.That(item.ClientHandle, Is.InRange(1u, (uint)kItemCount));
+                            Assert.That(handles.Add(item.ClientHandle), Is.True,
+                                "A static initial value was repeated.");
+                            Assert.That(StatusCode.IsGood(item.Value.StatusCode), Is.True);
+                            count++;
+                        }
+                    }
+                    Assert.That(count, Is.LessThanOrEqualTo(10));
+                    if (count != 0)
+                    {
+                        acknowledgements =
+                        [
+                            new SubscriptionAcknowledgement
+                            {
+                                SubscriptionId = id,
+                                SequenceNumber = response.NotificationMessage.SequenceNumber
+                            }
+                        ];
+                    }
+                }
+                Assert.That(handles, Has.Count.EqualTo(kItemCount));
+            }
+            finally
+            {
+                await Session.DeleteSubscriptionsAsync(null, [id], CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task PublishBasicTimeoutHintSmallerThanLifetimeCausesBadTimeoutAsync()
         {
             // Specifying a TimeoutHint smaller than lifetime causes BadTimeout

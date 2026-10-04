@@ -82,7 +82,7 @@ namespace Opc.Ua.SourceGeneration
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
 
         private readonly IGeneratorContext m_context;
-        private HashSet<string> m_stringIdentifiedNodes = [];
+        private Dictionary<string, string> m_nonNumericIdentifiedNodes = [];
 
         public StateMachineIdsGenerator(IGeneratorContext context)
         {
@@ -206,6 +206,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.NamespacePrefix, namespacePrefix);
             context.Template.AddReplacement(Tokens.Identifier, entry.ObjectsConstantName);
             context.Template.AddReplacement(Tokens.IdType, entry.IdType);
+            context.Template.AddReplacement(Tokens.IdModifier, entry.IdModifier);
             return context.Template.Render();
         }
 
@@ -268,10 +269,10 @@ namespace Opc.Ua.SourceGeneration
             // never as a top-level item. Indexing just the top-level list left
             // the lookup permanently empty, so every alias fell back to "uint"
             // and the CS0029 this was meant to fix survived.
-            m_stringIdentifiedNodes = [];
+            m_nonNumericIdentifiedNodes = [];
             foreach (NodeDesign node in m_context.ModelDesign.GetNodeDesigns())
             {
-                AddIfStringIdentified(node);
+                AddIfNotNumericallyIdentified(node);
 
                 if (node.Hierarchy?.Nodes == null)
                 {
@@ -280,7 +281,7 @@ namespace Opc.Ua.SourceGeneration
 
                 foreach (KeyValuePair<string, HierarchyNode> entry in node.Hierarchy.Nodes)
                 {
-                    AddIfStringIdentified(entry.Value?.Instance);
+                    AddIfNotNumericallyIdentified(entry.Value?.Instance);
                 }
             }
 
@@ -376,16 +377,26 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Records a node whose <c>Objects</c> constant NodeIdGenerator emits as
-        /// a <c>string</c> - that is, one without a numeric identifier.
+        /// Records the C# type of a node whose <c>Objects</c> constant
+        /// NodeIdGenerator does not emit as a <c>uint</c> - that is, one without
+        /// a numeric identifier. Guid and Opaque identified nodes are emitted as
+        /// their identifier type, everything else as a <c>string</c>.
         /// </summary>
-        private void AddIfStringIdentified(NodeDesign node)
+        private void AddIfNotNumericallyIdentified(NodeDesign node)
         {
             if (node is ObjectDesign &&
                 !node.NumericIdSpecified &&
                 node.SymbolicId?.Name != null)
             {
-                m_stringIdentifiedNodes.Add(node.SymbolicId.Name);
+                if (node.HasNonConstantIdentifier())
+                {
+                    ModelDesignExtensions.GetIdentifierAsCode(
+                        node.GetIdentifier(),
+                        out string idType);
+                    m_nonNumericIdentifiedNodes[node.SymbolicId.Name] = idType;
+                    return;
+                }
+                m_nonNumericIdentifiedNodes[node.SymbolicId.Name] = "string";
             }
         }
 
@@ -398,11 +409,13 @@ namespace Opc.Ua.SourceGeneration
                 ? name
                 : CoreUtils.Format("{0}_{1}", parentTypeName, name);
             // The Objects constant this entry aliases is emitted by NodeIdGenerator as a
-            // uint only when the node carries a numeric identifier; string identified
-            // nodes get a string constant, so the alias has to follow the same type.
-            string idType = m_stringIdentifiedNodes.Contains(objectsConstantName)
-                ? "string"
-                : "uint";
+            // uint only when the node carries a numeric identifier; string, Guid and
+            // Opaque identified nodes get a constant of their own type, so the alias
+            // has to follow the same type.
+            if (!m_nonNumericIdentifiedNodes.TryGetValue(objectsConstantName, out string idType))
+            {
+                idType = "uint";
+            }
             return new FsmEntry(name, number, objectsConstantName, idType);
         }
 
@@ -481,6 +494,14 @@ namespace Opc.Ua.SourceGeneration
             public uint? Number { get; }
             public string ObjectsConstantName { get; }
             public string IdType { get; }
+
+            /// <summary>
+            /// Guid and Opaque identifiers have no C# constant form, so the
+            /// alias of such an identifier is a static readonly field.
+            /// </summary>
+            public string IdModifier => IdType is "uint" or "string"
+                ? "const"
+                : "static readonly";
         }
     }
 }

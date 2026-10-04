@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -66,6 +67,7 @@ namespace Opc.Ua.Sessions.Tests
         /// <summary>
         /// Setup a server and client fixture.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [OneTimeSetUp]
         public override async Task OneTimeSetUpAsync()
         {
@@ -93,7 +95,7 @@ namespace Opc.Ua.Sessions.Tests
             ClientFixture = new ClientFixture(telemetry: Telemetry);
 
             await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            var clientConfiguration = ClientFixture.Config.ClientConfiguration ??
+            ClientConfiguration clientConfiguration = ClientFixture.Config.ClientConfiguration ??
                 throw new InvalidOperationException("Client configuration is missing.");
             ReverseConnectClientConfiguration reverseConnect =
                 clientConfiguration.ReverseConnect ??= new ReverseConnectClientConfiguration();
@@ -211,7 +213,9 @@ namespace Opc.Ua.Sessions.Tests
 
         [Theory]
         [Order(300)]
-        public async Task ReverseConnectAsync(string securityPolicy, TelemetryParameterizable<ISessionFactory> sessionFactory)
+        public async Task ReverseConnectAsync(
+            string securityPolicy,
+            TelemetryParameterizable<ISessionFactory> sessionFactory)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -347,6 +351,48 @@ namespace Opc.Ua.Sessions.Tests
             // close session
             _ = await session.CloseAsync().ConfigureAwait(false);
             session.Dispose();
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateOverReverseConnectionDoesNotNeedOutboundDiscoveryAsync(bool anonymousSign)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await RequireEndpointsAsync().ConfigureAwait(false);
+            MessageSecurityMode mode = anonymousSign ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt;
+            EndpointDescription description = CoreUtils.Clone(Endpoints.ToList().First(endpoint =>
+                endpoint.SecurityMode == mode &&
+                endpoint.SecurityPolicyUri == SecurityPolicies.Basic256Sha256))!;
+            ApplicationConfiguration configuration = ClientFixture.Config;
+            var endpoint = new ConfiguredEndpoint(null, description, EndpointConfiguration.Create(configuration));
+            ITransportWaitingConnection discoveryConnection = await ClientFixture.ReverseConnectManager
+                .WaitForConnectionAsync(m_endpointUrl, null, timeout.Token).ConfigureAwait(false);
+            await endpoint.UpdateFromServerAsync(
+                m_endpointUrl, discoveryConnection, mode, SecurityPolicies.Basic256Sha256, Telemetry, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(endpoint.DiscoveryEndpoints.IsEmpty, Is.False);
+            ITransportWaitingConnection initialConnection = await ClientFixture.ReverseConnectManager
+                .WaitForConnectionAsync(m_endpointUrl, null, timeout.Token).ConfigureAwait(false);
+            await using var session = (Session)await new DefaultSessionFactory(Telemetry).CreateAsync(
+                configuration, initialConnection, endpoint, false, false, "reverse-only-recreation",
+                MaxTimeout, new UserIdentity(), default, timeout.Token).ConfigureAwait(false);
+            NodeId previousSessionId = session.SessionId;
+            ITransportChannel previousChannel = session.TransportChannel;
+            string reverseOnlyUrl = new UriBuilder(m_endpointUrl) { Port = 0 }.Uri.ToString();
+            endpoint.Description.EndpointUrl = reverseOnlyUrl;
+            ITransportWaitingConnection replacement = await ClientFixture.ReverseConnectManager
+                .WaitForConnectionAsync(m_endpointUrl, null, timeout.Token).ConfigureAwait(false);
+
+            await session.RecreateInPlaceAsync(connection: replacement, ct: timeout.Token).ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            Assert.That(session.SessionId, Is.Not.EqualTo(previousSessionId));
+            Assert.That(session.TransportChannel, Is.Not.SameAs(previousChannel));
+            Assert.That(session.ConfiguredEndpoint.Description.EndpointUrl, Is.EqualTo(reverseOnlyUrl));
+            DataValue state = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(state.StatusCode, Is.EqualTo(StatusCodes.Good));
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
         }
 
         private async Task RequireEndpointsAsync()

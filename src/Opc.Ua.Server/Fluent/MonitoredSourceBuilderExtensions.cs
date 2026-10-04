@@ -325,6 +325,9 @@ namespace Opc.Ua.Server.Fluent
             return concrete.MonitoredSources!.Register(builder.Node);
         }
 
+        /// <summary>
+        /// Registers a virtual monitored source and ensures its owning manager participates in lifecycle cleanup.
+        /// </summary>
         private static MonitoredSourceRegistration GetRegistration(
             IVirtualNodeBuilder builder)
         {
@@ -338,6 +341,7 @@ namespace Opc.Ua.Server.Fluent
                     "The virtual node builder was not created by ResolveNodes.",
                     nameof(builder));
             }
+            registration.Owner.EnsureMonitoredSourceLifecycleRegistered();
             return registration.Owner.MonitoredSources!.Register(registration);
         }
     }

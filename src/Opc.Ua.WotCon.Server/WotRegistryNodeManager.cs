@@ -76,6 +76,10 @@ namespace Opc.Ua.WotCon.Server
                 server.NamespaceUris, Namespaces.WotCon);
             m_xRegistryNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
                 server.NamespaceUris, XRegistryWellKnown.XRegistryNamespaceUri);
+            if (NodeIdFactory is not INodeIdFactoryPolicy)
+            {
+                NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.String);
+            }
             Coordinator.StrictBindings = options.StrictBindings;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;
@@ -250,6 +254,10 @@ namespace Opc.Ua.WotCon.Server
 
         private void ApplyRegistrySettings(ISystemContext context, BaseObjectState registry)
         {
+            if (registry is WoTRegistryState typed)
+            {
+                typed.AddAutoRefresh(context);
+            }
             SetChildValue(registry, "AutoRefresh", new Variant(m_options.AutoRefresh));
             SetChildValue(registry, "RefreshMode",
                 new Variant((int)WoTRefreshModeEnum.EventDriven));

@@ -33,6 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -91,6 +92,82 @@ namespace Opc.Ua.Types.Tests.State
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.HasProperty
             };
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyOwnsMethodArgumentsAndNestedChildren(bool useClone)
+        {
+            BaseObjectState original = CreateObjectNode();
+            var method = new MethodState(original)
+            {
+                NodeId = new NodeId(1001),
+                BrowseName = QualifiedName.From("Read"),
+                Executable = true,
+                UserExecutable = true
+            };
+            method.CreateChild(m_context, QualifiedName.From("InputArguments"), false);
+            method.CreateChild(m_context, QualifiedName.From("OutputArguments"), false);
+            Assert.That(method.InputArguments, Is.Not.Null);
+            Assert.That(method.OutputArguments, Is.Not.Null);
+            PropertyState nested = CreatePropertyChild(method.InputArguments, "Metadata");
+            method.InputArguments.AddChild(nested);
+            original.AddChild(method);
+
+            BaseObjectState copy;
+            if (useClone)
+            {
+                copy = (BaseObjectState)original.Clone();
+            }
+            else
+            {
+                copy = new BaseObjectState(null);
+                copy.Create(m_context, original);
+            }
+            var copiedMethod = (MethodState)copy.FindChild(m_context, method.BrowseName);
+            Assert.That(copiedMethod, Is.Not.Null);
+            BaseInstanceState copiedNested = copiedMethod.InputArguments.FindChild(m_context, nested.BrowseName);
+            Assert.Multiple(() =>
+            {
+                Assert.That(copiedMethod, Is.Not.SameAs(method));
+                Assert.That(copiedMethod.Parent, Is.SameAs(copy));
+                Assert.That(copiedMethod.InputArguments, Is.Not.SameAs(method.InputArguments));
+                Assert.That(copiedMethod.OutputArguments, Is.Not.SameAs(method.OutputArguments));
+                Assert.That(copiedMethod.InputArguments.Parent, Is.SameAs(copiedMethod));
+                Assert.That(copiedMethod.OutputArguments.Parent, Is.SameAs(copiedMethod));
+                Assert.That(copiedNested, Is.Not.SameAs(nested));
+                Assert.That(copiedNested.Parent, Is.SameAs(copiedMethod.InputArguments));
+                Assert.That(method.Parent, Is.SameAs(original));
+                Assert.That(method.InputArguments.Parent, Is.SameAs(method));
+                Assert.That(nested.Parent, Is.SameAs(method.InputArguments));
+            });
+            copiedNested.DisplayName = LocalizedText.From("Changed");
+            Assert.That(nested.DisplayName, Is.EqualTo(LocalizedText.From("Metadata")));
+        }
+
+        [Test]
+        public void ClonePreservesAbsentArgumentsAndExternalParent()
+        {
+            BaseObjectState parent = CreateObjectNode();
+            var source = new MethodState(parent)
+            {
+                NodeId = new NodeId(1001),
+                BrowseName = QualifiedName.From("Method"),
+                Executable = true,
+                UserExecutable = false,
+                MethodDeclarationId = new NodeId(1002)
+            };
+            var copy = (MethodState)source.Clone();
+            Assert.Multiple(() =>
+            {
+                Assert.That(copy.Parent, Is.SameAs(parent));
+                Assert.That(copy.InputArguments, Is.Null);
+                Assert.That(copy.OutputArguments, Is.Null);
+                Assert.That(copy.NodeId, Is.EqualTo(source.NodeId));
+                Assert.That(copy.MethodDeclarationId, Is.EqualTo(source.MethodDeclarationId));
+                Assert.That(copy.Executable, Is.True);
+                Assert.That(copy.UserExecutable, Is.False);
+            });
         }
 
         [Test]
@@ -973,6 +1050,117 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void ClearChangeMasksKeepsChangeMadeWhileHandlersRun()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            int calls = 0;
+            node.OnStateChanged = (context, sender, changes) =>
+            {
+                // a change that happens while the previous one is being reported.
+                if (calls++ == 0)
+                {
+                    sender.UpdateChangeMasks(NodeStateChangeMasks.Children);
+                }
+            };
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            node.ClearChangeMasks(m_context, false);
+
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Children),
+                "A change made while the handlers ran must still be pending.");
+
+            node.ClearChangeMasks(m_context, false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        [Test]
+        public async Task ClearChangeMasksAsyncKeepsChangeMadeWhileSinksRunAsync()
+        {
+            BaseObjectState node = CreateObjectNode();
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+            int calls = 0;
+            node.OnStateChangedAsync = async (context, sender, changes, ct) =>
+            {
+                await Task.Yield();
+                if (calls++ == 0)
+                {
+                    sender.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
+            };
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Value),
+                "A change made while the sinks were awaited must still be pending.");
+        }
+
+        [Test]
+        public void ClearChangeMasksDoesNotLoseBitsSetConcurrently()
+        {
+            // A bit set by another thread while ClearChangeMasks takes the pending bits
+            // must either be reported now or stay pending; the plain &= could drop it.
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            int reported = 0;
+            node.OnStateChanged = (context, sender, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.NonValue) != 0)
+                {
+                    Interlocked.Increment(ref reported);
+                }
+            };
+
+            // a single setter: races between two plain |= setters are not covered.
+            using var done = new CancellationTokenSource();
+            var clearer = Task.Run(() =>
+            {
+                while (!done.IsCancellationRequested)
+                {
+                    node.ClearChangeMasks(m_context, false);
+                }
+            });
+
+            try
+            {
+                for (int ii = 0; ii < 20000; ii++)
+                {
+                    int before = Volatile.Read(ref reported);
+                    // the clearer may be taking the Value bit while NonValue is set.
+                    node.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                    node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    while (Volatile.Read(ref reported) == before)
+                    {
+                        Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)),
+                            "A change mask bit was lost.");
+                        Thread.Yield();
+                    }
+                }
+            }
+            finally
+            {
+                done.Cancel();
+                clearer.Wait();
+            }
+        }
+
+        [Test]
+        public void ClearChangeMasksKeepsMaskWhenHandlerThrows()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            node.OnStateChanged = (context, sender, changes) =>
+                throw new InvalidOperationException("sink failure");
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            Assert.Throws<InvalidOperationException>(() => node.ClearChangeMasks(m_context, false));
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.NonValue));
+        }
+
+        [Test]
         public void ClearChangeMasksInvokesOnStateChangedHandler()
         {
             BaseObjectState node = CreateObjectNode();
@@ -1648,6 +1836,49 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void ReadUnconfiguredUserWriteMaskReportsWriteMask()
+        {
+            // a UserWriteMask of 0 without handler is not configured and writes only
+            // check the WriteMask, so the read reports the WriteMask (Part 3 8.60:
+            // a clear bit means not writeable, which would contradict the writes).
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            var dataValue = new DataValue();
+            ServiceResult result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(
+                dataValue.WrappedValue.GetUInt32(),
+                Is.EqualTo((uint)(AttributeWriteMask.DisplayName | AttributeWriteMask.Description)));
+
+            ServiceResult write = node.WriteAttribute(
+                m_context,
+                Attributes.DisplayName,
+                default,
+                new DataValue(new Variant(LocalizedText.From("NewDisplay"))));
+            Assert.That(ServiceResult.IsGood(write), Is.True);
+
+            // an OnReadWriteMask handler narrows the reported mask too.
+            node.OnReadWriteMask = (ISystemContext _, NodeState _, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.Description;
+                return ServiceResult.Good;
+            };
+            result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dataValue.WrappedValue.GetUInt32(), Is.EqualTo((uint)AttributeWriteMask.Description));
+
+            // a node that is not writable at all reports 0.
+            node.OnReadWriteMask = null;
+            node.WriteMask = AttributeWriteMask.None;
+            result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dataValue.WrappedValue.GetUInt32(), Is.Zero);
+        }
+
+        [Test]
         public void ReadRolePermissionsAttributeWhenSet()
         {
             BaseObjectState node = CreateObjectNode();
@@ -1926,6 +2157,74 @@ namespace Opc.Ua.Types.Tests.State
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.DisplayName, default, dv);
             Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeDeniedByUserWriteMask()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            node.UserWriteMask = AttributeWriteMask.Description;
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeDeniedByOnReadUserWriteMask()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.None;
+                return ServiceResult.Good;
+            };
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.DisplayName;
+                return ServiceResult.Good;
+            };
+            result = node.WriteAttribute(m_context, Attributes.DisplayName, default, dv);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeWithThrowingOnReadUserWriteMaskIsBadUnexpectedError()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.UserWriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+                throw new InvalidOperationException("handler failure");
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = null;
+            Assert.DoesNotThrow(() => result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeReturnsBadOnReadUserWriteMaskResult()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.UserWriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+                StatusCodes.BadUserAccessDenied;
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
         }
 
         [Test]

@@ -1,10 +1,23 @@
 # OPC UA Relative Spatial Location and Global Positioning
 
-The Positioning libraries implement OPC UA Relative Spatial Location (RSL,
-[OPC 10000-210](https://reference.opcfoundation.org/specs/OPC-10000-210)) and
-Global Positioning (GPOS,
-[OPC 10000-211](https://reference.opcfoundation.org/specs/OPC-10000-211)).
-They use the released RSL 1.00.1 and GPOS 1.0.0 NodeSets. GPOS depends on RSL.
+The Positioning libraries implement two OPC UA companion specifications:
+
+- Relative Spatial Location (RSL), defined by
+  [OPC 10000-210](https://reference.opcfoundation.org/specs/OPC-10000-210).
+- Global Positioning (GPOS), defined by
+  [OPC 10000-211](https://reference.opcfoundation.org/specs/OPC-10000-211).
+
+The libraries use the released RSL 1.00.1 and GPOS 1.0.0 NodeSets. GPOS
+depends on RSL.
+
+## Contents
+
+- [Packages](#packages)
+- [Minimal standalone server](#minimal-standalone-server)
+- [Server authoring](#server-authoring)
+- [Client](#client)
+- [Transform conventions](#transform-conventions)
+- [Robot and OpenUSD sample](#robot-and-openusd-sample)
 
 ## Packages
 
@@ -114,18 +127,24 @@ the failure through `ITelemetryContext`, and fault `Completion`.
 
 `IGeoLocationProvider` is intentionally technology-neutral, and lives in
 `Opc.Ua.Server` (namespace `Opc.Ua`) rather than in a companion-model assembly.
-GPS/WGS84 is a built-in use case, but RTLS, UWB, RFID, local floor-plan
-coordinates, and other tracking systems use the same contract. An RSL provider
+Global Positioning System (GPS) and World Geodetic System 1984 (WGS84)
+coordinates are built-in use cases. Real-time location systems (RTLS),
+ultra-wideband (UWB), radio-frequency identification (RFID), local
+floor-plan coordinates, and other tracking systems can use the same contract.
+An RSL provider
 is also useful when a robot controller, metrology system, or kinematic service
 is authoritative for a relative frame rather than a global coordinate.
 
 Because the contract is shared, **one provider implementation serves every
 model that publishes location**. The same instance can back GPOS
 `GlobalLocation` Variables here and OPC 10030 (ISA-95) `GeoSpatialLocationType`
-Variables — see [ISA-95](ISA95.md#geospatiallocationtype-provider-seam). A
-sample carries an optional `GeoPosition` (latitude, longitude, optional height,
-accuracy, floor and EPSG code), an optional `GeoOrientation`, and optional text
-`Labels`:
+Variables — see [ISA-95](ISA95.md#geospatiallocationtype-provider-seam).
+A sample can include:
+
+- `GeoPosition` with latitude, longitude, optional height, accuracy, floor,
+  and EPSG code
+- `GeoOrientation`
+- Text labels
 
 ```csharp
 public sealed class MyGpsProvider : IGeoLocationProvider
@@ -154,13 +173,17 @@ Set `SupportsPush` to `false` when the source can only be polled; the binding
 layer then never calls `WatchAsync` and reads through `ReadAsync` at the
 Variable's sampling interval instead.
 
-A GPOS Variable requires coordinates, so a sample whose `Position` is `null`
-is rejected with `BadNoDataAvailable`. When a position declares an `EpsgCode`
-that differs from the Variable's configured `CoordinateReferenceSystem`, the
-binding fails rather than silently mis-georeferencing the value; leave
-`EpsgCode` `null` to accept whatever the Variable is configured for.
+A GPOS Variable requires coordinates. If a sample has `Position` set to
+`null`, the server rejects it with `BadNoDataAvailable`. If the position's
+`EpsgCode` differs from the Variable's configured
+`CoordinateReferenceSystem`, the binding fails rather than mis-georeference
+the value silently. Set `EpsgCode` to `null` to accept the Variable's
+configured coordinate reference system.
 `InMemoryGeoLocationProvider` ships as a reference implementation for tests and
-for servers whose positions are pushed in from elsewhere.
+for servers whose positions are pushed in from elsewhere. Watching an unknown
+source does not create a sample: reads return `BadNotFound` until `Update`
+supplies one. `Fault` makes reads surface the supplied exception even for an
+unknown source; a subsequent `Update` clears the fault and publishes its sample.
 
 ## Client
 
@@ -222,11 +245,11 @@ The built-in coordinate-reference-system transformer supports WGS84 /
 EPSG:4326, ECEF, and local East-North-Up coordinates. Inject
 `ICoordinateReferenceSystemTransformer` for another CRS.
 
-`GroundControlPointFitter` supports rigid, similarity, and affine fits. It
-selects a horizontal 2D fit when elevation or rank is insufficient, forces a
-proper rotation for rigid/similarity modes, rejects affine reflections unless
-enabled, and reports residual, determinant, rank, dimension, and invertibility
-diagnostics.
+`GroundControlPointFitter` supports rigid, similarity, and affine fits. When
+elevation or rank is insufficient, it selects a horizontal 2D fit. It forces
+a proper rotation for rigid and similarity modes, and rejects affine
+reflections unless you enable them. The fitter reports residual, determinant,
+rank, dimension, and invertibility diagnostics.
 
 ## Robot and OpenUSD sample
 

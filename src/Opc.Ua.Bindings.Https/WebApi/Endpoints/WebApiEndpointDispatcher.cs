@@ -148,6 +148,7 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                 Endpoint = null,
                 ClientCertificate = context.Connection.ClientCertificate?.RawData,
                 ServerCertificate = null,
+                PeerAddress = context.Connection.RemoteIpAddress,
                 Identity = identityProvider?.Resolve(context)
             };
 

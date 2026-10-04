@@ -1,9 +1,9 @@
 # Identity Providers (OPC UA Part 6 §6.5)
 
-The OPC UA .NET Standard stack exposes a pluggable identity-provider model
-that covers every user identity mechanism defined in
-[OPC UA Part 6 §6.5](https://reference.opcfoundation.org/Core/Part6/v105/docs/6.5) and the
-identity-provider handshakes described in
+The OPC UA .NET Standard stack provides a pluggable identity-provider model.
+It covers the user-identity mechanisms in
+[OPC UA Part 6 §6.5](https://reference.opcfoundation.org/Core/Part6/v105/docs/6.5)
+and the identity-provider handshakes in
 [OPC UA Part 4 §6.2](https://reference.opcfoundation.org/Core/Part4/v105/docs/6.2).
 
 The design is intentionally **symmetric**:
@@ -34,6 +34,39 @@ contracts that ship on the wire — those are still the canonical
 on-the-wire types. The provider model layers on top of those types so
 legacy callbacks keep working during migration, while new code can
 register `IUserTokenAuthenticator` instances directly.
+
+## Contents
+
+- [Quick start — dependency injection](#quick-start--dependency-injection)
+  - [Server example](#server-example)
+  - [Custom authenticator registrations](#custom-authenticator-registrations)
+  - [Client example](#client-example)
+  - [GDS example](#gds-example)
+  - [Configuration reference](#configuration-reference)
+- [Three layers, kept separate](#three-layers-kept-separate)
+- [Client side](#client-side)
+  - [`IClientIdentityProvider` — what to send in `ActivateSession`](#iclientidentityprovider--what-to-send-in-activatesession)
+  - [`IAccessTokenProvider` — orthogonal to the OPC UA stack](#iaccesstokenprovider--orthogonal-to-the-opc-ua-stack)
+  - [`AuthorizationServerMetadata` — the JSON nobody told you about](#authorizationservermetadata--the-json-nobody-told-you-about)
+- [Server side](#server-side)
+  - [`IUserTokenAuthenticator` — what to do with the incoming token](#iusertokenauthenticator--what-to-do-with-the-incoming-token)
+  - [`IServerIdentityRegistry` — composing authenticators](#iserveridentityregistry--composing-authenticators)
+  - [Identity augmenters](#identity-augmenters)
+  - [Claims surface — wiring `IdentityCriteriaType.GroupId` and `Role`](#claims-surface--wiring-identitycriteriatypegroupid-and-role)
+  - [`ITokenIssuer` — server-side JWT issuance](#itokenissuer--server-side-jwt-issuance)
+  - [`IIssuerKeyResolver` + `IssuerVerificationKey` — JWT validation](#iissuerkeyresolver--issuerverificationkey--jwt-validation)
+- [How-to: server-side authentication](#how-to-server-side-authentication)
+- [How-to: client-side provider selection](#how-to-client-side-provider-selection)
+- [How-to: migrate from `SessionManager.ImpersonateUser`](#how-to-migrate-from-sessionmanagerimpersonateuser)
+  - [1. Legacy event code](#1-legacy-event-code)
+  - [2. Implement an authenticator for that token type](#2-implement-an-authenticator-for-that-token-type)
+  - [3. Register via dependency injection or the server registry](#3-register-via-dependency-injection-or-the-server-registry)
+- [Implementing your own provider](#implementing-your-own-provider)
+  - [Entra ID provider](#entra-id-provider)
+  - [OIDC provider](#oidc-provider)
+  - [Windows Integrated provider](#windows-integrated-provider)
+  - [ASP.NET Core provider](#aspnet-core-provider)
+- [See also](#see-also)
 
 ## Quick start — dependency injection
 
@@ -323,10 +356,10 @@ separate so each layer can be replaced independently:
 | **Claim extraction** | `IIdentityClaims` (probe interface on the returned identity) | Surfaces OIDC / JWT / X.509 claims so role mapping has data to work with. | Decide which roles get granted. |
 | **Role mapping** | `IRoleManager.ResolveGrantedRoles` (already exists, see [Role-Based Security](RoleBasedUserManagement.md)) | Applies OPC UA Part 18 §4.4 identity-mapping rules to the claims and emits the granted role NodeIds. | Authenticate the token. |
 
-If you find yourself granting roles inside an authenticator, you have
-overstepped — push that logic into an `IRoleManager` identity-mapping
-rule instead, then the same rule applies whether the user came in via
-UserName, X509, JWT, or a future token type.
+Do not grant roles inside an authenticator. Put role assignment in an
+`IRoleManager` identity-mapping rule instead. The same rule then applies
+whether the user authenticated with a username, X.509 certificate, JWT, or
+another token type.
 
 ## Client side
 
@@ -400,8 +433,14 @@ Key design notes:
   existing reactivation lock and binds the new token to the current
   server nonce.
 * **Use `ManagedSessionOptions.IdentityProvider` for managed clients.**
-  `ManagedSession` calls `UpdateIdentityAsync` after connect, then
-  schedules proactive refresh at `provider.ExpiresAt - 60s` using the
+  `ManagedSession` refreshes discovery metadata before acquiring the initial
+  identity when endpoint refresh is enabled. Selection uses the configured
+  security policies, instance-certificate algorithm and policy registry, just
+  like `UpdateIdentityAsync`. The first activation uses that identity; it does
+  not require an anonymous session. A supplied single-use reverse connection
+  without a reverse-connect manager must already have endpoint metadata, as
+  on the direct session-factory path.
+  The session then schedules proactive refresh at `provider.ExpiresAt - 60s` using the
   configured `TimeProvider`. Refresh failures are logged and retried
   with backoff; they do not close the session.
 
@@ -504,11 +543,11 @@ public sealed class StaticUserNameAuthenticator : IUserTokenAuthenticator
 
     public StaticUserNameAuthenticator(Func<string, byte[], bool> checkPassword)
     {
-        m_checkPassword = checkPassword;
+        m_checkPassword = checkPassword ?? throw new ArgumentNullException(nameof(checkPassword));
     }
 
     public UserTokenType TokenType => UserTokenType.UserName;
-    public string IssuedTokenProfileUri => null;  // n/a for UserName
+    public string? IssuedTokenProfileUri => null;
 
     public ValueTask<AuthenticationResult> AuthenticateAsync(
         AuthenticationContext context,
@@ -570,6 +609,18 @@ Authenticators are tried in registration order. For
 tokens; a SAML or Kerberos authenticator on the same channel is left
 to handle the rest. Register with `IssuedTokenProfileUri = null` for a
 catch-all (useful when bridging to a legacy `ITokenValidator`).
+
+`Register` replaces the existing registration with the same token type and
+profile, so application authenticators replace hosted defaults rather than
+being shadowed by them. Issuer-backed `JwtAuthenticator` instances implement
+`IIssuerTokenAuthenticator`: distinct issuers coexist, while re-registering the
+same issuer replaces its old verifier. Issuer matching is ordinal and never
+substitutes for signature, audience, or lifetime validation. A custom,
+unqualified authenticator replaces every issuer for its type/profile; a later
+issuer-qualified registration replaces any unqualified registration.
+Rejections stop dispatch and preserve their status and diagnostic message.
+If neither the registry nor the legacy callback handles a non-anonymous token,
+session activation fails closed.
 
 ### Identity augmenters
 
@@ -697,8 +748,12 @@ or a custom issuer with `WithAuthorizationService<TIssuer>(...)`; see
 
 Server-side JWT validation in the GDS `JwtAuthenticator` resolves
 verification keys through `IIssuerKeyResolver`. Consumers receive each
-key as a non-disposable `IIssuerVerificationKey` view (the resolver
-owns and disposes the concrete `IssuerVerificationKey`). The helper
+key as a non-disposable `IIssuerVerificationKey` view. `JwksIssuerKeyResolver`
+retains only its current snapshot; retired keys and their native handles are
+collected when their last reader releases them. Refresh and resolver disposal
+do not invalidate already returned JWKS keys. Other resolver owners dispose
+their concrete `IssuerVerificationKey` instances according to their lifetime.
+The helper
 deliberately uses
 `byte[]` overloads (no `System.IdentityModel.Tokens.Jwt`) so it works
 on netstandard2.1 / net472 / net48 / net8+/net9+/net10+ and is
@@ -734,6 +789,8 @@ using Opc.Ua.Identity;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
+services.AddSingleton<Func<string, byte[], bool>>(checkPassword);
+
 services.AddOpcUa()
     .AddServer(o =>
     {
@@ -741,7 +798,7 @@ services.AddOpcUa()
         o.ApplicationUri = "urn:example:my-server";
         o.EndpointUrls.Add("opc.tcp://localhost:4840");
     })
-    .AddIdentityAuthenticator<MyAuthenticator>()
+    .AddIdentityAuthenticator<StaticUserNameAuthenticator>()
     .AddDefaultIdentityAuthenticators(o =>
     {
         o.EnableAnonymous = true;
@@ -756,35 +813,20 @@ services.AddOpcUa()
         o.JwksUri = "https://issuer.example/.well-known/jwks.json";
         o.Audience = "urn:example:my-server";
     });
-
-public sealed class MyAuthenticator : IUserTokenAuthenticator
-{
-    public UserTokenType TokenType => UserTokenType.UserName;
-    public string? IssuedTokenProfileUri => null;
-
-    public ValueTask<AuthenticationResult> AuthenticateAsync(
-        AuthenticationContext context, CancellationToken ct = default)
-    {
-        if (context.TokenHandler is not UserNameIdentityTokenHandler userName)
-        {
-            return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
-        }
-
-        bool ok = userName.UserName == "alice" &&
-            !Utils.Utf8IsNullOrEmpty(userName.DecryptedPassword);
-        return new ValueTask<AuthenticationResult>(ok
-            ? AuthenticationResult.Accept(new UserIdentity(userName))
-            : AuthenticationResult.Reject(new ServiceResult(StatusCodes.BadUserAccessDenied)));
-    }
-}
 ```
+
+This uses `StaticUserNameAuthenticator` from the [server-side example](#server-side).
+Supply `checkPassword` from your application's credential-verification service before
+registering it. It must verify the supplied password against the user's stored credentials;
+a recognized username or a nonempty password is not sufficient. Do not log or retain the
+decrypted password.
 
 Manual hosts can register against the running server instance. Prefer dependency injection
 for hosted applications, but this is useful for existing `StandardServer`
 subclasses:
 
 ```csharp
-server.CurrentInstance.IdentityRegistry.Register(new MyAuthenticator());
+server.CurrentInstance.IdentityRegistry.Register(new StaticUserNameAuthenticator(checkPassword));
 server.CurrentInstance.IdentityRegistry.Register(
     new JwtAuthenticator(keyResolver, expectedAudience: "urn:example:my-server"));
 ```

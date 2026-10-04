@@ -371,7 +371,17 @@ namespace Opc.Ua
         {
             using var stream = new MemoryStream(
                 Encoding.UTF8.GetBytes(OuterXml ?? string.Empty));
-            return XElement.Load(stream, LoadOptions.SetBaseUri);
+            // XElement.Load(Stream) parses DTDs and expands entities, which
+            // lets a tiny untrusted payload expand to megabytes on every
+            // comparison. Use the safe defaults (no resolver) and keep the
+            // whitespace handling of XElement.Load. The DTD is skipped rather
+            // than rejected so that a harmless DOCTYPE keeps the value valid;
+            // its entities are never defined, so they cannot expand.
+            XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
+            settings.DtdProcessing = DtdProcessing.Ignore;
+            settings.IgnoreWhitespace = true;
+            using var reader = XmlReader.Create(stream, settings);
+            return XElement.Load(reader, LoadOptions.SetBaseUri);
         }
 
 #pragma warning disable IDE0032 // Use auto property

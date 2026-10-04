@@ -213,8 +213,8 @@ namespace Opc.Ua.Server
                 while (secondBeforeIndex >= 0 &&
                     (StatusCode.IsBad(
                         orderedValues[secondBeforeIndex].StatusCode) ||
-                    orderedValues[secondBeforeIndex].SourceTimestamp ==
-                        nonBadBefore.SourceTimestamp))
+                        orderedValues[secondBeforeIndex].SourceTimestamp ==
+                            nonBadBefore.SourceTimestamp))
                 {
                     secondBeforeIndex--;
                 }
@@ -335,7 +335,27 @@ namespace Opc.Ua.Server
             m_logger.ComputingAggregateStartTimeHHMmSsFff(CurrentSlice.StartTime);
 
             // compute the value.
-            DataValue computed = ComputeValue(CurrentSlice);
+            DataValue computed;
+            try
+            {
+                computed = ComputeValue(CurrentSlice);
+            }
+            catch (OverflowException)
+            {
+                computed = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadTypeMismatch,
+                    GetTimestamp(CurrentSlice),
+                    GetTimestamp(CurrentSlice));
+            }
+            catch (InvalidCastException)
+            {
+                computed = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadTypeMismatch,
+                    GetTimestamp(CurrentSlice),
+                    GetTimestamp(CurrentSlice));
+            }
 
             // check if overlapping the start or end of data (Part 13 §5.3.3.2). Both checks
             // use the chronological interval, so they apply in either time direction.
@@ -661,11 +681,6 @@ namespace Opc.Ua.Server
             public LinkedListNode<DataValue> EarlyBound { get; set; } = null!;
 
             /// <summary>
-            /// The latest non-Bad value before the slice.
-            /// </summary>
-            public LinkedListNode<DataValue> NonBadEarlyBound { get; set; } = null!;
-
-            /// <summary>
             /// The second early bound for the slice (always earlier than the first).
             /// </summary>
             public LinkedListNode<DataValue> SecondEarlyBound { get; set; } = null!;
@@ -782,11 +797,6 @@ namespace Opc.Ua.Server
                     // check if before the beginning of the slice.
                     if (CompareTimestamps(slice.StartTime, ii) >= 0)
                     {
-                        if (StatusCode.IsNotBad(ii.Value.StatusCode))
-                        {
-                            slice.NonBadEarlyBound = ii;
-                        }
-
                         if (IsGood(ii.Value))
                         {
                             slice.SecondEarlyBound = slice.EarlyBound;
@@ -823,11 +833,6 @@ namespace Opc.Ua.Server
                     // check if before the beginning of the slice.
                     if (CompareTimestamps(slice.StartTime, ii) > 0)
                     {
-                        if (StatusCode.IsNotBad(ii.Value.StatusCode))
-                        {
-                            slice.NonBadEarlyBound = ii;
-                        }
-
                         if (IsGood(ii.Value))
                         {
                             slice.SecondEarlyBound = slice.EarlyBound;
@@ -1111,9 +1116,9 @@ namespace Opc.Ua.Server
                 double lateValue = CastToDouble(lateBound);
 
                 // do interpolation.
-                DateTime earlyTimestamp =
+                var earlyTimestamp =
                     earlyBound.SourceTimestamp.ToDateTime();
-                DateTime lateTimestamp =
+                var lateTimestamp =
                     lateBound.SourceTimestamp.ToDateTime();
                 double range =
                     (lateTimestamp - earlyTimestamp).TotalMilliseconds;
@@ -1612,9 +1617,16 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (StatusCode.IsGood(values[ii].StatusCode))
+                if (StatusCode.IsGood(values[ii].StatusCode) ||
+                    (!Configuration.TreatUncertainAsBad &&
+                        StatusCode.IsUncertain(values[ii].StatusCode)))
                 {
                     goodCount++;
+                }
+                else if (Configuration.TreatUncertainAsBad &&
+                    StatusCode.IsUncertain(values[ii].StatusCode))
+                {
+                    badCount++;
                 }
             }
 
@@ -1626,7 +1638,7 @@ namespace Opc.Ua.Server
             else if (badCount / totalCount * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad count is greater than or equal to the configured threshold.
-                return StatusCodes.Bad;
+                return statusCode.WithCodeBits(StatusCodes.Bad);
             }
             else
             {
@@ -1769,5 +1781,4 @@ namespace Opc.Ua.Server
             Message = "Computing Aggregate {StartTime:HH:mm:ss.fff}")]
         public static partial void ComputingAggregateStartTimeHHMmSsFff(this ILogger logger, DateTimeUtc startTime);
     }
-
 }

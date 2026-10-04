@@ -434,8 +434,12 @@ namespace Opc.Ua.Server.Fluent
             return m;
         }
 
+        /// <summary>
+        /// Rejects handler registration after sealing or when the callback slot is already occupied.
+        /// </summary>
         private void ThrowIfSlotOccupied(Delegate? existing, string what)
         {
+            m_parent.ThrowIfSealed();
             if (existing != null)
             {
                 throw ServiceResultException.Create(

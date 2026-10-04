@@ -134,12 +134,16 @@ namespace Opc.Ua.Server.FileSystem
             int start = -1;
             for (int ii = 0; ii < identifier.Length; ii++)
             {
-                if (!char.IsDigit(identifier[ii]))
+                if (identifier[ii] is < '0' or > '9')
                 {
                     start = ii;
                     break;
                 }
                 rootType = (rootType * 10) + (identifier[ii] - '0');
+                if (rootType > File)
+                {
+                    return false;
+                }
             }
 
             if (start < 0 || start >= identifier.Length || identifier[start] != ':')
@@ -153,6 +157,7 @@ namespace Opc.Ua.Server.FileSystem
             int index = start + 1;
             int end = identifier.Length;
             bool escaped = false;
+            string? componentPath = null;
 
             while (index < end)
             {
@@ -164,16 +169,12 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 if (!escaped && ch == '?')
                 {
-                    end = index;
+                    componentPath = identifier[index..];
                     break;
                 }
                 buffer.Append(ch);
                 escaped = false;
             }
-
-            string? componentPath = end < identifier.Length
-                ? identifier[end..]
-                : null;
 
             result = new FileSystemNodeId(
                 rootType,

@@ -56,7 +56,8 @@ namespace Opc.Ua.Server.TestFramework
         public T Server { get; private set; }
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
-        public int MaxChannelCount { get; set; } = 10;
+        // Keep room for the default 100 Sessions, one replacement channel and two protected startup floors.
+        public int MaxChannelCount { get; set; } = 103;
         public int ReverseConnectTimeout { get; set; }
         public bool AllNodeManagers { get; set; }
 
@@ -453,12 +454,16 @@ namespace Opc.Ua.Server.TestFramework
         /// </summary>
         public void StartActivityListenerInternal(bool disableActivityLogging = false)
         {
+            // Source construction invokes ShouldListenTo synchronously, so resolve before registration.
+            ActivitySource activitySource = m_telemetry.GetActivitySource();
+            string expectedName = activitySource.Name;
+
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
+                    ShouldListenTo = source => source.Name == expectedName,
                     Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
@@ -469,7 +474,7 @@ namespace Opc.Ua.Server.TestFramework
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
+                    ShouldListenTo = source => source.Name == expectedName,
                     Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
                     {

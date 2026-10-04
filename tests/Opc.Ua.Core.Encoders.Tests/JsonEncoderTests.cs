@@ -884,7 +884,14 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 BuiltInType.LocalizedText,
                 new LocalizedText(kLocale, string.Empty),
-                $$"""{"Text":"","Locale":"{{kLocale}}"}""",
+                // Part 6 5.4.2.15: an empty or null Text is not encoded.
+                $$"""{"Locale":"{{kLocale}}"}""",
+                null
+            },
+            {
+                BuiltInType.LocalizedText,
+                new LocalizedText(kLocale, (string)null!),
+                $$"""{"Locale":"{{kLocale}}"}""",
                 null
             },
             {

@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 tokenId,
                 signingKeyLength: policy.SigningKeyLength == 0 ? 1 : policy.SigningKeyLength,
                 encryptingKeyLength: policy.EncryptingKeyLength == 0 ? 1 : policy.EncryptingKeyLength,
-                keyNonceLength: policy.NonceLength == 0 ? 1 : policy.NonceLength);
+                keyNonceLength: policy.NonceLength == 0 ? 1 : AesCtrNonceLayout.KeyNonceLength);
 
             var senderRing = new PubSubSecurityKeyRing("group");
             senderRing.SetCurrent(key);

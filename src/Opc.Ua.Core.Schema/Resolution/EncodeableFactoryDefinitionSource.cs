@@ -145,7 +145,13 @@ namespace Opc.Ua.Schema
                 encodeableType is IDataTypeDefinitionSource encodeableSource)
             {
                 DataTypeDefinition encodeable = encodeableSource.GetDataTypeDefinition(m_namespaceUris);
-                description = Describe(typeId, encodeableType.XmlName, encodeable);
+
+                // an encodeable OptionSet is a subtype of the OptionSet structure {Value, ValidBits}.
+                description = Describe(
+                    typeId,
+                    encodeableType.XmlName,
+                    encodeable,
+                    isStructureOptionSet: encodeable is EnumDefinition { IsOptionSet: true });
                 return true;
             }
 
@@ -186,13 +192,14 @@ namespace Opc.Ua.Schema
         private static UaTypeDescription Describe(
             ExpandedNodeId typeId,
             XmlQualifiedName xmlName,
-            DataTypeDefinition definition)
+            DataTypeDefinition definition,
+            bool isStructureOptionSet = false)
         {
             string? namespaceUri = xmlName != null && !string.IsNullOrEmpty(xmlName.Namespace)
                 ? xmlName.Namespace
                 : typeId.NamespaceUri;
             var browseName = new QualifiedName(xmlName?.Name);
-            return new UaTypeDescription(typeId, browseName, definition, namespaceUri);
+            return new UaTypeDescription(typeId, browseName, definition, namespaceUri, isStructureOptionSet);
         }
 
         private readonly IEncodeableFactory m_factory;

@@ -127,6 +127,43 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public void PathIdentityRejectsNullRatherThanAliasingTheRoot()
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+
+            Assert.Throws<ArgumentNullException>(() => provider.GetPathIdentity(null!));
+        }
+
+        [Test]
+        public async Task LiteralTrailingDotsRemainDistinctWhenTheFilesystemPreservesThemAsync()
+        {
+            string root = Path.DirectorySeparatorChar == '\\' ? @"\\?\" + m_root : m_root;
+            var provider = new PhysicalFileSystemProvider(root);
+            try
+            {
+                await provider.CreateFileAsync("plain", CancellationToken.None).ConfigureAwait(false);
+                await provider.CreateFileAsync("plain.", CancellationToken.None).ConfigureAwait(false);
+                using (Stream stream = await provider.OpenWriteAsync(
+                    "plain.", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false))
+                {
+                    await WritePayloadAsync(stream, [42]).ConfigureAwait(false);
+                }
+
+                FileSystemEntry? plain = await provider.GetEntryAsync("plain", CancellationToken.None)
+                    .ConfigureAwait(false);
+                FileSystemEntry? dotted = await provider.GetEntryAsync("plain.", CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(plain!.Value.Length, Is.Zero);
+                Assert.That(dotted!.Value.Length, Is.EqualTo(1));
+                Assert.That(provider.GetPathIdentity("plain."), Is.Not.EqualTo(provider.GetPathIdentity("plain")));
+            }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+
+        [Test]
         public async Task GetEntryAsyncReturnsNullForMissingPathAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
@@ -282,6 +319,29 @@ namespace Opc.Ua.Server.Tests.FileSystem
             await provider.CreateDirectoryAsync("a/b/c", CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(Directory.Exists(Path.Combine(m_root, "a", "b", "c")), Is.True);
+        }
+
+        [Test]
+        public async Task CreateDirectoryAsyncIsIdempotentAndPreservesContentsAsync()
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+            await provider.CreateDirectoryAsync("packages/version", CancellationToken.None).ConfigureAwait(false);
+            await provider.CreateFileAsync("packages/version/payload.bin", CancellationToken.None)
+                .ConfigureAwait(false);
+            using (Stream stream = await provider.OpenWriteAsync(
+                "packages/version/payload.bin", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false))
+            {
+                await WritePayloadAsync(stream, [1, 2, 3]).ConfigureAwait(false);
+            }
+
+            await provider.CreateDirectoryAsync("packages/version", CancellationToken.None).ConfigureAwait(false);
+            await provider.CreateDirectoryAsync(string.Empty, CancellationToken.None).ConfigureAwait(false);
+
+            using Stream read = await provider.OpenReadAsync(
+                "packages/version/payload.bin", CancellationToken.None).ConfigureAwait(false);
+            using var contents = new MemoryStream();
+            await read.CopyToAsync(contents).ConfigureAwait(false);
+            Assert.That(contents.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
         }
 
         [Test]

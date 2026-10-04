@@ -32,11 +32,19 @@
 #pragma warning disable CA2000
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+using System.Security.AccessControl;
+using System.Security.Principal;
+#endif
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -303,6 +311,168 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task NewPrivateKeyPreservesInheritedAccessToExistingKeysAsync()
+        {
+            using Certificate existing = CertificateBuilder.Create("CN=Existing Private Key").CreateForRSA();
+            using Certificate added = CertificateBuilder.Create("CN=Added Private Key").CreateForRSA();
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir);
+            using var publicOnly = Certificate.FromRawData(existing.RawData);
+            await store.AddAsync(publicOnly).ConfigureAwait(false);
+            DirectoryInfo privateDirectory = Directory.CreateDirectory(Path.Combine(m_tempDir, "private"));
+            var existingKey = new FileInfo(Path.Combine(privateDirectory.FullName,
+                Path.ChangeExtension(Path.GetFileName(store.GetPublicKeyFilePath(existing.Thumbprint)), ".pfx")));
+
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                using var identity = WindowsIdentity.GetCurrent();
+                var directorySecurity = new DirectorySecurity();
+                directorySecurity.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+                directorySecurity.AddAccessRule(new FileSystemAccessRule(
+                    identity.User, FileSystemRights.FullControl,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                    PropagationFlags.None, AccessControlType.Allow));
+                new DirectoryInfo(m_tempDir).SetAccessControl(directorySecurity);
+            }
+#endif
+            byte[] keyBytes = existing.Export(X509ContentType.Pfx);
+            try
+            {
+                using var stream = new FileStream(existingKey.FullName, FileMode.CreateNew, FileAccess.Write);
+#if NET8_0_OR_GREATER
+                await stream.WriteAsync(keyBytes.AsMemory()).ConfigureAwait(false);
+#else
+                await stream.WriteAsync(keyBytes, 0, keyBytes.Length).ConfigureAwait(false);
+#endif
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(keyBytes);
+            }
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.That(privateDirectory.GetAccessControl().GetAccessRules(
+                    includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)), Is.Empty);
+                Assert.That(existingKey.GetAccessControl().GetAccessRules(
+                    includeExplicit: false, includeInherited: true, typeof(SecurityIdentifier)), Is.Not.Empty);
+                Assert.That(existingKey.GetAccessControl().GetAccessRules(
+                    includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)), Is.Empty);
+            }
+#endif
+
+            await store.AddAsync(added).ConfigureAwait(false);
+
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                AuthorizationRuleCollection rules = existingKey.GetAccessControl().GetAccessRules(
+                    includeExplicit: false, includeInherited: true, typeof(SecurityIdentifier));
+                using var identity = WindowsIdentity.GetCurrent();
+                SecurityIdentifier[] trusted =
+                [
+                    identity.User,
+                    new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+                    new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null)
+                ];
+                foreach (SecurityIdentifier sid in trusted)
+                {
+                    bool permitted = false;
+                    foreach (FileSystemAccessRule rule in rules)
+                    {
+                        if (rule.IdentityReference.Equals(sid) &&
+                            rule.AccessControlType == AccessControlType.Allow &&
+                            (rule.FileSystemRights & FileSystemRights.FullControl) == FileSystemRights.FullControl)
+                        {
+                            permitted = true;
+                            break;
+                        }
+                    }
+                    Assert.That(permitted, Is.True, "Existing keys must retain access for every trusted identity.");
+                }
+            }
+#endif
+            using (FileStream readable = existingKey.OpenRead())
+            {
+                Assert.That(readable.Length, Is.GreaterThan(0));
+            }
+            using var reopened = new DirectoryCertificateStore(m_telemetry);
+            reopened.Open(m_tempDir);
+            using Certificate loaded = await reopened.LoadPrivateKeyAsync(
+                existing.Thumbprint, null, null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                .ConfigureAwait(false);
+            Assert.That(loaded, Is.Not.Null);
+            using RSA privateKey = loaded.GetRSAPrivateKey();
+            using RSA publicKey = existing.GetRSAPublicKey();
+            byte[] digest = new byte[32];
+            byte[] signature = privateKey.SignHash(digest, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            Assert.That(publicKey.VerifyHash(digest, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
+                Is.True);
+        }
+
+        [Test]
+        public async Task ExistingDirectoryPermissionFailureIsAcceptedOnlyForPrivateAccessAsync(
+            [Values("private", "read", "write-attributes")] string access)
+        {
+            bool unsafeAccess = access != "private";
+            DirectoryInfo directory = Directory.CreateDirectory(Path.Combine(m_tempDir, "private"));
+            using Certificate certificate = CertificateBuilder.Create("CN=Permission Upgrade").CreateForRSA();
+            using var store = new DirectoryCertificateStore(m_telemetry);
+            store.Open(m_tempDir);
+
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                using var identity = WindowsIdentity.GetCurrent();
+                var security = new DirectorySecurity();
+                security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+                security.AddAccessRule(new FileSystemAccessRule(
+                    identity.User, FileSystemRights.ChangePermissions, AccessControlType.Deny));
+                security.AddAccessRule(new FileSystemAccessRule(
+                    new SecurityIdentifier("S-1-3-4"), FileSystemRights.ReadPermissions, AccessControlType.Allow));
+                security.AddAccessRule(new FileSystemAccessRule(
+                    identity.User, FileSystemRights.Modify,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                    PropagationFlags.None, AccessControlType.Allow));
+                if (unsafeAccess)
+                {
+                    security.AddAccessRule(new FileSystemAccessRule(
+                        new SecurityIdentifier(WellKnownSidType.WorldSid, null),
+                        access == "read" ? FileSystemRights.Read : FileSystemRights.WriteAttributes,
+                        InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                        PropagationFlags.None, AccessControlType.Allow));
+                }
+                directory.SetAccessControl(security);
+
+                if (unsafeAccess)
+                {
+                    Assert.That(async () => await store.AddAsync(certificate).ConfigureAwait(false),
+                        Throws.TypeOf<UnauthorizedAccessException>());
+                    Assert.That(directory.GetFiles(), Is.Empty);
+                    return;
+                }
+            }
+#endif
+
+            await store.AddAsync(certificate).ConfigureAwait(false);
+            using Certificate loaded = await store.LoadPrivateKeyAsync(
+                certificate.Thumbprint, null, null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                .ConfigureAwait(false);
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.HasPrivateKey, Is.True);
+#if NET8_0_OR_GREATER
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.That(File.GetUnixFileMode(directory.FullName),
+                    Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute));
+                Assert.That(File.GetUnixFileMode(store.GetPrivateKeyFilePath(certificate.Thumbprint)),
+                    Is.EqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite));
+            }
+#endif
+        }
+
+        [Test]
         public async Task EnumerateCRLsAsyncOnEmptyStoreReturnsEmptyAsync()
         {
             using var store = new DirectoryCertificateStore(m_telemetry);
@@ -456,9 +626,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(after, Has.Count.EqualTo(1));
             Assert.That(after[0].Thumbprint, Is.EqualTo(first.Thumbprint));
 
-            Assert.That(
-                PEMReader.ImportPublicKeysFromPEM(File.ReadAllBytes(pemFile)),
-                Has.Count.EqualTo(1));
+            using var remaining = CertificateCollection.From(
+                PEMReader.ImportPublicKeysFromPEM(File.ReadAllBytes(pemFile)));
+            Assert.That(remaining, Has.Count.EqualTo(1));
 
             // nothing of the removed block is left behind the rewritten content.
             Assert.That(new FileInfo(pemFile).Length, Is.LessThan(combined.Length));

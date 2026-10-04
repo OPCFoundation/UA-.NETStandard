@@ -120,6 +120,7 @@ namespace Opc.Ua
             string? transportProfileUri)
         {
             EndpointUrl = endpointUrl ?? throw new ArgumentNullException(nameof(endpointUrl));
+            TransportProfileUri = TransportProfileIdentity.GetEffective(transportProfileUri, endpointUrl);
             SecurityPolicyUri = securityPolicyUri
                 ?? throw new ArgumentNullException(nameof(securityPolicyUri));
             SecurityMode = securityMode;
@@ -127,13 +128,18 @@ namespace Opc.Ua
             EndpointConfigurationHash = endpointConfigurationHash;
             ClientCertificateThumbprint = clientCertificateThumbprint;
             ReverseConnectionIdentity = reverseConnectionIdentity;
-            TransportProfileUri = transportProfileUri ?? string.Empty;
         }
 
         /// <summary>
         /// The endpoint URL.
         /// </summary>
         public string EndpointUrl { get; }
+
+        /// <summary>
+        /// The effective transport profile, including its wire encoding.
+        /// The legacy constructor defaults to the scheme's binary profile.
+        /// </summary>
+        public string TransportProfileUri { get; init; }
 
         /// <summary>
         /// The security policy URI.
@@ -168,15 +174,6 @@ namespace Opc.Ua
         /// connections never share. <c>null</c> for forward connections.
         /// </summary>
         public object? ReverseConnectionIdentity { get; }
-
-        /// <summary>
-        /// The transport profile URI, or an empty string when the endpoint
-        /// does not name one. The HTTPS binary, JSON and OpenAPI endpoints
-        /// of a server share a URL, security mode and policy, so without
-        /// this they would all be served by a single channel of whichever
-        /// transport happened to be created first.
-        /// </summary>
-        public string TransportProfileUri { get; }
 
         /// <summary>
         /// Computes a key for the supplied configured endpoint and
@@ -218,7 +215,10 @@ namespace Opc.Ua
                 ComputeEndpointConfigurationHash(configuration),
                 clientThumbprint,
                 reverseConnectionIdentity,
-                description.TransportProfileUri);
+                TransportProfileIdentity.GetEffective(
+                    description.TransportProfileUri,
+                    description.EndpointUrl ?? string.Empty,
+                    configuration?.UseBinaryEncoding ?? true));
         }
 
         private static ByteString ComputeServerCertificateThumbprint(ByteString rawCertificate)

@@ -32,40 +32,45 @@ using Opc.Ua;
 using UaLens.Plugins.Companions.Providers;
 using UaLens.ViewModels;
 
-namespace UaLens.Plugins.Companions;
-
-/// <summary>
-/// Typed composition for the built-in task adapters, with explicit provider replacement
-/// and a fresh operation workspace for every document.
-/// </summary>
-internal sealed class CompanionPluginFactory
+namespace UaLens.Plugins.Companions
 {
-    public CompanionPluginFactory(
-        ArrayOf<ICompanionProvider> providers = default,
-        TimeProvider? timeProvider = null,
-        ICompanionPackageReader? packages = null)
+    /// <summary>
+    /// Typed composition for the built-in task adapters, with explicit provider replacement
+    /// and a fresh operation workspace for every document.
+    /// </summary>
+    internal sealed class CompanionPluginFactory
     {
-        m_timeProvider = timeProvider ?? TimeProvider.System;
-        m_providers = providers.IsNull
-            ? [
-                new DeviceCompanionProvider(packages, m_timeProvider),
-                new Isa95CompanionProvider(),
-                new WotCompanionProvider(),
-                new RegistryCompanionProvider(),
-                new RoboticsCompanionProvider(),
-                new VisionCompanionProvider(),
-                new AICompanionProvider(),
-                new OpenUsdCompanionProvider()
-            ]
-            : providers;
-    }
+        public CompanionPluginFactory(
+            ArrayOf<ICompanionProvider> providers = default,
+            TimeProvider? timeProvider = null,
+            ICompanionPackageReader? packages = null,
+            ICompanionDeploymentPolicy? deploymentPolicy = null)
+        {
+            m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_deploymentPolicy = deploymentPolicy;
+            m_providers = providers.IsNull
+                ? [
+                    new DeviceCompanionProvider(packages, m_timeProvider),
+                    new Isa95CompanionProvider(),
+                    new WotCompanionProvider(),
+                    new RegistryCompanionProvider(),
+                    new RoboticsCompanionProvider(),
+                    new VisionCompanionProvider(),
+                    new AICompanionProvider(),
+                    new OpenUsdCompanionProvider()
+                ]
+                : providers;
+        }
 
-    public CompanionPlugin Create(PluginHost host)
-    {
-        ArgumentNullException.ThrowIfNull(host);
-        return new CompanionPlugin(host, providers: m_providers, timeProvider: m_timeProvider);
-    }
+        public CompanionPlugin Create(PluginHost host)
+        {
+            ArgumentNullException.ThrowIfNull(host);
+            return new CompanionPlugin(
+                host, providers: m_providers, timeProvider: m_timeProvider, deploymentPolicy: m_deploymentPolicy);
+        }
 
-    private readonly ArrayOf<ICompanionProvider> m_providers;
-    private readonly TimeProvider m_timeProvider;
+        private readonly ArrayOf<ICompanionProvider> m_providers;
+        private readonly TimeProvider m_timeProvider;
+        private readonly ICompanionDeploymentPolicy? m_deploymentPolicy;
+    }
 }

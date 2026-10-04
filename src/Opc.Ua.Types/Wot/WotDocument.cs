@@ -377,6 +377,10 @@ namespace Opc.Ua.Wot
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The parsed, byte-preserving document.</returns>
         /// <exception cref="FormatException">Thrown when the document exceeds the configured byte limit.</exception>
+        /// <exception cref="JsonException">
+        /// Thrown when the document is not JSON, or holds a string that is not
+        /// valid Unicode (invalid UTF-8 or an escaped lone surrogate).
+        /// </exception>
         public static WotDocument Parse(
             ReadOnlyMemory<byte> utf8Json,
             WotNodeSetConverterOptions? options = null)
@@ -390,6 +394,7 @@ namespace Opc.Ua.Wot
             }
 
             byte[] copy = utf8Json.ToArray();
+            ThrowIfNotUnicode(copy, options.MaxJsonDepth);
             JsonDocument document = JsonDocument.Parse(
                 copy,
                 new JsonDocumentOptions
@@ -546,6 +551,7 @@ namespace Opc.Ua.Wot
             byte[] utf8Json,
             WotNodeSetConverterOptions options)
         {
+            ThrowIfNotUnicode(utf8Json, options.MaxJsonDepth);
             JsonDocument document = JsonDocument.Parse(
                 utf8Json,
                 new JsonDocumentOptions
@@ -555,6 +561,68 @@ namespace Opc.Ua.Wot
                     MaxDepth = options.MaxJsonDepth
                 });
             return new WotDocument(utf8Json, document);
+        }
+
+        /// <summary>
+        /// Rejects a document whose strings or member names cannot be read as
+        /// UTF-16 text.
+        /// </summary>
+        /// <remarks>
+        /// The JSON reader accepts invalid UTF-8 inside a string and an escaped
+        /// lone surrogate (<c>"\ud800"</c>) because it only checks the syntax,
+        /// and the first <see cref="JsonElement.GetString"/> or
+        /// <see cref="JsonProperty.Name"/> on such a token then throws
+        /// <see cref="InvalidOperationException"/> - an exception none of the
+        /// converter or resolver entry points report as a diagnostic. Checking
+        /// once here turns it into the <see cref="JsonException"/> a malformed
+        /// document raises.
+        /// </remarks>
+        /// <param name="utf8Json">The UTF-8 encoded document.</param>
+        /// <param name="maxDepth">The nesting limit of the parse that follows.</param>
+        /// <exception cref="JsonException">Thrown when a string is not valid Unicode.</exception>
+        internal static void ThrowIfNotUnicode(byte[] utf8Json, int maxDepth)
+        {
+            try
+            {
+                _ = s_strictUtf8.GetCharCount(utf8Json);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new JsonException("The WoT document is not valid UTF-8.", ex);
+            }
+
+            // Only an escape can still produce a lone surrogate.
+            var text = new ReadOnlySpan<byte>(utf8Json);
+            if (text.IndexOf((byte)'\\') < 0)
+            {
+                return;
+            }
+            var reader = new Utf8JsonReader(
+                text,
+                new JsonReaderOptions
+                {
+                    AllowTrailingCommas = false,
+                    CommentHandling = JsonCommentHandling.Disallow,
+                    MaxDepth = maxDepth
+                });
+            while (reader.Read())
+            {
+                if (reader.TokenType is not JsonTokenType.String and not JsonTokenType.PropertyName ||
+                    reader.ValueSpan.IndexOf((byte)'\\') < 0)
+                {
+                    continue;
+                }
+                try
+                {
+                    _ = reader.GetString();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    throw new JsonException(
+                        $"The WoT document holds a string that is not valid Unicode at byte {reader.TokenStartIndex}.",
+                        ex);
+                }
+            }
         }
 
         private static bool TryGetArrayElement(JsonElement array, string token, out JsonElement value)
@@ -702,6 +770,18 @@ namespace Opc.Ua.Wot
             return items;
         }
 
+        /// <summary>
+        /// Options for re-reading the text of a value that was already parsed
+        /// under the configured <see cref="WotNodeSetConverterOptions.MaxJsonDepth"/>.
+        /// That limit was applied then; the reader's default of 64 must not be
+        /// applied a second time to a value that passed a larger configured one.
+        /// </summary>
+        internal static readonly JsonDocumentOptions ReparseOptions = new()
+        {
+            MaxDepth = int.MaxValue
+        };
+
+        private static readonly UTF8Encoding s_strictUtf8 = new(false, true);
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;
         private IReadOnlyList<string>? m_typeTokens;

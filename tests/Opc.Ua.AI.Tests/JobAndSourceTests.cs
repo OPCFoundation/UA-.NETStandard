@@ -157,6 +157,49 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
+        public async Task AnAsynchronousInferenceForwardsParametersToTheBackendAsync()
+        {
+            var backend = new FakeInferenceBackend("primary");
+            using AINodeManager nm = await AIServerTestHarness
+                .CreateAsync(
+                    new InferenceBackends(backend),
+                    new AIOptions
+                    {
+                        EnableFallback = false,
+                        AsyncInferenceDelay = TimeSpan.Zero
+                    })
+                .ConfigureAwait(false);
+            DeploymentState deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+            ArrayOf<Opc.Ua.KeyValuePair> parameters =
+            [
+                new Opc.Ua.KeyValuePair
+                {
+                    Key = new QualifiedName("top_p"),
+                    Value = Variant.From(0.8)
+                }
+            ];
+
+            InvokeAsyncMethodStateResult started = await deployment.InvokeAsync!.OnCallAsync!(
+                nm.SystemContext,
+                deployment.InvokeAsync,
+                nm.PrimaryDeploymentId,
+                ByteString.From(Encoding.UTF8.GetBytes("{}")),
+                string.Empty,
+                "application/json",
+                parameters,
+                CancellationToken.None).ConfigureAwait(false);
+
+            InferenceJobState job = nm.FindPredefinedNode<InferenceJobState>(started.Job);
+            await WaitForHaltedAsync(job).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(backend.Requests, Has.Count.EqualTo(1));
+                Assert.That(backend.Requests[0].Parameters["top_p"], Is.EqualTo("0.8"));
+            });
+        }
+
+        [Test]
         public async Task TheSourceReportsWhatItCanReachAsync()
         {
             var primary = new FakeInferenceBackend("primary");

@@ -81,6 +81,7 @@ namespace Opc.Ua.Server.FileSystem
             DeleteFileSystemObject = new DeleteFileMethodState(this)
             {
                 OnCallAsync = OnDeleteFileSystemObjectAsync,
+                OnReadUserExecutable = OnReadMutationUserExecutable,
                 Executable = true,
                 UserExecutable = true
             };
@@ -92,6 +93,7 @@ namespace Opc.Ua.Server.FileSystem
             CreateFile = new CreateFileMethodState(this)
             {
                 OnCallAsync = OnCreateFileAsync,
+                OnReadUserExecutable = OnReadMutationUserExecutable,
                 Executable = true,
                 UserExecutable = true
             };
@@ -103,6 +105,7 @@ namespace Opc.Ua.Server.FileSystem
             CreateDirectory = new CreateDirectoryMethodState(this)
             {
                 OnCallAsync = OnCreateDirectoryAsync,
+                OnReadUserExecutable = OnReadMutationUserExecutable,
                 Executable = true,
                 UserExecutable = true
             };
@@ -114,6 +117,7 @@ namespace Opc.Ua.Server.FileSystem
             MoveOrCopy = new MoveOrCopyMethodState(this)
             {
                 OnCallAsync = OnMoveOrCopyAsync,
+                OnReadUserExecutable = OnReadMutationUserExecutable,
                 Executable = true,
                 UserExecutable = true
             };
@@ -190,7 +194,7 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             return await FileSystemDirectoryOperations.CreateDirectoryAsync(
-                host, ProviderPath, directoryName, cancellationToken).ConfigureAwait(false);
+                host, context, ProviderPath, directoryName, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask<CreateFileMethodStateResult> OnCreateFileAsync(
@@ -226,7 +230,7 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             return await FileSystemDirectoryOperations.DeleteAsync(
-                host, objectToDelete, cancellationToken).ConfigureAwait(false);
+                host, context, ProviderPath, objectToDelete, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask<MoveOrCopyMethodStateResult> OnMoveOrCopyAsync(
@@ -245,7 +249,8 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             return await FileSystemDirectoryOperations.MoveOrCopyAsync(
-                host, objectToMoveOrCopy, targetDirectory, createCopy, newName, cancellationToken)
+                host, context, ProviderPath, objectToMoveOrCopy, targetDirectory, createCopy, newName,
+                cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -267,6 +272,20 @@ namespace Opc.Ua.Server.FileSystem
             {
                 MoveOrCopy.OnCallAsync = null;
             }
+        }
+
+        /// <summary>
+        /// Reports the mutating directory methods as executable only for users
+        /// who may modify the hosted file system.
+        /// </summary>
+        private ServiceResult OnReadMutationUserExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
+        {
+            IFileSystemHost? host = ResolveHost(context);
+            value = host != null && host.Provider.IsWritable && host.CanUserWrite(context);
+            return ServiceResult.Good;
         }
 
         private IFileSystemHost? ResolveHost(ISystemContext context)

@@ -37,83 +37,86 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua;
+using UaLens.NodeSets.Loading;
+using UaLens.Samples;
 using UaLens.Themes;
 using UaLens.ViewModels;
 using UaLens.Views;
 
-namespace UaLens;
-
-internal sealed partial class App : Application
+namespace UaLens
 {
-    public App()
-        : this(null)
+    internal sealed class App : Application
     {
-    }
-
-    public App(IServiceProvider? services, DesktopSmokeTest? desktopSmoke = null)
-    {
-        m_services = services;
-        m_desktopSmoke = desktopSmoke;
-    }
-
-    public override void Initialize()
-    {
-        AvaloniaXamlLoader.Load(this);
-        Themes.ThemeManager.Initialize();
-    }
-
-    public override void OnFrameworkInitializationCompleted()
-    {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        public App()
+            : this(null)
         {
-            IServiceProvider services = m_services
-                ?? throw new InvalidOperationException("Desktop startup requires the owned UaLens service container.");
-            MainViewModel viewModel = services.GetRequiredService<MainViewModel>();
-            AppearancePreferences appearance = services.GetRequiredService<AppearancePreferences>();
-            var window = new MainWindow(
-                viewModel,
-                appearance,
-                writeOperations: services.GetRequiredService<WriteValueOperationFactory>(),
-                storageProvider: services.GetService<IStorageProvider>(),
-                certificateOperations: services.GetRequiredService<
-                    Func<ApplicationConfiguration, CertificateStoreOperations>>(),
-                nodeSetRepository: services.GetRequiredService<NodeSets.Loading.INodeSetRepository>());
-            if (m_desktopSmoke is { } smoke)
+        }
+
+        public App(IServiceProvider? services, DesktopSmokeTest? desktopSmoke = null)
+        {
+            m_services = services;
+            m_desktopSmoke = desktopSmoke;
+        }
+
+        public override void Initialize()
+        {
+            AvaloniaXamlLoader.Load(this);
+            ThemeManager.Initialize();
+        }
+
+        public override void OnFrameworkInitializationCompleted()
+        {
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // The smoke task is observed by Program after the desktop loop.
-                // Keep a real desktop, but do not start optional host monitoring.
-                window.Opened += (_, _) => smoke.Start(window, viewModel, desktop);
+                IServiceProvider services = m_services
+                    ?? throw new InvalidOperationException(
+                        "Desktop startup requires the owned UaLens service container.");
+                MainViewModel viewModel = services.GetRequiredService<MainViewModel>();
+                AppearancePreferences appearance = services.GetRequiredService<AppearancePreferences>();
+                var window = new MainWindow(
+                    viewModel,
+                    appearance,
+                    repositorySamples: services.GetRequiredService<IRepositorySampleService>(),
+                    writeOperations: services.GetRequiredService<WriteValueOperationFactory>(),
+                    storageProvider: services.GetService<IStorageProvider>(),
+                    certificateOperations: services.GetRequiredService<
+                        Func<ApplicationConfiguration, CertificateStoreOperations>>(),
+                    nodeSetRepository: services.GetRequiredService<INodeSetRepository>());
+                if (m_desktopSmoke is { } smoke)
+                {
+                    window.Opened += (_, _) => smoke.Start(window, viewModel, desktop);
+                }
+                else
+                {
+                    window.Opened += async (_, _) => await StartOptionalMonitoringAsync(viewModel).ConfigureAwait(true);
+                }
+                desktop.MainWindow = window;
             }
-            else
-            {
-                window.Opened += async (_, _) => await StartOptionalMonitoringAsync(viewModel).ConfigureAwait(true);
-            }
-            desktop.MainWindow = window;
+            base.OnFrameworkInitializationCompleted();
         }
-        base.OnFrameworkInitializationCompleted();
-    }
 
-    private static async Task StartOptionalMonitoringAsync(MainViewModel viewModel)
-    {
-        try
+        private static async Task StartOptionalMonitoringAsync(MainViewModel viewModel)
         {
-            await viewModel.StartResourceMonitoringAsync().ConfigureAwait(true);
-        }
-        catch (OperationCanceledException error) when (error.CancellationToken.IsCancellationRequested)
-        {
-            if (!viewModel.Workspace.IsClosing)
+            try
             {
-                viewModel.ResourceStatus = "Resource monitoring startup was cancelled.";
+                await viewModel.StartResourceMonitoringAsync().ConfigureAwait(true);
+            }
+            catch (OperationCanceledException error) when (error.CancellationToken.IsCancellationRequested)
+            {
+                if (!viewModel.Workspace.IsClosing)
+                {
+                    viewModel.ResourceStatus = "Resource monitoring startup was cancelled.";
+                }
+            }
+            catch (Exception error) when (error is InvalidOperationException or Win32Exception
+                or IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                // Monitoring is optional, but its startup failure remains visible.
+                viewModel.ResourceStatus = $"Resource monitoring unavailable: {error.Message}";
             }
         }
-        catch (Exception error) when (error is InvalidOperationException or Win32Exception
-            or IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-            // Monitoring is optional, but its startup failure remains visible.
-            viewModel.ResourceStatus = $"Resource monitoring unavailable: {error.Message}";
-        }
-    }
 
-    private readonly IServiceProvider? m_services;
-    private readonly DesktopSmokeTest? m_desktopSmoke;
+        private readonly IServiceProvider? m_services;
+        private readonly DesktopSmokeTest? m_desktopSmoke;
+    }
 }

@@ -156,6 +156,11 @@ namespace Opc.Ua.Wot
                     WotBindingConformance.SecurityModeTerm,
                     StringComparison.Ordinal))
                 {
+                    if (securityMode is not null)
+                    {
+                        error = DuplicateMemberError(WotBindingConformance.SecurityModeTerm);
+                        return false;
+                    }
                     securityMode = member.Value.ValueKind == JsonValueKind.String
                         ? member.Value.GetString()
                         : null;
@@ -172,6 +177,11 @@ namespace Opc.Ua.Wot
                     WotBindingConformance.SecurityPolicyTerm,
                     StringComparison.Ordinal))
                 {
+                    if (securityPolicy is not null)
+                    {
+                        error = DuplicateMemberError(WotBindingConformance.SecurityPolicyTerm);
+                        return false;
+                    }
                     securityPolicy = member.Value.ValueKind == JsonValueKind.String
                         ? member.Value.GetString()
                         : null;
@@ -202,6 +212,17 @@ namespace Opc.Ua.Wot
             floor = new WotSecurityFloor(securityMode, securityPolicy);
             error = string.Empty;
             return true;
+        }
+
+        /// <summary>
+        /// A floor that states a member twice is ambiguous: a reader that keeps
+        /// the first value and one that keeps the last would enforce different
+        /// floors, so neither value is taken.
+        /// </summary>
+        private static string DuplicateMemberError(string term)
+        {
+            return $"The {WotBindingConformance.MinimumSecurityTerm} object states {term} " +
+                "more than once; a security floor shall state each member once.";
         }
 
         /// <inheritdoc/>

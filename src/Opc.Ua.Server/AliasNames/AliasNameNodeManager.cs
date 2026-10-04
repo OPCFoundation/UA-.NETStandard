@@ -112,6 +112,11 @@ namespace Opc.Ua.Server.AliasNames
                 m_localCategoryDispatcher,
                 AuthorizeMutation,
                 m_aliasLogger);
+            if (Options.MaterializeAliasNodes && Options.RefreshAliasNodesOnChange)
+            {
+                m_aliasRefresh = new AliasNameRefreshCoordinator(
+                    nameof(AliasNameNodeManager), server.Telemetry, RefreshAliasesAsync);
+            }
 
             // counter identifiers: alias categories are rematerialized from
             // the store as it changes, so browse names repeat over time.
@@ -163,6 +168,7 @@ namespace Opc.Ua.Server.AliasNames
             }
 
             Store.Changed += OnStoreChanged;
+            m_aliasRefresh?.RequestRefresh();
         }
 
         /// <inheritdoc/>
@@ -170,6 +176,7 @@ namespace Opc.Ua.Server.AliasNames
         {
             if (disposing)
             {
+                m_aliasRefresh?.Dispose();
                 Store.Changed -= OnStoreChanged;
                 if (m_registeredWithServer && m_registry != null)
                 {
@@ -181,6 +188,25 @@ namespace Opc.Ua.Server.AliasNames
             base.Dispose(disposing);
         }
 
+        /// <inheritdoc/>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            if (m_aliasRefresh != null)
+            {
+                await m_aliasRefresh.DisposeAsync().ConfigureAwait(false);
+            }
+            await base.DisposeAsyncCore().ConfigureAwait(false);
+        }
+
+        private async ValueTask RefreshAliasesAsync(long generation, CancellationToken cancellationToken)
+        {
+            foreach (AliasNameCategoryDescriptor root in Store.RootCategories)
+            {
+                await m_materializer.RefreshCategoryAsync(Store, root.NodeId, Options.MaterializeAliasNodes,
+                    () => m_aliasRefresh!.IsCurrent(generation), cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         private void OnStoreChanged(object? sender, AliasStoreChangedEventArgs e)
         {
             lock (m_lock)
@@ -190,12 +216,14 @@ namespace Opc.Ua.Server.AliasNames
                 // walk older versions needed.
                 AliasNameCategoryState? category =
                     FindPredefinedNode<AliasNameCategoryState>(e.CategoryId);
-                if (category?.LastChange != null)
+                uint? current = Store.GetLastChange(e.CategoryId);
+                if (category?.LastChange != null && current.HasValue)
                 {
-                    category.LastChange.Value = e.LastChange;
+                    category.LastChange.Value = current.Value;
                     category.LastChange.ClearChangeMasks(SystemContext, false);
                 }
             }
+            m_aliasRefresh?.RequestRefresh();
         }
 
         private bool AuthorizeMutation(ISystemContext context)
@@ -228,6 +256,14 @@ namespace Opc.Ua.Server.AliasNames
             NodeState node, CancellationToken cancellationToken)
         {
             return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
+        }
+
+        async ValueTask IAliasNameMaterializerHost.RemoveNodeAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            await DeleteNodeAsync(SystemContext, nodeId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         NodeId IAliasNameMaterializerHost.MintNodeId(NodeState node)
@@ -275,11 +311,29 @@ namespace Opc.Ua.Server.AliasNames
                 externalReferences);
         }
 
+        ValueTask IAliasNameMaterializerHost.UpdateInverseAliasReferenceAsync(
+            NodeId targetId,
+            NodeId aliasNodeId,
+            bool remove,
+            CancellationToken cancellationToken)
+        {
+            PredefinedNodes.TryGetValue(targetId, out NodeState? target);
+            return AliasNameNodeMaterializer.UpdateInverseAliasReferenceAsync(
+                Server, SystemContext, target, targetId, aliasNodeId, remove, cancellationToken);
+        }
+
         void IAliasNameMaterializerHost.OnLastChangeBound(
             NodeId categoryId, PropertyState<uint> lastChange)
         {
-            // Nothing to record: OnStoreChanged resolves the category by
-            // NodeId at event time.
+            lock (m_lock)
+            {
+                uint? current = Store.GetLastChange(categoryId);
+                if (current.HasValue)
+                {
+                    lastChange.Value = current.Value;
+                    lastChange.ClearChangeMasks(SystemContext, false);
+                }
+            }
         }
 
         private static string ResolveNamespaceUri(AliasNameNodeManagerOptions? options)
@@ -296,6 +350,7 @@ namespace Opc.Ua.Server.AliasNames
         private readonly ILogger m_aliasLogger;
         private readonly IAliasNameStoreRegistry? m_registry;
         private readonly AliasNameNodeMaterializer m_materializer;
+        private readonly AliasNameRefreshCoordinator? m_aliasRefresh;
 
         /// <summary>
         /// Always-available dispatcher that wraps just this manager's

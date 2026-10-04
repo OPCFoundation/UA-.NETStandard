@@ -90,6 +90,9 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <param name="nodeId">The historizing variable.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// The node's structured key selector, or the timestamp-only selector for ordinary raw nodes.
+        /// </returns>
         ValueTask<IHistorianStructuredDataKeySelector> GetKeySelectorAsync(
             NodeId nodeId,
             CancellationToken ct);
@@ -99,6 +102,11 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="StatusCodes.BadEntryExists"/> when the composite key
         /// is already stored.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing structured-data variable.</param>
+        /// <param name="values">Structured values to insert, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One insertion status per supplied value, in request order.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> InsertStructuredDataAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -110,6 +118,11 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="StatusCodes.BadNoEntryExists"/> when the composite
         /// key is not stored.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing structured-data variable.</param>
+        /// <param name="values">Replacement structured values, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per supplied value and the successfully replaced prior values.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceStructuredDataAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -120,6 +133,11 @@ namespace Opc.Ua.Server.Historian
         /// Upserts structured entries — insert when the composite key is
         /// absent, replace otherwise.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing structured-data variable.</param>
+        /// <param name="values">Structured values to insert or replace, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per supplied value and prior values for successful replacements.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> UpdateStructuredDataAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -130,6 +148,11 @@ namespace Opc.Ua.Server.Historian
         /// Removes the structured entries identified by the composite
         /// keys of the supplied values.
         /// </summary>
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing structured-data variable.</param>
+        /// <param name="values">Values identifying the composite keys to remove, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per supplied value and the successfully removed prior values.</returns>
         ValueTask<HistorianUpdateOutcome<DataValue>> RemoveStructuredDataAsync(
             HistorianOperationContext context,
             NodeId nodeId,

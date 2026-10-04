@@ -129,7 +129,7 @@ public class EncoderTests : FuzzTargetTestsBase
    to cross-target malformed-input replay. Validate both the local host and published callback.
 9. **Update this `Fuzzing.md`.** Add a row to the area table.
 
-The Azure pipeline test template recursively discovers fuzz test projects. GitHub Actions
+The CI test matrix discovers fuzz test projects like any other test project. GitHub Actions
 also has an explicit fuzz replay matrix, including changes only to seeds, dictionaries and
 scripts. `Scripts/test-fuzzing.ps1` runs the applicable projects and rejects empty or skipped
 test runs. `fuzz-parity.runsettings` includes generated protocol methods in fuzz-only production
@@ -296,6 +296,9 @@ The local host also supports `--list` and `--replay <target> <file-or-directory>
 SharpFuzz. The NUnit slow/timeout regressions run in child processes with a 30-second watchdog;
 `CancelAfter` alone cannot stop a synchronous callback. Tools playback itself is in-process,
 so use the isolated replay gate for suspected hangs.
+
+The full crash corpus (about 22k inputs) lives on the orphan branch `fuzz-corpus` and is replayed
+nightly; see [CrashCorpus.md](CrashCorpus.md) for how to replay it locally and how to add inputs.
 
 ## Recreate or improve seeds
 

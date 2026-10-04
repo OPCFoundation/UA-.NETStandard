@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -283,6 +284,7 @@ namespace Opc.Ua
         /// Decrypts the data using RSA encryption.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="CryptographicException">The ciphertext or plaintext framing is invalid.</exception>
         internal static byte[] Decrypt(
             ArraySegment<byte> dataToDecrypt,
             Certificate encryptingCertificate,
@@ -295,39 +297,29 @@ namespace Opc.Ua
                     StatusCodes.BadSecurityChecksFailed,
                     "No private key for certificate.");
 
-            int plainTextSize = dataToDecrypt.Count / GetCipherTextBlockSize(rsa);
+            int cipherTextBlockSize = GetCipherTextBlockSize(rsa);
+            if (dataToDecrypt.Count == 0 || dataToDecrypt.Count % cipherTextBlockSize != 0)
+            {
+                throw new CryptographicException("Could not decrypt data.");
+            }
+            int plainTextSize = dataToDecrypt.Count / cipherTextBlockSize;
             plainTextSize *= GetPlainTextBlockSize(encryptingCertificate, padding);
 
             byte[] buffer = new byte[plainTextSize];
-            ArraySegment<byte> plainText = Decrypt(
-                dataToDecrypt,
-                rsa,
-                padding,
-                new ArraySegment<byte>(buffer),
-                logger);
-            System.Diagnostics.Debug.Assert(plainText.Count == buffer.Length);
-
-            // decode length.
-            int length = 0;
-            byte[] plainTextArray = plainText.GetArray();
-
-            length += plainTextArray[plainText.Offset + 0];
-            length += plainTextArray[plainText.Offset + 1] << 8;
-            length += plainTextArray[plainText.Offset + 2] << 16;
-            length += plainTextArray[plainText.Offset + 3] << 24;
-
-            if (length > (plainText.Count - plainText.Offset - 4))
+            try
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEndOfStream,
-                    "Could not decrypt data. Invalid total length.");
+                ArraySegment<byte> plainText = Decrypt(
+                    dataToDecrypt,
+                    rsa,
+                    padding,
+                    new ArraySegment<byte>(buffer),
+                    logger);
+                return DecodePlainText(plainText.AsSpan());
             }
-
-            byte[] decryptedData = new byte[length];
-            Array.Copy(plainTextArray, plainText.Offset + 4, decryptedData, 0, length);
-            Array.Clear(buffer, 0, buffer.Length);
-
-            return decryptedData;
+            finally
+            {
+                CryptoUtils.ZeroMemory(buffer);
+            }
         }
 
         /// <summary>
@@ -383,9 +375,10 @@ namespace Opc.Ua
                 int inputBlockSize = GetCipherTextBlockSize(owned);
                 int outputBlockSize = GetPlainTextBlockSize(encryptingCertificate, padding);
 
-                if (dataToDecrypt.Count % inputBlockSize != 0)
+                if (dataToDecrypt.Count == 0 || dataToDecrypt.Count % inputBlockSize != 0)
                 {
                     logger.RsaUtilsLogMessage1(dataToDecrypt.Count, inputBlockSize);
+                    throw new CryptographicException("Could not decrypt data.");
                 }
 
                 RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
@@ -406,34 +399,44 @@ namespace Opc.Ua
                             .DecryptAsync(input, rsaPadding, ct)
                             .ConfigureAwait(false);
 
-                        Array.Copy(plainTextBlock, 0, buffer, written, plainTextBlock.Length);
-                        written += plainTextBlock.Length;
-                        Array.Clear(plainTextBlock, 0, plainTextBlock.Length);
+                        try
+                        {
+                            Array.Copy(plainTextBlock, 0, buffer, written, plainTextBlock.Length);
+                            written += plainTextBlock.Length;
+                        }
+                        finally
+                        {
+                            CryptoUtils.ZeroMemory(plainTextBlock);
+                        }
                     }
 
-                    // decode length.
-                    int length = buffer[0];
-                    length += buffer[1] << 8;
-                    length += buffer[2] << 16;
-                    length += buffer[3] << 24;
-
-                    if (length > written - 4)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEndOfStream,
-                            "Could not decrypt data. Invalid total length.");
-                    }
-
-                    byte[] decryptedData = new byte[length];
-                    Array.Copy(buffer, 4, decryptedData, 0, length);
-
-                    return decryptedData;
+                    return DecodePlainText(buffer.AsSpan(0, written));
                 }
                 finally
                 {
                     Array.Clear(buffer, 0, buffer.Length);
                 }
             }
+        }
+
+        /// <summary>
+        /// Decodes RSA plaintext framing without exposing whether padding or the embedded length was invalid.
+        /// </summary>
+        /// <exception cref="CryptographicException">The plaintext length prefix is invalid.</exception>
+        private static byte[] DecodePlainText(ReadOnlySpan<byte> plaintext)
+        {
+            if (plaintext.Length < sizeof(int))
+            {
+                throw new CryptographicException("Could not decrypt data.");
+            }
+
+            int length = BinaryPrimitives.ReadInt32LittleEndian(plaintext);
+            if (length < 0 || length > plaintext.Length - sizeof(int))
+            {
+                throw new CryptographicException("Could not decrypt data.");
+            }
+
+            return plaintext.Slice(sizeof(int), length).ToArray();
         }
 
         /// <summary>
@@ -457,6 +460,7 @@ namespace Opc.Ua
 
             byte[]? decryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
+            int written;
 
             using (var ostrm = new MemoryStream(
                 decryptedBuffer!,
@@ -471,15 +475,23 @@ namespace Opc.Ua
                 {
                     Array.Copy(dataToDecrypt.GetArray(), ii, input, 0, input.Length);
                     byte[] plainText = rsa.Decrypt(input, rsaPadding);
-                    ostrm.Write(plainText, 0, plainText.Length);
+                    try
+                    {
+                        ostrm.Write(plainText, 0, plainText.Length);
+                    }
+                    finally
+                    {
+                        CryptoUtils.ZeroMemory(plainText);
+                    }
                 }
+                written = (int)ostrm.Position;
             }
 
             // return buffers.
             return new ArraySegment<byte>(
                 decryptedBuffer!,
                 outputBuffer.Offset,
-                dataToDecrypt.Count / inputBlockSize * outputBlockSize);
+                written);
         }
 
         /// <summary>

@@ -252,9 +252,10 @@ internal static class AlarmTestData
         Variant value)
     {
         Variant[] copy = fields.ToArray() ?? [];
-        for (int i = 0; i < projection.ConditionIdIndex; i++)
+        for (int i = 0; i < projection.Filter.SelectClauses.Count; i++)
         {
-            if (projection.Filter.SelectClauses[i].BrowsePath[0].Name == name)
+            ArrayOf<QualifiedName> path = projection.Filter.SelectClauses[i].BrowsePath;
+            if (!path.IsEmpty && path[0].Name == name)
             {
                 copy[i] = value;
             }

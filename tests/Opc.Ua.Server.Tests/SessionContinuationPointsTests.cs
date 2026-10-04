@@ -499,6 +499,100 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that clearing mirrored-only continuation points removes the records under their original owners.
+        /// </summary>
+        [Test]
+        public async Task ClearRemovesMirroredOnlyPointsUsingOriginalOwnersAsync()
+        {
+            var originalOwner = new NodeId("original-owner", 1);
+            var browseId = Guid.NewGuid();
+            var historyId = Guid.NewGuid();
+            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
+            store
+                .Setup(s => s.LoadContinuationPointsAsync(originalOwner, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ContinuationPointEnvelope>>(
+                [
+                    new ContinuationPointEnvelope
+                    {
+                        Id = browseId,
+                        OwnerSessionId = originalOwner,
+                        Kind = ContinuationPointKind.Browse
+                    },
+                    new ContinuationPointEnvelope
+                    {
+                        Id = historyId,
+                        OwnerSessionId = originalOwner,
+                        Kind = ContinuationPointKind.History
+                    }
+                ]));
+
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            await holder.LoadMirroredAsync(originalOwner).ConfigureAwait(false);
+            holder.Clear();
+            holder.Clear();
+
+            store.Verify(
+                s => s.RemoveContinuationPoint(
+                    originalOwner,
+                    ContinuationPointKind.Browse,
+                    browseId),
+                Times.Once);
+            store.Verify(
+                s => s.RemoveContinuationPoint(
+                    originalOwner,
+                    ContinuationPointKind.History,
+                    historyId),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a mirrored load completing after close cleans up instead of repopulating owner maps.
+        /// </summary>
+        [Test]
+        public async Task LateMirroredLoadAfterClearCleansUpOriginalOwnersAsync()
+        {
+            var originalOwner = new NodeId("late-owner", 1);
+            var browseId = Guid.NewGuid();
+            var loadStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseLoad = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
+            store
+                .Setup(s => s.LoadContinuationPointsAsync(originalOwner, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    loadStarted.TrySetResult(true);
+                    await releaseLoad.Task.ConfigureAwait(false);
+                    return new ArrayOf<ContinuationPointEnvelope>(
+                        new[]
+                        {
+                            new ContinuationPointEnvelope
+                            {
+                                Id = browseId,
+                                OwnerSessionId = originalOwner,
+                                Kind = ContinuationPointKind.Browse
+                            }
+                        });
+                });
+
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            Task load = holder.LoadMirroredAsync(originalOwner).AsTask();
+            await loadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            holder.Clear();
+            releaseLoad.TrySetResult(true);
+            await load.ConfigureAwait(false);
+            holder.Clear();
+
+            store.Verify(
+                s => s.RemoveContinuationPoint(
+                    originalOwner,
+                    ContinuationPointKind.Browse,
+                    browseId),
+                Times.Once);
+        }
+
+        /// <summary>
         /// Verifies that clearing continuation storage disposes browse and history points.
         /// </summary>
         [Test]

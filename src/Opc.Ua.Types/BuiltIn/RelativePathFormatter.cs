@@ -84,7 +84,7 @@ namespace Opc.Ua
             int[] mappings = new int[currentTable.Count];
             mappings[0] = 0;
 
-            if (mappings.Length > 0)
+            if (mappings.Length > 1)
             {
                 mappings[1] = 1;
             }
@@ -658,8 +658,10 @@ namespace Opc.Ua
                         case '<':
                         case '>':
                         case ':':
+                        case '#':
                         case '!':
                         case '&':
+                            // all reserved characters (Part 4 A.2).
                             path.Append('&');
                             break;
                     }

@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <inheritdoc/>
         public override ServiceResult DoCause(
             ISystemContext context,
-            MethodState causeMethod,
+            MethodState? causeMethod,
             uint causeId,
             ArrayOf<Variant> inputArguments,
             System.Collections.Generic.List<Variant> outputArguments)

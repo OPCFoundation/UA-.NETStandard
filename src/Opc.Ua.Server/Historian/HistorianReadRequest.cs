@@ -73,10 +73,16 @@ namespace Opc.Ua.Server.Historian
         public required DateTimeUtc EndTime { get; init; }
 
         /// <summary>
-        /// Maximum number of values to return for this node. Zero = unbounded
-        /// (return up to the time window's worth).
+        /// Client page limit for bounded ranges, or total quota across all pages for
+        /// open-ended ranges. Zero means no client limit. Bounds count toward this quota.
         /// </summary>
         public uint MaxValues { get; init; }
+
+        /// <summary>
+        /// Maximum number of values the provider should emit in one page.
+        /// Zero means the provider may use its own default page size.
+        /// </summary>
+        public uint PageLimit { get; init; }
 
         /// <summary>
         /// True for forward-in-time reads, false for reverse.
@@ -227,9 +233,16 @@ namespace Opc.Ua.Server.Historian
         public required DateTimeUtc EndTime { get; init; }
 
         /// <summary>
-        /// Maximum number of annotations to return. Zero = unbounded.
+        /// Client page limit for bounded reads, or total quota for open-ended reads.
+        /// Zero means no client limit.
         /// </summary>
         public uint MaxValues { get; init; }
+
+        /// <summary>
+        /// Maximum annotations per server page. Zero allows the provider's default limit.
+        /// This does not replace the client's <see cref="MaxValues"/> quota.
+        /// </summary>
+        public uint PageLimit { get; init; }
 
         /// <summary>
         /// True for forward-in-time reads, false for reverse.

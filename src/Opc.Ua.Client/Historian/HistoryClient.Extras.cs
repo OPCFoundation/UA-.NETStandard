@@ -826,7 +826,8 @@ namespace Opc.Ua.Client.Historian
             for (int i = 0; i < profiles.Count; i++)
             {
                 string profile = profiles[i];
-                if (profile.Contains(
+                // A null element is wire-legal in a String array; skip it.
+                if (profile != null && profile.Contains(
                     "Historical",
                     StringComparison.OrdinalIgnoreCase))
                 {

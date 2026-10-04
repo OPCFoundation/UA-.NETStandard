@@ -53,11 +53,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
     public class FileDirectoryBinderTests
     {
         [Test]
-        public async Task BindMaterialisesFilesAndDirectoriesWithoutInitialRegistrationsAsync()
+        public async Task BindRegistersTheCompletePreexistingTreeAsync()
         {
-            InMemoryFileSystemProvider provider = CreateProvider();
+            InMemoryFileSystemProvider provider = CreateProvider(isWritable: false);
             provider.AddFile("readme.txt", "hello");
             provider.AddDirectory("programs");
+            provider.AddFile("programs/main.mod", "movej");
             FileDirectoryState root = CreateRoot();
             SessionSystemContext context = CreateContext();
             var registered = new List<NodeState>();
@@ -74,9 +75,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             Assert.That(binding.Directory, Is.SameAs(root));
             Assert.That(binding.Provider, Is.SameAs(provider));
-            Assert.That(Find<FileState>(root, context, "readme.txt"), Is.Not.Null);
-            Assert.That(Find<FileDirectoryState>(root, context, "programs"), Is.Not.Null);
-            Assert.That(registered, Is.Empty);
+            FileState readme = Find<FileState>(root, context, "readme.txt")!;
+            FileDirectoryState programs = Find<FileDirectoryState>(root, context, "programs")!;
+            FileState main = Find<FileState>(programs, context, "main.mod")!;
+            Assert.That(registered, Is.EquivalentTo(new NodeState[] { readme, programs, main }));
+            OpenMethodStateResult opened = await main.Open!.OnCallAsync!(
+                context, main.Open, main.NodeId, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(main.Close!.OnCall!(context, main.Close, main.NodeId, opened.FileHandle).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -148,18 +155,36 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
-        [Test]
-        [TestCase("../escape")]
-        [TestCase("..\\escape")]
-        [TestCase("sub/child")]
-        [TestCase("sub\\child")]
-        [TestCase("/rooted")]
-        [TestCase("\\rooted")]
-        [TestCase("C:\\Windows\\System32\\evil")]
-        [TestCase("..")]
-        [TestCase(".")]
-        [TestCase("stream:name")]
-        [TestCase("   ")]
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateDirectoryRejectsExistingEntryWithIdempotentProviderAsync(bool existingFile)
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            if (existingFile)
+            {
+                provider.AddFile("existing", "payload");
+            }
+            else
+            {
+                provider.AddDirectory("existing");
+                provider.AddFile("existing/payload.txt", "payload");
+            }
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            await using IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root, provider, context).ConfigureAwait(false);
+            BaseInstanceState existing = Find<BaseInstanceState>(root, context, "existing")!;
+
+            CreateDirectoryMethodStateResult result = await root.CreateDirectory!.OnCallAsync!(
+                context, root.CreateDirectory, root.NodeId, "existing", CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(result.DirectoryNodeId.IsNull, Is.True);
+            Assert.That(Find<BaseInstanceState>(root, context, "existing"), Is.SameAs(existing));
+            Assert.That(provider.ReadText(existingFile ? "existing" : "existing/payload.txt"), Is.EqualTo("payload"));
+        }
+
+        [TestCaseSource(nameof(s_invalidEntryNames))]
         public async Task CreateRejectsANameThatIsNotASingleSegmentAsync(string name)
         {
             InMemoryFileSystemProvider provider = CreateProvider();
@@ -210,7 +235,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 sourceId,
                 targetId,
                 false,
-                "..\\..\\escape",
+                Path.DirectorySeparatorChar == '\\' ? "..\\..\\escape" : "../../escape",
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
@@ -259,6 +284,36 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(Find<FileState>(root, context, "new.txt"), Is.Null);
             Assert.That(Find<FileState>(target, context, "moved.txt"), Is.Not.Null);
             Assert.That(registered, Is.Not.Empty);
+        }
+
+        [Test]
+        public async Task RefreshDeregistersRemovedAndMovedMaterialisedNodesAsync()
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddDirectory("target");
+            provider.AddFile("old.txt", "x");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            var deregistered = new List<NodeState>();
+
+            await using IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root,
+                provider,
+                context,
+                options: null,
+                registerNode: null,
+                deregisterNode: (node, _) =>
+                {
+                    deregistered.Add(node);
+                    return default;
+                },
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            provider.Delete("old.txt");
+            await binding.RefreshAsync().ConfigureAwait(false);
+
+            Assert.That(deregistered.Select(node => node.BrowseName.Name), Does.Contain("old.txt"));
+            Assert.That(Find<FileState>(root, context, "old.txt"), Is.Null);
         }
 
         [Test]
@@ -334,10 +389,86 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public async Task DisposeDeregistersEveryRegisteredNodeAndDetachesCallbacksAsync()
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddDirectory("programs");
+            provider.AddFile("programs/main.mod", "movej");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            var registered = new List<NodeState>();
+            var deregistered = new List<NodeState>();
+            IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root, provider, context,
+                registerNode: (node, _) =>
+                {
+                    registered.Add(node);
+                    return default;
+                },
+                deregisterNode: (node, _) =>
+                {
+                    deregistered.Add(node);
+                    return default;
+                }).ConfigureAwait(false);
+            FileDirectoryState programs = Find<FileDirectoryState>(root, context, "programs")!;
+            FileState main = Find<FileState>(programs, context, "main.mod")!;
+            OpenMethodStateResult opened = await main.Open!.OnCallAsync!(
+                context, main.Open, main.NodeId, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            await binding.DisposeAsync().ConfigureAwait(false);
+            await binding.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(registered, Has.Count.EqualTo(2));
+            Assert.That(deregistered, Is.EquivalentTo(registered));
+            Assert.That(deregistered[0], Is.SameAs(main));
+            Assert.That(provider.OpenStreamCount, Is.Zero);
+            Assert.That(root.CreateFile!.OnCallAsync, Is.Null);
+            Assert.That(programs.CreateFile!.OnCallAsync, Is.Null);
+            Assert.That(main.Open.OnCallAsync, Is.Null);
+            Assert.That(main.Size!.OnReadValue, Is.Null);
+            Assert.That(main.Size.OnReadValueAsync, Is.Null);
+            Assert.That(Find<FileDirectoryState>(root, context, "programs"), Is.Null);
+        }
+
+        [Test]
+        public void FailedInitialRegistrationDeregistersOnlyCompletedRegistrations()
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddFile("a.txt", "a");
+            provider.AddFile("b.txt", "b");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            var deregistered = new List<NodeState>();
+
+            Assert.ThrowsAsync<IOException>(async () => await CreateBinder().BindAsync(
+                root, provider, context,
+                registerNode: (node, _) =>
+                {
+                    if (node.BrowseName.Name == "b.txt")
+                    {
+                        throw new IOException("Registration rejected.");
+                    }
+                    return default;
+                },
+                deregisterNode: (node, _) =>
+                {
+                    deregistered.Add(node);
+                    return default;
+                }).ConfigureAwait(false));
+
+            Assert.That(deregistered, Has.Count.EqualTo(1));
+            Assert.That(deregistered[0].BrowseName.Name, Is.EqualTo("a.txt"));
+            Assert.That(Find<FileState>(root, context, "a.txt"), Is.Null);
+            Assert.That(Find<FileState>(root, context, "b.txt"), Is.Null);
+            Assert.That(root.CreateFile!.OnCallAsync, Is.Null);
+        }
+
+        [Test]
         public void AddFileDirectoryBinderRegistersDefaultBinder()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaServerBuilder builder = new TestServerBuilder(services);
 
             builder.AddFileDirectoryBinder();
@@ -393,7 +524,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         private static byte[] ReadAll(ISystemContext context, FileState file)
         {
             uint handle = Open(context, file, 0x1);
-            ByteString data = ByteString.From([]);
+            var data = ByteString.From([]);
             ServiceResult readResult = file.Read!.OnCall!(context, file.Read!, file.NodeId, handle, 1024, ref data);
             ServiceResult closeResult = file.Close!.OnCall!(context, file.Close!, file.NodeId, handle);
             Assert.That(ServiceResult.IsGood(readResult), Is.True);
@@ -415,6 +546,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             return new InMemoryFileSystemProvider(isWritable);
         }
+
+        private static readonly string[] s_invalidEntryNames = Path.DirectorySeparatorChar == '\\'
+            ? ["../escape", "..\\escape", "sub/child", "sub\\child", "/rooted", "\\rooted",
+                "C:\\Windows\\System32\\evil", "..", ".", "stream:name", "   "]
+            : ["../escape", "sub/child", "/rooted", "..", ".", "   "];
 
         private sealed class TestServerBuilder : IOpcUaServerBuilder
         {
@@ -491,11 +627,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
                         throw new DirectoryNotFoundException(parent);
                     }
 
-                    entries = m_entries
+                    entries = [.. m_entries
                         .Where(kv => IsImmediateChild(parent, kv.Key))
                         .OrderBy(kv => kv.Key, StringComparer.Ordinal)
-                        .Select(kv => kv.Value.ToFileSystemEntry(kv.Key, IsWritable))
-                        .ToList();
+                        .Select(kv => kv.Value.ToFileSystemEntry(kv.Key, IsWritable))];
                 }
 
                 foreach (FileSystemEntry entry in entries)
@@ -516,7 +651,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     }
                     m_openStreamCount++;
                     return new ValueTask<Stream>(new TrackingReadStream(
-                        entry.Content.ToArray(),
+                        [.. entry.Content],
                         () =>
                         {
                             lock (m_lock)
@@ -546,7 +681,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                         }
                         if (mode == FileWriteMode.Append)
                         {
-                            initial = entry.Content.ToArray();
+                            initial = [.. entry.Content];
                         }
                     }
                     else
@@ -845,7 +980,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
                 public Entry Clone(string name)
                 {
-                    return IsDirectory ? Directory(name) : File(Content.ToArray());
+                    return IsDirectory ? Directory(name) : File([.. Content]);
                 }
 
                 public FileSystemEntry ToFileSystemEntry(string path, bool isWritable)

@@ -58,7 +58,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
             (bool found, ByteString original) = await store.TryGetAsync(ReplicaIdentityStore.Key).ConfigureAwait(false);
             Assert.That(found, Is.True);
             Assert.That(original, Is.Not.EqualTo(identity.Descriptor));
-            Assert.That(protector.TryUnprotect(original, out ByteString descriptor), Is.True);
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("replica-identity", ReplicaIdentityStore.Key),
+                original, out ByteString descriptor), Is.True);
             Assert.That(descriptor, Is.EqualTo(identity.Descriptor));
             await identity.InitializeNewStoreAsync(store, protector).ConfigureAwait(false);
 
@@ -116,6 +118,28 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
                 .ConfigureAwait(false);
             (_, ByteString retained) = await store.TryGetAsync(ReplicaIdentityStore.Key).ConfigureAwait(false);
             Assert.That(retained, Is.EqualTo(corrupt));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task IdentityContractRejectsWrongOrEmptyContextAsync(bool emptyContext)
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            var identity = new ReplicaNodeIdFactory("identity-set", ["urn:shared:first"]);
+            ByteString context = emptyContext
+                ? default
+                : RecordProtectionContext.Create("replica-identity", ReplicaIdentityStore.Key + "/other");
+            ByteString record = protector.Protect(context, identity.Descriptor);
+            await store.SetAsync(ReplicaIdentityStore.Key, record).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await identity.InitializeNewStoreAsync(store, protector).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            (_, ByteString retained) = await store.TryGetAsync(ReplicaIdentityStore.Key).ConfigureAwait(false);
+            Assert.That(retained, Is.EqualTo(record));
         }
 
         /// <summary>
@@ -201,7 +225,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
                 Is.EquivalentTo([TaskStatus.RanToCompletion, TaskStatus.Faulted]));
             (bool found, ByteString stored) = await backend.TryGetAsync(ReplicaIdentityStore.Key).ConfigureAwait(false);
             Assert.That(found, Is.True);
-            Assert.That(protector.TryUnprotect(stored, out ByteString descriptor), Is.True);
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("replica-identity", ReplicaIdentityStore.Key),
+                stored, out ByteString descriptor), Is.True);
             Assert.That(descriptor,
                 Is.EqualTo(first.Status == TaskStatus.RanToCompletion ? left.Descriptor : right.Descriptor));
             wrapper.Verify(s => s.CompareAndSwapAsync(

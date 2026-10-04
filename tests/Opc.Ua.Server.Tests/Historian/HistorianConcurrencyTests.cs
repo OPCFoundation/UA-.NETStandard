@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -57,7 +58,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ParallelInsertsDoNotLoseDataAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("concurrent.insert", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -93,7 +96,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ConcurrentReadersSeeMonotonicSnapshotAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("concurrent.read", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -144,7 +149,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ParallelInsertReplaceDeleteAreSerialisedAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("concurrent.mixed", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -205,7 +212,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ConcurrentAnnotationUpdatesPreserveAllEntriesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("concurrent.annotations", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -256,7 +265,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task RepeatedRegisterIsIdempotentAndSafeUnderRaceAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             HistorianOperationContext context = CreateContext();
             const int iterations = 500;
 

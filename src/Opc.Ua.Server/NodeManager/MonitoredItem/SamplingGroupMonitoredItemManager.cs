@@ -124,7 +124,9 @@ namespace Opc.Ua.Server
                     filterToUse,
                     euRange,
                     samplingInterval,
-                    createDurable);
+                    createDurable,
+                    sourceSamplingInterval: Math.Max(1, SubscriptionManager.CalculateRevisedSamplingInterval(
+                        0, 1, handle.Node, itemToCreate.ItemToMonitor.AttributeId, 0)));
 
             // save the monitored item.
             MonitoredItems.AddOrUpdate(
@@ -297,11 +299,12 @@ namespace Opc.Ua.Server
                 monitoredItem,
                 itemToModify,
                 filterToUse,
-                euRange);
+                euRange,
+                revisedSamplingInterval: samplingInterval);
         }
 
         /// <inheritdoc/>
-        public ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
+        public async ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
@@ -312,16 +315,17 @@ namespace Opc.Ua.Server
                 monitoredItem.Id,
                 out IMonitoredItem? existingMonitoredItem))
             {
-                return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.BadMonitoredItemIdInvalid, null));
+                return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
 
             if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
-                return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.BadMonitoredItemIdInvalid, null));
+                return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
 
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
+            m_samplingGroupManager.ModifyMonitoring(context.OperationContext!, monitoredItem);
 
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled &&
@@ -333,14 +337,17 @@ namespace Opc.Ua.Server
                     DateTimeUtc.MinValue,
                     DateTime.UtcNow);
 
-                // read the initial value.
-
-                if (monitoredItem.ManagerHandle is Node node)
+                if (handle?.Node is NodeState node)
                 {
-                    ServiceResult error = node.Read(
+                    ReadValueId read = monitoredItem.GetReadValueId();
+                    (ServiceResult error, DataValue value) = await node.ReadAttributeAsync(
                         context,
                         monitoredItem.AttributeId,
-                        ref initialValue);
+                        read.ParsedIndexRange,
+                        read.DataEncoding,
+                        initialValue,
+                        cancellationToken).ConfigureAwait(false);
+                    initialValue = value;
 
                     if (ServiceResult.IsBad(error))
                     {
@@ -353,7 +360,7 @@ namespace Opc.Ua.Server
                 monitoredItem.QueueValue(initialValue, null);
             }
 
-            return new ValueTask<(ServiceResult, MonitoringMode?)>((StatusCodes.Good, previousMode));
+            return (StatusCodes.Good, previousMode);
         }
 
         /// <inheritdoc/>
@@ -409,12 +416,20 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredNode.Remove(monitoredItem);
-                MonitoredItems.TryRemove(monitoredItem.Id, out _);
+
+                // an all-events item can stay linked to other root notifiers; any
+                // other event item is only linked to its own node.
+                if (!monitoredItem.MonitoringAllEvents ||
+                    !IsEventMonitoredItemLinked(monitoredItem.Id))
+                {
+                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
+                }
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(source.NodeId);
+                    monitoredNode.Dispose();
                 }
 
                 return (monitoredNode, ServiceResult.Good);
@@ -648,6 +663,19 @@ namespace Opc.Ua.Server
                     lifecycle.Detach(m_server);
                 }
             }
+        }
+
+        private bool IsEventMonitoredItemLinked(uint monitoredItemId)
+        {
+            foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
+            {
+                if (monitoredNode.EventMonitoredItems.ContainsKey(monitoredItemId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool IsMultiConsumerNode(NodeId nodeId)

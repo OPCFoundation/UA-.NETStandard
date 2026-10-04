@@ -68,6 +68,11 @@ namespace Opc.Ua
         /// at the park point instead of remaining blocked for the whole wait.
         /// <c>null</c> (the default) preserves the legacy inline behavior.
         /// </summary>
+        /// <remarks>
+        /// Endpoints supply the sink only for eligible requests. Handlers notify the existing sink rather
+        /// than replacing it, and follow the terminal waiting-point contract of <see cref="IRequestParkSink"/>.
+        /// The server's global decoupling switch may keep the worker attached even when a sink is present.
+        /// </remarks>
         public IRequestParkSink? ParkSink { get; set; }
 
         /// <summary>

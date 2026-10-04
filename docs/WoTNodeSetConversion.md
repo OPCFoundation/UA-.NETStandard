@@ -7,6 +7,35 @@ when requested, uses the structured `uav:nodes` projection when the
 readable vocabulary is not complete, and otherwise synthesizes NodeSet2
 from the readable WoT terms.
 
+## Contents
+
+- [Which specification revision this tracks](#which-specification-revision-this-tracks)
+- [Importable output](#importable-output)
+  - [Modelling rules and the two placeholder identifiers](#modelling-rules-and-the-two-placeholder-identifiers)
+- [WoT to NodeSet defaults](#wot-to-nodeset-defaults)
+- [Portable identity and preservation semantics](#portable-identity-and-preservation-semantics)
+  - [Verified linked document sets](#verified-linked-document-sets)
+  - [Generated NodeIds follow Annex G.1](#generated-nodeids-follow-annex-g1)
+  - [Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)
+  - [Unmapped reference vocabulary is residue](#unmapped-reference-vocabulary-is-residue)
+  - [Condition events derive from their ConditionType](#condition-events-derive-from-their-conditiontype)
+  - [Event fields come from the type, not only from the document](#event-fields-come-from-the-type-not-only-from-the-document)
+  - [Resolving a stated selection needs the asynchronous conversion](#resolving-a-stated-selection-needs-the-asynchronous-conversion)
+- [DataType definitions (Section 6.11)](#datatype-definitions-section-611)
+- [Model and platform vocabulary (Section 6)](#model-and-platform-vocabulary-section-6)
+- [Conformance claims and strict mode (Sections 4.1, 6.1, 6.6 and 11)](#conformance-claims-and-strict-mode-sections-41-61-66-and-11)
+  - [Authoring a claim and processing one are different acts](#authoring-a-claim-and-processing-one-are-different-acts)
+  - [The `uav:nodes` record grammar is not vocabulary](#the-uavnodes-record-grammar-is-not-vocabulary)
+  - [Generated documents state the revision they were generated against](#generated-documents-state-the-revision-they-were-generated-against)
+  - [NodeClass and ReferenceType vocabulary](#nodeclass-and-referencetype-vocabulary)
+- [Engineering units, ranges and scaling (Sections 6.4 and 6.4.1)](#engineering-units-ranges-and-scaling-sections-64-and-641)
+- [Localized text (Section 9.1.1)](#localized-text-section-911)
+- [ValueRank and ArrayDimensions (Sections 7 and 9.1)](#valuerank-and-arraydimensions-sections-7-and-91)
+- [Method arguments (Section 9.1)](#method-arguments-section-91)
+- [ReferenceTypes and relations (Sections 5.1.2, 5.3 and 6.2)](#referencetypes-and-relations-sections-512-53-and-62)
+  - [`uav:componentOf` and its `ua:ComponentOf` alias](#uavcomponentof-and-its-uacomponentof-alias)
+  - [Projection documents and the OPC 10100-1 v1.02 asset surface](#projection-documents-and-the-opc-10100-1-v102-asset-surface)
+
 ## Which specification revision this tracks
 
 This implementation tracks **WoT Binding revision 1.1**. The revision is
@@ -112,7 +141,7 @@ them.
 | Property affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Property affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<propertyLocal>`. |
 | Property DataSchema `type` or an unrecognized `type` | **Default** | The canonical table of WoT Binding §6.11.4: `boolean` → `Boolean`, `integer` → the **abstract** `Integer` (`i=27`), `number` → the **abstract** `Number` (`i=26`), `string` → `String`, refined by `contentEncoding: base64` → `ByteString`, `format: date-time` → `DateTime`, `format: uuid` → `Guid`, `format: uri` → `UriString`. An explicit `uav:dataTypeId` or `uav:mapToType` outranks the inference. Anything unrecognized falls back to `BaseDataType` (`i=24`). A bare `integer` or `number` is deliberately abstract: the schema states only that the value is whole or numeric, and a concrete width is recovered from an annotation rather than guessed. |
-| Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead | CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
+| Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead \| CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
 | Property `title` | **Default** | No `DisplayName` field is materialized for the variable. A `titles` map materializes one `LocalizedText` per locale, the default locale's entry first (Section 9.1.1). |
 | Property `description` | **Default** | No `Description` field is materialized for the variable. A `descriptions` map materializes one `LocalizedText` per locale. |
 | Property `uav:valueRank` (Sections 7, 9.1) | **Default** / **Fails** | Absent: `ValueRank` `-1` (Scalar), which is what a NodeSet omits. Present: the stated rank, so `-3`, `-2`, `-1`, `0` and a fixed positive rank stay distinct. Not an integer literal, or below `-3`: `InvalidValueRank` error. |
@@ -490,7 +519,7 @@ handles them in one direction with full round-trip fidelity:
   native projection preserves it losslessly, and any residue previously
   captured for a term is re-applied by JSON Pointer.
 - **Round-trip.** A document carrying these terms survives
-  WoT &rarr; NodeSet &rarr; WoT unchanged. Affordance-level terms
+  WoT → NodeSet → WoT unchanged. Affordance-level terms
   (`uav:scaleFactor`, `uav:decimalPlaces`, `uav:semanticId`) are
   preserved under the affordance's projected local name, so an affordance
   that also carries `uav:browseName` round-trips under that browse name's

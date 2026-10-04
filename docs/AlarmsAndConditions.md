@@ -1,9 +1,9 @@
 # Alarms and Conditions (OPC UA Part 9)
 
-This guide describes the OPC UA Part 9 *Alarms & Conditions* support in
-this stack: how to build alarm-aware servers, how to consume alarm events
-on the client, and how the new helpers (latched alarms, alarm groups,
-suppression engine, alarm metrics, streaming alarm records) fit together.
+This guide covers the stack's OPC UA Part 9 *Alarms & Conditions* support.
+It explains how to build alarm-aware servers and consume alarm events on
+clients. It also introduces the helpers for latched alarms, alarm groups,
+suppression, alarm metrics, and streaming alarm records.
 
 For the formal model, see
 [OPC UA Part 9 — Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9/full).
@@ -16,6 +16,7 @@ For the formal model, see
   - [Re-alarming](#re-alarming)
   - [Audible alarms and silencing](#audible-alarms-and-silencing)
   - [Suppression, out-of-service, shelving](#suppression-out-of-service-shelving)
+  - [Filtered retain](#filtered-retain)
   - [Alarm groups and first-in-group](#alarm-groups-and-first-in-group)
   - [Alarm metrics (rate tracking)](#alarm-metrics-rate-tracking)
   - [Vetoing alarm operations](#vetoing-alarm-operations)
@@ -49,19 +50,18 @@ For the formal model, see
 | Decode raw event fields | n/a | `EventRecordDecoderRegistry.Default.Decode` |
 | Build an event filter | n/a | `{Type}Record.EventFilters.Build(registry?)` |
 
-`AlarmClient` is obtained from any `ISession` and a telemetry context;
-internally it delegates every Part 9 method call to the matching
-source-generated `*TypeClient` proxy (so there is exactly one place
-that knows each method NodeId — the generator):
+Create `AlarmClient` from any `ISession` and a telemetry context. It delegates
+each Part 9 method call to the matching source-generated `*TypeClient` proxy.
+The generated proxy is the single source for each method NodeId:
 
 ```csharp
 AlarmClient alarms = session.GetAlarmClient(telemetry);
 ```
 
-For dependency-injected hosts use the
+Dependency-injected hosts can call the
 [`builder.AddAlarms()`](DependencyInjection.md#alarms-and-conditions)
-extension and resolve `AlarmClientFactory` (which threads the
-host's telemetry into the client for you):
+extension and resolve `AlarmClientFactory`. The factory passes the host's
+telemetry context to the client:
 
 ```csharp
 var factory = sp.GetRequiredService<AlarmClientFactory>();
@@ -78,6 +78,13 @@ await new AlarmConditionTypeClient(session, conditionId, telemetry)
 ```
 
 ## Server side
+
+Fluent-created alarms have distinct per-instance NodeIds for their entire
+subtree, including condition Methods and state properties. Configuring
+`WithLimits` materializes the standard typed limit properties, assigns
+instance identifiers, and registers them for browse/read access. Repeated
+limit configuration updates the same property in place; omitted limits
+remain absent.
 
 ### Creating an alarm
 
@@ -104,11 +111,10 @@ alarm.SetActiveState(context, active: true);
 alarm.ReportEvent(context, alarm);
 ```
 
-The optional state nodes are created the way you would expect on a
-generated `AlarmConditionState`: assign to `alarm.SilenceState`,
-`alarm.OutOfServiceState`, `alarm.LatchedState`, etc. before calling
-`Create`. The quickstart reference server creates these via
-`AlarmConditionTypeHolder.Initialize` —
+Before calling `Create`, assign any optional state nodes to properties such as
+`alarm.SilenceState`, `alarm.OutOfServiceState`, and `alarm.LatchedState`.
+The quickstart reference server creates these nodes through
+`AlarmConditionTypeHolder.Initialize` in
 `samples/Quickstarts.Servers/Alarms/AlarmHolders/`.
 
 ### Driving state from your process
@@ -140,12 +146,12 @@ alarm* (Part 9 §4.8). The semantics:
 - `SetActiveState(context, false)` — `ActiveState` reflects the real
   process state, but `LatchedState` stays `true`.
 - `Reset` (server-side method, auto-wired) — clears `LatchedState`.
-  The `Reset` method validates **all** preconditions before accepting:
-  enabled, not active, acknowledged, confirmed (if `ConfirmedState` is
-  present). Any other state returns `Bad_InvalidState`.
+  `Reset` accepts the request only when the alarm is enabled, inactive, and
+  acknowledged, and when it is confirmed if `ConfirmedState` is present.
+  Otherwise, it returns `Bad_InvalidState`.
 
-Latched alarms are *retained* (`Retain = true`) for as long as
-`LatchedState.Id` is `true`, so a client refresh sees them.
+The server retains latched alarms (`Retain = true`) while `LatchedState.Id`
+is `true`, so clients can see them during a refresh.
 
 ### Re-alarming
 
@@ -166,18 +172,18 @@ if (alarm.IsReAlarmEnabled && alarm.ActiveState.Id.Value
 alarm.ResetReAlarmRepeatCount(context);
 ```
 
-`ProcessReAlarm`:
+`ProcessReAlarm` performs these actions:
 
 - clears `AckedState` (forces re-acknowledgement)
 - clears `SilenceState` (audible annunciation resumes)
 - increments `ReAlarmRepeatCount`
-- calls `ReportStateChange` so the new event is published
+- calls `ReportStateChange` to publish the new event
 
 ### Audible alarms and silencing
 
-If `AudibleEnabled = true` and `AudibleSound` is populated, the
-`UpdateAudibleState` helper takes care of clearing the silence state
-when the alarm activates (so the next activation is audible again):
+When `AudibleEnabled = true` and `AudibleSound` has a value,
+`UpdateAudibleState` clears the silence state on activation. The next
+activation is then audible:
 
 ```csharp
 ByteString sound = LoadWavFile();
@@ -190,8 +196,8 @@ server) sets `SilenceState.Id = true`.
 ### Suppression, out-of-service, shelving
 
 All three states contribute to the `SuppressedOrShelved` boolean. The
-state-type setters keep that flag in sync — clearing one does **not**
-clear `SuppressedOrShelved` while the others are still active:
+state-type setters keep the flag in sync. Clearing one state does **not**
+clear `SuppressedOrShelved` while another state remains active:
 
 ```csharp
 alarm.SetSuppressedState(context, true);      // SuppressedOrShelved = true
@@ -202,12 +208,10 @@ alarm.SetOutOfServiceState(context, false);   // SuppressedOrShelved = false
 
 ### Filtered retain
 
-Part 9 B.1.4 lets a server give each client a Retain flag that takes
-that client's event filter into account. With filtered retain on, a
-condition that drops out of the scope of a client's where clause
-reports one final event — so that client sees `Retain = false` even
-though nothing changed on the server, and the alarm stays active for
-everyone else.
+Part 9 B.1.4 lets a server set a client-specific `Retain` flag based on
+that client's event filter. When a condition no longer matches a client's
+where clause, the server sends that client a final event with
+`Retain = false`. The alarm remains active for everyone else.
 
 Opt a condition in by setting `SupportsFilteredRetain`:
 
@@ -229,18 +233,17 @@ Notes on the shape of that property:
   since nothing that walks the instance children would.
 * Each condition and branch is tracked separately, so one branch
   leaving filter scope does not affect its siblings or its parent.
-* `ConditionRefresh` participates: refreshed conditions are evaluated
-  against the where clause and re-prime the tracking.
+* `ConditionRefresh` reevaluates refreshed conditions against the where
+  clause and primes the tracking again.
 * Changing a monitored item's where clause with `ModifyMonitoredItems`
-  discards the tracking, because it describes the *previous* filter.
-  Durable subscriptions carry it across a restart.
-* The trailing event carries a client specific `Retain = false`
-  (Part 9, 5.5.2, Figure 11), whatever the server's own `Retain` says — a
-  trailing event with `Retain = true` would tell the client to keep an
-  alarm it should drop. The override is applied while that one client's
-  event fields are read; the shared event snapshot is untouched, so a
-  client whose filter the condition still passes keeps receiving the
-  server's real value.
+  discards tracking for the previous filter. Durable subscriptions preserve
+  tracking across a restart.
+* Each client receives a trailing event with `Retain = false` (Part 9,
+  5.5.2, Figure 11), regardless of the server's `Retain` value. Otherwise,
+  the client would keep an alarm that it should drop. The override applies
+  only to that client's event fields; it leaves the shared event snapshot
+  unchanged. Other clients whose filters still include the condition keep
+  receiving the server's actual value.
 
 ### Alarm groups and first-in-group
 
@@ -284,21 +287,19 @@ engine.OnFirstInGroupActiveChanged(context, masterTripAlarm, tripGroup,
     firstActive: true);
 ```
 
-The first `Evaluate` call always applies the current state, so
-clients see a coherent suppression state immediately after
-registration — there is no edge required.
+The first `Evaluate` call applies the current state. Clients therefore see
+a coherent suppression state immediately after registration; no state
+transition is required.
 
-> **Live demo:** The `samples/Quickstarts.Servers/Alarms/
-> AlarmNodeManager.cs` reference implementation wires this up
-> end-to-end. It exposes a `/Alarms/AnalogGroup` (`AlarmGroupType`)
-> containing every analog-source alarm and a writable
-> `/Alarms/MaintenanceMode` boolean. Writing `true` to
-> MaintenanceMode runs `AlarmSuppressionEngine.Evaluate(...)` and
-> suppresses every group member; writing `false` clears
-> suppression on the next evaluation. The reference server's node
-> manager itself derives from `AsyncCustomNodeManager`, so the same
-> file is a worked example of porting a Part 9 demo to the modern
-> async base class.
+> **Live demo:** The reference implementation in
+> `samples/Quickstarts.Servers/Alarms/AlarmNodeManager.cs` exposes an
+> `/Alarms/AnalogGroup` (`AlarmGroupType`) containing every analog-source
+> alarm and a writable `/Alarms/MaintenanceMode` boolean. Writing `true` to
+> `MaintenanceMode` runs `AlarmSuppressionEngine.Evaluate(...)` and
+> suppresses every group member. Writing `false` clears suppression on the
+> next evaluation. The reference node manager derives from
+> `AsyncCustomNodeManager`, so this file also demonstrates the modern async
+> base class.
 
 ### Alarm metrics (rate tracking)
 
@@ -368,15 +369,13 @@ audit event — it happens inside the method handler when
 ### `AlarmClient` — typed operations
 
 `AlarmClient` is the strongly-typed client API for Part 9 methods.
-Each method delegates to the matching source-generated
-`*TypeClient` proxy (`ConditionTypeClient`,
-`AcknowledgeableConditionTypeClient`,
-`AlarmConditionTypeClient`, `DialogConditionTypeClient`,
-`ShelvedStateMachineTypeClient`), passing the caller-supplied
-`conditionId` as the proxy's `ObjectId`. This honours the Part 9
-§5.5.4 idiom (`ConditionId` is acceptable as `ObjectId`) and keeps
-exactly one source of truth — the generated proxy — for every
-method NodeId and argument shape.
+Each method delegates to the matching source-generated proxy:
+`ConditionTypeClient`, `AcknowledgeableConditionTypeClient`,
+`AlarmConditionTypeClient`, `DialogConditionTypeClient`, or
+`ShelvedStateMachineTypeClient`. The proxy receives the caller-supplied
+`conditionId` as its `ObjectId`, following the Part 9 §5.5.4 idiom that
+accepts `ConditionId` as `ObjectId`. The generated proxy remains the single
+source for each method NodeId and argument shape.
 
 ```csharp
 AlarmClient alarms = session.GetAlarmClient(telemetry);
@@ -410,10 +409,9 @@ await alarms.UnshelveAsync(conditionId);
 ArrayOf<NodeId> groups = await alarms.GetGroupMembershipsAsync(conditionId);
 ```
 
-The `*Async(... comment ...)` overloads automatically pick the
-spec-defined `*2` method when a non-empty comment is supplied
-(`Suppress2`, `Unsuppress2`, `RemoveFromService2`, `PlaceInService2`,
-`Reset2`).
+The `*Async(... comment ...)` overloads call the spec-defined `*2` method
+when the comment is non-empty: `Suppress2`, `Unsuppress2`,
+`RemoveFromService2`, `PlaceInService2`, and `Reset2`.
 
 ### Subscribing to alarms with `IAsyncEnumerable`
 
@@ -466,11 +464,11 @@ await streaming.SubscribeAlarmsAsync(ObjectIds.Server)
 
 Alarm and condition records are **source-generated** by the
 `Opc.Ua.SourceGeneration` analyzer (see the `EventRecordGenerator`).
-For every `ObjectType` whose base-type chain ends at `BaseEventType`,
-the generator emits a `partial record {Type}Record` deriving from the
-record of its parent type, exposing one init-only property per
-declared field. The standard NodeSet produces the following hierarchy
-(abridged — only the most commonly observed types are shown):
+For every `ObjectType` derived from `BaseEventType`, the generator emits
+a `partial record {Type}Record`. Each generated record derives from its
+parent record and exposes one init-only property for each declared field.
+The standard NodeSet produces the following hierarchy, abridged to show
+the most commonly observed types:
 
 ```
 EventRecord                              (anchor; hand-written)
@@ -488,12 +486,11 @@ EventRecord                              (anchor; hand-written)
                 └── DiscrepancyAlarmTypeRecord
 ```
 
-Vendor models that derive from any of these types **automatically**
-get their own `*TypeRecord` deriving from the closest standard
-ancestor — no checked-in code, no manual class definitions. Add a
-hand-written `partial record VibrationAlarmTypeRecord` in your project
-to extend the generated declaration with computed properties or
-custom helpers.
+Vendor models that derive from these types automatically get their own
+`*TypeRecord`, which derives from the closest standard ancestor. No
+checked-in code or manual class definition is needed. Add a hand-written
+`partial record VibrationAlarmTypeRecord` to your project to extend the
+generated declaration with computed properties or custom helpers.
 
 The decoder upgrades the record type based on which fields are
 populated in the event. A simple `switch` on the record type gives you
@@ -509,26 +506,24 @@ if (record is CertificateExpirationAlarmTypeRecord cert)
 ```
 
 The shared `ConditionTypeRecord.ConditionId` property is a hand-written
-alias for `SourceNode` — Part 9 of the OPC UA specification defines
-the "ConditionId" as the NodeId of the condition object that fired
-the event, which is reported through the `SourceNode` event field.
+alias for `SourceNode`. Part 9 defines `ConditionId` as the NodeId of the
+condition object that raised the event. The event reports this NodeId in
+the `SourceNode` field.
 
 ### Source-generated decoders + `EventRecordDecoderRegistry`
 
-Every record emitted by the `EventRecordGenerator` also exposes a
-nested `static class Decoder` with a positional `StandardFields`
-table and a `Decode(IReadOnlyList<Variant>)` method that populates
-own + inherited init-only properties. A per-file
-`Register{ModelPrefix}Decoders(this EventRecordDecoderRegistry)`
-extension registers every emitted decoder with a caller-supplied
-registry.
+Every record emitted by `EventRecordGenerator` also exposes a nested
+`static class Decoder`. The decoder provides a positional `StandardFields`
+table and a `Decode(IReadOnlyList<Variant>)` method that populates the
+record's own and inherited init-only properties. A per-file
+`Register{ModelPrefix}Decoders(this EventRecordDecoderRegistry)` extension
+registers each generated decoder with a caller-supplied registry.
 
-The process-wide `EventRecordDecoderRegistry.Default` ships with the
-standard UA model pre-registered. It routes by the event's
-`EventType` field and walks the OPC UA event-type hierarchy through
-an optional `SuperTypeResolver` when the exact type is not
-registered. Vendor models register their generated extensions via
-`Register{Prefix}Decoders` or
+The process-wide `EventRecordDecoderRegistry.Default` registers the
+standard UA model. It routes by the event's `EventType` field. If the
+exact type is not registered, it walks the OPC UA event-type hierarchy
+through an optional `SuperTypeResolver`. Vendor models can register their
+generated extensions with `Register{Prefix}Decoders` or
 `CreateChildScope().Register{Prefix}Decoders()` for test isolation.
 
 ```csharp
@@ -546,14 +541,13 @@ EventRecord? vendorRec = app.Decode(eventFields);
 
 Every generated `{Type}Record` exposes a nested
 `static class EventFilters` alongside its `Decoder` block. The
-`Build(registry?)` factory produces an `EventFilter` whose where
-clause restricts events to `OfType({recordTypeId})` and whose
-select clauses come from the supplied registry's composed
-`StandardFields` (defaults to
-`EventRecordDecoderRegistry.Default`). The returned filter pairs
-cleanly with `EventRecordDecoderRegistry.Decode` — the registry
-remaps the composed positions to each decoder's own layout
-before invoking it, so vendor models extend transparently.
+`Build(registry?)` factory returns an `EventFilter`. Its where clause
+restricts events to `OfType({recordTypeId})`, and its select clauses come
+from the supplied registry's composed `StandardFields` (by default,
+`EventRecordDecoderRegistry.Default`). Use the filter with
+`EventRecordDecoderRegistry.Decode`. The registry remaps composed field
+positions to each decoder's layout before decoding, so vendor models
+extend transparently.
 
 ```csharp
 // Filter for alarm events:
@@ -576,9 +570,9 @@ var app = EventRecordDecoderRegistry.Default
 EventFilter vendorFilter = VibrationAlarmTypeRecord.EventFilters.Build(app);
 ```
 
-The same registry should be passed to `Subscribe*Async`
-(through the `registry:` parameter) so the streaming side decodes
-through the registry that built the filter.
+Pass the same registry to `Subscribe*Async` through its `registry:`
+parameter. This ensures the streaming side uses the registry that built
+the filter.
 
 ### Dialog conditions
 
@@ -602,12 +596,11 @@ await foreach (DialogConditionTypeRecord dialog in streaming.SubscribeDialogsAsy
 }
 ```
 
-The `OkResponse` / `CancelResponse` / `DefaultResponse` properties on
-the *server-side* `DialogConditionType` (Part 9 §5.6.2) carry their
-canonical indices for clients to read separately via Read service if
-the application needs them; they are not surfaced in the standard
-`DialogConditionTypeRecord` (which only carries the dialog prompt +
-active state).
+The server-side `DialogConditionType` properties `OkResponse`,
+`CancelResponse`, and `DefaultResponse` carry canonical indices (Part 9
+§5.6.2). Applications can read these indices separately through the Read
+service. The standard `DialogConditionTypeRecord` does not include them;
+it contains only the dialog prompt and active state.
 
 ### `ConditionRefresh`
 
@@ -621,9 +614,9 @@ await alarms.ConditionRefreshAsync(subscriptionId);
 await alarms.ConditionRefresh2Async(subscriptionId, monitoredItemId);
 ```
 
-The classic `ISubscription.ConditionRefreshAsync` on the streaming
-subscription is also available — they are equivalent when the
-`AlarmClient` and the `IStreamingSubscription` are bound to the same
+The streaming subscription also provides
+`ISubscription.ConditionRefreshAsync`. Both refresh methods are
+equivalent when `AlarmClient` and `IStreamingSubscription` use the same
 session.
 
 ## Reference

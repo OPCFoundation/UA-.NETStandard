@@ -40,14 +40,10 @@ namespace Opc.Ua.Identity
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Authenticators are dispatched in registration order: this
-    /// preserves predictable precedence when more than one
-    /// authenticator claims the same
-    /// <see cref="IUserTokenAuthenticator.TokenType"/> (e.g. two
-    /// different JWT authenticators for two different issuers — the
-    /// first to <see cref="AuthenticationOutcome.Accepted"/> or
-    /// <see cref="AuthenticationOutcome.Rejected"/> wins; a
-    /// <see cref="AuthenticationOutcome.NotHandled"/> moves on).
+    /// Register replaces the existing token-type/profile registration. Issuer-qualified
+    /// authenticators can coexist for distinct issuers; replacing an issuer never leaves
+    /// its old verifier active. Remaining registrations are dispatched in registration
+    /// order, stopping at the first Accepted or Rejected result.
     /// </para>
     /// </remarks>
     public sealed class ServerIdentityRegistry : IServerIdentityRegistry
@@ -82,26 +78,19 @@ namespace Opc.Ua.Identity
             {
                 throw new ArgumentNullException(nameof(authenticator));
             }
-            string key = Key(authenticator.TokenType, authenticator.IssuedTokenProfileUri);
             lock (m_lock)
             {
-                if (m_byKey.TryGetValue(key, out IUserTokenAuthenticator? existing))
-                {
-                    int index = m_order.IndexOf(existing);
-                    if (index >= 0)
-                    {
-                        m_order[index] = authenticator;
-                    }
-                    else
-                    {
-                        m_order.Add(authenticator);
-                    }
-                }
-                else
-                {
-                    m_order.Add(authenticator);
-                }
-                m_byKey[key] = authenticator;
+                string? issuer = GetIssuer(authenticator);
+                m_order.RemoveAll(existing =>
+                    existing.TokenType == authenticator.TokenType &&
+                    string.Equals(
+                        existing.IssuedTokenProfileUri,
+                        authenticator.IssuedTokenProfileUri,
+                        StringComparison.Ordinal) &&
+                    (issuer == null ||
+                        GetIssuer(existing) == null ||
+                        string.Equals(GetIssuer(existing), issuer, StringComparison.Ordinal)));
+                m_order.Add(authenticator);
             }
         }
 
@@ -112,17 +101,9 @@ namespace Opc.Ua.Identity
             {
                 throw new ArgumentNullException(nameof(authenticator));
             }
-            string key = Key(authenticator.TokenType, authenticator.IssuedTokenProfileUri);
             lock (m_lock)
             {
-                if (!m_byKey.TryGetValue(key, out IUserTokenAuthenticator? existing) ||
-                    !ReferenceEquals(existing, authenticator))
-                {
-                    return false;
-                }
-                m_byKey.Remove(key);
-                m_order.Remove(authenticator);
-                return true;
+                return m_order.Remove(authenticator);
             }
         }
 
@@ -229,15 +210,15 @@ namespace Opc.Ua.Identity
             return AuthenticationResult.NotHandled;
         }
 
-        private static string Key(UserTokenType type, string? profileUri)
+        private static string? GetIssuer(IUserTokenAuthenticator authenticator)
         {
-            return profileUri == null
-                ? type.ToString()
-                : $"{type}|{profileUri}";
+            return authenticator.TokenType == UserTokenType.IssuedToken &&
+                authenticator is IIssuerTokenAuthenticator issuerAuthenticator
+                ? issuerAuthenticator.IssuerUri
+                : null;
         }
 
         private readonly Lock m_lock = new();
-        private readonly Dictionary<string, IUserTokenAuthenticator> m_byKey = new(StringComparer.Ordinal);
         private readonly List<IUserTokenAuthenticator> m_order = [];
         private readonly List<IIdentityAugmenter> m_augmenters = [];
     }

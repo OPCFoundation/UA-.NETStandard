@@ -105,10 +105,7 @@ namespace Opc.Ua.Server.Fluent
             NodeState source,
             ISampledDataChangeMonitoredItem monitoredItem)
         {
-            MonitoredSourceRegistration? registration = Find(
-                source.NodeId,
-                out _);
-            return registration?.OnCreatedAsync(context, source, monitoredItem) ?? default;
+            return UpdateRegistrationAsync(context, source, monitoredItem, monitoredItem.MonitoringMode);
         }
 
         public ValueTask OnModifiedAsync(
@@ -116,10 +113,7 @@ namespace Opc.Ua.Server.Fluent
             NodeState source,
             ISampledDataChangeMonitoredItem monitoredItem)
         {
-            MonitoredSourceRegistration? registration = Find(
-                source.NodeId,
-                out _);
-            return registration?.OnModifiedAsync(context, source, monitoredItem) ?? default;
+            return UpdateRegistrationAsync(context, source, monitoredItem, monitoredItem.MonitoringMode);
         }
 
         public async ValueTask OnDeletedAsync(
@@ -154,14 +148,23 @@ namespace Opc.Ua.Server.Fluent
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode)
         {
-            MonitoredSourceRegistration? registration = Find(
-                source.NodeId,
-                out _);
-            return registration?.OnMonitoringModeChangedAsync(
-                context,
-                source,
-                monitoredItem,
-                monitoringMode) ?? default;
+            return UpdateRegistrationAsync(context, source, monitoredItem, monitoringMode);
+        }
+
+        private async ValueTask UpdateRegistrationAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode monitoringMode)
+        {
+            while (Find(source.NodeId, out _) is MonitoredSourceRegistration registration)
+            {
+                if (await registration.TryUpdateAsync(context, source, monitoredItem, monitoringMode)
+                    .ConfigureAwait(false))
+                {
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -287,10 +290,11 @@ namespace Opc.Ua.Server.Fluent
                 }
                 if (!instances.TryGetValue(
                     nodeId,
-                    out MonitoredSourceRegistration? registration))
+                    out MonitoredSourceRegistration? registration) ||
+                    registration.IsRetiring)
                 {
                     registration = template.CreateForNode(nodeId);
-                    instances.Add(nodeId, registration);
+                    instances[nodeId] = registration;
                 }
                 return registration;
             }
@@ -301,7 +305,10 @@ namespace Opc.Ua.Server.Fluent
             NodeId nodeId,
             MonitoredSourceRegistration registration)
         {
-            bool removed = false;
+            if (!await registration.TryBeginRetireAsync().ConfigureAwait(false))
+            {
+                return;
+            }
             lock (m_registrationLock)
             {
                 if (m_virtualInstances.TryGetValue(
@@ -317,14 +324,10 @@ namespace Opc.Ua.Server.Fluent
                     {
                         m_virtualInstances.Remove(virtualNodes);
                     }
-                    removed = true;
                 }
             }
 
-            if (removed)
-            {
-                await registration.DisposeAsync().ConfigureAwait(false);
-            }
+            await registration.ReleaseAsync(m_owner.SystemContext).ConfigureAwait(false);
         }
 
         private void ThrowIfDisposed()
@@ -447,6 +450,47 @@ namespace Opc.Ua.Server.Fluent
             return registration;
         }
 
+        public bool IsRetiring => Volatile.Read(ref m_releasing) || Volatile.Read(ref m_disposeStarted) != 0;
+
+        public async ValueTask<bool> TryBeginRetireAsync()
+        {
+            if (!TryEnterUpdate())
+            {
+                return false;
+            }
+            try
+            {
+                await m_updateLock.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    if (IsRetiring || m_items.Count != 0)
+                    {
+                        return false;
+                    }
+                    m_releasing = true;
+                    return true;
+                }
+                finally
+                {
+                    m_updateLock.Release();
+                }
+            }
+            finally
+            {
+                ExitUpdate();
+            }
+        }
+
+        public async ValueTask<bool> TryUpdateAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode monitoringMode)
+        {
+            return !(await UpdateAsync(context, source, monitoredItem, monitoringMode, remove: false)
+                .ConfigureAwait(false)).Retry;
+        }
+
         public async ValueTask OnCreatedAsync(
             ISystemContext context,
             NodeState source,
@@ -473,17 +517,17 @@ namespace Opc.Ua.Server.Fluent
                 remove: false).ConfigureAwait(false);
         }
 
-        public ValueTask<bool> OnDeletedAsync(
+        public async ValueTask<bool> OnDeletedAsync(
             ISystemContext context,
             NodeState source,
             ISampledDataChangeMonitoredItem monitoredItem)
         {
-            return UpdateAsync(
+            return (await UpdateAsync(
                 context,
                 source,
                 monitoredItem,
                 monitoredItem.MonitoringMode,
-                remove: true);
+                remove: true).ConfigureAwait(false)).Empty;
         }
 
         public async ValueTask OnMonitoringModeChangedAsync(
@@ -502,30 +546,7 @@ namespace Opc.Ua.Server.Fluent
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref m_disposeStarted, 1) != 0)
-            {
-                return;
-            }
-
-            CancellationTokenSource? workerCts = m_workerCts;
-            Task? worker = m_worker;
-            workerCts?.Cancel();
-            if (workerCts == null)
-            {
-                return;
-            }
-
-            if (worker == null || worker.IsCompleted)
-            {
-                workerCts.Dispose();
-                return;
-            }
-
-            _ = worker.ContinueWith(
-                _ => workerCts.Dispose(),
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+            StartDisposal();
         }
 
         /// <summary>
@@ -541,17 +562,39 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         public async ValueTask ReleaseAsync(ISystemContext context)
         {
-            MonitoredSourceLifecycleHandler? lastSubscriber = null;
-            NodeState? source = null;
+            if (!TryEnterUpdate())
+            {
+                await DisposeAsync().ConfigureAwait(false);
+                return;
+            }
+            try
+            {
+                await ReleaseLifecycleAsync(context).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitUpdate();
+            }
+            await DisposeAsync().ConfigureAwait(false);
+        }
+
+        private async ValueTask ReleaseLifecycleAsync(ISystemContext context)
+        {
+            ValueTask callback = default;
 
             await m_updateLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (!m_releasing && m_disposeStarted == 0 && HasActiveItems())
+                if (m_disposeStarted == 0 && m_lifecycleActive)
                 {
-                    lastSubscriber = m_lastSubscriber;
-                    source = m_desiredSource;
+                    m_lifecycleActive = false;
                     m_items.Clear();
+                    m_releasing = true;
+                    if (m_desiredSource != null)
+                    {
+                        callback = InvokeLifecycleAsync(
+                            m_lastSubscriber, context, m_desiredSource, "OnLastSubscriber", CancellationToken.None);
+                    }
                 }
 
                 // Enter the terminal state while still holding the lock. Clearing the
@@ -566,61 +609,100 @@ namespace Opc.Ua.Server.Fluent
                 m_updateLock.Release();
             }
 
-            if (lastSubscriber != null && source != null)
-            {
-                await InvokeLifecycleAsync(
-                        lastSubscriber,
-                        context,
-                        source,
-                        "OnLastSubscriber")
-                    .ConfigureAwait(false);
-            }
-
-            await DisposeAsync().ConfigureAwait(false);
+            await callback.ConfigureAwait(false);
         }
 
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposeStarted, 1) != 0)
-            {
-                return;
-            }
+            StartDisposal();
+            return new ValueTask(m_disposalCompleted.Task);
+        }
 
-            CancellationTokenSource? workerCts;
-            Task? worker;
-            await m_updateLock.WaitAsync().ConfigureAwait(false);
-            try
+        private void StartDisposal()
+        {
+            if (Interlocked.Exchange(ref m_disposeStarted, 1) == 0)
             {
-                workerCts = m_workerCts;
-                worker = m_worker;
-                m_workerCts = null;
-                m_worker = null;
-                m_items.Clear();
-            }
-            finally
-            {
-                m_updateLock.Release();
-            }
-
-            workerCts?.Cancel();
-            try
-            {
-                if (worker != null)
+                if (Volatile.Read(ref m_activeUpdates) == 0)
                 {
-                    await worker.ConfigureAwait(false);
+                    m_updatesDrained.TrySetResult(true);
                 }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            finally
-            {
-                workerCts?.Dispose();
-                m_updateLock.Dispose();
+                _ = CompleteDisposalAsync();
             }
         }
 
-        private async ValueTask<bool> UpdateAsync(
+        private async Task CompleteDisposalAsync()
+        {
+            try
+            {
+                await m_updatesDrained.Task.ConfigureAwait(false);
+                CancellationTokenSource? workerCts;
+                Task? worker;
+                await m_updateLock.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    workerCts = m_workerCts;
+                    worker = m_worker;
+                    m_worker = null;
+                    m_items.Clear();
+                }
+                finally
+                {
+                    m_updateLock.Release();
+                }
+                workerCts?.Cancel();
+                try
+                {
+                    if (worker != null)
+                    {
+                        await worker.ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException) when (workerCts?.IsCancellationRequested == true)
+                {
+                }
+                finally
+                {
+                    m_workerCts?.Dispose();
+                    m_workerCts = null;
+                    m_updateLock.Dispose();
+                }
+                m_disposalCompleted.TrySetResult(true);
+            }
+            catch (Exception error)
+            {
+                m_logger.MonitoredSourceReleaseFailed(error);
+                m_disposalCompleted.TrySetException(error);
+                _ = m_disposalCompleted.Task.Exception;
+            }
+        }
+
+        private bool TryEnterUpdate()
+        {
+            if (Volatile.Read(ref m_disposeStarted) != 0)
+            {
+                return false;
+            }
+            Interlocked.Increment(ref m_activeUpdates);
+            if (Volatile.Read(ref m_disposeStarted) != 0)
+            {
+                ExitUpdate();
+                return false;
+            }
+            return true;
+        }
+
+        private void ExitUpdate()
+        {
+            if (Interlocked.Decrement(ref m_activeUpdates) == 0 && Volatile.Read(ref m_disposeStarted) != 0)
+            {
+                m_updatesDrained.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Reconciles monitored-item membership with source activation and the effective polling period.
+        /// </summary>
+        private async ValueTask<(bool Retry, bool Empty)> UpdateAsync(
             ISystemContext context,
             NodeState source,
             ISampledDataChangeMonitoredItem monitoredItem,
@@ -630,6 +712,10 @@ namespace Opc.Ua.Server.Fluent
             ReconcileAction action;
             TimeSpan effectivePeriod;
             bool isEmpty;
+            if (!TryEnterUpdate())
+            {
+                return (true, false);
+            }
             try
             {
                 await m_updateLock.WaitAsync().ConfigureAwait(false);
@@ -640,7 +726,7 @@ namespace Opc.Ua.Server.Fluent
                     // the window before m_disposeStarted is set.
                     if (m_releasing || Volatile.Read(ref m_disposeStarted) != 0)
                     {
-                        return false;
+                        return (true, false);
                     }
 
                     bool wasActive = HasActiveItems();
@@ -688,26 +774,20 @@ namespace Opc.Ua.Server.Fluent
                 switch (action)
                 {
                     case ReconcileAction.Activate:
-                        await InvokeLifecycleAsync(
-                            m_firstSubscriber,
-                            context,
-                            source,
-                            "OnFirstSubscriber").ConfigureAwait(false);
+                        await InvokeCurrentLifecycleAsync(true, context, source).ConfigureAwait(false);
                         await RestartWorkerAsync(
                             context,
                             source,
                             effectivePeriod).ConfigureAwait(false);
                         break;
                     case ReconcileAction.Deactivate:
-                        _ = await StopWorkerAsync(
+                        if (await StopWorkerAsync(
                             requireInactive: true,
                             source,
-                            effectivePeriod).ConfigureAwait(false);
-                        await InvokeLifecycleAsync(
-                            m_lastSubscriber,
-                            context,
-                            source,
-                            "OnLastSubscriber").ConfigureAwait(false);
+                            effectivePeriod).ConfigureAwait(false))
+                        {
+                            await InvokeCurrentLifecycleAsync(false, context, source).ConfigureAwait(false);
+                        }
                         break;
                     case ReconcileAction.Restart:
                         await RestartWorkerAsync(
@@ -717,15 +797,57 @@ namespace Opc.Ua.Server.Fluent
                         break;
                 }
 
-                return isEmpty;
+                await m_updateLock.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    isEmpty = m_items.Count == 0;
+                }
+                finally
+                {
+                    m_updateLock.Release();
+                }
+                return (false, isEmpty);
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 m_logger.MonitoredSourceReconcileFailed(
                     exception,
                     FormatNodeId(source.NodeId));
-                return false;
+                return (false, false);
             }
+            finally
+            {
+                ExitUpdate();
+            }
+        }
+
+        /// <summary>
+        /// Invokes a lifecycle transition only if the current subscriber state still requires it.
+        /// </summary>
+        private async ValueTask InvokeCurrentLifecycleAsync(bool activate, ISystemContext context, NodeState source)
+        {
+            ValueTask callback;
+            await m_updateLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (m_releasing || m_disposeStarted != 0 ||
+                    HasActiveItems() != activate || m_lifecycleActive == activate)
+                {
+                    return;
+                }
+                m_lifecycleActive = activate;
+                callback = InvokeLifecycleAsync(
+                    activate ? m_firstSubscriber : m_lastSubscriber,
+                    context,
+                    source,
+                    activate ? "OnFirstSubscriber" : "OnLastSubscriber",
+                    activate ? m_managerToken : CancellationToken.None);
+            }
+            finally
+            {
+                m_updateLock.Release();
+            }
+            await callback.ConfigureAwait(false);
         }
 
         private async ValueTask RestartWorkerAsync(
@@ -921,7 +1043,8 @@ namespace Opc.Ua.Server.Fluent
             MonitoredSourceLifecycleHandler? handler,
             ISystemContext context,
             NodeState source,
-            string callback)
+            string callback,
+            CancellationToken ct)
         {
             if (handler == null)
             {
@@ -930,9 +1053,9 @@ namespace Opc.Ua.Server.Fluent
 
             try
             {
-                await handler(context, source, m_managerToken).ConfigureAwait(false);
+                await handler(context, source, ct).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (m_managerToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -1015,12 +1138,24 @@ namespace Opc.Ua.Server.Fluent
         private CancellationTokenSource? m_workerCts;
         private Task? m_worker;
         private int m_disposeStarted;
+        private int m_activeUpdates;
+
+        private readonly TaskCompletionSource<bool> m_updatesDrained =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private readonly TaskCompletionSource<bool> m_disposalCompleted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>
         /// Set under <c>m_updateLock</c> once release has begun, so a reconcile pass
         /// that was already dispatched cannot re-acquire behind it.
         /// </summary>
         private bool m_releasing;
+
+        /// <summary>
+        /// Tracks whether the first-subscriber transition still requires a matching last-subscriber transition.
+        /// </summary>
+        private bool m_lifecycleActive;
 
         private enum ReconcileAction
         {

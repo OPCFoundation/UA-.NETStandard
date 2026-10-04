@@ -30,6 +30,9 @@
     -->
     <NoWarn Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">$(NoWarn);CS2008;CA1014;CA1016</NoWarn>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Diagnostics.Tests" />
   </ItemGroup>

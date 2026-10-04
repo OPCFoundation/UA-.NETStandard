@@ -144,10 +144,10 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that a provider exception faults the capture consumer and is surfaced during disposal.
+        /// Verifies that failed batches are counted without preventing the next batch from being archived.
         /// </summary>
         [Test]
-        public async Task ProviderExceptionFaultsConsumerAndSurfacesOnDisposeAsync()
+        public async Task ProviderExceptionsDropOnlyFailedBatchesAndCaptureContinuesAsync()
         {
             var provider = new ThrowThenSucceedProvider(throwCount: 2);
             ServerSystemContext ctx = CreateSystemContext();
@@ -158,29 +158,17 @@ namespace Opc.Ua.Server.Tests.Historian
             };
 
             var sink = new HistorianCaptureSink(provider, ctx, options);
-            sink.Enqueue(
-                new NodeId("retry", kNs),
-                new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow));
-
-            // Give the consumer time to flush and fault on the first provider exception.
-            await Task.Delay(200).ConfigureAwait(false);
-
-            // The provider failure remains observable on disposal, but the
-            // background archive must not break the live value-change path.
-            Assert.DoesNotThrow(() =>
+            for (int i = 0; i < 3; i++)
+            {
                 sink.Enqueue(
                     new NodeId("retry", kNs),
-                    new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow)));
-            Assert.That(sink.DroppedSampleCount, Is.EqualTo(1));
+                    new DataValue(new Variant(i), StatusCodes.Good, DateTime.UtcNow));
+            }
+            await sink.DisposeAsync().ConfigureAwait(false);
 
-            InvalidOperationException disposeEx = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await sink.DisposeAsync().ConfigureAwait(false))!;
-            Assert.That(disposeEx.Message, Is.EqualTo("Simulated provider failure"));
-
-            Assert.That(provider.TotalCalls, Is.EqualTo(1),
-                "The faulted consumer must not retry after the first provider failure.");
-            Assert.That(provider.SuccessfulInserts, Is.Zero,
-                "No batch should succeed once the consumer has faulted.");
+            Assert.That(sink.DroppedSampleCount, Is.EqualTo(2));
+            Assert.That(provider.TotalCalls, Is.EqualTo(3));
+            Assert.That(provider.SuccessfulInserts, Is.EqualTo(1));
         }
 
         /// <summary>

@@ -67,7 +67,7 @@ public sealed class OpenApiWebSocketConnectionTests
             SecurityNone = true,
             UriScheme = Utils.UriSchemeOpcWss,
             HttpsMutualTls = false,
-            MaxChannelCount = 8,
+            MaxChannelCount = 128,
             TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
         };
         await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);

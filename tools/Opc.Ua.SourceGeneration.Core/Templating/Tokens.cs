@@ -83,7 +83,11 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfChildOperations => nameof(ListOfChildOperations);
         public static string Historizing => nameof(Historizing);
         public static string Identifier => nameof(Identifier);
+        public static string HashCondition => nameof(HashCondition);
+        public static string HashValue => nameof(HashValue);
+        public static string FieldTable => nameof(FieldTable);
         public static string IdType => nameof(IdType);
+        public static string IdModifier => nameof(IdModifier);
         public static string Imports => nameof(Imports);
         public static string InitializeOptionalChildren => nameof(InitializeOptionalChildren);
         public static string InvokeServiceAsync => nameof(InvokeServiceAsync);
@@ -202,6 +206,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ModelName => nameof(ModelName);
         public static string ModelPayload => nameof(ModelPayload);
         public static string AccessModifier => nameof(AccessModifier);
+        public static string AssemblyAttributes => nameof(AssemblyAttributes);
         public static string IdentifierReflection => nameof(IdentifierReflection);
         public static string ListOfNodeStateInitializers => nameof(ListOfNodeStateInitializers);
         public static string ListOfNodeStateTypeFactories => nameof(ListOfNodeStateTypeFactories);

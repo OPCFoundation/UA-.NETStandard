@@ -102,7 +102,7 @@ namespace Pumps
                   Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
             m_options = options?.Value ?? new PumpDeviceIntegrationOptions();
-            if (m_options.PumpCount < 1 || m_options.PumpCount > 100)
+            if (m_options.PumpCount is < 1 or > 100)
             {
                 throw new ArgumentOutOfRangeException(
                     $"{nameof(options)}.{nameof(PumpDeviceIntegrationOptions.PumpCount)}",
@@ -274,6 +274,7 @@ namespace Pumps
         /// <c>AddPredefinedNodeAsync</c> recursively registers the
         /// entire subtree.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<PumpState> MaterialisePumpInstanceAsync(
             QualifiedName pumpBrowseName,
             CancellationToken cancellationToken,
@@ -328,8 +329,6 @@ namespace Pumps
             AttachOpenUsdRepresentation(pump, pumpNumber);
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
-                .ConfigureAwait(false);
-            await AddRootNotifierAsync(pump, cancellationToken)
                 .ConfigureAwait(false);
             if (onRegistered != null)
             {
@@ -432,9 +431,9 @@ namespace Pumps
             variable.UserAccessLevel |= AccessLevels.HistoryRead;
             variable.AccessLevelEx |= AccessLevels.HistoryRead;
             variable.OnReadAccessLevel = (
-                ISystemContext context,
-                NodeState node,
-                ref byte value) =>
+                context,
+                node,
+                ref value) =>
             {
                 value = (byte)(variable.AccessLevel | AccessLevels.HistoryRead);
                 return ServiceResult.Good;
@@ -469,29 +468,29 @@ namespace Pumps
         private void MaterialiseNameplate(PumpIdentificationState identification)
         {
             // OPC 10000-100 (DI) nameplate.
-            identification.AddManufacturerUri(SystemContext);
-            identification.AddModel(SystemContext);
-            identification.AddProductCode(SystemContext);
-            identification.AddDeviceClass(SystemContext);
-            identification.AddHardwareRevision(SystemContext);
-            identification.AddSoftwareRevision(SystemContext);
-            identification.AddProductInstanceUri(SystemContext);
-            identification.AddAssetId(SystemContext);
-            identification.AddComponentName(SystemContext);
+            identification.AddManufacturerUri(SystemContext)
+                .AddModel(SystemContext)
+                .AddProductCode(SystemContext)
+                .AddDeviceClass(SystemContext)
+                .AddHardwareRevision(SystemContext)
+                .AddSoftwareRevision(SystemContext)
+                .AddProductInstanceUri(SystemContext)
+                .AddAssetId(SystemContext)
+                .AddComponentName(SystemContext);
 
             // OPC 40001-1 (Machinery) nameplate.
-            identification.AddLocation(SystemContext);
-            identification.AddYearOfConstruction(SystemContext);
-            identification.AddMonthOfConstruction(SystemContext);
+            identification.AddLocation(SystemContext)
+                .AddYearOfConstruction(SystemContext)
+                .AddMonthOfConstruction(SystemContext);
 
             // OPC 40223 (Pumps) nameplate.
-            identification.AddDayOfConstruction(SystemContext);
-            identification.AddArticleNumber(SystemContext);
-            identification.AddOrderProductCode(SystemContext);
-            identification.AddTypeOfProduct(SystemContext);
-            identification.AddSupplier(SystemContext);
-            identification.AddCountryOfOrigin(SystemContext);
-            identification.AddFabricationNumber(SystemContext);
+            identification.AddDayOfConstruction(SystemContext)
+                .AddArticleNumber(SystemContext)
+                .AddOrderProductCode(SystemContext)
+                .AddTypeOfProduct(SystemContext)
+                .AddSupplier(SystemContext)
+                .AddCountryOfOrigin(SystemContext)
+                .AddFabricationNumber(SystemContext);
         }
 
         /// <summary>

@@ -52,6 +52,7 @@ namespace Opc.Ua.Server.Historian
         /// <param name="context">Operation context.</param>
         /// <param name="request">Normalised at-time read request.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>One exact or calculated value per requested timestamp, preserving the request order.</returns>
         ValueTask<ArrayOf<DataValue>> ReadAtTimeAsync(
             HistorianOperationContext context,
             HistorianAtTimeReadRequest request,

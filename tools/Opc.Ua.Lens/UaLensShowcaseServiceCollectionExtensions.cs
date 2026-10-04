@@ -45,82 +45,98 @@ using UaLens.Plugins.SubscriptionBench;
 using UaLens.ViewModels;
 using UaLens.Workspace;
 
-namespace UaLens;
-
-/// <summary>
-/// Registers native-safe, replaceable document factories without starting network or sample workloads.
-/// </summary>
-internal static class UaLensShowcaseServiceCollectionExtensions
+namespace UaLens
 {
-    public static IServiceCollection AddUaLensShowcases(this IServiceCollection services)
+    /// <summary>
+    /// Registers native-safe, replaceable document factories without starting network or sample workloads.
+    /// </summary>
+    internal static class UaLensShowcaseServiceCollectionExtensions
     {
-        ArgumentNullException.ThrowIfNull(services);
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(RegistrationMarker)))
+        public static IServiceCollection AddUaLensShowcases(this IServiceCollection services)
         {
+            ArgumentNullException.ThrowIfNull(services);
+            if (services.Any(descriptor => descriptor.ServiceType == typeof(RegistrationMarker)))
+            {
+                return services;
+            }
+            services.AddSingleton(new RegistrationMarker());
+            AddFactory(services, PluginKind.Alarms, static host => new AlarmsPlugin(host));
+            AddFactory(services, PluginKind.Models, static host => new ModelInspectorPlugin(host));
+            AddFactory(services, PluginKind.Continuity, static host => new ContinuityPlugin(host));
+            services.TryAddSingleton<IGdsCertificateIssuance>(_ => new GdsCertificateIssuance());
+            services.TryAddSingleton<Func<PluginHost, GdsManagementPlugin>>(provider =>
+            {
+                IGdsCertificateIssuance issuance = provider.GetRequiredService<IGdsCertificateIssuance>();
+                IGdsManagementClient? client = provider.GetService<IGdsManagementClient>();
+                IGdsCertificateDelivery? delivery = provider.GetService<IGdsCertificateDelivery>();
+                return host => new GdsManagementPlugin(host, issuance, client, delivery);
+            });
+            services.AddUaLensPluginFactory<Func<PluginHost, GdsManagementPlugin>>(
+                PluginKind.GdsManagement, static (factory, host) => factory(host), isDefault: true);
+            services.TryAddSingleton<Func<PluginHost, GdsPushPlugin>>(provider =>
+            {
+                IGdsPushClient? client = provider.GetService<IGdsPushClient>();
+                return host => new GdsPushPlugin(host, client);
+            });
+            services.AddUaLensPluginFactory<Func<PluginHost, GdsPushPlugin>>(
+                PluginKind.GdsPush, static (factory, host) => factory(host), isDefault: true);
+
+            services.TryAddSingleton(provider =>
+                new VariablePoolBrowser(provider.GetRequiredService<ITelemetryContext>()));
+            services.AddUaLensPluginFactory<VariablePoolBrowser>(
+                PluginKind.SubscriptionBench,
+                static (browser, host) => new SubscriptionBenchPlugin(host, browser),
+                isDefault: true);
+            services.AddUaLensPluginFactory<IWorkspaceDispatcher>(
+                PluginKind.Historian,
+                static (dispatcher, host) => new HistorianPlugin(host, dispatcher),
+                isDefault: true);
+            services.AddUaLensPluginFactory<IWorkspaceDispatcher>(
+                PluginKind.Subscription,
+                static (dispatcher, host) => PluginRegistry.CreateSubscription(host, dispatcher),
+                isDefault: true);
+            services.AddUaLensPluginFactory<WriteValueOperationFactory>(
+                PluginKind.EventView,
+                static (operations, host) => new EventViewPlugin(host, operations),
+                isDefault: true);
+
+            services.TryAddSingleton<IPubSubRuntimeFactory>(provider => new PubSubRuntimeFactory(
+                provider.GetRequiredService<ITelemetryContext>(),
+                provider.GetService<TimeProvider>(),
+                [.. provider.GetServices<IPubSubTransportProvider>()],
+                [.. provider.GetServices<IPubSubKeyProviderResolver>()],
+                [.. provider.GetServices<IPubSubAdapterProvider>()]));
+            services.AddUaLensPluginFactory<IPubSubRuntimeFactory>(
+                PluginKind.PubSub, static (factory, host) => new PubSubPlugin(host, factory), isDefault: true);
+
+            services.TryAddSingleton<ICompanionPackageReader, CompanionPackageReader>();
+            services.TryAddSingleton<ICompanionDeploymentPolicy>(provider => new ConfiguredCompanionDeploymentPolicy(
+                [.. provider.GetServices<CompanionDeploymentRule>()], provider.GetService<TimeProvider>()));
+            services.TryAddSingleton(provider =>
+            {
+                ICompanionProvider[] companions = [.. provider.GetServices<ICompanionProvider>()];
+                return new CompanionPluginFactory(
+                    providers: companions.Length == 0 ? default : new ArrayOf<ICompanionProvider>(companions),
+                    timeProvider: provider.GetService<TimeProvider>(),
+                    packages: provider.GetRequiredService<ICompanionPackageReader>(),
+                    deploymentPolicy: provider.GetRequiredService<ICompanionDeploymentPolicy>());
+            });
+            services.AddUaLensPluginFactory<CompanionPluginFactory>(
+                PluginKind.Companions, static (factory, host) => factory.Create(host), isDefault: true);
             return services;
         }
-        services.AddSingleton(new RegistrationMarker());
-        AddFactory(services, PluginKind.Alarms, static host => new AlarmsPlugin(host));
-        AddFactory(services, PluginKind.Models, static host => new ModelInspectorPlugin(host));
-        AddFactory(services, PluginKind.Continuity, static host => new ContinuityPlugin(host));
-        services.TryAddSingleton<IGdsCertificateIssuance>(_ => new GdsCertificateIssuance());
-        services.TryAddSingleton<Func<PluginHost, GdsManagementPlugin>>(provider =>
+
+        private static void AddFactory<TPlugin>(
+            IServiceCollection services,
+            PluginKind kind,
+            Func<PluginHost, TPlugin> create)
+            where TPlugin : class, IPlugin
         {
-            IGdsCertificateIssuance issuance = provider.GetRequiredService<IGdsCertificateIssuance>();
-            IGdsManagementClient? client = provider.GetService<IGdsManagementClient>();
-            IGdsCertificateDelivery? delivery = provider.GetService<IGdsCertificateDelivery>();
-            return host => new GdsManagementPlugin(host, issuance, client, delivery);
-        });
-        services.AddUaLensPluginFactory<Func<PluginHost, GdsManagementPlugin>>(
-            PluginKind.GdsManagement, static (factory, host) => factory(host), isDefault: true);
-        services.TryAddSingleton<Func<PluginHost, GdsPushPlugin>>(provider =>
-        {
-            IGdsPushClient? client = provider.GetService<IGdsPushClient>();
-            return host => new GdsPushPlugin(host, client);
-        });
-        services.AddUaLensPluginFactory<Func<PluginHost, GdsPushPlugin>>(
-            PluginKind.GdsPush, static (factory, host) => factory(host), isDefault: true);
+            services.TryAddSingleton<Func<PluginHost, TPlugin>>(_ => create);
+            services.AddUaLensPluginFactory<Func<PluginHost, TPlugin>>(
+                kind, static (factory, host) => factory(host), isDefault: true);
+        }
 
-        services.TryAddSingleton(provider => new VariablePoolBrowser(provider.GetRequiredService<ITelemetryContext>()));
-        services.AddUaLensPluginFactory<VariablePoolBrowser>(
-            PluginKind.SubscriptionBench, static (browser, host) => new SubscriptionBenchPlugin(host, browser),
-            isDefault: true);
-        services.AddUaLensPluginFactory<IWorkspaceDispatcher>(
-            PluginKind.Historian, static (dispatcher, host) => new HistorianPlugin(host, dispatcher), isDefault: true);
-        services.AddUaLensPluginFactory<IWorkspaceDispatcher>(
-            PluginKind.Subscription, static (dispatcher, host) => PluginRegistry.CreateSubscription(host, dispatcher),
-            isDefault: true);
-        services.AddUaLensPluginFactory<WriteValueOperationFactory>(
-            PluginKind.EventView, static (operations, host) => new EventViewPlugin(host, operations), isDefault: true);
-
-        services.TryAddSingleton<IPubSubRuntimeFactory>(provider => new PubSubRuntimeFactory(
-            provider.GetRequiredService<ITelemetryContext>(),
-            provider.GetService<TimeProvider>(),
-            [.. provider.GetServices<IPubSubTransportProvider>()],
-            [.. provider.GetServices<IPubSubKeyProviderResolver>()],
-            [.. provider.GetServices<IPubSubAdapterProvider>()]));
-        services.AddUaLensPluginFactory<IPubSubRuntimeFactory>(
-            PluginKind.PubSub, static (factory, host) => new PubSubPlugin(host, factory), isDefault: true);
-
-        services.TryAddSingleton<ICompanionPackageReader, CompanionPackageReader>();
-        services.TryAddSingleton(provider => new CompanionPluginFactory(
-            timeProvider: provider.GetService<TimeProvider>(),
-            packages: provider.GetRequiredService<ICompanionPackageReader>()));
-        services.AddUaLensPluginFactory<CompanionPluginFactory>(
-            PluginKind.Companions, static (factory, host) => factory.Create(host), isDefault: true);
-        return services;
+        private sealed class RegistrationMarker;
     }
-
-    private static void AddFactory<TPlugin>(
-        IServiceCollection services,
-        PluginKind kind,
-        Func<PluginHost, TPlugin> create)
-        where TPlugin : class, IPlugin
-    {
-        services.TryAddSingleton<Func<PluginHost, TPlugin>>(_ => create);
-        services.AddUaLensPluginFactory<Func<PluginHost, TPlugin>>(
-            kind, static (factory, host) => factory(host), isDefault: true);
-    }
-
-    private sealed class RegistrationMarker;
 }

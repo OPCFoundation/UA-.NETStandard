@@ -138,6 +138,18 @@ namespace Opc.Ua.Schema.Tests
         }
 
         /// <summary>
+        /// Creates a structure type description with the specified structure type.
+        /// </summary>
+        public static UaTypeDescription Structure(
+            uint id,
+            string name,
+            StructureType structureType,
+            params StructureField[] fields)
+        {
+            return BuildStructure(id, name, TestNamespace, TestNamespaceIndex, structureType, fields);
+        }
+
+        /// <summary>
         /// Creates a union type description.
         /// </summary>
         public static UaTypeDescription Union(

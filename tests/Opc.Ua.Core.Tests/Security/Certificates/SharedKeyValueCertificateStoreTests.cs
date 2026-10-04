@@ -34,6 +34,7 @@
 #nullable enable
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -353,42 +354,35 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         private sealed class MarkerRecordProtector : IRecordProtector
         {
-            private static readonly byte[] s_marker = [0xA5, 0x5A, 0xC3, 0x3C];
-
-            public ByteString Protect(ByteString plaintext)
+            public ByteString Protect(ByteString context, ByteString plaintext)
             {
                 ReadOnlySpan<byte> source = plaintext.Span;
-                byte[] result = new byte[s_marker.Length + source.Length];
+                int headerLength = s_marker.Length + sizeof(int) + context.Length;
+                byte[] result = new byte[headerLength + source.Length];
                 s_marker.CopyTo(result.AsSpan());
-                source.CopyTo(result.AsSpan(s_marker.Length));
+                BinaryPrimitives.WriteInt32LittleEndian(result.AsSpan(s_marker.Length), context.Length);
+                context.Span.CopyTo(result.AsSpan(s_marker.Length + sizeof(int)));
+                source.CopyTo(result.AsSpan(headerLength));
                 return new ByteString(result);
             }
 
-            public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
+            public bool TryUnprotect(ByteString context, ByteString protectedRecord, out ByteString plaintext)
             {
                 ReadOnlySpan<byte> span = protectedRecord.Span;
-                if (span.Length < s_marker.Length ||
-                    !span[..s_marker.Length].SequenceEqual(s_marker))
+                int headerLength = s_marker.Length + sizeof(int) + context.Length;
+                if (span.Length < headerLength ||
+                    !span[..s_marker.Length].SequenceEqual(s_marker) ||
+                    BinaryPrimitives.ReadInt32LittleEndian(span[s_marker.Length..]) != context.Length ||
+                    !span.Slice(s_marker.Length + sizeof(int), context.Length).SequenceEqual(context.Span))
                 {
-                    plaintext = ByteString.Empty;
+                    plaintext = default;
                     return false;
                 }
-                plaintext = new ByteString(span[s_marker.Length..].ToArray());
+                plaintext = new ByteString(span[headerLength..].ToArray());
                 return true;
             }
 
-            public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
-            {
-                ReadOnlySpan<byte> span = protectedRecord.Span;
-                if (span.Length < s_marker.Length ||
-                    !span[..s_marker.Length].SequenceEqual(s_marker))
-                {
-                    plaintext = [];
-                    return false;
-                }
-                plaintext = span[s_marker.Length..].ToArray();
-                return true;
-            }
+            private static readonly byte[] s_marker = [0xA5, 0x5A, 0xC3, 0x3C];
         }
     }
 }

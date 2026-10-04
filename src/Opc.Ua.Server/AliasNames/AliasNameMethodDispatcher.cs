@@ -169,18 +169,29 @@ namespace Opc.Ua.Server.AliasNames
             }
 
             var requests = new List<AliasAddRequest>(aliasNames.Count);
+            NodeId normalizedReferenceType = targetReferenceType.IsNull
+                ? ReferenceTypeIds.AliasFor
+                : targetReferenceType;
             for (int i = 0; i < aliasNames.Count; i++)
             {
                 requests.Add(new AliasAddRequest(
                     aliasNames[i] ?? string.Empty,
                     targetNodes[i],
                     i < targetServers.Count ? targetServers[i] : null,
-                    targetReferenceType));
+                    normalizedReferenceType));
             }
 
             (ServiceResult result, StatusCode[] codes) = await registry
                 .DispatchAddAliasesAsync(categoryId, requests, ct)
                 .ConfigureAwait(false);
+
+            for (int i = 0; i < codes.Length; i++)
+            {
+                if (codes[i] == StatusCodes.BadBrowseNameDuplicated)
+                {
+                    codes[i] = StatusCodes.Good;
+                }
+            }
 
             return new AddAliasesToCategoryMethodStateResult
             {

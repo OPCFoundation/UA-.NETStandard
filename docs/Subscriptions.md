@@ -28,12 +28,24 @@ active, so existing classic-API code keeps working alongside V2.
 
 For the full engine comparison (publish-pipeline ownership, worker
 pools, when to pick which) see
-[Sessions.md §4](Sessions.md#4-subscription-engines).
+[Sessions: subscription engines](Sessions.md#5-subscription-engines).
+
+## Contents
 
 - [Quick reference](#quick-reference)
+- [Streaming subscriptions](#streaming-subscriptions)
+  - [Obtaining an `IStreamingSubscription`](#obtaining-an-istreamingsubscription)
+  - [Subscribing to data changes](#subscribing-to-data-changes)
+  - [Subscribing to events](#subscribing-to-events)
+  - [Composing streams](#composing-streams)
+  - [Lifecycle, cancellation, disposal](#lifecycle-cancellation-disposal)
+  - [Pairing with `AlarmClient`](#pairing-with-alarmclient)
+- [Server retransmission queues](#server-retransmission-queues)
+- [Publishing during session recovery](#publishing-during-session-recovery)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
   - [Imperative triggering](#imperative-triggering)
+  - [Cancellation semantics](#cancellation-semantics)
   - [N:M relationships](#nm-relationships)
   - [Save / load / restore behavior](#save--load--restore-behavior)
   - [Error handling](#error-handling)
@@ -45,13 +57,6 @@ pools, when to pick which) see
   - [Durable subscriptions](#durable-subscriptions)
   - [Performance](#performance)
   - [Limitations and roadmap](#limitations-and-roadmap)
-- [Streaming subscriptions](#streaming-subscriptions)
-  - [Obtaining an `IStreamingSubscription`](#obtaining-an-istreamingsubscription)
-  - [Subscribing to data changes](#subscribing-to-data-changes)
-  - [Subscribing to events](#subscribing-to-events)
-  - [Composing streams](#composing-streams)
-  - [Lifecycle, cancellation, disposal](#lifecycle-cancellation-disposal)
-  - [Pairing with `AlarmClient`](#pairing-with-alarmclient)
 - [Classic → V2 surface mapping](#classic--v2-surface-mapping)
   - [Subscription lifecycle](#subscription-lifecycle)
   - [Notifications and callbacks](#notifications-and-callbacks)
@@ -61,7 +66,9 @@ pools, when to pick which) see
   - [Persistence (save / load)](#persistence-save--load)
   - [Tuning knobs](#tuning-knobs)
   - [Engine wiring](#engine-wiring)
+  - [Per-item options mapping](#per-item-options-mapping)
 - [Three-API summary](#three-api-summary)
+- [Reference](#reference)
 
 ## Quick reference
 
@@ -85,6 +92,310 @@ pools, when to pick which) see
 | Stream — buffer first N | `.BufferedAsync(count)` |
 | Stream — typed alarms | `streaming.SubscribeAlarmsAsync(notifierId, filter?)` |
 
+## Streaming subscriptions
+
+`IStreamingSubscription` exposes OPC UA subscription notifications as
+`IAsyncEnumerable<T>` streams. Each `SubscribeXxxAsync` call adds a
+monitored item to a shared, lazy-created OPC UA subscription and pipes
+notifications through a `System.Threading.Channels.Channel<T>`.
+Disposing the enumerator removes the monitored item.
+
+This API sits on top of the V2 subscription engine
+(`src/Opc.Ua.Client/Subscription`). It is **not** a replacement
+for either the classic or V2 callback-based API — it is a thin
+abstraction targeted at three concrete client scenarios:
+
+- **State-machine waits** — "subscribe, observe transitions until X,
+  unsubscribe".
+- **Short-lived monitoring** — "I need a sample for 30 seconds".
+- **Typed alarm streaming** — Part 9 alarm records via
+  `AlarmStreamExtensions` (see [AlarmsAndConditions.md](AlarmsAndConditions.md)).
+
+For long-lived application subscriptions, the callback-based
+`ISubscriptionManager.Add` + `ISubscriptionNotificationHandler` API
+remains the right choice (see
+[Sessions: DefaultSubscriptionEngine (V2)](Sessions.md#defaultsubscriptionengine-v2)).
+
+### Obtaining an `IStreamingSubscription`
+
+`ManagedSession.DefaultStreaming` lazily constructs a shared instance
+the first time it is accessed and disposes it when the session is
+disposed.
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .ConnectAsync(ct);
+
+IStreamingSubscription streaming = session.DefaultStreaming;
+```
+
+If you need to bind to a specific `ISubscriptionManager` (for example
+in tests or with the raw `Session`'s V2 engine), construct directly:
+
+```csharp
+if (!session.TryGetSubscriptionManager(out var manager))
+{
+    throw new InvalidOperationException("A V2 subscription engine is required.");
+}
+await using var streaming = new StreamingSubscription(
+    subscriptionManager: manager,
+    subscriptionOptions: new SubscriptionOptions
+    {
+        PublishingInterval = TimeSpan.FromMilliseconds(250),
+        KeepAliveCount = 10,
+        LifetimeCount = 100,
+    });
+```
+
+The underlying OPC UA subscription is **not** created until the first
+`SubscribeXxxAsync` call. Once created it is shared by every active
+`SubscribeXxxAsync` enumerator on this `StreamingSubscription`.
+
+### Subscribing to data changes
+
+```csharp
+await foreach (DataValueChange change in streaming
+    .SubscribeDataChangesAsync(VariableIds.Server_ServerStatus_CurrentTime, ct: ct)
+    .ConfigureAwait(false))
+{
+    Console.WriteLine($"{change.MonitoredItem?.Name}: {change.Value}");
+}
+```
+
+For multiple variables in a single stream:
+
+```csharp
+var nodes = new[]
+{
+    VariableIds.Server_ServerStatus_CurrentTime,
+    VariableIds.Server_ServerStatus_SecondsTillShutdown,
+};
+
+await foreach (DataValueChange change in streaming
+    .SubscribeDataChangesAsync(nodes, options: new MonitoredItemOptions
+    {
+        SamplingInterval = TimeSpan.FromMilliseconds(500),
+        QueueSize = 5,
+    }, ct: ct).ConfigureAwait(false))
+{
+    Console.WriteLine($"{change.MonitoredItem?.ClientHandle}: {change.Value}");
+}
+```
+
+Each `MonitoredItemOptions` is treated as a template; only `StartNodeId`
+is overridden internally per node.
+
+### Subscribing to events
+
+```csharp
+EventFilter filter = new AlarmEventFilterBuilder()
+    .ForAlarms()
+    .Build();
+
+await foreach (EventNotification evt in streaming
+    .SubscribeEventsAsync(ObjectIds.Server, filter, ct: ct)
+    .ConfigureAwait(false))
+{
+    // Raw access; for typed records use SubscribeAlarmsAsync.
+    Console.WriteLine($"#{evt.Fields.Count} fields");
+}
+```
+
+`SubscribeEventsAsync` does *not* validate the filter. Use
+`AlarmEventFilterBuilder` for Part 9 events and any custom
+`SimpleAttributeOperand`-based filter for other event types.
+
+### Composing streams
+
+`StreamingSubscriptionExtensions` ships four LINQ-style helpers
+designed for the bounded-observation use cases. They wrap the source
+`IAsyncEnumerable<T>` and stop iterating (which disposes the
+underlying enumerator and the monitored item) when their condition
+fires.
+
+```csharp
+// 1) Wait until a predicate matches, then return the matching item.
+DataValueChange completed = await streaming
+    .SubscribeDataChangesAsync(buildProgressVariable)
+    .TakeUntilAsync(c => (double)c.Value.Value >= 100.0)
+    .LastAsync(ct);
+
+// 2) Cap by wall-clock time. Completes silently when the timeout elapses.
+List<DataValueChange> samples = await streaming
+    .SubscribeDataChangesAsync(sensor)
+    .WithTimeoutAsync(TimeSpan.FromSeconds(30))
+    .ToListAsync(ct);
+
+// 3) Take exactly N values.
+List<DataValueChange> firstThree = await streaming
+    .SubscribeDataChangesAsync(sensor)
+    .TakeAsync(3)
+    .ToListAsync(ct);
+
+// 4) Buffer N items into a list — for one-shot snapshots.
+IReadOnlyList<DataValueChange> snapshot = await streaming
+    .SubscribeDataChangesAsync(sensor)
+    .BufferedAsync(count: 10, ct);
+```
+
+`TakeUntilAsync` yields the matching item *last*, so callers can grab
+the transition value with `LastAsync` / a terminating handler.
+
+### Lifecycle, cancellation, disposal
+
+Each stream has a bounded local buffer, including the default data-change
+subscription. Its capacity is `max(1, QueueSize) * monitoredItemCount`, capped
+at `int.MaxValue`; event streams default to ten entries per monitored item.
+When full, `DiscardOldest` chooses between evicting the oldest buffered entry
+and discarding the incoming entry. `StreamingSubscription.DroppedNotificationCount`
+reports the cumulative local drops across data-change and event streams.
+
+For a multi-node stream, this is one shared queue, not a per-node allocation.
+With `DiscardOldest` enabled, a busy node can evict a quiet node's only queued
+value. There is no local guarantee that each node's latest value remains buffered,
+and overflow increments the drop counter rather than failing the stream. Use
+separate single-node streams, consumed independently, when per-node retention is
+required. Server-side per-monitored-item queues do not change this local policy.
+
+The streaming subscription guarantees three invariants:
+
+1. **Lazy subscription creation.** No OPC UA `CreateSubscription`
+   round-trip happens until your first `SubscribeXxxAsync` call.
+2. **Reference-counted monitored items.** Each call adds a monitored
+   item; disposing the enumerator (end of the `await foreach`, an
+   exception, or explicit `await using`) removes that monitored item.
+   The underlying subscription stays alive for other enumerators.
+3. **Disposal order.** Disposing the `StreamingSubscription` completes
+   all open channels and attempts to delete the underlying OPC UA subscription.
+   Disposing the `ManagedSession` calls this for you.
+
+V2 subscription disposal gives each server-side delete a separate five-second
+cancellation deadline. Local cleanup does not wait indefinitely for an unavailable
+server. A failed or timed-out delete is logged; it does not prove remote deletion,
+and the server may retain the subscription until its configured lifetime expires.
+
+Publish workers survive recovery for subscriptions that the V2 engine actually
+created. A never-created subscription does not inherit worker retention from a
+classic subscription or a V2 subscription that has already been removed.
+An intentionally disabled or deleted subscription likewise contributes no
+retained demand until it is created again.
+
+Cancellation propagates the natural way: pass a `CancellationToken` to
+`SubscribeXxxAsync` *or* the outer `await foreach` (via
+`WithCancellation`). When the token fires the enumerator stops, the
+finally block removes the monitored item, and the loop body throws
+`OperationCanceledException`.
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+try
+{
+    await foreach (DataValueChange change in
+        streaming.SubscribeDataChangesAsync(sensor, ct: cts.Token))
+    {
+        Process(change);
+    }
+}
+catch (OperationCanceledException) { /* expected */ }
+```
+
+### Pairing with `AlarmClient`
+
+The streaming subscription and `AlarmClient` are complementary:
+
+- `IStreamingSubscription` delivers the *events* (raw or typed).
+- `AlarmClient` calls the *methods* (acknowledge, shelve, suppress,
+  reset, etc.).
+
+```csharp
+AlarmClient alarms = session.GetAlarmClient();
+IStreamingSubscription streaming = session.DefaultStreaming;
+
+await foreach (ConditionTypeRecord rec in streaming
+    .SubscribeAlarmsAsync(ObjectIds.Server)
+    .TakeUntilAsync(r =>
+        r is AlarmConditionTypeRecord a &&
+        a.ConditionId == myAlarmId &&
+        a.ActiveStateId == true))
+{
+    if (rec is AlarmConditionTypeRecord active && active.ActiveStateId == true)
+    {
+        await alarms.AcknowledgeAsync(
+            active.ConditionId,
+            active.EventId,
+            new LocalizedText("en", "Auto-acked")).ConfigureAwait(false);
+    }
+}
+```
+
+See [AlarmsAndConditions.md](AlarmsAndConditions.md) for the typed
+record hierarchy.
+
+## Server retransmission queues
+
+On the server, newly created monitored items remain provisional until
+the subscription rechecks ownership and deletion after node-manager
+creation. If transfer, session detachment, deletion, or cancellation wins,
+normal node-manager deletion releases those unattached items.
+
+Publish, queued Publish, Republish, and persistence consumers receive
+deep notification snapshots. Acknowledgement, eviction, or queue disposal
+can recycle the retained pooled graph without changing a response still
+waiting for encoding or a captured retransmission/durable snapshot.
+Pooling remains enabled for the retained notifications.
+
+The server retains notification messages for acknowledgement and Republish
+(Part 4 §5.14). When a new batch exceeds the configured retransmission capacity,
+only the excess oldest retained messages are evicted. The remaining sequence
+numbers, persistence removal deltas and discarded-unacknowledged-message
+diagnostics describe the same retained queue. An oversized new batch is trimmed
+to capacity before it displaces older messages.
+
+The per-session Publish request limit counts only requests still awaiting a
+response. Cancellation, timeout, normal completion and session/server teardown
+release a request's admission exactly once; a completed request does not prevent
+the client from queuing its replacement while a long keep-alive is pending.
+
+Publish from a live session without subscriptions returns `BadNoSubscription`,
+regardless of other sessions' subscriptions. A closing session retains
+`BadSessionClosed`. The Republish request and requested-message diagnostic
+counters remain equal, with one increment per authorized request; the
+successful-message counter advances only when a message is returned.
+
+## Publishing during session recovery
+
+V2 session recreation pauses publishing and drains active Publish attempts
+before replacing the session. The drain cancels each attempt, including an
+attempt parked at the shared channel's ready gate, without terminating its
+worker. A cancelled attempt rolls its acknowledgements back before releasing its
+active count. Recreation must await this complete unwind because a timeout that skips
+the drain could acknowledge notifications from the old subscription generation
+against a reused subscription identifier.
+
+Automatic subscription and monitored-item updates also pause during session
+recreation. Recovery cancels an active update pass; its retry waits until the
+recovery owner completes subscription restoration. If restoration fails, this
+pause remains in effect across the outer-policy handoff. The state worker cannot
+create a competing subscription on a retiring or replacement session. Pending
+option changes resume after restoration, without changing explicit
+`RecreateAsync` or transfer semantics. Cancellation remains client-side and does
+not guarantee that an already-sent request was not processed by the server.
+
+Once the session and subscriptions are restored, publishing resumes through the
+same subscription-facing interface. Temporarily clearing server-side subscription
+identifiers does not replace existing workers. Pool limits and actual subscription
+removal still apply. Intentional deletion, including setting the V2 subscription's
+`Disabled` option, retires its worker demand even if it remains registered.
+Successful creation restores demand; recovery-only resets preserve it.
+With transfer-on-recreate enabled, an invalid old subscription
+falls back to recreation. A
+[managed-session channel deadline](Sessions.md#shared-retry-budget-with-managedsession)
+cancels recovery and hands control to the outer reconnect policy. After expiry,
+any replacement attempt still waits for cancelled Publish attempts to roll back
+their acknowledgements and release their active counts before replacing session
+and subscription state.
+
 ## Triggering (SetTriggering)
 
 Triggering (OPC UA Part 4 §5.13.5) links a *triggering* monitored
@@ -94,6 +405,12 @@ reported in the next publish even if their monitoring mode is
 `Sampling` (which would otherwise suppress reporting). This is the
 canonical pattern for "sample many items at high rate, report on
 demand". See Part 4 §5.13.1.6 for the full triggering model.
+
+Aggregate-filtered monitored items follow these same monitoring-mode rules
+(Part 4 5.13.1.3). Completion of an aggregate interval does not enable reporting
+for a `Disabled` item or an untriggered `Sampling` item. A legitimately triggered
+`Sampling` item can publish its queued aggregates; after that trigger is consumed,
+interval completion alone does not cause another report.
 
 The V2 engine exposes triggering through a **hybrid API**:
 
@@ -340,7 +657,11 @@ when needed.
   introspect the partition layout:
 
   ```csharp
-  ISubscription subscription = session.SubscriptionManager.Add(handler, optionsMonitor);
+  if (!session.TryGetSubscriptionManager(out var manager))
+  {
+      throw new InvalidOperationException("A V2 subscription engine is required.");
+  }
+  ISubscription subscription = manager.Add(handler, optionsMonitor);
   if (subscription is IPartitionedSubscription partitioned)
   {
       Console.WriteLine($"Spread over {partitioned.PartitionCount} partition(s)");
@@ -476,7 +797,26 @@ The restore path:
 subscriptions regroup items into the same affinity-pinned partition
 the source had.
 
+Republishing retained notifications and requesting initial values are independent.
+If an origin session disconnects before acknowledging a message, a transfer can
+recover that message from the server's retransmission queue. With
+`SendInitialValuesOnTransfer` also enabled, the target can receive the same static
+value again in a new notification message. Distinguish these batches by their
+sequence numbers, not by value equality. On the classic API, retransmission is
+controlled by `RepublishAfterTransfer`, while initial values are requested with
+the transfer call's `sendInitialValues` argument. Deferring acknowledgements
+retains messages for explicit `Republish` requests; it does not ask the server
+to resend them unsolicited. See
+[OPC UA Part 4, TransferSubscriptions](https://reference.opcfoundation.org/specs/OPC-10000-4/5.14.7).
+The classic client acknowledges messages selected for replay only after receiving
+them. Messages not selected for replay are acknowledged when transfer completes;
+the advertised available-sequence list remains intact.
+
 ### Durable subscriptions
+
+The server converts the configured durable lifetime in hours to milliseconds
+before revising keep-alive and lifetime counts. The conversion uses wide
+arithmetic, including lifetimes longer than the UInt32 millisecond range.
 
 `SetAsDurableAsync(lifetime)` records the durable intent on the
 wrapper and applies it synchronously to every partition that is
@@ -523,222 +863,6 @@ group co-located for the lifetime of the wrapper.
 This is the only multi-partition feature gap — single-partition
 workloads cover the vast majority of OPC UA client use cases
 unchanged.
-
-## Streaming subscriptions
-
-`IStreamingSubscription` exposes OPC UA subscription notifications as
-`IAsyncEnumerable<T>` streams. Each `SubscribeXxxAsync` call adds a
-monitored item to a shared, lazy-created OPC UA subscription and pipes
-notifications through a `System.Threading.Channels.Channel<T>`.
-Disposing the enumerator removes the monitored item.
-
-This API sits on top of the V2 subscription engine
-(`src/Opc.Ua.Client/Subscription`). It is **not** a replacement
-for either the classic or V2 callback-based API — it is a thin
-abstraction targeted at three concrete client scenarios:
-
-- **State-machine waits** — "subscribe, observe transitions until X,
-  unsubscribe".
-- **Short-lived monitoring** — "I need a sample for 30 seconds".
-- **Typed alarm streaming** — Part 9 alarm records via
-  `AlarmStreamExtensions` (see [AlarmsAndConditions.md](AlarmsAndConditions.md)).
-
-For long-lived application subscriptions, the callback-based
-`ISubscriptionManager.Add` + `ISubscriptionNotificationHandler` API
-remains the right choice (see
-[Sessions.md §4.2 *DefaultSubscriptionEngine (V2)*](Sessions.md#defaultsubscriptionengine-v2)).
-
-### Obtaining an `IStreamingSubscription`
-
-`ManagedSession.DefaultStreaming` lazily constructs a shared instance
-the first time it is accessed and disposes it when the session is
-disposed.
-
-```csharp
-ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
-    .UseEndpoint(endpoint)
-    .ConnectAsync(ct);
-
-IStreamingSubscription streaming = session.DefaultStreaming;
-```
-
-If you need to bind to a specific `ISubscriptionManager` (for example
-in tests or with the raw `Session`'s V2 engine), construct directly:
-
-```csharp
-var streaming = new StreamingSubscription(
-    subscriptionManager: session.SubscriptionManager,
-    subscriptionOptions: new SubscriptionOptions
-    {
-        PublishingInterval = TimeSpan.FromMilliseconds(250),
-        KeepAliveCount = 10,
-        LifetimeCount = 100,
-    });
-```
-
-The underlying OPC UA subscription is **not** created until the first
-`SubscribeXxxAsync` call. Once created it is shared by every active
-`SubscribeXxxAsync` enumerator on this `StreamingSubscription`.
-
-### Subscribing to data changes
-
-```csharp
-await foreach (DataValueChange change in streaming
-    .SubscribeDataChangesAsync(VariableIds.Server_ServerStatus_CurrentTime, ct: ct)
-    .ConfigureAwait(false))
-{
-    Console.WriteLine($"{change.MonitoredItem?.Name}: {change.Value}");
-}
-```
-
-For multiple variables in a single stream:
-
-```csharp
-var nodes = new[]
-{
-    VariableIds.Server_ServerStatus_CurrentTime,
-    VariableIds.Server_ServerStatus_SecondsTillShutdown,
-};
-
-await foreach (DataValueChange change in streaming
-    .SubscribeDataChangesAsync(nodes, options: new MonitoredItemOptions
-    {
-        SamplingInterval = TimeSpan.FromMilliseconds(500),
-        QueueSize = 5,
-    }, ct: ct).ConfigureAwait(false))
-{
-    Console.WriteLine($"{change.MonitoredItem?.ClientHandle}: {change.Value}");
-}
-```
-
-Each `MonitoredItemOptions` is treated as a template; only `StartNodeId`
-is overridden internally per node.
-
-### Subscribing to events
-
-```csharp
-EventFilter filter = new AlarmEventFilterBuilder()
-    .ForAlarms()
-    .Build();
-
-await foreach (EventNotification evt in streaming
-    .SubscribeEventsAsync(ObjectIds.Server, filter, ct: ct)
-    .ConfigureAwait(false))
-{
-    // Raw access; for typed records use SubscribeAlarmsAsync.
-    Console.WriteLine($"#{evt.Fields.Count} fields");
-}
-```
-
-`SubscribeEventsAsync` does *not* validate the filter. Use
-`AlarmEventFilterBuilder` for Part 9 events and any custom
-`SimpleAttributeOperand`-based filter for other event types.
-
-### Composing streams
-
-`StreamingSubscriptionExtensions` ships four LINQ-style helpers
-designed for the bounded-observation use cases. They wrap the source
-`IAsyncEnumerable<T>` and stop iterating (which disposes the
-underlying enumerator and the monitored item) when their condition
-fires.
-
-```csharp
-// 1) Wait until a predicate matches, then return the matching item.
-DataValueChange completed = await streaming
-    .SubscribeDataChangesAsync(buildProgressVariable)
-    .TakeUntilAsync(c => (double)c.Value.Value >= 100.0)
-    .LastAsync(ct);
-
-// 2) Cap by wall-clock time. Completes silently when the timeout elapses.
-List<DataValueChange> samples = await streaming
-    .SubscribeDataChangesAsync(sensor)
-    .WithTimeoutAsync(TimeSpan.FromSeconds(30))
-    .ToListAsync(ct);
-
-// 3) Take exactly N values.
-List<DataValueChange> firstThree = await streaming
-    .SubscribeDataChangesAsync(sensor)
-    .TakeAsync(3)
-    .ToListAsync(ct);
-
-// 4) Buffer N items into a list — for one-shot snapshots.
-IReadOnlyList<DataValueChange> snapshot = await streaming
-    .SubscribeDataChangesAsync(sensor)
-    .BufferedAsync(count: 10, ct);
-```
-
-`TakeUntilAsync` yields the matching item *last*, so callers can grab
-the transition value with `LastAsync` / a terminating handler.
-
-### Lifecycle, cancellation, disposal
-
-The streaming subscription guarantees three invariants:
-
-1. **Lazy subscription creation.** No OPC UA `CreateSubscription`
-   round-trip happens until your first `SubscribeXxxAsync` call.
-2. **Reference-counted monitored items.** Each call adds a monitored
-   item; disposing the enumerator (end of the `await foreach`, an
-   exception, or explicit `await using`) removes that monitored item.
-   The underlying subscription stays alive for other enumerators.
-3. **Disposal order.** Disposing the `StreamingSubscription` completes
-   all open channels and attempts to delete the underlying OPC UA subscription.
-   Disposing the `ManagedSession` calls this for you.
-
-V2 subscription disposal gives each server-side delete a separate five-second
-cancellation deadline. Local cleanup does not wait indefinitely for an unavailable
-server. A failed or timed-out delete is logged; it does not prove remote deletion,
-and the server may retain the subscription until its configured lifetime expires.
-
-Cancellation propagates the natural way: pass a `CancellationToken` to
-`SubscribeXxxAsync` *or* the outer `await foreach` (via
-`WithCancellation`). When the token fires the enumerator stops, the
-finally block removes the monitored item, and the loop body throws
-`OperationCanceledException`.
-
-```csharp
-using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-try
-{
-    await foreach (DataValueChange change in
-        streaming.SubscribeDataChangesAsync(sensor, ct: cts.Token))
-    {
-        Process(change);
-    }
-}
-catch (OperationCanceledException) { /* expected */ }
-```
-
-### Pairing with `AlarmClient`
-
-The streaming subscription and `AlarmClient` are complementary:
-
-- `IStreamingSubscription` delivers the *events* (raw or typed).
-- `AlarmClient` calls the *methods* (acknowledge, shelve, suppress,
-  reset, etc.).
-
-```csharp
-AlarmClient alarms = session.GetAlarmClient();
-IStreamingSubscription streaming = session.DefaultStreaming;
-
-await foreach (ConditionTypeRecord rec in streaming
-    .SubscribeAlarmsAsync(ObjectIds.Server)
-    .TakeUntilAsync(r =>
-        r is AlarmConditionTypeRecord a &&
-        a.ConditionId == myAlarmId &&
-        a.ActiveStateId == true))
-{
-    if (rec is AlarmConditionTypeRecord active && active.ActiveStateId == true)
-    {
-        await alarms.AcknowledgeAsync(
-            active.ConditionId,
-            active.EventId,
-            new LocalizedText("en", "Auto-acked")).ConfigureAwait(false);
-    }
-}
-```
-
-See [AlarmsAndConditions.md](AlarmsAndConditions.md) for the typed
-record hierarchy.
 
 ## Classic → V2 surface mapping
 
@@ -830,7 +954,7 @@ reconciliation, etc.) along with the recommended V2 alternative.
 | `s.MinLifetimeInterval` (property) | `SubscriptionOptions.MinLifetimeInterval`. |
 | `s.DisableMonitoredItemCache` | Not on V2 — there is no per-item cache to disable (the handler is the cache). |
 | `s.SequentialPublishing` | Always-on. The V2 prioritized publish-ack channel guarantees per-subscription in-order delivery; documented on `ISubscriptionNotificationHandler`. |
-| `s.RepublishAfterTransfer` | Implicit via `MessageProcessor.TryRepublishAsync` (always-on gap fill); no opt-out. |
+| `s.RepublishAfterTransfer` | Implicit and always-on; no opt-out. When `TransferSubscriptions` succeeds, the V2 engine immediately republishes every sequence number the server reports as still available in its retransmission queue (`MessageProcessor.RecoverTransferredMessagesAsync`), so a subscription that stays quiet - or only emits keep-alives - after the transfer still recovers the pending notifications. Gaps detected later are filled by `MessageProcessor.TryRepublishAsync`. |
 | `s.OutstandingMessageWorkers` (per-subscription) | Manager-wide `PublishWorkerCount`. |
 | `s.Id` / `s.TransferId` | `ISubscription.ServerId` (`uint`). |
 | `s.Handle` (caller bookkeeping) | Not on `ISubscription`. Callers keep a side dictionary keyed by the item `Name`. |

@@ -75,6 +75,63 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// Verify independent ownership throughout copied alarm subtrees.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopiedAlarmChildrenHaveIndependentOwnership(bool useClone)
+        {
+            var context = new SystemContext(Telemetry) { NamespaceUris = Context.NamespaceUris };
+            var original = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(1000),
+                BrowseName = QualifiedName.From("Root")
+            };
+            var alarm = new OffNormalAlarmState(original);
+            alarm.Create(context, new NodeId(1001), QualifiedName.From("Alarm"), LocalizedText.From("Alarm"), false);
+            original.AddChild(alarm);
+            BaseObjectState copy;
+            if (useClone)
+            {
+                copy = (BaseObjectState)original.Clone();
+            }
+            else
+            {
+                copy = new BaseObjectState(null);
+                copy.Create(context, original);
+            }
+            int count = AssertOwnedChildren(original, copy);
+            Assert.That(count, Is.GreaterThan(30), "The inherited alarm subtree must be exercised.");
+
+            int AssertOwnedChildren(NodeState source, NodeState target)
+            {
+                var children = new List<BaseInstanceState>();
+                var copiedChildren = new List<BaseInstanceState>();
+                source.GetChildren(context, children);
+                target.GetChildren(context, copiedChildren);
+                Assert.That(copiedChildren, Has.Count.EqualTo(children.Count));
+                int visited = children.Count;
+                foreach (BaseInstanceState child in children)
+                {
+                    BaseInstanceState copiedChild = target.FindChild(context, child.BrowseName);
+                    Assert.That(copiedChild, Is.Not.Null);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(copiedChild, Is.Not.SameAs(child), child.BrowseName.ToString());
+                        Assert.That(copiedChild.Parent, Is.SameAs(target), child.BrowseName.ToString());
+                        Assert.That(child.Parent, Is.SameAs(source), child.BrowseName.ToString());
+                        Assert.That(copiedChild.NodeId, Is.EqualTo(child.NodeId));
+                    });
+                    visited += AssertOwnedChildren(child, copiedChild);
+                    LocalizedText originalName = child.DisplayName;
+                    copiedChild.DisplayName = LocalizedText.From("Changed copy");
+                    Assert.That(child.DisplayName, Is.EqualTo(originalName));
+                }
+                return visited;
+            }
+        }
+
+        /// <summary>
         /// Verify activation of a NodeState type.
         /// </summary>
         [Theory]

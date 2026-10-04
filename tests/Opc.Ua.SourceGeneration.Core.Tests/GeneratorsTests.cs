@@ -46,6 +46,38 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     public class GeneratorsTests
     {
         /// <summary>
+        /// Regression: when the target's Namespaces constant name collides with
+        /// another namespace, a new name is built from the prefix. Keyword parts
+        /// were escaped with '@' before being concatenated, which put the '@' in
+        /// the middle of the identifier ("Acme@base@object").
+        /// </summary>
+        [TestCase("acme.base.object", "AcmeBaseObject")]
+        [TestCase("Acme.Class", "AcmeClass")]
+        [TestCase("2024.models", "_2024Models")]
+        public void UniqueTargetNamespaceNameIsAValidIdentifier(string prefix, string expected)
+        {
+            var target = new Opc.Ua.Schema.Model.Namespace
+            {
+                Name = "Base",
+                Prefix = prefix,
+                Value = "urn:test:target"
+            };
+            var other = new Opc.Ua.Schema.Model.Namespace
+            {
+                Name = "Base",
+                Prefix = "Other",
+                Value = "urn:test:other"
+            };
+            var design = new Mock<Opc.Ua.Schema.Model.IModelDesign>();
+            design.SetupGet(d => d.TargetNamespace).Returns(target);
+            design.SetupGet(d => d.Namespaces).Returns([target, other]);
+
+            Generators.EnsureUniqueTargetNamespaceName(design.Object);
+
+            Assert.That(target.Name, Is.EqualTo(expected));
+        }
+
+        /// <summary>
         /// Tests that GenerateCode returns early when DesignFiles collection is empty.
         /// Input: Empty DesignFiles collection
         /// Expected: Method returns without processing, no file system or telemetry calls

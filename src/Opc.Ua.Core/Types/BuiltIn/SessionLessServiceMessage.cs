@@ -49,6 +49,10 @@ namespace Opc.Ua
         /// <summary>
         /// The server URIs referenced by the message.
         /// </summary>
+        /// <remarks>
+        /// Index zero is reserved for the local server and is not sent on the wire.
+        /// Decoding without remote server URIs does not require a local URI in the context.
+        /// </remarks>
         public StringTable? ServerUris;
 
         /// <summary>
@@ -129,6 +133,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
+        /// <exception cref="ServiceResultException">
+        /// A namespace URI, server URI, or locale entry is null or empty.
+        /// </exception>
         public void Decode(IDecoder decoder)
         {
             UriVersion = decoder.ReadUInt32("UriVersion");
@@ -138,14 +145,34 @@ namespace Opc.Ua
 
             foreach (string uri in uris)
             {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "NamespaceUris contains an empty URI.");
+                }
                 NamespaceUris.Append(uri);
             }
 
-            ServerUris = new StringTable();
             uris = decoder.ReadStringArray("ServerUris")!;
 
+            string? localServerUri = decoder.Context.ServerUris.GetString(0);
+            if (uris.Count > 0 && string.IsNullOrEmpty(localServerUri))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The decoder context has no local server URI.");
+            }
+
+            ServerUris = new StringTable([localServerUri ?? string.Empty]);
             foreach (string uri in uris)
             {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "ServerUris contains an empty URI.");
+                }
                 ServerUris.Append(uri);
             }
 
@@ -153,10 +180,17 @@ namespace Opc.Ua
             uris = decoder.ReadStringArray("LocaleIds")!;
             foreach (string uri in uris)
             {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "LocaleIds contains an empty locale.");
+                }
                 LocaleIds.Append(uri);
             }
 
-            decoder.SetMappingTables(NamespaceUris, ServerUris);
+            // Without remote URIs, index zero is already local and must not be URI-mapped.
+            decoder.SetMappingTables(NamespaceUris, ServerUris.Count > 1 ? ServerUris : new StringTable());
 
             uint typeId = decoder.ReadUInt32("ServiceId");
 

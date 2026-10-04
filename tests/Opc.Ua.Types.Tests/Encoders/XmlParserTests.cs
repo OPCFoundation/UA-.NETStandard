@@ -1211,12 +1211,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1].Value, Is.EqualTo(2));
         }
 
-        [Test]
-        public void ReadEncodeableArrayWithTypeIdReturnsDecodedValues()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadEncodeableArrayWithTypeIdReturnsDecodedValues(bool useInterfaceType)
         {
             // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
-            messageContext.Factory.AddEncodeableType(typeof(TestEncodeableWithData));
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(type => type.XmlName)
+                .Returns(new XmlQualifiedName(nameof(TestEncodeableWithData), Namespaces.OpcUaXsd));
+            encodeableType.Setup(type => type.CreateInstance()).Returns(() => new TestEncodeableWithData());
+            IEncodeableType registeredType = encodeableType.Object;
+            var factory = new Mock<IEncodeableFactory>();
+            factory.Setup(value => value.TryGetEncodeableType(new ExpandedNodeId(99999, 0), out registeredType))
+                .Returns(true);
+            var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create(), factory.Object);
             const string xml = """
             <ListOfTestEncodeableWithData xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <TestEncodeableWithData>
@@ -1231,14 +1239,18 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            ArrayOf<TestEncodeableWithData> result = decoder.ReadEncodeableArray<TestEncodeableWithData>(
-                "ListOfTestEncodeableWithData",
-                new ExpandedNodeId(99999, 0));
+            ArrayOf<TestEncodeableWithData> result = useInterfaceType
+                ? decoder.ReadEncodeableArray<IEncodeable>(
+                    "ListOfTestEncodeableWithData", new ExpandedNodeId(99999, 0))
+                    .ConvertAll(value => (TestEncodeableWithData)value)
+                : decoder.ReadEncodeableArray<TestEncodeableWithData>(
+                    "ListOfTestEncodeableWithData", new ExpandedNodeId(99999, 0));
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0].Value, Is.EqualTo(3));
             Assert.That(result[1].Value, Is.EqualTo(4));
+            encodeableType.Verify(type => type.CreateInstance(), Times.Exactly(2));
         }
 
         [Test]

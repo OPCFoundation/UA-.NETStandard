@@ -321,6 +321,12 @@ namespace Opc.Ua.Sessions.Tests
 
             public int NotificationCount => Volatile.Read(ref m_notificationCount);
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
             public async ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,

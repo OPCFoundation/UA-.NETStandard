@@ -72,11 +72,12 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             var services = new ServiceCollection();
             var authenticator = new StubAuthenticator();
+            using var certificateGroup = new StubCertificateGroup();
             services.AddLogging();
             services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
             services.AddSingleton<IApplicationsDatabase>(new StubApplicationsDatabase());
             services.AddSingleton<ICertificateRequest>(new StubCertificateRequest());
-            services.AddSingleton<ICertificateGroup>(new StubCertificateGroup());
+            services.AddSingleton<ICertificateGroup>(certificateGroup);
             services.AddSingleton<IUserDatabase>(new StubUserDatabase());
 
             services.AddOpcUa()
@@ -109,6 +110,13 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
                 Assert.That(result.Identity, Is.SameAs(authenticator.Identity));
                 Assert.That(authenticator.CallCount, Is.EqualTo(1));
+
+                // OPC 10000-12 §7.8.3.3: without configured groups the hosted GDS
+                // still serves the mandatory DefaultApplicationGroup.
+                Assert.That(certificateGroup.Configuration.Id, Is.EqualTo("Default"));
+                Assert.That(
+                    certificateGroup.Configuration.BaseStorePath,
+                    Does.StartWith(pkiRoot));
             }
             finally
             {
@@ -696,7 +704,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public ConcurrentDictionary<NodeId, Certificate> Certificates { get; } = new();
 
-            public CertificateGroupConfiguration Configuration { get; } = new();
+            public CertificateGroupConfiguration Configuration { get; private set; } = new();
 
             public CertificateStoreIdentifier AuthoritiesStore { get; } = new();
 
@@ -711,6 +719,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 CertificateGroupConfiguration certificateGroupConfiguration,
                 string issuerCertificatesStorePath)
             {
+                Configuration = certificateGroupConfiguration;
                 return this;
             }
 
@@ -767,35 +776,71 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
         private sealed class StubUserDatabase : IUserDatabase
         {
+            /// <inheritdoc/>
             public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
                 return true;
             }
 
+            /// <inheritdoc/>
             public bool DeleteUser(string userName)
             {
                 return false;
             }
 
+            /// <inheritdoc/>
             public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
             {
                 return false;
             }
 
+            /// <inheritdoc/>
             public ICollection<Role> GetUserRoles(string userName)
             {
                 return Array.Empty<Role>();
             }
 
+            /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
                 return [];
             }
 
+            /// <inheritdoc/>
             public bool ChangePassword(
                 string userName,
                 ReadOnlySpan<byte> oldPassword,
                 ReadOnlySpan<byte> newPassword)
+            {
+                return false;
+            }
+
+            /// <inheritdoc/>
+            public bool CreateUser(
+                string userName,
+                ReadOnlySpan<byte> password,
+                ArrayOf<Role> roles,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return true;
+            }
+
+            /// <inheritdoc/>
+            public bool ResetPassword(
+                string userName,
+                ReadOnlySpan<byte> newPassword,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return false;
+            }
+
+            /// <inheritdoc/>
+            public bool UpdateUserMetadata(
+                string userName,
+                UserConfigurationMask userConfiguration,
+                string description)
             {
                 return false;
             }

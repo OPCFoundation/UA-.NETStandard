@@ -85,14 +85,21 @@ namespace Opc.Ua.Server
         /// source so the genuine incorporation of the nonce into the private
         /// key can be verified reproducibly.
         /// </summary>
+        /// <param name="certificateFactory">Assembles certificates around the generated keys.</param>
+        /// <param name="serverEntropySource">Supplies the server contribution to key-generation entropy.</param>
+        /// <param name="importEcdsaKey">
+        /// Imports the derived EC scalar, or uses the platform importer when omitted.
+        /// </param>
         internal AdditionalEntropyCertificateKeyGenerator(
             ICertificateFactory certificateFactory,
-            Func<int, byte[]> serverEntropySource)
+            Func<int, byte[]> serverEntropySource,
+            Func<ECParameters, ECDsa>? importEcdsaKey = null)
         {
             m_certificateFactory = certificateFactory ??
                 throw new ArgumentNullException(nameof(certificateFactory));
             m_serverEntropySource = serverEntropySource ??
                 throw new ArgumentNullException(nameof(serverEntropySource));
+            m_importEcdsaKey = importEcdsaKey ?? ECDsa.Create;
         }
 
         /// <summary>
@@ -136,7 +143,7 @@ namespace Opc.Ua.Server
             Array.Clear(serverEntropy, 0, serverEntropy.Length);
             Array.Clear(nonce, 0, nonce.Length);
 
-            if (IsRsaCertificateType(request.CertificateTypeId))
+            if (CertificateIdentifier.IsRsaCertificateType(request.CertificateTypeId))
             {
                 return CreateRsaCertificate(request, drbg, cancellationToken);
             }
@@ -297,7 +304,10 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static ECDsa CreateEcdsaKey(
+        /// <summary>
+        /// Imports an entropy-derived EC private scalar on supported platforms and clears the scalar afterward.
+        /// </summary>
+        private ECDsa CreateEcdsaKey(
             ECCurve curve,
             HmacDrbg drbg,
             CancellationToken cancellationToken)
@@ -319,7 +329,14 @@ namespace Opc.Ua.Server
                 Curve = curve,
                 D = ToFixedBigEndian(d, order.Length)
             };
-            return ECDsa.Create(parameters);
+            try
+            {
+                return m_importEcdsaKey(parameters);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(parameters.D);
+            }
 #else
             // .NET Framework / netstandard2.1 cannot import a private-only EC
             // scalar (Q is a required field) and this assembly has no EC point-
@@ -590,15 +607,6 @@ namespace Opc.Ua.Server
             return domainNames.IsNull ? null : domainNames.ToArray();
         }
 
-        private static bool IsRsaCertificateType(NodeId certificateTypeId)
-        {
-            return certificateTypeId.IsNull
-                || certificateTypeId == ObjectTypeIds.ApplicationCertificateType
-                || certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType
-                || certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType
-                || certificateTypeId == ObjectTypeIds.HttpsCertificateType;
-        }
-
         private static void ClearRsaParameters(ref RSAParameters parameters)
         {
             ClearIfPresent(parameters.D);
@@ -641,6 +649,11 @@ namespace Opc.Ua.Server
 
         private readonly ICertificateFactory m_certificateFactory;
         private readonly Func<int, byte[]> m_serverEntropySource;
+
+        /// <summary>
+        /// Imports the derived EC parameters into a platform key handle.
+        /// </summary>
+        private readonly Func<ECParameters, ECDsa> m_importEcdsaKey;
 
         /// <summary>
         /// A minimal self-signed certificate that carries a generated private

@@ -183,7 +183,8 @@ namespace Opc.Ua.Client
                 : FindAsyncCore(nodeId, ct);
             ValueTask<INode> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
-                return m_nodes.GetOrAddAsync(
+                ct.ThrowIfCancellationRequested();
+                return new ValueTask<INode>(m_nodes.GetOrAddAsync(
                     nodeId,
                     async key =>
                     {
@@ -191,15 +192,15 @@ namespace Opc.Ua.Client
                             null,
                             key,
                             NodeClass.Unspecified,
-                            ct: ct)
+                            ct: CancellationToken.None)
                             .ConfigureAwait(false);
                         // Populate the node's ReferenceTable so callers can
                         // introspect references without an extra round trip.
                         // Mirrors legacy NodeCache behavior.
-                        await PopulateReferenceTableAsync(key, node, ct)
+                        await PopulateReferenceTableAsync(key, node, CancellationToken.None)
                             .ConfigureAwait(false);
                         return node;
-                    });
+                    }).AsTask().WaitAsync(ct));
             }
         }
 
@@ -240,11 +241,12 @@ namespace Opc.Ua.Client
                 : FindAsyncCore(nodeId, ct);
             ValueTask<DataValue> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
+                ct.ThrowIfCancellationRequested();
                 INodeCacheContext context = m_context;
-                return m_values.GetOrAddAsync(
+                return new ValueTask<DataValue>(m_values.GetOrAddAsync(
                     nodeId,
-                    async key => await context.FetchValueAsync(null, key, ct)
-                        .ConfigureAwait(false));
+                    async key => await context.FetchValueAsync(null, key, CancellationToken.None)
+                        .ConfigureAwait(false)).AsTask().WaitAsync(ct));
             }
         }
 
@@ -257,7 +259,11 @@ namespace Opc.Ua.Client
             var result = new List<DataValue>(nodeIds.Count);
             if (count != 0)
             {
+                // Track the slots to fill explicitly: an empty DataValue is a
+                // legal cached or returned value, so it cannot double as the
+                // marker of a missing slot.
                 var notFound = new List<NodeId>();
+                var missingIndices = new List<int>();
                 foreach (NodeId nodeId in nodeIds)
                 {
                     if (m_values.TryGet(nodeId, out DataValue dataValue))
@@ -266,14 +272,14 @@ namespace Opc.Ua.Client
                         continue;
                     }
                     notFound.Add(nodeId);
+                    missingIndices.Add(result.Count);
                     result.Add(default);
                 }
                 if (notFound.Count != 0)
                 {
-                    return FetchRemainingAsync(notFound, result, ct);
+                    return FetchRemainingAsync(notFound, missingIndices, result, ct);
                 }
             }
-            Debug.Assert(!result.Any(r => r.IsNull)); // None now should be null
             return new ValueTask<ArrayOf<DataValue>>(result.ToArrayOf());
         }
 
@@ -558,7 +564,7 @@ namespace Opc.Ua.Client
             catch (ServiceResultException sre) when (IsPerNodeBrowseFailure(sre.StatusCode))
             {
                 m_logger.ReferencesUnavailableForNode(nodeId, sre.StatusCode);
-                return ArrayOf<ReferenceDescription>.Empty;
+                return [];
             }
         }
 
@@ -641,7 +647,7 @@ namespace Opc.Ua.Client
             {
                 return await GetNodeAsync(localId, ct).ConfigureAwait(false);
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 m_logger.CouldNotFindNodeNodeIdError(
                     nodeId,
@@ -725,7 +731,7 @@ namespace Opc.Ua.Client
                         targetId);
                 }
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 m_logger.CouldNotFetchReferencesNodeNodeId(
                     localId,
@@ -753,7 +759,7 @@ namespace Opc.Ua.Client
                 await PopulateReferenceTableAsync(localId, node, ct).ConfigureAwait(false);
                 return node;
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 m_logger.CouldNotFetchNodeNodeIdError(
                     nodeId,
@@ -828,7 +834,7 @@ namespace Opc.Ua.Client
                 await GetNodeAsync(typeId, ct).ConfigureAwait(false);
                 return true;
             }
-            catch
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 return false;
             }
@@ -941,7 +947,7 @@ namespace Opc.Ua.Client
                 INode node = await GetNodeAsync(referenceTypeId, ct).ConfigureAwait(false);
                 return node.BrowseName;
             }
-            catch
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 return QualifiedName.Null;
             }
@@ -1106,14 +1112,25 @@ namespace Opc.Ua.Client
         private async ValueTask<NodeId> FindReferenceTypeInHierarchyAsync(
             NodeId startNodeId,
             QualifiedName browseName,
-            CancellationToken ct)
+            CancellationToken ct,
+            HashSet<NodeId>? visited = null)
         {
+            if (startNodeId.IsNull)
+            {
+                return NodeId.Null;
+            }
+            visited ??= [];
+            if (!visited.Add(startNodeId))
+            {
+                return NodeId.Null;
+            }
+
             INode node;
             try
             {
                 node = await GetNodeAsync(startNodeId, ct).ConfigureAwait(false);
             }
-            catch
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 return NodeId.Null;
             }
@@ -1131,7 +1148,11 @@ namespace Opc.Ua.Client
                 {
                     continue;
                 }
-                NodeId found = await FindReferenceTypeInHierarchyAsync(subtypeId, browseName, ct)
+                NodeId found = await FindReferenceTypeInHierarchyAsync(
+                    subtypeId,
+                    browseName,
+                    ct,
+                    visited)
                     .ConfigureAwait(false);
                 if (!found.IsNull)
                 {
@@ -1149,13 +1170,14 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             Debug.Assert(!nodeId.IsNull);
+            ct.ThrowIfCancellationRequested();
             INodeCacheContext context = m_context;
-            return m_refs.GetOrAddAsync(
+            return new ValueTask<ArrayOf<ReferenceDescription>>(m_refs.GetOrAddAsync(
                 nodeId,
                 async key =>
                 {
                     ArrayOf<ReferenceDescription> references =
-                        await context.FetchReferencesAsync(null, key, ct)
+                        await context.FetchReferencesAsync(null, key, CancellationToken.None)
                             .ConfigureAwait(false);
                     foreach (ReferenceDescription? reference in references)
                     {
@@ -1168,7 +1190,7 @@ namespace Opc.Ua.Client
                         }
                     }
                     return references;
-                });
+                }).AsTask().WaitAsync(ct));
         }
 
         /// <summary>
@@ -1248,10 +1270,11 @@ namespace Opc.Ua.Client
         /// </summary>
         private async ValueTask<ArrayOf<DataValue>> FetchRemainingAsync(
             List<NodeId> remainingIds,
+            List<int> missingIndices,
             List<DataValue> result,
             CancellationToken ct)
         {
-            Debug.Assert(result.Count(r => r.IsNull) == remainingIds.Count);
+            Debug.Assert(missingIndices.Count == remainingIds.Count);
 
             // fetch nodes and references from server.
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> readErrors) =
@@ -1260,7 +1283,6 @@ namespace Opc.Ua.Client
 
             Debug.Assert(values.Count == remainingIds.Count);
             Debug.Assert(readErrors.Count == remainingIds.Count);
-            int resultMissingIndex = 0;
             for (int index = 0; index < remainingIds.Count; index++)
             {
                 if (ServiceResult.IsBad(readErrors[index]))
@@ -1275,14 +1297,8 @@ namespace Opc.Ua.Client
                     // Add to cache
                     m_values.AddOrUpdate(remainingIds[index], values[index]);
                 }
-                while (!result[resultMissingIndex].IsNull)
-                {
-                    resultMissingIndex++;
-                    Debug.Assert(resultMissingIndex < result.Count);
-                }
-                result[resultMissingIndex] = values[index];
+                result[missingIndices[index]] = values[index];
             }
-            Debug.Assert(!result.Any(r => r.IsNull)); // None now should be null
             return result.ToArrayOf();
         }
 
@@ -1405,5 +1421,4 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             StatusCode statusCode);
     }
-
 }

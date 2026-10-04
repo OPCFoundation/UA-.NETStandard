@@ -74,9 +74,15 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
             UaFileInfo file = await client.GetFileAsync("Reports/data.csv")
                 .ConfigureAwait(false);
-            Assert.That(file.NodeId, Is.EqualTo(fileId));
-            Assert.That(file.Name, Is.EqualTo("data.csv"));
-            Assert.That(file.FullPath, Is.EqualTo("/Reports/data.csv"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(file.NodeId, Is.EqualTo(fileId));
+                Assert.That(file.Name, Is.EqualTo("data.csv"));
+                Assert.That(file.FullPath, Is.EqualTo("/Reports/data.csv"));
+                Assert.That(file.Parent, Is.Not.Null);
+                Assert.That(file.Parent!.NodeId, Is.EqualTo(reports));
+                Assert.That(file.Parent.Parent, Is.SameAs(client.Root));
+            });
         }
 
         [Test]
@@ -248,6 +254,37 @@ namespace Opc.Ua.Client.Tests.FileSystem
             // The second resolution should be served from the path
             // cache and not call Translate again for the leaf segment.
             Assert.That(translateCalls, Is.EqualTo(firstCount));
+        }
+
+        [Test]
+        public async Task EnumeratedFullPathRoundTripsForColonAndNamespaceZeroNamesAsync()
+        {
+            // A namespace-zero child with ':' in its name inside a directory
+            // of a namespaced provider: its FullPath must resolve back to it.
+            var harness = FileSystemSessionHarness.Create();
+            NodeId dir = harness.RegisterDirectory(
+                harness.Root,
+                new QualifiedName("Logs", 3),
+                new NodeId(7100, 3));
+            NodeId file = harness.RegisterFile(dir, new QualifiedName("12:30.log"));
+            var client = new FileSystemClient(harness.Session, harness.Root);
+
+            UaFileSystemInfo entry = null;
+            await foreach (UaFileSystemInfo child in client.EnumerateAsync("/3:Logs")
+                .ConfigureAwait(false))
+            {
+                entry = child;
+            }
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry.FullPath, Is.EqualTo("/3:Logs/12&:30.log"));
+
+            // Fresh client so the path cache does not mask the resolution.
+            var fresh = new FileSystemClient(harness.Session, harness.Root);
+            UaFileSystemInfo resolved = await fresh.GetInfoAsync(entry.FullPath)
+                .ConfigureAwait(false);
+            Assert.That(resolved, Is.Not.Null);
+            Assert.That(resolved.NodeId, Is.EqualTo(file));
+            Assert.That(resolved.BrowseName, Is.EqualTo(new QualifiedName("12:30.log")));
         }
     }
 }

@@ -845,7 +845,9 @@ out PubSubDataSetMessageType messageType))
 
             DataSetMetaDataType? metaData = ResolveMetaData(
                 publisherId, writerGroupId, writerId, dataSetClassId,
-                majorVersion, context);
+                majorVersion,
+                (contentMask & UadpDataSetMessageContentMask.MajorVersion) != 0,
+                context);
 
             ArrayOf<DataSetField>? fields = UadpFieldDecoder.DecodeFields(
                 ref reader, encoding, messageType, metaData, context.MessageContext);
@@ -880,6 +882,7 @@ out PubSubDataSetMessageType messageType))
             ushort writerId,
             Uuid dataSetClassId,
             uint majorVersion,
+            bool hasMajorVersion,
             PubSubNetworkMessageContext context)
         {
             var key = new DataSetMetaDataKey(
@@ -889,6 +892,13 @@ out PubSubDataSetMessageType messageType))
                 key, out DataSetMetaDataType? metaData);
             if (result == MetaDataMatchResult.MajorVersionMismatch)
             {
+                // A DataSetMessage without a ConfigurationVersion cannot be
+                // compared with the metadata, so the registered metadata of
+                // the DataSetWriter applies (Part 14 §6.2.9.4).
+                if (!hasMajorVersion)
+                {
+                    return metaData;
+                }
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ResolverErrors);
                 return null;

@@ -30,39 +30,94 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Supplies manager-owned services, certificate snapshots, and diagnostics to a shared channel entry.
+    /// </summary>
     internal interface IChannelEntryHost : IClientChannelManager
     {
+        /// <summary>
+        /// Gets the logger used for transport and participant failures.
+        /// </summary>
         ILogger? Logger { get; }
+
+        /// <summary>
+        /// Gets the clock used for retry delays, timeouts, and elapsed-time metrics.
+        /// </summary>
         TimeProvider TimeProvider { get; }
+
+        /// <summary>
+        /// Gets the policy that bounds transport retries and participant recovery.
+        /// </summary>
         IChannelReconnectPolicy ReconnectPolicy { get; }
+
+        /// <summary>
+        /// Gets the token cancelled when the manager shuts down.
+        /// </summary>
         CancellationToken ShutdownToken { get; }
+
+        /// <summary>
+        /// Gets the owner of background teardown work that must finish during manager disposal.
+        /// </summary>
         BackgroundTaskScope BackgroundWork { get; }
+
+        /// <summary>
+        /// Gets the transport bindings, or null when the default bindings apply.
+        /// </summary>
         Bindings.ITransportChannelBindings? ChannelFactory { get; }
+
+        /// <summary>
+        /// Gets the client application configuration used to open transports.
+        /// </summary>
         ApplicationConfiguration Configuration { get; }
 
+        /// <summary>
+        /// Reports an entry state transition to manager diagnostics.
+        /// </summary>
+        /// <param name="entry">The entry whose state changed.</param>
+        /// <param name="change">The previous and current state and associated error.</param>
         void OnEntryStateChanged(ChannelEntry entry, ChannelStateChange change);
 
+        /// <summary>
+        /// Records transport closure and its reason without releasing participant leases.
+        /// </summary>
+        /// <param name="entry">The entry whose transport closed.</param>
+        /// <param name="reason">The reason for closure.</param>
         void OnEntryClosed(
             ChannelEntry entry,
             ClientChannelManager.ChannelCloseReason reason);
 
-        (Certificate? Certificate, CertificateCollection? Chain, long Version) SnapshotClientCertificate();
+        /// <summary>
+        /// Acquires a caller-owned snapshot of the current client certificate, chain, and configuration version.
+        /// </summary>
+        /// <returns>The certificate snapshot, which the caller must dispose.</returns>
+        ClientChannelCertificateSnapshot SnapshotClientCertificate();
 
-        ValueTask<ITransportChannel> CreateChannelAsync(
-            ConfiguredEndpoint endpoint,
-            Certificate? clientCertificate,
-            CertificateCollection? clientCertificateChain,
-            ITransportWaitingConnection? reverseConnection,
-            CancellationToken ct);
+        /// <summary>
+        /// Acquires newer material of the entry's certificate type, or retains its current material when none exists.
+        /// </summary>
+        /// <param name="current">The material currently owned by the entry.</param>
+        /// <returns>A caller-owned snapshot. Disposing it does not release the entry's handles.</returns>
+        ClientChannelCertificateSnapshot SnapshotClientCertificate(ClientChannelCertificateSnapshot current);
 
+        /// <summary>
+        /// Starts a trace for one coalesced entry reconnect cycle.
+        /// </summary>
+        /// <param name="entry">The entry being reconnected.</param>
+        /// <returns>The reconnect activity, or null when tracing does not create an activity.</returns>
         Activity? StartReconnectActivity(ChannelEntry entry);
 
+        /// <summary>
+        /// Completes a reconnect trace with its attempts, outcome, and last error.
+        /// </summary>
+        /// <param name="activity">The reconnect activity to complete, if one was created.</param>
+        /// <param name="entry">The entry being reconnected.</param>
+        /// <param name="attemptCount">The number of reconnect attempts made.</param>
+        /// <param name="outcome">The final reconnect outcome.</param>
+        /// <param name="error">The last reconnect error, if any.</param>
         void CompleteReconnectActivity(
             Activity? activity,
             ChannelEntry entry,
@@ -70,39 +125,115 @@ namespace Opc.Ua
             string outcome,
             ServiceResult? error);
 
+        /// <summary>
+        /// Reports a failed reconnect attempt without deciding whether to retry it.
+        /// </summary>
+        /// <param name="entry">The entry whose reconnect attempt failed.</param>
+        /// <param name="attempt">The reconnect attempt number.</param>
+        /// <param name="outcome">The outcome recorded for the attempt.</param>
+        /// <param name="error">The reconnect error, if any.</param>
         void OnEntryReconnectFailed(
             ChannelEntry entry,
             int attempt,
             string outcome,
             ServiceResult? error);
 
+        /// <summary>
+        /// Reports that an underlying transport has opened.
+        /// </summary>
+        /// <param name="entry">The entry whose transport opened.</param>
         void OnEntryOpened(ChannelEntry entry);
 
+        /// <summary>
+        /// Reports an attached participant with the resulting lease and participant counts.
+        /// </summary>
+        /// <param name="entry">The entry that accepted the participant.</param>
+        /// <param name="participantId">The attached participant's identifier.</param>
+        /// <param name="refCount">The resulting lease reference count.</param>
+        /// <param name="participantCount">The resulting participant count.</param>
         void OnEntryParticipantAttached(
             ChannelEntry entry,
             string participantId,
             int refCount,
             int participantCount);
 
+        /// <summary>
+        /// Reports a detached participant with the resulting lease and participant counts.
+        /// </summary>
+        /// <param name="entry">The entry from which the participant detached.</param>
+        /// <param name="participantId">The detached participant's identifier.</param>
+        /// <param name="refCount">The resulting lease reference count.</param>
+        /// <param name="participantCount">The resulting participant count.</param>
         void OnEntryParticipantDetached(
             ChannelEntry entry,
             string participantId,
             int refCount,
             int participantCount);
 
+        /// <summary>
+        /// Increments the channel-open metric for the entry.
+        /// </summary>
+        /// <param name="entry">The entry whose channel opened.</param>
         void RecordChannelOpen(ChannelEntry entry);
+
+        /// <summary>
+        /// Adjusts the active-channel metric by the supplied delta.
+        /// </summary>
+        /// <param name="entry">The entry whose active-channel count changed.</param>
+        /// <param name="delta">The signed change to the active-channel count.</param>
         void RecordChannelActiveChanged(ChannelEntry entry, long delta);
+
+        /// <summary>
+        /// Records a reconnect attempt and its outcome.
+        /// </summary>
+        /// <param name="entry">The entry being reconnected.</param>
+        /// <param name="outcome">The attempt outcome.</param>
         void RecordReconnectAttempt(ChannelEntry entry, string outcome);
 
+        /// <summary>
+        /// Records the elapsed time and outcome of a reconnect cycle.
+        /// </summary>
+        /// <param name="entry">The entry being reconnected.</param>
+        /// <param name="duration">The elapsed time for the reconnect cycle.</param>
+        /// <param name="outcome">The final reconnect outcome.</param>
         void RecordReconnectDuration(
             ChannelEntry entry,
             TimeSpan duration,
             string outcome);
 
+        /// <summary>
+        /// Records how long a caller waited for the entry to become ready.
+        /// </summary>
+        /// <param name="entry">The entry on which the caller waited.</param>
+        /// <param name="duration">The elapsed wait time.</param>
         void RecordGateWait(ChannelEntry entry, TimeSpan duration);
+
+        /// <summary>
+        /// Records a participant operation that exceeded its timeout.
+        /// </summary>
+        /// <param name="entry">The entry that owns the participant.</param>
+        /// <param name="participantId">The participant whose operation timed out.</param>
         void RecordParticipantTimeout(ChannelEntry entry, string participantId);
+
+        /// <summary>
+        /// Records whether a participant's session recreation succeeded.
+        /// </summary>
+        /// <param name="entry">The entry that owns the participant.</param>
+        /// <param name="participantId">The participant whose session was recreated.</param>
+        /// <param name="success">Whether session recreation succeeded.</param>
         void RecordParticipantRecreate(ChannelEntry entry, string participantId, bool success);
+
+        /// <summary>
+        /// Removes the key only if it still refers to this entry, preserving a concurrent replacement.
+        /// </summary>
+        /// <param name="key">The manager's lookup key.</param>
+        /// <param name="entry">The entry expected to own the key.</param>
         void RemoveEntryIfPresent(ManagedChannelKey key, ChannelEntry entry);
+
+        /// <summary>
+        /// Releases the transport through its owning bindings after asynchronous closure.
+        /// </summary>
+        /// <param name="channel">The transport channel to release.</param>
         void CloseChannel(ITransportChannel channel);
     }
 }

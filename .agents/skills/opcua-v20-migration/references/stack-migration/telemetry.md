@@ -35,6 +35,29 @@ ISession session = await factory.CreateAsync(/* ... */);
 
 ---
 
+## Contents
+
+- [Replacing the static logger surface](#replacing-the-static-logger-surface)
+  - [From static logger management](#from-static-logger-management)
+  - [From static `Utils.Log*` methods](#from-static-utilslog-methods)
+  - [From `Utils.Trace*` methods](#from-utilstrace-methods)
+- [Non-exhaustive summary of breaking changes](#non-exhaustive-summary-of-breaking-changes)
+  - [Core infrastructure constructors](#core-infrastructure-constructors)
+  - [Interface additions](#interface-additions)
+  - [System context](#system-context)
+  - [Certificate and security](#certificate-and-security)
+  - [Transport layer](#transport-layer)
+  - [Client library](#client-library)
+  - [Configuration library](#configuration-library)
+  - [Server library](#server-library)
+  - [PubSub library](#pubsub-library)
+  - [Method signatures](#method-signatures)
+  - [Removed and `[Obsolete]` `Utils` static APIs](#removed-and-obsolete-utils-static-apis)
+- [ETW `EventSource` provider removal](#etw-eventsource-provider-removal)
+  - [`ClientTraceFlags.EventLog` removed (source breaking)](#clienttraceflagseventlog-removed-source-breaking)
+  - [Migrating `EventListener` / `dotnet-trace` consumers](#migrating-eventlistener--dotnet-trace-consumers)
+- [Migration utilities](#migration-utilities)
+
 ## Replacing the static logger surface
 
 The legacy static logger management (`Utils.SetLogger` /
@@ -108,9 +131,9 @@ explicit telemetry context**.
 
 ### Core infrastructure constructors
 
-- `ServiceMessageContext()` &rarr; `ServiceMessageContext(ITelemetryContext)`
+- `ServiceMessageContext()` → `ServiceMessageContext(ITelemetryContext)`
   (parameter-less constructor removed).
-- `EncodeableFactory()` &rarr; `EncodeableFactory(ITelemetryContext)`
+- `EncodeableFactory()` → `EncodeableFactory(ITelemetryContext)`
   (parameter-less constructor removed).
 - `ApplicationConfiguration` gains
   `ApplicationConfiguration(ITelemetryContext)`.
@@ -123,10 +146,12 @@ explicit telemetry context**.
   `ITelemetryContext Telemetry { get; }`.
 - `ITransportBindingFactory<T>.Create(...)` now takes
   `ITelemetryContext`.
+- `ITelemetryContext` gains `CreateMeter(Assembly)` and
+  `GetActivitySource(Assembly)` for component-specific telemetry.
 
 ### System context
 
-- `SystemContext()` &rarr; `SystemContext(ITelemetryContext)` and
+- `SystemContext()` → `SystemContext(ITelemetryContext)` and
   `SystemContext(IOperationContext, ITelemetryContext)`
   (parameter-less constructor removed).
 
@@ -135,9 +160,9 @@ explicit telemetry context**.
 - `CertificateValidator` gains
   `CertificateValidator(ITelemetryContext)`.
 - `CertificateStoreIdentifier.CreateStore(string, ITelemetryContext)`
-  and `OpenStore(ITelemetryContext)` &mdash; custom stores must
+  and `OpenStore(ITelemetryContext)` — custom stores must
   implement the new signature.
-- `CertificateIdentifier.OpenStore(ITelemetryContext)` &mdash; same
+- `CertificateIdentifier.OpenStore(ITelemetryContext)` — same
   custom-store impact.
 - `CertificateIdentifierCollection` no longer implements
   `ICertificateStore`; use `CertificateIdentifierCollectionStore`
@@ -195,10 +220,10 @@ explicit telemetry context**.
 ### Method signatures
 
 - `UserIdentityToken.GetOrCreateCertificate(ITelemetryContext)`
-  &mdash; certificate creation is no longer implicit on the
+  — certificate creation is no longer implicit on the
   `Certificate` getter; call this method explicitly when needed.
 - `ServerSecurityPolicy.CalculateSecurityLevel(..., ILogger)`
-  &mdash; the non-logger overload is `[Obsolete]`.
+  — the non-logger overload is `[Obsolete]`.
 
 ### Removed and `[Obsolete]` `Utils` static APIs
 
@@ -221,6 +246,12 @@ Marked `[Obsolete]` and slated for removal:
 Replace each with the equivalent `ILogger.LogXxx` call on a logger
 obtained from `ITelemetryContext.CreateLogger<T>()`.
 
+While migrating explicit-mask calls, their original masks remain available to
+legacy `Tracing.TraceEventHandler` subscribers, including combined categories.
+Do not copy a numeric trace mask into an ordinary source-generated `EventId`:
+event identifiers are classified by log level unless an explicitly named legacy
+category is selected. See [Diagnostics](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md#overview).
+
 ---
 
 ## ETW `EventSource` provider removal
@@ -236,7 +267,7 @@ The stack shipped four internal `EventSource` providers for high-performance tra
 | `OPC-UA-Server` | `Opc.Ua.Server` | `OPC-UA-Server` |
 | `Opc.Ua.ChannelManager` | `Opc.Ua.Core` (client channel manager) | `Opc.Ua.ChannelManager` |
 
-The replacement logger category is always the **exact old ETW provider name**, not the assembly's usual typed category. Migrated filters can therefore keep the same identifying string (for example, `AddFilter("OPC-UA-Client", LogLevel.Trace)`) after they move from an ETW provider subscription to `ILogger` configuration. `EventLevel` mapped to `LogLevel` on a like-for-like basis (`Verbose` &rarr; `Trace`, `Informational` &rarr; `Information`, `Warning` &rarr; `Warning`, `Error`/`Critical` &rarr; `Error`/`Critical`). See [DeveloperGuide.md — narrow exception: retained EventSource-compatibility ids](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DeveloperGuide.md#narrow-exception-retained-eventsource-compatibility-ids) for the authoring-side rules and [Sessions.md — diagnostics surface contract](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry) for the full `Opc.Ua.ChannelManager` event table.
+The replacement logger category is always the **exact old ETW provider name**, not the assembly's usual typed category. Migrated filters can therefore keep the same identifying string (for example, `AddFilter("OPC-UA-Client", LogLevel.Trace)`) after they move from an ETW provider subscription to `ILogger` configuration. `EventLevel` mapped to `LogLevel` on a like-for-like basis (`Verbose` → `Trace`, `Informational` → `Information`, `Warning` → `Warning`, `Error`/`Critical` → `Error`/`Critical`). See [DeveloperGuide.md — narrow exception: retained EventSource-compatibility ids](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DeveloperGuide.md#narrow-exception-retained-eventsource-compatibility-ids) for the authoring-side rules and [Sessions.md — diagnostics surface contract](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry) for the full `Opc.Ua.ChannelManager` event table.
 
 The `OPC-UA-Server` compatibility category remains opt-in like the retired EventSource provider. Enable that category at `Trace` to receive its records, including the `ServerCall` and `SessionState` records whose retained legacy level is `Information`. A global `Information` minimum therefore does not emit a record for every server request.
 
@@ -303,15 +334,15 @@ builder.Services.AddOpenTelemetry().WithLogging(l => l
 
 To aid migration the stack provides:
 
-- `DefaultTelemetry.Create(...)` &mdash; convenient factory that
+- `DefaultTelemetry.Create(...)` — convenient factory that
   returns an `ITelemetryContext` backed by the trace logger when no
   configuration is supplied.
-- `Telemetry.NullLogger` / `Telemetry.NullLogger<T>` &mdash;
+- `Telemetry.NullLogger` / `Telemetry.NullLogger<T>` —
   no-op-in-release / debug-check-in-debug logger you can assign to
   an `m_logger` field to avoid null-reference exceptions while a
   class is being migrated. Distinct from
   `NullLogger.Instance` in `Microsoft.Extensions.Logging.Abstractions`.
-- `Utils.Fallback.Logger` &mdash; an `ILogger` that mimics the
+- `Utils.Fallback.Logger` — an `ILogger` that mimics the
   legacy static `ILogger`. Use as a strictly temporary placeholder
   in places where no telemetry context can yet be plumbed through.
   The `Fallback` class is marked `Experimental` and may be removed
@@ -326,10 +357,10 @@ test time.
 **See also**
 
 - Related: [packages.md](packages.md), [configuration.md](configuration.md).
-- [`docs/Diagnostics.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md) &mdash; full
+- [`docs/Diagnostics.md`](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md) — full
   end-state usage and extensibility guidance for `ITelemetryContext`
   (custom contexts, OpenTelemetry wiring, metrics inventory).
-- [`docs/Sessions.md` — diagnostics surface contract](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry) &mdash; full `Opc.Ua.ChannelManager` compatibility event table and safe-field policy.
-- [`docs/DeveloperGuide.md` — narrow exception: retained EventSource-compatibility ids](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DeveloperGuide.md#narrow-exception-retained-eventsource-compatibility-ids) &mdash; authoring rules for the retained compatibility ids.
-- [2.0 migration index](README.md) &mdash; analyzer quick-start + symptom → sub-doc table.
-- [Migration Guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) &mdash; landing page across versions.
+- [`docs/Sessions.md` — diagnostics surface contract](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry) — full `Opc.Ua.ChannelManager` compatibility event table and safe-field policy.
+- [`docs/DeveloperGuide.md` — narrow exception: retained EventSource-compatibility ids](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DeveloperGuide.md#narrow-exception-retained-eventsource-compatibility-ids) — authoring rules for the retained compatibility ids.
+- [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
+- [Migration Guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/MigrationGuide.md) — landing page across versions.

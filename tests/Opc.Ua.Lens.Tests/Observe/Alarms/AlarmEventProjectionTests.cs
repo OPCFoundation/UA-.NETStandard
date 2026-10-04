@@ -46,6 +46,15 @@ public sealed class AlarmEventProjectionTests
         Assert.That(identity.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.ConditionType));
         Assert.That(identity.AttributeId, Is.EqualTo(Attributes.NodeId));
         Assert.That(identity.BrowsePath.IsEmpty, Is.True);
+        int conditionIdClauses = 0;
+        foreach (SimpleAttributeOperand clause in projection.Filter.SelectClauses)
+        {
+            if (clause.BrowsePath.IsEmpty && clause.AttributeId == Attributes.NodeId)
+            {
+                conditionIdClauses++;
+            }
+        }
+        Assert.That(conditionIdClauses, Is.EqualTo(1));
 
         AlarmUpdate update = projection.Decode(AlarmTestData.Fields(projection, ObjectTypeIds.AlarmConditionType), 11);
 

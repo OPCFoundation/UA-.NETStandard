@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -192,7 +193,9 @@ namespace Opc.Ua.Server.Tests.Historian
                         AccessLevels.HistoryRead |
                         AccessLevels.HistoryWrite
                 };
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(kCaptureTime.ToDateTime()));
                 Provider.RegisterStructured(
                     Variable.NodeId,
                     KeyValuePairStructuredDataKeySelector.Instance);

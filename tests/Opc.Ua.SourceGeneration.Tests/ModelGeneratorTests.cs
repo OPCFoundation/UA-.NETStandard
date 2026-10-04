@@ -531,6 +531,95 @@ namespace Opc.Ua.SourceGeneration
                 "exactly one of the colliding inputs should be accepted, not zero or both");
         }
 
+        /// <summary>
+        /// A4-6: the collision map compares the virtual paths ordinally, like
+        /// the virtual file system that holds them. Generated hint names come
+        /// from the model prefix, not from the input path, so inputs whose
+        /// NodeSet2 paths differ only in case do not collide: no MODELGEN034
+        /// (which dropped a valid model), no MODELGEN003, and the model is
+        /// generated once.
+        /// </summary>
+        [Test]
+        public void WotInputsDifferingOnlyInCaseAreNotReportedAsCollisionTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    DefaultWotOptions(),
+                    [
+                        EmbeddedText.Create("DemoModel.tm.json", wotJson),
+                        EmbeddedText.Create("demomodel.td.json", wotJson),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN003"), Is.Empty);
+            Assert.That(diagnostics.Where(d => d.Id == "MODELGEN034"), Is.Empty);
+            Assert.That(
+                runResult.Results[0].GeneratedSources
+                    .Count(s => s.HintName == "DemoModel.Constants.g.cs"),
+                Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Regression: every *.xml AdditionalFile was treated as a
+        /// ModelDesign, so an XML meant for another tool failed with
+        /// MODELGEN003 and discarded the generated code of every model.
+        /// </summary>
+        [TestCase("<linker><assembly fullname=\"Some.Assembly\" /></linker>")]
+        [TestCase("<?xml version=\"1.0\"?>\n<!-- config -->\n<configuration><appSettings /></configuration>")]
+        [TestCase("<ModelDesign xmlns=\"http://example.org/NotTheOpcSchema\" />")]
+        public void UnrelatedXmlAdditionalFileIsNotTreatedAsModelTest(string xml)
+        {
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    DemoModelDesignOptions(),
+                    [
+                        EmbeddedText.From("DemoModel.xml"),
+                        EmbeddedText.Create("ILLink.Descriptors.xml", xml)
+                    ]);
+
+            Assert.That(
+                diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty);
+            Assert.That(runResult.Results[0].GeneratedSources, Has.Length.EqualTo(9));
+        }
+
+        /// <summary>
+        /// Regression: ModelSourceGeneratorIgnore was honoured for NodeSet2
+        /// and WoT inputs only; an ignored ModelDesign was still generated.
+        /// </summary>
+        [Test]
+        public void IgnoredModelDesignInputIsNotGeneratedTest()
+        {
+            AnalyzerOptionsProvider options = DemoModelDesignOptions();
+            options.TextOptions["DemoModel.xml"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(options, [EmbeddedText.From("DemoModel.xml")]);
+
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(runResult.Results[0].GeneratedSources, Is.Empty);
+        }
+
+        private static AnalyzerOptionsProvider DemoModelDesignOptions()
+        {
+            return new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorVersion"] = "v105",
+                    ["build_property.ModelSourceGeneratorExclude"] = "Draft",
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
+                });
+        }
+
         [Test]
         public void IgnoredWotInputDoesNotOwnCollisionPathAgainstActiveWotTest()
         {
@@ -1186,14 +1275,66 @@ namespace Opc.Ua.SourceGeneration
             Diagnostic[] unresolved = [.. diagnostics.Where(d => d.Id == "MODELGEN035")];
             Assert.That(unresolved, Has.Length.EqualTo(1));
             Assert.That(
-                unresolved[0].Location.SourceTree?.GetText()
-                    .ToString(unresolved[0].Location.SourceSpan),
+                GetDiagnosticSourceText(unresolved[0], bindingSource),
                 Is.EqualTo("GeneratedModel.NamespaceUri"));
             Assert.That(
                 unresolved[0].GetMessage(CultureInfo.InvariantCulture),
                 Does.Contain("values generated in the same compilation are unavailable"));
             Assert.That(diagnostics.Where(d => d.Id == "MODELGEN010"), Is.Empty);
 
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+            Assert.That(generated, Does.Not.Contain("class TypesNodeManager"));
+        }
+
+        /// <summary>
+        /// Regression: a nested or generic [NodeManager] class silently got
+        /// its constructor and factory on an unrelated top-level class.
+        /// </summary>
+        [TestCase(
+            "public static partial class Outer { [global::Opc.Ua.Server.Fluent.NodeManager(" +
+                "NamespaceUri = \"http://test.org/UA/CrossModel/Types\")] " +
+                "public partial class TypesNodeManager { } }",
+            "nested in 'CrossModelConsumer.Outer'",
+            TestName = "NestedNodeManagerReportsUnsupportedTarget")]
+        [TestCase(
+            "[global::Opc.Ua.Server.Fluent.NodeManager(" +
+                "NamespaceUri = \"http://test.org/UA/CrossModel/Types\")] " +
+                "public partial class TypesNodeManager<T> { }",
+            "generic",
+            TestName = "GenericNodeManagerReportsUnsupportedTarget")]
+        public void UnsupportedNodeManagerTargetReportsDiagnostic(string declaration, string reason)
+        {
+            string bindingSource =
+                $$"""
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                {{declaration}}
+                }
+                """;
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(LanguageVersion.CSharp13, bindingSource);
+
+            Diagnostic[] unsupported = [.. diagnostics.Where(d => d.Id == "MODELGEN036")];
+            Assert.That(unsupported, Has.Length.EqualTo(1));
+            Assert.That(
+                unsupported[0].GetMessage(CultureInfo.InvariantCulture),
+                Does.Contain(reason));
+            Assert.That(
+                GetDiagnosticSourceText(unsupported[0], bindingSource),
+                Is.EqualTo("TypesNodeManager"));
             string generated = string.Join(
                 "\n",
                 runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
@@ -1237,7 +1378,7 @@ namespace Opc.Ua.SourceGeneration
 
             string[] expressions = [.. diagnostics
                 .Where(d => d.Id == "MODELGEN035")
-                .Select(d => d.Location.SourceTree?.GetText().ToString(d.Location.SourceSpan))
+                .Select(d => GetDiagnosticSourceText(d, bindingSource))
                 .OrderBy(expression => expression, StringComparer.Ordinal)];
             string[] expectedExpressions =
             {
@@ -1524,6 +1665,20 @@ namespace Opc.Ua.SourceGeneration
         /// node-manager code that references <c>Opc.Ua.Server</c> types not
         /// present in this model-only test compilation.
         /// </summary>
+        /// <summary>
+        /// The source text a diagnostic points at. Generator diagnostics
+        /// carry a file location (path and spans, no syntax tree) so the
+        /// incremental cache does not hold on to syntax trees; the text is
+        /// therefore looked up in the source the location refers to.
+        /// </summary>
+        private static string GetDiagnosticSourceText(Diagnostic diagnostic, string source)
+        {
+            FileLinePositionSpan lineSpan = diagnostic.Location.GetLineSpan();
+            Assert.That(lineSpan.IsValid, Is.True, "the diagnostic must have a location");
+            var text = Microsoft.CodeAnalysis.Text.SourceText.From(source);
+            return text.ToString(text.Lines.GetTextSpan(lineSpan.Span));
+        }
+
         private static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
             RunMixedModelGenerator(
                 LanguageVersion languageVersion,

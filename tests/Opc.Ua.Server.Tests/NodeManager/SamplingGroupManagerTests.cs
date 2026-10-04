@@ -79,6 +79,56 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new Mock<ISession>().Object);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ModifyingAnUnregisteredItemDoesNotRestartSampling(bool previouslyRegistered)
+        {
+            var item = new Mock<ISampledDataChangeMonitoredItem>();
+            item.SetupGet(value => value.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+            item.SetupGet(value => value.MonitoringMode).Returns(MonitoringMode.Reporting);
+            item.SetupGet(value => value.MinimumSamplingInterval).Returns(1);
+            item.SetupGet(value => value.SamplingInterval).Returns(1000);
+            using OperationContext context = SessionContext();
+            using (SamplingGroupManager manager = CreateManager(out _))
+            {
+                if (previouslyRegistered)
+                {
+                    manager.StartMonitoring(context, item.Object);
+                    manager.StopMonitoring(item.Object);
+                }
+
+                manager.ModifyMonitoring(context, item.Object);
+            }
+
+            item.Verify(
+                value => value.SetSamplingInterval(It.IsAny<double>()),
+                Times.Exactly(previouslyRegistered ? 1 : 0));
+            item.Verify(value => value.Dispose(), Times.Never);
+        }
+
+        [Test]
+        public void ModifyingARegisteredDisabledItemStartsSampling()
+        {
+            var item = new Mock<ISampledDataChangeMonitoredItem>();
+            MonitoringMode mode = MonitoringMode.Disabled;
+            item.SetupGet(value => value.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+            item.SetupGet(value => value.MonitoringMode).Returns(() => mode);
+            item.SetupGet(value => value.MinimumSamplingInterval).Returns(1);
+            item.SetupGet(value => value.SamplingInterval).Returns(1000);
+            using OperationContext context = SessionContext();
+            using (SamplingGroupManager manager = CreateManager(out _))
+            {
+                manager.StartMonitoring(context, item.Object);
+                item.Verify(value => value.SetSamplingInterval(It.IsAny<double>()), Times.Never);
+
+                mode = MonitoringMode.Reporting;
+                manager.ModifyMonitoring(context, item.Object);
+                item.Verify(value => value.SetSamplingInterval(1000), Times.Once);
+            }
+
+            item.Verify(value => value.Dispose(), Times.Once);
+        }
+
         /// <summary>
         /// Verifies that sampling-group manager construction rejects a null server.
         /// </summary>

@@ -682,7 +682,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(
                     factory,
                     Does.Contain(
-                        $"state.MethodDeclarationId = global::Opc.Ua.NodeId.Create({mergedMethod.NumericId}u"));
+                        $"baseState.MethodDeclarationId = global::Opc.Ua.NodeId.Create({mergedMethod.NumericId}u"));
                 Assert.That(
                     factory,
                     Does.Not.Contain("global::MethodTypeOverride.IntegerConvertMethodState"));
@@ -844,11 +844,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     "The ObjectType factory must pass its declaration/instance mode to child factories.");
                 Assert.That(
                     expirationDateFactory,
-                    Does.Contain("state.ModellingRuleId ="),
+                    Does.Contain("baseState.ModellingRuleId ="),
                     "CertificateExpirationAlarmType.ExpirationDate must retain its Mandatory rule.");
                 Assert.That(
                     trustListIdFactory,
-                    Does.Contain("state.ModellingRuleId ="),
+                    Does.Contain("baseState.ModellingRuleId ="),
                     "TrustListOutOfDateAlarmType.TrustListId must retain its Mandatory rule.");
             });
         }
@@ -1045,6 +1045,66 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         "NodeState state = CreateMyDataType_Encoding_Default_JSON(context);"),
                     "The Default JSON encoding must be registered as a predefined node.");
             });
+        }
+
+        [TestCase("Device_Source", 49u, false, 3002u, false)]
+        [TestCase("Device_Target", 49u, true, 3001u, false)]
+        [TestCase("Device_Source", 47u, false, 85u, false)]
+        [TestCase("Device_Source", 35u, false, 85u, false)]
+        [TestCase("Device_Source", 35u, true, 85u, false)]
+        [TestCase("Device_Source", 35u, false, 85u, true)]
+        [TestCase("RecursiveType_Peer_Placeholder", 47u, false, 4001u, false)]
+        public void HierarchicalReferencesResolveInheritedTargetsWithoutDuplicates(
+            string source,
+            uint referenceTypeId,
+            bool inverse,
+            uint targetId,
+            bool standardNamespace)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet("HierarchicalReferences.NodeSet2.xml", telemetry);
+            string code = files.Single(
+                file => file.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            MethodDeclarationSyntax factory = CSharpSyntaxTree.ParseText(code).GetRoot()
+                .DescendantNodes().OfType<MethodDeclarationSyntax>()
+                .Single(method => method.Identifier.ValueText == "Create" + source);
+            string referenceTypeCode =
+                $"global::Opc.Ua.NodeId.Create({referenceTypeId}u, " +
+                "global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris)";
+            string targetNamespace = standardNamespace
+                ? "global::Opc.Ua.Namespaces.OpcUa"
+                : "global::HierarchicalReferences.Namespaces.HierarchicalReferences";
+            string targetCode = $"global::Opc.Ua.NodeId.Create({targetId}u, {targetNamespace}, context.NamespaceUris)";
+            InvocationExpressionSyntax[] references =
+            [
+                .. factory.DescendantNodes()
+                    .OfType<InvocationExpressionSyntax>()
+                    .Where(invocation => invocation.Expression.ToString() == "state.AddReference")
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(references.Select(reference => reference.ToString()), Is.Unique, factory.ToString());
+                Assert.That(
+                    references.Count(reference =>
+                        reference.ArgumentList.Arguments[0].ToString() == referenceTypeCode &&
+                        reference.ArgumentList.Arguments[1].ToString() == (inverse ? "true" : "false") &&
+                        reference.ArgumentList.Arguments[2].ToString() == targetCode),
+                    Is.EqualTo(1),
+                    factory.ToString());
+            });
+        }
+
+        [Test]
+        public void HierarchicalReferencesGenerateDeterministicCompilableCode()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet("HierarchicalReferences.NodeSet2.xml", telemetry);
+            Dictionary<string, string> repeatedFiles =
+                GenerateFromNodeSet("HierarchicalReferences.NodeSet2.xml", telemetry);
+
+            Assert.That(repeatedFiles, Is.EquivalentTo(files));
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
         }
 
         [Test]
@@ -1344,6 +1404,296 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     + string.Join(", ", castTypes));
         }
 
+        /// <summary>
+        /// Regression: NodeSet categories were emitted into the
+        /// <c>Categories</c> string array without escaping, so a category
+        /// containing a quote or backslash produced uncompilable code.
+        /// </summary>
+        [Test]
+        public void CategoriesWithQuotesAndBackslashesAreEscaped()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "QuotedCategory.NodeSet2.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.That(
+                code,
+                Does.Contain(
+                    "nodeState.Categories = new string[] { " +
+                    "\"Profile \\\"Standard\\\" UA Server\", \"Folder\\\\Sub\" };"));
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Regression: structure-typed method arguments whose value rank is
+        /// ScalarOrArray / ScalarOrOneDimension / Any are carried as Variant,
+        /// but the generated Call used the IEncodeable-constrained
+        /// TryGetValue/FromStructure overloads (CS0315).
+        /// </summary>
+        [Test]
+        public void ScalarOrArrayStructureMethodArgumentsCompile()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "ScalarOrArrayStructureArguments.NodeSet2.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.That(
+                code,
+                Does.Contain("TryGetValue(out global::Opc.Ua.Variant options)"));
+            Assert.That(code, Does.Not.Contain("FromStructure(result)"));
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Regression: AccessRestrictions and RolePermissions of type nodes
+        /// and of method declarations on types were wrapped in
+        /// <c>if (forInstance)</c>, but type factories are only ever called
+        /// with <c>forInstance: false</c>, so the attributes were never set.
+        /// </summary>
+        [Test]
+        public void TypeAndTypeMethodDeclarationsCarryAccessRestrictionsAndRolePermissions()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "TypeRolePermissions.NodeSet2.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string typeFactory = ExtractMethodBody(code, "CreateRestrictedObjectType");
+            string methodFactory = ExtractMethodBody(code, "CreateRestrictedObjectType_Reset");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeFactory, Does.Contain("nodeState.AccessRestrictions = "));
+                Assert.That(typeFactory, Does.Contain("nodeState.RolePermissions = "));
+                Assert.That(methodFactory, Does.Contain("nodeState.RolePermissions = "));
+                foreach (string factory in new[] { typeFactory, methodFactory })
+                {
+                    Assert.That(
+                        factory,
+                        Does.Not.Match(
+                            @"if \(forInstance\)\s*\{\s*(nodeState\.AccessRestrictions|nodeState\.RolePermissions)"));
+                }
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Regression: the VariableType value class addressed the structure
+        /// value by the authored field name, but the data type generator
+        /// renames fields that collide with the enclosing type name or with
+        /// reserved members (e.g. <c>Measurement</c> becomes
+        /// <c>MeasurementField</c>), producing CS1061.
+        /// </summary>
+        [Test]
+        public void VariableTypeValueUsesGeneratedStructurePropertyNames()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "VariableTypeRenamedField.NodeSet2.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.Multiple(() =>
+            {
+                Assert.That(code, Does.Contain("m_value.MeasurementField"));
+                Assert.That(code, Does.Contain("m_value.TypeIdField"));
+                Assert.That(code, Does.Contain("m_value.Unit"));
+                Assert.That(code, Does.Contain("m_variable.Measurement"));
+                Assert.That(code, Does.Not.Match(@"m_value\.Measurement\b"));
+                Assert.That(code, Does.Not.Match(@"m_value\.TypeId\b"));
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Regression: factories assigned node attributes through the local
+        /// typed as the generated class, so a child named like an attribute
+        /// (DataType, ValueRank, EventNotifier, TypeDefinitionId, ...) bound
+        /// the assignment to the child property instead (CS0029).
+        /// </summary>
+        [Test]
+        public void ChildrenNamedLikeNodeAttributesCompile()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "AttributeNamedChildren.NodeSet2.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.That(code, Does.Contain("class ParameterState"));
+            Assert.That(code, Does.Contain("class SensorState"));
+            var diagnostics = new List<Diagnostic>();
+            Assert.That(CompileGeneratedAssembly(files, diagnostics), Is.Not.Null);
+
+            // The child properties must be declared "public new" exactly when
+            // they hide a member of the runtime base class.
+            string[] hidingWarnings = [.. diagnostics
+                .Where(d => d.Id is "CS0108" or "CS0109")
+                .Select(d => d.ToString())];
+            Assert.That(hidingWarnings, Is.Empty);
+        }
+
+        /// <summary>
+        /// The <c>public new</c> decision for child properties uses name lists of the
+        /// runtime base classes. Every member a generated class inherits (and only
+        /// those) must be in the list for its parent kind, otherwise the child hides
+        /// the member without <c>new</c> (CS0108) or uses <c>new</c> needlessly
+        /// (CS0109). Fails when the runtime gains a member the lists do not know.
+        /// </summary>
+        [TestCase(typeof(ObjectTypeDesign), typeof(BaseObjectState))]
+        [TestCase(typeof(ObjectDesign), typeof(BaseObjectState))]
+        [TestCase(typeof(VariableTypeDesign), typeof(BaseVariableState))]
+        [TestCase(typeof(VariableDesign), typeof(BaseVariableState))]
+        [TestCase(typeof(MethodDesign), typeof(MethodState))]
+        public void ChildHidingDecisionMatchesTheRuntimeBaseClass(Type parentKind, Type runtimeBase)
+        {
+            var parent = (NodeDesign)Activator.CreateInstance(parentKind);
+            HashSet<string> inherited = GetMembersVisibleToDerivedClasses(runtimeBase);
+            // A Variable child named Value is emitted as a plain public property.
+            if (parent is VariableDesign)
+            {
+                inherited.Remove("Value");
+            }
+            HashSet<string> candidates =
+            [
+                .. GetMembersVisibleToDerivedClasses(typeof(BaseObjectState)),
+                .. GetMembersVisibleToDerivedClasses(typeof(BaseVariableState)),
+                .. GetMembersVisibleToDerivedClasses(typeof(MethodState))
+            ];
+
+            string[] missing = [.. inherited
+                .Where(n => !NodeStateGenerator.RequiresNewModifier(parent, n))
+                .OrderBy(n => n, StringComparer.Ordinal)];
+            string[] extra = [.. candidates
+                .Where(n => !inherited.Contains(n) && n != "Value" &&
+                    NodeStateGenerator.RequiresNewModifier(parent, n))
+                .OrderBy(n => n, StringComparer.Ordinal)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missing, Is.Empty,
+                    "Inherited members of " + runtimeBase.Name + " missing from the lists (CS0108)");
+                Assert.That(extra, Is.Empty,
+                    "Names that " + runtimeBase.Name + " does not declare (CS0109)");
+            });
+        }
+
+        private static HashSet<string> GetMembersVisibleToDerivedClasses(Type type)
+        {
+            const BindingFlags kFlags = BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            for (Type current = type; current != null; current = current.BaseType)
+            {
+                foreach (MemberInfo member in current.GetMembers(kFlags))
+                {
+                    bool visible = member switch
+                    {
+                        ConstructorInfo => false,
+                        MethodInfo m => !m.IsSpecialName && IsVisibleToDerived(m),
+                        PropertyInfo p => p.GetIndexParameters().Length == 0 &&
+                            p.GetAccessors(true).Any(IsVisibleToDerived),
+                        EventInfo e => IsVisibleToDerived(e.AddMethod),
+                        FieldInfo f => !f.IsSpecialName &&
+                            (f.IsPublic || f.IsFamily || f.IsFamilyOrAssembly),
+                        Type t => t.IsNestedPublic || t.IsNestedFamily || t.IsNestedFamORAssem,
+                        _ => false
+                    };
+                    if (visible && member.Name.All(c => char.IsLetterOrDigit(c) || c == '_'))
+                    {
+                        names.Add(member.Name);
+                    }
+                }
+            }
+            return names;
+        }
+
+        private static bool IsVisibleToDerived(MethodBase method)
+        {
+            return method != null && (method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly);
+        }
+
+        /// <summary>
+        /// Regression: GetDefaultTypeDefinitionId / GetDefaultDataTypeId and
+        /// DataTypeDefinitions references were emitted with the bare
+        /// namespace prefix. Inside <c>namespace Acme.Opc.Ua.Pumps</c> the
+        /// reference <c>Opc.Ua.DataTypes.Double</c> binds <c>Opc</c> to
+        /// <c>Acme.Opc</c> (CS0234).
+        /// </summary>
+        [Test]
+        public void NamespacePrefixReferencesAreGlobalQualified()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromModelDesign(
+                "NestedOpcPrefix.ModelDesign.xml",
+                telemetry);
+
+            string code = string.Join("\n", files.Values);
+            Assert.Multiple(() =>
+            {
+                Assert.That(code, Does.Contain("namespace Acme.Opc.Ua.Pumps"));
+                Assert.That(code, Does.Contain("global::Opc.Ua.DataTypes.Double,"));
+                Assert.That(code, Does.Contain("global::Acme.Opc.Ua.Pumps.VariableTypes.FlowVariableType,"));
+                Assert.That(code, Does.Contain("global::Acme.Opc.Ua.Pumps.ObjectTypes.PumpType,"));
+                Assert.That(
+                    code,
+                    Does.Contain("global::Acme.Opc.Ua.Pumps.DataTypeDefinitions.CreatePumpSettings("));
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Regression: a hierarchy reference whose target is the hierarchy
+        /// root (TargetPath "") was emitted against the source node's
+        /// immediate parent. For a grandchild that is the intermediate
+        /// folder, not the type / top-level instance.
+        /// </summary>
+        [Test]
+        public void ReferenceToHierarchyRootFromGrandchildTargetsTheRoot()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromModelDesign(
+                "DeepRootReference.ModelDesign.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string typeMotor = ExtractMethodBody(code, "CreateMachineType_Components_Motor");
+            string instanceMotor = ExtractMethodBody(code, "CreateMachine1_Components_Motor");
+            string allCode = string.Join("\n", files.Values);
+
+            // Inverse HasEventSource (i=36) from Motor to the given node.
+            string InverseEventSourceTo(string symbolicName)
+            {
+                System.Text.RegularExpressions.Match id = Regex.Match(
+                    allCode,
+                    @"\buint " + Regex.Escape(symbolicName) + @" = (\d+)u?;");
+                Assert.That(id.Success, Is.True, $"No numeric id for {symbolicName}.");
+                return "state.AddReference(global::Opc.Ua.NodeId.Create(36u, " +
+                    "global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris), true, " +
+                    $"global::Opc.Ua.NodeId.Create({id.Groups[1].Value}u, ";
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(typeMotor, Does.Contain(InverseEventSourceTo("MachineType")));
+                Assert.That(
+                    typeMotor,
+                    Does.Not.Contain(InverseEventSourceTo("MachineType_Components")));
+                Assert.That(instanceMotor, Does.Contain(InverseEventSourceTo("Machine1")));
+                Assert.That(
+                    instanceMotor,
+                    Does.Not.Contain(InverseEventSourceTo("Machine1_Components")));
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)
@@ -1455,7 +1805,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         private static Assembly CompileGeneratedAssembly(
-            Dictionary<string, string> files)
+            Dictionary<string, string> files,
+            List<Diagnostic> diagnostics = null)
         {
             using var peStream = new MemoryStream();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -1468,13 +1819,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Where(file => !file.Key.EndsWith(
                     ".TypeProxies.g.cs",
                     StringComparison.Ordinal));
-            bool success = OptimizationLevel.Debug
+            var emitResult = OptimizationLevel.Debug
                 .CreateCompilation("TypedMethodArguments.Generated")
                 .AddCode(
                     generatedNodeStateFiles.WithOpcUaCoreStubs(),
                     LanguageVersion.Latest)
-                .Emit(peStream)
-                .Check(TestContext.Out, out int errorCount, out int warningCount);
+                .Emit(peStream);
+            diagnostics?.AddRange(emitResult.Diagnostics);
+            bool success = emitResult.Check(TestContext.Out, out int errorCount, out int warningCount);
 
             Assert.That(
                 success,

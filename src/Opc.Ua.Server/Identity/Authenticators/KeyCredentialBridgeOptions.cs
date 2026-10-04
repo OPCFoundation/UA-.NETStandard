@@ -51,5 +51,10 @@ namespace Opc.Ua.Server
         /// Maximum accepted age for the nonce proof carried by the token.
         /// </summary>
         public TimeSpan NonceLifetime { get; set; } = TimeSpan.FromMinutes(2);
+
+        /// <summary>
+        /// Time source used to validate token freshness and expire replay entries.
+        /// </summary>
+        public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
     }
 }

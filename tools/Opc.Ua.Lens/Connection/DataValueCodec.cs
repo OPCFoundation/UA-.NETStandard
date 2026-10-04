@@ -33,193 +33,214 @@ using System.Text;
 using System.Xml;
 using Opc.Ua;
 
-namespace UaLens.Connection;
-
-/// <summary>
-/// On-wire encoding of an OPC UA value file, supported by
-/// <see cref="DataValueCodec"/>.
-/// </summary>
-internal enum EncodingFormat
+namespace UaLens.Connection
 {
-    Binary,
-    Xml,
-    Json
-}
-
-/// <summary>
-/// Round-trips a <see cref="DataValue"/> or <see cref="Variant"/> through
-/// one of the SDK encoders (binary / xml / json) so the value can be
-/// persisted to disk and reloaded.  Used by:
-/// <list type="bullet">
-///   <item>The address-space <c>Export value to file…</c> context-menu
-///         entry — encodes the freshly-read DataValue.</item>
-///   <item>The <c>Write Value</c> dialog <c>Import…</c> button — decodes
-///         a DataValue and formats its Variant back into the textbox.</item>
-///   <item>The <c>Method Call</c> dialog per-argument <c>Import…</c>
-///         button — decodes a single Variant.</item>
-/// </list>
-/// </summary>
-internal static class DataValueCodec
-{
-    private const string FieldName = "Value";
-
-    public static byte[] EncodeDataValue(DataValue dv, EncodingFormat fmt, IServiceMessageContext ctx)
+    /// <summary>
+    /// On-wire encoding of an OPC UA value file, supported by
+    /// <see cref="DataValueCodec"/>.
+    /// </summary>
+    internal enum EncodingFormat
     {
-        ArgumentNullException.ThrowIfNull(ctx);
-        switch (fmt)
+        Binary,
+        Xml,
+        Json
+    }
+
+    /// <summary>
+    /// Round-trips a <see cref="DataValue"/> or <see cref="Variant"/> through
+    /// one of the SDK encoders (binary / xml / json) so the value can be
+    /// persisted to disk and reloaded.  Used by:
+    /// <list type="bullet">
+    ///   <item>The address-space <c>Export value to file…</c> context-menu
+    ///         entry — encodes the freshly-read DataValue.</item>
+    ///   <item>The <c>Write Value</c> dialog <c>Import…</c> button — decodes
+    ///         a DataValue and formats its Variant back into the textbox.</item>
+    ///   <item>The <c>Method Call</c> dialog per-argument <c>Import…</c>
+    ///         button — decodes a single Variant.</item>
+    /// </list>
+    /// </summary>
+    internal static class DataValueCodec
+    {
+        /// <summary>
+        /// Copies all backing storage without normalizing the declared Variant type.
+        /// Unlike Variant.Copy, the snapshot never shares read-only primitive arrays.
+        /// </summary>
+        public static Variant Snapshot(Variant value, IServiceMessageContext context)
         {
-            case EncodingFormat.Binary:
+            ArgumentNullException.ThrowIfNull(context);
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, leaveOpen: true))
             {
-                using var enc = new BinaryEncoder(ctx);
-                enc.WriteDataValue(FieldName, dv);
-                // ctor without an external stream uses an internal
-                // MemoryStream → CloseAndReturnBuffer is never null.
-                return enc.CloseAndReturnBuffer()!;
+                encoder.WriteVariantValue(null, value);
             }
-            case EncodingFormat.Xml:
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, context, leaveOpen: true);
+            return decoder.ReadVariantValue(null, value.TypeInfo);
+        }
+
+        public static byte[] EncodeDataValue(DataValue dv, EncodingFormat fmt, IServiceMessageContext ctx)
+        {
+            ArgumentNullException.ThrowIfNull(ctx);
+            switch (fmt)
             {
-                using var enc = new XmlEncoder(ctx);
-                enc.WriteDataValue(FieldName, dv);
-                // ctor without an external destination uses an internal
-                // StringBuilder → CloseAndReturnText is never null.
-                return Encoding.UTF8.GetBytes(enc.CloseAndReturnText()!);
-            }
-            case EncodingFormat.Json:
-            {
-                using var ms = new MemoryStream();
-                using (var enc = new JsonEncoder(ms, ctx))
+                case EncodingFormat.Binary:
                 {
+                    using var enc = new BinaryEncoder(ctx);
                     enc.WriteDataValue(FieldName, dv);
+                    // ctor without an external stream uses an internal
+                    // MemoryStream → CloseAndReturnBuffer is never null.
+                    return enc.CloseAndReturnBuffer()!;
                 }
-                return ms.ToArray();
-            }
-            default:
-                throw new ArgumentOutOfRangeException(nameof(fmt));
-        }
-    }
-
-    public static byte[] EncodeVariant(Variant v, EncodingFormat fmt, IServiceMessageContext ctx)
-    {
-        ArgumentNullException.ThrowIfNull(ctx);
-        switch (fmt)
-        {
-            case EncodingFormat.Binary:
-            {
-                using var enc = new BinaryEncoder(ctx);
-                enc.WriteVariant(FieldName, v);
-                // ctor without an external stream uses an internal
-                // MemoryStream → CloseAndReturnBuffer is never null.
-                return enc.CloseAndReturnBuffer()!;
-            }
-            case EncodingFormat.Xml:
-            {
-                using var enc = new XmlEncoder(ctx);
-                enc.WriteVariant(FieldName, v);
-                // ctor without an external destination uses an internal
-                // StringBuilder → CloseAndReturnText is never null.
-                return Encoding.UTF8.GetBytes(enc.CloseAndReturnText()!);
-            }
-            case EncodingFormat.Json:
-            {
-                using var ms = new MemoryStream();
-                using (var enc = new JsonEncoder(ms, ctx))
+                case EncodingFormat.Xml:
                 {
-                    enc.WriteVariant(FieldName, v);
+                    using var enc = new XmlEncoder(ctx);
+                    enc.WriteDataValue(FieldName, dv);
+                    // ctor without an external destination uses an internal
+                    // StringBuilder → CloseAndReturnText is never null.
+                    return Encoding.UTF8.GetBytes(enc.CloseAndReturnText()!);
                 }
-                return ms.ToArray();
+                case EncodingFormat.Json:
+                {
+                    using var ms = new MemoryStream();
+                    using (var enc = new JsonEncoder(ms, ctx))
+                    {
+                        enc.WriteDataValue(FieldName, dv);
+                    }
+                    return ms.ToArray();
+                }
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(fmt));
             }
-            default:
-                throw new ArgumentOutOfRangeException(nameof(fmt));
         }
-    }
 
-    public static DataValue DecodeDataValue(byte[] data, EncodingFormat fmt, IServiceMessageContext ctx)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-        ArgumentNullException.ThrowIfNull(ctx);
-        switch (fmt)
+        public static byte[] EncodeVariant(Variant v, EncodingFormat fmt, IServiceMessageContext ctx)
         {
-            case EncodingFormat.Binary:
+            ArgumentNullException.ThrowIfNull(ctx);
+            switch (fmt)
             {
-                using var dec = new BinaryDecoder(data, ctx);
-                return dec.ReadDataValue(FieldName);
+                case EncodingFormat.Binary:
+                {
+                    using var enc = new BinaryEncoder(ctx);
+                    enc.WriteVariant(FieldName, v);
+                    // ctor without an external stream uses an internal
+                    // MemoryStream → CloseAndReturnBuffer is never null.
+                    return enc.CloseAndReturnBuffer()!;
+                }
+                case EncodingFormat.Xml:
+                {
+                    using var enc = new XmlEncoder(ctx);
+                    enc.WriteVariant(FieldName, v);
+                    // ctor without an external destination uses an internal
+                    // StringBuilder → CloseAndReturnText is never null.
+                    return Encoding.UTF8.GetBytes(enc.CloseAndReturnText()!);
+                }
+                case EncodingFormat.Json:
+                {
+                    using var ms = new MemoryStream();
+                    using (var enc = new JsonEncoder(ms, ctx))
+                    {
+                        enc.WriteVariant(FieldName, v);
+                    }
+                    return ms.ToArray();
+                }
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(fmt));
             }
-            case EncodingFormat.Xml:
-            {
-                using var stream = new MemoryStream(data);
-                using var reader = XmlReader.Create(stream);
-                using var dec = new XmlDecoder(reader, ctx);
-                return dec.ReadDataValue(FieldName);
-            }
-            case EncodingFormat.Json:
-            {
-                string json = Encoding.UTF8.GetString(data);
-                using var dec = new JsonDecoder(json, ctx);
-                return dec.ReadDataValue(FieldName);
-            }
-            default:
-                throw new ArgumentOutOfRangeException(nameof(fmt));
         }
-    }
 
-    public static Variant DecodeVariant(byte[] data, EncodingFormat fmt, IServiceMessageContext ctx)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-        ArgumentNullException.ThrowIfNull(ctx);
-        switch (fmt)
+        public static DataValue DecodeDataValue(byte[] data, EncodingFormat fmt, IServiceMessageContext ctx)
         {
-            case EncodingFormat.Binary:
+            ArgumentNullException.ThrowIfNull(data);
+            ArgumentNullException.ThrowIfNull(ctx);
+            switch (fmt)
             {
-                using var dec = new BinaryDecoder(data, ctx);
-                return dec.ReadVariant(FieldName);
+                case EncodingFormat.Binary:
+                {
+                    using var dec = new BinaryDecoder(data, ctx);
+                    return dec.ReadDataValue(FieldName);
+                }
+                case EncodingFormat.Xml:
+                {
+                    using var stream = new MemoryStream(data);
+                    using var reader = XmlReader.Create(stream);
+                    using var dec = new XmlDecoder(reader, ctx);
+                    return dec.ReadDataValue(FieldName);
+                }
+                case EncodingFormat.Json:
+                {
+                    string json = Encoding.UTF8.GetString(data);
+                    using var dec = new JsonDecoder(json, ctx);
+                    return dec.ReadDataValue(FieldName);
+                }
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(fmt));
             }
-            case EncodingFormat.Xml:
-            {
-                using var stream = new MemoryStream(data);
-                using var reader = XmlReader.Create(stream);
-                using var dec = new XmlDecoder(reader, ctx);
-                return dec.ReadVariant(FieldName);
-            }
-            case EncodingFormat.Json:
-            {
-                string json = Encoding.UTF8.GetString(data);
-                using var dec = new JsonDecoder(json, ctx);
-                return dec.ReadVariant(FieldName);
-            }
-            default:
-                throw new ArgumentOutOfRangeException(nameof(fmt));
         }
-    }
 
-    /// <summary>
-    /// Returns the file extension typically associated with the given
-    /// encoding format ("bin", "xml", "json").
-    /// </summary>
-    public static string DefaultExtension(EncodingFormat fmt) => fmt switch
-    {
-        EncodingFormat.Binary => "bin",
-        EncodingFormat.Xml => "xml",
-        EncodingFormat.Json => "json",
-        _ => "dat"
-    };
-
-    /// <summary>
-    /// Guess the encoding from a file extension (case-insensitive).
-    /// Returns null if no obvious match — callers should prompt.
-    /// </summary>
-    public static EncodingFormat? GuessFromExtension(string fileName)
-    {
-        if (string.IsNullOrEmpty(fileName))
+        public static Variant DecodeVariant(byte[] data, EncodingFormat fmt, IServiceMessageContext ctx)
         {
-            return null;
+            ArgumentNullException.ThrowIfNull(data);
+            ArgumentNullException.ThrowIfNull(ctx);
+            switch (fmt)
+            {
+                case EncodingFormat.Binary:
+                {
+                    using var dec = new BinaryDecoder(data, ctx);
+                    return dec.ReadVariant(FieldName);
+                }
+                case EncodingFormat.Xml:
+                {
+                    using var stream = new MemoryStream(data);
+                    using var reader = XmlReader.Create(stream);
+                    using var dec = new XmlDecoder(reader, ctx);
+                    return dec.ReadVariant(FieldName);
+                }
+                case EncodingFormat.Json:
+                {
+                    string json = Encoding.UTF8.GetString(data);
+                    using var dec = new JsonDecoder(json, ctx);
+                    return dec.ReadVariant(FieldName);
+                }
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(fmt));
+            }
         }
-        string ext = Path.GetExtension(fileName).Trim('.').ToLowerInvariant();
-        return ext switch
+
+        /// <summary>
+        /// Returns the file extension typically associated with the given
+        /// encoding format ("bin", "xml", "json").
+        /// </summary>
+        public static string DefaultExtension(EncodingFormat fmt)
         {
-            "bin" or "uabin" => EncodingFormat.Binary,
-            "xml" => EncodingFormat.Xml,
-            "json" => EncodingFormat.Json,
-            _ => null
-        };
+            return fmt switch
+            {
+                EncodingFormat.Binary => "bin",
+                EncodingFormat.Xml => "xml",
+                EncodingFormat.Json => "json",
+                _ => "dat"
+            };
+        }
+
+        /// <summary>
+        /// Guess the encoding from a file extension (case-insensitive).
+        /// Returns null if no obvious match — callers should prompt.
+        /// </summary>
+        public static EncodingFormat? GuessFromExtension(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                return null;
+            }
+            string ext = Path.GetExtension(fileName).Trim('.').ToLowerInvariant();
+            return ext switch
+            {
+                "bin" or "uabin" => EncodingFormat.Binary,
+                "xml" => EncodingFormat.Xml,
+                "json" => EncodingFormat.Json,
+                _ => null
+            };
+        }
+
+        private const string FieldName = "Value";
     }
 }

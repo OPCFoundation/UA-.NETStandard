@@ -1,10 +1,47 @@
 # High Availability and OPC UA Redundancy
 
-This guide maps the OPC UA .NET Standard high-availability APIs to OPC 10000-4 §6.6 Redundancy. It documents the implemented server, client, subscription, session, [Kubernetes](Kubernetes.md), and active/active extension seams; the worked examples are `samples/Redundancy/RedundantServer` and `samples/Redundancy/RedundantClient`.
+This guide explains how the OPC UA .NET Standard high-availability APIs
+implement OPC 10000-4 §6.6 Redundancy. It covers server, client,
+subscription, and session redundancy, plus [Kubernetes](Kubernetes.md)
+and active/active extensions. Worked examples are in
+`samples/Redundancy/RedundantServer` and
+`samples/Redundancy/RedundantClient`.
 
-Redundancy and high availability are opt-in and require adding the extra `OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet packages (for example `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` or `.Client`) to your application. A server or client built only with the standard `OPCFoundation.NetStandard.Opc.Ua.Client` and `OPCFoundation.NetStandard.Opc.Ua.Server` libraries does not support OPC UA redundancy.
+Redundancy and high availability are opt-in. Add the relevant
+`OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet package to your
+application, such as `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server`
+or `.Client`. The standard `OPCFoundation.NetStandard.Opc.Ua.Client` and
+`OPCFoundation.NetStandard.Opc.Ua.Server` libraries alone do not provide
+OPC UA redundancy.
 
 For distributed PubSub active/standby publishers and subscribers, see the PubSub counterpart: [PubSub High Availability](PubSubHighAvailability.md).
+
+## Contents
+
+- [Redundancy overview (as per Part 4 §6.6.1)](#redundancy-overview-as-per-part-4-661)
+- [Server redundancy (as per Part 4 §6.6.2)](#server-redundancy-as-per-part-4-662)
+  - [Server.ServerRedundancy model](#serverserverredundancy-model)
+  - [Add* and Use* API convention](#add-and-use-api-convention)
+- [ServiceLevel and load balancing (as per Part 4 §6.6.2.4.2 and §6.6.2.4.3)](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
+- [Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
+- [Manual failover and Maintenance (as per Part 4 §6.6.5)](#manual-failover-and-maintenance-as-per-part-4-665)
+- [HotAndMirrored and Transparent state mirroring](#hotandmirrored-and-transparent-state-mirroring)
+  - [Active/passive address-space consistency](#activepassive-address-space-consistency)
+  - [Strong active/passive historian](#strong-activepassive-historian)
+- [Client redundancy (as per Part 4 §6.6.3)](#client-redundancy-as-per-part-4-663)
+- [Network redundancy (as per Part 4 §6.6.4)](#network-redundancy-as-per-part-4-664)
+- [Beyond §6.6: distributed extensions](#beyond-66-distributed-extensions)
+  - [Dynamic peer discovery (beyond §6.6, opt-in)](#dynamic-peer-discovery-beyond-66-opt-in)
+  - [Sharing values across replicas: distributed value cache (beyond §6.6, opt-in)](#sharing-values-across-replicas-distributed-value-cache-beyond-66-opt-in)
+  - [Shared certificate stores (distributed trust lists) (beyond §6.6, opt-in)](#shared-certificate-stores-distributed-trust-lists-beyond-66-opt-in)
+  - [Distributed PushManagement transactions (beyond §6.6, opt-in)](#distributed-pushmanagement-transactions-beyond-66-opt-in)
+  - [GetEndpoints load direction (beyond §6.6, opt-in)](#getendpoints-load-direction-beyond-66-opt-in)
+  - [Client-side high availability (replica sets)](#client-side-high-availability-replica-sets)
+- [Kubernetes deployment](#kubernetes-deployment)
+- [Samples](#samples)
+- [Security considerations](#security-considerations)
+  - [Record context and plaintext ownership](#record-context-and-plaintext-ownership)
+  - [Shared application identity](#shared-application-identity)
 
 ## Redundancy overview (as per Part 4 §6.6.1)
 
@@ -76,6 +113,16 @@ Beyond-spec distributed building blocks (`Use*`):
 
 `AddServerRedundancy(...)` only publishes the redundancy metadata. It does not calculate or drive `Server.ServiceLevel`; register a ServiceLevel provider with `AddServerServiceLevel(...)`, or register an `IServiceLevelProvider` plus `ServiceLevelStartupTask`, when clients and Kubernetes readiness need live health or leader-state values.
 
+On the standard server, `ServiceLevelStartupTask` claims explicit ownership via
+`IServerServiceLevelControl`. Only one provider can claim the node for that
+server's lifetime; a second claim fails instead of creating competing writers.
+Provider publications and session-headroom updates share the server's internal
+coordination, and session churn cannot overwrite any provider-owned value,
+including Healthy-band standby/load levels such as 210 or a fixed 255.
+Without an explicit owner, the session-headroom heuristic is unchanged.
+Custom `IServerContext` implementations can implement this optional capability;
+contexts without it retain their existing direct provider-publication behavior.
+
 ```csharp
 services.AddOpcUa()
     .AddServer(server =>
@@ -120,7 +167,34 @@ OPC 10000-4 Table 105 defines `ServiceLevel` as a byte split into mandatory sub-
 
 `ConstantServiceLevelProvider` reports a fixed value, defaulting to `255`, preserving single-instance behavior. `LeaderServiceLevelProvider` follows an `ILeaderElection`: the leader reports `255`, Cold standbys report `1`, Warm standbys report `199`, and Hot/HotAndMirrored standbys report `255` unless explicit levels are supplied. Optional health and connected-client delegates cap or decrement Healthy values so Hot servers can load-balance within the 200-255 range. `IServiceLevelController` lets `RequestServerStateChange` override the published value for manual maintenance.
 
+`SharedStoreLeaseElection` bounds local authority by the last successfully
+confirmed lease. Its injected `TimeProvider` drives both renewal and an
+independent expiry timer, so failed or blocked store operations cannot keep a
+replica authoritative past that deadline. `IsLeader` also checks the deadline
+when read, without invoking application callbacks. The expiry timer raises
+`LeadershipChanged(false)` to update dependent service levels. Subscriber
+failures are logged without interrupting other subscribers or lease operations.
+Lease validity starts at the write attempt, not at receipt of
+its reply; an expired or superseded operation cannot restore leadership. A
+fresh, confirmed acquisition is required after expiry. Overlapping successful
+calls can confirm the same owned lease without waiting for one another.
+A failed store observation started before a newer successful confirmation cannot
+revoke or reschedule that confirmed lease; a fresh ownership-loss observation
+still revokes authority. Expiry and disposal invalidate all outstanding attempts.
+The UTC lease record is also bounded by local elapsed time, so moving the local
+clock backwards cannot extend authority. Replicas still require unique identities,
+suitably synchronized clocks and a linearizable compare-and-swap store; this local
+safety mechanism does not replace backend fencing or provide consensus.
+
 Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `RedundancySupport`, `ServiceLevel`, `EstimatedReturnTime`, `RedundantServerArray`, `ServerUriArray`, and `CurrentServerId` as applicable. `ServerRedundancyInfo.ServiceLevelSubrange` is calculated with `ServiceLevels.GetSubrange`.
+
+`ManagedSession` stores the default handler's basic snapshot as soon as that
+read succeeds, within the existing two-second metadata-read bound. Peer discovery
+runs separately in the background, in parallel with a two-second bound per peer;
+connection establishment does not wait for every backup. A peer timeout leaves
+its `Endpoint` unresolved without discarding the mode, peer URIs or other resolved
+endpoints. Caller cancellation is propagated, and session disposal cancels and
+drains the background refresh.
 
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
@@ -142,7 +216,16 @@ if (decision.IsFailoverWarranted)
 
 ## Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)
 
-`ManagedSession` implements the Table 107 client patterns over `ManagedSession` instances discovered from `RedundantServerArray`/`ServerUriArray` and resolved with `IRedundantServerEndpointResolver`. The default resolver calls `FindServers` and `GetEndpoints` from the current endpoint's discovery URLs, chooses matching security policy/mode and URL scheme when possible, and caches the result.
+`ManagedSession` implements the Table 107 client patterns over `ManagedSession` instances discovered from `RedundantServerArray`/`ServerUriArray` and resolved with `IRedundantServerEndpointResolver`. The default resolver uses `FindServers` at the current endpoint to locate peers, then requires `GetEndpoints` results to match the peer application URI, security policy/mode and URL scheme.
+
+The resolver retains a peer's discovery addresses before contacting that peer.
+Thus a Cold backup that was offline at connect time can be resolved at failover
+without another `FindServers` call to the failed primary. Failed resolutions are
+not cached as permanent misses, and a failed failover invalidates the resolved
+endpoint so the next attempt can discover it again. Cached addresses never bypass
+endpoint or session security validation. If no peer address was learned before
+the primary became unreachable, a reachable discovery service or a custom
+`IRedundantServerEndpointResolver` is still required to translate its application URI.
 
 | Mode | Table 107 actions | `ManagedSession` realization |
 | --- | --- | --- |
@@ -352,6 +435,11 @@ The redundancy samples exercise both guarantees: the client writes and reads a d
 
 OPC UA client redundancy is implemented with `TransferSubscriptions` plus server diagnostics. `ClientFailoverCoordinator` helps a backup client find the active client's session by `ActiveSessionId` or `ActiveSessionName`, discover subscription ids from diagnostics, verify the backup uses the same user display name when configured, and call `TransferSubscriptionsAsync` with `SendInitialValues` defaulting to `true`.
 
+Name-based discovery excludes the backup's own session and rejects multiple
+matching active sessions rather than selecting an arbitrary client. Supply
+`ActiveSessionId` when names are not unique; that explicit identity bypasses
+name-based discovery.
+
 ```csharp
 var coordinator = new ClientFailoverCoordinator();
 ArrayOf<TransferResult> results = await coordinator.TransferActiveSubscriptionsAsync(
@@ -364,6 +452,8 @@ ArrayOf<TransferResult> results = await coordinator.TransferActiveSubscriptionsA
     },
     ct);
 ```
+
+A transferred subscription needs a client-side owner on the backup session, otherwise the backup's publish engine sees an unknown `SubscriptionId` and deletes it (or never publishes and it expires). Prepare the backup before the takeover: restore the active client's subscriptions with `ISession.Load` (or add `Subscription` objects whose `TransferId` is the active client's subscription id and whose monitored items carry the same client handles). The coordinator then transfers those through the session, which binds them and resumes publishing; ids without a prepared subscription are still moved with the raw service and are left to the caller.
 
 OPC UA does not standardize how active and backup clients exchange `SessionId` or subscription ids. In this stack the client replica set coordinates through the registered client-side shared store (`AddRedundantClientSharedStore` / `AddRaftClientSharedStore` — a CRDT- or [Raft](https://raft.github.io/)-backed `ISharedKeyValueStore` that the `ClientReplicaCoordinator` consumes).
 
@@ -578,7 +668,7 @@ builder
     });
 ```
 
-Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-71027101) for the underlying transaction model.
+Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-7102-71011) for the underlying transaction model.
 
 ### GetEndpoints load direction (beyond §6.6, opt-in)
 
@@ -695,6 +785,61 @@ Use the consolidated [Kubernetes High Availability Deployment](Kubernetes.md) gu
 ## Security considerations
 
 Distributed high-availability deployments protect the shared store as part of the OPC UA trust boundary. Use an authenticated and encrypted channel to the store, protect serialized records with `IRecordProtector`, provision record-protection keys through a key ring or secret manager, apply TTLs and quotas to session/nonce/subscription keys, and fail closed if a required strongly consistent store is unavailable.
+
+### Record context and plaintext ownership
+
+The 2.0 `IRecordProtector` contract requires a `ByteString context` on both `Protect`
+and `TryUnprotect`. For stored records, use
+`RecordProtectionContext.Create(recordType, fullStoreKey)`: strict UTF-8 encoding
+of `recordType + "|" + fullStoreKey`. Type labels cannot contain `|`; keys retain
+their exact case, escaping and configured prefixes. Readers use the actual key
+returned by scans and change feeds, not just a type label or a reconstructed
+identifier. This also binds snapshot chunks to their generation and ordinal,
+and historical segments to their individual keys, independently of the storage backend.
+
+```csharp
+ByteString binding = RecordProtectionContext.Create("application-record", key);
+ByteString envelope = protector.Protect(binding, plaintext);
+await store.SetAsync(key, envelope, cancellationToken).ConfigureAwait(false);
+
+(bool found, ByteString stored) = await store.TryGetAsync(key, cancellationToken).ConfigureAwait(false);
+if (!found || !protector.TryUnprotect(binding, stored, out ByteString recovered))
+{
+    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+}
+```
+
+Protect separately when the same plaintext belongs under two different keys;
+do not copy a ciphertext between a current-record pointer and a generation
+record. A wrong key, type, context or modified envelope fails closed. Never retry
+with an empty context after a failed bound read. When binding is genuinely not
+needed, pass `default(ByteString)` or `ByteString.Empty` explicitly; both encode
+the same empty context. The string convenience extensions only convert to UTF-8
+and invoke the required byte-context member once. They do not select a capability
+or provide a fallback.
+
+`AesCbcHmacRecordProtector` retains the envelope
+`[version:1][keyId:4 LE][IV:16][ciphertext][HMAC-SHA256:32]`. Its MAC authenticates
+`[contextLength:4 LE][context][header][ciphertext]`, including a zero context
+length for an explicitly unbound record, and is checked before decryption.
+`KeyRingRecordProtector` supplies the same context to active and retired keys.
+
+Private-key consumers require `IOwnedRecordProtector.TryUnprotectOwned(context,
+envelope, out byte[] plaintext)`. This transfers the original decrypted array,
+independent of the store input, so the caller can wipe it with
+`CryptoUtils.ZeroMemory` in a `finally` block. Do not implement this by calling
+`TryUnprotect(...).ToArray()`: that leaves an unwiped decrypted copy.
+`SharedKeyValuePendingCertificateKeyStore` rejects protectors without this
+ownership contract. Owned key-ring reads skip members that cannot supply owned
+buffers, without invoking their immutable-plaintext read path. If no capable
+member authenticates a record, the ring returns `false` and an empty buffer;
+pending-key stores treat that record as absent rather than throwing.
+Custom KMS/HSM providers must implement the owned contract to read pending keys
+protected by those members, including records retained during key rotation.
+`NullRecordProtector` remains a non-authenticating, process-local test/demo
+option, not a substitute for protection of a networked shared store.
+
+### Shared application identity
 
 Transparent redundancy uses one logical application identity. Every replica that serves the transparent virtual endpoint must use the same endpoint URL, ApplicationUri, application instance certificate, and private key so clients can validate one server identity and complete `ActivateSession` against any replica. The compromise blast radius of that shared private key is the entire transparent set: an attacker can impersonate the virtual server, terminate or redirect client trust, and participate in failover until the certificate is revoked and trust lists are updated. Prefer non-transparent redundancy with per-replica certificates when that shared-key risk is unacceptable.
 

@@ -43,6 +43,74 @@ namespace Opc.Ua.Client.Tests.Identity
     [Category("Identity")]
     public sealed class X509ClientIdentityProviderSelectionTests
     {
+        [OneTimeSetUp]
+        public void CreatePolicyDefinitions()
+        {
+            // These selection tests inspect policy metadata; they do not perform ECDH.
+            m_policyDefinitions = new SecurityPolicies();
+            m_policyDefinitions.Register(
+                new SecurityPolicyInfo(SecurityPolicyInfo.ECC_nistP256) { PlatformSupport = () => true },
+                replaceExisting: true);
+            m_policyDefinitions.Register(
+                new SecurityPolicyInfo(SecurityPolicyInfo.ECC_nistP384) { PlatformSupport = () => true },
+                replaceExisting: true);
+        }
+
+        [OneTimeTearDown]
+        public void DisposePolicyDefinitions()
+        {
+            m_policyDefinitions.Dispose();
+        }
+
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP384)]
+        public async Task DefaultEccPolicySelectionHonorsPlatformCapabilityAsync(string policyUri)
+        {
+            using Certificate certificate = CreateEccCertificate(policyUri == SecurityPolicies.ECC_nistP256
+                ? ECCurve.NamedCurves.nistP256
+                : ECCurve.NamedCurves.nistP384);
+            X509ClientIdentityProvider provider = CreateProvider(certificate);
+            EndpointDescription endpoint = CreateEndpoint(policyUri, CreatePolicy("ecc", policyUri));
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                SecurityPolicyRegistry = SecurityPolicies.Default
+            };
+            if (SecurityPolicies.Default.GetInfo(policyUri) == null)
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await provider.SelectUserTokenPolicyAsync(context).ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+                Assert.That(error.Message, Does.Contain("UnknownOrUnsupportedSecurityPolicy"));
+                Assert.That(SecurityPolicies.Default.GetDefaultEccUris(), Does.Not.Contain(policyUri));
+                return;
+            }
+
+            UserTokenPolicy selected = await provider.SelectUserTokenPolicyAsync(context).ConfigureAwait(false);
+            Assert.That(selected.PolicyId, Is.EqualTo("ecc"));
+        }
+
+        [Test]
+        public void UnsupportedEccPolicyIsRejectedDespiteMatchingCertificate()
+        {
+            using var policies = new SecurityPolicies();
+            policies.Register(
+                new SecurityPolicyInfo(SecurityPolicyInfo.ECC_nistP256) { PlatformSupport = () => false },
+                replaceExisting: true);
+            using Certificate certificate = CreateEccCertificate(ECCurve.NamedCurves.nistP256);
+            X509ClientIdentityProvider provider = CreateProvider(certificate);
+            EndpointDescription endpoint = CreateEndpoint(
+                SecurityPolicies.ECC_nistP256, CreatePolicy("ecc", SecurityPolicies.ECC_nistP256));
+            IdentitySelectionContext context = CreateContextWithAllPolicies(endpoint) with
+            {
+                SecurityPolicyRegistry = policies
+            };
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider.SelectUserTokenPolicyAsync(context).ConfigureAwait(false));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            Assert.That(error.Message, Does.Contain("UnknownOrUnsupportedSecurityPolicy"));
+        }
+
         [Test]
         public async Task RsaCertSelectsRsaPolicyOverEccPolicy()
         {
@@ -655,7 +723,7 @@ namespace Opc.Ua.Client.Tests.Identity
             };
         }
 
-        private static IdentitySelectionContext CreateContextWithAllPolicies(EndpointDescription endpoint)
+        private IdentitySelectionContext CreateContextWithAllPolicies(EndpointDescription endpoint)
         {
             // Allows every offered SecurityPolicyUri so the curve / token-type filter is the only gate.
             var enabled = new HashSet<string>(StringComparer.Ordinal);
@@ -677,8 +745,13 @@ namespace Opc.Ua.Client.Tests.Identity
                 endpoint,
                 endpoint.UserIdentityTokens,
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()),
-                enabledUris);
+                enabledUris)
+            {
+                SecurityPolicyRegistry = m_policyDefinitions
+            };
         }
+
+        private SecurityPolicies m_policyDefinitions;
 
         private sealed class FakeCertificatePasswordProvider : ICertificatePasswordProvider
         {

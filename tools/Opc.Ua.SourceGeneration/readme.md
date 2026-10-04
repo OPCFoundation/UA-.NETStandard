@@ -42,13 +42,32 @@ a node in one input may reference a type defined in another (for example, instan
 `ModelDesign` whose `TypeDefinition` points at object types authored as a `NodeSet2`). Every input is
 supplied to the others as a resolution dependency, so such cross-model references resolve automatically.
 
+All four NodeId identifier types defined in OPC 10000-3 5.2.2 are supported: Numeric, String, Guid
+and Opaque. A `ModelDesign` carries them in the `NumericId`, `StringId`, `GuidId` and `OpaqueId`
+attributes of a node. Because `System.Guid` and `Opc.Ua.ByteString` values cannot be C# constants,
+the generated identifier fields for Guid and Opaque nodes are emitted as `static readonly` instead
+of `const`.
+
+An `.xml` `AdditionalFiles` item whose root element is neither a `ModelDesign`
+(`http://opcfoundation.org/UA/ModelDesign.xsd`) nor a `UANodeSet`
+(`http://opcfoundation.org/UA/2011/03/UANodeSet.xsd`) is not a model input and is skipped,
+so XML files meant for other analyzers or tools can share the `AdditionalFiles` item group.
+
 Per-file behaviour is controlled with `AdditionalFiles` metadata:
 
 | Metadata | Description |
 | -------- | ----------- |
-| `ModelSourceGeneratorModelUri` | The model (namespace) URI of the input. Required when it cannot be inferred, and used to match the input to a namespace. |
-| `ModelSourceGeneratorName` | Overrides the generated `Namespaces` class identifier for the model. |
-| `ModelSourceGeneratorPrefix` | Overrides the C# namespace / prefix under which the model's types are generated. For a `NodeSet2` input this defaults to a value derived from the model URI — set it explicitly to choose the generated C# namespace. A `Prefix` declared inside a *referencing* `ModelDesign`'s `<opc:Namespaces>` does not rename the referenced model's generated types. |
+| `ModelSourceGeneratorIgnore` | `true` generates no code for the input. A NodeSet2 or ModelDesign input stays available to resolve references of the other inputs (use it for a model a referenced assembly already provides); an ignored WoT input is dropped entirely (see below). |
+| `ModelSourceGeneratorModelUri` | NodeSet2/WoT inputs only. The model (namespace) URI of the input. Required when it cannot be inferred, and used to match the input to a namespace. |
+| `ModelSourceGeneratorName` | NodeSet2/WoT inputs only. Overrides the generated `Namespaces` class identifier for the model. |
+| `ModelSourceGeneratorPrefix` | NodeSet2/WoT inputs only. Overrides the C# namespace / prefix under which the model's types are generated. For a `NodeSet2` input this defaults to a value derived from the model URI — set it explicitly to choose the generated C# namespace. A `Prefix` declared inside a *referencing* `ModelDesign`'s `<opc:Namespaces>` does not rename the referenced model's generated types. |
+
+A `ModelDesign` input declares its model URI, prefix and version itself (`TargetNamespace` and
+`<opc:Namespaces>`), so the URI/name/prefix/version metadata has no effect on it.
+
+The generated namespace also exposes `ModelVersions.Target`, which is the target
+model's declared version. Use it when a host needs to publish the companion
+specification version without maintaining a second literal.
 
 ```xml
 <ItemGroup>
@@ -56,9 +75,8 @@ Per-file behaviour is controlled with `AdditionalFiles` metadata:
     <ModelSourceGeneratorModelUri>http://example.org/EquipmentTypes</ModelSourceGeneratorModelUri>
     <ModelSourceGeneratorPrefix>Example.EquipmentTypes</ModelSourceGeneratorPrefix>
   </AdditionalFiles>
-  <AdditionalFiles Include="Model\Instances.ModelDesign.xml">
-    <ModelSourceGeneratorModelUri>http://example.org/EquipmentInstances</ModelSourceGeneratorModelUri>
-  </AdditionalFiles>
+  <!-- A ModelDesign declares its own model URI (TargetNamespace). -->
+  <AdditionalFiles Include="Model\Instances.ModelDesign.xml" />
 </ItemGroup>
 ```
 

@@ -87,11 +87,14 @@ namespace Opc.Ua.Client.Subscriptions
 
             rented.Reuse();
 
-            // Fields reset to default.
+            // Fields reset to the state of a newly constructed instance.
+            var constructed = new MonitoredItemNotification();
             Assert.That(rented.ClientHandle, Is.Zero,
                 "Reuse should reset ClientHandle to default(uint)");
-            Assert.That(rented.Value.IsNull, Is.True,
-                "Reuse should reset Value to default");
+            Assert.That(rented.Value.IsNull, Is.EqualTo(constructed.Value.IsNull),
+                "Reuse should reset Value to its constructed value");
+            Assert.That(rented.Value.WrappedValue.IsNull, Is.True,
+                "Reuse should clear the notification's value");
 
             // Pool should now hand the same reference back.
             var reRented = (MonitoredItemNotification)

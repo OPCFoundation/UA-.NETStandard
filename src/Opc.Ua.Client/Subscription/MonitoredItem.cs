@@ -538,7 +538,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // size up by one and the item is modified forever.
             uint required = (uint)Math.Ceiling(
                 publishingInterval.TotalMilliseconds /
-                samplingInterval.TotalMilliseconds) + 1;
+                samplingInterval.TotalMilliseconds) +
+                1;
             queueSize = Math.Max(queueSize, required);
             if (queueSize == options.QueueSize)
             {
@@ -897,6 +898,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public int RetryCount { get; private set; }
 
             /// <summary>
+            /// Returns true when a successful create must replay
+            /// triggering links because the item existed on the
+            /// server before this change deleted and recreated it.
+            /// </summary>
+            public bool RequiresTriggeringReplayAfterCreate { get; }
+
+            /// <summary>
             /// Options that are the source of the change
             /// </summary>
             public MonitoredItemOptions Options { get; }
@@ -907,12 +915,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <param name="item"></param>
             /// <param name="options"></param>
             /// <param name="currentOptions"></param>
-            public Change(MonitoredItem item, MonitoredItemOptions options,
-                MonitoredItemOptions? currentOptions)
+            public Change(MonitoredItem item, MonitoredItemOptions options, MonitoredItemOptions? currentOptions)
             {
                 Debug.Assert(!options.StartNodeId.IsNull);
                 Options = options;
                 Item = item;
+                RequiresTriggeringReplayAfterCreate = currentOptions != null && item.Created;
 
                 var parameters = new MonitoringParameters
                 {
@@ -940,7 +948,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 if (currentOptions == null ||
                     currentOptions.StartNodeId != options.StartNodeId ||
                     currentOptions.AttributeId != options.AttributeId ||
-                    currentOptions.IndexRange != options.IndexRange ||
+                    // A null and an empty IndexRange both mean "not used"
+                    // (Part 4 §7.27), so only a real difference forces a
+                    // recreate.
+                    !string.Equals(
+                        string.IsNullOrEmpty(currentOptions.IndexRange) ? null : currentOptions.IndexRange,
+                        string.IsNullOrEmpty(options.IndexRange) ? null : options.IndexRange,
+                        StringComparison.Ordinal) ||
                     currentOptions.Encoding != options.Encoding)
                 {
                     Modify = null;
@@ -951,7 +965,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     Modify = new MonitoredItemModifyRequest
                     {
-                        MonitoredItemId = item.ServerId,
                         RequestedParameters = parameters
                     };
 
@@ -973,6 +986,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         MonitoringModeChange = null;
                     }
                 }
+            }
+
+            /// <summary>
+            /// Binds the current server-assigned monitored-item id to
+            /// the pending modify request.
+            /// </summary>
+            internal MonitoredItemModifyRequest? BindModifyRequest()
+            {
+                Modify?.MonitoredItemId = Item.ServerId;
+                return Modify;
             }
 
             /// <summary>
@@ -1004,8 +1027,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     // interval and queue size the server never accepted.
                     Item.CurrentMonitoringMode = request.MonitoringMode;
                     Item.ServerId = result.MonitoredItemId;
-                    Item.CurrentSamplingInterval =
-                        TimeSpan.FromMilliseconds(result.RevisedSamplingInterval);
+                    Item.CurrentSamplingInterval = SaturatingTimeSpan.FromMilliseconds(
+                        result.RevisedSamplingInterval, Options.SamplingInterval);
                     Item.CurrentQueueSize = result.RevisedQueueSize;
 
                     Item.LogRevisedSamplingRateAndQueueSize(Options, true);
@@ -1044,8 +1067,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         request.RequestedParameters.SamplingInterval);
                     Item.CurrentQueueSize = request.RequestedParameters.QueueSize;
 
-                    Item.CurrentSamplingInterval = TimeSpan.FromMilliseconds(
-                        result.RevisedSamplingInterval);
+                    Item.CurrentSamplingInterval = SaturatingTimeSpan.FromMilliseconds(
+                        result.RevisedSamplingInterval, Options.SamplingInterval);
                     Item.CurrentQueueSize = result.RevisedQueueSize;
 
                     if (MonitoringModeChange == null)
@@ -1322,5 +1345,4 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Message = "{Item}: {Action} with desired configuration.")]
         public static partial void ItemActionDesiredConfiguration(this ILogger logger, MonitoredItem item, string action);
     }
-
 }

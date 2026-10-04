@@ -220,7 +220,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // race) leaves the counter at its current value.
             if (!m_perPartitionCount.ContainsKey(partition))
             {
-                m_perPartitionCount[partition] = 0;
+                m_perPartitionCount[partition] = partition.MonitoredItems.Count;
             }
         }
 

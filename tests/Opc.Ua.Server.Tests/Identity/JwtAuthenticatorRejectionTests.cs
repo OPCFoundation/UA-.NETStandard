@@ -239,7 +239,7 @@ namespace Opc.Ua.Server.Tests.Identity
             byte[] tokenData = Encoding.UTF8.GetBytes(
                 Base64UrlEncode(Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"alg\":\"RS256\",\"kid\":\"x\"}")) +
                 "." +
-                Base64UrlEncode(Encoding.UTF8.GetBytes("{}")) +
+                Base64UrlEncode(Encoding.UTF8.GetBytes("{\"iss\":\"" + Issuer + "\"}")) +
                 "." +
                 Base64UrlEncode([1]));
 

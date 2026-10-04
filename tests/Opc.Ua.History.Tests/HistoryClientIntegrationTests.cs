@@ -391,10 +391,10 @@ namespace Opc.Ua.History.Tests
         }
 
         /// <summary>
-        /// Verifies that an insertion collision rolls back the entire history batch.
+        /// Verifies that an insertion collision preserves the existing entry and applies the other values.
         /// </summary>
         [Test]
-        public async Task InsertCollisionRollsBackEntireBatchAsync()
+        public async Task InsertCollisionPreservesOtherUpdatesAsync()
         {
             var client = new HistoryClient(Session);
             DateTime baseTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1101);
@@ -425,9 +425,9 @@ namespace Opc.Ua.History.Tests
                 ]).ConfigureAwait(false);
 
             Assert.That(statuses, Has.Count.EqualTo(3));
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.BadTransactionFailed));
+            Assert.That(statuses[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
             Assert.That(statuses[1], Is.EqualTo(StatusCodes.BadEntryExists));
-            Assert.That(statuses[2], Is.EqualTo(StatusCodes.BadTransactionFailed));
+            Assert.That(statuses[2], Is.EqualTo(StatusCodes.GoodEntryInserted));
 
             var remaining = new List<DataValue>();
             await foreach (DataValue dataValue in client.ReadRawAsync(
@@ -438,12 +438,15 @@ namespace Opc.Ua.History.Tests
                 remaining.Add(dataValue);
             }
 
-            Assert.That(remaining, Has.Count.EqualTo(1));
-            Assert.That(remaining[0].SourceTimestamp, Is.EqualTo(existingTime));
-            Assert.That(
-                remaining[0].WrappedValue.TryGetValue(out double remainingValue),
-                Is.True);
-            Assert.That(remainingValue, Is.EqualTo(99.0));
+            DateTimeUtc[] expectedTimes = [firstTime, existingTime, thirdTime];
+            double[] expectedValues = [1.0, 99.0, 3.0];
+            Assert.That(remaining, Has.Count.EqualTo(expectedTimes.Length));
+            for (int ii = 0; ii < expectedTimes.Length; ii++)
+            {
+                Assert.That(remaining[ii].SourceTimestamp, Is.EqualTo(expectedTimes[ii]));
+                Assert.That(remaining[ii].WrappedValue.TryGetValue(out double remainingValue), Is.True);
+                Assert.That(remainingValue, Is.EqualTo(expectedValues[ii]));
+            }
         }
 
         /// <summary>
@@ -463,6 +466,7 @@ namespace Opc.Ua.History.Tests
         {
             var client = new HistoryClient(Session);
             DateTime sourceTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1201);
+            DateTime beforeInsert = DateTime.UtcNow;
             DateTime beforeReplace = DateTime.UtcNow;
 
             ArrayOf<StatusCode> insertStatuses = await client.InsertAsync(
@@ -496,16 +500,23 @@ namespace Opc.Ua.History.Tests
                 modified.Add(modifiedValue);
             }
 
-            Assert.That(modified, Has.Count.EqualTo(1));
-            Assert.That(modified[0].Value.SourceTimestamp, Is.EqualTo(sourceTime));
+            Assert.That(modified, Has.Count.EqualTo(2));
+            ModifiedHistoryValue insert = modified.Single(value =>
+                value.Info.UpdateType == HistoryUpdateType.Insert);
+            ModifiedHistoryValue replace = modified.Single(value =>
+                value.Info.UpdateType == HistoryUpdateType.Replace);
+            Assert.That(insert.Value.SourceTimestamp, Is.EqualTo(sourceTime));
             Assert.That(
-                modified[0].Value.WrappedValue.TryGetValue(out double priorValue),
+                insert.Value.WrappedValue.TryGetValue(out double insertedValue),
+                Is.True);
+            Assert.That(insertedValue, Is.EqualTo(123.0));
+            Assert.That(insert.Info.ModificationTime.ToDateTime(), Is.GreaterThanOrEqualTo(beforeInsert));
+            Assert.That(replace.Value.SourceTimestamp, Is.EqualTo(sourceTime));
+            Assert.That(
+                replace.Value.WrappedValue.TryGetValue(out double priorValue),
                 Is.True);
             Assert.That(priorValue, Is.EqualTo(123.0));
-            Assert.That(modified[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Replace));
-            Assert.That(
-                modified[0].Info.ModificationTime.ToDateTime(),
-                Is.GreaterThanOrEqualTo(beforeReplace));
+            Assert.That(replace.Info.ModificationTime.ToDateTime(), Is.GreaterThanOrEqualTo(beforeReplace));
         }
 
         /// <summary>

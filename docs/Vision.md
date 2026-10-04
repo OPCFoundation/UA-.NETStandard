@@ -7,6 +7,47 @@ companion specification, plus the OpenUSD offscreen capture adapter and the
 Model Context Protocol tool package that lets a language-model agent see through
 a Vision server and act on what it sees.
 
+## Contents
+
+- [Packages](#packages)
+- [Two perception paths behind one contract](#two-perception-paths-behind-one-contract)
+- [Minimal hosted server](#minimal-hosted-server)
+- [Hosting API](#hosting-api)
+  - [`VisionServerOptions`](#visionserveroptions)
+- [Build context](#build-context)
+  - [Without DI](#without-di)
+- [Topology builders](#topology-builders)
+  - [Frames](#frames)
+  - [Sensors](#sensors)
+  - [Pipelines](#pipelines)
+  - [Providers](#providers)
+- [§5.12 conventions](#512-conventions)
+- [§6.4 media gating](#64-media-gating)
+- [Rendering without pixels](#rendering-without-pixels)
+- [Facets supported](#facets-supported)
+- [Using the client libraries](#using-the-client-libraries)
+  - [Registration](#registration)
+  - [Discovery](#discovery)
+  - [Reading a detection](#reading-a-detection)
+  - [Composing a pose](#composing-a-pose)
+  - [Submitting feedback](#submitting-feedback)
+  - [Streaming detections](#streaming-detections)
+- [MCP tools](#mcp-tools)
+- [Sample: bin-picking](#sample-bin-picking)
+  - [Scene lighting](#scene-lighting)
+  - [Feedback validation](#feedback-validation)
+- [Limitations](#limitations)
+- [Visual inspection: a cross-companion cell](#visual-inspection-a-cross-companion-cell)
+  - [The model never decides](#the-model-never-decides)
+  - [Address-space composition](#address-space-composition)
+  - [Recipe and verdict rule](#recipe-and-verdict-rule)
+  - [Why uncertainty is physical](#why-uncertainty-is-physical)
+  - [Inspection loop](#inspection-loop)
+  - [Escalation and ground truth](#escalation-and-ground-truth)
+  - [Modes](#modes)
+  - [What is deliberately not implemented](#what-is-deliberately-not-implemented)
+- [See also](#see-also)
+
 > **Draft.** The namespace `http://opcfoundation.org/UA/Vision/` and every
 > NodeId in it are provisional. The API is stable within this repository but
 > every ObjectType, DataType and BrowseName can still change when the
@@ -600,7 +641,26 @@ if (!vision.IsVisionNamespaceAvailable)
 }
 ```
 
+Sensor, calibration, pipeline and result snapshots reject Bad and Uncertain
+quality on members that were returned by a read; an unreadable member is not
+replaced by a successful default. Present members with an incompatible
+data type also fail. In particular, absent or wrongly typed `Detections` and
+`Characteristics` do not become empty observations. An explicitly empty detection
+array is still a valid empty result, and absent optional members remain absent.
+Media status-classification reads retain their separate inline-delivery status
+semantics described in [media gating](#64-media-gating).
+
+[UaLens Companion Tasks](UaLens.md#companion-tasks) provides a managed desktop
+consumer of these clients: published inspection, explicitly authorized simulated
+media/inference/feedback and a geometry-only SVG overlay export. It never
+downloads a media URI or treats a simulated sensor declaration as deployment
+authorization.
+
 ### Discovery
+
+Generated instance folders contain their configured endpoint instances, not
+references back to uninstantiated `MandatoryPlaceholder` or `OptionalPlaceholder`
+declarations. The declarations and their references remain in the type model.
 
 ```csharp
 await foreach (VisionNodeEntry sensor in vision.EnumerateSensorsAsync(ct))
@@ -752,7 +812,6 @@ characteristic.
 > training label, and a false positive is corrected by asserting that
 > nothing replaces it. Neither statement can be made by submitting an
 > array, because both *are* the empty array.
->
 > The pairing is checked in both directions. An empty `Detections`
 > without `SceneIsEmpty` is refused — the flag is what distinguishes a
 > deliberate observation from a lost payload — and `SceneIsEmpty` with
@@ -892,19 +951,15 @@ on:
 - **Zero-norm quaternion or pose with fewer than three position
   components** — refused with the detection index.
 
-An **empty** detection set is refused too, with `Bad_InvalidArgument`,
-because §9.5 states it plainly: "`Detections` empty" is an argument
-error. So is a `SubmitCorrection` whose corrected arrays are both empty
-or both populated — §9.5 requires *exactly one* to be non-empty.
+An empty detection set is accepted only when `SceneIsEmpty` is set; setting
+that flag with a nonempty set is rejected. For corrections, `RetractAll` allows
+both corrected arrays to be empty. Otherwise exactly one corrected array must
+be nonempty, and `RetractAll` must not accompany corrected entries.
 
-That is worth dwelling on, because it means two useful statements cannot
-be made at all. An agent that has emptied the bin cannot report "I looked
-and there is nothing there"; it must either invent a detection or say
-nothing. And a false positive — the model saw something that was not
-there — cannot be retracted by correcting the result down to an empty
-set, which is one of the more valuable labels a correction could carry.
-The implementation conforms rather than deviating, and the gap is raised
-against the draft; see [Limitations](#limitations).
+These flags let an agent report an empty scene or retract a false positive
+without inventing a detection. See [Submitting feedback](#submitting-feedback)
+for the payload contract and [Limitations](#limitations) for the host's
+responsibility for learning counters.
 
 ## Limitations
 

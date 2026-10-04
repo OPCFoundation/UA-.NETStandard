@@ -147,6 +147,83 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
+        public void FormatEscapesReservedCharactersAndRoundTrips()
+        {
+            QualifiedName[] segments =
+            [
+                new QualifiedName("12:30.log"),
+                new QualifiedName("a/b"),
+                new QualifiedName("x&:y", 2),
+                new QualifiedName("a&b"),
+                new QualifiedName("c:d")
+            ];
+
+            string formatted = UaPath.Format(segments);
+
+            Assert.That(formatted, Is.EqualTo("/12&:30.log/a&/b/2:x&&&:y/a&b/c&:d"));
+            Assert.That(UaPath.Parse(formatted), Is.EqualTo(segments));
+        }
+
+        /// <summary>
+        /// Review G12: Format and Parse round-trip names ending in '&amp;'
+        /// (as a middle or final segment) and a final name ending in '/'.
+        /// </summary>
+        [TestCase("Q&")]
+        [TestCase("a&b")]
+        [TestCase("&")]
+        [TestCase("x/")]
+        [TestCase("12:30.log")]
+        [TestCase("&&/")]
+        [TestCase("&&")]
+        [TestCase("/")]
+        [TestCase("a&:")]
+        public void FormatParseRoundTripsTrickyNames(string name)
+        {
+            QualifiedName[][] paths =
+            [
+                [new QualifiedName(name)],
+                [new QualifiedName(name), new QualifiedName("x")],
+                [new QualifiedName("x"), new QualifiedName(name)],
+                [new QualifiedName(name, 3), new QualifiedName(name)],
+                [new QualifiedName(name), new QualifiedName(name, 2)]
+            ];
+
+            foreach (QualifiedName[] segments in paths)
+            {
+                string formatted = UaPath.Format(segments);
+                Assert.That(UaPath.Parse(formatted), Is.EqualTo(segments), formatted);
+                Assert.That(UaPath.Normalize(formatted), Is.EqualTo(formatted));
+            }
+        }
+
+        [Test]
+        public void FormatEscapesTrailingAmpersandBeforeSeparator()
+        {
+            QualifiedName[] segments = [new QualifiedName("Q&"), new QualifiedName("x")];
+
+            Assert.That(UaPath.Format(segments), Is.EqualTo("/Q&&/x"));
+            Assert.That(UaPath.Parse("/Q&&/x"), Is.EqualTo(segments));
+        }
+
+        [Test]
+        public void ParseKeepsEscapedFinalSeparatorAndTrimsUnescapedOne()
+        {
+            Assert.That(UaPath.Parse("/x&/"), Is.EqualTo(new[] { new QualifiedName("x/") }));
+            Assert.That(UaPath.Parse("/x&&/"), Is.EqualTo(new[] { new QualifiedName("x&") }));
+            Assert.That(UaPath.Parse("/a/b/"), Is.EqualTo(new[] { new QualifiedName("a"), new QualifiedName("b") }));
+            // An '&' at the very end with nothing to escape stays literal.
+            Assert.That(UaPath.Parse("/Q&"), Is.EqualTo(new[] { new QualifiedName("Q&") }));
+        }
+
+        [Test]
+        public void ParseTreatsAmpersandBeforeOrdinaryCharacterAsLiteral()
+        {
+            QualifiedName[] segments = UaPath.Parse("/R&D/a&b");
+            Assert.That(segments[0], Is.EqualTo(new QualifiedName("R&D")));
+            Assert.That(segments[1], Is.EqualTo(new QualifiedName("a&b")));
+        }
+
+        [Test]
         public void FormatSegmentNs0OmitsPrefix()
         {
             Assert.That(

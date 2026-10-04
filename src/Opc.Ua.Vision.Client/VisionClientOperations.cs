@@ -266,8 +266,39 @@ namespace Opc.Ua.Vision.Client
             ReadResponse response = await Session.ReadAsync(
                 null, 0, TimestampsToReturn.Both, nodesToRead, cancellationToken)
                 .ConfigureAwait(false);
+            if (response.ResponseHeader is null)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "The Vision read header is missing.");
+            }
+            if (!StatusCode.IsGood(response.ResponseHeader.ServiceResult))
+            {
+                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+            }
             ClientBase.ValidateResponse(response.Results, nodesToRead);
             return response.Results;
+        }
+
+        public static void RequireGood(ArrayOf<DataValue> values)
+        {
+            foreach (DataValue value in values)
+            {
+                RequireGood(value);
+            }
+        }
+
+        public static DataValue RequireGood(in DataValue value)
+        {
+            if (!StatusCode.IsGood(value.StatusCode))
+            {
+                throw new ServiceResultException(
+                    value.StatusCode, "A Vision member could not be read reliably.");
+            }
+            return value;
+        }
+
+        public static ServiceResultException InvalidMember()
+        {
+            return new(StatusCodes.BadTypeMismatch, "A published Vision member has the wrong data type.");
         }
 
         public async ValueTask<T> ReadStructureAsync<T>(
@@ -363,7 +394,8 @@ namespace Opc.Ua.Vision.Client
                 result = (TEnum)Enum.ToObject(typeof(TEnum), intValue);
                 return true;
             }
-            if (value.WrappedValue.TryGetValue(out uint uintValue))
+            if (value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.UInt32 &&
+                value.WrappedValue.TryGetValue(out uint uintValue))
             {
                 result = (TEnum)Enum.ToObject(typeof(TEnum), uintValue);
                 return true;

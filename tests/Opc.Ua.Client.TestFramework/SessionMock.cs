@@ -30,6 +30,7 @@
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
+using System;
 using Moq;
 using Opc.Ua.Configuration;
 using Opc.Ua.Tests;
@@ -129,15 +130,16 @@ namespace Opc.Ua.Client.TestFramework
 
             var configuredEndpoint = new ConfiguredEndpoint(
                 null,
-                endpoint ?? new EndpointDescription
+                endpoint ??
+                new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
                     SecurityPolicyUri = SecurityPolicies.None,
                     EndpointUrl = "opc.tcp://localhost:4840",
                     UserIdentityTokens =
-                    [
-                        new UserTokenPolicy()
-                    ]
+                        [
+                            new UserTokenPolicy()
+                        ]
                 });
 
             if (availableEndpoints.IsEmpty && discoveryProfileUris.IsEmpty)
@@ -157,6 +159,15 @@ namespace Opc.Ua.Client.TestFramework
         {
             SessionCreated(NodeId.Parse("s=connected"), NodeId.Parse("s=auth"));
             RenewUserIdentity += Sut_RenewUserIdentity;
+        }
+
+        /// <summary>
+        /// Marks the session connected and records a successful keep-alive response.
+        /// </summary>
+        public void SetConnectedAndResponsive()
+        {
+            SetConnected();
+            OnKeepAlive(ServerState.Running, DateTime.UtcNow);
         }
 
         private IUserIdentity Sut_RenewUserIdentity(ISession session, IUserIdentity identity)

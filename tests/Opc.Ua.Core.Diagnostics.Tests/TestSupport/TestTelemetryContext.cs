@@ -52,5 +52,15 @@ namespace Opc.Ua.Pcap.Tests
         {
             return new Meter("Opc.Ua.Core.Diagnostics.Tests");
         }
+
+        public Meter CreateMeter(System.Reflection.Assembly assembly)
+        {
+            return CreateMeter();
+        }
+
+        public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+        {
+            return ActivitySource;
+        }
     }
 }

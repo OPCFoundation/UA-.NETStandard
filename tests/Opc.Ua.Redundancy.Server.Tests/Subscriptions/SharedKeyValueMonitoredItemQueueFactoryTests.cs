@@ -29,8 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
@@ -47,6 +49,57 @@ namespace Opc.Ua.Server.Tests.Redundancy
     [Parallelizable(ParallelScope.All)]
     public class SharedKeyValueMonitoredItemQueueFactoryTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ProtectedQueuesRejectAnotherMonitoredItemKeyAsync(bool eventQueue)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            IServiceMessageContext context = CreateContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, context, protector, telemetry);
+            if (eventQueue)
+            {
+                IEventMonitoredItemQueue queue = factory.CreateEventQueue(false, 11);
+                queue.SetQueueSize(2, false);
+                queue.Enqueue(new EventFieldList { ClientHandle = 5, EventFields = [Variant.From(12)] });
+            }
+            else
+            {
+                IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 11);
+                queue.ResetQueue(2, false);
+                queue.Enqueue(new DataValue(Variant.From(12)), ServiceResult.Good);
+            }
+            await factory.FlushAsync().ConfigureAwait(false);
+            string prefix = eventQueue ? "monitored-item-queue/event/" : "monitored-item-queue/data/";
+            (bool found, ByteString record) = await kv.TryGetAsync(prefix + "11").ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            await kv.SetAsync(prefix + "12", record).ConfigureAwait(false);
+
+            if (eventQueue)
+            {
+                Assert.That(await factory.RestoreEventQueueAsync(12).ConfigureAwait(false), Is.Null);
+                IEventMonitoredItemQueue restored = await factory.RestoreEventQueueAsync(11).ConfigureAwait(false);
+                Assert.That(restored, Is.Not.Null);
+                Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
+                Assert.That(value.ClientHandle, Is.EqualTo(5));
+                Assert.That(value.EventFields[0], Is.EqualTo(Variant.From(12)));
+            }
+            else
+            {
+                Assert.That(await factory.RestoreDataChangeQueueAsync(12).ConfigureAwait(false), Is.Null);
+                IDataChangeMonitoredItemQueue restored = await factory.RestoreDataChangeQueueAsync(11)
+                    .ConfigureAwait(false);
+                Assert.That(restored, Is.Not.Null);
+                Assert.That(restored.Dequeue(out DataValue value, out _), Is.True);
+                Assert.That(value.WrappedValue, Is.EqualTo(Variant.From(12)));
+            }
+        }
+
         [Test]
         public async Task DataChangeQueueMirrorsAndRestoresAsync()
         {
@@ -354,18 +407,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return WaitForDeleteCancellationAsync(ct);
             }
 
-            public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+            public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
                 string keyPrefix,
-                [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default)
+                System.Threading.CancellationToken ct = default)
             {
-                yield break;
+                return TestAsyncEnumerable.Empty<KeyValuePair<string, ByteString>>();
             }
 
-            public async IAsyncEnumerable<KeyValueChange> WatchAsync(
+            public IAsyncEnumerable<KeyValueChange> WatchAsync(
                 string keyPrefix,
-                [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default)
+                System.Threading.CancellationToken ct = default)
             {
-                yield break;
+                return TestAsyncEnumerable.Empty<KeyValueChange>();
             }
 
             public ValueTask DisposeAsync()

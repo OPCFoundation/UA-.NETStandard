@@ -53,9 +53,9 @@ namespace Opc.Ua.Identity
     ///         <see cref="AuthenticationOutcome.Rejected"/>, the
     ///         <c>SessionManager</c> falls back to the legacy
     ///         <c>ImpersonateUser</c> event.</item>
-    ///   <item>If the legacy event is not subscribed either, the
-    ///         <c>SessionManager</c> falls back to wrapping the raw
-    ///         <c>UserIdentity</c> from the token.</item>
+    ///   <item>If neither path handles the token, only Anonymous may be
+    ///         wrapped as a raw <c>UserIdentity</c>. Other token types
+    ///         are rejected.</item>
     /// </list>
     /// <para>
     /// Registry membership is mutable but writes are infrequent; reads
@@ -70,23 +70,32 @@ namespace Opc.Ua.Identity
         /// <see cref="IUserTokenAuthenticator.TokenType"/> +
         /// <see cref="IUserTokenAuthenticator.IssuedTokenProfileUri"/>
         /// is already registered, it is replaced.
+        /// Issued-token authenticators implementing <see cref="IIssuerTokenAuthenticator"/>
+        /// with a non-null issuer replace only that issuer (and any unqualified registration).
+        /// An unqualified registration replaces all issuers for its type and profile.
         /// </summary>
+        /// <param name="authenticator">The authenticator to register for its token type, profile, and issuer.</param>
         void Register(IUserTokenAuthenticator authenticator);
 
         /// <summary>
         /// Removes an authenticator. Returns <see langword="true"/> when
         /// an entry was removed.
         /// </summary>
+        /// <param name="authenticator">The registered authenticator instance to remove.</param>
+        /// <returns>True if the instance was registered and removed; otherwise, false.</returns>
         bool Unregister(IUserTokenAuthenticator authenticator);
 
         /// <summary>
         /// Register an augmenter to run after a successful authenticator returns Accepted.
         /// </summary>
+        /// <param name="augmenter">The identity augmenter to register.</param>
         void RegisterAugmenter(IIdentityAugmenter augmenter);
 
         /// <summary>
         /// Removes a previously-registered augmenter. Returns true when removed.
         /// </summary>
+        /// <param name="augmenter">The registered augmenter instance to remove.</param>
+        /// <returns>True if the instance was registered and removed; otherwise, false.</returns>
         bool UnregisterAugmenter(IIdentityAugmenter augmenter);
 
         /// <summary>
@@ -95,6 +104,9 @@ namespace Opc.Ua.Identity
         /// <see cref="AuthenticationResult.NotHandled"/> when no
         /// authenticator matched.
         /// </summary>
+        /// <param name="context">The token, endpoint, and session context used for authentication.</param>
+        /// <param name="ct">The token used to cancel authentication and identity augmentation.</param>
+        /// <returns>The authentication outcome and any resulting identity or rejection status.</returns>
         ValueTask<AuthenticationResult> AuthenticateAsync(
             AuthenticationContext context,
             CancellationToken ct = default);

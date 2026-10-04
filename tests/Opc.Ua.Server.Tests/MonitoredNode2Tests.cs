@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -47,6 +48,174 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class MonitoredNode2Tests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DisposedMonitoredNodeReleasesPermissionNotificationsAndNodeCallbacks(bool eventOnly)
+        {
+            var configuration = new Mock<IConfigurationNodeManager>();
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(value => value.ConfigurationNodeManager).Returns(configuration.Object);
+            var node = new BaseObjectState(null) { NodeId = new NodeId(1, 1) };
+            using var monitored = new MonitoredNode2(Mock.Of<IAsyncNodeManager>(), server.Object, node);
+            if (eventOnly)
+            {
+                monitored.Add(CreateEventMonitoredItemMock(1).Object);
+            }
+            else
+            {
+                monitored.Add(CreateDataChangeMonitoredItemMock(1, Attributes.Value).Object);
+            }
+
+            monitored.Dispose();
+            monitored.Dispose();
+
+            configuration.VerifyAdd(value => value.DefaultPermissionsChanged += It.IsAny<EventHandler>(), Times.Once);
+            configuration.VerifyRemove(
+                value => value.DefaultPermissionsChanged -= It.IsAny<EventHandler>(), Times.Once);
+            Assert.That(node.OnStateChangedAsync, Is.Null);
+            Assert.That(node.OnReportEventAsync, Is.Null);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InFlightDataPermissionCannotReviveInvalidatedGrantAsync(bool defaultsChanged)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var configuration = new Mock<IConfigurationNodeManager>();
+                server.SetupGet(value => value.ConfigurationNodeManager).Returns(configuration.Object);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId(1, 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 42,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead
+                };
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                int calls = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateRolePermissionsAsync(
+                        It.IsAny<OperationContext>(), node.NodeId, PermissionType.Read,
+                        It.IsAny<CancellationToken>()))
+                    .Returns(async (OperationContext _, NodeId _, PermissionType _, CancellationToken ct) =>
+                    {
+                        if (Interlocked.Increment(ref calls) == 1)
+                        {
+                            entered.TrySetResult(true);
+                            await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                            return ServiceResult.Good;
+                        }
+                        return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                    });
+                NodeId sessionId = new(2, 1);
+                Mock<IDataChangeMonitoredItem2> item =
+                    CreateDataChangeMonitoredItemMockWithSession(1, Attributes.Value, sessionId);
+                var monitored = new MonitoredNode2(nodeManager.Object, server.Object, node);
+                monitored.Add(item.Object);
+                try
+                {
+                    await monitored.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    if (defaultsChanged)
+                    {
+                        configuration.Raise(value => value.DefaultPermissionsChanged += null, EventArgs.Empty);
+                    }
+                    else
+                    {
+                        monitored.InvalidatePermissionCacheForSession(sessionId);
+                    }
+                    await monitored.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await monitored.DisposeAsync().ConfigureAwait(false);
+                }
+                Assert.That(calls, Is.EqualTo(2));
+                // The revoked grant is never used: only the access denied status is queued.
+                item.Verify(
+                    value => value.QueueValue(
+                        It.Ref<DataValue>.IsAny,
+                        It.Is<ServiceResult>(r => r.StatusCode != StatusCodes.BadUserAccessDenied)),
+                    Times.Never);
+                item.Verify(
+                    value => value.QueueValue(
+                        It.Ref<DataValue>.IsAny,
+                        It.Is<ServiceResult>(r => r.StatusCode == StatusCodes.BadUserAccessDenied)),
+                    Times.AtLeastOnce);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InFlightEventPermissionCannotReviveInvalidatedGrantAsync(bool defaultsChanged)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var configuration = new Mock<IConfigurationNodeManager>();
+                server.SetupGet(value => value.ConfigurationNodeManager).Returns(configuration.Object);
+                var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                int calls = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (IEventMonitoredItem _, IFilterTarget _, CancellationToken ct) =>
+                    {
+                        if (Interlocked.Increment(ref calls) == 1)
+                        {
+                            entered.TrySetResult(true);
+                            await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                            return ServiceResult.Good;
+                        }
+                        return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                    });
+                NodeId sessionId = new(2, 1);
+                Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMockWithSession(1, sessionId);
+                var monitored = new MonitoredNode2(nodeManager.Object, server.Object, node);
+                monitored.Add(item.Object);
+                var evt = new BaseEventState(null);
+                evt.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(evt)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                evt.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(evt)
+                {
+                    Value = ObjectIds.Server
+                };
+                try
+                {
+                    await monitored.OnReportEventAsync(server.Object.DefaultSystemContext, node, evt)
+                        .ConfigureAwait(false);
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    if (defaultsChanged)
+                    {
+                        configuration.Raise(value => value.DefaultPermissionsChanged += null, EventArgs.Empty);
+                    }
+                    else
+                    {
+                        monitored.InvalidatePermissionCacheForSession(sessionId);
+                    }
+                    await monitored.OnReportEventAsync(server.Object.DefaultSystemContext, node, evt)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await monitored.DisposeAsync().ConfigureAwait(false);
+                }
+                Assert.That(calls, Is.EqualTo(2));
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+            }
+        }
+
         /// <summary>
         /// The synchronous wrappers are obsolete but still shipped, so they
         /// stay covered: on the fast path they must enqueue inline without
@@ -134,7 +303,7 @@ namespace Opc.Ua.Server.Tests
         /// value changes multiple times (permission result is cached).
         /// </summary>
         [Test]
-        public async Task OnMonitoredNodeChanged_PermissionsCached_ValidateCalledOnceAsync()
+        public async Task OnMonitoredNodeChangedPermissionsCachedValidateCalledOnceAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -164,12 +333,12 @@ namespace Opc.Ua.Server.Tests
 
             // Act – fire value-change notification three times
             ISystemContext context = new Mock<ISystemContext>().Object;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
-            // Dispose waits for the consumer task to drain all queued notifications.
-            monitoredNode.Dispose();
+            // Asynchronous disposal is the delivery barrier.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – ValidateRolePermissions should have been called exactly once (cached after first call)
             nodeManagerMock.Verify(
@@ -186,7 +355,7 @@ namespace Opc.Ua.Server.Tests
         /// causing ValidateRolePermissions to be called again on the next value change.
         /// </summary>
         [Test]
-        public async Task OnMonitoredNodeChanged_RolePermissionsChanged_CacheInvalidatedAsync()
+        public async Task OnMonitoredNodeChangedRolePermissionsChangedCacheInvalidatedAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -217,16 +386,16 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – first value change populates the cache
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Simulate a RolePermissions change (invalidates cache)
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.RolePermissions);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.RolePermissions).ConfigureAwait(false);
 
             // Second value change should trigger re-validation
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
-            // Dispose waits for the consumer task to drain all queued notifications.
-            monitoredNode.Dispose();
+            // Asynchronous disposal is the delivery barrier.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – ValidateRolePermissions should have been called twice (once before and once after cache invalidation)
             nodeManagerMock.Verify(
@@ -240,10 +409,11 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that when ValidateRolePermissions returns a bad result, the value is not
-        /// queued and the result is cached (so validation is not repeated on every change).
+        /// queued but the access denied status is (Part 4 5.13.2.1), and the result is cached
+        /// (so validation is not repeated on every change).
         /// </summary>
         [Test]
-        public async Task OnMonitoredNodeChanged_PermissionDenied_ValueNotQueuedAndResultCachedAsync()
+        public async Task OnMonitoredNodeChangedPermissionDeniedQueuesStatusAndResultCachedAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -274,16 +444,14 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire value-change notification twice
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
-            // Dispose waits for the consumer task to drain all queued notifications.
-            monitoredNode.Dispose();
+            // Asynchronous disposal is the delivery barrier.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
-            // Assert – QueueValue should never have been called (permission denied)
-            monitoredItemMock.Verify(
-                m => m.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()),
-                Times.Never);
+            // Assert – only the access denied status is queued (Part 4 5.13.2.1), once per change
+            AssertOnlyStatusQueued(monitoredItemMock, StatusCodes.BadUserAccessDenied, 2);
 
             // And validate was only called once (cached bad result)
             nodeManagerMock.Verify(
@@ -371,7 +539,7 @@ namespace Opc.Ua.Server.Tests
         /// causing <c>ValidateRolePermissions</c> to be called again on the next value change.
         /// </summary>
         [Test]
-        public async Task OnMonitoredNodeChanged_DefaultPermissionsChanged_CacheInvalidatedAsync()
+        public async Task OnMonitoredNodeChangedDefaultPermissionsChangedCacheInvalidatedAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -416,7 +584,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // First value change populates the cache
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Wait until the consumer has fully processed the first notification (cache populated).
             await firstItemProcessed.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
@@ -426,10 +594,10 @@ namespace Opc.Ua.Server.Tests
             capturedHandler.Invoke(configNodeManagerMock.Object, EventArgs.Empty);
 
             // Second value change should trigger re-validation since cache was cleared
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
-            // Dispose waits for the consumer task to drain all queued notifications.
-            monitoredNode.Dispose();
+            // Asynchronous disposal is the delivery barrier.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – ValidateRolePermissions should have been called twice (once before and once after cache invalidation)
             nodeManagerMock.Verify(
@@ -444,7 +612,7 @@ namespace Opc.Ua.Server.Tests
         /// in the channel; once released every change must be delivered – none dropped.
         /// </summary>
         [Test]
-        public async Task AllValueChanges_NoneDropped_WhenNodeChangesWhileValidationIsBlockedAsync()
+        public async Task AllValueChangesNoneDroppedWhenNodeChangesWhileValidationIsBlockedAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -493,22 +661,22 @@ namespace Opc.Ua.Server.Tests
 
             // Act – first change: consumer will block on validation
             node.Value = 10;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Wait until the consumer has started validation so it is definitely blocked
             await validationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             // While blocked, enqueue two more changes; each call snapshots the value immediately
             node.Value = 20;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
             node.Value = 30;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Release validation – all three notifications should now be processed in order
             validationGate.Release();
 
-            // Dispose drains the channel before returning
-            monitoredNode.Dispose();
+            // Asynchronous disposal drains the channel before completing.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Extract the DataValue arguments from the recorded QueueValue invocations
             var deliveredValues = monitoredItemMock.Invocations
@@ -536,7 +704,7 @@ namespace Opc.Ua.Server.Tests
         /// not at the time the consumer processes the snapshot (dequeue-time).
         /// </summary>
         [Test]
-        public async Task ValueChangeSnapshot_CapturesNodeValueAtEnqueueTime_NotAtProcessingTimeAsync()
+        public async Task ValueChangeSnapshotCapturesNodeValueAtEnqueueTimeNotAtProcessingTimeAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -584,19 +752,19 @@ namespace Opc.Ua.Server.Tests
 
             // Enqueue snapshot with value=100
             node.Value = 100;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
             await validationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             // Enqueue second snapshot while consumer is blocked; value at enqueue time is 200
             node.Value = 200;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Mutate the node value to something else BEFORE releasing the consumer;
             // the already-captured snapshots must not be affected
             node.Value = 999;
 
             validationGate.Release();
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – snapshots reflect the values at enqueue time (100, 200), not the final value (999)
             var deliveredValues = monitoredItemMock.Invocations
@@ -649,12 +817,12 @@ namespace Opc.Ua.Server.Tests
 
             ISystemContext context = new Mock<ISystemContext>().Object;
 
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             node.Value = s_indexRangeShrunkValue;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
@@ -678,7 +846,7 @@ namespace Opc.Ua.Server.Tests
         /// all of them receive every value-change notification.
         /// </summary>
         [Test]
-        public async Task MultipleMonitoredItems_AllReceiveEveryValueChangeAsync()
+        public async Task MultipleMonitoredItemsAllReceiveEveryValueChangeAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -714,11 +882,11 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire three value changes
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – each item received all three changes
             int item1Count = item1Mock.Invocations
@@ -731,11 +899,10 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that non-value attribute changes (e.g. DisplayName) are delivered to the
-        /// monitored item without invoking permission validation, because role-permission checks
-        /// only apply to the Value attribute.
+        /// monitored item after the Browse permission the Read service requires for them.
         /// </summary>
         [Test]
-        public async Task NonValueAttributeChange_DeliveredWithoutPermissionValidationAsync()
+        public async Task NonValueAttributeChangeDeliveredAfterBrowsePermissionValidationAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -748,6 +915,13 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    PermissionType.Browse,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
@@ -761,11 +935,11 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire a non-value attribute change three times
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue).ConfigureAwait(false);
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – value was queued for each change
             // (QueueValue is recorded on the base IDataChangeMonitoredItem interface by Moq;
@@ -774,14 +948,136 @@ namespace Opc.Ua.Server.Tests
                 .Count(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue));
             Assert.That(queueCount, Is.EqualTo(3));
 
-            // No permission validation should have been performed for non-value attributes
             nodeManagerMock.Verify(
                 m => m.ValidateRolePermissionsAsync(
                     It.IsAny<OperationContext>(),
+                    nodeId,
+                    PermissionType.Browse,
+                    It.IsAny<CancellationToken>()),
+                Times.AtLeastOnce);
+        }
+
+        /// <summary>
+        /// Verifies that a RolePermissions change is not delivered to an item whose owner
+        /// lacks the ReadRolePermissions permission; the item reports the access denied status.
+        /// </summary>
+        [Test]
+        public async Task RolePermissionsChangeReportsAccessDeniedWithoutReadRolePermissionsAsync()
+        {
+            var nodeId = new NodeId("testNode", 1);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
                     It.IsAny<NodeId>(),
                     It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadUserAccessDenied)));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock =
+                CreateDataChangeMonitoredItemMock(1u, Attributes.RolePermissions);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                context,
+                node,
+                NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions).ConfigureAwait(false);
+
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            // Only the access denied status is reported (Part 4 5.13.2.1), never the attribute value.
+            AssertOnlyStatusQueued(monitoredItemMock, StatusCodes.BadUserAccessDenied, 1);
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    nodeId,
+                    PermissionType.ReadRolePermissions,
                     It.IsAny<CancellationToken>()),
-                Times.Never);
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a failed re-read of a User* attribute in the item owner's context is
+        /// reported with its error status instead of a Good null value.
+        /// </summary>
+        [Test]
+        public async Task UserAttributeReReadErrorIsQueuedAsync()
+        {
+            var nodeId = new NodeId("testNode", 1);
+            int reads = 0;
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            // First read builds the snapshot, the second is the owner-context re-read.
+            node.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte _) =>
+                Interlocked.Increment(ref reads) == 1
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadUserAccessDenied);
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    PermissionType.Browse,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock =
+                CreateDataChangeMonitoredItemMock(1u, Attributes.UserAccessLevel);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            await monitoredNode.OnMonitoredNodeChangedAsync(
+                context, node, NodeStateChangeMasks.NonValue).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(reads, Is.EqualTo(2));
+            AssertOnlyStatusQueued(monitoredItemMock, StatusCodes.BadUserAccessDenied, 1);
+        }
+
+        private static void AssertOnlyStatusQueued(
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock,
+            StatusCode expected,
+            int expectedCount)
+        {
+            var queued = monitoredItemMock.Invocations
+                .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
+                .Select(i => ((DataValue)i.Arguments[0], (ServiceResult)i.Arguments[1]))
+                .ToList();
+            Assert.That(queued, Has.Count.EqualTo(expectedCount));
+            foreach ((DataValue value, ServiceResult error) in queued)
+            {
+                Assert.That(value.StatusCode, Is.EqualTo(expected));
+                Assert.That(value.WrappedValue.IsNull, Is.True);
+                Assert.That(error.StatusCode, Is.EqualTo(expected));
+            }
         }
 
         /// <summary>
@@ -790,7 +1086,7 @@ namespace Opc.Ua.Server.Tests
         /// the invalidation require a fresh validation call.
         /// </summary>
         [Test]
-        public async Task AllValueChanges_NoneDropped_WhenRolePermissionsChangeIsInterleavedAndValidationIsBlockedAsync()
+        public async Task AllValueChangesNoneDroppedWhenRolePermissionsChangeIsInterleavedAndValidationIsBlockedAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -846,18 +1142,18 @@ namespace Opc.Ua.Server.Tests
 
             // First value change – consumer blocks on validation
             node.Value = 10;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
             await firstValidationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             // While consumer is blocked, enqueue a RolePermissions change followed by another value change
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.RolePermissions);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.RolePermissions).ConfigureAwait(false);
             node.Value = 20;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Release validation
             firstValidationGate.Release();
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – both value changes must have been delivered
             var deliveredValues = monitoredItemMock.Invocations
@@ -884,7 +1180,7 @@ namespace Opc.Ua.Server.Tests
         /// event monitored item via the channel consumer.
         /// </summary>
         [Test]
-        public async Task OnReportEvent_SingleEvent_DeliveredToMonitoredItemAsync()
+        public async Task OnReportEventSingleEventDeliveredToMonitoredItemAsync()
         {
             // Arrange
             var node = new BaseDataVariableState(null)
@@ -914,8 +1210,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act
-            await monitoredNode.OnReportEventAsync(context, node, eventState);
-            monitoredNode.Dispose();
+            await monitoredNode.OnReportEventAsync(context, node, eventState).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – QueueEvent called exactly once
             int queueCount = eventItemMock.Invocations
@@ -928,7 +1224,7 @@ namespace Opc.Ua.Server.Tests
         /// delivered in order — none are dropped by the bounded channel.
         /// </summary>
         [Test]
-        public async Task OnReportEvent_AllEvents_NoneDropped_WhenValidationIsBlockedAsync()
+        public async Task OnReportEventAllEventsNoneDroppedWhenValidationIsBlockedAsync()
         {
             // Arrange
             var node = new BaseDataVariableState(null)
@@ -976,16 +1272,16 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire first event; consumer blocks on validation
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
             await validationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             // While blocked, enqueue two more events
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
 
             // Release and drain
             validationGate.Release();
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – all three events delivered
             int queueCount = eventItemMock.Invocations
@@ -998,7 +1294,7 @@ namespace Opc.Ua.Server.Tests
         /// Mutating the original event instance after enqueueing must not alter the queued clone.
         /// </summary>
         [Test]
-        public async Task OnReportEvent_EventSnapshot_CapturesStateAtEnqueueTime_NotAtProcessingTimeAsync()
+        public async Task OnReportEventEventSnapshotCapturesStateAtEnqueueTimeNotAtProcessingTimeAsync()
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
@@ -1057,7 +1353,7 @@ namespace Opc.Ua.Server.Tests
             originalEvent.SetChildValue(context, BrowseNames.SourceName, "source-before", false);
             originalEvent.SetChildValue(context, BrowseNames.Severity, (ushort)300, false);
 
-            await monitoredNode.OnReportEventAsync(context, node, originalEvent);
+            await monitoredNode.OnReportEventAsync(context, node, originalEvent).ConfigureAwait(false);
             Assert.That(await validationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
 
             // Mutate the original after enqueue – the clone must not reflect this change.
@@ -1065,7 +1361,7 @@ namespace Opc.Ua.Server.Tests
             originalEvent.SetChildValue(context, BrowseNames.Severity, (ushort)900, false);
 
             validationGate.Release();
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(deliveredTarget, Is.Not.Null);
 
@@ -1094,7 +1390,7 @@ namespace Opc.Ua.Server.Tests
         /// <see cref="IEventMonitoredItem.QueueEvent"/>.
         /// </summary>
         [Test]
-        public async Task OnReportEvent_PermissionDenied_EventNotQueuedAsync()
+        public async Task OnReportEventPermissionDeniedEventNotQueuedAsync()
         {
             // Arrange
             var node = new BaseDataVariableState(null)
@@ -1123,8 +1419,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
-            monitoredNode.Dispose();
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – QueueEvent must never have been called
             int queueCount = eventItemMock.Invocations
@@ -1137,7 +1433,7 @@ namespace Opc.Ua.Server.Tests
         /// is false – no call to <see cref="IEventMonitoredItem.QueueEvent"/> should be made.
         /// </summary>
         [Test]
-        public async Task OnReportEvent_AuditEvent_DroppedWhenAuditingDisabledAsync()
+        public async Task OnReportEventAuditEventDroppedWhenAuditingDisabledAsync()
         {
             // Arrange
             var node = new BaseDataVariableState(null)
@@ -1169,8 +1465,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act
-            await monitoredNode.OnReportEventAsync(context, node, auditEvent);
-            monitoredNode.Dispose();
+            await monitoredNode.OnReportEventAsync(context, node, auditEvent).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – nothing queued
             int queueCount = eventItemMock.Invocations
@@ -1183,7 +1479,7 @@ namespace Opc.Ua.Server.Tests
         /// receive every event notification.
         /// </summary>
         [Test]
-        public async Task OnReportEvent_MultipleEventMonitoredItems_AllReceiveEveryEventAsync()
+        public async Task OnReportEventMultipleEventMonitoredItemsAllReceiveEveryEventAsync()
         {
             // Arrange
             var node = new BaseDataVariableState(null)
@@ -1214,11 +1510,11 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire three events
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – both items received all three events
             int item1Count = item1Mock.Invocations
@@ -1227,6 +1523,29 @@ namespace Opc.Ua.Server.Tests
                 .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
             Assert.That(item1Count, Is.EqualTo(3), "item1 should have received 3 events");
             Assert.That(item2Count, Is.EqualTo(3), "item2 should have received 3 events");
+        }
+
+        [Test]
+        public async Task FailingEventFilterDoesNotDiscardOtherMonitoredItemsAsync()
+        {
+            var owner = new Mock<IAsyncNodeManager>();
+            owner.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+            var server = new Mock<IServerInternal>();
+            var source = new BaseObjectState(null) { NodeId = new NodeId("EventIsolation", 1) };
+            using var monitored = new MonitoredNode2(owner.Object, server.Object, source);
+            monitored.Add(CreateEventMonitoredItemMock(1).Object);
+            monitored.Add(CreateEventMonitoredItemMock(2).Object);
+            IEventMonitoredItem[] order = [.. monitored.EventMonitoredItems.Values];
+            Mock.Get(order[0]).Setup(value => value.QueueEvent(It.IsAny<IFilterTarget>()))
+                .Callback<IFilterTarget>(filter => throw new ArgumentNullException(nameof(filter)));
+
+            await monitored.OnReportEventAsync(
+                new Mock<ISystemContext>().Object, source, new BaseEventState(null)).ConfigureAwait(false);
+            await monitored.DisposeAsync().ConfigureAwait(false);
+
+            Mock.Get(order[1]).Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
         }
 
         /// <summary>
@@ -1268,8 +1587,8 @@ namespace Opc.Ua.Server.Tests
             var sessionContextMock = new Mock<ISessionSystemContext>();
             sessionContextMock.Setup(c => c.SessionId).Returns(sessionBId);
 
-            await monitoredNode.OnReportEventAsync(sessionContextMock.Object, node, new BaseEventState(null));
-            monitoredNode.Dispose();
+            await monitoredNode.OnReportEventAsync(sessionContextMock.Object, node, new BaseEventState(null)).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             int sessionACount = sessionAItem.Invocations
                 .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
@@ -1335,7 +1654,7 @@ namespace Opc.Ua.Server.Tests
                 await delivered.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false),
                 Is.True,
                 "the value change was not delivered within the timeout");
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             var deliveredValues = itemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
@@ -1415,7 +1734,7 @@ namespace Opc.Ua.Server.Tests
                 await delivered.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false),
                 Is.True,
                 "the value change was not delivered within the timeout");
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             var deliveredValues = itemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
@@ -1467,7 +1786,7 @@ namespace Opc.Ua.Server.Tests
                 await delivered.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false),
                 Is.True,
                 "the event was not delivered within the timeout");
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             int queueCount = eventItemMock.Invocations
                 .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
@@ -1566,7 +1885,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Populate the permission cache with the first value change
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Wait until the consumer has fully processed the first notification (cache populated).
             await firstItemProcessed.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
@@ -1575,10 +1894,10 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.InvalidatePermissionCacheForSession(sessionId);
 
             // Next value change should trigger re-validation
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
-            // Dispose waits for the consumer task to drain all queued notifications.
-            monitoredNode.Dispose();
+            // Asynchronous disposal is the delivery barrier.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – called twice: once before and once after cache invalidation
             nodeManagerMock.Verify(
@@ -1632,7 +1951,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Populate the cache
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Wait until the consumer has fully processed the first notification (cache populated).
             await firstItemProcessed.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
@@ -1641,10 +1960,10 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.InvalidatePermissionCacheForSession(otherSessionId);
 
             // Next value change should still use the cached result
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
-            // Dispose waits for the consumer task to drain all queued notifications.
-            monitoredNode.Dispose();
+            // Asynchronous disposal is the delivery barrier.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – ValidateRolePermissions still called only once (cache was not cleared)
             nodeManagerMock.Verify(
@@ -1680,7 +1999,7 @@ namespace Opc.Ua.Server.Tests
         /// for each subsequent event with the same identity.
         /// </summary>
         [Test]
-        public async Task OnReportEvent_RepeatedEventsWithSameIdentity_PermissionValidatedOnceAsync()
+        public async Task OnReportEventRepeatedEventsWithSameIdentityPermissionValidatedOnceAsync()
         {
             var node = new BaseObjectState(null)
             {
@@ -1721,15 +2040,15 @@ namespace Opc.Ua.Server.Tests
                 return ev;
             }
 
-            await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+            await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             Assert.That(await firstValidationSignal.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
 
             for (int i = 0; i < 4; i++)
             {
-                await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+                await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             }
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(validationCalls, Is.EqualTo(1));
             int queueCount = eventItemMock.Invocations
@@ -1742,7 +2061,7 @@ namespace Opc.Ua.Server.Tests
         /// permission verdicts so a re-added item is re-validated.
         /// </summary>
         [Test]
-        public async Task Remove_EventMonitoredItem_DropsCacheEntriesAsync()
+        public async Task RemoveEventMonitoredItemDropsCacheEntriesAsync()
         {
             var node = new BaseObjectState(null)
             {
@@ -1772,7 +2091,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMock(7u);
             eventItemMock
                 .Setup(m => m.QueueEvent(It.IsAny<IFilterTarget>()))
-                .Callback(() => queuedSignal.Set());
+                .Callback(queuedSignal.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(eventItemMock.Object);
@@ -1787,7 +2106,7 @@ namespace Opc.Ua.Server.Tests
                 return ev;
             }
 
-            await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+            await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             Assert.That(await validationSignal.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
 
             // The verdict is written to the permission cache only after the
@@ -1804,10 +2123,10 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.Remove(eventItemMock.Object);
             monitoredNode.Add(eventItemMock.Object);
 
-            await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+            await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             Assert.That(await validationSignal.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(validationCalls, Is.EqualTo(2));
         }
@@ -1818,7 +2137,7 @@ namespace Opc.Ua.Server.Tests
         /// and all events are delivered to all monitored items.
         /// </summary>
         [Test]
-        public async Task ServerNode_MultipleEventConsumers_AllEventsDeliveredAsync()
+        public async Task ServerNodeMultipleEventConsumersAllEventsDeliveredAsync()
         {
             // Use ObjectIds.Server so the Server-node multi-consumer path is activated
             var node = new BaseObjectState(null)
@@ -1868,11 +2187,11 @@ namespace Opc.Ua.Server.Tests
             const int eventCount = 10;
             for (int i = 0; i < eventCount; i++)
             {
-                await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+                await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             }
 
-            // Dispose drains the event channel
-            monitoredNode.Dispose();
+            // Asynchronous disposal drains the event channel.
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Each event should be delivered to all 3 monitored items
             int item1Queued = item1Mock.Invocations
@@ -1894,7 +2213,7 @@ namespace Opc.Ua.Server.Tests
         /// via the <c>enableMultipleEventConsumers</c> constructor parameter.
         /// </summary>
         [Test]
-        public async Task NonServerNode_OptInMultiConsumer_AllEventsDeliveredAsync()
+        public async Task NonServerNodeOptInMultiConsumerAllEventsDeliveredAsync()
         {
             var node = new BaseObjectState(null)
             {
@@ -1936,10 +2255,10 @@ namespace Opc.Ua.Server.Tests
             const int eventCount = 10;
             for (int i = 0; i < eventCount; i++)
             {
-                await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+                await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             }
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             int item1Queued = item1Mock.Invocations
                 .Count(inv => inv.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
@@ -1957,7 +2276,7 @@ namespace Opc.Ua.Server.Tests
         /// additional consumer tasks (single-reader channel).
         /// </summary>
         [Test]
-        public async Task NonServerNode_NoOptIn_SingleConsumerAsync()
+        public async Task NonServerNodeNoOptInSingleConsumerAsync()
         {
             var node = new BaseObjectState(null)
             {
@@ -1998,10 +2317,10 @@ namespace Opc.Ua.Server.Tests
             const int eventCount = 10;
             for (int i = 0; i < eventCount; i++)
             {
-                await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+                await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             }
 
-            monitoredNode.Dispose();
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Events still delivered to all items (single consumer handles all)
             int item1Queued = item1Mock.Invocations

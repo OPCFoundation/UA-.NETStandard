@@ -118,6 +118,30 @@ namespace Opc.Ua.Server.Tests
             return new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
         }
 
+        [Test]
+        public void SamplingReportingModeChangesDoNotWrapDisabledDiagnostics()
+        {
+            using Subscription subscription = CreateSubscription();
+            MethodInfo method = typeof(Subscription).GetMethod(
+                "ModifyItemMonitoringMode",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+            method.Invoke(
+                subscription,
+                [0d, MonitoringMode.Reporting, MonitoringMode.Sampling]);
+            Assert.That(subscription.Diagnostics.DisabledMonitoredItemCount, Is.Zero);
+
+            method.Invoke(
+                subscription,
+                [0d, MonitoringMode.Reporting, MonitoringMode.Disabled]);
+            Assert.That(subscription.Diagnostics.DisabledMonitoredItemCount, Is.EqualTo(1u));
+
+            method.Invoke(
+                subscription,
+                [0d, MonitoringMode.Disabled, MonitoringMode.Sampling]);
+            Assert.That(subscription.Diagnostics.DisabledMonitoredItemCount, Is.Zero);
+        }
+
         private static void InjectSentMessages(Subscription subscription, params NotificationMessage[] messages)
         {
             FieldInfo queueField = typeof(Subscription).GetField("m_messageQueue",
@@ -766,7 +790,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             Assert.That(subscription.IsDeleted, Is.True);
         }
@@ -777,7 +801,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -810,21 +834,21 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.CreateMonitoredItemsAsync(
-                    context, TimestampsToReturn.Both, [])));
+                    context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.ModifyMonitoredItemsAsync(
-                    context, TimestampsToReturn.Both, [])));
+                    context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
-                async () => await subscription.DeleteMonitoredItemsAsync(context, [])));
+                async () => await subscription.DeleteMonitoredItemsAsync(context, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.SetMonitoringModeAsync(
-                    context, MonitoringMode.Reporting, [])));
+                    context, MonitoringMode.Reporting, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
-                async () => await subscription.ConditionRefreshAsync()));
+                async () => await subscription.ConditionRefreshAsync().ConfigureAwait(false)));
         }
 
         private static void AssertBadSubscriptionId(ServiceResultException ex)

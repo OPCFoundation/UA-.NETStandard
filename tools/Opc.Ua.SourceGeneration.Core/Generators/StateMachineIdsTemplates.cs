@@ -107,11 +107,12 @@ namespace Opc.Ua.SourceGeneration
         /// One <c>public const {uint|string} X = global::{ns}.Objects.{Y};</c>
         /// line per state or transition NodeId entry. The constant type follows the
         /// type of the aliased <c>Objects</c> constant, which is <c>string</c> for
-        /// models that use string NodeIds.
+        /// models that use string NodeIds. Guid and Opaque identifiers cannot be
+        /// C# constants, so those entries are emitted as <c>static readonly</c>.
         /// </summary>
         public static readonly TemplateString IdEntry = TemplateString.Parse(
             $$"""
-            public const {{Tokens.IdType}} {{Tokens.Name}} = global::{{Tokens.NamespacePrefix}}.Objects.{{Tokens.Identifier}};
+            public {{Tokens.IdModifier}} {{Tokens.IdType}} {{Tokens.Name}} = global::{{Tokens.NamespacePrefix}}.Objects.{{Tokens.Identifier}};
 
             """);
 

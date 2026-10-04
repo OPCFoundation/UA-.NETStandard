@@ -16,13 +16,14 @@ namespace Opc.Ua.Server.Tests
 {
     /// <summary>
     /// Test MonitoredItem
+    /// Reference persistence uses a process-wide batch directory shared by both factory cases.
     /// </summary>
     [TestFixture]
     [Category("MonitoredItem")]
     [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     [MemoryDiagnoser]
     public class DurableMonitoredItemTests
     {

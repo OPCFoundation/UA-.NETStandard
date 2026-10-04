@@ -14,6 +14,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core" />
+    <!-- Push configuration reuses the internal CSR overload that accepts a subject with the existing key. -->
+    <InternalsVisibleTo Include="Opc.Ua.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Test.Common" />
     <InternalsVisibleTo Include="Opc.Ua.Certificates.Fuzz" />

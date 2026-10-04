@@ -100,6 +100,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.NextSequenceNumber, Is.EqualTo(1u));
         }
 
+        /// <summary>
+        /// Verifies restored queue state retains sequence positions while owning a separate message-list snapshot.
+        /// </summary>
         [Test]
         public void CreateRestoredPreservesProvidedState()
         {
@@ -111,7 +114,8 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.NextSequenceNumber, Is.EqualTo(13u));
             Assert.That(queue.LastSentMessage, Is.EqualTo(2));
             Assert.That(queue.SentCount, Is.EqualTo(3));
-            Assert.That(queue.SentMessages, Is.SameAs(messages));
+            Assert.That(queue.SentMessages, Is.Not.SameAs(messages));
+            Assert.That(queue.SentMessages, Is.EqualTo(messages));
         }
 
         [Test]
@@ -229,14 +233,33 @@ namespace Opc.Ua.Subscriptions.Tests
             NotificationMessage returned = queue.Enqueue(
                 Messages(1, 2, 3, 4, 5), available, out bool moreNotifications, out uint newlyUnacknowledged);
 
-            // The two oldest messages are dropped to respect the capacity of three.
+            // The two oldest messages are dropped to respect the capacity of three,
+            // and they count as discarded before acknowledgement.
             Assert.That(queue.SentCount, Is.EqualTo(3));
             Assert.That(returned.SequenceNumber, Is.EqualTo(3u));
             Assert.That(moreNotifications, Is.True);
-            Assert.That(newlyUnacknowledged, Is.Zero);
+            Assert.That(newlyUnacknowledged, Is.EqualTo(2u));
             Assert.That(queue.FindForRepublish(1), Is.Null);
             Assert.That(queue.FindForRepublish(2), Is.Null);
             Assert.That(queue.FindForRepublish(3), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Verifies that unsent overflow drops and retransmission evictions are both reported as discarded.
+        /// </summary>
+        [Test]
+        public void EnqueueReportsOverflowAndEvictionAsDiscarded()
+        {
+            SentMessageQueue queue = NewQueue(maxMessageCount: 2);
+            queue.Enqueue(Messages(1, 2), [], out _, out _);
+
+            queue.Enqueue(Messages(3, 4, 5, 6, 7), [], out _, out uint discarded);
+
+            // 3 unsent messages dropped (3, 4, 5) plus 2 retained ones evicted (1, 2).
+            Assert.That(discarded, Is.EqualTo(5u));
+            Assert.That(queue.SentCount, Is.EqualTo(2));
+            Assert.That(queue.FindForRepublish(6), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(7), Is.Not.Null);
         }
 
         [Test]
@@ -259,6 +282,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.FindForRepublish(4), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies partial overflow evicts only the oldest messages needed to fit the new batch.
+        /// </summary>
         [Test]
         public void EnqueuePartiallyEvictsOldestWhenQueueFull()
         {
@@ -269,12 +295,12 @@ namespace Opc.Ua.Subscriptions.Tests
             NotificationMessage returned = queue.Enqueue(
                 Messages(5, 6), available, out bool moreNotifications, out uint newlyUnacknowledged);
 
-            Assert.That(newlyUnacknowledged, Is.EqualTo(2u));
+            Assert.That(newlyUnacknowledged, Is.EqualTo(1u));
             Assert.That(moreNotifications, Is.True);
-            Assert.That(queue.SentCount, Is.EqualTo(4));
+            Assert.That(queue.SentCount, Is.EqualTo(5));
             Assert.That(returned.SequenceNumber, Is.EqualTo(5u));
             Assert.That(queue.FindForRepublish(1), Is.Null);
-            Assert.That(queue.FindForRepublish(2), Is.Null);
+            Assert.That(queue.FindForRepublish(2), Is.Not.Null);
             Assert.That(queue.FindForRepublish(3), Is.Not.Null);
             Assert.That(queue.FindForRepublish(6), Is.Not.Null);
         }
@@ -453,6 +479,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(capturedRemoved, Is.EqualTo(new List<uint> { 1, 2 }));
         }
 
+        /// <summary>
+        /// Verifies retransmission deltas report exactly the sequence numbers removed by partial eviction.
+        /// </summary>
         [Test]
         public void EnqueueDeltaReportsRemovedSequenceNumbersOnPartialEviction()
         {
@@ -473,8 +502,8 @@ namespace Opc.Ua.Subscriptions.Tests
 
             queue.Enqueue(Messages(5, 6), [], out _, out uint newlyUnacknowledged);
 
-            Assert.That(newlyUnacknowledged, Is.EqualTo(2u));
-            Assert.That(capturedRemoved, Is.EqualTo(new List<uint> { 1, 2 }));
+            Assert.That(newlyUnacknowledged, Is.EqualTo(1u));
+            Assert.That(capturedRemoved, Is.EqualTo(new List<uint> { 1 }));
         }
 
         [Test]

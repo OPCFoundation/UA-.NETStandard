@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Diagnostics;
+
 namespace Opc.Ua.Server.AliasNames
 {
     /// <summary>
@@ -42,12 +45,14 @@ namespace Opc.Ua.Server.AliasNames
     ///   <item><description><c>%</c> — matches zero or more characters.</description></item>
     ///   <item><description><c>_</c> — matches exactly one character.</description></item>
     ///   <item><description><c>[abc]</c> — matches any single character from the set.</description></item>
-    ///   <item><description><c>[^abc]</c> (or legacy <c>[!abc]</c>) — matches any single character not in the set.</description></item>
+    ///   <item><description><c>[^abc]</c> — matches any single character not in the set.
+    ///   The legacy <c>[!abc]</c> spelling is also accepted.</description></item>
     ///   <item><description><c>\</c> — escapes the next wildcard character.</description></item>
     /// </list>
     /// The pattern is evaluated by <see cref="LikePattern"/>. Matching is
     /// case-sensitive and anchored: the entire target must match the entire
-    /// pattern. A malformed pattern (trailing escape character, unterminated
+    /// pattern. Evaluation has a finite timeout on all target frameworks.
+    /// A malformed pattern (trailing escape character, unterminated
     /// or empty <c>[..]</c> list, descending range, <c>^</c> that is not the
     /// first list character) is not a valid search string and matches
     /// nothing; see <see cref="IsValidPattern"/>.
@@ -65,7 +70,13 @@ namespace Opc.Ua.Server.AliasNames
         /// invalid pattern return <c>false</c>.</returns>
         public static bool IsMatch(string? target, string? pattern)
         {
-            return !string.IsNullOrEmpty(pattern) && LikePattern.IsMatch(target, pattern);
+            if (target == null ||
+                string.IsNullOrEmpty(pattern) ||
+                !LikePattern.TryParse(pattern, out LikePattern? parsed))
+            {
+                return false;
+            }
+            return Matches(target, parsed);
         }
 
         /// <summary>
@@ -82,5 +93,68 @@ namespace Opc.Ua.Server.AliasNames
         {
             return string.IsNullOrEmpty(pattern) || LikePattern.IsValid(pattern);
         }
+
+        /// <summary>
+        /// Parses a reusable OPC UA Like pattern or reports invalid syntax as a service error.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static LikePattern CreatePattern(string pattern)
+        {
+            if (!LikePattern.TryParse(pattern, out LikePattern? parsed))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument, "Invalid alias-name search pattern.");
+            }
+            return parsed;
+        }
+
+        /// <summary>
+        /// Tests an alias name and reports matching timeouts as BadTimeout service errors.
+        /// </summary>
+        internal static bool Matches(string target, LikePattern pattern)
+        {
+            return Matches(target, pattern, CreateDeadline());
+        }
+
+        /// <summary>
+        /// Creates the deadline shared by all alias matches in one request.
+        /// </summary>
+        internal static long CreateDeadline()
+        {
+            return Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * s_matchTimeout.TotalSeconds);
+        }
+
+        /// <summary>
+        /// Tests an alias name before the shared search deadline expires.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="TimeoutException"></exception>
+        internal static bool Matches(string target, LikePattern pattern, long deadline)
+        {
+            try
+            {
+                long remaining = deadline - Stopwatch.GetTimestamp();
+                if (remaining <= 0)
+                {
+                    throw new TimeoutException();
+                }
+
+                // FromSeconds rounds a sub-millisecond remainder to zero on .NET Framework.
+                return pattern.IsMatch(
+                    target,
+                    TimeSpan.FromTicks(Math.Max(
+                        1, remaining * TimeSpan.TicksPerSecond / Stopwatch.Frequency)));
+            }
+            catch (TimeoutException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTimeout, ex, "Alias-name pattern evaluation exceeded its time limit.");
+            }
+        }
+
+        /// <summary>
+        /// Limits the total pattern-matching time of one alias search.
+        /// </summary>
+        private static readonly TimeSpan s_matchTimeout = TimeSpan.FromMilliseconds(100);
     }
 }

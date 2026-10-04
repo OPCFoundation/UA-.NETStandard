@@ -265,10 +265,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Cancels the revalidation loop without awaiting its exit.
-        /// Used by the synchronous <see cref="Dispose(bool)"/>
-        /// path which cannot await asynchronously. Mirrors
-        /// <see cref="CancelIdentityRefreshLoop"/>.
+        /// Signals cancellation without losing the worker and token source
+        /// that <see cref="StopRevalidationLoopAsync"/> must drain and dispose.
         /// </summary>
         private void CancelRevalidationLoop()
         {
@@ -276,8 +274,6 @@ namespace Opc.Ua.Client
             lock (m_revalidationLock)
             {
                 cts = m_revalidationCancellation;
-                m_revalidationCancellation = null;
-                m_revalidationTask = null;
             }
             cts?.Cancel();
         }
@@ -460,14 +456,22 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            byte[] rawData = serverCertBlob.ToArray();
-            using var serverCert = Certificate.FromRawData(rawData);
-
-            CertificateValidationResult result;
+            string thumbprint = string.Empty;
             try
             {
-                result = await validator.ValidateAsync(serverCert, ct: ct)
+                using CertificateCollection chain = Utils.ParseCertificateChainBlob(
+                    serverCertBlob, SessionFactory.Telemetry);
+                thumbprint = chain[0].Thumbprint;
+                CertificateValidationResult result = await validator.ValidateAsync(chain, ct: ct)
                     .ConfigureAwait(false);
+                if (result.IsValid)
+                {
+                    m_logger.ManagedSessionCachedServerCertificateThumbprintStill(thumbprint);
+                    return;
+                }
+
+                m_logger.ManagedSessionCachedServerCertificateThumbprintNo(thumbprint, result.StatusCode);
+                StateMachine.TriggerReconnect();
             }
             catch (OperationCanceledException)
             {
@@ -477,21 +481,9 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionValidateAsyncThrewCachedServerCertificate(
                     ex,
-                    serverCert.Thumbprint);
+                    thumbprint);
                 StateMachine.TriggerReconnect();
-                return;
             }
-
-            if (result.IsValid)
-            {
-                m_logger.ManagedSessionCachedServerCertificateThumbprintStill(serverCert.Thumbprint);
-                return;
-            }
-
-            m_logger.ManagedSessionCachedServerCertificateThumbprintNo(
-                serverCert.Thumbprint,
-                result.StatusCode);
-            StateMachine.TriggerReconnect();
         }
 
         /// <summary>
@@ -619,5 +611,4 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception);
     }
-
 }

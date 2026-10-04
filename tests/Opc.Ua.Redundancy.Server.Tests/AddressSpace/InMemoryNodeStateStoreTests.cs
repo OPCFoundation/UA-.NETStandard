@@ -201,6 +201,212 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(seen[nodeId].WrappedValue, Is.EqualTo(new Variant(7.0)));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ProtectedPrimaryRecordsRejectDifferentKeysAsync(bool valueRecord)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(41));
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            var source = new NodeId("source", NamespaceIndex);
+            var target = new NodeId("target", NamespaceIndex);
+            var payload = ByteString.From(new byte[] { 1, 2, 3 });
+            if (valueRecord)
+            {
+                await store.WriteValueAsync(source, new DataValue(Variant.From(true))).ConfigureAwait(false);
+            }
+            else
+            {
+                await store.UpsertNodeAsync(new StoredNode(source, payload)).ConfigureAwait(false);
+            }
+            string prefix = valueRecord ? "v/" : "n/";
+            (bool stored, ByteString record) = await kv.TryGetAsync(prefix + source).ConfigureAwait(false);
+            Assert.That(stored, Is.True);
+            await kv.SetAsync(prefix + target, record).ConfigureAwait(false);
+
+            if (valueRecord)
+            {
+                (bool found, DataValue value) = await store.TryReadValueAsync(target).ConfigureAwait(false);
+                Assert.That(found, Is.False);
+                Assert.That(value.IsNull, Is.True);
+                (found, value) = await store.TryReadValueAsync(source).ConfigureAwait(false);
+                Assert.That(found, Is.True);
+                Assert.That(value.WrappedValue, Is.EqualTo(Variant.From(true)));
+            }
+            else
+            {
+                Assert.That(await store.TryGetNodeAsync(target).ConfigureAwait(false), Is.Null);
+                IStoredNode? original = await store.TryGetNodeAsync(source).ConfigureAwait(false);
+                Assert.That(original, Is.Not.Null);
+                Assert.That(original!.Payload, Is.EqualTo(payload));
+            }
+            Assert.That(
+                async () => await store.WriteSnapshotAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public async Task ProtectedPartitionMarkerCannotInitializeAnotherPartitionAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(42));
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            var partitions = (INodeStatePartitionStore)store;
+            const string source = "area/source";
+            const string target = "area/target";
+            await partitions.MarkPartitionInitializedAsync(source, default).ConfigureAwait(false);
+            (bool found, ByteString record) = await kv.TryGetAsync(
+                "partition/" + Uri.EscapeDataString(source)).ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            await kv.SetAsync("partition/" + Uri.EscapeDataString(target), record).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await partitions.IsPartitionInitializedAsync(target, default).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(await partitions.IsPartitionInitializedAsync(source, default).ConfigureAwait(false), Is.True);
+        }
+
+        [TestCase("dlog/00000000000000000900")]
+        [TestCase("dlog/1")]
+        public async Task ProtectedDeltaRejectsDifferentSequenceKeyAsync(string targetKey)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(43));
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            var nodeId = new NodeId("delta", NamespaceIndex);
+            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 1 })))
+                .ConfigureAwait(false);
+            List<NodeStateChange> changes = await ReadChangesAsync(store.ReadDeltaLogAsync(0)).ConfigureAwait(false);
+            Assert.That(changes, Has.Count.EqualTo(1));
+            Assert.That(changes[0].Sequence, Is.EqualTo(1));
+            Assert.That(changes[0].NodeId, Is.EqualTo(nodeId));
+            (bool found, ByteString record) = await kv.TryGetAsync("dlog/00000000000000000001")
+                .ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            await kv.SetAsync(targetKey, record).ConfigureAwait(false);
+
+            Assert.That(
+                () => ReadChangesAsync(store.ReadDeltaLogAsync(0)),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(store.CurrentSequence, Is.EqualTo(1), "A forged key must not advance the local horizon.");
+        }
+
+        [Test]
+        public async Task ProtectedSequenceRejectsPrimaryRecordAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(44));
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            var nodeId = new NodeId("sequence", NamespaceIndex);
+            byte[] payload = new byte[sizeof(ulong)];
+            BinaryPrimitives.WriteUInt64BigEndian(payload, 1);
+            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(payload))).ConfigureAwait(false);
+            (_, ByteString record) = await kv.TryGetAsync("n/" + nodeId).ConfigureAwait(false);
+            await kv.SetAsync(InMemoryNodeStateStore.SequenceKey, record).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(payload)))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
+            (_, ByteString retained) = await kv.TryGetAsync(InMemoryNodeStateStore.SequenceKey).ConfigureAwait(false);
+            Assert.That(retained, Is.EqualTo(record));
+            Assert.That(store.CurrentSequence, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ProtectedSnapshotChunkRejectsAnotherGenerationAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(45));
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            var nodeId = new NodeId("snapshot", NamespaceIndex);
+            var originalPayload = ByteString.From(new byte[] { 1 });
+            await store.UpsertNodeAsync(new StoredNode(nodeId, originalPayload)).ConfigureAwait(false);
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+            NodeStateSnapshot? original = await store.TryReadSnapshotAsync().ConfigureAwait(false);
+            Assert.That(original, Is.Not.Null);
+            var chunks = new List<KeyValuePair<string, ByteString>>();
+            await foreach (KeyValuePair<string, ByteString> entry in kv.ScanAsync("snap/").ConfigureAwait(false))
+            {
+                chunks.Add(entry);
+            }
+            Assert.That(chunks, Has.Count.EqualTo(1));
+            KeyValuePair<string, ByteString> source = chunks[0];
+            await store.UpsertNodeAsync(new StoredNode(nodeId, ByteString.From(new byte[] { 2 })))
+                .ConfigureAwait(false);
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+            chunks.Clear();
+            await foreach (KeyValuePair<string, ByteString> entry in kv.ScanAsync("snap/").ConfigureAwait(false))
+            {
+                if (entry.Key != source.Key)
+                {
+                    chunks.Add(entry);
+                }
+            }
+            Assert.That(chunks, Has.Count.EqualTo(1));
+            await kv.SetAsync(chunks[0].Key, source.Value).ConfigureAwait(false);
+            NodeStateSnapshot? current = await store.TryReadSnapshotAsync().ConfigureAwait(false);
+            Assert.That(current, Is.Not.Null);
+
+            Assert.That(
+                () => ReadChangesAsync(current!.Entries),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
+            List<NodeStateChange> oldEntries = await ReadChangesAsync(original!.Entries).ConfigureAwait(false);
+            Assert.That(oldEntries, Has.Count.EqualTo(1));
+            Assert.That(oldEntries[0].Node!.Payload, Is.EqualTo(originalPayload));
+        }
+
+        [Test]
+        public async Task ProtectedSnapshotChunkRejectsDifferentOrdinalAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(46));
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            using var store = new InMemoryNodeStateStore(kv, context, protector);
+            var payload = ByteString.From(new byte[context.MaxByteStringLength]);
+            await store.UpsertNodeAsync(new StoredNode(new NodeId("first", 1), payload)).ConfigureAwait(false);
+            await store.UpsertNodeAsync(new StoredNode(new NodeId("second", 1), payload)).ConfigureAwait(false);
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+            var chunks = new List<KeyValuePair<string, ByteString>>();
+            await foreach (KeyValuePair<string, ByteString> entry in kv.ScanAsync("snap/").ConfigureAwait(false))
+            {
+                chunks.Add(entry);
+            }
+            Assert.That(chunks, Has.Count.EqualTo(2));
+            chunks.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Key, right.Key));
+            await kv.SetAsync(chunks[1].Key, chunks[0].Value).ConfigureAwait(false);
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync().ConfigureAwait(false);
+            Assert.That(snapshot, Is.Not.Null);
+
+            Assert.That(
+                () => ReadChangesAsync(snapshot!.Entries),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public async Task ProtectedSnapshotManifestRejectsEmptyContextAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(47));
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
+            await store.WriteSnapshotAsync().ConfigureAwait(false);
+            (bool found, ByteString record) = await kv.TryGetAsync("snapmeta/manifest").ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("node-state-manifest", "snapmeta/manifest"),
+                record, out ByteString manifest), Is.True);
+            await kv.SetAsync("snapmeta/manifest", protector.Protect(default, manifest))
+                .ConfigureAwait(false);
+
+            Assert.That(await store.TryReadSnapshotAsync().ConfigureAwait(false), Is.Null);
+        }
+
         [Test]
         public async Task EnumerateValuesOnEmptyStoreYieldsNothingAsync()
         {
@@ -1406,7 +1612,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await store.UpsertNodeAsync(new StoredNode(valid, new ByteString(new byte[] { 1 })))
                 .ConfigureAwait(false);
             byte[] frame = authenticated
-                ? protector.Protect(MakeRecord(2, new ByteString(new byte[] { 2 }))).ToArray()
+                ? protector.Protect(
+                    RecordProtectionContext.Create("node-state-record", "n/" + corrupt),
+                    MakeRecord(2, new ByteString(new byte[] { 2 }))).ToArray()
                 : [1, 2, 3];
             if (authenticated)
             {
@@ -1462,7 +1670,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             string corruptKey = (corruptValue ? "v/" : "n/") + new NodeId("z-corrupt", NamespaceIndex);
             await kv.SetAsync(
                 corruptKey,
-                protector.Protect(new ByteString(new byte[] { 1, 2, 3 }))).ConfigureAwait(false);
+                protector.Protect(
+                    RecordProtectionContext.Create("node-state-record", corruptKey),
+                    new ByteString(new byte[] { 1, 2, 3 }))).ConfigureAwait(false);
 
             await Assert.ThatAsync(
                 async () => await store.WriteSnapshotAsync().ConfigureAwait(false),

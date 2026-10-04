@@ -173,7 +173,21 @@ internal static class CertTrustProbe
     private sealed class ProbeTelemetry : ITelemetryContext
     {
         public ILoggerFactory LoggerFactory { get; } = NullLoggerFactory.Instance;
-        public Meter CreateMeter() => new("UaLens.CertTrustProbe");
+
         public ActivitySource ActivitySource { get; } = new("UaLens.CertTrustProbe");
+
+        public Meter CreateMeter() => new("UaLens.CertTrustProbe");
+
+        public Meter CreateMeter(System.Reflection.Assembly assembly)
+        {
+            ArgumentNullException.ThrowIfNull(assembly);
+            return CreateMeter();
+        }
+
+        public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+        {
+            ArgumentNullException.ThrowIfNull(assembly);
+            return ActivitySource;
+        }
     }
 }

@@ -94,18 +94,7 @@ namespace Opc.Ua.SourceGeneration
                 /// </summary>
                 public {{Tokens.AccessModifier}}static class Decoder
                 {
-                    /// <summary>
-                    /// Browse paths in positional order. The composed
-                    /// registry layout (and any filter built from it)
-                    /// uses the same positional convention; the
-                    /// runtime remaps from the composed positions
-                    /// before calling <see cref="Decode"/>.
-                    /// </summary>
-                    public static readonly global::Opc.Ua.QualifiedName[][] StandardFields =
-                    new global::Opc.Ua.QualifiedName[][]
-                    {
-                        {{Tokens.ListOfFields}}
-                    };
+                    {{Tokens.FieldTable}}
 
                     /// <summary>
                     /// Decodes <paramref name="fields"/> into a
@@ -165,6 +154,84 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Positional browse path table of a record of the standard
+        /// model: every browse name is in namespace 0.
+        /// </summary>
+        public static readonly TemplateString StaticFieldTable = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// Browse paths in positional order. The composed
+            /// registry layout (and any filter built from it)
+            /// uses the same positional convention; the
+            /// runtime remaps from the composed positions
+            /// before calling <see cref="Decode"/>.
+            /// </summary>
+            public static readonly global::Opc.Ua.QualifiedName[][] StandardFields =
+            new global::Opc.Ua.QualifiedName[][]
+            {
+                {{Tokens.ListOfFields}}
+            };
+            """);
+
+        /// <summary>
+        /// Positional browse path table of a record of a companion model:
+        /// the browse names declared by the model are in the model's
+        /// namespace, whose index is only known for a session.
+        /// </summary>
+        public static readonly TemplateString NamespaceFieldTable = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// Browse paths in positional order with every browse name in
+            /// namespace index 0: a positional layout only. Positions match
+            /// <see cref="GetStandardFields"/>, which resolves the
+            /// namespace of the browse names declared by the model and
+            /// is what select clauses have to use.
+            /// </summary>
+            [global::System.Obsolete(
+                "The browse names of a companion model are not in namespace 0, so a select " +
+                "clause built from this table does not match them (OPC 10000-4 7.7.4.5). " +
+                "Use GetStandardFields(NamespaceTable) with the session namespace table.")]
+            public static readonly global::Opc.Ua.QualifiedName[][] StandardFields =
+                GetStandardFields(null);
+
+            /// <summary>
+            /// Browse paths in positional order with the browse names of
+            /// the model in their namespace index of
+            /// <paramref name="namespaceUris"/>. The composed registry
+            /// layout (and any filter built from it) uses the same
+            /// positional convention; the runtime remaps from the
+            /// composed positions before calling <see cref="Decode"/>.
+            /// A browse name whose namespace is not in
+            /// <paramref name="namespaceUris"/> gets an index no server
+            /// table holds, so the server returns null for that field
+            /// (OPC 10000-4 7.7.4.5) instead of matching a namesake in
+            /// namespace 0. Without a table every browse name is in
+            /// namespace 0 (a positional layout only).
+            /// </summary>
+            /// <param name="namespaceUris">The session namespace table.</param>
+            public static global::Opc.Ua.QualifiedName[][] GetStandardFields(
+                global::Opc.Ua.NamespaceTable? namespaceUris)
+            {
+                return new global::Opc.Ua.QualifiedName[][]
+                {
+                    {{Tokens.ListOfFields}}
+                };
+            }
+
+            private static ushort GetNamespaceIndex(
+                global::Opc.Ua.NamespaceTable? namespaceUris,
+                string namespaceUri)
+            {
+                if (namespaceUris == null)
+                {
+                    return 0;
+                }
+                int index = namespaceUris.GetIndex(namespaceUri);
+                return index > 0 ? (ushort)index : ushort.MaxValue;
+            }
+            """);
+
+        /// <summary>
         /// One init-only property per directly-declared field on the type.
         /// </summary>
         public static readonly TemplateString FieldProperty = TemplateString.Parse(
@@ -183,7 +250,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString StandardFieldEntry = TemplateString.Parse(
             $$"""
-            new global::Opc.Ua.QualifiedName[] { {{Tokens.ChildPath}} },
+            {{Tokens.ChildPath}},
             """);
 
         /// <summary>
@@ -236,7 +303,7 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             registry.TryRegister(
                 {{Tokens.EventTypeId}},
-                {{Tokens.ClassName}}.Decoder.StandardFields,
+                {{Tokens.ClassName}}.Decoder.{{Tokens.FieldTable}},
                 {{Tokens.ClassName}}.Decoder.Decode);
             """);
     }

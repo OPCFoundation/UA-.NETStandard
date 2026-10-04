@@ -34,6 +34,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -197,6 +198,62 @@ namespace Opc.Ua.AI.Tests
                     handler.Requests[0].Body,
                     Is.EqualTo("""{"messages":[{"role":"user","content":"ping"}]}"""));
                 Assert.That(handler.Requests[0].ContentType, Is.EqualTo("application/json"));
+            });
+        }
+
+        [Test]
+        public async Task InvokeAppliesExplicitParametersOverPayloadValues()
+        {
+            using var http = Http(
+                out StubHttpMessageHandler handler,
+                Json(HttpStatusCode.OK, """{"choices":[{"finish_reason":"stop"}]}"""));
+            using var backend = Backend(Options(), http);
+
+            await backend.InvokeAsync(
+                Request(
+                    """{"messages":[],"temperature":0.9,"max_tokens":5,"top_p":0.1}""",
+                    parameters: new Dictionary<string, string>
+                    {
+                        ["temperature"] = "0.25",
+                        ["max_tokens"] = "64",
+                        ["top_p"] = "0.8"
+                    }),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(handler.Requests[0].Body!);
+            JsonElement request = document.RootElement;
+            Assert.Multiple(() =>
+            {
+                Assert.That(request.GetProperty("temperature").GetDouble(), Is.EqualTo(0.25d));
+                Assert.That(request.GetProperty("max_tokens").GetInt32(), Is.EqualTo(64));
+                Assert.That(request.GetProperty("top_p").GetDouble(), Is.EqualTo(0.8d));
+            });
+        }
+
+        [Test]
+        public async Task InvokeOverridesOnlyTheSuppliedParameterFields()
+        {
+            using var http = Http(
+                out StubHttpMessageHandler handler,
+                Json(HttpStatusCode.OK, """{"choices":[{"finish_reason":"stop"}]}"""));
+            using var backend = Backend(Options(), http);
+
+            await backend.InvokeAsync(
+                Request(
+                    """{"messages":[],"temperature":0.9,"max_tokens":5,"top_p":0.1}""",
+                    parameters: new Dictionary<string, string> { ["temperature"] = "0.25" }),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(handler.Requests[0].Body!);
+            JsonElement request = document.RootElement;
+            Assert.Multiple(() =>
+            {
+                Assert.That(request.GetProperty("temperature").GetDouble(), Is.EqualTo(0.25d));
+                Assert.That(
+                    request.GetProperty("max_tokens").GetInt32(),
+                    Is.EqualTo(5),
+                    "payload fields the caller did not override must survive.");
+                Assert.That(request.GetProperty("top_p").GetDouble(), Is.EqualTo(0.1d));
             });
         }
 
@@ -556,14 +613,16 @@ namespace Opc.Ua.AI.Tests
         private static InferenceRequest Request(
             string body,
             string model = "",
-            TimeSpan timeout = default)
+            TimeSpan timeout = default,
+            IReadOnlyDictionary<string, string>? parameters = null)
         {
             return new InferenceRequest
             {
                 Model = model,
                 Payload = Encoding.UTF8.GetBytes(body),
                 ContentType = "application/json",
-                Timeout = timeout
+                Timeout = timeout,
+                Parameters = parameters ?? new Dictionary<string, string>()
             };
         }
 

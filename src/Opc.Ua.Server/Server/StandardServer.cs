@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
@@ -51,7 +52,8 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
+        IRequestParkingPolicySource
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -219,6 +221,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Runtime isolation options, applied at startup unless a custom provider is supplied.
+        /// Balanced is the default; SharedOnly explicitly retains shared-capacity compatibility.
+        /// The configured handshake deadline is validated regardless of mode or provider.
+        /// </summary>
+        public ServerResourceIsolationOptions ResourceIsolationOptions { get; set; } = new();
+
+        /// <summary>
+        /// Optional trusted ingress/owner mapper. Set before startup.
+        /// </summary>
+        public IResourceIsolationClassifier? ResourceIsolationClassifier { get; set; }
+
+        /// <summary>
         /// Optional complex type load options applied when
         /// <see cref="LoadComplexTypes"/> is enabled.
         /// </summary>
@@ -262,6 +276,9 @@ namespace Opc.Ua.Server
             return new ValueTask(dispose);
         }
 
+        /// <summary>
+        /// Performs orderly shutdown before releasing registration, configuration and owned server resources.
+        /// </summary>
         private async Task DisposeCoreAsync()
         {
             // Run the orderly server shutdown (idempotent) before releasing base resources,
@@ -270,11 +287,7 @@ namespace Opc.Ua.Server
             await StopAsync(CancellationToken.None).ConfigureAwait(false);
 
             // halt any outstanding timer and configuration watcher.
-            lock (m_registrationLock)
-            {
-                m_registrationTimer?.Dispose();
-                m_registrationTimer = null;
-            }
+            await StopRegistrationAsync().ConfigureAwait(false);
             m_configurationWatcher?.Dispose();
             m_configurationWatcher = null;
 
@@ -287,6 +300,8 @@ namespace Opc.Ua.Server
                 m_rateLimiterProvider?.Dispose();
             }
             m_rateLimiterProvider = null;
+            ResetOwnedResourceIsolation();
+            ResourceIsolationProvider = null;
 
             m_certManagerSubscription?.Dispose();
             m_certManagerSubscription = null;
@@ -591,18 +606,24 @@ namespace Opc.Ua.Server
             ArrayOf<EndpointDescription> serverEndpoints = default;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
+            // Admission control: reject with BadServerTooBusy before doing the
+            // CPU-bound certificate validation / signing when at capacity. The
+            // lease (a concurrency permit) is held for the duration of the call.
+            // It is acquired before the request is registered, so a handshake that
+            // waits for a permit is not a request that lifecycle drains wait for.
+            using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
+                secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
+                .ConfigureAwait(false);
+
             using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateSession,
                 requestLifetime).ConfigureAwait(false);
 
-            // Admission control: reject with BadServerTooBusy before doing the
-            // CPU-bound certificate validation / signing when at capacity. The
-            // lease (a concurrency permit) is held for the duration of the call.
-            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
-
             ISession? session = null;
+            CertificateCollection? clientIssuerCertificates = null;
+            Certificate? parsedClientCertificate = null;
             try
             {
                 // check the server uri.
@@ -619,15 +640,15 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
-                CertificateCollection? clientIssuerCertificates = null;
-
                 // validate client application instance certificate.
-                Certificate? parsedClientCertificate = null;
-
-                if (requireEncryption && clientCertificate.Length > 0)
+                if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
                     try
                     {
+                        if (clientCertificate.IsEmpty)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                        }
                         using CertificateCollection clientCertificateChain
                             = Utils.ParseCertificateChainBlob(
                                 clientCertificate,
@@ -643,39 +664,42 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        if (context.SecurityPolicyUri != SecurityPolicies.None)
+                        CertificateValidationResult clientCertResult = await CertificateManager!
+                            .ValidateAsync(
+                                clientCertificateChain,
+                                TrustListIdentifier.Peers,
+                                options: null,
+                                ct: requestLifetime.CancellationToken)
+                            .ConfigureAwait(false);
+                        // Preserve nested validation failures for client-status masking and detailed audit reporting.
+                        clientCertResult.ThrowIfInvalid();
+
+                        string applicationUri = clientDescription?.ApplicationUri ?? string.Empty;
+                        if (string.IsNullOrEmpty(applicationUri) ||
+                            !X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate, applicationUri))
                         {
-                            // verify if applicationUri from ApplicationDescription matches the applicationUris in the client certificate.
-                            if (!string.IsNullOrEmpty(clientDescription?.ApplicationUri))
-                            {
-                                if (!X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate!, clientDescription!.ApplicationUri!))
-                                {
-                                    // report the AuditCertificateDataMismatch event for invalid uri
-                                    ServerInternal?.ReportAuditCertificateDataMismatchEvent(
-                                        parsedClientCertificate,
-                                        null,
-                                        clientDescription.ApplicationUri,
-                                        StatusCodes.BadCertificateUriInvalid,
-                                        m_logger);
+                            ServerInternal?.ReportAuditCertificateDataMismatchEvent(
+                                parsedClientCertificate,
+                                null,
+                                applicationUri,
+                                StatusCodes.BadCertificateUriInvalid,
+                                m_logger);
 
-                                    throw ServiceResultException.Create(
-                                        StatusCodes.BadCertificateUriInvalid,
-                                        "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
-                                        clientDescription.ApplicationUri!);
-                                }
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadCertificateUriInvalid,
+                                "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
+                                applicationUri);
+                        }
 
-                                CertificateValidationResult clientCertResult = await CertificateManager!
-                                    .ValidateAsync(
-                                        clientCertificateChain,
-                                        TrustListIdentifier.Peers,
-                                        options: null,
-                                        ct: requestLifetime.CancellationToken)
-                                    .ConfigureAwait(false);
-                                if (!clientCertResult.IsValid)
-                                {
-                                    throw new ServiceResultException(clientCertResult.StatusCode);
-                                }
-                            }
+                        string? profile = context.ChannelContext.EndpointDescription!.TransportProfileUri;
+                        if (profile is Profiles.UaTcpTransport or Profiles.UaWssTransport &&
+                            !Utils.IsEqual(
+                                parsedClientCertificate.RawData,
+                                context.ChannelContext.ClientChannelCertificate))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadSecurityChecksFailed,
+                                "The session certificate does not match the SecureChannel certificate.");
                         }
                     }
                     catch (Exception e)
@@ -698,25 +722,32 @@ namespace Opc.Ua.Server
                 }
 
                 // verify the nonce provided by the client.
-                if (!clientNonce.IsEmpty)
+                if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
-                    if (clientNonce.Length < m_minNonceLength)
+                    if (clientNonce.Length < m_minNonceLength || clientNonce.Length > 128)
                     {
                         throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                     }
-
-                    // ignore nonce if security policy set to none
-                    if (context.SecurityPolicyUri == SecurityPolicies.None)
-                    {
-                        clientNonce = default;
-                    }
+                }
+                else if (clientNonce.Length > 128)
+                {
+                    // A nonce sent on a None channel is kept: the None channel
+                    // variant of an enhanced user token signature
+                    // (ServerNonce | Hash(ServerCertificate) | ClientNonce)
+                    // covers the nonce the client sent. Part 4 5.7.2.3 (Table 16)
+                    // requires Bad_NonceInvalid for a nonce longer than 128 bytes
+                    // on every channel. An empty or short nonce stays accepted on
+                    // a None channel, where nothing else requires one.
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
                 // load the certificate for the security profile. The session
                 // takes its own ref-counted handle on the certificate, so the
                 // acquired entry is disposed when this scope exits.
-                using CertificateEntry? instanceEntry = CertificateManager!
-                    .AcquireApplicationCertificateBySecurityPolicy(context.SecurityPolicyUri);
+                CertificateManager certificates = CertificateManager ??
+                    throw ServiceResultException.ConfigurationError("CertificateManager has not been initialized.");
+                using CertificateEntry? instanceEntry = AcquireEndpointCertificate(
+                    context.ChannelContext!.EndpointDescription!, certificates, SecurityPolicyRegistry);
                 Certificate instanceCertificate = instanceEntry?.Certificate!;
 
                 // create the session.
@@ -735,6 +766,11 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 session = result.Session;
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
+                {
+                    diagnostics.CurrentSessionCount++;
+                    diagnostics.CumulatedSessionCount++;
+                });
                 sessionId = result.SessionId;
                 authenticationToken = result.AuthenticationToken;
                 serverNonce = result.ServerNonce;
@@ -750,7 +786,7 @@ namespace Opc.Ua.Server
                             EndpointUrl = new Uri(endpointUrl)
                         };
 
-                        CertificateManager.ValidateDomains(
+                        certificates.ValidateDomains(
                             instanceCertificate,
                             configuredEndpoint,
                             serverValidation: true);
@@ -758,10 +794,11 @@ namespace Opc.Ua.Server
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
+                        Debug.Assert(session != null);
                         m_logger.ServerClientConnectsWithAnEndpointUrlEndpointUrl(endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
                             context.AuditEntryId!,
-                            session,
+                            session!,
                             revisedSessionTimeout,
                             endpointUrl,
                             m_logger);
@@ -779,7 +816,7 @@ namespace Opc.Ua.Server
                     if (requireEncryption)
                     {
                         // check if complete chain should be sent.
-                        if (CertificateManager.SendCertificateChain)
+                        if (certificates.SendCertificateChain)
                         {
                             serverCertificate = instanceEntry!.GetEncodedChainBlob().ToByteString();
                         }
@@ -806,18 +843,12 @@ namespace Opc.Ua.Server
                     clientNonce,
                     serverNonce);
 
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.CurrentSessionCount++;
-                    diagnostics.CumulatedSessionCount++;
-                });
-
                 m_logger.ServerSESSIONCREATEDSessionIdSessionId(sessionId);
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
-                    session,
+                    session!,
                     revisedSessionTimeout,
                     m_logger);
 
@@ -841,8 +872,14 @@ namespace Opc.Ua.Server
                     MaxRequestMessageSize = maxRequestMessageSize
                 };
             }
-            catch (ServiceResultException e)
+            catch (Exception exception)
             {
+                ServiceResultException e = exception as ServiceResultException
+                    ?? ServiceResultException.Create(
+                        StatusCodes.BadUnexpectedError,
+                        exception,
+                        "CreateSession failed: {0}",
+                        exception.Message);
                 m_logger.ServerSESSIONCREATEFailedErrorMessage(e.Message);
 
                 // report the failed AuditCreateSessionEvent
@@ -855,7 +892,13 @@ namespace Opc.Ua.Server
 
                 if (session != null)
                 {
-                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    parsedClientCertificate?.Dispose();
+                    clientIssuerCertificates?.Dispose();
                 }
 
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
@@ -982,16 +1025,20 @@ namespace Opc.Ua.Server
         {
             ByteString serverNonce;
 
+            // Admission control: reject with BadServerTooBusy before the CPU-bound
+            // signature / identity-token verification when at capacity. The lease
+            // (a concurrency permit) is held for the duration of the call. It is
+            // acquired before the request is registered, so a handshake that waits
+            // for a permit is not a request that lifecycle drains wait for.
+            using IDisposable? rateLimitLease = await BeginSessionEstablishmentOrThrowAsync(
+                secureChannelContext, requestHeader?.AuthenticationToken ?? default, requestLifetime)
+                .ConfigureAwait(false);
+
             using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ActivateSession,
                 requestLifetime).ConfigureAwait(false);
-
-            // Admission control: reject with BadServerTooBusy before the CPU-bound
-            // signature / identity-token verification when at capacity. The lease
-            // (a concurrency permit) is held for the duration of the call.
-            using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
 
             try
             {
@@ -1067,6 +1114,7 @@ namespace Opc.Ua.Server
                     m_logger,
                     context.AuditEntryId!,
                     session!,
+                    ExtractAuditUserIdentityToken(userIdentityToken),
                     e);
 
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
@@ -1127,6 +1175,26 @@ namespace Opc.Ua.Server
                 error == StatusCodes.BadCertificateHostNameInvalid ||
                 error == StatusCodes.BadCertificatePolicyCheckFailed ||
                 error == StatusCodes.BadApplicationSignatureInvalid;
+        }
+
+        private static UserIdentityToken? ExtractAuditUserIdentityToken(ExtensionObject userIdentityToken)
+        {
+            if (userIdentityToken.TryGetValue(out UserIdentityToken? decodedToken))
+            {
+                return decodedToken;
+            }
+
+            if (userIdentityToken.Encoding != ExtensionObjectEncoding.Binary ||
+                !userIdentityToken.TryGetAsBinary(out ByteString _))
+            {
+                return null;
+            }
+
+            return BaseVariableState.DecodeExtensionObject(
+                null!,
+                typeof(UserIdentityToken),
+                userIdentityToken,
+                false) as UserIdentityToken;
         }
 
         /// <summary>
@@ -1768,16 +1836,11 @@ namespace Opc.Ua.Server
 
             try
             {
+                // The limit bounds the browsePaths array only (Part 5 6.3.11); the number of
+                // RelativePath elements is capped per operation by the dispatcher.
                 ValidateOperationLimits(
                     browsePaths,
                     OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-
-                foreach (BrowsePath bp in browsePaths)
-                {
-                    ValidateOperationLimits(
-                        bp.RelativePath.Elements.Count,
-                        OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-                }
 
                 (ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
@@ -2004,9 +2067,7 @@ namespace Opc.Ua.Server
             try
             {
                 ValidateOperationLimits(historyUpdateDetails);
-                ValidateOperationLimits(
-                    historyUpdateDetails.Count,
-                    GetHistoryUpdateOperationLimit(historyUpdateDetails));
+                ValidateHistoryUpdateOperationLimits(historyUpdateDetails);
 
                 (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.HistoryUpdateAsync(
@@ -2041,9 +2102,15 @@ namespace Opc.Ua.Server
             }
         }
 
-        private PropertyState<uint>? GetHistoryUpdateOperationLimit(
+        /// <summary>
+        /// Validates the historyUpdateDetails array against the limit of every kind of
+        /// update it contains, so a mixed batch is bounded by the smaller limit.
+        /// </summary>
+        private void ValidateHistoryUpdateOperationLimits(
             ArrayOf<ExtensionObject> historyUpdateDetails)
         {
+            bool hasEventDetails = false;
+            bool hasDataDetails = false;
             foreach (ExtensionObject details in historyUpdateDetails)
             {
                 if (details.IsNull || !details.TryGetValue(out HistoryUpdateDetails? historyUpdateDetail))
@@ -2055,21 +2122,30 @@ namespace Opc.Ua.Server
                 if (detailsType == typeof(UpdateEventDetails) ||
                     detailsType == typeof(DeleteEventDetails))
                 {
-                    return OperationLimits.MaxNodesPerHistoryUpdateEvents;
+                    hasEventDetails = true;
                 }
-
-                if (detailsType == typeof(UpdateDataDetails) ||
+                else if (detailsType == typeof(UpdateDataDetails) ||
                     detailsType == typeof(UpdateStructureDataDetails) ||
                     detailsType == typeof(DeleteRawModifiedDetails) ||
                     detailsType == typeof(DeleteAtTimeDetails))
                 {
-                    return OperationLimits.MaxNodesPerHistoryUpdateData;
+                    hasDataDetails = true;
                 }
-
-                break;
             }
 
-            return null;
+            if (hasEventDetails)
+            {
+                ValidateOperationLimits(
+                    historyUpdateDetails.Count,
+                    OperationLimits.MaxNodesPerHistoryUpdateEvents);
+            }
+
+            if (hasDataDetails)
+            {
+                ValidateOperationLimits(
+                    historyUpdateDetails.Count,
+                    OperationLimits.MaxNodesPerHistoryUpdateData);
+            }
         }
 
         /// <inheritdoc/>
@@ -2757,25 +2833,8 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public IServerInternal CurrentInstance
-        {
-            get
-            {
-                m_semaphoreSlim.Wait();
-                try
-                {
-                    if (m_serverInternal == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadServerHalted);
-                    }
-                    return m_serverInternal;
-                }
-                finally
-                {
-                    m_semaphoreSlim.Release();
-                }
-            }
-        }
+        public IServerInternal CurrentInstance =>
+            Volatile.Read(ref m_serverInternal) ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
         /// <summary>
         /// Returns the current status of the server.
@@ -2914,6 +2973,10 @@ namespace Opc.Ua.Server
                             m_registeredWithDiscoveryServer = m_registrationInfo!.IsOnline;
                             return true;
                         }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                            throw;
+                        }
                         catch (Exception e)
                         {
                             m_logger.RegisterServerApiFailedForEndpointUrlException(
@@ -2929,11 +2992,15 @@ namespace Opc.Ua.Server
                                 try
                                 {
                                     await client.CloseAsync(ct).ConfigureAwait(false);
-                                    client = null;
                                 }
                                 catch (Exception e)
                                 {
                                     m_logger.NotCleanlyCloseConnectionWithLDSException(e.Message);
+                                }
+                                finally
+                                {
+                                    client.Dispose();
+                                    client = null;
                                 }
                             }
                         }
@@ -2951,65 +3018,99 @@ namespace Opc.Ua.Server
         /// Registers the server endpoints with the LDS.
         /// </summary>
         /// <param name="state">The state.</param>
-        private async void OnRegisterServerAsync(object? state)
+        private void OnRegisterServer(object? state)
+        {
+            long generation = (long)state!;
+            lock (m_registrationLock)
+            {
+                if (m_registrationStopped ||
+                    generation != m_registrationGeneration ||
+                    m_registrationTask is { IsCompleted: false })
+                {
+                    return;
+                }
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
+                m_registrationTask = RegisterServerIterationAsync(generation, m_registrationCts!.Token);
+            }
+        }
+
+        /// <summary>
+        /// Attempts discovery registration and schedules the next retry only for the active registration generation.
+        /// </summary>
+        private async Task RegisterServerIterationAsync(long generation, CancellationToken cancellationToken)
         {
             try
             {
+                bool registered = await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 lock (m_registrationLock)
                 {
-                    // halt any outstanding timer.
-                    m_registrationTimer?.Dispose();
-                    m_registrationTimer = null;
-                }
-
-                if (await RegisterWithDiscoveryServerAsync().ConfigureAwait(false))
-                {
-                    // schedule next registration.
-                    lock (m_registrationLock)
+                    if (m_registrationStopped ||
+                        generation != m_registrationGeneration ||
+                        cancellationToken.IsCancellationRequested ||
+                        m_maxRegistrationInterval <= 0)
                     {
-                        if (m_maxRegistrationInterval > 0)
-                        {
-                            m_registrationTimer = TimeProvider.CreateTimer(
-                                OnRegisterServerAsync,
-                                this,
-                                TimeSpan.FromMilliseconds(m_maxRegistrationInterval),
-                                Timeout.InfiniteTimeSpan);
-
-                            m_lastRegistrationInterval = m_minRegistrationInterval;
-                            m_logger.RegisterServerSucceededRegisteringAgainInRegistrationInterval(
-                                m_maxRegistrationInterval);
-                        }
+                        return;
                     }
-                }
-                else
-                {
-                    lock (m_registrationLock)
+                    int delay;
+                    if (registered)
                     {
-                        if (m_registrationTimer == null)
-                        {
-                            // calculate next registration attempt.
-                            m_lastRegistrationInterval *= 2;
-
-                            if (m_lastRegistrationInterval > m_maxRegistrationInterval)
-                            {
-                                m_lastRegistrationInterval = m_maxRegistrationInterval;
-                            }
-
-                            m_logger.RegisterServerFailedTryingAgainInRegistrationInterval(m_lastRegistrationInterval);
-
-                            // create timer.
-                            m_registrationTimer = TimeProvider.CreateTimer(
-                                OnRegisterServerAsync,
-                                this,
-                                TimeSpan.FromMilliseconds(m_lastRegistrationInterval),
-                                Timeout.InfiniteTimeSpan);
-                        }
+                        delay = m_maxRegistrationInterval;
+                        m_lastRegistrationInterval = m_minRegistrationInterval;
+                        m_logger.RegisterServerSucceededRegisteringAgainInRegistrationInterval(delay);
                     }
+                    else
+                    {
+                        delay = (int)Math.Min((long)m_lastRegistrationInterval * 2, m_maxRegistrationInterval);
+                        m_lastRegistrationInterval = delay;
+                        m_logger.RegisterServerFailedTryingAgainInRegistrationInterval(delay);
+                    }
+                    m_registrationTimer = TimeProvider.CreateTimer(
+                        OnRegisterServer,
+                        ++m_registrationGeneration,
+                        TimeSpan.FromMilliseconds(delay),
+                        Timeout.InfiniteTimeSpan);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The registration owner is stopping.
             }
             catch (Exception e)
             {
                 m_logger.UnexpectedExceptionHandlingRegistrationTimer(e);
+            }
+        }
+
+        /// <summary>
+        /// Prevents registration rearming, cancels the active attempt and drains it before releasing cancellation
+        /// state.
+        /// </summary>
+        private async ValueTask StopRegistrationAsync()
+        {
+            CancellationTokenSource? cancellation;
+            Task? registration;
+            lock (m_registrationLock)
+            {
+                m_registrationStopped = true;
+                m_registrationGeneration++;
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
+                cancellation = m_registrationCts;
+                m_registrationCts = null;
+                registration = m_registrationTask;
+            }
+            try
+            {
+                cancellation?.Cancel();
+                if (registration != null)
+                {
+                    await registration.ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                cancellation?.Dispose();
             }
         }
 
@@ -3111,17 +3212,7 @@ namespace Opc.Ua.Server
             ServiceResult result)
         {
             // see https://reference.opcfoundation.org/Core/Part4/v105/docs/6.1.3
-            StatusCode resultCode = result.StatusCode;
-            if (resultCode == StatusCodes.BadCertificateInvalid ||
-                resultCode == StatusCodes.BadCertificateRevoked ||
-                resultCode == StatusCodes.BadCertificateUntrusted ||
-                resultCode == StatusCodes.BadCertificateIssuerRevoked ||
-                resultCode == StatusCodes.BadCertificateRevocationUnknown ||
-                resultCode == StatusCodes.BadCertificateChainIncomplete ||
-                resultCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
-            {
-                resultCode = StatusCodes.BadSecurityChecksFailed;
-            }
+            StatusCode resultCode = CertificateErrorReporting.GetClientStatusCode(result);
 
             throw new ServiceResultException(new ServiceResult(resultCode, result));
         }
@@ -3372,21 +3463,13 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            m_semaphoreSlim.Wait();
-            try
+            if (Volatile.Read(ref m_serverInternal) == null)
             {
-                if (m_serverInternal == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerHalted);
-                }
+                throw new ServiceResultException(StatusCodes.BadServerHalted);
+            }
 
-                // The request itself is completed by disposing the OperationContext, which owns
-                // the execution scope. This hook remains for derived servers that extend it.
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
+            // The request itself is completed by disposing the OperationContext, which owns
+            // the execution scope. This hook remains for derived servers that extend it.
         }
 
         /// <summary>
@@ -3473,14 +3556,9 @@ namespace Opc.Ua.Server
             try
             {
                 base.OnServerStarting(configuration);
+                InitializeResourceIsolation(configuration, MessageContext.Telemetry);
 
-                // ensure an admission-control provider exists (on by default with
-                // conservative limits) unless one was supplied via DI.
-                if (m_rateLimiterProvider == null)
-                {
-                    m_rateLimiterProvider = new DefaultServerRateLimiterProvider(RateLimitOptions);
-                    m_ownsRateLimiterProvider = true;
-                }
+                InitializeRateLimiting();
 
                 // save minimum nonce length.
                 m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
@@ -3504,8 +3582,9 @@ namespace Opc.Ua.Server
             TransportListenerSettings settings,
             Uri endpointUri)
         {
+            ResourceIsolationOptions.ValidateHandshakeTimeout();
             base.ConfigureTransportListenerSettings(settings, endpointUri);
-
+            settings.HandshakeTimeout = ResourceIsolationOptions.HandshakeTimeout;
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;
             if (provider != null)
             {
@@ -3519,34 +3598,292 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Recreates server-owned isolation from validated limits without replacing a borrowed provider or budget.
+        /// </summary>
+        internal void InitializeResourceIsolation(
+            ApplicationConfiguration configuration,
+            ITelemetryContext telemetry)
+        {
+            ResourceIsolationOptions.ValidateHandshakeTimeout();
+            if ((ResourceIsolationProvider != null &&
+                !ReferenceEquals(ResourceIsolationProvider, m_ownedResourceIsolationProvider)) ||
+                ResourceIsolationOptions.Mode == ServerResourceIsolationMode.SharedOnly)
+            {
+                ResetOwnedResourceIsolation();
+                return;
+            }
+            bool ownsBudget = ChunkReassemblyBudget == null ||
+                ReferenceEquals(ChunkReassemblyBudget, m_ownedChunkReassemblyBudget);
+            ChunkReassemblyBudget budget = ownsBudget
+                ? global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(
+                    EndpointConfiguration.Create(configuration))
+                : ChunkReassemblyBudget!;
+            ServerResourceIsolationPlan plan = ResourceIsolationOptions.CreateRuntimePlan(
+                configuration, RateLimitOptions, budget);
+            var provider = new DefaultServerResourceIsolationProvider(
+                plan, telemetry, SessionBindingProvider ?? this, ResourceIsolationClassifier);
+            ResetOwnedResourceIsolation();
+            m_ownedResourceIsolationProvider = provider;
+            if (ownsBudget)
+            {
+                m_ownedChunkReassemblyBudget = budget;
+                ChunkReassemblyBudget = budget;
+            }
+            ResourceIsolationProvider = m_ownedResourceIsolationProvider;
+        }
+
+        /// <summary>
+        /// Recreates server-owned rate limits against the active isolation plan while preserving borrowed providers.
+        /// </summary>
+        internal void InitializeRateLimiting()
+        {
+            if (m_rateLimiterProvider != null && !m_ownsRateLimiterProvider)
+            {
+                return;
+            }
+            var provider = new DefaultServerRateLimiterProvider(
+                RateLimitOptions, ResourceIsolationProvider as DefaultServerResourceIsolationProvider, TimeProvider);
+            m_rateLimiterProvider?.Dispose();
+            m_rateLimiterProvider = provider;
+            m_ownsRateLimiterProvider = true;
+        }
+
+        /// <summary>
+        /// Releases only server-owned isolation resources, preserving host replacements.
+        /// </summary>
+        private void ResetOwnedResourceIsolation()
+        {
+            if (m_ownedResourceIsolationProvider != null)
+            {
+                if (ReferenceEquals(ResourceIsolationProvider, m_ownedResourceIsolationProvider))
+                {
+                    ResourceIsolationProvider = null;
+                }
+                m_ownedResourceIsolationProvider.Dispose();
+                m_ownedResourceIsolationProvider = null;
+            }
+            if (m_ownedChunkReassemblyBudget != null)
+            {
+                if (ReferenceEquals(ChunkReassemblyBudget, m_ownedChunkReassemblyBudget))
+                {
+                    ChunkReassemblyBudget = null;
+                }
+                m_ownedChunkReassemblyBudget = null;
+            }
+        }
+
+        /// <inheritdoc/>
+        bool ISessionBindingProvider.HasSession(string secureChannelId)
+        {
+            return (m_serverInternal?.SessionManager as ISessionBindingProvider)?
+                .HasSession(secureChannelId) ?? false;
+        }
+
+        /// <inheritdoc/>
+        bool ISessionBindingProvider.TryGetSessionContext(
+            NodeId authenticationToken,
+            SecureChannelContext channelContext,
+            [NotNullWhen(true)] out SessionBindingContext? context)
+        {
+            if (m_serverInternal?.SessionManager is ISessionBindingProvider provider)
+            {
+                return provider.TryGetSessionContext(authenticationToken, channelContext, out context);
+            }
+            context = null;
+            return false;
+        }
+
+        /// <summary>
         /// Acquires an admission permit for a single session establishment
         /// operation (<c>CreateSession</c> / <c>ActivateSession</c>), throwing
         /// <c>BadServerTooBusy</c> when the server is at capacity.
         /// </summary>
         /// <returns>
         /// A lease that MUST be disposed when the operation completes, or
-        /// <c>null</c> when session rate limiting is disabled.
+        /// <c>null</c> when neither isolation nor rate limiting supplies a lease.
         /// </returns>
         /// <exception cref="ServiceResultException">
         /// The server is too busy to admit the operation.
         /// </exception>
         /// <exception cref="ServerBusyException"></exception>
-        private IDisposable? BeginSessionEstablishmentOrThrow()
+        internal IDisposable? BeginSessionEstablishmentOrThrow(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken)
         {
-            IServerRateLimiterProvider? provider = m_rateLimiterProvider;
-            if (provider == null)
+            IDisposable? isolationLease = null;
+            IDisposable? rateLimitLease = null;
+            try
             {
-                return null;
-            }
-
-            if (provider.TryAcquireSessionEstablishment(
-                out IDisposable? lease,
-                out TimeSpan? retryAfter))
-            {
+                IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
+                if (isolation != null && !isolation.TryAcquire(
+                    ResourceIsolationStage.SessionEstablishment,
+                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                    1,
+                    out isolationLease,
+                    out ResourceIsolationFailure failure))
+                {
+                    throw CreateServerTooBusyException(failure.RetryAfter);
+                }
+                IServerRateLimiterProvider? provider = m_rateLimiterProvider;
+                if (provider != null && !provider.TryAcquireSessionEstablishment(
+                    out rateLimitLease, out TimeSpan? retryAfter))
+                {
+                    throw CreateServerTooBusyException(retryAfter);
+                }
+                IDisposable? lease = isolationLease;
+                if (lease == null)
+                {
+                    lease = rateLimitLease;
+                }
+                else if (rateLimitLease != null)
+                {
+                    lease = new SessionEstablishmentLease(lease, rateLimitLease);
+                }
                 return lease;
             }
+            catch
+            {
+                try
+                {
+                    rateLimitLease?.Dispose();
+                }
+                finally
+                {
+                    isolationLease?.Dispose();
+                }
+                throw;
+            }
+        }
 
-            throw CreateServerTooBusyException(retryAfter);
+        /// <summary>
+        /// The parking policy the endpoints use: the host policy, plus CreateSession and
+        /// ActivateSession while a queueing session-establishment limiter is active, so a
+        /// handshake waiting for a permit releases its request worker like a held Publish.
+        /// </summary>
+        IRequestParkingPolicy? IRequestParkingPolicySource.RequestParkingPolicy =>
+            m_rateLimiterProvider is IQueuedSessionEstablishmentLimiter &&
+            (!m_ownsRateLimiterProvider || RateLimitOptions.SessionEstablishmentQueueLimit > 0)
+                ? m_sessionEstablishmentParking ??= new SessionEstablishmentParkingPolicy(this)
+                : RequestParkingPolicy;
+
+        /// <summary>
+        /// Adds session establishment to the host-supplied parking policy.
+        /// </summary>
+        private sealed class SessionEstablishmentParkingPolicy(StandardServer server) : IRequestParkingPolicy
+        {
+            /// <inheritdoc/>
+            public bool CanPark(IServiceRequest request)
+            {
+                return request is CreateSessionRequest or ActivateSessionRequest ||
+                    server.RequestParkingPolicy?.CanPark(request) == true;
+            }
+        }
+
+        private SessionEstablishmentParkingPolicy? m_sessionEstablishmentParking;
+
+        /// <summary>
+        /// Acquires the session-establishment permits like
+        /// <see cref="BeginSessionEstablishmentOrThrow"/>, but lets a queueing rate limiter
+        /// (<see cref="IQueuedSessionEstablishmentLimiter"/>, see
+        /// ServerRateLimitOptions.SessionEstablishmentQueueLimit) wait for a permit.
+        /// </summary>
+        /// <returns>A lease that MUST be disposed when the operation completes, or <c>null</c>.</returns>
+        /// <exception cref="ServiceResultException">The server is too busy to admit the operation.</exception>
+        internal async ValueTask<IDisposable?> BeginSessionEstablishmentOrThrowAsync(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken,
+            RequestLifetime requestLifetime)
+        {
+            if (m_rateLimiterProvider is not IQueuedSessionEstablishmentLimiter queued)
+            {
+                return BeginSessionEstablishmentOrThrow(channelContext, authenticationToken);
+            }
+
+            IDisposable? isolationLease = null;
+            try
+            {
+                IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
+#pragma warning disable CA2000 // disposed in the catch below or owned by the returned lease
+                if (isolation != null && !isolation.TryAcquire(
+                    ResourceIsolationStage.SessionEstablishment,
+                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                    1,
+                    out isolationLease,
+                    out ResourceIsolationFailure failure))
+#pragma warning restore CA2000
+                {
+                    throw CreateServerTooBusyException(failure.RetryAfter);
+                }
+
+                ValueTask<(bool Acquired, IDisposable? Lease, TimeSpan? RetryAfter)> pending =
+                    queued.AcquireSessionEstablishmentAsync(requestLifetime.CancellationToken);
+                if (!pending.IsCompleted)
+                {
+                    // The operation waits in the limiter queue: release the request
+                    // worker (like a held Publish) so queued handshakes cannot starve
+                    // the requests of established sessions.
+                    requestLifetime.ParkSink?.NotifyParked();
+                }
+                (bool acquired, IDisposable? rateLimitLease, TimeSpan? retryAfter) =
+                    await pending.ConfigureAwait(false);
+                if (!acquired)
+                {
+                    throw CreateServerTooBusyException(retryAfter);
+                }
+
+                if (isolationLease == null)
+                {
+                    return rateLimitLease;
+                }
+                return new SessionEstablishmentLease(isolationLease, rateLimitLease);
+            }
+            catch
+            {
+                isolationLease?.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Releases both session-establishment permits once, even if rate-limit cleanup fails.
+        /// </summary>
+        /// <param name="isolation">Owned resource-isolation permit.</param>
+        /// <param name="rateLimit">Optional owned rate-limit permit.</param>
+        private sealed class SessionEstablishmentLease(IDisposable isolation, IDisposable? rateLimit) : IDisposable
+        {
+            /// <summary>
+            /// Returns both permits without allowing repeated disposal to release capacity twice.
+            /// </summary>
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                {
+                    return;
+                }
+                try
+                {
+                    m_rateLimit?.Dispose();
+                }
+                finally
+                {
+                    m_isolation.Dispose();
+                }
+            }
+
+            /// <summary>
+            /// Resource-isolation permit released even when rate-limit cleanup throws.
+            /// </summary>
+            private readonly IDisposable m_isolation = isolation;
+
+            /// <summary>
+            /// Rate-limit permit, if this operation was subject to rate limiting.
+            /// </summary>
+            private readonly IDisposable? m_rateLimit = rateLimit;
+
+            /// <summary>
+            /// Claims ownership of releasing both permits exactly once.
+            /// </summary>
+            private int m_disposed;
         }
 
         /// <summary>
@@ -3725,7 +4062,22 @@ namespace Opc.Ua.Server
                     configuration,
                     MessageContext,
                     TimeProvider,
-                    SecurityPolicyRegistry);
+                    SecurityPolicyRegistry)
+                {
+                    // the validator CreateSession checks client certificates
+                    // with; ActivateSession validates an embedded user token
+                    // signing certificate with it.
+                    CertificateValidator = CertificateManager
+                };
+
+                foreach (IUserTokenAuthenticator authenticator in m_preStartAuthenticators)
+                {
+                    m_serverInternal.IdentityRegistry.Register(authenticator);
+                }
+                foreach (IIdentityAugmenter augmenter in m_preStartIdentityAugmenters)
+                {
+                    m_serverInternal.IdentityRegistry.RegisterAugmenter(augmenter);
+                }
 
                 m_serverInternal.SetNodeIdFactory(NodeIdFactory);
                 m_serverInternal.SetNodeIdCollisionDetection(DetectNodeIdCollisions);
@@ -3848,8 +4200,12 @@ namespace Opc.Ua.Server
                     m_serverInternal,
                     configuration);
 
-                //add the MonitoredItemQueueFactory to the datastore.
-                m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory!);
+                //add the MonitoredItemQueueFactory to the datastore; a factory the server
+                //does not own (e.g. supplied by the caller) survives restarts.
+                m_serverInternal.SetMonitoredItemQueueFactory(
+                    monitoredItemQueueFactory!,
+                    ownsFactory: monitoredItemQueueFactory != null &&
+                        OwnsMonitoredItemQueueFactory(monitoredItemQueueFactory));
 
                 //create the SubscriptionStore
                 ISubscriptionStore? subscriptionStore = CreateSubscriptionStore(
@@ -3886,6 +4242,7 @@ namespace Opc.Ua.Server
                 ServerError = null!;
 
                 // setup registration information.
+                await StopRegistrationAsync().ConfigureAwait(false);
                 lock (m_registrationLock)
                 {
                     m_maxRegistrationInterval = configuration.ServerConfiguration!
@@ -3957,10 +4314,12 @@ namespace Opc.Ua.Server
 
                     if (m_maxRegistrationInterval > 0)
                     {
+                        m_registrationStopped = false;
+                        m_registrationCts = new CancellationTokenSource();
                         m_logger.ServerRegistrationTimerStarted();
                         m_registrationTimer = TimeProvider.CreateTimer(
-                            OnRegisterServerAsync,
-                            this,
+                            OnRegisterServer,
+                            ++m_registrationGeneration,
                             TimeSpan.FromMilliseconds(m_minRegistrationInterval),
                             Timeout.InfiniteTimeSpan);
                     }
@@ -4036,6 +4395,38 @@ namespace Opc.Ua.Server
             }
         }
 
+        internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
+        {
+            if (authenticator == null)
+            {
+                throw new ArgumentNullException(nameof(authenticator));
+            }
+
+            if (m_serverInternal is { } serverInternal)
+            {
+                serverInternal.IdentityRegistry.Register(authenticator);
+                return;
+            }
+
+            m_preStartAuthenticators.Add(authenticator);
+        }
+
+        internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
+        {
+            if (augmenter == null)
+            {
+                throw new ArgumentNullException(nameof(augmenter));
+            }
+
+            if (m_serverInternal is { } serverInternal)
+            {
+                serverInternal.IdentityRegistry.RegisterAugmenter(augmenter);
+                return;
+            }
+
+            m_preStartIdentityAugmenters.Add(augmenter);
+        }
+
         /// <inheritdoc/>
         protected override async ValueTask OnServerStartedAsync(
             CancellationToken cancellationToken = default)
@@ -4061,11 +4452,14 @@ namespace Opc.Ua.Server
             ShutDownDelay();
 
             // halt the registration timer.
-            lock (m_registrationLock)
-            {
-                m_registrationTimer?.Dispose();
-                m_registrationTimer = null;
-            }
+            await StopRegistrationAsync().ConfigureAwait(false);
+
+            // StartAsync creates a new watcher and certificate subscription, so release these
+            // to keep a stopped server from reacting and a restart from duplicating handlers.
+            m_configurationWatcher?.Dispose();
+            m_configurationWatcher = null;
+            m_certManagerSubscription?.Dispose();
+            m_certManagerSubscription = null;
 
             if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
             {
@@ -4119,7 +4513,12 @@ namespace Opc.Ua.Server
 
             // Drain in-flight requests by disposing the request queue before the address space
             // is torn down.
-            StopRequestQueue();
+            await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
+
+            await RunShutdownStageAsync(
+                    failures,
+                    serverInternal.DrainRoleStateBindingAsync)
+                .ConfigureAwait(false);
 
             if (lifecycle is not null)
             {
@@ -4751,8 +5150,16 @@ namespace Opc.Ua.Server
             // and return an independent ref-counted handle to the session manager,
             // which disposes it after the restored session takes its own reference
             // (the Session constructor AddRefs the server certificate).
-            using CertificateEntry? entry = CertificateManager?
-                .AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri);
+            CertificateManager? certificates = CertificateManager;
+            if (certificates == null)
+            {
+                return null;
+            }
+            EndpointDescription? endpoint = Endpoints.Find(
+                candidate => candidate.SecurityPolicyUri == securityPolicyUri);
+            using CertificateEntry? entry = endpoint == null
+                ? certificates.AcquireApplicationCertificateBySecurityPolicy(securityPolicyUri)
+                : AcquireEndpointCertificate(endpoint, certificates, SecurityPolicyRegistry);
             return entry?.Certificate?.AddRef();
         }
 
@@ -4781,6 +5188,18 @@ namespace Opc.Ua.Server
         {
             return MonitoredItemQueueFactory
                 ?? new MonitoredItemQueueFactory(MessageContext.Telemetry);
+        }
+
+        /// <summary>
+        /// Whether the server owns (and disposes on stop) the factory returned by
+        /// <see cref="CreateMonitoredItemQueueFactory"/>. A factory supplied through
+        /// <see cref="MonitoredItemQueueFactory"/> is owned by the caller.
+        /// </summary>
+        /// <param name="factory">The factory returned by <see cref="CreateMonitoredItemQueueFactory"/>.</param>
+        /// <returns><c>true</c> when the server disposes the factory on shutdown.</returns>
+        protected virtual bool OwnsMonitoredItemQueueFactory(IMonitoredItemQueueFactory factory)
+        {
+            return !ReferenceEquals(factory, MonitoredItemQueueFactory);
         }
 
         /// <summary>
@@ -5004,6 +5423,26 @@ namespace Opc.Ua.Server
         private ConfiguredEndpointCollection? m_registrationEndpoints;
         private RegisteredServer? m_registrationInfo;
         private ITimer? m_registrationTimer;
+
+        /// <summary>
+        /// Cancels the currently owned discovery-registration attempt during shutdown.
+        /// </summary>
+        private CancellationTokenSource? m_registrationCts;
+
+        /// <summary>
+        /// Tracks the registration attempt that shutdown must drain.
+        /// </summary>
+        private Task? m_registrationTask;
+
+        /// <summary>
+        /// Distinguishes current registration callbacks from callbacks belonging to a retired timer.
+        /// </summary>
+        private long m_registrationGeneration;
+
+        /// <summary>
+        /// Prevents discovery-registration callbacks from starting or rearming after shutdown.
+        /// </summary>
+        private bool m_registrationStopped = true;
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
@@ -5016,13 +5455,16 @@ namespace Opc.Ua.Server
         private readonly List<HistorianProviderRegistration>
             m_historianProviders = [];
 
-        private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks =
-            [];
+        private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks = [];
+        private readonly List<IUserTokenAuthenticator> m_preStartAuthenticators = [];
+        private readonly List<IIdentityAugmenter> m_preStartIdentityAugmenters = [];
 
         private IDisposable? m_certManagerSubscription;
         private ServerRateLimitOptions? m_rateLimitOptions;
         private IServerRateLimiterProvider? m_rateLimiterProvider;
         private bool m_ownsRateLimiterProvider;
+        private DefaultServerResourceIsolationProvider? m_ownedResourceIsolationProvider;
+        private ChunkReassemblyBudget? m_ownedChunkReassemblyBudget;
         private readonly ILogger m_eventLogger;
 
         private readonly record struct HistorianProviderRegistration(

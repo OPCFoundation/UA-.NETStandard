@@ -1868,12 +1868,20 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1].Value, Is.EqualTo(2));
         }
 
-        [Test]
-        public void ReadEncodeableArrayWithTypeIdReturnsDecodedValues()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadEncodeableArrayWithTypeIdReturnsDecodedValues(bool useInterfaceType)
         {
             // Arrange
-            ServiceMessageContext messageContext = CreateMockContext();
-            messageContext.Factory.AddEncodeableType(typeof(TestEncodeableWithData));
+            var encodeableType = new Mock<IEncodeableType>();
+            encodeableType.SetupGet(type => type.XmlName)
+                .Returns(new XmlQualifiedName(nameof(TestEncodeableWithData), Namespaces.OpcUaXsd));
+            encodeableType.Setup(type => type.CreateInstance()).Returns(() => new TestEncodeableWithData());
+            IEncodeableType registeredType = encodeableType.Object;
+            var factory = new Mock<IEncodeableFactory>();
+            factory.Setup(value => value.TryGetEncodeableType(new ExpandedNodeId(99999, 0), out registeredType))
+                .Returns(true);
+            var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create(), factory.Object);
             const string xml = """
             <ListOfTestEncodeableWithData xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
                 <TestEncodeableWithData>
@@ -1889,14 +1897,39 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            ArrayOf<TestEncodeableWithData> result = decoder.ReadEncodeableArray<TestEncodeableWithData>(
-                "ListOfTestEncodeableWithData",
-                new ExpandedNodeId(99999, 0));
+            ArrayOf<TestEncodeableWithData> result = useInterfaceType
+                ? decoder.ReadEncodeableArray<IEncodeable>(
+                    "ListOfTestEncodeableWithData", new ExpandedNodeId(99999, 0))
+                    .ConvertAll(value => (TestEncodeableWithData)value)
+                : decoder.ReadEncodeableArray<TestEncodeableWithData>(
+                    "ListOfTestEncodeableWithData", new ExpandedNodeId(99999, 0));
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0].Value, Is.EqualTo(3));
             Assert.That(result[1].Value, Is.EqualTo(4));
+            encodeableType.Verify(type => type.CreateInstance(), Times.Exactly(2));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadRegisteredCoreEncodeableArrayUsesXsdNamespace(bool useParser)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            var value = new BuildInfo { ProductName = "XML array regression" };
+            using var encoder = new XmlEncoder(context);
+            encoder.PushNamespace(Namespaces.OpcUaXsd);
+            encoder.WriteEncodeableArray("Items", new IEncodeable[] { value }.ToArrayOf(), value.TypeId);
+            string xml = encoder.CloseAndReturnText();
+            using var reader = XmlReader.Create(new StringReader(xml));
+            using IDecoder decoder = useParser ? new XmlParser(xml, context) : new XmlDecoder(reader, context);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ArrayOf<IEncodeable> result = decoder.ReadEncodeableArray<IEncodeable>("Items", value.TypeId);
+
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(result[0], Is.TypeOf<BuildInfo>());
+            Assert.That(((BuildInfo)result[0]).ProductName, Is.EqualTo(value.ProductName));
         }
 
         [Test]

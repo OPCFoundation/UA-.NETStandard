@@ -206,8 +206,9 @@ namespace Opc.Ua.Server
             // set the status code.
             StatusCode statusCode = StatusCodes.Good;
 
-            // uncertain if any bad values exist.
-            if (badValuesExist)
+            if (badValuesExist ||
+                (valueType is 1 or 3 && minimumUncertainValue < minimumGoodValue) ||
+                (valueType is 2 or 3 && maximumUncertainValue > maximumGoodValue))
             {
                 statusCode = StatusCodes.UncertainDataSubNormal;
             }
@@ -234,17 +235,16 @@ namespace Opc.Ua.Server
             }
             else if (valueType == 3)
             {
-                processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
-                processedType = TypeInfo.Scalars.Double;
+                double range = Math.Abs(maximumGoodValue - minimumGoodValue);
+                processedValue = range;
+                processedType = GetRangeType(minimumOriginalType, range);
             }
 
-            // set calculated if not returning actual time and the selected sample is not at
-            // the request-direction interval start. Part 13 §5.4.3.10/§5.4.3.11 return the
-            // value with the timestamp at the start of the interval and mark it Good, Raw when
-            // the min/max sample coincides with that timestamp. For reverse reads (Part 11)
-            // the interval start is the later timestamp, so compare against the interval
-            // timestamp (GetTimestamp) rather than the chronological lower bound.
-            if (!returnActualTime && processedTimestamp != GetTimestamp(slice))
+            // Non-Good inputs that affect quality also make ActualTime results Calculated.
+            // Otherwise, preserve Raw for ActualTime and for an extremum at the
+            // request-direction interval start (the later bound for reverse reads).
+            if (StatusCode.IsUncertain(statusCode) ||
+                (!returnActualTime && processedTimestamp != GetTimestamp(slice)))
             {
                 statusCode = statusCode.WithAggregateBits(AggregateBits.Calculated);
             }
@@ -410,8 +410,9 @@ namespace Opc.Ua.Server
             }
             else if (valueType == 3)
             {
-                processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
-                processedType = TypeInfo.Scalars.Double;
+                double range = Math.Abs(maximumGoodValue - minimumGoodValue);
+                processedValue = range;
+                processedType = GetRangeType(minimumOriginalType, range);
             }
 
             // set the status code.
@@ -482,6 +483,29 @@ namespace Opc.Ua.Server
             return value
                 .WithSourceTimestamp(sliceStamp)
                 .WithServerTimestamp(sliceStamp);
+        }
+
+        /// <summary>
+        /// Returns the data type of a Range/Range2 result: the source type
+        /// (Part 13 Tables 62 and 67), or Double when the source is not a
+        /// numeric type or the range does not fit into it.
+        /// </summary>
+        private static TypeInfo GetRangeType(TypeInfo sourceType, double range)
+        {
+            if (sourceType.IsUnknown ||
+                sourceType.BuiltInType is < BuiltInType.SByte or > BuiltInType.Double)
+            {
+                return TypeInfo.Scalars.Double;
+            }
+            try
+            {
+                _ = new Variant(range).ConvertTo(sourceType.BuiltInType);
+                return sourceType;
+            }
+            catch (Exception)
+            {
+                return TypeInfo.Scalars.Double;
+            }
         }
     }
 }

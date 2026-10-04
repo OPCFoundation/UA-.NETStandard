@@ -33,6 +33,7 @@
 #pragma warning disable CA2000
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -46,14 +47,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     /// as the two shipped store implementations have to honour it.
     /// </summary>
     /// <remarks>
-    /// Zero or less keeps no history at all and discards whatever is stored; a
-    /// positive value caps the history at that many, oldest discarded first.
-    /// <see cref="DirectoryCertificateStore"/> always behaved this way but did it
-    /// by writing every certificate and then deleting all of them again;
-    /// <see cref="SharedKeyValueCertificateStore"/> read zero as unlimited, so
-    /// the two store types did opposite things at the same setting and
-    /// <c>CertificateManager.MaxRejectedCertificates = 0</c> meant one thing on
-    /// a directory store and another on a key-value store.
+    /// Zero keeps unlimited history; a positive value caps the history.
+    /// Negative limits disable new additions while retaining each backend's
+    /// existing pruning contract: Directory removes prior entries, while
+    /// shared key/value storage leaves them intact.
     /// </remarks>
     [TestFixture]
     [Category("CertificateStore")]
@@ -83,10 +80,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        [TestCase(0)]
-        [TestCase(-1)]
-        [TestCase(-5)]
-        public async Task DirectoryStoreKeepsNoHistoryAtOrBelowZeroAsync(int maxCertificates)
+        /// <summary>
+        /// Verifies the directory store retains all submitted certificates at zero and none for negative limits.
+        /// </summary>
+        [TestCase(0, 3)]
+        [TestCase(-1, 0)]
+        [TestCase(-5, 0)]
+        public async Task DirectoryStoreHonorsZeroAndNegativeLimitsAsync(int maxCertificates, int expectedCount)
         {
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
@@ -96,11 +96,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using CertificateCollection stored = await store.EnumerateAsync()
                 .ConfigureAwait(false);
-            Assert.That(stored, Is.Empty);
+            Assert.That(stored, Has.Count.EqualTo(expectedCount));
         }
 
+        /// <summary>
+        /// Verifies switching a directory store to unlimited retention preserves existing history when adding a
+        /// certificate.
+        /// </summary>
         [Test]
-        public async Task DirectoryStoreDiscardsHistoryWhenTheMaximumDropsToZeroAsync()
+        public async Task DirectoryStorePreservesHistoryWhenTheMaximumBecomesZeroAsync()
         {
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
@@ -119,7 +123,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using CertificateCollection after = await store.EnumerateAsync()
                 .ConfigureAwait(false);
-            Assert.That(after, Is.Empty);
+            Assert.That(after, Has.Count.EqualTo(4));
+            Assert.That(after.Select(certificate => certificate.Thumbprint),
+                Is.EquivalentTo(rejected.Concat(more).Select(certificate => certificate.Thumbprint)));
         }
 
         [Test]
@@ -136,10 +142,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(stored, Has.Count.EqualTo(2));
         }
 
-        [TestCase(0)]
-        [TestCase(-1)]
-        [TestCase(-5)]
-        public async Task SharedKeyValueStoreKeepsNoHistoryAtOrBelowZeroAsync(int maxCertificates)
+        /// <summary>
+        /// Verifies the shared store retains all submitted certificates at zero and none for negative limits.
+        /// </summary>
+        [TestCase(0, 3)]
+        [TestCase(-1, 0)]
+        [TestCase(-5, 0)]
+        public async Task SharedKeyValueStoreHonorsZeroAndNegativeLimitsAsync(int maxCertificates, int expectedCount)
         {
             using var backend = new InMemorySharedKeyValueStore();
             using SharedKeyValueCertificateStore store = CreateKeyValueStore(backend);
@@ -149,16 +158,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using CertificateCollection stored = await store.EnumerateAsync()
                 .ConfigureAwait(false);
-            Assert.That(stored, Is.Empty);
+            Assert.That(stored, Has.Count.EqualTo(expectedCount));
         }
 
         /// <summary>
-        /// The one behaviour that changed relative to the previous release: a
-        /// maximum of zero used to be read as unlimited here, so the history kept
-        /// growing while the directory store kept nothing.
+        /// Unlimited retention accepts new entries; disabling storage leaves
+        /// the previously retained certificates untouched.
         /// </summary>
-        [Test]
-        public async Task SharedKeyValueStoreDiscardsHistoryWhenTheMaximumDropsToZeroAsync()
+        [TestCase(0, 4)]
+        [TestCase(-1, 3)]
+        [TestCase(-5, 3)]
+        public async Task SharedKeyValueStorePreservesHistoryWhenTheMaximumIsNotPositiveAsync(
+            int maxCertificates,
+            int expectedCount)
         {
             using var backend = new InMemorySharedKeyValueStore();
             using SharedKeyValueCertificateStore store = CreateKeyValueStore(backend);
@@ -173,11 +185,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             using CertificateCollection more = CreateCertificates(1);
-            await store.AddRejectedAsync(more, 0).ConfigureAwait(false);
+            await store.AddRejectedAsync(more, maxCertificates).ConfigureAwait(false);
 
             using CertificateCollection after = await store.EnumerateAsync()
                 .ConfigureAwait(false);
-            Assert.That(after, Is.Empty);
+            Assert.That(after, Has.Count.EqualTo(expectedCount));
+            var expected = maxCertificates == 0 ? rejected.Concat(more) : rejected;
+            Assert.That(after.Select(certificate => certificate.Thumbprint),
+                Is.EquivalentTo(expected.Select(certificate => certificate.Thumbprint)));
         }
 
         [Test]

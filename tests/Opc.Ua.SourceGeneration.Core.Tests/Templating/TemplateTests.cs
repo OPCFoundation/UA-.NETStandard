@@ -714,6 +714,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             {
                 var template = new Template(templateWriter, templateString);
 
+                template.AddReplacement(Tokens.IdModifier, "const");
                 template.AddReplacement(Tokens.IdType, "uint");
                 template.AddReplacement(Tokens.SymbolicName, "MyId");
                 template.AddReplacement(Tokens.Identifier, "12345");
