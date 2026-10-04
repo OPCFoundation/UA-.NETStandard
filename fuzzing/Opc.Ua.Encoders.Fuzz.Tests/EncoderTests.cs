@@ -147,6 +147,35 @@ namespace Opc.Ua.Fuzzing
             Assert.DoesNotThrow(() => FuzzableCode.LibfuzzBinaryJsonEncoderCompact(input));
         }
 
+        [TestCase("crash-0bdcbfafc13981ae6f665ad52cabc1cbe21b0238")]
+        [TestCase("crash-20c4ef4a1203a261c7d5c467784d57c26e79de78")]
+        [TestCase("crash-27c611759c3c9b10b426593594d2ebb7e849567d")]
+        [TestCase("crash-9fb462b02468734a09dfa0e0611114c1491b90e6")]
+        [TestCase("crash-d0b313b0eaf151f70b46c6a521e193449d05d349")]
+        public void NonElementXmlBodyCrashAssetIsADecodingErrorWithoutARuntimeException(string asset)
+        {
+            // Nightly crash corpus inputs whose ns=0 ExtensionObject XML body is not an XML
+            // element. The decoder dereferenced a null element and, since B1-2, reported the
+            // NullReferenceException inside its BadDecodingError, which every binary target
+            // treats as a contract violation.
+            byte[] input = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "Repo", asset));
+
+            ServiceResultException ex;
+            using (var stream = new MemoryStream(input, writable: false))
+            {
+                ex = Assert.Throws<ServiceResultException>(
+                    () => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true));
+            }
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            for (Exception inner = ex.InnerException; inner != null; inner = inner.InnerException)
+            {
+                Assert.That(inner, Is.InstanceOf<ServiceResultException>().Or.InstanceOf<System.Xml.XmlException>());
+            }
+            Assert.DoesNotThrow(() => FuzzableCode.LibfuzzBinaryDecoder(input));
+            Assert.DoesNotThrow(() => FuzzableCode.LibfuzzBinaryEncoderIndempotentSegmented(input));
+        }
+
         [TestCase(typeof(ReadRequest))]
         [TestCase(typeof(ReadResponse))]
         [TestCase(typeof(WriteRequest))]

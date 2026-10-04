@@ -132,8 +132,11 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                using var decoder = new BinaryDecoder(stream, MessageContext);
-                return decoder.DecodeMessage<IEncodeable>();
+                return DecodeWithOracles(nameof(BinaryDecoder), GetRemainingLength(stream), () =>
+                {
+                    using var decoder = new BinaryDecoder(stream, MessageContext);
+                    return decoder.DecodeMessage<IEncodeable>();
+                });
             }
             catch (ServiceResultException sre) when (!throwAll && IsExpectedDecodingError(sre))
             {

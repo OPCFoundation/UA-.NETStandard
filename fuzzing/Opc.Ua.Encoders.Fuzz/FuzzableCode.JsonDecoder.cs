@@ -187,8 +187,11 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                using var decoder = new JsonDecoder(json, MessageContext);
-                return decoder.DecodeMessage<IEncodeable>();
+                return DecodeWithOracles(nameof(JsonDecoder), json?.Length ?? 0, () =>
+                {
+                    using var decoder = new JsonDecoder(json, MessageContext);
+                    return decoder.DecodeMessage<IEncodeable>();
+                });
             }
             catch (ServiceResultException sre) when (!throwAll && IsExpectedDecodingError(sre))
             {
