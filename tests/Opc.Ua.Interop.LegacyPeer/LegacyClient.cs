@@ -413,7 +413,7 @@ namespace Opc.Ua.Interop.LegacyPeer
         /// <summary>
         /// Loads the server's custom data types with the 1.5 complex type
         /// system, decodes every variable whose data type is a custom
-        /// structure, enumeration, union or structure with optional fields,
+        /// structure, union or structure with optional fields,
         /// and writes a sample of the decoded values back unchanged.
         /// </summary>
         private static async Task ComplexTypesAsync(ClientContext c)
@@ -441,7 +441,7 @@ namespace Opc.Ua.Interop.LegacyPeer
                     $"type {required} was not created; created: {string.Join(", ", typeNames)}");
             }
 
-            // Every variable below Objects whose data type is not a namespace 0 type.
+            // Every variable below Objects whose data type is a custom structure.
             List<ReferenceDescription> variables = await BrowseTreeAsync(c, ObjectIds.ObjectsFolder, 30_000)
                 .ConfigureAwait(false);
             var nodes = variables
@@ -451,15 +451,20 @@ namespace Opc.Ua.Interop.LegacyPeer
                 .ToList();
             DataValueCollection dataTypes = await ReadAttributeAsync(c, nodes, Attributes.DataType)
                 .ConfigureAwait(false);
+            // Only structure data types: a BaseDataType-derived type such as
+            // VariantDataType can hold a random ExtensionObject nobody can decode.
+            var structureTypes = new HashSet<NodeId>(await BrowseStructureSubtypesAsync(c).ConfigureAwait(false));
             var custom = new List<NodeId>();
             for (int ii = 0; ii < nodes.Count; ii++)
             {
-                if (dataTypes[ii].Value is NodeId dataType && dataType.NamespaceIndex != 0)
+                if (dataTypes[ii].Value is NodeId dataType &&
+                    dataType.NamespaceIndex != 0 &&
+                    structureTypes.Contains(dataType))
                 {
                     custom.Add(nodes[ii]);
                 }
             }
-            Require(custom.Count >= 10, $"only {custom.Count} variables with a custom data type found");
+            Require(custom.Count >= 10, $"only {custom.Count} variables with a custom structure data type found");
 
             DataValueCollection values = await ReadAttributeAsync(c, custom, Attributes.Value).ConfigureAwait(false);
             DataValueCollection accessLevels = await ReadAttributeAsync(c, custom, Attributes.UserAccessLevel)
@@ -542,20 +547,7 @@ namespace Opc.Ua.Interop.LegacyPeer
         {
             try
             {
-                var structureTypes = new List<NodeId>();
-                var queue = new Queue<NodeId>();
-                queue.Enqueue(DataTypeIds.Structure);
-                while (queue.Count > 0)
-                {
-                    NodeId type = queue.Dequeue();
-                    foreach (ReferenceDescription subtype in await BrowseAsync(
-                        c, type, 0, ReferenceTypeIds.HasSubtype).ConfigureAwait(false))
-                    {
-                        var id = ExpandedNodeId.ToNodeId(subtype.NodeId, c.Session.NamespaceUris);
-                        structureTypes.Add(id);
-                        queue.Enqueue(id);
-                    }
-                }
+                List<NodeId> structureTypes = await BrowseStructureSubtypesAsync(c).ConfigureAwait(false);
                 var encodings = new List<NodeId>();
                 foreach (NodeId type in structureTypes)
                 {
@@ -581,6 +573,28 @@ namespace Opc.Ua.Interop.LegacyPeer
             {
                 return "The encoding node diagnosis failed: " + e.Message;
             }
+        }
+
+        /// <summary>
+        /// All subtypes of Structure, not including Structure itself.
+        /// </summary>
+        private static async Task<List<NodeId>> BrowseStructureSubtypesAsync(ClientContext c)
+        {
+            var structureTypes = new List<NodeId>();
+            var queue = new Queue<NodeId>();
+            queue.Enqueue(DataTypeIds.Structure);
+            while (queue.Count > 0)
+            {
+                NodeId type = queue.Dequeue();
+                foreach (ReferenceDescription subtype in await BrowseAsync(
+                    c, type, 0, ReferenceTypeIds.HasSubtype).ConfigureAwait(false))
+                {
+                    var id = ExpandedNodeId.ToNodeId(subtype.NodeId, c.Session.NamespaceUris);
+                    structureTypes.Add(id);
+                    queue.Enqueue(id);
+                }
+            }
+            return structureTypes;
         }
 
         private static async Task LargeArrayRoundTripAsync(ClientContext c)
