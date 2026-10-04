@@ -88,8 +88,21 @@ namespace Opc.Ua.Fuzzing
             {
                 m_pending.Push((root, "value"));
                 int visited = 0;
-                while (m_pending.Count > 0 && visited++ < kMaxLimitWalkValues)
+                while (m_pending.Count > 0)
                 {
+                    if (visited++ >= kMaxLimitWalkValues)
+                    {
+                        // Reaching the cap with work still pending is itself the runaway the
+                        // walk guards against, so it is a finding rather than a silent return:
+                        // an over-limit value could otherwise hide later in the graph.
+                        throw new ResourceBudgetException(
+                            ResourceFindingKind.Limit,
+                            string.Format(
+                                CultureInfo.InvariantCulture,
+                                "Decoded value graph exceeds {0} nodes before the limit walk completed ('{1}').",
+                                kMaxLimitWalkValues,
+                                m_operation));
+                    }
                     (object value, string path) = m_pending.Pop();
                     Visit(value, path);
                 }
@@ -158,22 +171,26 @@ namespace Opc.Ua.Fuzzing
                 if (IsGeneric(type, typeof(ArrayOf<>)))
                 {
                     // ArrayOf<T> and MatrixOf<T> wrap memory and are not IEnumerable.
-                    VisitEnumerable(GetArrayOfElements(value, type), isMatrix: false, path);
+                    VisitEnumerable(GetArrayOfElements(value, type), path);
                     return;
                 }
 
                 if (IsGeneric(type, typeof(MatrixOf<>)))
                 {
-                    // A matrix is bounded by its dimensions, not by MaxArrayLength.
+                    // The decoder bounds the matrix shape by MaxArrayLength
+                    // (BinaryDecoder.GetInlineMatrixElementCount), so the oracle checks the
+                    // same product - including an empty matrix whose non-zero dimensions still
+                    // multiply out above the limit - before walking the materialized elements.
+                    CheckMatrixShape(value, type, path);
                     object elements = type.GetMethod(nameof(MatrixOf<int>.ToArrayOf), Type.EmptyTypes)
                         .Invoke(value, null);
-                    VisitEnumerable(GetArrayOfElements(elements, elements.GetType()), isMatrix: true, path);
+                    VisitEnumerable(GetArrayOfElements(elements, elements.GetType()), path);
                     return;
                 }
 
                 if (value is IEnumerable enumerable)
                 {
-                    VisitEnumerable(enumerable, isMatrix: false, path);
+                    VisitEnumerable(enumerable, path);
                     return;
                 }
 
@@ -219,18 +236,62 @@ namespace Opc.Ua.Fuzzing
                     .Invoke(value, null) ?? Array.Empty<object>();
             }
 
-            private void VisitEnumerable(IEnumerable enumerable, bool isMatrix, string path)
+            private void VisitEnumerable(IEnumerable enumerable, string path)
             {
                 int count = 0;
                 foreach (object element in enumerable)
                 {
+                    if (m_maxArrayLength > 0 && count >= m_maxArrayLength)
+                    {
+                        // Fail on the first element past the limit, before it is queued, so the
+                        // oracle cannot itself build a huge pending stack and path strings for
+                        // an array a decoder failed to bound.
+                        Fail(
+                            path,
+                            "array",
+                            m_maxArrayLength + 1,
+                            m_maxArrayLength,
+                            nameof(IServiceMessageContext.MaxArrayLength));
+                    }
                     m_pending.Push((element, path + "[" + count.ToString(CultureInfo.InvariantCulture) + "]"));
                     count++;
                 }
+            }
 
-                if (!isMatrix && m_maxArrayLength > 0 && count > m_maxArrayLength)
+            private void CheckMatrixShape(object matrix, Type type, string path)
+            {
+                if (m_maxArrayLength <= 0)
                 {
-                    Fail(path, "array", count, m_maxArrayLength, nameof(IServiceMessageContext.MaxArrayLength));
+                    return;
+                }
+
+                var dimensions = (int[])type
+                    .GetProperty(nameof(MatrixOf<int>.Dimensions))!
+                    .GetValue(matrix);
+                if (dimensions == null)
+                {
+                    return;
+                }
+
+                // The product of the non-zero dimensions, as the decoder measures the shape; a
+                // dimension <= 0 carries no values (OPC 10000-6 5.2.5 Table 28).
+                long product = 1;
+                foreach (int dimension in dimensions)
+                {
+                    if (dimension <= 0)
+                    {
+                        continue;
+                    }
+                    product *= dimension;
+                    if (product > m_maxArrayLength)
+                    {
+                        Fail(
+                            path,
+                            "matrix",
+                            product > int.MaxValue ? int.MaxValue : (int)product,
+                            m_maxArrayLength,
+                            nameof(IServiceMessageContext.MaxArrayLength));
+                    }
                 }
             }
 

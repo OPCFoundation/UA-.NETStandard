@@ -386,7 +386,7 @@ namespace Opc.Ua.Fuzzing
         /// thread that owns it. One per calling thread, so a hanging target only blocks the
         /// caller that is already waiting for it.
         /// </summary>
-        private sealed class SmallStackWorker
+        private sealed class SmallStackWorker : IDisposable
         {
             public SmallStackWorker(int stackSize)
             {
@@ -398,23 +398,18 @@ namespace Opc.Ua.Fuzzing
                 thread.Start();
             }
 
+            // A strict ping-pong: the caller releases m_workReady and blocks on m_workDone,
+            // the worker does the reverse, so only one side touches the shared fields at a
+            // time and each release/acquire publishes them. No monitor sync root is needed.
             public long Run(Action run)
             {
-                ExceptionDispatchInfo error;
-                long elapsed;
-                lock (m_lock)
-                {
-                    m_work = run;
-                    m_completed = false;
-                    Monitor.PulseAll(m_lock);
-                    while (!m_completed)
-                    {
-                        Monitor.Wait(m_lock);
-                    }
-                    error = m_error;
-                    elapsed = m_elapsed;
-                    m_error = null;
-                }
+                m_work = run;
+                m_workReady.Release();
+                m_workDone.Wait();
+
+                ExceptionDispatchInfo error = m_error;
+                long elapsed = m_elapsed;
+                m_error = null;
                 error?.Throw();
                 return elapsed;
             }
@@ -424,16 +419,9 @@ namespace Opc.Ua.Fuzzing
                 s_isWorkerThread = true;
                 while (true)
                 {
-                    Action work;
-                    lock (m_lock)
-                    {
-                        while (m_work == null)
-                        {
-                            Monitor.Wait(m_lock);
-                        }
-                        work = m_work;
-                        m_work = null;
-                    }
+                    m_workReady.Wait();
+                    Action work = m_work;
+                    m_work = null;
 
                     ExceptionDispatchInfo error = null;
                     var stopwatch = Stopwatch.StartNew();
@@ -446,19 +434,21 @@ namespace Opc.Ua.Fuzzing
                         error = ExceptionDispatchInfo.Capture(ex);
                     }
 
-                    lock (m_lock)
-                    {
-                        m_elapsed = stopwatch.ElapsedMilliseconds;
-                        m_error = error;
-                        m_completed = true;
-                        Monitor.PulseAll(m_lock);
-                    }
+                    m_elapsed = stopwatch.ElapsedMilliseconds;
+                    m_error = error;
+                    m_workDone.Release();
                 }
             }
 
-            private readonly object m_lock = new();
+            public void Dispose()
+            {
+                m_workReady.Dispose();
+                m_workDone.Dispose();
+            }
+
+            private readonly SemaphoreSlim m_workReady = new(0, 1);
+            private readonly SemaphoreSlim m_workDone = new(0, 1);
             private Action m_work;
-            private bool m_completed;
             private ExceptionDispatchInfo m_error;
             private long m_elapsed;
         }

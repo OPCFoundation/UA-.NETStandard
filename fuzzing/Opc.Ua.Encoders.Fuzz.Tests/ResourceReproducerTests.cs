@@ -259,14 +259,14 @@ namespace Opc.Ua.Fuzzing
             return Encoding.UTF8.GetBytes(builder.ToString());
         }
 
-#pragma warning disable CA5350, CA1850 // SHA-1 is libFuzzer's content-address scheme, not security.
+#pragma warning disable CA5350, CA1850, CA1307, CA1872 // SHA-1 content-address, net48-compatible hex.
         public static string ContentHash(byte[] input)
         {
             using var sha1 = System.Security.Cryptography.SHA1.Create();
             return BitConverter.ToString(sha1.ComputeHash(input))
                 .Replace("-", string.Empty).ToLowerInvariant();
         }
-#pragma warning restore CA5350, CA1850
+#pragma warning restore CA5350, CA1850, CA1307, CA1872
 
         private static void WriteInt32(MemoryStream stream, int value)
         {
