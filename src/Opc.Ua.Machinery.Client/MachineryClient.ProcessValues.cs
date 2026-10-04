@@ -68,11 +68,15 @@ namespace Opc.Ua.Machinery.Client
                 Opc.Ua.Machinery.ProcessValues.ObjectTypes.ProcessValueType,
                 namespaceIndex);
 
+            // A process value below the item may also be organized by or be
+            // an event source of its Monitoring, so it is reported once.
+            var seen = new HashSet<NodeId>();
             await foreach (MachineEntry entry in EnumerateProcessValuesBelowAsync(
                     machineryItem,
                     processValueTypeId,
                     cancellationToken).ConfigureAwait(false))
             {
+                seen.Add(entry.NodeId);
                 yield return entry;
             }
 
@@ -95,7 +99,10 @@ namespace Opc.Ua.Machinery.Client
                     processValueTypeId,
                     cancellationToken).ConfigureAwait(false))
             {
-                yield return entry;
+                if (seen.Add(entry.NodeId))
+                {
+                    yield return entry;
+                }
             }
         }
 
