@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.AMB.Client
 {
@@ -74,6 +75,7 @@ namespace Opc.Ua.AMB.Client
             DataValue[] values = await ReadAsync(nodes, Attributes.Value, cancellationToken).ConfigureAwait(false);
             DataValue[] access = await ReadAsync(nodes, Attributes.UserAccessLevel, cancellationToken)
                 .ConfigureAwait(false);
+            bool[] userLinks = await ReadUserLinkMarkersAsync(nodes, cancellationToken).ConfigureAwait(false);
 
             var links = new DocumentationLinkRecord[nodes.Length];
             for (int ii = 0; ii < links.Length; ii++)
@@ -84,9 +86,74 @@ namespace Opc.Ua.AMB.Client
                     variables[ii].BrowseName,
                     variables[ii].DisplayName,
                     StringOf(values[ii].WrappedValue) ?? string.Empty,
-                    (userAccessLevel & AccessLevels.CurrentWrite) != 0);
+                    (userAccessLevel & AccessLevels.CurrentWrite) != 0)
+                {
+                    IsUserLink = userLinks[ii]
+                };
             }
             return links.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Tells for each link whether it carries the
+        /// <see cref="DocumentationLinkProperties.UserLink"/> Property with
+        /// the value <see langword="true"/>, with one Browse for all links
+        /// and one Read for the Properties found.
+        /// </summary>
+        /// <remarks>
+        /// The server qualifies the name with its namespace of
+        /// server-specific types, which is configurable, so only the name is
+        /// compared.
+        /// </remarks>
+        private async ValueTask<bool[]> ReadUserLinkMarkersAsync(
+            NodeId[] links,
+            CancellationToken cancellationToken)
+        {
+            bool[] userLinks = new bool[links.Length];
+            if (links.Length == 0)
+            {
+                return userLinks;
+            }
+
+            var browser = new Browser(Session, new BrowserOptions
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty,
+                IncludeSubtypes = true,
+                NodeClassMask = (int)NodeClass.Variable,
+                ResultMask = (uint)BrowseResultMask.BrowseName
+            });
+            ResultSet<ArrayOf<ReferenceDescription>> browsed = await browser
+                .BrowseAsync(links.ToArrayOf(), cancellationToken)
+                .ConfigureAwait(false);
+
+            var markers = new List<NodeId>();
+            var owners = new List<int>();
+            for (int ii = 0; ii < browsed.Results.Count && ii < links.Length; ii++)
+            {
+                foreach (ReferenceDescription property in browsed.Results[ii])
+                {
+                    if (property.BrowseName.Name == DocumentationLinkProperties.UserLink)
+                    {
+                        markers.Add(ToNodeId(property.NodeId));
+                        owners.Add(ii);
+                        break;
+                    }
+                }
+            }
+            if (markers.Count == 0)
+            {
+                return userLinks;
+            }
+
+            DataValue[] values = await ReadAsync(markers, Attributes.Value, cancellationToken).ConfigureAwait(false);
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                userLinks[owners[ii]] = StatusCode.IsGood(values[ii].StatusCode) &&
+                    values[ii].WrappedValue.TryGetValue(out bool isUserLink) &&
+                    isUserLink;
+            }
+            return userLinks;
         }
 
         /// <summary>

@@ -224,7 +224,21 @@ namespace Opc.Ua.AMB.Client
         QualifiedName BrowseName,
         LocalizedText DisplayName,
         string Uri,
-        bool IsWritable);
+        bool IsWritable)
+    {
+        /// <summary>
+        /// Gets whether a user added the link through <c>AddLink</c>, which
+        /// makes it the kind of link <c>RemoveLink</c> accepts (§10.5.4).
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-110 has no way to tell; the AMB server of this SDK marks
+        /// such a link with the
+        /// <see cref="DocumentationLinkProperties.UserLink"/> Property. The
+        /// value is <see langword="false"/> for every link of a server that
+        /// does not.
+        /// </remarks>
+        public bool IsUserLink { get; init; }
+    }
 
     /// <summary>
     /// A level of a location hierarchy (OPC 10000-110 §13.3.3, §13.4.3).

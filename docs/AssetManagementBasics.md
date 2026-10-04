@@ -363,6 +363,17 @@ links; by default every authenticated user may and an anonymous one may not.
 The `UserAccessLevel` of an editable link and the `UserExecutable` of `AddLink`
 and `RemoveLink` show a user who may not change links that he cannot.
 
+OPC 10000-110 gives a client no way to tell the links of the manufacturer from
+the ones users added, although `RemoveLink` accepts only the latter. §10.5.1
+lets vendors add Properties with metadata to the links, so every link `AddLink`
+created - and only such a link - carries the `Boolean` Property
+`UserLink` (`DocumentationLinkProperties.UserLink`) with the value `true`. Its
+browse name is qualified with the namespace of the server-specific types
+(`AmbServerOptions.TypeNamespaceUri`), not with the AMB namespace, and its
+NodeId follows from the link's, so it is the same after a restart.
+`DocumentationLinkRecord.IsUserLink` reports it on the client, which compares
+the name only, as the namespace is configurable.
+
 ## Locations, version information, classification and structure
 
 `LocatedIn(kind, "Plant1/Hall3/Line2")` creates the levels below
@@ -480,7 +491,7 @@ with the session.
 | Identification | `ReadIdentificationAsync` (on the asset, then in `2:Identification`; empty values count as not set), `WriteAssetIdAsync` |
 | Health | `ReadDeviceHealthAsync`, `ReadHealthAlarmsAsync`, `ObserveHealthAlarmsAsync`, `AcknowledgeAsync` |
 | Maintenance | `ReadMaintenanceActivitiesAsync`, `ObserveMaintenanceAsync`, `AcknowledgeAsync` |
-| Documentation links | `ReadDocumentationLinksAsync`, `AddDocumentationLinkAsync`, `RemoveDocumentationLinkAsync`, `WriteDocumentationLinkAsync` |
+| Documentation links | `ReadDocumentationLinksAsync` (with `IsWritable` from the `UserAccessLevel` and `IsUserLink` from the `UserLink` Property), `AddDocumentationLinkAsync`, `RemoveDocumentationLinkAsync`, `WriteDocumentationLinkAsync` |
 | Locations and structure | `BrowseLocationsAsync`, `ReadLocationsOfAssetAsync`, `ReadContextAsync`, `ReadEntriesAsync`, `EnumerateSubAssetsAsync`, `ReadRelationsAsync` |
 | Snapshot | `ReadAssetAsync` |
 

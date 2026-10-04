@@ -66,6 +66,12 @@ namespace Opc.Ua.AMB.Server.DocumentationLinks
     /// link a client cleared, does not count for "AMB DocumentationLinks
     /// Base".
     /// </para>
+    /// <para>
+    /// A link a client added carries the
+    /// <see cref="DocumentationLinkProperties.UserLink"/> Property, so other
+    /// clients see which links <c>RemoveLink</c> accepts; OPC 10000-110
+    /// itself has no way to tell.
+    /// </para>
     /// </remarks>
     internal sealed class AssetDocumentationLinks : IDocumentationLinks, IDisposable
     {
@@ -76,10 +82,12 @@ namespace Opc.Ua.AMB.Server.DocumentationLinks
             IAssetConfigurationStore store,
             string productInstanceUri,
             bool userLinks,
+            ushort typeNamespaceIndex,
             Func<CancellationToken, ValueTask> changedAsync,
             ILogger logger)
         {
             m_handle = handle;
+            m_typeNamespaceIndex = typeNamespaceIndex;
             m_addIn = addIn;
             m_options = options;
             m_store = store;
@@ -237,6 +245,7 @@ namespace Opc.Ua.AMB.Server.DocumentationLinks
                 store,
                 productInstanceUri,
                 request.UserLinks,
+                manager.TypeNamespaceIndex,
                 manager.OnAssetsChangedAsync,
                 logger);
             foreach (DeclaredLink link in request.Links)
@@ -343,6 +352,7 @@ namespace Opc.Ua.AMB.Server.DocumentationLinks
                     record.Uri,
                     editable: true);
                 variable.NodeId = new NodeId(record.Identifier, (ushort)nodeNamespace);
+                MarkAsUserLink(variable, record.Identifier);
                 Register(new LinkEntry(variable, true, null, record));
             }
         }
@@ -401,6 +411,32 @@ namespace Opc.Ua.AMB.Server.DocumentationLinks
             }
             variable.Timestamp = DateTimeUtc.Now;
             return variable;
+        }
+
+        /// <summary>
+        /// Gives a link a user added the
+        /// <see cref="DocumentationLinkProperties.UserLink"/> Property, so a
+        /// client can tell it from the links of the manufacturer, which
+        /// <c>RemoveLink</c> refuses (§10.5.4). Its NodeId derives from the
+        /// link's, so it is the same after a restart.
+        /// </summary>
+        private void MarkAsUserLink(BaseDataVariableState<string> variable, string identifier)
+        {
+            var marker = PropertyState<bool>.With<VariantBuilder>(variable);
+            marker.SymbolicName = DocumentationLinkProperties.UserLink;
+            marker.BrowseName = new QualifiedName(DocumentationLinkProperties.UserLink, m_typeNamespaceIndex);
+            marker.DisplayName = new LocalizedText(DocumentationLinkProperties.UserLink);
+            marker.TypeDefinitionId = VariableTypeIds.PropertyType;
+            marker.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
+            marker.DataType = Ua.DataTypeIds.Boolean;
+            marker.ValueRank = ValueRanks.Scalar;
+            marker.AccessLevel = AccessLevels.CurrentRead;
+            marker.UserAccessLevel = AccessLevels.CurrentRead;
+            marker.Value = true;
+            marker.NodeId = new NodeId(
+                identifier + "_" + DocumentationLinkProperties.UserLink,
+                variable.NodeId.NamespaceIndex);
+            variable.AddChild(marker);
         }
 
         private void Register(LinkEntry entry)
@@ -611,6 +647,7 @@ namespace Opc.Ua.AMB.Server.DocumentationLinks
                     linkToExternalSource,
                     editable: true);
                 variable.NodeId = new NodeId(record.Identifier, nodeNamespace);
+                MarkAsUserLink(variable, record.Identifier);
                 variableId = variable.NodeId;
                 var entry = new LinkEntry(variable, true, null, record);
 
@@ -779,6 +816,7 @@ namespace Opc.Ua.AMB.Server.DocumentationLinks
         private const int MaxLocaleLength = 64;
 
         private readonly AssetHandle m_handle;
+        private readonly ushort m_typeNamespaceIndex;
         private readonly DocumentationLinksState m_addIn;
         private readonly AmbServerOptions m_options;
         private readonly IAssetConfigurationStore m_store;

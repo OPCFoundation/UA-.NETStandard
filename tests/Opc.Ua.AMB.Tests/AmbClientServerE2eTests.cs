@@ -154,6 +154,10 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(
                     ListOf(snapshot.DocumentationLinks).Single(link => link.BrowseName.Name == "Handbook").IsWritable,
                     Is.True);
+                Assert.That(
+                    ListOf(snapshot.DocumentationLinks).Select(link => link.IsUserLink),
+                    Has.All.False,
+                    "the manufacturer declared both links, so RemoveLink accepts neither");
                 Assert.That(snapshot.Context.HierarchicalLocation, Is.EqualTo("Plant1/Hall3/Line2"));
                 Assert.That(snapshot.Context.LocalTime?.Offset, Is.EqualTo((short)60));
                 Assert.That(snapshot.Context.Classifications.ToArray(), Does.Contain(s_eclass));
@@ -424,6 +428,10 @@ namespace Opc.Ua.AMB.Tests
                     new LocalizedText("Wiring diagram")).ConfigureAwait(false);
                 ArrayOf<DocumentationLinkRecord> links = await amb.ReadDocumentationLinksAsync(pump)
                     .ConfigureAwait(false);
+                Assert.That(
+                    ListOf(links).Where(link => link.IsUserLink).Select(link => link.NodeId),
+                    Is.EqualTo([added]),
+                    "only the link added through AddLink is a user link");
                 await amb.WriteDocumentationLinkAsync(
                     ListOf(links).Single(link => link.BrowseName.Name == "Handbook").NodeId,
                     "https://plant.example/handbook").ConfigureAwait(false);
@@ -447,6 +455,9 @@ namespace Opc.Ua.AMB.Tests
             await client.RemoveDocumentationLinkAsync(restarted, added).ConfigureAwait(false);
             ArrayOf<DocumentationLinkRecord> afterRemoval = await client.ReadDocumentationLinksAsync(restarted)
                 .ConfigureAwait(false);
+            ArrayOf<DocumentationLinkRecord> withoutAddIn = await client
+                .ReadDocumentationLinksAsync(second.Motor!.NodeId)
+                .ConfigureAwait(false);
             ServiceResultException noAddIn = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.AddDocumentationLinkAsync(
                     second.Motor!.NodeId,
@@ -459,6 +470,12 @@ namespace Opc.Ua.AMB.Tests
                     ListOf(restored).Single(link => link.NodeId == added).Uri,
                     Is.EqualTo("https://plant.example/wiring"),
                     "the added link keeps its NodeId");
+                Assert.That(
+                    ListOf(restored).Single(link => link.NodeId == added).IsUserLink,
+                    Is.True,
+                    "and stays a user link");
+                Assert.That(ListOf(afterRemoval).Select(link => link.IsUserLink), Has.All.False);
+                Assert.That(withoutAddIn.Count, Is.Zero, "an asset without the AddIn has no links");
                 Assert.That(
                     ListOf(restored).Single(link => link.BrowseName.Name == "Handbook").Uri,
                     Is.EqualTo("https://plant.example/handbook"));

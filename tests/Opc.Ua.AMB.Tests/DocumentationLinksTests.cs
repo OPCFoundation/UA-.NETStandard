@@ -262,6 +262,83 @@ namespace Opc.Ua.AMB.Tests
         }
 
         [Test]
+        public async Task OnlyAddedLinksCarryTheUserLinkPropertyAsync()
+        {
+            string state = StateDirectory();
+            const string name = nameof(OnlyAddedLinksCarryTheUserLinkPropertyAsync);
+            NodeId added;
+            NodeId marker;
+            await using (AmbHostedServer first = await StartAsync(name, state).ConfigureAwait(false))
+            {
+                IDocumentationLinks links = Asset(first).DocumentationLinks!;
+                DocumentationLinksState addIn = await first.FindNodeAsync<DocumentationLinksState>(links.NodeId)
+                    .ConfigureAwait(false);
+                CallMethodResult result = await AddLinkAsync(first, addIn, "https://plant.example/wiring", "Wiring")
+                    .ConfigureAwait(false);
+                added = result.OutputArguments[0].TryGetValue(out NodeId linkVariable) ? linkVariable : NodeId.Null;
+
+                IReadOnlyList<ReferenceDescription> properties = await first
+                    .BrowseAsync(added, Ua.ReferenceTypeIds.HasProperty)
+                    .ConfigureAwait(false);
+                ReferenceDescription property = properties.Single(
+                    reference => reference.BrowseName.Name == DocumentationLinkProperties.UserLink);
+                marker = first.ToNodeId(property.NodeId);
+                DataValue value = await first.ReadAsync(marker).ConfigureAwait(false);
+                DataValue dataType = await first.ReadAsync(marker, Attributes.DataType).ConfigureAwait(false);
+                var declared = new List<IReadOnlyList<ReferenceDescription>>();
+                foreach (DocumentationLink link in links.Links.ToArray()!)
+                {
+                    if (!link.IsUserLink)
+                    {
+                        declared.Add(await first.BrowseAsync(link.NodeId, Ua.ReferenceTypeIds.HasProperty)
+                            .ConfigureAwait(false));
+                    }
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        property.BrowseName.NamespaceIndex,
+                        Is.EqualTo(first.Manager.TypeNamespaceIndex),
+                        "not an AMB name: the server qualifies it with its namespace of server-specific types");
+                    Assert.That(property.TypeDefinition, Is.EqualTo((ExpandedNodeId)VariableTypeIds.PropertyType));
+                    Assert.That(value.WrappedValue.TryGetValue(out bool isUserLink) && isUserLink, Is.True);
+                    Assert.That(dataType.WrappedValue.TryGetValue(out NodeId type) ? type : NodeId.Null, Is.EqualTo(
+                        Ua.DataTypeIds.Boolean));
+                    Assert.That(declared, Has.Count.EqualTo(2), "the manual and the editable handbook");
+                    Assert.That(
+                        declared.SelectMany(references => references)
+                            .Select(reference => reference.BrowseName.Name),
+                        Has.None.EqualTo(DocumentationLinkProperties.UserLink),
+                        "the links of the manufacturer are not removable and carry no marker");
+                });
+            }
+
+            await using AmbHostedServer restarted = await StartAsync(name, state).ConfigureAwait(false);
+            IReadOnlyList<ReferenceDescription> restored = await restarted
+                .BrowseAsync(added, Ua.ReferenceTypeIds.HasProperty)
+                .ConfigureAwait(false);
+            DocumentationLinksState restartedAddIn = await restarted
+                .FindNodeAsync<DocumentationLinksState>(Asset(restarted).DocumentationLinks!.NodeId)
+                .ConfigureAwait(false);
+            CallMethodResult removed = await RemoveLinkAsync(restarted, restartedAddIn, added).ConfigureAwait(false);
+            DataValue gone = await restarted.ReadAsync(marker).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    restored.Select(reference => restarted.ToNodeId(reference.NodeId)),
+                    Does.Contain(marker),
+                    "the restored link carries the marker under the same NodeId");
+                Assert.That(StatusCode.IsGood(removed.StatusCode), Is.True, removed.StatusCode.ToString());
+                Assert.That(
+                    gone.StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown),
+                    "RemoveLink takes the marker along");
+            });
+        }
+
+        [Test]
         public async Task TheTextsOfAddedLinksAreBoundedAsync()
         {
             string state = Path.Combine(
