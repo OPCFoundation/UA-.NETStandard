@@ -1732,6 +1732,57 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
         }
 
+        /// <summary>
+        /// The source of a GeneratesEvent reference shall be an ObjectType, a VariableType
+        /// or a Method (Part 3 §7.15). The type keeps the references it declares, but its
+        /// instances and Object instance declarations must not inherit them (the CTT flagged
+        /// the GDS AuthorizationServiceType placeholder and the Default service).
+        /// </summary>
+        [Test]
+        public void TypeGeneratesEventReferencesAreNotCopiedToObjectInstances()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromModelDesign(
+                "TypeGeneratesEvent.ModelDesign.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            const string generatesEvent = "state.AddReference(global::Opc.Ua.NodeId.Create(41u, ";
+            const string alwaysGeneratesEvent = "state.AddReference(global::Opc.Ua.NodeId.Create(3065u, ";
+
+            // The public factory definition; call sites are qualified by "context.".
+            int instanceOf = code.IndexOf(" CreateInstanceOfThingType(", StringComparison.Ordinal);
+            Assert.That(instanceOf, Is.GreaterThanOrEqualTo(0));
+            string instanceOfThingType = code[instanceOf..code.IndexOf(
+                "return state;",
+                instanceOf,
+                StringComparison.Ordinal)];
+
+            Assert.Multiple(() =>
+            {
+                string type = ExtractMethodBody(code, "CreateThingType");
+                Assert.That(type, Does.Contain(generatesEvent));
+                Assert.That(type, Does.Contain(alwaysGeneratesEvent));
+
+                foreach (string instance in new[]
+                {
+                    ExtractMethodBody(code, "CreateThingsFolderType_Thing_Placeholder"),
+                    ExtractMethodBody(code, "CreateThing1"),
+                    instanceOfThingType
+                })
+                {
+                    Assert.That(instance, Does.Not.Contain(generatesEvent));
+                    Assert.That(instance, Does.Not.Contain(alwaysGeneratesEvent));
+                }
+
+                Assert.That(ExtractMethodBody(code, "CreateThingType_Start"), Does.Contain(generatesEvent));
+                Assert.That(ExtractMethodBody(code, "CreateThing1_Start"), Does.Contain(generatesEvent));
+                Assert.That(ExtractMethodBody(code, "CreateExplicitSource"), Does.Contain(generatesEvent));
+            });
+            Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)

@@ -56318,6 +56318,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="Organizes">ns=1;s=DataAccess_ArrayItemType</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=DataAccess_SelectionList</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=DataAccess_Currency</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Views_Maintenance</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=CTT</Reference>
     </References>
@@ -60583,6 +60584,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
     <References>
       <Reference ReferenceType="Organizes">ns=1;s=Views_Operations</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=Views_Engineering</Reference>
+      <Reference ReferenceType="Organizes">ns=1;s=Views_Maintenance</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=CTT</Reference>
     </References>
@@ -60590,9 +60592,16 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
   <UAView NodeId="ns=1;s=Views_Operations" BrowseName="1:Operations" ParentNodeId="ns=1;s=Views" ContainsNoLoops="true">
     <DisplayName Locale="en">Operations</DisplayName>
     <References>
-      <Reference ReferenceType="HasCause">ns=1;s=Views_Engineering</Reference>
-      <Reference ReferenceType="HasEffect">ns=1;s=Views_Engineering</Reference>
+      <Reference ReferenceType="Organizes">ns=1;s=Views_Engineering</Reference>
+      <Reference ReferenceType="Organizes">ns=1;s=Views_Maintenance</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=Scalar_Static_Mass</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
+    </References>
+  </UAView>
+  <UAView NodeId="ns=1;s=Views_Maintenance" BrowseName="1:Maintenance" ParentNodeId="ns=1;s=Views" ContainsNoLoops="true">
+    <DisplayName Locale="en">Maintenance</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes">ns=1;s=DataAccess</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
     </References>
   </UAView>

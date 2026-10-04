@@ -128,6 +128,13 @@ CTT project configuration notes follow the tables. The procedure for running the
   per-condition state, which feeds itself (up to about 850 events in 15 s). In 8 of 28 Enable runs the CTT alarm
   thread then returned no events for the rest of the CU, although the server sent and the CTT acknowledged them,
   and the remaining test cases ran to 3 × Alarm Cycle Time. Held back: needs more investigation.
+- **C54. Monitored Items Deadband Filter `Err-006.js`** modifies a MonitoredItem on the first static numeric
+  scalar (a BaseDataVariable without EURange) to a PercentDeadband and accepts only `Good` or
+  `Bad_MonitoredItemFilterUnsupported`. OPC 10000-8 §7.2 limits PercentDeadband to AnalogItems with an EURange,
+  and §7.3.2 Table 61 defines `Bad_DeadbandFilterInvalid` for "a PercentDeadband is not supported, since an
+  EURange is not configured", which the server returns since #4629 (Create and Modify alike). Monitor Basic
+  `Err-022.js` already accepts `Bad_FilterNotAllowed` for non-analog items; the accepted list of `Err-006.js`
+  needs `Bad_DeadbandFilterInvalid`. Draft ready, not filed yet.
 - **Aggregate oracle differences.**
   - Non-numeric nodes: status-only aggregates (DurationGood/Bad, PercentGood/Bad, WorstQuality2, DurationInState*)
     differ on Boolean/String nodes from numeric nodes with the same status timeline, and the oracle returns

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  GeneratesEvent references declared on an ObjectType. The source of a
+  GeneratesEvent reference shall be an ObjectType, a VariableType or a Method
+  (OPC 10000-3 §7.15), so instances and Object instance declarations of the
+  type must not inherit them; Methods and explicit instance references keep
+  theirs.
+-->
+<opc:ModelDesign
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns="http://test.org/UA/TypeGeneratesEvent/"
+  TargetNamespace="http://test.org/UA/TypeGeneratesEvent/"
+  TargetXmlNamespace="http://test.org/UA/TypeGeneratesEvent/Types.xsd"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2026-10-04T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace
+      Name="TypeGeneratesEvent"
+      Prefix="TypeGeneratesEvent"
+      XmlNamespace="http://test.org/UA/TypeGeneratesEvent/Types.xsd"
+      XmlPrefix="TypeGeneratesEvent">http://test.org/UA/TypeGeneratesEvent/</opc:Namespace>
+    <opc:Namespace
+      Name="OpcUa"
+      Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:ObjectType SymbolicName="ThingEventType" BaseType="ua:BaseEventType" />
+
+  <opc:ObjectType SymbolicName="ThingType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Method SymbolicName="Start" ModellingRule="Mandatory">
+        <opc:References>
+          <opc:Reference>
+            <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+            <opc:TargetId>ThingEventType</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
+      </opc:Method>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+        <opc:TargetId>ThingEventType</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>ua:AlwaysGeneratesEvent</opc:ReferenceType>
+        <opc:TargetId>ua:BaseEventType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="ThingsFolderType" BaseType="ua:FolderType">
+    <opc:Children>
+      <opc:Object SymbolicName="Thing_Placeholder" TypeDefinition="ThingType" ModellingRule="OptionalPlaceholder">
+        <opc:BrowseName>&lt;Thing&gt;</opc:BrowseName>
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+      </opc:Object>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="Thing1" TypeDefinition="ThingType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ExplicitSource" TypeDefinition="ua:BaseObjectType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+      <opc:Reference>
+        <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+        <opc:TargetId>ThingEventType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+</opc:ModelDesign>
