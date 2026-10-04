@@ -403,7 +403,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                ICollection<TcpListenerChannel> channels = [];
+                var channels = new List<TcpListenerChannel>();
                 lock (m_lock)
                 {
                     m_inactivityDetectionTimer?.Dispose();
@@ -419,9 +419,15 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        // Values is an atomic snapshot; copying the live dictionary can race channel closure.
-                        channels = m_channels.Values;
-                        m_channels.Clear();
+                        // ChannelClosed removes and disposes channels without the lock, so
+                        // claim each channel with TryRemove: whoever removes it disposes it.
+                        foreach (uint channelId in m_channels.Keys)
+                        {
+                            if (m_channels.TryRemove(channelId, out TcpListenerChannel? channel))
+                            {
+                                channels.Add(channel);
+                            }
+                        }
                         m_channels = null;
                     }
                 }
