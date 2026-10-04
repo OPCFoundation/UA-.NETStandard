@@ -719,7 +719,7 @@ namespace Opc.Ua.Bindings
         /// <c>m_lock</c> so it cannot slip in after Dispose drained the
         /// channels and the channel is never disposed.
         /// </summary>
-        private bool TryRegisterChannel(uint channelId, TcpListenerChannel channel)
+        internal bool TryRegisterChannel(uint channelId, TcpListenerChannel channel)
         {
             lock (m_lock)
             {
