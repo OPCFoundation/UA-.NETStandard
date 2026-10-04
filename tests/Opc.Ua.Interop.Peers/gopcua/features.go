@@ -516,11 +516,33 @@ func checkRepublish(c context.Context, x *ctx) error {
 
 func checkTransferSubscription(c context.Context, x *ctx) error {
 	node := x.id("Scalar_Static_Int32")
-	r, err := x.subscribe(c, 100*time.Millisecond)
+	// The subscription is created on a session of its own: once it has been
+	// transferred away, gopcua's client state for it is stale (Cancel blocks
+	// and the channel can be dropped), so the source session is discarded
+	// instead of the session the other checks use.
+	source, err := x.connect(c, true, ua.UserTokenTypeAnonymous, opcua.AuthAnonymous())
+	if err != nil {
+		return fmt.Errorf("opening the source session failed: %w", err)
+	}
+	defer func() {
+		cc, done := cleanupContext()
+		defer done()
+		closed := make(chan struct{})
+		go func() {
+			_ = source.Close(cc)
+			close(closed)
+		}()
+		select {
+		case <-closed:
+		case <-cc.Done():
+		}
+	}()
+	sx := *x
+	sx.c = source
+	r, err := sx.subscribe(c, 100*time.Millisecond)
 	if err != nil {
 		return err
 	}
-	defer r.cancel()
 	if _, err := r.monitor(c, dataItem(node, 7)); err != nil {
 		return err
 	}
