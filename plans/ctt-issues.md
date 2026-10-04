@@ -8,7 +8,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 
 - "Resolved / fixed" in Mantis means the fix is in the CTT script repository. It ships with a script
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
-- The ids (1–19, C1–C53, U1–U4) are stable references for notes and commit messages; missing ids were
+- The ids (1–19, C1–C53, U1–U5) are stable references for notes and commit messages; missing ids were
   withdrawn or no longer fail against the reference server.
 - Mantis states were last checked on 2026-09-25.
 
@@ -132,10 +132,26 @@ CTT project configuration notes follow the tables. The procedure for running the
   - Non-numeric nodes: status-only aggregates (DurationGood/Bad, PercentGood/Bad, WorstQuality2, DurationInState*)
     differ on Boolean/String nodes from numeric nodes with the same status timeline, and the oracle returns
     `BadNoData` for valid Boolean/String StartBound/EndBound. Related: [11274](https://mantis.opcfoundation.org/view.php?id=11274).
-  - Int32 conversion: Interpolative, TimeAverage, Total, DeltaBounds and StartBound/EndBound differ on Int32 nodes
-    only (for example 24 vs 23): the server rounds interpolated values, the oracle truncates.
+    Only numeric values can be interpolated with a sloped line (Part 13 §5.4.2.3, Table 50), so the server
+    uses stepped interpolation for Boolean, String and other non-numeric values whatever the Stepped property
+    says (a String bound between "23" and "24" is "23", not "23.8").
+  - Int32 conversion: the oracle truncates interpolated bounds of Int32 nodes, the server keeps them real
+    (Part 13 §3.1.8) and rounds them (add 0.5 and truncate, Part 4 §7.7.3) only for aggregates that return the
+    raw data type (Interpolative, StartBound/EndBound, DeltaBounds, Minimum2/Maximum2/Range2,
+    MinimumActualTime2/MaximumActualTime2), for example 24 vs 23. TimeAverage, TimeAverage2, Total and Total2
+    return a Double and use the real bound: a ramp from 0 to 23.8 averages 11.9; the oracle's truncated bound
+    gives 11.8866, and Total `005-03.js` (end bound 2.38 vs 2) gives 28.3196 vs 27.598. Corrections that rewrite
+    the expected values of the four aggregates, and of Range2 when the start bound is followed by a non-Good
+    value with TreatUncertainAsBad (the native selection does not use that Uncertain bound), make all 78
+    TimeAverage/TimeAverage2/Total/Total2 and 4 Range2 Int32 test cases pass except the U4 cases.
   - MinimumActualTime2/MaximumActualTime2: with a sloped End bound the server returns the bound at EffectiveEndTime
     (Part 13 §§5.4.3.17–.18); the oracle selects an earlier raw value.
+- **Aggregate Bad data search reads forward.** `HAAggregateHelper.GetBadData` reads 120 raw values "backward"
+  from the configured `StartOfBadData*` time with EndTime = `0001-01-01` (`new UaDateTime()`). That is the
+  null DateTime, so the request has only a StartTime and the server reads forward (Part 11 §6.5.3); the helper
+  then takes the last of those values as the earliest. Its final read therefore spans the 120th value after
+  the configured time to the 120th value after the first non-Good value it finds, and the Bad block must lie
+  inside that range (see *Bad data entries for aggregates*).
 
 ## Needs clarification
 
@@ -159,6 +175,35 @@ applies to the raw values that form a bound (server), to the resulting bound (or
 spec clarification request is filed as [11462](https://mantis.opcfoundation.org/view.php?id=11462); neither side changes
 before the answer.
 
+With the Bad data entry of the reference server (see *Bad data entries for aggregates*) the same question shows
+in more test cases: DeltaBounds `005-05.js` (an Uncertain raw value at the end bound with TreatUncertainAsBad:
+server value with `UncertainDataSubNormal`, oracle `BadNoData`) and TimeAverage2/Total2 `003-01.js`, `003-04.js`,
+`004-01.js`, `004-04.js` on every numeric node (the raw value after the simple start bound is Uncertain and
+TreatUncertainAsBad is true: the server treats it as Bad and uses the stepped bound 348, §3.1.9 only names a
+Bad value, so the oracle uses the sloped bound 348.56). Interpolative applies TreatUncertainAsBad to a raw
+value exactly at the interval start, as the server does for the raw values around a bound; that agrees with
+the oracle.
+
+### U5. TreatUncertainAsBad = false: are Uncertain values Good for the value and for the status?
+
+§4.2.1.2 makes an Uncertain value equivalent to Good when TreatUncertainAsBad is false *"unless the Aggregate
+definition says otherwise"*, and adds that the value *"is still treated as Uncertain when the StatusCode for
+the result is calculated"*. §5.4.3.2.1 counts Uncertain regions as Good regions in that case. The definitions
+of Average, Count, Delta, StandardDeviation* and Variance* speak of Good (or non-Good) values, NumberOfTransitions
+of Bad values. Since C1 is fixed the CTT sends TreatUncertainAsBad = false in `003-02.js`, `003-03.js`,
+`004-02.js`, `004-03.js`, and 34 test cases differ:
+
+| Aggregates | Server | Oracle |
+| --- | --- | --- |
+| Average, Count, Delta, StandardDeviation*, Variance* | includes the Uncertain values (§4.2.1.2), status Good when no Bad value is in the interval (§5.4.3.2.1) | excludes them (the definitions say Good), status `UncertainDataSubNormal` (§4.2.1.2 note) |
+| NumberOfTransitions | same value; status Good | same value; status `UncertainDataSubNormal` |
+| Range | ignores an Uncertain value beyond the Good extremum and reports `UncertainDataSubNormal` (§5.4.3.14) | Good (as C48) |
+
+Until then Average and Count used the Good values only for the value but counted Uncertain as Good for the
+status; they now include the Uncertain values like StandardDeviation and NumberOfTransitions already did. Not
+filed; the open part (does the definition's "Good" override §4.2.1.2, and which rule sets the status) belongs
+to the same clarification as U4.
+
 ## CTT project configuration notes
 
 Tests skipped because of reference server sample-data gaps or missing CTT project settings are
@@ -168,13 +213,19 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   `/Server Test/NodeIds/Static/HA Profile/Aggregates/ProcessingInterval` to 1; keep it positive (see issue 4).
 - **Bad data entries for aggregates.** `005-05.js`/`005-06.js` need an explicit Bad data entry. Without
   it, `HAAggregateHelper.GetRequestEntry` falls back to the start entry (*"Bad Data Entry no found,
-  using start data"*) or throws (*"GetRequestEntry failed due to incorrect test configuration"*). The
-  reference server seeds a deterministic pattern on every history node: index mod 10 = 7 is
-  `BadDataUnavailable`, index mod 10 = 9 is `UncertainSubstituteValue`, the rest Good. No project setting
-  can supply the entry: `GetStartBadDataTime` (`HAAggregateHelper.js` line 1023) reads
-  `.../Aggregates/StartOfBadData<Name>` as an absolute time, the server seeds its history relative to its
-  start time, and the pattern never has the two consecutive non-Good values the helper looks for. It needs a
-  history seed anchored to a fixed date with a longer Bad block, plus that date in the template.
+  using start data"*) or throws (*"GetRequestEntry failed due to incorrect test configuration"*).
+  `GetStartBadDataTime` (`HAAggregateHelper.js` line 1023) reads `.../Aggregates/StartOfBadData<Name>` as an
+  absolute time and the helper looks for a block of at least two consecutive non-Good values. The reference
+  server seeds every history node with 1001 values relative to its start time (10 s apart; index mod 10 = 7 is
+  `BadDataUnavailable`, index mod 10 = 9 is `UncertainSubstituteValue`, the rest Good) and every scalar
+  history node also with 400 values from `2026-01-01T00:00:00Z` (value = index, source timestamp + 1.234 s):
+  index 0–149 repeat the pattern (the CTT uses the first 120 values as the start data of the other test
+  cases), 150–267 are Good, 268 is Bad, 269–274 Good, 275–279 the Bad block, 280–399 the pattern again.
+  `samples/UAReferenceServer.ctt.xml` sets all ten `StartOfBadData*` settings to `2026-01-01T00:25:01.234Z`
+  (index 150). The layout follows the forward-reading search (see *Aggregate Bad data search reads forward*):
+  120 values after index 150 must contain a non-Good value followed by a Good one (268), and the block must lie
+  between index 269 and 387. The `003-xx`/`004-xx` test cases that request "bad or start" data use this block
+  too. The server's StartOfArchive is the fixed date.
 - **Reference server settings for #4479.** `samples/UAReferenceServer.ctt.xml` sets the following; a project
   created from an older template keeps the old values, so copy them over:
   - `/Server Test/NodeIds/Static/All Profiles/Scalar/Bool` = `ns=2;s=Scalar_Static_NonHistorizing_Boolean`.
@@ -235,10 +286,11 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
 - **GDS LDS-ME Connectivity.** `initialize.js` skips the CU unless QueryApplications with
   `ServerCapabilities = ["LDS"]` returns a record: register an LDS/LDS-ME with the GDS first. The
   reference server does not include an LDS.
-- **Node Management client NodeIds.** Leave `/Server Test/NodeIds/NodeManagement/RequestedNodeId` disabled.
-  When enabled, scripts 1.05.513 request NodeIds in namespace 1 regardless of `RequestedNodeId_Namespace`
-  (C34), and six Add Node test cases fail with `BadNodeIdRejected`. `Err-008.js` therefore keeps failing
-  (issue 9). The setting's default namespace value (911) is meaningless.
+- **Node Management client NodeIds.** `samples/UAReferenceServer.ctt.xml` enables
+  `/Server Test/NodeIds/NodeManagement/RequestedNodeId` with `RequestedNodeId_Namespace` = 2 (the reference
+  server namespace). That needs the C34 fix: scripts 1.05.513 request NodeIds in namespace 1 regardless of
+  `RequestedNodeId_Namespace`, and six Add Node test cases fail with `BadNodeIdRejected`. With unfixed scripts
+  disable the setting; `Err-008.js` then keeps failing (issue 9).
 - **Monitored Item Services manual test cases.** Monitor Basic `036.js`, Monitor Complex Value `001.js`–`003.js`,
   Monitor Events `002.js`/`003.js`, Monitor Queueing `013.js`/`014.js`, and the Monitor Complex Event Filter
   and Monitor QueueSize_ServerMax CUs are *Not Implemented* (manual or test-lab) in scripts 1.05.513. So are

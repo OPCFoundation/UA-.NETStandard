@@ -324,7 +324,8 @@ Monitored Item Services (14 CUs, 208 test cases) takes about 10–11 minutes, No
 15 test cases) under a minute.
 
 - These groups are the most sensitive to machine load (timestamp tolerance warnings, see section 4).
-- Leave `/Server Test/NodeIds/NodeManagement/RequestedNodeId` disabled.
+- `/Server Test/NodeIds/NodeManagement/RequestedNodeId` (enabled in the template, namespace 2) needs scripts
+  with the C34 fix; disable it for scripts 1.05.513 (see [ctt-issues.md](ctt-issues.md)).
 - Delete Node `Err-002.js` adds 15,000 variables below one folder in batches of 5,000 and checks the response
   times; it is the load test for AddNodes below a parent with many children.
 

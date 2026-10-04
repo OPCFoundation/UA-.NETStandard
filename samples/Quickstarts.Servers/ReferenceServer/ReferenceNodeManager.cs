@@ -503,6 +503,57 @@ namespace Quickstarts.ReferenceServer
         private const string StructuredHistoryNodeName =
             "Historical_KeyValuePairs";
 
+        /// <summary>
+        /// Start of the history segment that every historizing scalar variable gets at a
+        /// fixed date, in addition to the samples seeded relative to the server start. The
+        /// CTT aggregate test cases 005-05/005-06 need a block of consecutive non-Good values
+        /// at an absolute time (the project settings
+        /// <c>/Server Test/NodeIds/Static/HA Profile/Aggregates/StartOfBadData*</c>), which
+        /// a history relative to the server start cannot provide.
+        /// </summary>
+        private static readonly DateTime s_fixedHistoryStart =
+            new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Number of samples in the fixed-date history segment (10 s apart).
+        /// </summary>
+        private const int FixedHistorySampleCount = 400;
+
+        /// <summary>
+        /// Sample index the StartOfBadData* settings of samples/UAReferenceServer.ctt.xml
+        /// point to (<c>2026-01-01T00:25:01.234Z</c>).
+        /// </summary>
+        private const int FixedHistoryBadDataSearchStart = 150;
+
+        /// <summary>
+        /// Returns the status of a sample in the fixed-date segment. The layout follows
+        /// how the CTT (HAAggregateHelper.GetBadData, scripts 1.05.513) searches it:
+        /// <list type="bullet">
+        /// <item>Samples 0-149 repeat the pattern of <see cref="GetSeededStatusCode"/>; the
+        /// CTT uses the first 120 samples as the start data of the other test cases.</item>
+        /// <item>The search reads 120 samples forward from the configured time (sample 150) and
+        /// needs a non-Good sample followed by a Good one: samples 150-267 are Good, 268 is Bad.</item>
+        /// <item>Its "reverse" read sends EndTime = DateTime.MinValue, which means "not
+        /// specified", so it also reads 120 samples forward (Part 11 §6.5.3). The final read
+        /// therefore spans sample 269 (150 + 119) to sample 387 (268 + 119), and the
+        /// contiguous Bad block 275-279 must lie inside it.</item>
+        /// <item>Samples 280-399 repeat the pattern again (no other consecutive non-Good
+        /// samples).</item>
+        /// </list>
+        /// </summary>
+        private static StatusCode GetFixedHistoryStatusCode(int sampleIndex)
+        {
+            return sampleIndex switch
+            {
+                < FixedHistoryBadDataSearchStart => GetSeededStatusCode(sampleIndex),
+                < 268 => StatusCodes.Good,
+                268 => StatusCodes.BadDataUnavailable,
+                < 275 => StatusCodes.Good,
+                < 280 => StatusCodes.BadDataUnavailable,
+                _ => GetSeededStatusCode(sampleIndex)
+            };
+        }
+
         private InMemoryHistorianProvider? m_historian;
         private BaseObjectState? m_historicalEventNotifier;
 
@@ -631,11 +682,12 @@ namespace Quickstarts.ReferenceServer
                 InsertAnnotation = true,
                 ServerTimestampSupported = true,
                 Stepped = false,
-                StartOfArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000)),
-                StartOfOnlineArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000))
+                StartOfArchive = new DateTimeUtc(s_fixedHistoryStart),
+                StartOfOnlineArchive = new DateTimeUtc(s_fixedHistoryStart)
             };
+            var liveStartOfArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000));
             await EnableHistoricalEventsAsync(
-                capabilities.StartOfArchive,
+                liveStartOfArchive,
                 cancellationToken).ConfigureAwait(false);
 
             // The dedicated node whose historian does not support server
@@ -736,7 +788,7 @@ namespace Quickstarts.ReferenceServer
                 await historianBuilder.DisposeAsync().ConfigureAwait(false);
             }
             await EnableStructuredHistoryAsync(
-                capabilities.StartOfArchive,
+                liveStartOfArchive,
                 cancellationToken).ConfigureAwait(false);
             await UpdateHistoricalConformanceClaimsAsync(
                 cancellationToken).ConfigureAwait(false);
@@ -1036,7 +1088,24 @@ namespace Quickstarts.ReferenceServer
             bool isMatrix = variable.ValueRank >= ValueRanks.TwoDimensions;
             bool isArray = variable.ValueRank == ValueRanks.OneDimension;
             DateTime now = DateTime.UtcNow;
-            var seed = new List<DataValue>(1001);
+            var seed = new List<DataValue>(FixedHistorySampleCount + 1001);
+
+            // scalars also get the fixed-date segment with a block of Bad values; it must end
+            // before the samples relative to the server start begin.
+            DateTime fixedEnd = s_fixedHistoryStart.AddSeconds(FixedHistorySampleCount * 10);
+            if (!isStructure && !isMatrix && !isArray && fixedEnd < now.AddSeconds(-10000))
+            {
+                for (int ii = 0; ii < FixedHistorySampleCount; ii++)
+                {
+                    DateTime timestamp = s_fixedHistoryStart.AddSeconds(ii * 10);
+                    seed.Add(new DataValue(
+                        CreateHistoricalScalarValue(dataType, ii, s_fixedHistoryStart),
+                        GetFixedHistoryStatusCode(ii),
+                        sourceTimestamp: timestamp.AddMilliseconds(1234),
+                        serverTimestamp: timestamp));
+                }
+            }
+
             for (int ii = 1000; ii >= 0; ii--)
             {
                 int value = 1000 - ii;

@@ -922,23 +922,112 @@ namespace Opc.Ua.Server.Historian
                 ReturnBounds = true
             };
 
+            // The raw read returns only the raw value at or beyond each end of the range,
+            // which can be Bad (or Uncertain with TreatUncertainAsBad). Interpolated bounds
+            // use the nearest Good values outside the range (Part 13 §3.1.8), so when such
+            // an end value is not Good the calculator also gets the raw values up to the
+            // two nearest Good values before the range or the nearest one after it.
+            bool treatUncertainAsBad = config.TreatUncertainAsBad;
+            bool IsGoodBound(DataValue value)
+            {
+                return treatUncertainAsBad
+                    ? StatusCode.IsGood(value.StatusCode)
+                    : StatusCode.IsNotBad(value.StatusCode);
+            }
+            bool IsPlaceholder(DataValue value)
+            {
+                return value.StatusCode == StatusCodes.BadNoData ||
+                    value.StatusCode == StatusCodes.BadBoundNotFound;
+            }
+            bool NeedsMoreBounds(DataValue endValue, bool before)
+            {
+                if (IsPlaceholder(endValue) || IsGoodBound(endValue))
+                {
+                    return false;
+                }
+                return before
+                    ? endValue.SourceTimestamp <= rawRequest.StartTime
+                    : endValue.SourceTimestamp >= rawRequest.EndTime;
+            }
+            async ValueTask<List<DataValue>> ReadMoreBoundsAsync(bool before)
+            {
+                var extra = new List<DataValue>();
+                await AddBoundingValuesAsync(
+                    extra,
+                    opContext,
+                    raw,
+                    node.NodeId,
+                    before ? rawRequest.StartTime : rawRequest.EndTime,
+                    before,
+                    requiredNonBad: before ? 2 : 1,
+                    cancellationToken,
+                    IsGoodBound).ConfigureAwait(false);
+
+                // queue order follows the direction of the request.
+                extra.Sort((a, b) => rawRequest.IsForward
+                    ? a.SourceTimestamp.CompareTo(b.SourceTimestamp)
+                    : b.SourceTimestamp.CompareTo(a.SourceTimestamp));
+                return extra;
+            }
+
+            // Values are queued in the direction of the request; the raw value at or beyond
+            // an end is also among the extra values, so later duplicates are skipped.
+            DateTimeUtc? lastQueued = null;
+            bool Queue(DataValue value)
+            {
+                if (!IsPlaceholder(value))
+                {
+                    if (lastQueued != null &&
+                        (rawRequest.IsForward
+                            ? value.SourceTimestamp <= lastQueued.Value
+                            : value.SourceTimestamp >= lastQueued.Value))
+                    {
+                        return true;
+                    }
+                    lastQueued = value.SourceTimestamp;
+                }
+                calculator.QueueRawValue(value);
+                return FlushCalculator(
+                    calculator,
+                    values,
+                    partial: false,
+                    kMaxProcessedBufferedOutputs);
+            }
+
+            // the first value read is the end value on the leading side of the request,
+            // the last value read the one on the trailing side.
+            bool leadingBefore = rawRequest.IsForward;
+            bool first = true;
+            DataValue lastValue = default;
             HistorianResumeToken token2 = default;
             while (true)
             {
                 HistorianPage<HistoricalDataValue> page = await raw.ReadRawAsync(
                     opContext, rawRequest, token2, cancellationToken).ConfigureAwait(false);
 
+                if (first && page.Values.Count > 0)
+                {
+                    first = false;
+                    if (NeedsMoreBounds(page.Values[0].Value, leadingBefore))
+                    {
+                        foreach (DataValue value in await ReadMoreBoundsAsync(leadingBefore)
+                            .ConfigureAwait(false))
+                        {
+                            if (!Queue(value))
+                            {
+                                return StatusCodes.BadTooManyOperations;
+                            }
+                        }
+                    }
+                }
+
                 foreach (HistoricalDataValue sample in page.Values)
                 {
-                    calculator.QueueRawValue(sample.Value);
-                    if (!FlushCalculator(
-                            calculator,
-                            values,
-                            partial: false,
-                            kMaxProcessedBufferedOutputs))
+                    if (!Queue(sample.Value))
                     {
                         return StatusCodes.BadTooManyOperations;
                     }
+                    lastValue = sample.Value;
                 }
 
                 if (page.IsFinal)
@@ -946,6 +1035,18 @@ namespace Opc.Ua.Server.Historian
                     break;
                 }
                 token2 = page.NextToken;
+            }
+
+            if (!first && NeedsMoreBounds(lastValue, !leadingBefore))
+            {
+                foreach (DataValue value in await ReadMoreBoundsAsync(!leadingBefore)
+                    .ConfigureAwait(false))
+                {
+                    if (!Queue(value))
+                    {
+                        return StatusCodes.BadTooManyOperations;
+                    }
+                }
             }
 
             if (!FlushCalculator(
@@ -3243,6 +3344,8 @@ namespace Opc.Ua.Server.Historian
         /// Bad values passed on the way are added too, since they make the calculated
         /// value Uncertain. Returns the number of non-Bad values added, or -1 when more
         /// than <see cref="kMaxProcessedBufferedOutputs"/> values were scanned first.
+        /// <paramref name="isBound"/> replaces the non-Bad test, for example to require
+        /// Good values when TreatUncertainAsBad is set.
         /// </summary>
         private static async ValueTask<int> AddBoundingValuesAsync(
             List<DataValue> collected,
@@ -3252,7 +3355,8 @@ namespace Opc.Ua.Server.Historian
             DateTimeUtc boundary,
             bool before,
             int requiredNonBad,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<DataValue, bool>? isBound = null)
         {
             var nonBadTimestamps = new HashSet<DateTimeUtc>();
             int added = 0;
@@ -3266,7 +3370,7 @@ namespace Opc.Ua.Server.Historian
             {
                 collected.Add(value);
                 added++;
-                if (StatusCode.IsNotBad(value.StatusCode))
+                if (isBound?.Invoke(value) ?? StatusCode.IsNotBad(value.StatusCode))
                 {
                     nonBadTimestamps.Add(value.SourceTimestamp);
                 }
