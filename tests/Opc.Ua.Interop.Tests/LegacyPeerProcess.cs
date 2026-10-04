@@ -227,9 +227,12 @@ namespace Opc.Ua.Interop.Tests
         public static LegacyPeerProcess Start(params string[] arguments)
         {
             string peer = FindPeer();
+            // A native peer (no host configured, not a .NET assembly) runs itself.
+            bool native = string.IsNullOrEmpty(Environment.GetEnvironmentVariable(PeerHostVariable)) &&
+                !peer.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
             var startInfo = new ProcessStartInfo
             {
-                FileName = FindPeerHost(),
+                FileName = native ? peer : FindPeerHost(),
                 UseShellExecute = false,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
@@ -237,7 +240,8 @@ namespace Opc.Ua.Interop.Tests
                 CreateNoWindow = true,
                 WorkingDirectory = Path.GetDirectoryName(peer)
             };
-            startInfo.Arguments = string.Join(" ", HostArguments().Append(peer).Concat(arguments).Select(Quote));
+            IEnumerable<string> allArguments = native ? arguments : HostArguments().Append(peer).Concat(arguments);
+            startInfo.Arguments = string.Join(" ", allArguments.Select(Quote));
 
             var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
             var peerProcess = new LegacyPeerProcess(process);

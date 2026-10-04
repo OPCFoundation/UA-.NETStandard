@@ -10,10 +10,18 @@
 package org.opcfoundation.interop.milo;
 
 import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
+import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.ubyte;
 import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.ulong;
+import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.ushort;
 
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import org.eclipse.milo.opcua.sdk.server.nodes.AttributeObserver;
+import org.eclipse.milo.opcua.stack.core.AttributeId;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,6 +34,9 @@ import org.eclipse.milo.opcua.sdk.server.OpcUaServer;
 import org.eclipse.milo.opcua.sdk.server.items.DataItem;
 import org.eclipse.milo.opcua.sdk.server.items.MonitoredItem;
 import org.eclipse.milo.opcua.sdk.server.methods.AbstractMethodInvocationHandler;
+import org.eclipse.milo.opcua.sdk.server.model.objects.BaseEventTypeNode;
+import org.eclipse.milo.opcua.sdk.server.model.objects.ServerTypeNode;
+import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaFolderNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaMethodNode;
 import org.eclipse.milo.opcua.sdk.server.nodes.UaVariableNode;
@@ -102,6 +113,18 @@ final class InteropNamespace extends ManagedNamespaceWithLifecycle {
     counter.setUserAccessLevel(AccessLevel.toValue(AccessLevel.READ_ONLY));
 
     addMethod(folder);
+    addRaiseEventMethod(folder);
+
+    // Events are reported through the Server object.
+    getServer()
+        .getAddressSpaceManager()
+        .getManagedNode(NodeIds.Server)
+        .ifPresent(
+            node -> {
+              if (node instanceof ServerTypeNode server) {
+                server.setEventNotifier(ubyte(1));
+              }
+            });
 
     var ticks = new int[] {0};
     timer.scheduleAtFixedRate(
@@ -126,6 +149,8 @@ final class InteropNamespace extends ManagedNamespaceWithLifecycle {
             .setUserAccessLevel(AccessLevel.READ_WRITE)
             .build();
     node.setValue(new DataValue(new Variant(value)));
+    // In memory, changed by writes: exception based (Part 3 5.6.2).
+    node.setMinimumSamplingInterval(0.0);
     getNodeManager().addNode(node);
     folder.addOrganizes(node);
     return node;
@@ -147,6 +172,64 @@ final class InteropNamespace extends ManagedNamespaceWithLifecycle {
         new Reference(
             method.getNodeId(), NodeIds.HasComponent, folder.getNodeId().expanded(), false));
   }
+
+  /**
+   * RaiseEvent() reports one BaseEventType event through the Server object with the Interop
+   * folder as its SourceNode.
+   */
+  private void addRaiseEventMethod(UaFolderNode folder) {
+    var method =
+        UaMethodNode.builder(getNodeContext())
+            .setNodeId(newNodeId("RaiseEvent"))
+            .setBrowseName(newQualifiedName("RaiseEvent"))
+            .setDisplayName(LocalizedText.english("RaiseEvent"))
+            .build();
+    method.setInvocationHandler(
+        new AbstractMethodInvocationHandler(method) {
+          @Override
+          public Argument[] getInputArguments() {
+            return new Argument[0];
+          }
+
+          @Override
+          public Argument[] getOutputArguments() {
+            return new Argument[0];
+          }
+
+          @Override
+          protected Variant[] invoke(InvocationContext context, Variant[] inputs)
+              throws UaException {
+            BaseEventTypeNode event =
+                getServer()
+                    .getEventFactory()
+                    .createEvent(newNodeId(UUID.randomUUID()), NodeIds.BaseEventType);
+            try {
+              byte[] eventId = new byte[16];
+              RANDOM.nextBytes(eventId);
+              event.setBrowseName(new QualifiedName(0, "InteropEvent"));
+              event.setDisplayName(LocalizedText.english("InteropEvent"));
+              event.setEventId(ByteString.of(eventId));
+              event.setEventType(NodeIds.BaseEventType);
+              event.setSourceNode(folder.getNodeId());
+              event.setSourceName(folder.getDisplayName().text());
+              event.setTime(DateTime.now());
+              event.setReceiveTime(DateTime.now());
+              event.setMessage(LocalizedText.english("interop event"));
+              event.setSeverity(ushort(500));
+              getServer().getEventNotifier().fire(event);
+            } finally {
+              event.delete();
+            }
+            return new Variant[0];
+          }
+        });
+    getNodeManager().addNode(method);
+    method.addReference(
+        new Reference(
+            method.getNodeId(), NodeIds.HasComponent, folder.getNodeId().expanded(), false));
+  }
+
+  private static final SecureRandom RANDOM = new SecureRandom();
 
   /** Add(a Int32, b Int32) returns sum Int32. */
   private static final class AddMethod extends AbstractMethodInvocationHandler {
@@ -175,19 +258,74 @@ final class InteropNamespace extends ManagedNamespaceWithLifecycle {
     }
   }
 
+  // The variables hold their values in memory and change only when written
+  // (MinimumSamplingInterval 0): a Value item with the sampling interval 0 is
+  // reported on exception, every change goes to the item's queue. All other
+  // items are sampled by the SDK's SubscriptionModel.
+  private final Map<DataItem, AttributeObserver> exceptionItems = new ConcurrentHashMap<>();
+
+  private boolean isExceptionBased(DataItem item) {
+    return item.getSamplingInterval() == 0.0
+        && AttributeId.Value.isEqual(item.getReadValueId().getAttributeId())
+        && (item.getReadValueId().getIndexRange() == null
+            || item.getReadValueId().getIndexRange().isEmpty())
+        && getNodeManager().getNode(item.getReadValueId().getNodeId()).orElse(null)
+            instanceof UaVariableNode;
+  }
+
+  private void addItems(List<DataItem> dataItems) {
+    var sampled = new ArrayList<DataItem>();
+    for (DataItem item : dataItems) {
+      if (!isExceptionBased(item)) {
+        sampled.add(item);
+        continue;
+      }
+      var node = (UaVariableNode) getNodeManager().getNode(item.getReadValueId().getNodeId()).get();
+      AttributeObserver observer =
+          (n, attributeId, value) -> {
+            if (attributeId == AttributeId.Value
+                && value instanceof DataValue dv
+                && item.isSamplingEnabled()) {
+              item.setValue(DataValue.derivedValue(dv, item.getTimestampsToReturn()));
+            }
+          };
+      exceptionItems.put(item, observer);
+      node.addAttributeObserver(observer);
+      if (item.isSamplingEnabled()) {
+        item.setValue(DataValue.derivedValue(node.getValue(), item.getTimestampsToReturn()));
+      }
+    }
+    if (!sampled.isEmpty()) {
+      subscriptionModel.onDataItemsCreated(sampled);
+    }
+  }
+
+  private void removeItems(List<DataItem> dataItems) {
+    for (DataItem item : dataItems) {
+      AttributeObserver observer = exceptionItems.remove(item);
+      if (observer != null) {
+        getNodeManager()
+            .getNode(item.getReadValueId().getNodeId())
+            .ifPresent(node -> node.removeAttributeObserver(observer));
+      }
+    }
+    subscriptionModel.onDataItemsDeleted(dataItems);
+  }
+
   @Override
   public void onDataItemsCreated(List<DataItem> dataItems) {
-    subscriptionModel.onDataItemsCreated(dataItems);
+    addItems(dataItems);
   }
 
   @Override
   public void onDataItemsModified(List<DataItem> dataItems) {
-    subscriptionModel.onDataItemsModified(dataItems);
+    removeItems(dataItems);
+    addItems(dataItems);
   }
 
   @Override
   public void onDataItemsDeleted(List<DataItem> dataItems) {
-    subscriptionModel.onDataItemsDeleted(dataItems);
+    removeItems(dataItems);
   }
 
   @Override

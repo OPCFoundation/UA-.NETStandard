@@ -55,7 +55,21 @@ namespace Opc.Ua.Interop.Tests
         /// </summary>
         public static string Reason(string name)
         {
-            return s_differences.Value.TryGetValue(name, out string reason) ? reason : null;
+            if (s_differences.Value.TryGetValue(name, out string reason))
+            {
+                return reason;
+            }
+            // A key ending with '*' lists every test whose name starts with
+            // the rest, e.g. all checks of one security configuration.
+            foreach (KeyValuePair<string, string> entry in s_differences.Value)
+            {
+                if (entry.Key.EndsWith('*') &&
+                    name.StartsWith(entry.Key.Substring(0, entry.Key.Length - 1), StringComparison.Ordinal))
+                {
+                    return entry.Value;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -90,17 +104,19 @@ namespace Opc.Ua.Interop.Tests
         private static Dictionary<string, string> Load()
         {
             var differences = new Dictionary<string, string>(StringComparer.Ordinal);
-            // Next to the peer, or one level up for peers run from a build
-            // output folder (e.g. milo/target/milo-peer.jar).
+            // Next to the peer, or up to two levels up for peers run from a
+            // build output folder (milo/target/milo-peer.jar,
+            // async-opcua/target/release/async-opcua-peer).
             string folder = LegacyPeerProcess.PeerDirectory;
             string file = Path.Combine(folder, FileName);
+            for (int level = 0; level < 2 && !File.Exists(file) && Path.GetDirectoryName(folder) != null; level++)
+            {
+                folder = Path.GetDirectoryName(folder);
+                file = Path.Combine(folder, FileName);
+            }
             if (!File.Exists(file))
             {
-                file = Path.Combine(Path.GetDirectoryName(folder) ?? folder, FileName);
-                if (!File.Exists(file))
-                {
-                    return differences;
-                }
+                return differences;
             }
             using var document = JsonDocument.Parse(File.ReadAllText(file));
             foreach (JsonProperty entry in document.RootElement.EnumerateObject())

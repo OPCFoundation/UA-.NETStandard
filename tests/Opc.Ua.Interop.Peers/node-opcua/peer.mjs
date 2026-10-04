@@ -9,13 +9,18 @@ import {
     OPCUAServer, OPCUAClient, OPCUACertificateManager, DataType, Variant, StatusCodes, SecurityPolicy,
     MessageSecurityMode, UserTokenType, AttributeIds, NodeId, NodeClass, ServerState, ClientSubscription,
     ClientMonitoredItem, TimestampsToReturn, BrowseDirection, makeBrowsePath, coerceNodeId, LocalizedText,
-    QualifiedName, resolveNodeId, BinaryStream, VariantArrayType
+    QualifiedName, resolveNodeId, BinaryStream, VariantArrayType, MonitoringMode, DataChangeFilter, DataChangeTrigger,
+    DeadbandType, EventFilter, SimpleAttributeOperand, ContentFilter, ContentFilterElement, LiteralOperand, FilterOperator,
+    RepublishRequest, PublishRequest, HistoryReadRequest, ReadRawModifiedDetails, AddNodesRequest, DeleteNodesRequest
 } from "node-opcua";
+import { ObjectAttributes } from "node-opcua-types";
+import { createSelfSignedCertificate, generatePrivateKey, privateKeyToPEM, convertPEMtoDER, CertificatePurpose } from "node-opcua-crypto";
 
 const require = createRequire(import.meta.url);
 const VERSION = require("node-opcua/package.json").version;
 const INTEROP_NAMESPACE = "urn:opcfoundation.org:interop:legacy";
 const REFERENCE_NAMESPACE = "http://opcfoundation.org/Quickstarts/ReferenceServer";
+const ALARMS_NAMESPACE = "http://test.org/UA/Alarms/";
 const USER_NAME = "interop", PASSWORD = "interop-password";
 const [EXIT_SUCCESS, EXIT_CHECKS_FAILED, EXIT_USAGE, EXIT_FATAL] = [0, 1, 2, 3];
 
@@ -59,17 +64,24 @@ async function runServer(o) {
     const name = "NodeOpcuaInteropServer";
     const applicationUri = `urn:localhost:opcfoundation.org:${name}`;
     const serverCertificateManager = await certificateManager(o);
+    // X509 user identity tokens: the secure endpoints advertise a Certificate
+    // token policy by default; any (self-signed) user certificate is accepted.
+    const userCertificateManager = new OPCUACertificateManager({ rootFolder: path.join(o.pki, "user"), automaticallyAcceptUnknownCertificate: true });
+    await userCertificateManager.initialize();
     const server = new OPCUAServer({
         port,
         resourcePath: "/" + name,
         serverCertificateManager,
+        userCertificateManager,
         serverInfo: { applicationUri, productUri: "http://opcfoundation.org/UA/Interop/NodeOpcuaServer", applicationName: { text: name } },
         buildInfo: { productName: "node-opcua Interop Server", manufacturerName: "Sterfive", softwareVersion: "node-opcua " + VERSION, buildNumber: "0", buildDate: new Date() },
         securityPolicies: [SecurityPolicy.None, SecurityPolicy.Basic256Sha256, SecurityPolicy.Aes128_Sha256_RsaOaep, SecurityPolicy.Aes256_Sha256_RsaPss],
         securityModes: [MessageSecurityMode.None, MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt],
         allowAnonymous: true,
         userManager: { isValidUser: (user, password) => user === USER_NAME && password === PASSWORD },
-        serverCapabilities: { operationLimits: { maxNodesPerRead: 100, maxNodesPerWrite: 100, maxNodesPerBrowse: 100, maxNodesPerMethodCall: 100 } }
+        // MinSupportedSampleRate 0: a sampling interval of 0 on an exception-based variable
+        // reports every change (node-opcua otherwise folds changes within 50 ms into one).
+        serverCapabilities: { minSupportedSampleRate: 0, operationLimits: { maxNodesPerRead: 100, maxNodesPerWrite: 100, maxNodesPerBrowse: 100, maxNodesPerMethodCall: 100 } }
     });
     await server.initialize();
     if (flag(o, "init-only", false)) {
@@ -77,11 +89,16 @@ async function runServer(o) {
         return EXIT_SUCCESS;
     }
     const addressSpace = server.engine.addressSpace;
-    const ns = addressSpace.registerNamespace(INTEROP_NAMESPACE);
+    // node-opcua binds the ConditionType methods (ConditionRefresh, ...) only on request;
+    // without it a ConditionRefresh call returns BadInternalError.
+    addressSpace.installAlarmsAndConditionsService();
+    const ns =addressSpace.registerNamespace(INTEROP_NAMESPACE);
     const folder = ns.addFolder(addressSpace.rootFolder.objects, { nodeId: "s=Interop", browseName: "Interop" });
     const rw = { accessLevel: "CurrentRead | CurrentWrite", userAccessLevel: "CurrentRead | CurrentWrite" };
     const variable = (browseName, dataType, value, extra = {}) => ns.addVariable({
-        organizedBy: folder, nodeId: "s=" + browseName, browseName, dataType, minimumSamplingInterval: 100, ...rw, ...extra,
+        // MinimumSamplingInterval 0: exception-based like the 1.5.378 interop server,
+        // so a burst of writes is not collapsed into one sample.
+        organizedBy: folder, nodeId: "s=" + browseName, browseName, dataType, minimumSamplingInterval: 0, ...rw, ...extra,
         value: new Variant({ dataType: extra.variantType ?? dataType, arrayType: extra.valueRank === 1 ? 1 : 0, value })
     });
     variable("Boolean", DataType.Boolean, true);
@@ -99,7 +116,7 @@ async function runServer(o) {
     variable("StringArray", DataType.String, ["a", "b", "c"], { valueRank: 1, arrayDimensions: [0] });
     const rangeType = addressSpace.findDataType("Range");
     variable("Range", rangeType, addressSpace.constructExtensionObject(rangeType, { low: 0, high: 100 }), { variantType: DataType.ExtensionObject });
-    const counter = variable("Counter", DataType.Int32, 0, { accessLevel: "CurrentRead", userAccessLevel: "CurrentRead" });
+    const counter = variable("Counter", DataType.Int32, 0, { accessLevel: "CurrentRead", userAccessLevel: "CurrentRead", minimumSamplingInterval: 100 });
     const add = ns.addMethod(folder, {
         nodeId: "s=Add", browseName: "Add",
         inputArguments: [{ name: "a", dataType: DataType.Int32 }, { name: "b", dataType: DataType.Int32 }],
@@ -109,6 +126,17 @@ async function runServer(o) {
         statusCode: StatusCodes.Good,
         outputArguments: [{ dataType: DataType.Int32, value: inputs[0].value + inputs[1].value }]
     }));
+    // RaiseEvent() reports one BaseEventType event through the Server object.
+    const raiseEvent = ns.addMethod(folder, { nodeId: "s=RaiseEvent", browseName: "RaiseEvent" });
+    raiseEvent.bindMethod(async (_inputs, _context) => { // node-opcua tells async from callback methods by arity
+        folder.raiseEvent("BaseEventType", {
+            message: { dataType: DataType.LocalizedText, value: new LocalizedText({ text: "interop event" }) },
+            severity: { dataType: DataType.UInt16, value: 500 },
+            sourceNode: { dataType: DataType.NodeId, value: folder.nodeId },
+            sourceName: { dataType: DataType.String, value: "Interop" }
+        });
+        return { statusCode: StatusCodes.Good };
+    });
     let count = 0;
     const timer = setInterval(() => counter.setValueFromSource({ dataType: DataType.Int32, value: ++count }), 100);
 
@@ -331,8 +359,372 @@ const CHECKS = {
             reads++;
             await new Promise((r) => setTimeout(r, 500));
         }
+    },
+
+    // ------------------------------------------------------------------- events
+    // Fields of the event filter: 0 EventId, 1 EventType, 2 SourceNode, 3 Time,
+    // 4 Message, 5 Severity (+ 6 ConditionId, 7 AckedState/Id, 8 Retain).
+    async EventSubscription(c) {
+        const events = [];
+        const sub = await createEventSubscription(c, resolveNodeId("Server"), events);
+        try {
+            await writeValue(c, c.id("NodeIds_Events_TriggerNode01"), { dataType: DataType.Int32, value: 1 });
+            const received = await waitFor(events, (e) => (e[4]?.value?.text ?? "").includes("Trigger event"));
+            require_(received, `no trigger event in 10 s; received ${events.length} events`);
+            require_(Buffer.isBuffer(received[0].value) && received[0].value.length > 0, "the event has no EventId");
+            require_(received[5].value > 0, "the event has no Severity: " + received[5].value);
+        } finally {
+            await terminate(sub);
+        }
+    },
+    async ConditionRefresh(c) {
+        const events = [];
+        const sub = await createEventSubscription(c, resolveNodeId("Server"), events);
+        try {
+            const result = await call(c, coerceNodeId("i=2782"), coerceNodeId("i=3875"), { dataType: DataType.UInt32, value: sub.subscriptionId });
+            require_(result.statusCode.isGood(), "ConditionRefresh returned " + result.statusCode.toString());
+            const isType = (e, id) => e[1]?.value?.toString() === id;
+            require_(await waitFor(events, (e) => isType(e, "ns=0;i=2788")), "no RefreshEndEvent received");
+            require_(events.some((e) => isType(e, "ns=0;i=2787")), "no RefreshStartEvent received");
+        } finally {
+            await terminate(sub);
+        }
+    },
+    async AlarmAcknowledge(c) {
+        require_(c.alarmsNs > 0, "the Alarms namespace is missing");
+        const folder = new NodeId(NodeId.NodeIdType.STRING, "Alarms", c.alarmsNs);
+        const events = [];
+        const sub = await createEventSubscription(c, folder, events, true);
+        try {
+            const started = await call(c, folder, new NodeId(NodeId.NodeIdType.STRING, "Alarms.Start", c.alarmsNs), { dataType: DataType.UInt32, value: 30 });
+            require_(started.statusCode.isGood(), "Alarms.Start returned " + started.statusCode.toString());
+            const unacked = await waitFor(events, (e) => e[6]?.value instanceof NodeId && e[7]?.value === false && e[8]?.value === true, 20_000);
+            if (!unacked) {
+                const last = events[events.length - 1];
+                throw new Error(`no unacknowledged condition in 20 s; received ${events.length} events, last: ` +
+                    (last ? last.map((f) => `${DataType[f.dataType]}:${f.value}`).join(" | ") : "none"));
+            }
+            const ack = await call(c, unacked[6].value, coerceNodeId("i=9111"),
+                { dataType: DataType.ByteString, value: unacked[0].value },
+                { dataType: DataType.LocalizedText, value: new LocalizedText({ text: "acknowledged by the interop test" }) });
+            require_(ack.statusCode.isGood(), "Acknowledge returned " + ack.statusCode.toString());
+        } finally {
+            await call(c, folder, new NodeId(NodeId.NodeIdType.STRING, "Alarms.End", c.alarmsNs)).catch(() => { });
+            await terminate(sub);
+        }
+    },
+
+    // ------------------------------------------------------------ subscriptions
+    async DeadbandFilter(c) {
+        const analog = c.id("DataAccess_AnalogType_Double");
+        for (const type of [DeadbandType.Absolute, DeadbandType.Percent]) {
+            await writeValue(c, analog, { dataType: DataType.Double, value: 0 });
+            const values = [];
+            const sub = await createSubscription(c, 100);
+            try {
+                await monitor(sub, analog, { samplingInterval: 50, queueSize: 10, discardOldest: true,
+                    filter: new DataChangeFilter({ trigger: DataChangeTrigger.StatusValue, deadbandType: type, deadbandValue: 10 }) },
+                    (dv) => values.push(dv.value?.value));
+                await delay(500);
+                for (const v of [5, 20, 25, 40]) {
+                    await writeValue(c, analog, { dataType: DataType.Double, value: v });
+                    await delay(400);
+                }
+                await delay(800);
+                const name = DeadbandType[type], list = values.join(", ");
+                require_(values.includes(20) && values.includes(40), `${name}: 20 and 40 not reported (${list})`);
+                require_(!values.includes(5) && !values.includes(25), `${name}: changes inside the deadband reported (${list})`);
+            } finally {
+                await terminate(sub);
+            }
+        }
+    },
+    async QueueOverflow(c) {
+        const node = c.id("Scalar_Static_Int32");
+        await writeValue(c, node, { dataType: DataType.Int32, value: 0 });
+        const values = [];
+        const sub = await createSubscription(c, 2000);
+        try {
+            await monitor(sub, node, { samplingInterval: 0, queueSize: 2, discardOldest: true }, (dv) => values.push(dv));
+            await delay(2500);
+            values.length = 0;
+            for (let ii = 1; ii <= 5; ii++) await writeValue(c, node, { dataType: DataType.Int32, value: ii });
+            await delay(3000);
+            const list = values.map((v) => `${v.value?.value}:0x${(v.statusCode.value >>> 0).toString(16)}`).join(", ");
+            require_(values.length === 2, `expected the last 2 of 5 values, got ${values.length} (${list})`);
+            require_(values[0].value.value === 4 && values[1].value.value === 5, "expected 4 and 5, got " + list);
+            require_(values.some((v) => (v.statusCode.value & 0x0480) === 0x0480), `no value carries the Overflow bit (${list})`);
+        } finally {
+            await terminate(sub);
+        }
+    },
+    async Triggering(c) {
+        const sub = await createSubscription(c, 100);
+        try {
+            let linkedReports = 0;
+            const trigger = await monitor(sub, c.id("Scalar_Static_Int32"), { samplingInterval: 50, queueSize: 10, discardOldest: true }, () => { });
+            const linked = await monitor(sub, c.id("Scalar_Static_String"), { samplingInterval: 50, queueSize: 10, discardOldest: true },
+                () => linkedReports++, MonitoringMode.Sampling);
+            const set = await c.session.setTriggering({ subscriptionId: sub.subscriptionId, triggeringItemId: trigger.monitoredItemId,
+                linksToAdd: [linked.monitoredItemId], linksToRemove: [] });
+            require_(set.addResults?.[0]?.isGood(), "SetTriggering returned " + set.addResults?.[0]?.toString());
+            await delay(500);
+            const before = linkedReports;
+            await writeValue(c, c.id("Scalar_Static_String"), { dataType: DataType.String, value: "linked " + Math.random() });
+            await delay(500);
+            require_(linkedReports === before, "the sampling item reported without its trigger");
+            await writeValue(c, c.id("Scalar_Static_Int32"), { dataType: DataType.Int32, value: Date.now() & 0x7fffffff });
+            await delay(1000);
+            require_(linkedReports > before, "the triggered item did not report");
+        } finally {
+            await terminate(sub);
+        }
+    },
+    async Republish(c) {
+        const sub = await createSubscription(c, 100);
+        try {
+            await monitor(sub, c.id("Scalar_Static_Int32"), { samplingInterval: 50, queueSize: 10, discardOldest: true }, () => { });
+            const notSent = await republishStatus(c, sub.subscriptionId, Math.max(sub.lastSequenceNumber, 0) + 1000);
+            require_(notSent === "BadMessageNotAvailable", "Republish of an unsent message returned " + notSent);
+            const unknown = await republishStatus(c, sub.subscriptionId + 100_000, 1);
+            require_(unknown === "BadSubscriptionIdInvalid", "Republish of an unknown subscription returned " + unknown);
+        } finally {
+            await terminate(sub);
+        }
+    },
+    // Session B takes the subscription over with TransferSubscriptions; node-opcua
+    // has no client-side object for a transferred subscription, so B publishes itself.
+    async TransferSubscription(c) {
+        const node = c.id("Scalar_Static_Int32");
+        const sub = await createSubscription(c, 100);
+        let target = null;
+        try {
+            await monitor(sub, node, { samplingInterval: 50, queueSize: 10, discardOldest: true }, () => { });
+            target = await c.client.createSession({ type: UserTokenType.Anonymous });
+            const transfer = await target.transferSubscriptions({ subscriptionIds: [sub.subscriptionId], sendInitialValues: true });
+            require_(transfer.results?.[0]?.statusCode?.isGood(), "TransferSubscriptions returned " + transfer.results?.[0]?.statusCode?.toString());
+            const values = [];
+            let acks = [];
+            let stop = false;
+            const publishing = (async () => {
+                while (!stop) {
+                    const response = await transaction(target, new PublishRequest({ subscriptionAcknowledgements: acks }));
+                    const message = response.notificationMessage;
+                    acks = message?.notificationData?.length ? [{ subscriptionId: response.subscriptionId, sequenceNumber: message.sequenceNumber }] : [];
+                    for (const data of message?.notificationData ?? []) {
+                        for (const item of data?.monitoredItems ?? []) values.push(item.value?.value?.value);
+                    }
+                }
+            })();
+            publishing.catch(() => { });
+            await delay(300);
+            const value = (Date.now() & 0x7fffffff) | 1;
+            const [status] = await target.write([{ nodeId: node, attributeId: AttributeIds.Value, value: { value: { dataType: DataType.Int32, value } } }]);
+            require_(status.isGood(), "write returned " + status.toString());
+            const deadline = Date.now() + 10_000;
+            while (!values.includes(value) && Date.now() < deadline) await delay(100);
+            stop = true;
+            require_(values.includes(value), `the transferred subscription did not report the write (received ${values.join(", ")})`);
+        } finally {
+            if (target) await target.close(true).catch(() => { });
+            await terminate(sub);
+        }
+    },
+
+    // ----------------------------------------------------------------- identity
+    async WrongPasswordRejected(c) {
+        let session;
+        try {
+            session = await c.client.createSession({ type: UserTokenType.UserName, userName: "user1", password: "wrong password" });
+        } catch (e) {
+            const code = /Bad\w+/.exec(e.message)?.[0] ?? e.message;
+            require_(code === "BadUserAccessDenied" || code === "BadIdentityTokenRejected", "the wrong password was rejected with " + code);
+            return;
+        }
+        await session.close().catch(() => { });
+        throw new Error("a session with a wrong password was activated");
+    },
+    async X509UserToken(c) {
+        const privateKey = await generatePrivateKey(2048);
+        const { privPem } = await privateKeyToPEM(privateKey);
+        const { cert } = await createSelfSignedCertificate({ privateKey, subject: "/CN=InteropUser/O=OPC Foundation",
+            purpose: CertificatePurpose.ForUserAuthentication, validity: 365 });
+        const session = await c.client.createSession({ type: UserTokenType.Certificate, certificateData: convertPEMtoDER(cert), privateKey: privPem });
+        try {
+            const state = await session.read({ nodeId: resolveNodeId("Server_ServerStatus_State"), attributeId: AttributeIds.Value });
+            require_(state.statusCode.isGood(), "reading with the X509 user returned " + state.statusCode.toString());
+        } finally {
+            await session.close().catch(() => { });
+        }
+    },
+
+    // ----------------------------------------------------------------- services
+    async RegisterNodes(c) {
+        const registered = await c.session.registerNodes([c.id("Scalar_Static_Int32"), c.id("Scalar_Static_String")]);
+        require_(registered?.length === 2, "RegisterNodes returned " + registered?.length + " ids");
+        const read = await c.session.read(registered.map((nodeId) => ({ nodeId, attributeId: AttributeIds.Value })));
+        require_(read.every((dv) => dv.statusCode.isGood()), "reading registered nodes returned " + read.map((dv) => dv.statusCode.toString()).join(", "));
+        await c.session.unregisterNodes(registered);
+    },
+    async HistoryReadRaw(c) {
+        const nodeId = c.id("Scalar_Static_Double");
+        const details = new ReadRawModifiedDetails({ isReadModified: false, startTime: new Date(Date.now() - 3 * 3600_000), endTime: new Date(),
+            numValuesPerNode: 10, returnBounds: false });
+        const response = await c.session.historyRead(new HistoryReadRequest({ historyReadDetails: details, timestampsToReturn: TimestampsToReturn.Source,
+            releaseContinuationPoints: false, nodesToRead: [{ nodeId }] }));
+        const result = response.results[0];
+        require_(result.statusCode.isGood(), "HistoryRead returned " + result.statusCode.toString());
+        const count = result.historyData?.dataValues?.length ?? 0;
+        require_(count > 0, "HistoryRead returned no values");
+        require_(count <= 10, `${count} values despite NumValuesPerNode 10`);
+        if (result.continuationPoint?.length > 0) {
+            await c.session.historyRead(new HistoryReadRequest({ historyReadDetails: details, timestampsToReturn: TimestampsToReturn.Source,
+                releaseContinuationPoints: true, nodesToRead: [{ nodeId, continuationPoint: result.continuationPoint }] }));
+        }
+    },
+    async NodeManagement(c) {
+        const name = "InteropAdded_" + Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, "0");
+        const added = await transaction(c.session, new AddNodesRequest({ nodesToAdd: [{
+            parentNodeId: resolveNodeId("ObjectsFolder"),
+            referenceTypeId: resolveNodeId("Organizes"),
+            requestedNewNodeId: c.id(name),
+            browseName: new QualifiedName({ name, namespaceIndex: c.ns }),
+            nodeClass: NodeClass.Object,
+            nodeAttributes: new ObjectAttributes({ displayName: new LocalizedText({ text: name }), specifiedAttributes: 0x40 }),
+            typeDefinition: resolveNodeId("BaseObjectType")
+        }] }));
+        const result = added.results[0];
+        require_(result.statusCode.isGood(), "AddNodes returned " + result.statusCode.toString());
+        const browsed = await c.session.browse(browseDescription(resolveNodeId("ObjectsFolder")));
+        const references = [...(browsed.references ?? [])];
+        for (let r = browsed; r.continuationPoint?.length > 0;) {
+            [r] = await c.session.browseNext([r.continuationPoint], false);
+            references.push(...(r.references ?? []));
+        }
+        require_(references.some((r) => r.browseName.name === name), "the added node is not organized by the Objects folder");
+        const deleted = await transaction(c.session, new DeleteNodesRequest({ nodesToDelete: [{ nodeId: result.addedNodeId, deleteTargetReferences: true }] }));
+        require_(deleted.results[0].isGood(), "DeleteNodes returned " + deleted.results[0].toString());
+    },
+    async IndexRange(c) {
+        const nodeId = c.id("Scalar_Static_Arrays_Int32");
+        await writeValue(c, nodeId, { dataType: DataType.Int32, arrayType: VariantArrayType.Array, value: Int32Array.from({ length: 10 }, (_, i) => i) });
+        const [status] = await c.session.write([{ nodeId, attributeId: AttributeIds.Value, indexRange: "2:3",
+            value: { value: { dataType: DataType.Int32, arrayType: VariantArrayType.Array, value: new Int32Array([20, 30]) } } }]);
+        require_(status.isGood(), "writing the index range 2:3 returned " + status.toString());
+        const dv = await c.session.read({ nodeId, attributeId: AttributeIds.Value, indexRange: "1:4" });
+        require_(dv.statusCode.isGood(), "reading the index range 1:4 returned " + dv.statusCode.toString());
+        const part = Array.from(dv.value?.value ?? []);
+        require_(part.join() === "1,20,30,4", "index range 1:4 read " + part.join());
+    },
+    async FindServers(c) {
+        const discovery = OPCUAClient.create({ applicationName: "NodeOpcuaInteropDiscovery", clientCertificateManager: c.client.clientCertificateManager,
+            securityMode: MessageSecurityMode.None, securityPolicy: SecurityPolicy.None, endpointMustExist: false, connectionStrategy: { maxRetry: 0 } });
+        await discovery.connect(c.url);
+        try {
+            const servers = await discovery.findServers();
+            const serverUri = c.client.endpoint?.server?.applicationUri
+                ?? (await c.session.read({ nodeId: resolveNodeId("Server_ServerArray"), attributeId: AttributeIds.Value })).value.value[0];
+            require_(servers.some((s) => s.applicationUri === serverUri), `FindServers does not list ${serverUri}: ${servers.map((s) => s.applicationUri).join(", ")}`);
+            const endpoints = await discovery.getEndpoints();
+            require_(endpoints.some((e) => e.securityPolicyUri === SecurityPolicy.Basic256Sha256 && e.securityMode === MessageSecurityMode.SignAndEncrypt),
+                "GetEndpoints does not offer Basic256Sha256/SignAndEncrypt");
+        } finally {
+            await discovery.disconnect();
+        }
+    },
+    // Opens a new secure channel with a second client and activates the existing
+    // session on it (OPCUAClient.reactivateSession).
+    async SessionReconnect(c) {
+        const before = c.session.sessionId.toString();
+        const client = c.createClient();
+        await client.connect(c.url);
+        c.clients.push(client);
+        await client.reactivateSession(c.session);
+        require_(c.session.sessionId.toString() === before, `the session id changed from ${before} to ${c.session.sessionId}`);
+        const state = await c.session.read({ nodeId: resolveNodeId("Server_ServerStatus_State"), attributeId: AttributeIds.Value });
+        require_(state.statusCode.isGood(), "reading after the reconnect returned " + state.statusCode.toString());
     }
 };
+
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function waitFor(list, match, timeout = 10_000) {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+        const found = list.find(match);
+        if (found) return found;
+        await delay(100);
+    }
+    return null;
+}
+
+// Promise wrapper of the callback-only ClientSession.performMessageTransaction.
+function transaction(session, request) {
+    return new Promise((resolve, reject) => session.performMessageTransaction(request, (err, response) => (err ? reject(err) : resolve(response))));
+}
+
+async function writeValue(c, nodeId, variant) {
+    const [status] = await c.session.write([{ nodeId, attributeId: AttributeIds.Value, value: { value: variant } }]);
+    require_(status.isGood(), `write of ${nodeId} returned ${status.toString()}`);
+}
+
+async function call(c, objectId, methodId, ...inputArguments) {
+    return await c.session.call({ objectId, methodId, inputArguments });
+}
+
+async function createSubscription(c, publishingInterval) {
+    return await c.session.createSubscription2({ requestedPublishingInterval: publishingInterval, requestedMaxKeepAliveCount: 10,
+        requestedLifetimeCount: 100, maxNotificationsPerPublish: 0, publishingEnabled: true, priority: 0 });
+}
+
+async function terminate(sub) {
+    try { await sub.terminate(); } catch { /* the check already reported its outcome */ }
+}
+
+// Creates a monitored item, attaching the listener before the item is created
+// so no early notification is lost; resolves once the server created it.
+async function monitor(sub, nodeId, parameters, onChange, mode = MonitoringMode.Reporting, attributeId = AttributeIds.Value) {
+    const item = ClientMonitoredItem.create(sub, { nodeId, attributeId }, parameters, TimestampsToReturn.Both, mode);
+    item.on("changed", onChange);
+    await new Promise((resolve, reject) => {
+        item.once("initialized", resolve);
+        item.once("err", (message) => reject(new Error("monitored item " + message)));
+    });
+    return item;
+}
+
+const operand = (typeDefinition, ...path) => new SimpleAttributeOperand({ typeDefinitionId: coerceNodeId(typeDefinition),
+    browsePath: path.map((name) => new QualifiedName({ name })), attributeId: AttributeIds.Value });
+
+async function createEventSubscription(c, notifier, events, condition = false) {
+    const selectClauses = ["EventId", "EventType", "SourceNode", "Time", "Message", "Severity"].map((n) => operand("i=2041", n));
+    if (condition) {
+        selectClauses.push(new SimpleAttributeOperand({ typeDefinitionId: coerceNodeId("i=2782"), browsePath: [], attributeId: AttributeIds.NodeId }));
+        selectClauses.push(operand("i=2881", "AckedState", "Id"));
+        selectClauses.push(operand("i=2782", "Retain"));
+    }
+    const filter = new EventFilter({ selectClauses, whereClause: new ContentFilter({ elements: [new ContentFilterElement({
+        filterOperator: FilterOperator.OfType,
+        filterOperands: [new LiteralOperand({ value: new Variant({ dataType: DataType.NodeId, value: coerceNodeId(condition ? "i=2881" : "i=2041") }) })]
+    })] }) });
+    const sub = await createSubscription(c, 100);
+    try {
+        await monitor(sub, notifier, { samplingInterval: 0, queueSize: 100, discardOldest: true, filter }, (fields) => events.push(fields),
+            MonitoringMode.Reporting, AttributeIds.EventNotifier);
+    } catch (e) {
+        await terminate(sub);
+        throw e;
+    }
+    return sub;
+}
+
+// Republish answers with a service fault or a response header status; both count.
+function republishStatus(c, subscriptionId, retransmitSequenceNumber) {
+    return new Promise((resolve) => c.session.republish(new RepublishRequest({ subscriptionId, retransmitSequenceNumber }), (err, response) => {
+        if (err) resolve(/Bad\w+/.exec(err.message)?.[0] ?? response?.responseHeader?.serviceResult?.name ?? err.message);
+        else resolve(response.responseHeader.serviceResult.name);
+    }));
+}
 
 function browseDescription(nodeId, referenceTypeId = "HierarchicalReferences") {
     return { nodeId, browseDirection: BrowseDirection.Forward, referenceTypeId, includeSubtypes: true, nodeClassMask: 0, resultMask: 63 };
@@ -420,6 +812,24 @@ function canonical(value) {
 }
 const DEFAULT_CHECKS = Object.keys(CHECKS).slice(0, 9);
 
+const identityOf = (o) => (o.user ? { type: UserTokenType.UserName, userName: o.user, password: o.password ?? "" } : { type: UserTokenType.Anonymous });
+
+// A check that lost the connection must not fail the later ones: open a new
+// channel and session for them.
+async function reconnectIfLost(ctx, o) {
+    if (ctx.session.isChannelValid()) return;
+    try {
+        console.log("INFO the connection was lost; reconnecting for the remaining checks");
+        const client = ctx.createClient();
+        ctx.clients.push(client);
+        await client.connect(o.url);
+        ctx.session = await client.createSession(identityOf(o));
+        ctx.client = client;
+    } catch (e) {
+        console.log("INFO reconnect failed: " + e.message);
+    }
+}
+
 async function runClient(o) {
     setDecodingLimits(1024 * 1024, 16 * 1024 * 1024);
     const name = "NodeOpcuaInteropClient";
@@ -430,12 +840,14 @@ async function runClient(o) {
     const unknown = selected.filter((x) => !(x in CHECKS) && x !== "Connect" && x !== "CloseSession");
     if (unknown.length) throw new Error("unknown checks: " + unknown.join(", "));
     const expected = (o["expect-connect-error"] ?? "").split(",").filter((x) => x);
-    const client = OPCUAClient.create({
+    const createClient = () => OPCUAClient.create({
         applicationName: name, applicationUri: `urn:localhost:opcfoundation.org:${name}`, clientCertificateManager,
         securityPolicy: policy, securityMode: mode, endpointMustExist: false, connectionStrategy: { maxRetry: 0 },
         transportSettings: { maxMessageSize: 16 * 1024 * 1024, maxChunkCount: 0 },
         ...(o["token-lifetime"] ? { defaultSecureTokenLifetime: parseInt(o["token-lifetime"], 10) } : {})
     });
+    let client = createClient();
+    const clients = [client];
     if (flag(o, "init-only", false)) {
         await client.createDefaultCertificate?.();
         console.log("PEER-PKI-READY " + client.applicationUri);
@@ -447,8 +859,7 @@ async function runClient(o) {
     await checks.run("Connect", async () => {
         try {
             await client.connect(o.url);
-            const identity = o.user ? { type: UserTokenType.UserName, userName: o.user, password: o.password ?? "" } : { type: UserTokenType.Anonymous };
-            session = await client.createSession(identity);
+            session = await client.createSession(identityOf(o));
         } catch (e) {
             if (expected.length) {
                 const actual = /Bad\w+/.exec(e.message)?.[0] ?? e.name;
@@ -462,16 +873,21 @@ async function runClient(o) {
     if (session) {
         const nsArray = (await session.readNamespaceArray());
         const ns = nsArray.indexOf(REFERENCE_NAMESPACE);
-        const ctx = { session, ns, options: o, id: (s) => new NodeId(NodeId.NodeIdType.STRING, s, ns) };
+        const ctx = {
+            session, client, clients, createClient, url: o.url, ns, alarmsNs: nsArray.indexOf(ALARMS_NAMESPACE), options: o,
+            id: (s) => new NodeId(NodeId.NodeIdType.STRING, s, ns)
+        };
         try {
             for (const [checkName, fn] of Object.entries(CHECKS)) {
-                if (selected.includes(checkName)) await checks.run(checkName, () => fn(ctx));
+                if (!selected.includes(checkName)) continue;
+                await reconnectIfLost(ctx, o);
+                await checks.run(checkName, () => fn(ctx));
             }
         } finally {
-            await checks.run("CloseSession", () => session.close());
+            await checks.run("CloseSession", () => ctx.session.close());
         }
     }
-    await client.disconnect();
+    for (const c of clients) await c.disconnect().catch(() => { });
     clearTimeout(deadline);
     return checks.finish();
 }

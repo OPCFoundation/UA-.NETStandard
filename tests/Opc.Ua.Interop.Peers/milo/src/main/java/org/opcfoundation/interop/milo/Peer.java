@@ -44,6 +44,7 @@ import org.eclipse.milo.opcua.sdk.server.OpcUaServerConfigLimits;
 import org.eclipse.milo.opcua.sdk.server.identity.AnonymousIdentityValidator;
 import org.eclipse.milo.opcua.sdk.server.identity.CompositeValidator;
 import org.eclipse.milo.opcua.sdk.server.identity.UsernameIdentityValidator;
+import org.eclipse.milo.opcua.sdk.server.identity.X509IdentityValidator;
 import org.eclipse.milo.opcua.stack.core.NodeIds;
 import org.eclipse.milo.opcua.stack.core.Stack;
 import org.eclipse.milo.opcua.stack.core.channel.EncodingLimits;
@@ -284,7 +285,13 @@ public final class Peer {
             SecurityPolicy.Aes256_Sha256_RsaPss)) {
       for (MessageSecurityMode mode :
           List.of(MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt)) {
-        endpoints.add(base.copy().setSecurityPolicy(policy).setSecurityMode(mode).build());
+        // X509 user tokens on the secure endpoints only.
+        endpoints.add(
+            base.copy()
+                .addTokenPolicies(OpcUaServerConfig.USER_TOKEN_POLICY_X509)
+                .setSecurityPolicy(policy)
+                .setSecurityMode(mode)
+                .build());
       }
     }
 
@@ -359,7 +366,10 @@ public final class Peer {
                     new UsernameIdentityValidator(
                         challenge ->
                             USER_NAME.equals(challenge.getUsername())
-                                && PASSWORD.equals(challenge.getPassword()))))
+                                && PASSWORD.equals(challenge.getPassword())),
+                    // Any user certificate is accepted, like the auto-accepted
+                    // application certificates.
+                    new X509IdentityValidator(certificate -> true)))
             .setLimits(limits)
             .setEncodingLimits(
                 new EncodingLimits(
@@ -418,6 +428,17 @@ public final class Peer {
   static OpcUaClient createClient(
       Map<String, String> options, Path pki, String policyUri, MessageSecurityMode mode)
       throws Exception {
+    return createClient(options, pki, policyUri, mode, null);
+  }
+
+  /** A client with the given user identity instead of the one of the options. */
+  static OpcUaClient createClient(
+      Map<String, String> options,
+      Path pki,
+      String policyUri,
+      MessageSecurityMode mode,
+      IdentityProvider identityOverride)
+      throws Exception {
     String name = "MiloInteropClient";
     Identity identity = loadOrCreateIdentity(pki, name, "urn:localhost:opcfoundation.org:" + name);
     FileBasedTrustListManager trustList = trustList(pki);
@@ -427,7 +448,9 @@ public final class Peer {
             new DefaultClientCertificateValidator(trustList, quarantine(pki)));
     String user = options.get("user");
     IdentityProvider identityProvider =
-        user == null
+        identityOverride != null
+            ? identityOverride
+            : user == null
             ? new AnonymousProvider()
             : new UsernameProvider(user, options.getOrDefault("password", ""));
     long tokenLifetime = Long.parseLong(options.getOrDefault("token-lifetime", "0"));

@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace Opc.Ua.Interop.Tests
@@ -64,20 +67,43 @@ namespace Opc.Ua.Interop.Tests
         public string SoftwareVersion { get; private set; }
 
         /// <summary>
+        /// The security policy URIs the peer implements (its server offers
+        /// them, and its client of the same build can use them), or null
+        /// when the peer does not declare them.
+        /// </summary>
+        public IReadOnlyList<string> Policies { get; private set; }
+
+        /// <summary>
         /// Whether the peer is the 1.5.x .NET peer.
         /// </summary>
         public bool IsLegacy => Stack == LegacyStack;
+
+        /// <summary>
+        /// Whether the peer declares the security policy in
+        /// <see cref="Policies"/>.
+        /// </summary>
+        public bool DeclaresPolicy(string policyUri)
+        {
+            return Policies != null && Policies.Contains(policyUri, StringComparer.Ordinal);
+        }
 
         public static PeerInfo Parse(string json)
         {
             using var document = JsonDocument.Parse(json);
             JsonElement root = document.RootElement;
+            List<string> policies = null;
+            if (root.TryGetProperty("policies", out JsonElement array) &&
+                array.ValueKind == JsonValueKind.Array)
+            {
+                policies = [.. array.EnumerateArray().Select(e => e.GetString())];
+            }
             return new PeerInfo
             {
                 Stack = Get(root, "stack"),
                 Version = Get(root, "version"),
                 ApplicationUri = Get(root, "applicationUri"),
-                SoftwareVersion = Get(root, "softwareVersion")
+                SoftwareVersion = Get(root, "softwareVersion"),
+                Policies = policies
             };
         }
 
