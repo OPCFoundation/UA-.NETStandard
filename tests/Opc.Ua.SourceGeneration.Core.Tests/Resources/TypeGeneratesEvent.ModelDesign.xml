@@ -29,8 +29,18 @@
 
   <opc:ObjectType SymbolicName="ThingEventType" BaseType="ua:BaseEventType" />
 
+  <opc:VariableType SymbolicName="ThingValueType" BaseType="ua:BaseDataVariableType" DataType="ua:Double" ValueRank="Scalar">
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+        <opc:TargetId>ThingEventType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:VariableType>
+
   <opc:ObjectType SymbolicName="ThingType" BaseType="ua:BaseObjectType">
     <opc:Children>
+      <opc:Variable SymbolicName="Value" TypeDefinition="ThingValueType" DataType="ua:Double" ValueRank="Scalar" ModellingRule="Mandatory" />
       <opc:Method SymbolicName="Start" ModellingRule="Mandatory">
         <opc:References>
           <opc:Reference>
@@ -69,6 +79,15 @@
       </opc:Reference>
     </opc:References>
   </opc:Object>
+
+  <opc:Variable SymbolicName="ThingValue1" TypeDefinition="ThingValueType" DataType="ua:Double" ValueRank="Scalar">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Variable>
 
   <opc:Object SymbolicName="ExplicitSource" TypeDefinition="ua:BaseObjectType">
     <opc:References>

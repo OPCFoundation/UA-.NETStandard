@@ -1734,8 +1734,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         /// <summary>
         /// The source of a GeneratesEvent reference shall be an ObjectType, a VariableType
-        /// or a Method (Part 3 §7.15). The type keeps the references it declares, but its
-        /// instances and Object instance declarations must not inherit them (the CTT flagged
+        /// or a Method (Part 3 §7.15). An ObjectType or VariableType keeps the references it
+        /// declares, but its Object and Variable instances and instance declarations must not
+        /// inherit them (the CTT flagged
         /// the GDS AuthorizationServiceType placeholder and the Default service).
         /// </summary>
         [Test]
@@ -1765,11 +1766,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(type, Does.Contain(generatesEvent));
                 Assert.That(type, Does.Contain(alwaysGeneratesEvent));
 
+                Assert.That(ExtractMethodBody(code, "CreateThingValueType"), Does.Contain(generatesEvent));
+
                 foreach (string instance in new[]
                 {
                     ExtractMethodBody(code, "CreateThingsFolderType_Thing_Placeholder"),
                     ExtractMethodBody(code, "CreateThing1"),
-                    instanceOfThingType
+                    instanceOfThingType,
+                    ExtractMethodBody(code, "CreateThingType_Value"),
+                    ExtractMethodBody(code, "CreateThing1_Value"),
+                    ExtractMethodBody(code, "CreateThingValue1")
                 })
                 {
                     Assert.That(instance, Does.Not.Contain(generatesEvent));
