@@ -228,18 +228,18 @@ namespace Opc.Ua.AMB.Server.Maintenance
         /// <inheritdoc/>
         public ValueTask StartAsync(LocalizedText message = default, CancellationToken cancellationToken = default)
         {
-            return TransitionAsync(MaintenanceStateKind.Executing, null, message, cancellationToken);
+            return TransitionAsync(MaintenanceStateKind.Executing, default, message, cancellationToken);
         }
 
         /// <inheritdoc/>
         public ValueTask FinishAsync(LocalizedText message = default, CancellationToken cancellationToken = default)
         {
-            return TransitionAsync(MaintenanceStateKind.Finished, null, message, cancellationToken);
+            return TransitionAsync(MaintenanceStateKind.Finished, default, message, cancellationToken);
         }
 
         /// <inheritdoc/>
         public ValueTask ReplanAsync(
-            DateTimeUtc? plannedDate = null,
+            DateTimeUtc plannedDate = default,
             LocalizedText message = default,
             CancellationToken cancellationToken = default)
         {
@@ -358,7 +358,7 @@ namespace Opc.Ua.AMB.Server.Maintenance
 
         private async ValueTask TransitionAsync(
             MaintenanceStateKind target,
-            DateTimeUtc? plannedDate,
+            DateTimeUtc plannedDate,
             LocalizedText message,
             CancellationToken cancellationToken)
         {
@@ -385,7 +385,7 @@ namespace Opc.Ua.AMB.Server.Maintenance
                         transition.Name);
                 }
                 m_driver.Commit(transition);
-                if (plannedDate != null)
+                if (!plannedDate.IsNull)
                 {
                     m_details.PlannedDate = plannedDate;
                     Publish(context);
@@ -441,13 +441,13 @@ namespace Opc.Ua.AMB.Server.Maintenance
         private void Publish(ISystemContext context)
         {
             MaintenanceActivityDetails details = m_details;
-            if (details.PlannedDate is DateTimeUtc plannedDate)
+            if (!details.PlannedDate.IsNull)
             {
                 Property<DateTimeUtc, VariantBuilder>(
                     context,
                     BrowseNames.PlannedDate,
                     Ua.DataTypeIds.UtcTime,
-                    ValueRanks.Scalar).Value = plannedDate;
+                    ValueRanks.Scalar).Value = details.PlannedDate;
             }
             if (details.EstimatedDowntime is TimeSpan downtime)
             {

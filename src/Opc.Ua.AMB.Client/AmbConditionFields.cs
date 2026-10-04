@@ -363,7 +363,7 @@ namespace Opc.Ua.AMB.Client
                 Retain = BooleanOf(values, Retain),
                 Comment = AmbClient.TextOf(values[Comment]),
                 State = StateOf(NodeIdOf(values, MaintenanceState), context.NamespaceUris),
-                PlannedDate = values[PlannedDate].TryGetValue(out DateTimeUtc planned) ? planned : null,
+                PlannedDate = values[PlannedDate].TryGetValue(out DateTimeUtc planned) ? planned : default,
                 EstimatedDowntime = values[EstimatedDowntime].TryGetValue(out double downtime)
                     ? TimeSpan.FromMilliseconds(downtime)
                     : null,

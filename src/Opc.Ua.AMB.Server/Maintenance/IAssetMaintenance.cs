@@ -130,7 +130,10 @@ namespace Opc.Ua.AMB.Server.Maintenance
         /// Plans the next occurrence of a recurring activity
         /// (<c>FromFinishedToPlanned</c>, §12.3).
         /// </summary>
-        /// <param name="plannedDate">The date of the next occurrence, when known.</param>
+        /// <param name="plannedDate">
+        /// The date of the next occurrence; <see cref="DateTimeUtc.IsNull"/>
+        /// (the default) keeps the planned date published so far.
+        /// </param>
         /// <param name="message">The message of the event; the description when empty.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <exception cref="ServiceResultException">
@@ -138,7 +141,7 @@ namespace Opc.Ua.AMB.Server.Maintenance
         /// finished, or a transition guard refused the transition.
         /// </exception>
         ValueTask ReplanAsync(
-            DateTimeUtc? plannedDate = null,
+            DateTimeUtc plannedDate = default,
             LocalizedText message = default,
             CancellationToken cancellationToken = default);
 

@@ -50,9 +50,10 @@ namespace Opc.Ua.AMB.Server.Maintenance
         public LocalizedText Description { get; set; }
 
         /// <summary>
-        /// Gets or sets the date the activity is scheduled for.
+        /// Gets or sets the date the activity is scheduled for; not published
+        /// while <see cref="DateTimeUtc.IsNull"/>.
         /// </summary>
-        public DateTimeUtc? PlannedDate { get; set; }
+        public DateTimeUtc PlannedDate { get; set; }
 
         /// <summary>
         /// Gets or sets how long executing the activity will take.

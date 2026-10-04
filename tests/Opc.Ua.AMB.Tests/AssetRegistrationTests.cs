@@ -30,11 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.AMB.Server;
 using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.AMB.Server.Configuration;
 using Opc.Ua.AMB.Server.Hosting;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
@@ -262,6 +264,111 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        [Test]
+        public async Task ARegistrationCancelledAfterItsCommitIsUndoneAsync()
+        {
+            // The store cancels the registration while the AssetId is bound,
+            // so the cancellation surfaces once the asset is committed and its
+            // aliases are published.
+            const string pressUri = "urn:acme:press:1";
+            using var cancellation = new CancellationTokenSource();
+            Exception? failed = null;
+            bool registeredAfterTheFailure = true;
+            IAssetHandle? retried = null;
+            StatusCode retryRefused = StatusCodes.Good;
+            NodeId press = NodeId.Null;
+            await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                nameof(ARegistrationCancelledAfterItsCommitIsUndoneAsync),
+                builder =>
+                {
+                    builder.Services.AddSingleton<IAssetConfigurationStore>(new CancellingStore(cancellation));
+                    builder
+                        .AddOpcUaDi()
+                        .AddAssetManagement()
+                        .ConfigureAssetManagement(async context =>
+                        {
+                            INodeBuilder<BaseObjectState> machine = CreateMachine(context, pressUri);
+                            press = machine.Node.NodeId;
+                            try
+                            {
+                                await context.Assets.RegisterAssetAsync(
+                                    machine,
+                                    asset => asset.WithConfigurableAssetId("P-1"),
+                                    cancellation.Token).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException ex)
+                            {
+                                failed = ex;
+                            }
+                            registeredAfterTheFailure = context.Assets.TryGetAsset(press, out _);
+                            try
+                            {
+                                retried = await context.Assets.RegisterAssetAsync(
+                                    machine,
+                                    asset => asset.WithConfigurableAssetId("P-1"),
+                                    context.CancellationToken).ConfigureAwait(false);
+                            }
+                            catch (ServiceResultException ex)
+                            {
+                                retryRefused = ex.StatusCode;
+                            }
+                        });
+                }).ConfigureAwait(false);
+
+            ArrayOf<AliasNameDataType> byUri = await server
+                .FindAliasAsync(ObjectIds.AssetsByProductInstanceUri, pressUri).ConfigureAwait(false);
+            ArrayOf<AliasNameDataType> byId = await server
+                .FindAliasAsync(ObjectIds.AssetsByAssetId, "P-1").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed, Is.Not.Null, "the registration was cancelled");
+                Assert.That(registeredAfterTheFailure, Is.False, "the failed registration is undone");
+                Assert.That(retryRefused, Is.EqualTo(StatusCodes.Good), "the retry is accepted");
+                Assert.That(retried?.IsRegistered, Is.True);
+                Assert.That(server.AssetManagement.Assets.Count, Is.EqualTo(1));
+                Assert.That(byUri.Count, Is.EqualTo(1));
+                Assert.That(byUri.Count == 1 ? byUri[0].ReferencedNodes.Count : 0, Is.EqualTo(1), "listed once");
+                Assert.That(byId.Count, Is.EqualTo(1));
+                Assert.That(byId.Count == 1 ? byId[0].ReferencedNodes.Count : 0, Is.EqualTo(1), "listed once");
+            });
+        }
+
+        [Test]
+        public async Task ACancelledUnregistrationLeavesTheAssetRegisteredAsync()
+        {
+            IAssetHandle? handle = null;
+            await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                nameof(ACancelledUnregistrationLeavesTheAssetRegisteredAsync),
+                builder => builder
+                    .AddOpcUaDi()
+                    .AddAssetManagement()
+                    .ConfigureDevicesFor<DiNodeManager>(async context =>
+                    {
+                        IDeviceBuilder<DeviceState> device = await CreateDeviceAsync(context, "Sensor", SensorUri).ConfigureAwait(false);
+                        handle = await device.RegisterAsAssetAsync(context.GetRequiredService<IAssetManagement>()).ConfigureAwait(false);
+                    })).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            Assert.CatchAsync<OperationCanceledException>(
+                async () => await handle!.UnregisterAsync(cancellation.Token).ConfigureAwait(false));
+            bool registered = handle!.IsRegistered;
+            ArrayOf<AliasNameDataType> listed = await server
+                .FindAliasAsync(ObjectIds.AssetsByProductInstanceUri, SensorUri).ConfigureAwait(false);
+            await handle.UnregisterAsync().ConfigureAwait(false);
+            ArrayOf<AliasNameDataType> withdrawn = await server
+                .FindAliasAsync(ObjectIds.AssetsByProductInstanceUri, SensorUri).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(registered, Is.True, "cancelled before anything was removed");
+                Assert.That(listed.Count, Is.EqualTo(1));
+                Assert.That(withdrawn.Count, Is.Zero, "a removal that began withdraws the aliases");
+                Assert.That(server.AssetManagement.Assets.Count, Is.Zero);
+            });
+        }
+
         internal static async Task<IDeviceBuilder<DeviceState>> CreateDeviceAsync(
             IDiPostSetupContext context,
             string name,
@@ -310,6 +417,40 @@ namespace Opc.Ua.AMB.Tests
             uri.WrappedValue = Variant.From(productInstanceUri);
             context.Manager.AddNode(identification);
             return machine;
+        }
+
+        /// <summary>
+        /// A store in memory that cancels a registration when it is read.
+        /// </summary>
+        private sealed class CancellingStore : IAssetConfigurationStore
+        {
+            public CancellingStore(CancellationTokenSource cancellation)
+            {
+                m_cancellation = cancellation;
+            }
+
+            public bool IsPersistent => false;
+
+            public ValueTask<string?> GetValueAsync(
+                string productInstanceUri,
+                string name,
+                CancellationToken cancellationToken = default)
+            {
+                m_cancellation.Cancel();
+                return m_inner.GetValueAsync(productInstanceUri, name, CancellationToken.None);
+            }
+
+            public ValueTask SetValueAsync(
+                string productInstanceUri,
+                string name,
+                string? value,
+                CancellationToken cancellationToken = default)
+            {
+                return m_inner.SetValueAsync(productInstanceUri, name, value, CancellationToken.None);
+            }
+
+            private readonly CancellationTokenSource m_cancellation;
+            private readonly MemoryAssetConfigurationStore m_inner = new();
         }
     }
 }

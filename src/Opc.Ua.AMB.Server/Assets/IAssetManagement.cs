@@ -64,6 +64,11 @@ namespace Opc.Ua.AMB.Server.Assets
         /// <summary>
         /// Makes an object of the address space a manageable asset.
         /// </summary>
+        /// <remarks>
+        /// A registration that fails or is cancelled leaves the object
+        /// unregistered and out of the alias categories, so it can be
+        /// registered again.
+        /// </remarks>
         /// <param name="asset">
         /// The builder of the asset, as its owning node manager hands it out,
         /// for example <c>IDeviceBuilder&lt;T&gt;.Node</c> or

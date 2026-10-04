@@ -148,6 +148,8 @@ namespace Opc.Ua.AMB.Tests
                     .AddAssetManagement(options => options.TypeNamespaceUri = Namespaces.AMB));
                 Assert.Throws<ArgumentException>(() => CreateServerBuilder()
                     .AddAssetManagement(options => options.TypeNamespaceUri = options.InstanceNamespaceUri));
+                Assert.Throws<ArgumentException>(() => CreateServerBuilder()
+                    .AddAssetManagement(options => options.AdditionalNamespaceUris = [string.Empty]));
                 Assert.Throws<ArgumentException>(() => new AmbServerOptions().UseFileSystemStores(" "));
             });
         }
@@ -173,9 +175,11 @@ namespace Opc.Ua.AMB.Tests
         [Test]
         public void FactoryPublishesTheInstanceModelAndTypeNamespaces()
         {
-            var options = new AmbServerOptions { InstanceNamespaceUri = "urn:test:amb" };
-            options.AdditionalNamespaceUris.Add("urn:test:extra");
-            options.AdditionalNamespaceUris.Add(Namespaces.AMB);
+            var options = new AmbServerOptions
+            {
+                InstanceNamespaceUri = "urn:test:amb",
+                AdditionalNamespaceUris = ["urn:test:extra", Namespaces.AMB]
+            };
             var factory = new AmbNodeManagerFactory(new AssetManagement(options));
 
             Assert.That(

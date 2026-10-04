@@ -234,6 +234,11 @@ namespace Opc.Ua.AMB.Server.Assets
                 }
                 handle.MarkRegistered();
             }
+            catch
+            {
+                Release(handle);
+                throw;
+            }
             finally
             {
                 lock (m_lock)
@@ -242,28 +247,39 @@ namespace Opc.Ua.AMB.Server.Assets
                 }
             }
 
-            if (handle.ConfigurableAssetIdBinding != null)
+            try
             {
-                handle.ConfigurableAssetIdBinding.OnChangedAsync = (assetId, ct) =>
-                    Manager?.OnAssetIdChangedAsync(handle, assetId, ct) ?? default;
-            }
-            else if (AssetIdentification.FindProperty(
-                    handle.Context,
-                    node,
-                    handle.DiNamespaceIndex,
-                    AssetIdentification.AssetId) is BaseVariableState own &&
-                (own.AccessLevel & AccessLevels.CurrentWrite) == 0)
-            {
-                // §7 asks for an AssetId end users can write; this one keeps
-                // the asset out of "AMB Configurable Asset Identification".
-                Logger.AssetIdNotWritable(handle.BrowseName);
-            }
+                if (handle.ConfigurableAssetIdBinding != null)
+                {
+                    handle.ConfigurableAssetIdBinding.OnChangedAsync = (assetId, ct) =>
+                        Manager?.OnAssetIdChangedAsync(handle, assetId, ct) ?? default;
+                }
+                else if (AssetIdentification.FindProperty(
+                        handle.Context,
+                        node,
+                        handle.DiNamespaceIndex,
+                        AssetIdentification.AssetId) is BaseVariableState own &&
+                    (own.AccessLevel & AccessLevels.CurrentWrite) == 0)
+                {
+                    // §7 asks for an AssetId end users can write; this one keeps
+                    // the asset out of "AMB Configurable Asset Identification".
+                    Logger.AssetIdNotWritable(handle.BrowseName);
+                }
 
-            // The aliases follow the values the application or a client
-            // writes to the identification later (§8.2.3).
-            handle.WatchIdentification(changed => Manager?.OnIdentificationChanged(changed));
-            Logger.AssetRegistered(handle.BrowseName, handle.NodeId, handle.ProductInstanceUri);
-            await manager.OnAssetRegisteredAsync(handle, cancellationToken).ConfigureAwait(false);
+                // The aliases follow the values the application or a client
+                // writes to the identification later (§8.2.3).
+                handle.WatchIdentification(changed => Manager?.OnIdentificationChanged(changed));
+                Logger.AssetRegistered(handle.BrowseName, handle.NodeId, handle.ProductInstanceUri);
+                await manager.OnAssetRegisteredAsync(handle, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // The caller gets no handle to use or unregister the asset
+                // with, so the registration is undone - aliases included - and
+                // a retry starts afresh instead of failing with BadNodeIdExists.
+                await RollBackAsync(handle).ConfigureAwait(false);
+                throw;
+            }
             return handle;
         }
 
@@ -361,8 +377,14 @@ namespace Opc.Ua.AMB.Server.Assets
         /// <summary>
         /// Removes an asset from the registry.
         /// </summary>
+        /// <remarks>
+        /// Cancellation is honored before the asset is touched; once removed
+        /// from the registry, its aliases and locations are withdrawn to the
+        /// end, since a second call finds nothing left to unregister.
+        /// </remarks>
         internal async ValueTask UnregisterAsync(AssetHandle handle, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!handle.MarkUnregistered())
             {
                 return;
@@ -376,15 +398,39 @@ namespace Opc.Ua.AMB.Server.Assets
                 manager = m_manager;
             }
             handle.UnwatchIdentification();
-            handle.ConfigurableAssetIdBinding?.Release();
-            handle.ConfigurableAssetIdBinding?.Dispose();
-            handle.DocumentationLinks?.Dispose();
+            Release(handle);
             Logger.AssetUnregistered(handle.BrowseName, handle.NodeId);
 
             if (manager != null)
             {
-                await manager.OnAssetUnregisteredAsync(handle, cancellationToken).ConfigureAwait(false);
+                await manager.OnAssetUnregisteredAsync(handle, CancellationToken.None).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Undoes a registration that failed after it was committed.
+        /// </summary>
+        private async ValueTask RollBackAsync(AssetHandle handle)
+        {
+            try
+            {
+                await UnregisterAsync(handle, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Logger.RegistrationNotRolledBack(ex, handle.BrowseName);
+            }
+        }
+
+        /// <summary>
+        /// Gives back what binding the asset took: the write handlers of a
+        /// configurable <c>AssetId</c> and the documentation links.
+        /// </summary>
+        private static void Release(AssetHandle handle)
+        {
+            handle.ConfigurableAssetIdBinding?.Release();
+            handle.ConfigurableAssetIdBinding?.Dispose();
+            handle.DocumentationLinks?.Dispose();
         }
 
         private ILogger Logger
@@ -430,5 +476,14 @@ namespace Opc.Ua.AMB.Server.Assets
             Message = "Asset {BrowseName} publishes an AssetId clients cannot write; OPC 10000-110 §7 asks for a " +
                 "writable one. Register the asset WithConfigurableAssetId() to make it writable and persistent.")]
         public static partial void AssetIdNotWritable(this ILogger logger, QualifiedName browseName);
+
+        [LoggerMessage(
+            EventId = AmbServerEventIds.AssetManagement + 3,
+            Level = LogLevel.Error,
+            Message = "The failed registration of asset {BrowseName} could not be undone.")]
+        public static partial void RegistrationNotRolledBack(
+            this ILogger logger,
+            Exception exception,
+            QualifiedName browseName);
     }
 }

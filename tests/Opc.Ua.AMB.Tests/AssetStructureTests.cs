@@ -499,6 +499,80 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        [TestCase(true, TestName = "DictionaryEntryDefinedBeforeTheAsset")]
+        [TestCase(false, TestName = "DictionaryEntryDefinedAfterTheAsset")]
+        public async Task ADictionaryEntryListsWhatItClassifiesAsync(bool entryFirst)
+        {
+            // The device lives in the Device Integration manager, the entry in
+            // the AMB manager; which setup runs first follows the order the
+            // managers are added in.
+            const string irdi = "0173-1#01-AKE798#019";
+            var classification = new ExpandedNodeId(irdi, AmbServerOptions.IrdiNamespaceUri);
+            NodeId entry = NodeId.Null;
+            bool entryExistedAtRegistration = false;
+            DeviceState? device = null;
+            await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                nameof(ADictionaryEntryListsWhatItClassifiesAsync) + entryFirst,
+                builder =>
+                {
+                    if (entryFirst)
+                    {
+                        builder.AddAssetManagement().AddOpcUaDi();
+                    }
+                    else
+                    {
+                        builder.AddOpcUaDi().AddAssetManagement();
+                    }
+                    builder
+                        .ConfigureAssetManagement(async context =>
+                        {
+                            entry = await context.Assets.DefineDictionaryEntryAsync(irdi).ConfigureAwait(false);
+                        })
+                        .ConfigureDevicesFor<DiNodeManager>(async context =>
+                        {
+                            entryExistedAtRegistration = !entry.IsNull;
+                            IDeviceBuilder<DeviceState> pump = await AssetRegistrationTests.CreateDeviceAsync(
+                                context,
+                                "Pump",
+                                "urn:acme:pump:1").ConfigureAwait(false);
+                            device = pump.Device;
+                            await pump.RegisterAsAssetAsync(
+                                context.GetRequiredService<IAssetManagement>(),
+                                asset => asset
+                                    .ClassifiedAs(classification)
+                                    .WithRequirements(requirements => requirements
+                                        .Add("SupplyVoltage", Variant.From(24.0), classification)))
+                                .ConfigureAwait(false);
+                        });
+                }).ConfigureAwait(false);
+            var requirements = (FolderState)device!.FindChildWithQualifiedName(
+                server.Manager.SystemContext,
+                Amb(server, "Requirements"))!;
+            NodeId supplyVoltage = Child(
+                server,
+                requirements,
+                new QualifiedName("SupplyVoltage", device.NodeId.NamespaceIndex));
+
+            IReadOnlyList<ReferenceDescription> classified = await server
+                .BrowseAsync(entry, Ua.ReferenceTypeIds.HasDictionaryEntry, BrowseDirection.Inverse)
+                .ConfigureAwait(false);
+            IReadOnlyList<ReferenceDescription> referencedByVoltage = await server
+                .BrowseAsync(supplyVoltage, Ua.ReferenceTypeIds.HasDictionaryEntry)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(entryExistedAtRegistration, Is.EqualTo(entryFirst));
+                Assert.That(
+                    classified.Select(reference => server.ToNodeId(reference.NodeId)),
+                    Is.EquivalentTo(new[] { device.NodeId, supplyVoltage }),
+                    "DictionaryEntryOf lists the asset and the requirement");
+                Assert.That(
+                    referencedByVoltage.Select(reference => server.ToNodeId(reference.NodeId)),
+                    Is.EqualTo(new[] { entry }));
+            });
+        }
+
         [Test]
         public async Task SubAssetsRelationsAndOperationCountersAsync()
         {

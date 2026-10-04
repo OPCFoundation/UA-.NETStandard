@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using Opc.Ua.AMB.Server.Assets;
 
 namespace Opc.Ua.AMB.Server.Structure
@@ -45,22 +46,25 @@ namespace Opc.Ua.AMB.Server.Structure
         /// <param name="name">The DI browse name.</param>
         /// <param name="dataType">The data type of a created property.</param>
         /// <param name="value">
-        /// The value to write; <see langword="null"/> keeps the value of an
+        /// The value to write; <see cref="Variant.Null"/> keeps the value of an
         /// existing property and gives a created one <paramref name="initial"/>.
+        /// No caller clears a DI property, so the null value is free to mean
+        /// "no update".
         /// </param>
         /// <param name="initial">The value of a created property without <paramref name="value"/>.</param>
         /// <param name="interfaceId">
         /// The DI interface that declares the property, referenced from the
-        /// asset when its type has no slot for it.
+        /// asset when its type has no slot for it; <see cref="ExpandedNodeId.Null"/>
+        /// for none.
         /// </param>
         /// <returns>The property.</returns>
         public static BaseVariableState EnsureDi(
             AssetHandle handle,
             string name,
             NodeId dataType,
-            Variant? value,
+            Variant value,
             Variant initial,
-            ExpandedNodeId? interfaceId)
+            ExpandedNodeId interfaceId)
         {
             BaseVariableState? existing = AssetIdentification.FindProperty(
                 handle.Context,
@@ -69,9 +73,9 @@ namespace Opc.Ua.AMB.Server.Structure
                 name);
             if (existing != null)
             {
-                if (value is Variant written)
+                if (!value.IsNull)
                 {
-                    existing.WrappedValue = written;
+                    existing.WrappedValue = value;
                     existing.Timestamp = DateTimeUtc.Now;
                     existing.ClearChangeMasks(handle.Context, false);
                 }
@@ -88,12 +92,12 @@ namespace Opc.Ua.AMB.Server.Structure
             else
             {
                 variable = Create(handle, browseName, dataType);
-                if (interfaceId is ExpandedNodeId id)
+                if (!interfaceId.IsNull)
                 {
-                    AssetNodes.AddInterface(handle, id);
+                    AssetNodes.AddInterface(handle, interfaceId);
                 }
             }
-            variable.WrappedValue = value ?? initial;
+            variable.WrappedValue = value.IsNull ? initial : value;
             variable.Timestamp = DateTimeUtc.Now;
             AssetNodes.Register(handle, variable);
             return variable;
@@ -131,11 +135,20 @@ namespace Opc.Ua.AMB.Server.Structure
         /// Adds a <c>Requirements</c> or <c>Capabilities</c> folder with its
         /// entries (OPC 10000-110 §10.6, §10.7).
         /// </summary>
+        /// <param name="handle">The asset.</param>
+        /// <param name="ambNamespaceIndex">The index of the AMB namespace.</param>
+        /// <param name="name">The browse name of the folder.</param>
+        /// <param name="entries">The entries.</param>
+        /// <param name="dictionaryReferences">
+        /// Receives the variables that reference a dictionary entry of this
+        /// server, which gets the inverse reference.
+        /// </param>
         public static FolderState AddFolder(
             AssetHandle handle,
             ushort ambNamespaceIndex,
             string name,
-            AssetEntriesRequest entries)
+            AssetEntriesRequest entries,
+            List<(NodeId Source, NodeId Entry)> dictionaryReferences)
         {
             var browseName = new QualifiedName(name, ambNamespaceIndex);
             if (handle.Asset.FindChildWithQualifiedName(handle.Context, browseName) is not FolderState folder)
@@ -168,12 +181,25 @@ namespace Opc.Ua.AMB.Server.Structure
                     UserAccessLevel = AccessLevels.CurrentRead,
                     WrappedValue = entry.Value
                 };
-                if (!entry.DictionaryEntry.IsNull)
+                // An entry of this server is referenced by its local NodeId,
+                // as the classification of the asset is.
+                NodeId local = entry.DictionaryEntry.IsNull
+                    ? NodeId.Null
+                    : ExpandedNodeId.ToNodeId(entry.DictionaryEntry, handle.Context.NamespaceUris);
+                if (!local.IsNull)
+                {
+                    variable.AddReference(Ua.ReferenceTypeIds.HasDictionaryEntry, false, local);
+                }
+                else if (!entry.DictionaryEntry.IsNull)
                 {
                     variable.AddReference(Ua.ReferenceTypeIds.HasDictionaryEntry, false, entry.DictionaryEntry);
                 }
                 folder.AddChild(variable);
                 AssetNodes.Register(handle, variable);
+                if (!local.IsNull)
+                {
+                    dictionaryReferences.Add((variable.NodeId, local));
+                }
             }
             return folder;
         }

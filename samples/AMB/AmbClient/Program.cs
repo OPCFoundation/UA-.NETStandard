@@ -242,11 +242,11 @@ static string UriOf(DocumentationLinkRecord link)
     return string.IsNullOrEmpty(link.Uri) ? "(not set)" : link.Uri;
 }
 
-static string Format(DateTimeUtc? value)
+static string Format(DateTimeUtc value)
 {
-    return value is DateTimeUtc date
-        ? ((DateTime)date).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
-        : "-";
+    return value.IsNull
+        ? "-"
+        : ((DateTime)value).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 }
 
 static async Task TryAsync(string name, Func<Task> action)

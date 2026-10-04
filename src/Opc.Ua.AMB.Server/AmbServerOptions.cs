@@ -201,10 +201,10 @@ namespace Opc.Ua.AMB.Server
         public string? StateDirectory { get; set; }
 
         /// <summary>
-        /// Gets the namespace URIs the manager registers in addition to the
-        /// AMB model and the instance namespace.
+        /// Gets or sets the namespace URIs the manager registers in addition
+        /// to the AMB model and the instance namespace.
         /// </summary>
-        public IList<string> AdditionalNamespaceUris { get; } = [];
+        public ArrayOf<string> AdditionalNamespaceUris { get; set; }
 
         /// <summary>
         /// Persists the configuration clients write to assets below a
@@ -243,6 +243,15 @@ namespace Opc.Ua.AMB.Server
 
         internal void Validate()
         {
+            foreach (string uri in AdditionalNamespaceUris)
+            {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    throw new ArgumentException(
+                        "An additional namespace URI must not be null or empty.",
+                        nameof(AdditionalNamespaceUris));
+                }
+            }
             if (string.IsNullOrWhiteSpace(InstanceNamespaceUri) ||
                 !Uri.IsWellFormedUriString(InstanceNamespaceUri, UriKind.Absolute))
             {

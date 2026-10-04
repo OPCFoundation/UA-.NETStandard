@@ -264,6 +264,18 @@ namespace Opc.Ua.AMB.Server
                         ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent
                     };
                     entry.AddReference(Ua.ReferenceTypeIds.HasComponent, true, Ua.ObjectIds.Dictionaries);
+
+                    // Assets classified with the entry before it existed, and
+                    // their requirements and capabilities, are listed now.
+                    ArrayOf<AssetHandle> assets = m_assetManagement.Snapshot();
+                    for (int ii = 0; ii < assets.Count; ii++)
+                    {
+                        ArrayOf<NodeId> sources = assets[ii].Structure?.SourcesOf(nodeId) ?? default;
+                        for (int jj = 0; jj < sources.Count; jj++)
+                        {
+                            entry.AddReference(Ua.ReferenceTypeIds.HasDictionaryEntry, true, sources[jj]);
+                        }
+                    }
                     await AddPredefinedNodeAsync(SystemContext, entry, cancellationToken).ConfigureAwait(false);
                     await Server.NodeManager
                         .AddReferencesAsync(

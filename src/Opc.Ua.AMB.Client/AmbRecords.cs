@@ -186,8 +186,11 @@ namespace Opc.Ua.AMB.Client
         /// <summary>Gets the state, or null when the server published none.</summary>
         public MaintenanceStateKind? State { get; init; }
 
-        /// <summary>Gets the planned date.</summary>
-        public DateTimeUtc? PlannedDate { get; init; }
+        /// <summary>
+        /// Gets the planned date; <see cref="DateTimeUtc.IsNull"/> when the
+        /// server published none.
+        /// </summary>
+        public DateTimeUtc PlannedDate { get; init; }
 
         /// <summary>Gets the estimated downtime.</summary>
         public TimeSpan? EstimatedDowntime { get; init; }

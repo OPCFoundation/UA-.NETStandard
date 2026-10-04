@@ -132,6 +132,28 @@ namespace Opc.Ua.AMB.Server.Structure
         }
 
         /// <summary>
+        /// Gets the nodes registering added that reference a dictionary entry
+        /// of this server: the asset and its requirement and capability
+        /// variables.
+        /// </summary>
+        /// <param name="entry">The dictionary entry.</param>
+        public ArrayOf<NodeId> SourcesOf(NodeId entry)
+        {
+            lock (m_lock)
+            {
+                var sources = new List<NodeId>();
+                foreach ((NodeId source, NodeId target) in m_dictionaryReferences)
+                {
+                    if (target == entry)
+                    {
+                        sources.Add(source);
+                    }
+                }
+                return sources.ToArray().ToArrayOf();
+            }
+        }
+
+        /// <summary>
         /// Records a location that contains the asset.
         /// </summary>
         internal void AddLocation(AssetLocationKind kind, NodeId location)
@@ -213,6 +235,7 @@ namespace Opc.Ua.AMB.Server.Structure
                 }
             }
 
+            var dictionaryReferences = new List<(NodeId Source, NodeId Entry)>();
             foreach (ExpandedNodeId dictionaryEntry in request.Classifications)
             {
                 // Part 19: the target is a DictionaryEntryType object. An entry
@@ -226,6 +249,7 @@ namespace Opc.Ua.AMB.Server.Structure
                     continue;
                 }
                 asset.AddReference(Ua.ReferenceTypeIds.HasDictionaryEntry, false, local);
+                dictionaryReferences.Add((asset.NodeId, local));
                 NodeState? target = await manager.Server.NodeManager
                     .FindNodeInAddressSpaceAsync(local, cancellationToken)
                     .ConfigureAwait(false);
@@ -247,7 +271,8 @@ namespace Opc.Ua.AMB.Server.Structure
                     handle,
                     manager.AmbNamespaceIndex,
                     AmbBrowseNames.Requirements,
-                    request.Requirements);
+                    request.Requirements,
+                    dictionaryReferences);
             }
             if (request.Capabilities != null)
             {
@@ -255,7 +280,33 @@ namespace Opc.Ua.AMB.Server.Structure
                     handle,
                     manager.AmbNamespaceIndex,
                     AmbBrowseNames.Capabilities,
-                    request.Capabilities);
+                    request.Capabilities,
+                    dictionaryReferences);
+            }
+
+            // References are exposed in both directions: a dictionary entry of
+            // this server lists what it classifies through DictionaryEntryOf.
+            // An entry that does not exist yet gets the inverse references when
+            // the AMB manager defines it.
+            foreach ((NodeId source, NodeId entry) in dictionaryReferences)
+            {
+                await manager.Server.NodeManager
+                    .AddReferencesAsync(
+                        entry,
+                        [
+                            new ReferenceNode
+                            {
+                                ReferenceTypeId = Ua.ReferenceTypeIds.HasDictionaryEntry,
+                                IsInverse = true,
+                                TargetId = source
+                            }
+                        ],
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            lock (structure.m_lock)
+            {
+                structure.m_dictionaryReferences.AddRange(dictionaryReferences);
             }
 
             foreach ((NodeId referenceTypeId, NodeId target) in request.Relations)
@@ -355,7 +406,7 @@ namespace Opc.Ua.AMB.Server.Structure
             // information keeps a counter it has - unless that is the
             // "not supported" default -1 of OPC 10000-100 - and otherwise
             // starts at 0.
-            Variant? counterValue = null;
+            Variant counterValue = Variant.Null;
             if (version.RevisionCounter is int counter)
             {
                 counterValue = Variant.From(counter);
@@ -375,7 +426,7 @@ namespace Opc.Ua.AMB.Server.Structure
                 Ua.DataTypeIds.Int32,
                 counterValue,
                 Variant.From(0),
-                interfaceId: null);
+                interfaceId: ExpandedNodeId.Null);
         }
 
         private static void RequireProductInstanceUri(AssetHandle handle, string productInstanceUri, string property)
@@ -394,5 +445,6 @@ namespace Opc.Ua.AMB.Server.Structure
         private readonly Lock m_lock = new();
         private readonly List<(AssetLocationKind Kind, NodeId Location)> m_locations = [];
         private readonly List<NodeId> m_classifications = [];
+        private readonly List<(NodeId Source, NodeId Entry)> m_dictionaryReferences = [];
     }
 }

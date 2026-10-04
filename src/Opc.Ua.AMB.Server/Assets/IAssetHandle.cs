@@ -112,7 +112,10 @@ namespace Opc.Ua.AMB.Server.Assets
         /// Removes the asset from the registry. The asset object stays in its
         /// node manager; what registering added to it is not removed.
         /// </summary>
-        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="cancellationToken">
+        /// The cancellation token; honored before the asset is removed, since
+        /// a removal that began withdraws its aliases and locations to the end.
+        /// </param>
         ValueTask UnregisterAsync(CancellationToken cancellationToken = default);
     }
 

@@ -247,6 +247,20 @@ namespace Opc.Ua.AMB.Tests
         }
 
         [Test]
+        public void AMaintenanceActivityWithoutAPlannedDateHasTheNullDate()
+        {
+            ServiceMessageContext context = CreateContext();
+            ushort amb = (ushort)context.NamespaceUris.GetIndex(Namespaces.AMB);
+            Variant[] values = Empty();
+            values[AmbConditionFields.MaintenanceState] = Variant.From(
+                new NodeId(MaintenanceEventStateMachineTypeIds.StateIds.Planned, amb));
+
+            MaintenanceActivityRecord activity = AmbConditionFields.ToMaintenance(values, context);
+
+            Assert.That(activity.PlannedDate.IsNull, Is.True);
+        }
+
+        [Test]
         public void StateIdsMapToTheStatesOfTheModel()
         {
             NamespaceTable namespaceUris = CreateNamespaces();
