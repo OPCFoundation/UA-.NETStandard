@@ -2057,11 +2057,20 @@ namespace Opc.Ua.Server
             ref ArrayOf<RolePermissionType> value)
         {
             bool adminUser;
+            PermissionType nonAdminPermissions = PermissionType.None;
 
-            if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
-                (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray))
+            if (node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary)
             {
                 adminUser = HasApplicationSecureAdminAccess(context);
+            }
+            else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
+            {
+                // Part 5 6.3.5: a Session may see its own diagnostics. Every Session may browse
+                // the server wide array: each subscription node carries the permissions of its
+                // owning Session, so Browse returns only the subscriptions the caller may see.
+                // The array value holds all subscriptions and stays readable for administrators.
+                adminUser = HasApplicationSecureAdminAccess(context);
+                nonAdminPermissions = PermissionType.Browse;
             }
             else
             {
@@ -2095,7 +2104,7 @@ namespace Opc.Ua.Server
                     select new RolePermissionType
                     {
                         RoleId = roleId,
-                        Permissions = (uint)PermissionType.None
+                        Permissions = (uint)nonAdminPermissions
                     };
 
                 value = [.. rolePermissionTypes];
