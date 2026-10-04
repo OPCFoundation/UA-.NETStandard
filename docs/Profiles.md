@@ -560,6 +560,23 @@ reference-server and CTT configs in line with the facets the stack
 actually implements is tracked in
 [#3875](https://github.com/OPCFoundation/UA-.NETStandard/issues/3875).
 
+### Contributed profiles and conformance units
+
+Node managers that implement `IConformanceContributor`, such as the
+companion node managers, contribute the facets and conformance units they
+actually wire. At startup the server registers them with the
+`ConformanceUnitsManager` and publishes the aggregate to
+`Server/ServerCapabilities/ConformanceUnits` and `ServerProfileArray`.
+
+The manager keeps the registered contributors and reads them again on every
+`PublishAsync`, because the ServerCapabilities describe the current
+configuration of the server (OPC 10000-5 §6.3.2). A contributor whose
+support changes at runtime calls `PublishAsync` afterwards (the manager is
+`ServerInternalData.ConformanceUnitsManager`); a unit or profile
+that no contributor reports any more is withdrawn. `Unregister` removes a
+contributor. The profiles from the `ServerProfileArray` configuration are
+always kept.
+
 ### Security policy configuration
 
 Security policies are configured in the `SecurityPolicies` section:

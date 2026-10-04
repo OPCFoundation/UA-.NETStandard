@@ -308,12 +308,13 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // count the values.
+            // count the values. Part 13 §4.2.1.2: with TreatUncertainAsBad = false an
+            // Uncertain value is equivalent to Good, so it is counted (IsGood applies the setting).
             int count = 0;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (StatusCode.IsGood(values[ii].StatusCode))
+                if (IsGood(values[ii]))
                 {
                     count++;
                 }
@@ -482,8 +483,13 @@ namespace Opc.Ua.Server
                 StatusCodes.Good,
                 GetTimestamp(slice),
                 GetTimestamp(slice));
-            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
             value = value.WithStatus(GetValueBasedStatusCode(slice, values, value.StatusCode));
+
+            // like Count, a Bad result carries no value and no aggregate bits.
+            if (!StatusCode.IsBad(value.StatusCode))
+            {
+                value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
+            }
 
             // return result.
             return value;
