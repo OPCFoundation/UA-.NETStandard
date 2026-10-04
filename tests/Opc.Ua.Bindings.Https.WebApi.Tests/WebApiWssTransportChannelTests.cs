@@ -235,19 +235,25 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public async Task ReconnectAsyncThrowsBadNotSupportedAsync()
+        public async Task ReconnectAsyncReopensWebSocketAsync()
         {
             using WebApiWssTransportChannel channel = await OpenChannelAsync()
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await channel
-                    .ReconnectAsync(connection: null, CancellationToken.None)
-                    .ConfigureAwait(false))!;
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
-                "Reconnect over WSS requires re-running CreateSession/Activate; " +
-                "the channel surfaces BadNotSupported so ManagedSession's " +
-                "reconnect policy can rebuild the session.");
+            await channel
+                .ReconnectAsync(connection: null, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 25 },
+                NodesToRead = new ArrayOf<ReadValueId>()
+            };
+            IServiceResponse response = await channel
+                .SendRequestAsync(request, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<ReadResponse>());
         }
 
         [Test]
@@ -384,6 +390,24 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(async () =>
                 await channel.SendRequestAsync(request, cancellation.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
+
+            var retry = new GetEndpointsRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 25 },
+                EndpointUrl = m_baseUri.AbsoluteUri
+            };
+            ServiceResultException closed = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await channel.SendRequestAsync(retry, CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(
+                closed.StatusCode,
+                Is.EqualTo(StatusCodes.BadConnectionClosed).Or.EqualTo(StatusCodes.BadNotConnected));
+
+            m_stallResponse = false;
+            await channel.ReconnectAsync(connection: null, CancellationToken.None).ConfigureAwait(false);
+            IServiceResponse response = await channel
+                .SendRequestAsync(retry, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(response, Is.InstanceOf<GetEndpointsResponse>());
         }
 
         private async Task<WebApiWssTransportChannel> OpenChannelAsync(

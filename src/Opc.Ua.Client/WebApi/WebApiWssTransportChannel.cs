@@ -409,18 +409,24 @@ namespace Opc.Ua.Client.WebApi
         }
 
         /// <inheritdoc/>
-        public ValueTask ReconnectAsync(
+        public async ValueTask ReconnectAsync(
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
-            // WSS is connection-oriented; reconnect would require
-            // re-opening the channel + re-running CreateSession/Activate.
-            // Defer to the managed session reconnect path; the channel
-            // itself does not attempt silent reconnect.
-            throw ServiceResultException.Create(
-                StatusCodes.BadNotSupported,
-                "{0} does not support implicit reconnect; use the ManagedSession reconnect policy.",
-                nameof(WebApiWssTransportChannel));
+            ThrowIfDisposed();
+            TransportChannelSettings settings = m_settings ?? throw BadNotConnected();
+            Uri url = connection is null
+                ? m_url ?? throw BadNotConnected()
+                : NormalizeUrl(connection.EndpointUrl);
+
+            ClientWebSocket? stale = Interlocked.Exchange(ref m_ws, null);
+            if (stale != null)
+            {
+                stale.Abort();
+                stale.Dispose();
+            }
+
+            await OpenAsync(url, settings, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -460,6 +466,11 @@ namespace Opc.Ua.Client.WebApi
             {
                 await m_sendLock.WaitAsync(operation.Token).ConfigureAwait(false);
                 entered = true;
+                if (ws.State != WebSocketState.Open)
+                {
+                    InvalidateWebSocket(ws);
+                    throw ConnectionClosed(ws.State);
+                }
                 await ws.SendAsync(
                     new ArraySegment<byte>(requestBytes, 0, requestBytes.Length),
                     WebSocketMessageType.Text,
@@ -480,10 +491,28 @@ namespace Opc.Ua.Client.WebApi
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
+                InvalidateWebSocketIfUnusable(ws);
                 throw ServiceResultException.Create(
                     StatusCodes.BadRequestTimeout,
                     "WSS OpenAPI request timed out after {0} ms.",
                     OperationTimeout);
+            }
+            catch (OperationCanceledException)
+            {
+                InvalidateWebSocketIfUnusable(ws);
+                throw;
+            }
+            catch (WebSocketException)
+            {
+                WebSocketState state = ws.State;
+                InvalidateWebSocket(ws);
+                throw ConnectionClosed(state);
+            }
+            catch (InvalidOperationException) when (ws.State != WebSocketState.Open)
+            {
+                WebSocketState state = ws.State;
+                InvalidateWebSocket(ws);
+                throw ConnectionClosed(state);
             }
             finally
             {
@@ -699,6 +728,31 @@ namespace Opc.Ua.Client.WebApi
             return ServiceResultException.Create(
                 StatusCodes.BadNotConnected,
                 "The WSS Web API channel is not open.");
+        }
+
+        private void InvalidateWebSocketIfUnusable(ClientWebSocket ws)
+        {
+            if (ws.State != WebSocketState.Open)
+            {
+                InvalidateWebSocket(ws);
+            }
+        }
+
+        private void InvalidateWebSocket(ClientWebSocket ws)
+        {
+            if (ReferenceEquals(Interlocked.CompareExchange(ref m_ws, null, ws), ws))
+            {
+                ws.Abort();
+                ws.Dispose();
+            }
+        }
+
+        private static ServiceResultException ConnectionClosed(WebSocketState state)
+        {
+            return ServiceResultException.Create(
+                StatusCodes.BadConnectionClosed,
+                "The WSS OpenAPI connection is no longer usable (WebSocket state: {0}).",
+                state);
         }
     }
 
