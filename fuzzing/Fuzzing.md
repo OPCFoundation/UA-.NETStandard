@@ -164,7 +164,7 @@ Deeply nested inputs belong in `Opc.Ua.Encoders.Fuzz.Corpus/StackTestcases/` (co
 `FuzzStackTestcasesAsync` replays each one through every target with `--fuzz-replay-all` in a
 child process, because a stack overflow cannot be caught and would end the test host.
 A resource finding on a crash asset outside `Assets/Repo` logs only the asset name and size, never
-a `REPRODUCER` line: it may be an unfixed denial of service.
+a `REPRODUCER` line: it may be an unfixed resource-abuse regression.
 
 ## Areas in detail
 

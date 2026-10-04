@@ -52,7 +52,7 @@ fuzz-corpus
 - Timeout and slow inputs must finish within the watchdog.
 - Every input also runs under the [resource oracles](Fuzzing.md#resource-oracles). An allocation,
   time or limit finding always fails the test and, for an input outside `Assets/Repo`, prints no
-  `REPRODUCER` bytes, so a denial of service in a private input stays out of the public log.
+  `REPRODUCER` bytes, so a resource-abuse regression in a private input stays out of the public log.
 
 Other areas, such as `Opc.Ua.Network.Fuzz.Tests/Assets/…`, can be added as further top-level
 folders. The nightly matrix must then also run those projects (see below).

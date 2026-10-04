@@ -141,7 +141,7 @@ namespace Opc.Ua.Fuzzing
                     // the log. Only failures consume the budget, so tolerated findings cannot
                     // exhaust it ahead of a failure. A passing run emits nothing.
                     // A resource finding (allocation, time, limit) on an input from outside
-                    // the tree is a denial of service the fix may not have shipped for yet, so
+                    // the tree is a resource-abuse regression the fix may not have shipped for yet, so
                     // its bytes stay out of the public log: only its name and size are logged.
                     if (IsResourceFinding(ex) && !IsCuratedAsset(messageEncoder))
                     {

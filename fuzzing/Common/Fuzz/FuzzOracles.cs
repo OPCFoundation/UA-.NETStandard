@@ -60,7 +60,7 @@ namespace Opc.Ua.Fuzzing
     /// Raised by a fuzz oracle when an input stays within the exception contract but abuses a
     /// resource: memory, CPU time, or an encoding limit the decoder should have enforced.
     /// <para>
-    /// These are denial of service findings. Unlike an <see cref="EncodingFidelityException"/>
+    /// These are resource-abuse findings. Unlike an <see cref="EncodingFidelityException"/>
     /// they are never tolerated: a decoder must bound what an arbitrary input can cost.
     /// </para>
     /// </summary>
