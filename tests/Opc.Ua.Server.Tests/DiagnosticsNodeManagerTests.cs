@@ -942,6 +942,32 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(permissionsOther.IsNull, Is.False);
             Assert.That(permissionsOther[0].Permissions, Is.EqualTo((uint)PermissionType.None),
                 "Other non-admin session should NOT have permissions on this session");
+
+            // 5. Any session may browse the server wide subscription array, whose entries are
+            // filtered per owning session; only an administrator may read its value.
+            NodeState subscriptionArray = manager.FindPredefinedNode<NodeState>(
+                VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
+            ArrayOf<RolePermissionType> permissionsArray = default;
+            subscriptionArray.OnReadUserRolePermissions(otherContext, subscriptionArray, ref permissionsArray);
+            Assert.That(permissionsArray[0].Permissions, Is.EqualTo((uint)PermissionType.Browse),
+                "Non-admin sessions may browse, but not read, the subscription diagnostics array");
+
+            permissionsArray = default;
+            subscriptionArray.OnReadUserRolePermissions(adminContext, subscriptionArray, ref permissionsArray);
+            Assert.That(((PermissionType)permissionsArray[0].Permissions).HasFlag(PermissionType.Read), Is.True,
+                "Admin should read the subscription diagnostics array");
+
+            foreach (NodeId arrayId in new[]
+            {
+                VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray,
+                VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray
+            })
+            {
+                NodeState arrayNode = manager.FindPredefinedNode<NodeState>(arrayId);
+                permissionsArray = default;
+                arrayNode.OnReadUserRolePermissions(otherContext, arrayNode, ref permissionsArray);
+                Assert.That(permissionsArray[0].Permissions, Is.EqualTo((uint)PermissionType.None), arrayId.ToString());
+            }
         }
 
         [Test]
