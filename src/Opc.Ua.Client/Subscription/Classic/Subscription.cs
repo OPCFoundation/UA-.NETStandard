@@ -1906,13 +1906,14 @@ namespace Opc.Ua.Client
 
                     // A transient error (timeout, busy server, lost
                     // connection) leaves the subscription in place for a
-                    // retry.
-                    if (GetMonitoredItemsFallback.IsTransientFailure(status))
+                    // retry, and a rejected subscription id cannot be
+                    // adopted by any mapping.
+                    if (!GetMonitoredItemsFallback.IsMethodUnavailable(status))
                     {
                         return (false, default);
                     }
 
-                    // Any other error means the server does not provide
+                    // Otherwise the server does not provide a usable
                     // GetMonitoredItems, an optional method of ServerType
                     // (OPC 10000-5, 6.3.1 and 9.1), while the transfer itself
                     // already succeeded. A transfer keeps the item ids and
@@ -2007,9 +2008,16 @@ namespace Opc.Ua.Client
             uint id,
             CancellationToken ct)
         {
-            await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
+            // Creating the replacement while the old subscription lives on
+            // would deliver every notification twice.
+            if (!await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false))
+            {
+                return (false, default);
+            }
+
             try
             {
+                // Also restores the triggering relationships on the new items.
                 await CreateAsync(ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -2017,9 +2025,6 @@ namespace Opc.Ua.Client
                 m_logger.SubscriptionIdFailedRecreateAfterTransfer(ex, id, session.SessionId);
                 return (false, default);
             }
-
-            // Restore triggering relationships on the new items.
-            await RestoreTriggeringAsync(ct).ConfigureAwait(false);
 
             TraceState("RECREATED AFTER TRANSFER");
 
@@ -2052,15 +2057,29 @@ namespace Opc.Ua.Client
         /// Best effort delete of a server subscription that was transferred
         /// to <paramref name="session"/> but could not be adopted, so it does
         /// not stay alive as an orphan for the lifetime of the session.
+        /// Returns whether the server confirmed the delete.
         /// </summary>
-        private async Task DeleteTransferredSubscriptionAsync(
+        private async Task<bool> DeleteTransferredSubscriptionAsync(
             ISession session,
             uint id,
             CancellationToken ct)
         {
             try
             {
-                await session.DeleteSubscriptionsAsync(null, [id], ct).ConfigureAwait(false);
+                DeleteSubscriptionsResponse response = await session
+                    .DeleteSubscriptionsAsync(null, [id], ct)
+                    .ConfigureAwait(false);
+                StatusCode result = response?.Results.Count == 1
+                    ? response.Results[0]
+                    : StatusCodes.BadUnexpectedError;
+                if (StatusCode.IsGood(result))
+                {
+                    return true;
+                }
+                m_logger.SubscriptionIdFailedDeleteTransferredSubscription(
+                    new ServiceResultException(result),
+                    id,
+                    session.SessionId);
             }
             catch (Exception ex)
             {
@@ -2069,6 +2088,7 @@ namespace Opc.Ua.Client
                     id,
                     session.SessionId);
             }
+            return false;
         }
 
         /// <summary>
@@ -2498,14 +2518,16 @@ namespace Opc.Ua.Client
                     MethodIds.Server_GetMonitoredItems,
                     ct,
                     TransferId).ConfigureAwait(false);
-                if (outputArguments.Count == 2)
+                if (outputArguments.Count == 2 &&
+                    outputArguments[0].TryGetValue(out ArrayOf<uint> serverHandles) &&
+                    outputArguments[1].TryGetValue(out ArrayOf<uint> clientHandles) &&
+                    serverHandles.Count == clientHandles.Count)
                 {
-                    var serverHandles = (ArrayOf<uint>)outputArguments[0];
-                    var clientHandles = (ArrayOf<uint>)outputArguments[1];
                     return (StatusCodes.Good, serverHandles, clientHandles);
                 }
 
-                // The server answered, but not with the two handle arrays.
+                // The server answered, but not with two handle arrays of the
+                // same length.
                 return (StatusCodes.BadTypeMismatch, default, default);
             }
             catch (ServiceResultException sre)

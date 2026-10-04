@@ -2537,6 +2537,35 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// BadSubscriptionIdInvalid comes from a server that implements
+        /// GetMonitoredItems but no longer has the subscription, so the known
+        /// server ids must not be trusted.
+        /// </summary>
+        [Test]
+        public async Task TryCompleteTransferAsyncShouldFailIfGetMonitoredItemsRejectsTheSubscriptionAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (sut.ConfigureAwait(false))
+            {
+                OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
+                bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
+                Assert.That(success, Is.True);
+                Assert.That(monitoredItem.Created, Is.True);
+
+                SetupGetMonitoredItemsResult(StatusCodes.BadSubscriptionIdInvalid);
+
+                // Act
+                success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(success, Is.False);
+                Assert.That(monitoredItem.Created, Is.False);
+            }
+        }
+
         private static IEnumerable<StatusCode> UnavailableGetMonitoredItemsResults()
         {
             yield return StatusCodes.Bad;

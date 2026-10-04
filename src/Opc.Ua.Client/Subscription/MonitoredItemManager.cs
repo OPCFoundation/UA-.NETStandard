@@ -808,14 +808,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal async ValueTask<bool> TrySynchronizeHandlesAsync(
             CancellationToken ct)
         {
-            (bool success, IReadOnlyList<(uint serverHandle, uint clientHandle)>? serverHandleStateMap,
-                StatusCode status) = await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
+            MonitoredItemsHandles result = await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
+            bool success = result.Success;
+            IReadOnlyList<(uint serverHandle, uint clientHandle)> serverHandleStateMap = result.Handles;
 
             ArrayOf<uint> itemsToDelete;
             lock (m_monitoredItemsLock)
             {
                 if (!success &&
-                    !GetMonitoredItemsFallback.IsTransientFailure(status) &&
+                    GetMonitoredItemsFallback.IsMethodUnavailable(result.Status) &&
                     TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> cachedHandles))
                 {
                     //
@@ -829,7 +830,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     //
                     m_logger.SubscriptionUsingCachedHandlesAfterTransfer(
                         m_context.Id,
-                        status,
+                        result.Status,
                         cachedHandles.Count);
                     serverHandleStateMap = cachedHandles;
                     success = true;

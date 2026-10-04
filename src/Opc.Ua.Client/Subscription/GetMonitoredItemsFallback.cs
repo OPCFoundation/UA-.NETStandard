@@ -39,17 +39,41 @@ namespace Opc.Ua.Client
     internal static class GetMonitoredItemsFallback
     {
         /// <summary>
+        /// Whether the failed call means the server does not provide a
+        /// usable GetMonitoredItems method, so the client may map the items
+        /// another way. Stacks without the method answer BadMethodInvalid,
+        /// BadNotSupported, BadNotImplemented, BadNothingToDo (asyncua) or
+        /// BadInternalError (open62541 without XML encoding), and the set is
+        /// open ended, so every error counts except the ones that prove
+        /// something else: a transient error (timeout, busy server, lost
+        /// connection or session) after which a retry can still succeed,
+        /// and a rejected subscription, which no mapping can bring back.
+        /// </summary>
+        public static bool IsMethodUnavailable(StatusCode status)
+        {
+            return StatusCode.IsBad(status) &&
+                !IsTransientFailure(status) &&
+                !s_subscriptionRejected.Contains(status.CodeBits);
+        }
+
+        /// <summary>
         /// Whether the call failed with a transient error after which a
         /// retry can still succeed (timeout, busy server, lost connection or
-        /// session). Any other error means the server does not provide the
-        /// method: stacks answer BadMethodInvalid, BadNotSupported,
-        /// BadNotImplemented, BadNothingToDo or BadInternalError, or an
-        /// unusable result.
+        /// session).
         /// </summary>
         public static bool IsTransientFailure(StatusCode status)
         {
             return s_transientFailures.Contains(status.CodeBits);
         }
+
+        /// <summary>
+        /// The method exists but the subscription is gone or not ours.
+        /// </summary>
+        private static readonly HashSet<uint> s_subscriptionRejected =
+        [
+            StatusCodes.BadSubscriptionIdInvalid.CodeBits,
+            StatusCodes.BadNoSubscription.CodeBits
+        ];
 
         private static readonly HashSet<uint> s_transientFailures =
         [

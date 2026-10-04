@@ -865,14 +865,15 @@ namespace Opc.Ua.Client.Tests
 
         /// <summary>
         /// A transient GetMonitoredItems error leaves the transferred
-        /// subscription in place for a retry (review G27). Any other error
-        /// means the server does not implement the optional method, and the
-        /// item ids the client knows complete the transfer.
+        /// subscription in place for a retry (review G27), and a rejected
+        /// subscription id cannot be adopted. Any other error means the server
+        /// does not implement the optional method, and the item ids the client
+        /// knows complete the transfer.
         /// </summary>
         [TestCaseSource(nameof(GetMonitoredItemsFailures))]
-        public async Task FailedGetMonitoredItemsFallsBackToKnownItemIdsUnlessTransientAsync(
+        public async Task FailedGetMonitoredItemsFallsBackToKnownItemIdsUnlessTransientOrRejectedAsync(
             StatusCode statusCode,
-            bool transient)
+            bool fails)
         {
             using Subscription subscription = CreateSubscription();
             MonitoredItem created = CreateItem(4325u, "Created");
@@ -891,9 +892,9 @@ namespace Opc.Ua.Client.Tests
             (bool transferred, _) = await subscription.TransferWithAcknowledgementsAsync(
                 session.Object, 9, [], true, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(transferred, Is.EqualTo(!transient));
-            Assert.That(subscription.Created, Is.EqualTo(!transient));
-            if (!transient)
+            Assert.That(transferred, Is.EqualTo(!fails));
+            Assert.That(subscription.Created, Is.EqualTo(!fails));
+            if (!fails)
             {
                 Assert.That(subscription.Id, Is.EqualTo(9u));
                 Assert.That(created.Status.Id, Is.EqualTo(55u));
@@ -922,6 +923,7 @@ namespace Opc.Ua.Client.Tests
             yield return new TestCaseData(StatusCodes.BadServerTooBusy, true);
             yield return new TestCaseData(StatusCodes.BadCommunicationError, true);
             yield return new TestCaseData(StatusCodes.BadSessionIdInvalid, true);
+            yield return new TestCaseData(StatusCodes.BadSubscriptionIdInvalid, true);
             yield return new TestCaseData(StatusCodes.BadMethodInvalid, false);
             yield return new TestCaseData(StatusCodes.BadNotSupported, false);
             yield return new TestCaseData(StatusCodes.BadNotImplemented, false);
@@ -1012,6 +1014,138 @@ namespace Opc.Ua.Client.Tests
                     r[0].RequestedParameters.ClientHandle == 4330u &&
                     r[1].RequestedParameters.ClientHandle == 4331u),
                 It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// The old subscription must be gone before the replacement is
+        /// created, otherwise both deliver every notification. When the server
+        /// does not confirm the delete the transfer fails without a create.
+        /// </summary>
+        [Test]
+        public async Task CloneIsNotRecreatedWhenTheTransferredSubscriptionCannotBeDeletedAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            subscription.AddItem(CreateItem(4333u, "First"));
+            Mock<ISession> session = CreateItemSession(23);
+            session
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadMethodInvalid));
+            session
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.BadSubscriptionIdInvalid] });
+            subscription.Session = session.Object;
+
+            (bool transferred, _) = await subscription.TransferWithAcknowledgementsAsync(
+                session.Object, 9, [], true, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(transferred, Is.False);
+            Assert.That(subscription.Created, Is.False);
+            session.Verify(s => s.CreateSubscriptionAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<double>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>(),
+                It.IsAny<bool>(),
+                It.IsAny<byte>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A failed create of the replacement fails the transfer instead of
+        /// throwing out of it.
+        /// </summary>
+        [Test]
+        public async Task FailedRecreateOfCloneFailsTheTransferAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            subscription.AddItem(CreateItem(4334u, "First"));
+            Mock<ISession> session = CreateGetMonitoredItemsSession([], []);
+            session
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadNothingToDo));
+            session
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<byte>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTooManySubscriptions));
+            subscription.Session = session.Object;
+
+            (bool transferred, _) = await subscription.TransferWithAcknowledgementsAsync(
+                session.Object, 9, [], true, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(transferred, Is.False);
+            Assert.That(subscription.Created, Is.False);
+        }
+
+        /// <summary>
+        /// A Good GetMonitoredItems answer that does not carry two UInt32
+        /// arrays of the same length is unusable: the classic engine falls
+        /// back to the known item ids instead of throwing or failing.
+        /// </summary>
+        [TestCaseSource(nameof(UnusableGetMonitoredItemsOutputs))]
+        public async Task UnusableGetMonitoredItemsOutputFallsBackToKnownItemIdsAsync(
+            Variant serverHandles,
+            Variant clientHandles)
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem created = CreateItem(4335u, "Created");
+            created.ServerId = 88;
+            subscription.AddItem(created);
+            Mock<ISession> session = CreateGetMonitoredItemsSession([], []);
+            session
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    Results =
+                    [
+                        new CallMethodResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            OutputArguments = [serverHandles, clientHandles]
+                        }
+                    ]
+                });
+            subscription.Session = session.Object;
+
+            (bool transferred, _) = await subscription.TransferWithAcknowledgementsAsync(
+                session.Object, 9, [], true, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(transferred, Is.True);
+            Assert.That(subscription.Id, Is.EqualTo(9u));
+            Assert.That(created.Status.Id, Is.EqualTo(88u));
+            session.Verify(s => s.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        private static IEnumerable<TestCaseData> UnusableGetMonitoredItemsOutputs()
+        {
+            yield return new TestCaseData(
+                Variant.From(new string[] { "88" }.ToArrayOf()),
+                Variant.From(new uint[] { 4335u }.ToArrayOf()));
+            yield return new TestCaseData(
+                Variant.From(new uint[] { 88u, 89u }.ToArrayOf()),
+                Variant.From(new uint[] { 4335u }.ToArrayOf()));
         }
 
         /// <summary>
