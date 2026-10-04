@@ -1884,21 +1884,6 @@ namespace Opc.Ua.Client
                 // handle the case when the client restarts and loads the saved subscriptions from storage
                 (StatusCode status, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
                     await CallGetMonitoredItemsAsync(ct).ConfigureAwait(false);
-                if (StatusCode.IsNotGood(status))
-                {
-                    m_logger.SubscriptionIdSubscriptionIdServerFailedRespondGetMonitoredItems(
-                        Id,
-                        Session?.SessionId);
-
-                    // Only a definitive answer proves the subscription can
-                    // never be adopted. A transient error (timeout, busy
-                    // server, lost connection) leaves it in place for a retry.
-                    if (deleteOnDefinitiveFailure && IsDefinitiveGetMonitoredItemsFailure(status))
-                    {
-                        await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
-                    }
-                    return (false, default);
-                }
 
                 // The server must hold every item that was created, but items
                 // that were never created (e.g. failed with BadNodeIdUnknown
@@ -1911,6 +1896,59 @@ namespace Opc.Ua.Client
                 {
                     monitoredItemsCount = m_monitoredItems.Count;
                     createdItemsCount = m_monitoredItems.Values.Count(item => item.Status.Created);
+                }
+
+                if (StatusCode.IsNotGood(status))
+                {
+                    m_logger.SubscriptionIdSubscriptionIdServerFailedRespondGetMonitoredItems(
+                        Id,
+                        Session?.SessionId);
+
+                    // A transient error (timeout, busy server, lost
+                    // connection) leaves the subscription in place for a
+                    // retry.
+                    if (GetMonitoredItemsFallback.IsTransientFailure(status))
+                    {
+                        return (false, default);
+                    }
+
+                    // Any other error means the server does not provide
+                    // GetMonitoredItems, an optional method of ServerType
+                    // (OPC 10000-5, 6.3.1 and 9.1), while the transfer itself
+                    // already succeeded. A transfer keeps the item ids and
+                    // client handles, which is why a client is expected to
+                    // store them (OPC 10000-4, 6.8): the ids this client
+                    // already knows (e.g. restored from a saved state) are as
+                    // good as the answer of the method.
+                    if (createdItemsCount > 0 || monitoredItemsCount == 0)
+                    {
+                        m_logger.SubscriptionIdUsingCachedHandlesAfterTransfer(
+                            id,
+                            status,
+                            createdItemsCount,
+                            session.SessionId);
+                        (serverHandles, clientHandles) = GetCachedItemHandles();
+                    }
+                    else if (deleteOnDefinitiveFailure)
+                    {
+                        // Without server ids (a clone of a live subscription)
+                        // the items can never be modified or deleted, and
+                        // creating them again would duplicate them on the
+                        // server. Replace the transferred subscription by a
+                        // fresh one with the same items and client handles.
+                        m_logger.SubscriptionIdRecreatingAfterTransfer(
+                            id,
+                            status,
+                            session.SessionId);
+                        return await RecreateTransferredSubscriptionAsync(session, id, ct)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        // Nothing was moved to the session by the caller, so
+                        // its server subscription must not be replaced.
+                        return (false, default);
+                    }
                 }
                 if (serverHandles.Count != clientHandles.Count ||
                     serverHandles.Count > monitoredItemsCount ||
@@ -1956,6 +1994,58 @@ namespace Opc.Ua.Client
             TraceState("TRANSFERRED ASYNC");
 
             return (true, acknowledgements);
+        }
+
+        /// <summary>
+        /// Replaces a transferred server subscription whose items cannot be
+        /// mapped by a newly created one with the same items and client
+        /// handles. The notifications the server still queued for the old
+        /// subscription are lost.
+        /// </summary>
+        private async Task<(bool Transferred, ArrayOf<uint> Acknowledgements)> RecreateTransferredSubscriptionAsync(
+            ISession session,
+            uint id,
+            CancellationToken ct)
+        {
+            await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
+            try
+            {
+                await CreateAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.SubscriptionIdFailedRecreateAfterTransfer(ex, id, session.SessionId);
+                return (false, default);
+            }
+
+            // Restore triggering relationships on the new items.
+            await RestoreTriggeringAsync(ct).ConfigureAwait(false);
+
+            TraceState("RECREATED AFTER TRANSFER");
+
+            return (Created, default);
+        }
+
+        /// <summary>
+        /// The server and client handles of the items this client already
+        /// knows to exist on the server.
+        /// </summary>
+        private (ArrayOf<uint> ServerHandles, ArrayOf<uint> ClientHandles) GetCachedItemHandles()
+        {
+            lock (m_cache)
+            {
+                var serverHandles = new List<uint>(m_monitoredItems.Count);
+                var clientHandles = new List<uint>(m_monitoredItems.Count);
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    if (monitoredItem.Status.Created)
+                    {
+                        serverHandles.Add(monitoredItem.Status.Id);
+                        clientHandles.Add(monitoredItem.ClientHandle);
+                    }
+                }
+                return (serverHandles.ToArrayOf(), clientHandles.ToArrayOf());
+            }
         }
 
         /// <summary>
@@ -2426,22 +2516,6 @@ namespace Opc.Ua.Client
                     Session?.SessionId);
                 return (sre.StatusCode, default, default);
             }
-        }
-
-        /// <summary>
-        /// Whether a failed GetMonitoredItems call proves that the transferred
-        /// subscription can never be adopted, as opposed to a transient error
-        /// such as BadTimeout, BadTooManyOperations, BadServerTooBusy or a
-        /// communication error, after which a retry can still succeed.
-        /// </summary>
-        private static bool IsDefinitiveGetMonitoredItemsFailure(StatusCode status)
-        {
-            return status == StatusCodes.BadTypeMismatch ||
-                status == StatusCodes.BadMethodInvalid ||
-                status == StatusCodes.BadNotSupported ||
-                status == StatusCodes.BadNotImplemented ||
-                status == StatusCodes.BadNotExecutable ||
-                status == StatusCodes.BadUserAccessDenied;
         }
 
         /// <summary>
@@ -4504,5 +4578,35 @@ namespace Opc.Ua.Client
         public static partial void SubscriptionIdIgnoredGoodSubscriptionTransferredOwnTransfer(
             this ILogger logger,
             uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 71, Level = LogLevel.Warning,
+            Message = "SubscriptionId {SubscriptionId}: GetMonitoredItems is not available after transfer" +
+                " ({StatusCode}), using the {Count} monitored item ids known to the client." +
+                " SessionId={SessionId}")]
+        public static partial void SubscriptionIdUsingCachedHandlesAfterTransfer(
+            this ILogger logger,
+            uint subscriptionId,
+            StatusCode statusCode,
+            int count,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 72, Level = LogLevel.Warning,
+            Message = "SubscriptionId {SubscriptionId}: GetMonitoredItems is not available after transfer" +
+                " ({StatusCode}) and the monitored item ids are unknown, recreating the subscription." +
+                " SessionId={SessionId}")]
+        public static partial void SubscriptionIdRecreatingAfterTransfer(
+            this ILogger logger,
+            uint subscriptionId,
+            StatusCode statusCode,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 73, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: Failed to recreate the subscription after transfer." +
+                " SessionId={SessionId}")]
+        public static partial void SubscriptionIdFailedRecreateAfterTransfer(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId,
+            NodeId? sessionId);
     }
 }

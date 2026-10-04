@@ -2428,7 +2428,9 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ViewDescription view)
         {
-            // always accept all views so the root nodes appear in the view.
+            // always accept all views so the root nodes appear in the view, but
+            // still reject inconsistent timestamp/version parameters.
+            ViewDescriptionValidator.ValidateParameters(view);
         }
 
         /// <summary>
