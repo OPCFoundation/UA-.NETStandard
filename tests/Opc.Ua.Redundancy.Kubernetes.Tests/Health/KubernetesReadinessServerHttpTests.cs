@@ -132,7 +132,9 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                     new ConstantServiceLevelProvider(255),
                     NewOptions(++attempts == 1 ? occupant.Port : port))).ConfigureAwait(false);
 
-            Assert.That(attempts, Is.EqualTo(2));
+            // Another process can take the fresh port as well, so a later
+            // attempt may be the one that succeeds.
+            Assert.That(attempts, Is.GreaterThanOrEqualTo(2));
             Assert.That(readiness.Port, Is.Not.EqualTo(occupant.Port));
             (HttpStatusCode status, _) = await GetAsync(readiness.Port, "readyz").ConfigureAwait(false);
             Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
