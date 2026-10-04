@@ -50,8 +50,18 @@ namespace Opc.Ua.Robotics
         public DataValue Active { get; init; } = DataValue.Null;
 
         /// <summary>
+        /// The Active variable to subscribe to, or <see cref="NodeId.Null"/> when not published.
+        /// </summary>
+        public NodeId ActiveId { get; init; } = NodeId.Null;
+
+        /// <summary>
         /// The optional Enabled value, including status and timestamps.
         /// </summary>
         public DataValue Enabled { get; init; } = DataValue.Null;
+
+        /// <summary>
+        /// The Enabled variable to subscribe to, or <see cref="NodeId.Null"/> when not published.
+        /// </summary>
+        public NodeId EnabledId { get; init; } = NodeId.Null;
     }
 }
