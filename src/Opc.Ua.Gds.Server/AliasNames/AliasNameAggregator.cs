@@ -97,13 +97,13 @@ namespace Opc.Ua.Gds.Server.AliasNames
         /// <summary>
         /// The applications whose AliasNames are aggregated.
         /// </summary>
-        public IReadOnlyList<NodeId> Sources
+        public ArrayOf<NodeId> Sources
         {
             get
             {
                 lock (m_lock)
                 {
-                    return [.. m_snapshots.Keys];
+                    return m_snapshots.Keys.ToArrayOf();
                 }
             }
         }
@@ -451,7 +451,7 @@ namespace Opc.Ua.Gds.Server.AliasNames
             {
                 foreach (AliasNameSourceCategory category in snapshot.Categories)
                 {
-                    GetOrAddCategory(merged, category.Path);
+                    GetOrAddCategory(merged, category.Path.ToArray() ?? []);
                 }
                 foreach (AliasNameSourceAlias alias in snapshot.Aliases)
                 {
@@ -459,7 +459,7 @@ namespace Opc.Ua.Gds.Server.AliasNames
                     {
                         continue;
                     }
-                    MergedCategory category = GetOrAddCategory(merged, alias.CategoryPath);
+                    MergedCategory category = GetOrAddCategory(merged, alias.CategoryPath.ToArray() ?? []);
                     string key = category.Key + "#" + Escape(alias.Name);
                     if (!merged.Aliases.TryGetValue(key, out MergedAlias? entry))
                     {
@@ -479,7 +479,7 @@ namespace Opc.Ua.Gds.Server.AliasNames
             return merged;
         }
 
-        private MergedCategory GetOrAddCategory(Merged merged, IReadOnlyList<string> path)
+        private MergedCategory GetOrAddCategory(Merged merged, string[] path)
         {
             string key = KeyOf(path);
             if (merged.Categories.TryGetValue(key, out MergedCategory? category))
@@ -488,9 +488,9 @@ namespace Opc.Ua.Gds.Server.AliasNames
             }
 
             NodeId parentId = NodeId.Null;
-            if (path.Count > 0)
+            if (path.Length > 0)
             {
-                parentId = GetOrAddCategory(merged, [.. path.Take(path.Count - 1)]).NodeId;
+                parentId = GetOrAddCategory(merged, path.Take(path.Length - 1).ToArray()).NodeId;
             }
 
             NodeId nodeId = WellKnownId(path);
@@ -502,7 +502,7 @@ namespace Opc.Ua.Gds.Server.AliasNames
             category = new MergedCategory(
                 key,
                 [.. path],
-                path.Count > 0 ? path[path.Count - 1] : Ua.BrowseNames.Aliases,
+                path.Length > 0 ? path[path.Length - 1] : Ua.BrowseNames.Aliases,
                 nodeId,
                 parentId,
                 isWellKnown);
@@ -511,13 +511,13 @@ namespace Opc.Ua.Gds.Server.AliasNames
             return category;
         }
 
-        private static NodeId WellKnownId(IReadOnlyList<string> path)
+        private static NodeId WellKnownId(string[] path)
         {
-            if (path.Count == 0)
+            if (path.Length == 0)
             {
                 return Ua.ObjectIds.Aliases;
             }
-            if (path.Count == 1)
+            if (path.Length == 1)
             {
                 if (path[0] == Ua.BrowseNames.TagVariables)
                 {
@@ -598,7 +598,7 @@ namespace Opc.Ua.Gds.Server.AliasNames
             m_serverUris.Update(current.Where((uri, index) => index == 0 || !unused.Contains(uri)));
         }
 
-        private static string KeyOf(IReadOnlyList<string> path)
+        private static string KeyOf(string[] path)
         {
             var builder = new StringBuilder();
             foreach (string segment in path)
@@ -679,8 +679,8 @@ namespace Opc.Ua.Gds.Server.AliasNames
     /// <param name="Categories">The server-defined categories, parents first.</param>
     /// <param name="Aliases">The aliases.</param>
     public sealed record AliasNameAggregateView(
-        IReadOnlyList<AliasNameAggregateCategory> Categories,
-        IReadOnlyList<AliasNameAggregateAlias> Aliases);
+        ArrayOf<AliasNameAggregateCategory> Categories,
+        ArrayOf<AliasNameAggregateAlias> Aliases);
 
     /// <summary>
     /// An aggregated server-defined category.
@@ -701,7 +701,7 @@ namespace Opc.Ua.Gds.Server.AliasNames
         NodeId NodeId,
         string Name,
         NodeId CategoryId,
-        IReadOnlyList<AliasNameAggregateTarget> Targets);
+        ArrayOf<AliasNameAggregateTarget> Targets);
 
     /// <summary>
     /// One reference from an aggregated alias to its target.

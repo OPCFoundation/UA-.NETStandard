@@ -115,15 +115,15 @@ namespace Opc.Ua.Gds.Tests
             aggregator.SetSource(s_appB, SourceB());
 
             AliasNameAggregateView view = aggregator.GetView();
-            AliasNameAggregateAlias shared = view.Aliases.Single(a => a.Name == "Shared");
+            AliasNameAggregateAlias shared = view.Aliases.ToArray().Single(a => a.Name == "Shared");
             Assert.That(shared.CategoryId, Is.EqualTo(Ua.ObjectIds.TagVariables));
             Assert.That(shared.NodeId.NamespaceIndex, Is.EqualTo(AggregateNs));
-            Assert.That(shared.Targets, Has.Count.EqualTo(2));
-            Assert.That(shared.Targets.Select(t => t.ReferenceTypeId), Is.All.EqualTo(ReferenceTypeIds.AliasFor));
+            Assert.That(shared.Targets.ToArray(), Has.Length.EqualTo(2));
+            Assert.That(shared.Targets.ToArray().Select(t => t.ReferenceTypeId), Is.All.EqualTo(ReferenceTypeIds.AliasFor));
 
             Assert.That(serverUris.ToArray(), Is.EqualTo(new[] { GdsUri, UriA, UriB }));
-            ExpandedNodeId targetA = shared.Targets.Single(t => t.Target.NamespaceUri == NsA).Target;
-            ExpandedNodeId targetB = shared.Targets.Single(t => t.Target.NamespaceUri == NsB).Target;
+            ExpandedNodeId targetA = shared.Targets.ToArray().Single(t => t.Target.NamespaceUri == NsA).Target;
+            ExpandedNodeId targetB = shared.Targets.ToArray().Single(t => t.Target.NamespaceUri == NsB).Target;
             Assert.That(targetA.ServerIndex, Is.EqualTo(1u));
             Assert.That(targetB.ServerIndex, Is.EqualTo(2u));
             Assert.That(targetA.IdentifierAsString, Is.EqualTo("A.Shared"));
@@ -137,27 +137,27 @@ namespace Opc.Ua.Gds.Tests
             aggregator.SetSource(s_appB, SourceB());
 
             AliasNameAggregateView view = aggregator.GetView();
-            Assert.That(view.Categories.Select(c => c.Name), Is.EquivalentTo(new[] { "Machines", "Pumps" }),
+            Assert.That(view.Categories.ToArray().Select(c => c.Name), Is.EquivalentTo(new[] { "Machines", "Pumps" }),
                 "Well-known categories are not created; Machines exists once.");
-            AliasNameAggregateCategory machines = view.Categories.Single(c => c.Name == "Machines");
+            AliasNameAggregateCategory machines = view.Categories.ToArray().Single(c => c.Name == "Machines");
             Assert.That(machines.ParentId, Is.EqualTo(Ua.ObjectIds.Aliases));
-            Assert.That(view.Categories.Single(c => c.Name == "Pumps").ParentId, Is.EqualTo(Ua.ObjectIds.TagVariables));
-            Assert.That(view.Aliases.Where(a => a.CategoryId == machines.NodeId).Select(a => a.Name),
+            Assert.That(view.Categories.ToArray().Single(c => c.Name == "Pumps").ParentId, Is.EqualTo(Ua.ObjectIds.TagVariables));
+            Assert.That(view.Aliases.ToArray().Where(a => a.CategoryId == machines.NodeId).Select(a => a.Name),
                 Is.EquivalentTo(new[] { "A_Machine", "B_Machine" }));
 
             // Annex C.3: a category stays while another source uses it.
             Assert.That(aggregator.RemoveSource(s_appA), Is.True);
             view = aggregator.GetView();
-            Assert.That(view.Categories.Select(c => c.Name), Is.EqualTo(new[] { "Machines" }));
-            Assert.That(view.Aliases.Select(a => a.Name), Is.EquivalentTo(new[] { "Shared", "B_Machine" }));
-            Assert.That(view.Aliases.Single(a => a.Name == "Shared").Targets, Has.Count.EqualTo(1),
+            Assert.That(view.Categories.ToArray().Select(c => c.Name), Is.EqualTo(new[] { "Machines" }));
+            Assert.That(view.Aliases.ToArray().Select(a => a.Name), Is.EquivalentTo(new[] { "Shared", "B_Machine" }));
+            Assert.That(view.Aliases.ToArray().Single(a => a.Name == "Shared").Targets.ToArray(), Has.Length.EqualTo(1),
                 "The AliasFor reference to the removed Server is gone.");
 
             Assert.That(aggregator.RemoveSource(s_appB), Is.True);
             Assert.That(aggregator.RemoveSource(s_appB), Is.False);
             view = aggregator.GetView();
-            Assert.That(view.Categories, Is.Empty);
-            Assert.That(view.Aliases, Is.Empty);
+            Assert.That(view.Categories.ToArray(), Is.Empty);
+            Assert.That(view.Aliases.ToArray(), Is.Empty);
         }
 
         [Test]
@@ -170,8 +170,8 @@ namespace Opc.Ua.Gds.Tests
             aggregator.RemoveSource(s_appA);
 
             Assert.That(serverUris.ToArray(), Is.EqualTo(new[] { GdsUri, UriB }));
-            AliasNameAggregateAlias shared = aggregator.GetView().Aliases.Single(a => a.Name == "Shared");
-            Assert.That(shared.Targets.Single().Target.ServerIndex, Is.EqualTo(1u),
+            AliasNameAggregateAlias shared = aggregator.GetView().Aliases.ToArray().Single(a => a.Name == "Shared");
+            Assert.That(shared.Targets.ToArray().Single().Target.ServerIndex, Is.EqualTo(1u),
                 "Targets are resolved against the current ServerArray.");
         }
 
@@ -194,9 +194,9 @@ namespace Opc.Ua.Gds.Tests
                 UriA, [], [Alias(UriA, NsA, "A_Tag", "A.Tag", "TagVariables")]));
 
             AliasNameAggregateView view = aggregator.GetView();
-            Assert.That(view.Categories, Is.Empty);
-            Assert.That(view.Aliases.Select(a => a.Name), Is.EqualTo(new[] { "A_Tag" }));
-            Assert.That(aggregator.Sources, Is.EqualTo(new[] { s_appA }));
+            Assert.That(view.Categories.ToArray(), Is.Empty);
+            Assert.That(view.Aliases.ToArray().Select(a => a.Name), Is.EqualTo(new[] { "A_Tag" }));
+            Assert.That(aggregator.Sources.ToArray(), Is.EqualTo(new[] { s_appA }));
         }
 
         [Test]
@@ -206,7 +206,7 @@ namespace Opc.Ua.Gds.Tests
             aggregator.SetSource(s_appA, new AliasNameSourceSnapshot(
                 GdsUri, [], [Alias(GdsUri, "urn:gds:local", "Self", "Local.Node", "TagVariables")]));
 
-            ExpandedNodeId target = aggregator.GetView().Aliases.Single().Targets.Single().Target;
+            ExpandedNodeId target = aggregator.GetView().Aliases.ToArray().Single().Targets.ToArray().Single().Target;
             Assert.That(target.ServerIndex, Is.Zero);
             Assert.That(target.IsAbsolute, Is.False);
             Assert.That(target.NamespaceIndex, Is.EqualTo(1));
@@ -233,7 +233,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(tags.Select(a => a.AliasName.Name), Is.EquivalentTo(new[] { "A_Tag", "A_Pump" }),
                 "Nested categories are searched, other categories are not.");
 
-            NodeId machines = aggregator.GetView().Categories.Single(c => c.Name == "Machines").NodeId;
+            NodeId machines = aggregator.GetView().Categories.ToArray().Single(c => c.Name == "Machines").NodeId;
             IReadOnlyList<AliasNameVerboseDataType> verbose = await aggregator
                 .FindAliasVerboseAsync(machines, "B_%", NodeId.Null, typeTree).ConfigureAwait(false);
             Assert.That(verbose, Has.Count.EqualTo(1));
@@ -254,7 +254,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(aggregator.OwnsCategory(Ua.ObjectIds.Aliases), Is.True);
 
             aggregator.SetSource(s_appB, SourceB());
-            NodeId machines = aggregator.GetView().Categories.Single().NodeId;
+            NodeId machines = aggregator.GetView().Categories.ToArray().Single().NodeId;
             Assert.That(aggregator.OwnsCategory(machines), Is.True);
             aggregator.RemoveSource(s_appB);
             Assert.That(aggregator.OwnsCategory(machines), Is.False);

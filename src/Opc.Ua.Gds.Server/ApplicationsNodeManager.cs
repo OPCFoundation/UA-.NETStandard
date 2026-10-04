@@ -1302,8 +1302,9 @@ namespace Opc.Ua.Gds.Server
 
             m_database.UnregisterApplication(applicationId);
 
-            // OPC 10000-17 Annex C.3.
-            await OnAliasNameSourceUnregisteredAsync(applicationId, cancellationToken)
+            // OPC 10000-17 Annex C.3. The record is gone, so the cleanup must
+            // not be cancelled with the request.
+            await OnAliasNameSourceUnregisteredAsync(applicationId, CancellationToken.None)
                 .ConfigureAwait(false);
 
             ArrayOf<Variant> inputArguments = [applicationId];

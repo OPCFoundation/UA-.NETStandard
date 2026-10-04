@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Gds.Server.AliasNames
 {
@@ -58,16 +57,16 @@ namespace Opc.Ua.Gds.Server.AliasNames
         /// <param name="aliases">One entry per alias and target.</param>
         public AliasNameSourceSnapshot(
             string serverUri,
-            IReadOnlyList<AliasNameSourceCategory> categories,
-            IReadOnlyList<AliasNameSourceAlias> aliases)
+            ArrayOf<AliasNameSourceCategory> categories,
+            ArrayOf<AliasNameSourceAlias> aliases)
         {
             if (string.IsNullOrEmpty(serverUri))
             {
                 throw new ArgumentException("The server URI must be set.", nameof(serverUri));
             }
             ServerUri = serverUri;
-            Categories = categories ?? throw new ArgumentNullException(nameof(categories));
-            Aliases = aliases ?? throw new ArgumentNullException(nameof(aliases));
+            Categories = categories;
+            Aliases = aliases;
         }
 
         /// <summary>
@@ -79,12 +78,12 @@ namespace Opc.Ua.Gds.Server.AliasNames
         /// <summary>
         /// The categories of the source.
         /// </summary>
-        public IReadOnlyList<AliasNameSourceCategory> Categories { get; }
+        public ArrayOf<AliasNameSourceCategory> Categories { get; }
 
         /// <summary>
         /// The aliases of the source, one entry per target.
         /// </summary>
-        public IReadOnlyList<AliasNameSourceAlias> Aliases { get; }
+        public ArrayOf<AliasNameSourceAlias> Aliases { get; }
     }
 
     /// <summary>
@@ -92,7 +91,7 @@ namespace Opc.Ua.Gds.Server.AliasNames
     /// </summary>
     /// <param name="Path">The BrowseName names from <c>Aliases</c> down to
     /// the category (see <see cref="AliasNameSourceSnapshot"/>).</param>
-    public sealed record AliasNameSourceCategory(IReadOnlyList<string> Path);
+    public sealed record AliasNameSourceCategory(ArrayOf<string> Path);
 
     /// <summary>
     /// One target of one <c>AliasNameType</c> instance of a source.
@@ -107,7 +106,7 @@ namespace Opc.Ua.Gds.Server.AliasNames
     /// <param name="ServerUri">The ApplicationUri of the Server that hosts
     /// the target, normally the source itself.</param>
     public sealed record AliasNameSourceAlias(
-        IReadOnlyList<string> CategoryPath,
+        ArrayOf<string> CategoryPath,
         string Name,
         NodeId ReferenceTypeId,
         ExpandedNodeId Target,

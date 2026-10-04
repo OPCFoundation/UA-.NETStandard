@@ -142,6 +142,9 @@ namespace Opc.Ua.Gds.Server
                 return false;
             }
 
+            // A read started later (UpdateApplication) supersedes this one,
+            // whichever finishes first.
+            long version = NextAliasReadVersion(applicationId);
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
             if (!IsAliasNameSource(application))
             {
@@ -168,22 +171,47 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            // The record may have been unregistered while it was read; the
-            // check runs under the same lock as the unregister hook.
+            // The record may have been unregistered, lost the ALIAS
+            // capability or been read again while it was read; the checks
+            // run under the same lock as the unregister hook.
+            bool applied = false;
             await UpdateAliasNameNodesAsync(
                 a =>
                 {
-                    if (m_database.GetApplication(applicationId) == null)
+                    if (!IsCurrentAliasRead(applicationId, version) ||
+                        !IsAliasNameSource(m_database.GetApplication(applicationId)))
                     {
                         return false;
                     }
                     a.SetSource(applicationId, snapshot);
+                    applied = true;
                     return true;
                 },
                 cancellationToken).ConfigureAwait(false);
-            m_logger.AliasNameSourceRead(
-                application!.ApplicationUri, snapshot.Categories.Count, snapshot.Aliases.Count);
+            if (applied)
+            {
+                m_logger.AliasNameSourceRead(
+                    application!.ApplicationUri, snapshot.Categories.Count, snapshot.Aliases.Count);
+            }
             return true;
+        }
+
+        private long NextAliasReadVersion(NodeId applicationId)
+        {
+            lock (m_aliasReadVersions)
+            {
+                long version = ++m_aliasReadCounter;
+                m_aliasReadVersions[applicationId] = version;
+                return version;
+            }
+        }
+
+        private bool IsCurrentAliasRead(NodeId applicationId, long version)
+        {
+            lock (m_aliasReadVersions)
+            {
+                return m_aliasReadVersions.TryGetValue(applicationId, out long current) && current == version;
+            }
         }
 
         /// <summary>
@@ -347,6 +375,11 @@ namespace Opc.Ua.Gds.Server
         {
             if (m_aliasAggregator != null)
             {
+                // Discards reads still in flight for the record.
+                lock (m_aliasReadVersions)
+                {
+                    m_aliasReadVersions.Remove(applicationId);
+                }
                 await UpdateAliasNameNodesAsync(a => a.RemoveSource(applicationId), cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -376,8 +409,10 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 AliasNameAggregateView view = aggregator.GetView();
-                var categories = view.Categories.ToDictionary(c => c.NodeId);
-                var aliases = view.Aliases.ToDictionary(a => a.NodeId);
+                AliasNameAggregateCategory[] viewCategories = view.Categories.ToArray() ?? [];
+                AliasNameAggregateAlias[] viewAliases = view.Aliases.ToArray() ?? [];
+                var categories = viewCategories.ToDictionary(c => c.NodeId);
+                var aliases = viewAliases.ToDictionary(a => a.NodeId);
 
                 // Remove what is gone or has moved: aliases first, then
                 // categories, children before their parents.
@@ -400,7 +435,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                foreach (AliasNameAggregateCategory category in view.Categories)
+                foreach (AliasNameAggregateCategory category in viewCategories)
                 {
                     if (!m_aliasNodes.ContainsKey(category.NodeId))
                     {
@@ -412,7 +447,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                foreach (AliasNameAggregateAlias alias in view.Aliases)
+                foreach (AliasNameAggregateAlias alias in viewAliases)
                 {
                     if (!m_aliasNodes.TryGetValue(alias.NodeId, out AliasNameNodeEntry? entry))
                     {
@@ -422,7 +457,7 @@ namespace Opc.Ua.Gds.Server
                             isCategory: false,
                             cancellationToken).ConfigureAwait(false);
                     }
-                    UpdateAliasTargets(entry.Node, alias.Targets);
+                    UpdateAliasTargets(entry.Node, alias.Targets.ToArray() ?? []);
                 }
             }
             finally
@@ -537,7 +572,7 @@ namespace Opc.Ua.Gds.Server
         /// merged targets; the ServerArray indexes in them change when a
         /// Server is removed.
         /// </summary>
-        private void UpdateAliasTargets(BaseObjectState node, IReadOnlyList<AliasNameAggregateTarget> targets)
+        private void UpdateAliasTargets(BaseObjectState node, AliasNameAggregateTarget[] targets)
         {
             var references = new List<IReference>();
             node.GetReferences(SystemContext, references);
@@ -598,6 +633,11 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private void DisposeAliasNameAggregation()
         {
+            // Dispose(bool) runs on every Dispose call.
+            if (Interlocked.Exchange(ref m_aliasDisposed, 1) != 0)
+            {
+                return;
+            }
             m_aliasShutdown.Cancel();
             if (m_aliasAggregator != null)
             {
@@ -620,6 +660,9 @@ namespace Opc.Ua.Gds.Server
         private IAliasNameStoreRegistry? m_aliasRegistry;
         private readonly CancellationTokenSource m_aliasShutdown = new();
         private readonly SemaphoreSlim m_aliasSync = new(1, 1);
+        private readonly Dictionary<NodeId, long> m_aliasReadVersions = [];
+        private long m_aliasReadCounter;
+        private int m_aliasDisposed;
 
         /// <summary>
         /// The aggregated nodes in creation order (parents before children);
