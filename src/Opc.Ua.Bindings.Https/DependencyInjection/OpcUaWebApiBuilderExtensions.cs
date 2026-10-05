@@ -34,6 +34,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi;
+using Opc.Ua.Schema.OpenApi;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -135,8 +136,14 @@ namespace Microsoft.Extensions.DependencyInjection
             // Minimal-API endpoint mapping needs routing services only;
             // no MVC controllers or AddApplicationPart reflection scan.
             services.AddRouting();
+            // Describes the routes in the OpenAPI document served when
+            // WebApiTransportOptions.OpenApiDocumentPath is set.
+            services.TryAddSingleton(static _ => new WebApiOpenApiGenerator());
             services.TryAddSingleton(sp =>
-                new WebApiHttpsStartupContributor(sp.GetRequiredService<WebApiServer>()));
+                new WebApiHttpsStartupContributor(
+                    sp.GetRequiredService<WebApiServer>(),
+                    sp.GetRequiredService<IOptions<WebApiTransportOptions>>().Value,
+                    sp.GetRequiredService<WebApiOpenApiGenerator>()));
             services.AddSingleton<IHttpsListenerStartupContributor>(
                 sp => sp.GetRequiredService<WebApiHttpsStartupContributor>());
 

@@ -34,6 +34,8 @@ using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Bindings.WebApi;
+using Opc.Ua.Schema;
+using Opc.Ua.Schema.OpenApi;
 
 namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
 {
@@ -162,6 +164,32 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.DependencyInjection
                 Is.EqualTo(WebApiHostingMode.SharedWithHttpsListener));
             Assert.That(options.Value.DefaultEncoding,
                 Is.EqualTo(WebApiEncoding.Compact));
+        }
+
+        [Test]
+        public void AddWebApiTransportRegistersTheOpenApiGeneratorAsASingleton()
+        {
+            var services = new ServiceCollection();
+
+            services.AddOpcUa().AddWebApiTransport();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(
+                provider.GetRequiredService<WebApiOpenApiGenerator>(),
+                Is.SameAs(provider.GetRequiredService<WebApiOpenApiGenerator>()));
+        }
+
+        [Test]
+        public void AddWebApiTransportKeepsAnOpenApiGeneratorTheApplicationRegistered()
+        {
+            var services = new ServiceCollection();
+            var generator = new WebApiOpenApiGenerator(new DataTypeDefinitionRegistry());
+            services.AddSingleton(generator);
+
+            services.AddOpcUa().AddWebApiTransport();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(provider.GetRequiredService<WebApiOpenApiGenerator>(), Is.SameAs(generator));
         }
 
         [Test]

@@ -41,6 +41,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Bindings.WebApi.Authentication;
+using Opc.Ua.Schema.OpenApi;
 
 namespace Opc.Ua.Bindings.WebApi
 {
@@ -65,11 +66,18 @@ namespace Opc.Ua.Bindings.WebApi
         IHttpsListenerServiceContributor
     {
         private readonly WebApiServer m_server;
+        private readonly WebApiTransportOptions m_options;
+        private readonly WebApiOpenApiGenerator? m_openApiGenerator;
 
-        public WebApiHttpsStartupContributor(WebApiServer server)
+        public WebApiHttpsStartupContributor(
+            WebApiServer server,
+            WebApiTransportOptions? options = null,
+            WebApiOpenApiGenerator? openApiGenerator = null)
         {
             ArgumentNullException.ThrowIfNull(server);
             m_server = server;
+            m_options = options ?? new WebApiTransportOptions();
+            m_openApiGenerator = openApiGenerator;
         }
 
         /// <inheritdoc/>
@@ -80,6 +88,10 @@ namespace Opc.Ua.Bindings.WebApi
 
             services.TryAddSingleton(m_server);
             services.TryAddSingleton<IWebApiServer>(m_server);
+            if (m_openApiGenerator != null)
+            {
+                services.TryAddSingleton(m_openApiGenerator);
+            }
             // Minimal-API endpoint mapping needs routing services; no
             // MVC controllers / AddApplicationPart reflection scan.
             services.AddRouting();
@@ -175,13 +187,14 @@ namespace Opc.Ua.Bindings.WebApi
             }
             appBuilder.UseEndpoints(endpoints =>
             {
-                IEndpointConventionBuilder group = endpoints.MapWebApiEndpoints();
+                IEndpointConventionBuilder group = endpoints.MapWebApiEndpoints(m_options);
                 if (hasAuth)
                 {
                     // Require any successful authentication on every
-                    // route; the discovery routes (FindServers /
-                    // GetEndpoints) carry AllowAnonymous metadata so
-                    // they remain reachable without a credential.
+                    // route, the OpenAPI document included; the discovery
+                    // routes (FindServers / GetEndpoints) carry
+                    // AllowAnonymous metadata so they remain reachable
+                    // without a credential.
                     group.RequireAuthorization();
                 }
             });
