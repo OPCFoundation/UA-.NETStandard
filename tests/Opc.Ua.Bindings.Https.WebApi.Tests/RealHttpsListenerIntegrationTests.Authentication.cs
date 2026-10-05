@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Net;
@@ -155,6 +156,37 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
+        public async Task ScopedIdentityProviderResolvesPerRequestOnRealHttpsListenerAsync()
+        {
+            var recorder = new IdentityProviderRecorder();
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                "basic",
+                configureServices: services =>
+                {
+                    services.AddSingleton(recorder);
+                    services.AddScoped<ScopedDependency>();
+                    services.AddScoped<ISessionlessIdentityProvider, RecordingIdentityProvider>();
+                }).ConfigureAwait(false);
+            AuthenticationHeaderValue? credential = CreateAuthorizationHeader("basic-valid");
+
+            for (int ii = 0; ii < 2; ii++)
+            {
+                using HttpResponseMessage response = await listener
+                    .PostReadAsync(credential)
+                    .ConfigureAwait(false);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            }
+
+            Assert.That(recorder.Users, Is.EqualTo(new[] { "alice", "alice" }),
+                "The application's provider must see the principal authenticated on the listener.");
+            Assert.That(recorder.Dependencies.Distinct().Count(), Is.EqualTo(2),
+                "A scoped provider must get a fresh scope per request.");
+            // The request scope is disposed after the response is sent.
+            Assert.That(() => recorder.Dependencies.All(d => d.Disposed), Is.True.After(5000, 50),
+                "The per-request application scope must be disposed with the request.");
+        }
+
+        [Test]
         public async Task DiscoveryStaysAnonymousWhenAuthIsEnabledOnRealHttpsListenerAsync()
         {
             await using AuthListener listener = await OpenAuthListenerAsync("basic").ConfigureAwait(false);
@@ -175,9 +207,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
         private async Task<AuthListener> OpenAuthListenerAsync(
             string authMode,
-            X509Certificate2? clientCertificate = null)
+            X509Certificate2? clientCertificate = null,
+            Action<IServiceCollection>? configureServices = null)
         {
             var services = new ServiceCollection();
+            configureServices?.Invoke(services);
             services.AddLogging();
             services.AddSingleton(m_telemetry!);
             IOpcUaBuilder builder = services.AddOpcUa();
@@ -238,7 +272,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             // Wire the listener from the application container exactly as
             // AddWebApiTransport() does for the registered HTTPS factories.
-            ServiceProvider provider = services.BuildServiceProvider();
+            ServiceProvider provider = services.BuildServiceProvider(
+                new ServiceProviderOptions { ValidateScopes = true });
             var callback = new StubTransportListenerCallback();
             var factory = new HttpsTransportListenerFactory();
             factory.StartupContributors.Add(provider.GetRequiredService<WebApiHttpsStartupContributor>());
@@ -318,6 +353,41 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 certificate.Export(X509ContentType.Pfx),
                 password: null,
                 keyStorageFlags: X509KeyStorageFlags.Exportable);
+        }
+
+        private sealed class IdentityProviderRecorder
+        {
+            public ConcurrentQueue<string?> Users { get; } = new();
+            public ConcurrentQueue<ScopedDependency> Dependencies { get; } = new();
+        }
+
+        private sealed class ScopedDependency : IDisposable
+        {
+            public bool Disposed { get; private set; }
+
+            public void Dispose()
+            {
+                Disposed = true;
+            }
+        }
+
+        private sealed class RecordingIdentityProvider : ISessionlessIdentityProvider
+        {
+            private readonly IdentityProviderRecorder m_recorder;
+            private readonly ScopedDependency m_dependency;
+
+            public RecordingIdentityProvider(IdentityProviderRecorder recorder, ScopedDependency dependency)
+            {
+                m_recorder = recorder;
+                m_dependency = dependency;
+            }
+
+            public IUserIdentity? Resolve(HttpContext context)
+            {
+                m_recorder.Users.Enqueue(context.User.Identity?.Name);
+                m_recorder.Dependencies.Enqueue(m_dependency);
+                return null;
+            }
         }
 
         /// <summary>

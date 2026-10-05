@@ -121,6 +121,13 @@ namespace Opc.Ua.Bindings.WebApi
         /// <c>RequireAuthorization()</c> and serves the REST routes
         /// unauthenticated.
         /// </summary>
+        /// <remarks>
+        /// The identity provider is resolved per request from an
+        /// application-container scope that lives as long as the
+        /// listener's request scope, so scoped providers (and their
+        /// request-scoped dependencies) keep their lifetime; singleton
+        /// providers resolve to the application's instance.
+        /// </remarks>
         private void AddApplicationAuthentication(IServiceCollection services)
         {
             if (m_applicationServices == null)
@@ -128,11 +135,12 @@ namespace Opc.Ua.Bindings.WebApi
                 return;
             }
 
-            ISessionlessIdentityProvider? identityProvider = m_applicationServices
-                .GetService<ISessionlessIdentityProvider>();
-            if (identityProvider != null)
+            IServiceProvider applicationServices = m_applicationServices;
+            if (applicationServices.GetService<IServiceProviderIsService>()?
+                .IsService(typeof(ISessionlessIdentityProvider)) != false)
             {
-                services.TryAddSingleton(identityProvider);
+                services.TryAddScoped<ISessionlessIdentityProvider>(
+                    _ => new ApplicationIdentityProvider(applicationServices));
             }
 
             foreach (WebApiListenerAuthRegistration registration in m_applicationServices
@@ -140,6 +148,38 @@ namespace Opc.Ua.Bindings.WebApi
             {
                 OpcUaWebApiAuthenticationBuilderExtensions.EnsureWebApiPolicyScheme(services);
                 registration.Register(services.AddAuthentication());
+            }
+        }
+
+        /// <summary>
+        /// Listener-scoped forwarder to the application's
+        /// <see cref="ISessionlessIdentityProvider"/>, resolved from an
+        /// application-container scope that the listener container
+        /// disposes with the request. Forwarding (instead of handing out
+        /// the application's instance) keeps the listener container from
+        /// disposing an application-owned provider.
+        /// </summary>
+        private sealed class ApplicationIdentityProvider : ISessionlessIdentityProvider, IDisposable
+        {
+            private readonly IServiceProvider m_applicationServices;
+            private IServiceScope? m_scope;
+
+            public ApplicationIdentityProvider(IServiceProvider applicationServices)
+            {
+                m_applicationServices = applicationServices;
+            }
+
+            public IUserIdentity? Resolve(HttpContext context)
+            {
+                m_scope ??= m_applicationServices.CreateScope();
+                return m_scope.ServiceProvider
+                    .GetService<ISessionlessIdentityProvider>()?
+                    .Resolve(context);
+            }
+
+            public void Dispose()
+            {
+                m_scope?.Dispose();
             }
         }
 
