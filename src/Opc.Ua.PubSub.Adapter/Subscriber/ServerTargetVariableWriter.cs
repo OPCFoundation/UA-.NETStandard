@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -60,6 +61,7 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
         private readonly IServerSession m_session;
         private readonly AdapterMetrics? m_metrics;
         private readonly ILogger m_logger;
+        private readonly ConcurrentDictionary<NodeId, bool> m_noTimestampWrite = new();
 
         /// <summary>
         /// Creates a new external-server target variable writer over the supplied
@@ -113,30 +115,45 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
                     .ResolveNodeIdAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
-                var writeValue = new WriteValue
+                // Part 14 6.2.11.1: a received timestamp is not used when the
+                // target Variable does not allow writing timestamps. Targets that
+                // rejected a timestamp once are written without timestamps.
+                bool hasTimestamps = HasTimestamps(value);
+                bool stripTimestamps = hasTimestamps &&
+                    m_noTimestampWrite.ContainsKey(targetNodeId);
+
+                StatusCode? result = await WriteValueAsync(
+                    targetNodeId,
+                    attributeId,
+                    writeIndexRange,
+                    stripTimestamps ? WithoutTimestamps(value) : value,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (result == StatusCodes.BadWriteNotSupported &&
+                    hasTimestamps &&
+                    !stripTimestamps)
                 {
-                    NodeId = targetNodeId,
-                    AttributeId = attributeId,
-                    Value = value
-                };
-                if (!string.IsNullOrEmpty(writeIndexRange))
-                {
-                    writeValue.IndexRange = writeIndexRange;
+                    StatusCode? retry = await WriteValueAsync(
+                        targetNodeId,
+                        attributeId,
+                        writeIndexRange,
+                        WithoutTimestamps(value),
+                        cancellationToken).ConfigureAwait(false);
+                    if (retry != null && StatusCode.IsGood(retry.Value))
+                    {
+                        m_noTimestampWrite.TryAdd(targetNodeId, true);
+                    }
+                    result = retry;
                 }
 
-                ArrayOf<WriteValue> nodesToWrite = [writeValue];
-                ArrayOf<StatusCode> results = await m_session
-                    .WriteAsync(nodesToWrite, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (results.IsNull || results.Count == 0)
+                if (result == null)
                 {
                     m_metrics?.RecordWrite(false);
                     m_logger.WriteReturnedNoStatus(nodeId);
                     return StatusCodes.BadCommunicationError;
                 }
-                m_metrics?.RecordWrite(StatusCode.IsGood(results[0]));
-                return results[0];
+                m_metrics?.RecordWrite(StatusCode.IsGood(result.Value));
+                return result.Value;
             }
             catch (OperationCanceledException)
             {
@@ -154,6 +171,50 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
                 m_logger.WriteFailed(ex, nodeId);
                 return StatusCodes.BadCommunicationError;
             }
+        }
+
+        private async ValueTask<StatusCode?> WriteValueAsync(
+            NodeId targetNodeId,
+            uint attributeId,
+            string? writeIndexRange,
+            DataValue value,
+            CancellationToken cancellationToken)
+        {
+            var writeValue = new WriteValue
+            {
+                NodeId = targetNodeId,
+                AttributeId = attributeId,
+                Value = value
+            };
+            if (!string.IsNullOrEmpty(writeIndexRange))
+            {
+                writeValue.IndexRange = writeIndexRange;
+            }
+
+            ArrayOf<WriteValue> nodesToWrite = [writeValue];
+            ArrayOf<StatusCode> results = await m_session
+                .WriteAsync(nodesToWrite, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (results.IsNull || results.Count == 0)
+            {
+                return null;
+            }
+            return results[0];
+        }
+
+        private static bool HasTimestamps(DataValue value)
+        {
+            return value.SourceTimestamp != DateTimeUtc.MinValue ||
+                value.ServerTimestamp != DateTimeUtc.MinValue;
+        }
+
+        private static DataValue WithoutTimestamps(DataValue value)
+        {
+            // the StatusCode is kept: a target that rejects it reports the
+            // failure to the reader (Part 14 6.2.11.1, OverrideValueHandling
+            // Disabled).
+            return new DataValue(value.WrappedValue, value.StatusCode);
         }
     }
 
