@@ -1877,6 +1877,7 @@ namespace Opc.Ua.Server
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
+            NodeId modelChangeParentId = GetModelChangeParentNodeId(contextToUse, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
             IReadOnlyList<IMonitoredItem> detachedItems =
                 await DetachMonitoredItemsForNodeDeletionAsync(
@@ -1941,6 +1942,10 @@ namespace Opc.Ua.Server
             if (ModelChangeEmissionEnabled)
             {
                 ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                if (!modelChangeParentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
+                }
                 EmitModelChange(contextToUse);
             }
 
@@ -1991,7 +1996,8 @@ namespace Opc.Ua.Server
             }
 
             var typeDefinitionId = ExpandedNodeId.ToNodeId(item.TypeDefinition, Server.NamespaceUris);
-            ServiceResult typeDefinitionResult = ValidateAddNodesTypeDefinition(item.NodeClass, typeDefinitionId);
+            ServiceResult typeDefinitionResult = await ValidateAddNodesTypeDefinitionAsync(
+                item.NodeClass, typeDefinitionId, cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(typeDefinitionResult))
             {
                 return (typeDefinitionResult, NodeId.Null);
@@ -2001,6 +2007,9 @@ namespace Opc.Ua.Server
             try
             {
                 instance = CreateInstanceForAddNodes(item, typeDefinitionId);
+                await AddMandatoryInstanceDeclarationsAsync(
+                    systemContext, instance, instance.TypeDefinitionId, 0, cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (ServiceResultException ex)
             {
@@ -2111,6 +2120,11 @@ namespace Opc.Ua.Server
             try
             {
                 instance.NodeId = newNodeId;
+
+                // the Mandatory InstanceDeclarations copied from the type still
+                // carry the declaration NodeIds; mint per-instance ones now that
+                // the identifier of the new node is final.
+                systemContext.AssignInstanceChildNodeIds(instance, NodeId.Null);
                 if (parentNode != null)
                 {
                     parentNode.AddChild(instance);
@@ -2319,6 +2333,7 @@ namespace Opc.Ua.Server
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
+            NodeId modelChangeParentId = GetModelChangeParentNodeId(systemContext, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, node);
             IReadOnlyList<IMonitoredItem> detachedItems =
                 await DetachMonitoredItemsForNodeDeletionAsync(
@@ -2384,10 +2399,43 @@ namespace Opc.Ua.Server
             if (ModelChangeEmissionEnabled)
             {
                 ModelChangeAggregator.RecordNodeDeleted(item.NodeId, deletedTypeDefinition);
+                if (!modelChangeParentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
+                }
                 EmitModelChange(systemContext);
             }
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns the node that loses a hierarchical Reference when
+        /// <paramref name="node"/> is deleted: its parent, or for a node
+        /// placed below a node of another NodeManager the source of its first
+        /// inverse hierarchical Reference.
+        /// </summary>
+        private NodeId GetModelChangeParentNodeId(ISystemContext context, NodeState node)
+        {
+            if (node is BaseInstanceState { Parent: NodeState parent })
+            {
+                return parent.NodeId;
+            }
+
+            var references = new List<IReference>();
+            node.GetReferences(context, references);
+            foreach (IReference reference in references)
+            {
+                if (reference.IsInverse &&
+                    !reference.TargetId.IsAbsolute &&
+                    Server.TypeTree.IsTypeOf(
+                        reference.ReferenceTypeId,
+                        ReferenceTypeIds.HierarchicalReferences))
+                {
+                    return ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
+                }
+            }
+            return NodeId.Null;
         }
 
         private List<NodeState> GetSubtreeNotifiers(ISystemContext context, NodeState node)
@@ -2573,6 +2621,14 @@ namespace Opc.Ua.Server
             }
 
             source.AddReference(item.ReferenceTypeId, isInverse, item.TargetNodeId);
+
+            // Part 3 5.x/9.32.2: the NodeVersion of the source is updated and a
+            // ModelChangeEvent reported whenever one of its References is added.
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordReferenceAdded(source.NodeId);
+                EmitModelChange(SystemContext.Copy(context));
+            }
             return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
@@ -2607,6 +2663,12 @@ namespace Opc.Ua.Server
             if (!removed)
             {
                 return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadNoMatch));
+            }
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordReferenceDeleted(source.NodeId);
+                EmitModelChange(SystemContext.Copy(context));
             }
 
             return new ValueTask<ServiceResult>(ServiceResult.Good);
@@ -2657,6 +2719,158 @@ namespace Opc.Ua.Server
                 m_nodeIdFactory.DefaultNamespaceIndex,
                 context.NamespaceUris);
         }
+
+        /// <summary>
+        /// Gives a node created by AddNodes the Mandatory InstanceDeclarations
+        /// of its TypeDefinition (Part 4 5.8.2.1, Part 3 6.4.2).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The declarations are collected from the TypeDefinition and its
+        /// supertypes, the most derived declaration of a BrowseName winning
+        /// (an overriding InstanceDeclaration replaces the inherited one).
+        /// Each Mandatory declaration is copied together with its own
+        /// Mandatory descendants; Optional and placeholder declarations, and
+        /// nodes without a ModellingRule, are not instantiated. A copied child
+        /// is completed from its own TypeDefinition in turn, so a child whose
+        /// declaration omits a Mandatory member of its type still gets it.
+        /// </para>
+        /// <para>
+        /// The copies keep the declaration NodeIds; the caller rebases the
+        /// subtree onto per-instance NodeIds once the identifier of the new
+        /// node is final. Type nodes that are not available as NodeStates are
+        /// skipped.
+        /// </para>
+        /// </remarks>
+        private async ValueTask AddMandatoryInstanceDeclarationsAsync(
+            ISystemContext context,
+            NodeState instance,
+            NodeId typeDefinitionId,
+            int depth,
+            CancellationToken cancellationToken)
+        {
+            if (typeDefinitionId.IsNull || depth > kMaxInstanceDeclarationDepth)
+            {
+                return;
+            }
+
+            var existing = new List<BaseInstanceState>();
+            instance.GetChildren(context, existing);
+            var browseNames = new HashSet<QualifiedName>();
+            foreach (BaseInstanceState child in existing)
+            {
+                browseNames.Add(child.BrowseName);
+            }
+
+            var added = new List<BaseInstanceState>();
+            var visitedTypes = new HashSet<NodeId>();
+            NodeId typeId = typeDefinitionId;
+            while (!typeId.IsNull && visitedTypes.Add(typeId))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                NodeState? typeNode = await FindTypeNodeAsync(typeId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (typeNode != null)
+                {
+                    var declarations = new List<BaseInstanceState>();
+                    typeNode.GetChildren(context, declarations);
+                    foreach (BaseInstanceState declaration in declarations)
+                    {
+                        if (declaration.BrowseName.IsNull ||
+                            !browseNames.Add(declaration.BrowseName) ||
+                            declaration.ModellingRuleId != ObjectIds.ModellingRule_Mandatory)
+                        {
+                            // the BrowseName is claimed by the instance or by a
+                            // more derived declaration even when it is not
+                            // Mandatory, so the inherited one is not used.
+                            continue;
+                        }
+
+                        var copy = (BaseInstanceState)declaration.Clone();
+                        PrepareInstanceDeclarationCopy(context, copy);
+                        instance.AddChild(copy);
+                        added.Add(copy);
+                    }
+                }
+
+                if (typeId == ObjectTypeIds.BaseObjectType ||
+                    typeId == VariableTypeIds.BaseVariableType)
+                {
+                    break;
+                }
+                typeId = Server.TypeTree.FindSuperType(typeId);
+            }
+
+            // complete every copied node - including the descendants copied
+            // with a declaration - from its own TypeDefinition.
+            foreach (BaseInstanceState child in added)
+            {
+                await AddMandatoryInstanceDeclarationsToSubtreeAsync(
+                    context, child, depth + 1, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask AddMandatoryInstanceDeclarationsToSubtreeAsync(
+            ISystemContext context,
+            BaseInstanceState node,
+            int depth,
+            CancellationToken cancellationToken)
+        {
+            if (depth > kMaxInstanceDeclarationDepth || node is not (BaseObjectState or BaseVariableState))
+            {
+                return;
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            await AddMandatoryInstanceDeclarationsAsync(
+                context, node, node.TypeDefinitionId, depth, cancellationToken).ConfigureAwait(false);
+            foreach (BaseInstanceState child in children)
+            {
+                await AddMandatoryInstanceDeclarationsToSubtreeAsync(
+                    context, child, depth + 1, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Turns a copy of an InstanceDeclaration into an instance node,
+        /// keeping only its Mandatory descendants.
+        /// </summary>
+        /// <remarks>
+        /// The copy is re-parented by <see cref="NodeState.AddChild"/>; the
+        /// clones of its descendants are already parented to their copied
+        /// parents. The copy still carries the declaration NodeId.
+        /// </remarks>
+        private static void PrepareInstanceDeclarationCopy(
+            ISystemContext context,
+            BaseInstanceState copy)
+        {
+            copy.Handle = null;
+            copy.IsPartOfTypeHierarchy = false;
+            copy.ModellingRuleId = NodeId.Null;
+            if (copy is MethodState method && method.MethodDeclarationId.IsNull)
+            {
+                method.MethodDeclarationId = copy.NodeId;
+            }
+
+            var children = new List<BaseInstanceState>();
+            copy.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                bool keep = child.ModellingRuleId == ObjectIds.ModellingRule_Mandatory ||
+                    (copy is MethodState &&
+                        (child.BrowseName.Name == BrowseNames.InputArguments ||
+                            child.BrowseName.Name == BrowseNames.OutputArguments));
+                if (!keep)
+                {
+                    copy.RemoveChild(child);
+                    continue;
+                }
+                PrepareInstanceDeclarationCopy(context, child);
+            }
+        }
+
+        private const int kMaxInstanceDeclarationDepth = 16;
 
         private static BaseInstanceState CreateInstanceForAddNodes(
             AddNodesItem item,
@@ -2709,9 +2923,23 @@ namespace Opc.Ua.Server
             }
         }
 
-        private ServiceResult ValidateAddNodesTypeDefinition(
+        /// <summary>
+        /// Checks that the TypeDefinition of an AddNodes item is a known,
+        /// concrete type of the matching NodeClass.
+        /// </summary>
+        /// <remarks>
+        /// An abstract type cannot be the TypeDefinition of an instance (Part 3
+        /// 5.5.2 and 5.6.5), and an Interface - every subtype of
+        /// BaseInterfaceType - shall never be the TargetNode of a
+        /// HasTypeDefinition Reference (Part 3 4.10.2). Both are rejected with
+        /// Bad_TypeDefinitionInvalid. BaseVariableType is abstract as well, so
+        /// a Variable has to use BaseDataVariableType, PropertyType or a
+        /// concrete subtype.
+        /// </remarks>
+        private async ValueTask<ServiceResult> ValidateAddNodesTypeDefinitionAsync(
             NodeClass nodeClass,
-            NodeId typeDefinitionId)
+            NodeId typeDefinitionId,
+            CancellationToken cancellationToken)
         {
             if (nodeClass is not NodeClass.Object and
                 not NodeClass.Variable)
@@ -2728,9 +2956,29 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
 
-            if (typeDefinitionId == expectedBaseTypeId)
+            if (typeDefinitionId == ObjectTypeIds.BaseObjectType)
             {
-                return ServiceResult.Good;
+                return nodeClass == NodeClass.Object
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            // the concrete standard VariableTypes every Variable may use.
+            if (typeDefinitionId == VariableTypeIds.BaseDataVariableType ||
+                typeDefinitionId == VariableTypeIds.PropertyType)
+            {
+                return nodeClass == NodeClass.Variable
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            // well-known abstract roots, rejected even when the type node is
+            // not available as a NodeState to read IsAbstract from.
+            if (typeDefinitionId == VariableTypeIds.BaseVariableType ||
+                typeDefinitionId == ObjectTypeIds.BaseEventType ||
+                typeDefinitionId == ObjectTypeIds.BaseInterfaceType)
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
 
             if (!Server.TypeTree.IsKnown(typeDefinitionId) ||
@@ -2739,7 +2987,45 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
 
+            if (nodeClass == NodeClass.Object &&
+                Server.TypeTree.IsTypeOf(typeDefinitionId, ObjectTypeIds.BaseInterfaceType))
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            NodeState? typeNode = await FindTypeNodeAsync(typeDefinitionId, cancellationToken)
+                .ConfigureAwait(false);
+            if (typeNode is BaseTypeState { IsAbstract: true })
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Finds the NodeState of a type, looking in this NodeManager first and
+        /// then in the rest of the address space.
+        /// </summary>
+        private async ValueTask<NodeState?> FindTypeNodeAsync(
+            NodeId typeId,
+            CancellationToken cancellationToken)
+        {
+            if (typeId.IsNull)
+            {
+                return null;
+            }
+            if (PredefinedNodes.TryGetValue(typeId, out NodeState? local))
+            {
+                return local;
+            }
+            IMasterNodeManager? master = Server.NodeManager;
+            if (master == null)
+            {
+                return null;
+            }
+            return await master.FindNodeInAddressSpaceAsync(typeId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private async ValueTask<ServiceResult> ValidateVariableAttributesAsync(
@@ -2751,8 +3037,10 @@ namespace Opc.Ua.Server
             NodeId typeDataType = DataTypeIds.BaseDataType;
             int typeValueRank = ValueRanks.Any;
             ArrayOf<uint> typeDimensions = default;
+            // the standard concrete types constrain neither DataType nor ValueRank.
             if (variable.TypeDefinitionId != VariableTypeIds.BaseVariableType &&
-                variable.TypeDefinitionId != VariableTypeIds.BaseDataVariableType)
+                variable.TypeDefinitionId != VariableTypeIds.BaseDataVariableType &&
+                variable.TypeDefinitionId != VariableTypeIds.PropertyType)
             {
                 BaseVariableTypeState? localType = FindPredefinedNode<BaseVariableTypeState>(
                     variable.TypeDefinitionId);
