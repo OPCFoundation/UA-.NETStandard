@@ -1044,21 +1044,63 @@ namespace Opc.Ua.Server
                         ISession? session = context!.Session;
                         if (!assignContinuationPoint || session == null)
                         {
+                            TranslateDisplayNames(context, referenceList);
                             return (StatusCodes.BadNoContinuationPoints, null, referenceList);
                         }
                         currentCp.Id = Guid.NewGuid();
                         session.ContinuationPoints.SaveBrowse(currentCp);
                         ContinuationPoint retainedCp = currentCp;
                         currentCp = null;
+                        TranslateDisplayNames(context, referenceList);
                         return (ServiceResult.Good, retainedCp, referenceList);
                     }
                 }
+                TranslateDisplayNames(context!, referenceList);
                 return (ServiceResult.Good, null, referenceList);
             }
             finally
             {
                 currentCp?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Selects the translation of the target DisplayNames that the session
+        /// prefers (OPC 10000-4 5.4).
+        /// </summary>
+        private void TranslateDisplayNames(OperationContext context, List<ReferenceDescription> references)
+        {
+            ResourceManager? resourceManager = Server.ResourceManager;
+            ArrayOf<string> preferredLocales = context.PreferredLocales;
+            if (resourceManager == null || preferredLocales.Count == 0)
+            {
+                return;
+            }
+            foreach (ReferenceDescription reference in references)
+            {
+                if (!reference.DisplayName.IsNull)
+                {
+                    reference.DisplayName = resourceManager.Translate(preferredLocales, reference.DisplayName);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Selects the translation of a localized text value that the session
+        /// prefers (OPC 10000-4 5.4). The value stored in the node is not changed.
+        /// </summary>
+        private DataValue TranslateValue(OperationContext context, DataValue value)
+        {
+            ResourceManager? resourceManager = Server.ResourceManager;
+            ArrayOf<string> preferredLocales = context.PreferredLocales;
+            if (resourceManager == null ||
+                preferredLocales.Count == 0 ||
+                value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.LocalizedText)
+            {
+                return value;
+            }
+            return value.WithWrappedValue(
+                resourceManager.TranslateValue(preferredLocales, value.WrappedValue));
         }
 
         /// <summary>
@@ -1274,6 +1316,10 @@ namespace Opc.Ua.Server
                         diagnosticsExist = true;
                     }
                 }
+
+                // select the translations the session prefers (Part 4 5.4) for the
+                // DisplayName, Description, InverseName and localized text values.
+                value = values[ii] = TranslateValue(context, value);
 
                 // apply the timestamp filters.
                 if (timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
