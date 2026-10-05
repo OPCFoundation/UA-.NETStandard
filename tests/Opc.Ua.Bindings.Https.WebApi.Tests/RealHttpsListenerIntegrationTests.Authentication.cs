@@ -35,8 +35,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication.Certificate;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using NUnit.Framework;
@@ -68,12 +72,17 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         [TestCase("bearer", "bearer-valid", HttpStatusCode.OK)]
         [TestCase("mtls", "none", HttpStatusCode.Unauthorized)]
         [TestCase("mtls", "basic-valid", HttpStatusCode.Unauthorized)]
+        [TestCase("mtls", "client-cert", HttpStatusCode.OK)]
         public async Task AuthOptInIsEnforcedByRealHttpsListenerAsync(
             string authMode,
             string credential,
             HttpStatusCode expectedStatus)
         {
-            await using AuthListener listener = await OpenAuthListenerAsync(authMode).ConfigureAwait(false);
+            using X509Certificate2? clientCertificate = credential == "client-cert"
+                ? CreateClientCertificate()
+                : null;
+            await using AuthListener listener = await OpenAuthListenerAsync(authMode, clientCertificate)
+                .ConfigureAwait(false);
 
             using HttpResponseMessage response = await listener
                 .PostReadAsync(CreateAuthorizationHeader(credential))
@@ -101,6 +110,51 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
+        public async Task CustomBearerChallengeIsNotOverwrittenOnRealHttpsListenerAsync()
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync("bearer-custom-challenge")
+                .ConfigureAwait(false);
+
+            using HttpResponseMessage response = await listener
+                .PostReadAsync(authorization: null)
+                .ConfigureAwait(false);
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            Assert.That(body, Is.EqualTo("custom challenge"));
+            Assert.That(listener.Callback.LastRequest, Is.Null);
+        }
+
+        [Test]
+        public async Task SharedHostSettingsDistinguishContributorInstancesAsync()
+        {
+            IServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(m_telemetry!);
+            var first = new WebApiHttpsStartupContributor(new WebApiServer(messageContext, "first"));
+            var second = new WebApiHttpsStartupContributor(new WebApiServer(messageContext, "second"));
+
+            await using HttpsTransportListener firstListener = CreateListener(first);
+            await using HttpsTransportListener sameListener = CreateListener(first);
+            await using HttpsTransportListener otherListener = CreateListener(second);
+
+            Assert.That(
+                sameListener.GetSharedHostSettings(),
+                Is.EqualTo(firstListener.GetSharedHostSettings()),
+                "Listeners wired with the same contributor instance may share a host.");
+            Assert.That(
+                otherListener.GetSharedHostSettings(),
+                Is.Not.EqualTo(firstListener.GetSharedHostSettings()),
+                "A shared host only registers the first listener's contributor services, so " +
+                "a listener with another contributor instance (e.g. other REST auth) must not share it.");
+
+            HttpsTransportListener CreateListener(WebApiHttpsStartupContributor contributor)
+            {
+                var factory = new HttpsTransportListenerFactory();
+                factory.StartupContributors.Add(contributor);
+                return (HttpsTransportListener)factory.Create(m_telemetry!);
+            }
+        }
+
+        [Test]
         public async Task DiscoveryStaysAnonymousWhenAuthIsEnabledOnRealHttpsListenerAsync()
         {
             await using AuthListener listener = await OpenAuthListenerAsync("basic").ConfigureAwait(false);
@@ -119,7 +173,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(listener.Callback.LastRequest, Is.InstanceOf<FindServersRequest>());
         }
 
-        private async Task<AuthListener> OpenAuthListenerAsync(string authMode)
+        private async Task<AuthListener> OpenAuthListenerAsync(
+            string authMode,
+            X509Certificate2? clientCertificate = null)
         {
             var services = new ServiceCollection();
             services.AddLogging();
@@ -146,8 +202,35 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         };
                     });
                     break;
+                case "bearer-custom-challenge":
+                    builder.AddWebApiBearerAuth(o =>
+                    {
+                        o.RequireHttpsMetadata = false;
+                        o.TokenValidationParameters = new TokenValidationParameters
+                        {
+                            ValidIssuer = kJwtIssuer,
+                            ValidAudience = kJwtAudience,
+                            IssuerSigningKey = new SymmetricSecurityKey(s_jwtSigningKey)
+                        };
+                        // A handler that writes the challenge response
+                        // itself, after which the status is read-only.
+                        o.Events = new JwtBearerEvents
+                        {
+                            OnChallenge = async context =>
+                            {
+                                context.HandleResponse();
+                                await context.Response.WriteAsync("custom challenge").ConfigureAwait(false);
+                                await context.Response.Body.FlushAsync().ConfigureAwait(false);
+                            }
+                        };
+                    });
+                    break;
                 case "mtls":
-                    builder.AddWebApiMutualTlsAuth();
+                    builder.AddWebApiMutualTlsAuth(o =>
+                    {
+                        o.AllowedCertificateTypes = CertificateTypes.SelfSigned;
+                        o.RevocationMode = X509RevocationMode.NoCheck;
+                    });
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(authMode));
@@ -170,10 +253,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 int port = FindAvailableTcpPort();
                 await listener.OpenAsync(
                     new Uri($"https://localhost:{port}/"),
-                    CreateListenerSettings(m_certificateRegistry!, port),
+                    CreateListenerSettings(m_certificateRegistry!, port, mutualTls: authMode == "mtls"),
                     callback).ConfigureAwait(false);
                 await WaitForListenerReadyAsync(port).ConfigureAwait(false);
-                result.Connect(port);
+                result.Connect(port, clientCertificate);
                 return result;
             }
             catch
@@ -187,7 +270,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         {
             return credential switch
             {
-                "none" => null,
+                "none" or "client-cert" => null,
                 "basic-valid" => new AuthenticationHeaderValue(
                     "Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes("alice:secret"))),
                 "basic-wrong" => new AuthenticationHeaderValue(
@@ -213,6 +296,28 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     new SymmetricSecurityKey(signingKey),
                     Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256));
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private static X509Certificate2 CreateClientCertificate()
+        {
+            using var rsa = RSA.Create(2048);
+            var request = new CertificateRequest(
+                "CN=webapi-mtls-client",
+                rsa,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+            request.CertificateExtensions.Add(
+                new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, critical: false));
+            request.CertificateExtensions.Add(
+                new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.2")], critical: false));
+            using X509Certificate2 certificate = request.CreateSelfSigned(
+                DateTimeOffset.UtcNow.AddMinutes(-5),
+                DateTimeOffset.UtcNow.AddHours(1));
+            // Reload from PFX so SChannel can use the private key for client auth.
+            return X509CertificateLoader.LoadPkcs12(
+                certificate.Export(X509ContentType.Pfx),
+                password: null,
+                keyStorageFlags: X509KeyStorageFlags.Exportable);
         }
 
         /// <summary>
@@ -241,12 +346,17 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             public StubTransportListenerCallback Callback { get; }
 
-            public void Connect(int port)
+            public void Connect(int port, X509Certificate2? clientCertificate)
             {
                 m_handler = new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = static (_, _, _, _) => true
                 };
+                if (clientCertificate != null)
+                {
+                    m_handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                    m_handler.ClientCertificates.Add(clientCertificate);
+                }
                 m_client = new HttpClient(m_handler)
                 {
                     BaseAddress = new Uri($"https://localhost:{port}/")

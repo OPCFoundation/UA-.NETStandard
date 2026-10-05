@@ -83,16 +83,22 @@ namespace Opc.Ua.Bindings.WebApi.Authentication
         /// <inheritdoc/>
         protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
         {
+            // Set the status first: a JwtBearerEvents.OnChallenge handler
+            // may write the response, after which it can no longer change.
+            Response.StatusCode = (int)HttpStatusCode.Unauthorized;
             IAuthenticationSchemeProvider schemes = Context.RequestServices
                 .GetRequiredService<IAuthenticationSchemeProvider>();
             foreach (string scheme in s_challengeSchemes)
             {
+                if (Response.HasStarted)
+                {
+                    return;
+                }
                 if (await schemes.GetSchemeAsync(scheme).ConfigureAwait(false) != null)
                 {
                     await Context.ChallengeAsync(scheme, properties).ConfigureAwait(false);
                 }
             }
-            Response.StatusCode = (int)HttpStatusCode.Unauthorized;
         }
     }
 }
