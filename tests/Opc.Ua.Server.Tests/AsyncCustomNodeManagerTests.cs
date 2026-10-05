@@ -4836,6 +4836,190 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Part 3 §8.55: a method declared on an ObjectType keeps its RolePermissions
+        /// when it is resolved through the type hierarchy; a role without the Call
+        /// bit on the type's method is denied even though the instance allows Call.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CallAsyncEnforcesCallPermissionOfTypeMethodAsync(bool grantCall)
+        {
+            Assume.That(m_managerType, Is.Not.EqualTo(AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter),
+                "The legacy adapter resolves permission handles through the synchronous master node manager.");
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            PermissionType methodPermissions = PermissionType.Browse | PermissionType.Read;
+            if (grantCall)
+            {
+                methodPermissions |= PermissionType.Call;
+            }
+
+            (BaseObjectTypeState objectType, MethodState typeMethod) = CreateTypeWithMethod(context, nsIdx);
+            objectType.IsPartOfTypeHierarchy = true;
+            typeMethod.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    Permissions = (uint)methodPermissions
+                }
+            ];
+
+            var instance = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("PermInstance", nsIdx),
+                BrowseName = new QualifiedName("PermInstance", nsIdx),
+                TypeDefinitionId = objectType.NodeId
+            };
+            instance.CreateAsPredefinedNode(context);
+
+            await manager.AddPredefinedNodeAsync(context, objectType).ConfigureAwait(false);
+            await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
+            m_mockServer.Object.TypeTree.AddSubtype(objectType.NodeId, NodeId.Null);
+
+            await AssertCallWithRoleAsync(
+                manager,
+                instance.NodeId,
+                typeMethod.NodeId,
+                ObjectIds.WellKnownRole_AuthenticatedUser,
+                grantCall).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Part 3 §8.55: the Call permission must be granted on the Object passed as
+        /// ObjectId as well as on the Method.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CallAsyncEnforcesCallPermissionOfObjectAsync(bool grantCall)
+        {
+            Assume.That(m_managerType, Is.Not.EqualTo(AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter),
+                "The legacy adapter resolves permission handles through the synchronous master node manager.");
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            PermissionType objectPermissions = PermissionType.Browse | PermissionType.Read;
+            if (grantCall)
+            {
+                objectPermissions |= PermissionType.Call;
+            }
+
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("PermParent", nsIdx);
+            parent.BrowseName = new QualifiedName("PermParent", nsIdx);
+            parent.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    Permissions = (uint)objectPermissions
+                }
+            ];
+
+            var method = new MethodState(parent)
+            {
+                NodeId = new NodeId("PermMethod", nsIdx),
+                BrowseName = new QualifiedName("PermMethod", nsIdx),
+                RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+                    }
+                ]
+            };
+            method.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
+            {
+                Value = []
+            };
+            method.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
+            {
+                Value = []
+            };
+            method.OnCallMethod = (_, _, _, _) => ServiceResult.Good;
+            parent.AddChild(method);
+
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+
+            await AssertCallWithRoleAsync(
+                manager,
+                parent.NodeId,
+                method.NodeId,
+                ObjectIds.WellKnownRole_AuthenticatedUser,
+                grantCall).ConfigureAwait(false);
+        }
+
+        private static (BaseObjectTypeState ObjectType, MethodState Method) CreateTypeWithMethod(
+            ServerSystemContext context,
+            ushort nsIdx)
+        {
+            var objectType = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("PermObjectType", nsIdx),
+                BrowseName = new QualifiedName("PermObjectType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+            objectType.CreateAsPredefinedNode(context);
+
+            var typeMethod = new MethodState(objectType)
+            {
+                NodeId = new NodeId("PermTypeMethod", nsIdx),
+                BrowseName = new QualifiedName("PermTypeMethod", nsIdx)
+            };
+            typeMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(typeMethod)
+            {
+                Value = []
+            };
+            typeMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(typeMethod)
+            {
+                Value = []
+            };
+            typeMethod.OnCallMethod = (_, _, _, _) => ServiceResult.Good;
+            objectType.AddChild(typeMethod);
+            return (objectType, typeMethod);
+        }
+
+        private static async Task AssertCallWithRoleAsync(
+            ITestNodeManager manager,
+            NodeId objectId,
+            NodeId methodId,
+            NodeId roleId,
+            bool expectGood)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.GrantedRoleIds).Returns([roleId]);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.Call,
+                RequestLifetime.None,
+                identity.Object);
+
+            var requests = new List<CallMethodRequest>
+            {
+                new() { ObjectId = objectId, MethodId = methodId, InputArguments = [] }
+            };
+            var results = new List<CallMethodResult> { null };
+            var errors = new List<ServiceResult> { null };
+
+            await manager.CallAsync(operationContext, requests, results, errors).ConfigureAwait(false);
+
+            if (expectGood)
+            {
+                Assert.That(ServiceResult.IsGood(errors[0]), Is.True, errors[0]?.ToString());
+            }
+            else
+            {
+                Assert.That(errors[0]?.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+        }
+
+        /// <summary>
         /// Verifies that method-state lookup resolves methods inherited from an object type's supertype.
         /// </summary>
         [Test]

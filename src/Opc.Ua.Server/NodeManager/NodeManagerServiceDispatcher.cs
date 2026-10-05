@@ -3616,7 +3616,25 @@ namespace Opc.Ua.Server
 
             if (method != null)
             {
-                // check access rights and role permissions
+                // Part 3 §8.55 Call: the Call bit must be granted on the Object (or
+                // ObjectType) passed as ObjectId and on the Method. The Object's
+                // AccessRestrictions apply as well (Part 3 §8.56).
+                ServiceResult objectResult = await ValidatePermissionsAsync(
+                        operationContext,
+                        callMethodRequest.ObjectId,
+                        PermissionType.Call,
+                        uniqueNodesReadAttributes,
+                        permissionsOnly,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (ServiceResult.IsBad(objectResult))
+                {
+                    return objectResult;
+                }
+
+                // check access rights and role permissions of the method that is
+                // executed, which can be the declaration on a type definition.
                 return await ValidatePermissionsAsync(
                         operationContext,
                         method.NodeId,
@@ -3896,7 +3914,10 @@ namespace Opc.Ua.Server
                 requestedPermission,
                 m_logger);
             return ServiceResult.IsGood(result)
-                ? MasterNodeManager.ValidateAccessRestrictions(context, nodeMetadata)
+                ? MasterNodeManager.ValidateAccessRestrictions(
+                    context,
+                    nodeMetadata,
+                    requestedPermission)
                 : result;
         }
 
