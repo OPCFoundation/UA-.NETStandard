@@ -1,0 +1,216 @@
+name: Foreign stack interop
+
+# Runs the interop fixtures of tests/Opc.Ua.Interop.Tests against peers built
+# on other OPC UA stacks (tests/Opc.Ua.Interop.Peers/<stack>). The fixtures are
+# the same ones the main CI runs against the 1.5.378 peer; the peer is swapped
+# through OPCUA_INTEROP_PEER_HOST, OPCUA_INTEROP_PEER_HOST_ARGUMENTS and
+# OPCUA_INTEROP_LEGACY_PEER (native peers run without a host). Known defects of
+# a stack are listed in its expected-differences.json and reported as
+# inconclusive.
+#
+# Opt-in: nightly, manual, and pull requests labelled 'interop'. It is not a
+# required check, so a regression of a foreign stack never blocks a merge.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: interop-foreign-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  OPEN62541_VERSION: v1.5.8
+
+jobs:
+  interop:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'interop')
+    name: ${{ matrix.peer }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        peer: [node-opcua, milo, asyncua, open62541, async-opcua, gopcua]
+        exclude:
+          # Built from source; Linux covers the stack (incl. the ECC policies,
+          # with OpenSSL also ECC_nistP256_AesGcm/_ChaChaPoly).
+          - os: windows-latest
+            peer: open62541
+          - os: macos-latest
+            peer: open62541
+    env:
+      PEERS: ${{ github.workspace }}/tests/Opc.Ua.Interop.Peers
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Nerdbank.GitVersioning computes the version height from history and
+          # fails the build of a shallow clone.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.401'
+
+      # ---------------------------------------------------------------- node-opcua
+      - name: Setup Node.js
+        if: matrix.peer == 'node-opcua'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tests/Opc.Ua.Interop.Peers/node-opcua/package-lock.json
+      - name: Install the node-opcua peer
+        if: matrix.peer == 'node-opcua'
+        working-directory: tests/Opc.Ua.Interop.Peers/node-opcua
+        run: npm ci --no-audit --no-fund
+
+      # ---------------------------------------------------------------- Milo
+      - name: Setup Java
+        if: matrix.peer == 'milo'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: tests/Opc.Ua.Interop.Peers/milo/pom.xml
+      - name: Build the Milo peer
+        if: matrix.peer == 'milo'
+        run: mvn -B -q -f tests/Opc.Ua.Interop.Peers/milo/pom.xml package
+
+      # ---------------------------------------------------------------- asyncua
+      - name: Setup Python
+        if: matrix.peer == 'asyncua'
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tests/Opc.Ua.Interop.Peers/asyncua/requirements.txt
+      - name: Install the asyncua peer
+        if: matrix.peer == 'asyncua'
+        run: pip install -r tests/Opc.Ua.Interop.Peers/asyncua/requirements.txt
+
+      # ---------------------------------------------------------------- open62541
+      - name: Cache open62541
+        if: matrix.peer == 'open62541'
+        id: open62541-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/open62541-install
+          key: open62541-${{ env.OPEN62541_VERSION }}-openssl3-xml-${{ runner.os }}
+      # OpenSSL rather than mbedTLS: open62541 implements the AEAD
+      # (ECC_nistP256_AesGcm/_ChaChaPoly) and Edwards curve ECC policies only
+      # with OpenSSL. The installed library links the distro libssl (3.x).
+      - name: Install OpenSSL
+        if: matrix.peer == 'open62541'
+        run: dpkg -s libssl-dev > /dev/null 2>&1 || (sudo apt-get update -q && sudo apt-get install -y --no-install-recommends libssl-dev)
+      - name: Build open62541 with OpenSSL
+        if: matrix.peer == 'open62541' && steps.open62541-cache.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
+        run: |
+          git clone -q --depth 1 --branch "$OPEN62541_VERSION" https://github.com/open62541/open62541.git
+          git -C open62541 submodule update --init --depth 1 deps/ua-nodeset
+          # The client sources are only built with discovery enabled. The
+          # InputArguments/OutputArguments values of the namespace 0 methods
+          # (e.g. Server.GetMonitoredItems, which the .NET client calls after
+          # TransferSubscriptions) are only generated with XML encoding enabled.
+          cmake -S open62541 -B build-open62541 -DCMAKE_BUILD_TYPE=Release -DUA_ENABLE_ENCRYPTION=OPENSSL \
+            -DUA_NAMESPACE_ZERO=FULL -DUA_ENABLE_DISCOVERY=ON -DUA_ENABLE_XML_ENCODING=ON \
+            -DUA_BUILD_EXAMPLES=OFF -DUA_BUILD_UNIT_TESTS=OFF -DUA_FORCE_WERROR=OFF \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/open62541-install"
+          cmake --build build-open62541 --parallel && cmake --install build-open62541
+      - name: Build the open62541 peer
+        if: matrix.peer == 'open62541'
+        run: |
+          cmake -S tests/Opc.Ua.Interop.Peers/open62541 -B tests/Opc.Ua.Interop.Peers/open62541/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/open62541-install"
+          cmake --build tests/Opc.Ua.Interop.Peers/open62541/build
+
+      # ---------------------------------------------------------------- async-opcua
+      - name: Cache cargo
+        if: matrix.peer == 'async-opcua'
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            tests/Opc.Ua.Interop.Peers/async-opcua/target
+          key: async-opcua-${{ runner.os }}-${{ hashFiles('tests/Opc.Ua.Interop.Peers/async-opcua/Cargo.toml') }}
+      - name: Build the async-opcua peer
+        if: matrix.peer == 'async-opcua'
+        run: cargo build --release --manifest-path tests/Opc.Ua.Interop.Peers/async-opcua/Cargo.toml
+
+      # ---------------------------------------------------------------- gopcua
+      - name: Setup Go
+        if: matrix.peer == 'gopcua'
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: tests/Opc.Ua.Interop.Peers/gopcua/go.mod
+          cache-dependency-path: tests/Opc.Ua.Interop.Peers/gopcua/go.sum
+      - name: Build the gopcua peer
+        if: matrix.peer == 'gopcua'
+        working-directory: tests/Opc.Ua.Interop.Peers/gopcua
+        run: go build -o build/gopcua-peer${{ runner.os == 'Windows' && '.exe' || '' }} .
+
+      # ---------------------------------------------------------------- run
+      - name: Select the peer
+        shell: pwsh
+        run: |
+          $ext = $IsWindows ? '.exe' : ''
+          $main = 'FullyQualifiedName~LegacyServerInteropTests|FullyQualifiedName~LegacyClientInteropTests|FullyQualifiedName~ServerFeatureInteropTests'
+          switch ('${{ matrix.peer }}') {
+            'node-opcua' {
+              "OPCUA_INTEROP_PEER_HOST=$((Get-Command node).Source)" >> $env:GITHUB_ENV
+              "OPCUA_INTEROP_LEGACY_PEER=$env:PEERS/node-opcua/peer.mjs" >> $env:GITHUB_ENV
+              $filter = $main
+            }
+            'milo' {
+              "OPCUA_INTEROP_PEER_HOST=$((Get-Command java).Source)" >> $env:GITHUB_ENV
+              "OPCUA_INTEROP_PEER_HOST_ARGUMENTS=-jar" >> $env:GITHUB_ENV
+              "OPCUA_INTEROP_LEGACY_PEER=$env:PEERS/milo/target/milo-peer.jar" >> $env:GITHUB_ENV
+              $filter = $main
+            }
+            'asyncua' {
+              "OPCUA_INTEROP_PEER_HOST=$((Get-Command python).Source)" >> $env:GITHUB_ENV
+              "OPCUA_INTEROP_LEGACY_PEER=$env:PEERS/asyncua/peer.py" >> $env:GITHUB_ENV
+              $filter = $main
+            }
+            'open62541' {
+              "OPCUA_INTEROP_LEGACY_PEER=$env:PEERS/open62541/build/open62541-peer$ext" >> $env:GITHUB_ENV
+              $filter = "$main|FullyQualifiedName~EccInteropTests"
+            }
+            'async-opcua' {
+              "OPCUA_INTEROP_LEGACY_PEER=$env:PEERS/async-opcua/target/release/async-opcua-peer$ext" >> $env:GITHUB_ENV
+              $filter = $main
+            }
+            'gopcua' {
+              # Client only: the gopcua server cannot run the server contract.
+              "OPCUA_INTEROP_LEGACY_PEER=$env:PEERS/gopcua/build/gopcua-peer$ext" >> $env:GITHUB_ENV
+              $filter = 'FullyQualifiedName~LegacyClientInteropTests'
+            }
+          }
+          "INTEROP_FILTER=$filter" >> $env:GITHUB_ENV
+
+      - name: Test
+        run: >
+          dotnet test tests/Opc.Ua.Interop.Tests/Opc.Ua.Interop.Tests.csproj
+          -c Release -f net10.0 -p:CustomTestTarget=net10.0
+          --filter "${{ env.INTEROP_FILTER }}"
+          --logger "trx;LogFileName=interop-${{ matrix.peer }}.trx"
+          --results-directory ./TestResults
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: interop-${{ matrix.peer }}-${{ matrix.os }}
+          path: ./TestResults
