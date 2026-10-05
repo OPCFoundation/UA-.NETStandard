@@ -12,6 +12,7 @@ to enable it on a server built with this stack.
 - [Enabling it](#enabling-it)
 - [Caller identity](#caller-identity)
 - [Answers without the feature](#answers-without-the-feature)
+- [Limiting concurrent requests](#limiting-concurrent-requests)
 - [Taking over completely](#taking-over-completely)
 - [Calling the server](#calling-the-server)
 
@@ -87,12 +88,55 @@ Without `AddSessionlessInvocation` and without a
 prescribes for a Server that does not support session-less invocation.
 Requests with a token that names no Session stay `Bad_SessionIdInvalid`.
 
+## Limiting concurrent requests
+
+A request of a Session is accounted for by its Session. A session-less request
+has none, but it still occupies a worker and keeps its channel active. The
+[resource isolation](ResourceIsolation.md) of the server limits channels,
+queued requests and incomplete messages. Session-less requests also get a
+budget of their own, so that they cannot use up the capacity of the Sessions
+and the Sessions cannot use up theirs:
+
+| Option | Default | Limits |
+| --- | --- | --- |
+| `MaxConcurrentRequests` | 64 | Session-less requests that run at the same time, over all channels |
+| `MaxConcurrentRequestsPerChannel` | 16 | The same on one channel |
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => { /* … */ })
+    .AddSessionlessInvocation(options =>
+    {
+        options.MaxConcurrentRequests = 128;
+        options.MaxConcurrentRequestsPerChannel = 32;
+    });
+```
+
+- Zero does not limit. A negative value is rejected.
+- A request counts from the check of its identity until its Service has
+  completed, failed or was cancelled. A request that is rejected while its
+  identity is checked, for example because its Access Token is not accepted,
+  returns its place at once.
+- A request over a limit is answered with `Bad_ServerTooBusy`: "The Server does
+  not have the resources to process the request at this time." The client can
+  retry the same request later. Nothing was executed.
+- The channel of an opc.tcp request is its SecureChannel. The HTTPS bindings
+  have no SecureChannel per connection, so their requests are grouped by the
+  network address of the peer. Callers behind one address, such as a proxy,
+  share the limit.
+- Requests that carry a Session token, and requests the feature does not
+  accept (see [Which Services](#which-services)), are not counted.
+- The limits are read for every request, so changing the options applies to the
+  next request. Requests that run keep their place.
+
 ## Taking over completely
 
 A handler on `ISessionManager.ValidateSessionLessRequest` decides before the
 built-in handling. It receives the token and the request type and sets the
 identity or an error. The Service Set limit above applies before the
-handler is called.
+handler is called. When `AddSessionlessInvocation` is used as well, the
+request limits above apply before the handler too. A handler without
+`AddSessionlessInvocation` runs without a request limit.
 
 ## Calling the server
 

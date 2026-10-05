@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -60,6 +63,13 @@ namespace Opc.Ua.Server
     /// A <c>ValidateSessionLessRequest</c> handler registered on the session
     /// manager takes precedence over these options.
     /// </para>
+    /// <para>
+    /// A request without a Session has no Session to account for. Its own
+    /// budget, <see cref="MaxConcurrentRequests"/> and
+    /// <see cref="MaxConcurrentRequestsPerChannel"/>, bounds how many of
+    /// these requests run at the same time, apart from the Sessions of the
+    /// Server. A request over the budget is answered with Bad_ServerTooBusy.
+    /// </para>
     /// </remarks>
     public sealed class SessionlessInvocationOptions
     {
@@ -77,5 +87,68 @@ namespace Opc.Ua.Server
         /// Bad_IdentityTokenInvalid.
         /// </summary>
         public bool AllowAnonymous { get; set; }
+
+        /// <summary>
+        /// Gets or sets how many Session-less requests the Server runs at
+        /// the same time, over all channels. Zero does not limit them.
+        /// Defaults to <see cref="DefaultMaxConcurrentRequests"/>.
+        /// </summary>
+        /// <remarks>
+        /// The budget counts a request from the check of its identity until
+        /// the service has completed, failed or was cancelled. Requests of
+        /// a Session do not count. A request over the limit is answered with
+        /// Bad_ServerTooBusy: "The Server does not have the resources to
+        /// process the request at this time."
+        /// </remarks>
+        /// <exception cref="ArgumentOutOfRangeException">The value is negative.</exception>
+        public int MaxConcurrentRequests
+        {
+            get => Volatile.Read(ref m_maxConcurrentRequests);
+            set => Volatile.Write(ref m_maxConcurrentRequests, ValidateLimit(value));
+        }
+
+        /// <summary>
+        /// Gets or sets how many Session-less requests run at the same time
+        /// on one channel. Zero does not limit them. Defaults to
+        /// <see cref="DefaultMaxConcurrentRequestsPerChannel"/>.
+        /// </summary>
+        /// <remarks>
+        /// A channel is a SecureChannel of the opc.tcp binding. The HTTPS
+        /// bindings have no SecureChannel per connection, so their requests
+        /// are grouped by the network address of the peer instead. Callers
+        /// behind one address, for example a proxy, share the limit. The
+        /// limit is checked together with <see cref="MaxConcurrentRequests"/>.
+        /// </remarks>
+        /// <exception cref="ArgumentOutOfRangeException">The value is negative.</exception>
+        public int MaxConcurrentRequestsPerChannel
+        {
+            get => Volatile.Read(ref m_maxConcurrentRequestsPerChannel);
+            set => Volatile.Write(ref m_maxConcurrentRequestsPerChannel, ValidateLimit(value));
+        }
+
+        private static int ValidateLimit(int value)
+        {
+            if (value < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    value,
+                    "The limit cannot be negative. Zero does not limit.");
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// The default for <see cref="MaxConcurrentRequests"/>.
+        /// </summary>
+        public const int DefaultMaxConcurrentRequests = 64;
+
+        /// <summary>
+        /// The default for <see cref="MaxConcurrentRequestsPerChannel"/>.
+        /// </summary>
+        public const int DefaultMaxConcurrentRequestsPerChannel = 16;
+
+        private int m_maxConcurrentRequests = DefaultMaxConcurrentRequests;
+        private int m_maxConcurrentRequestsPerChannel = DefaultMaxConcurrentRequestsPerChannel;
     }
 }

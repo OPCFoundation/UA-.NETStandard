@@ -114,7 +114,20 @@ namespace Opc.Ua.Server
         /// it unless a <see cref="ValidateSessionLessRequest"/> handler
         /// decides.
         /// </summary>
-        public SessionlessInvocationOptions? SessionlessInvocation { get; set; }
+        /// <remarks>
+        /// While set, the Session-less requests of this manager are limited by
+        /// <see cref="SessionlessInvocationOptions.MaxConcurrentRequests"/> and
+        /// <see cref="SessionlessInvocationOptions.MaxConcurrentRequestsPerChannel"/>,
+        /// including those a <see cref="ValidateSessionLessRequest"/> handler
+        /// decides. Setting it starts a new budget.
+        /// </remarks>
+        public SessionlessInvocationOptions? SessionlessInvocation
+        {
+            get => Volatile.Read(ref m_sessionlessBudget)?.Options;
+            set => Volatile.Write(
+                ref m_sessionlessBudget,
+                value != null ? new SessionlessRequestBudget(value) : null);
+        }
 
         /// <summary>
         /// Frees any unmanaged resources.
@@ -1317,46 +1330,12 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                     }
 
-                    EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
-
-                    if (handler != null)
-                    {
-                        var args = new ValidateSessionLessRequestEventArgs(
-                            requestHeader.AuthenticationToken,
-                            requestType);
-                        handler(this, args);
-
-                        if (ServiceResult.IsBad(args.Error))
-                        {
-                            throw new ServiceResultException(args.Error);
-                        }
-
-                        return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, args.Identity);
-                    }
-
-                    if (SessionlessInvocation is { } sessionless)
-                    {
-                        IUserIdentity identity = await ValidateSessionlessRequestAsync(
-                                requestHeader.AuthenticationToken,
-                                secureChannelContext,
-                                sessionless,
-                                requestLifetime.CancellationToken)
-                            .ConfigureAwait(false);
-                        return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, identity);
-                    }
-
-                    // No authenticationToken at all is a Session-less call; a
-                    // Server without support answers Bad_ServiceUnsupported
-                    // (§6.3.1). A token that names no Session stays
-                    // Bad_SessionIdInvalid, which is what a Client whose
-                    // Session expired needs to see.
-                    if (requestHeader.AuthenticationToken.IsNull)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadServiceUnsupported,
-                            "Session-less Service invocation is not enabled on this Server.");
-                    }
-                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    return await CreateSessionlessContextAsync(
+                            requestHeader,
+                            secureChannelContext,
+                            requestType,
+                            requestLifetime)
+                        .ConfigureAwait(false);
                 }
 
                 // validate request header.
@@ -1422,6 +1401,117 @@ namespace Opc.Ua.Server
             catch (Exception e)
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
+            }
+        }
+
+        /// <summary>
+        /// Creates the context of a request that names no Session: it runs
+        /// within the Session-less request budget, as the identity the
+        /// <see cref="ValidateSessionLessRequest"/> handler or the
+        /// <see cref="SessionlessInvocation"/> options decide.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The request carries no acceptable identity, or the handler or the options refuse it.
+        /// </exception>
+        /// <exception cref="ServerBusyException">
+        /// The Session-less request budget has no place for the request.
+        /// </exception>
+        private async ValueTask<OperationContext> CreateSessionlessContextAsync(
+            RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
+            RequestType requestType,
+            RequestLifetime requestLifetime)
+        {
+            EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
+            SessionlessRequestBudget? budget = Volatile.Read(ref m_sessionlessBudget);
+            SessionlessInvocationOptions? sessionless = budget?.Options;
+
+            if (handler == null && sessionless == null)
+            {
+                // No authenticationToken at all is a Session-less call; a
+                // Server without support answers Bad_ServiceUnsupported
+                // (§6.3.1). A token that names no Session stays
+                // Bad_SessionIdInvalid, which is what a Client whose
+                // Session expired needs to see.
+                if (requestHeader.AuthenticationToken.IsNull)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadServiceUnsupported,
+                        "Session-less Service invocation is not enabled on this Server.");
+                }
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+            }
+
+            // The request has no Session to be accounted for: take its place in
+            // the Session-less budget before any identity is checked, which
+            // bounds the validations that run at the same time as well. The
+            // context returns the lease when the request is done, and every
+            // other way out of here does.
+            IDisposable? lease = null;
+            if (budget != null)
+            {
+                SessionlessLimit limit = budget.TryAcquire(secureChannelContext, out lease);
+                if (limit != SessionlessLimit.None)
+                {
+                    m_logger.SessionlessRequestRefused(limit, requestType);
+                    throw new ServerBusyException(
+                        new ServiceResult(
+                            StatusCodes.BadServerTooBusy,
+                            new LocalizedText(limit == SessionlessLimit.Server
+                                ? "The Server runs the maximum number of Session-less requests."
+                                : "The channel runs the maximum number of Session-less requests.")),
+                        retryAfter: null);
+                }
+            }
+
+            try
+            {
+                OperationContext context;
+                if (handler != null)
+                {
+                    var args = new ValidateSessionLessRequestEventArgs(
+                        requestHeader.AuthenticationToken,
+                        requestType);
+                    handler(this, args);
+
+                    if (ServiceResult.IsBad(args.Error))
+                    {
+                        throw new ServiceResultException(args.Error);
+                    }
+
+                    context = new OperationContext(
+                        requestHeader,
+                        secureChannelContext,
+                        requestType,
+                        requestLifetime,
+                        args.Identity);
+                }
+                else
+                {
+                    IUserIdentity identity = await ValidateSessionlessRequestAsync(
+                            requestHeader.AuthenticationToken,
+                            secureChannelContext,
+                            sessionless!,
+                            requestLifetime.CancellationToken)
+                        .ConfigureAwait(false);
+                    context = new OperationContext(
+                        requestHeader,
+                        secureChannelContext,
+                        requestType,
+                        requestLifetime,
+                        identity);
+                }
+
+                if (lease != null)
+                {
+                    context.AttachSessionlessLease(lease);
+                    lease = null;
+                }
+                return context;
+            }
+            finally
+            {
+                lease?.Dispose();
             }
         }
 
@@ -2306,6 +2396,7 @@ namespace Opc.Ua.Server
         private event SessionEventHandler? m_SessionChannelKeepAlive;
         private event ImpersonateEventHandler? m_ImpersonateUser;
         private event EventHandler<ValidateSessionLessRequestEventArgs>? m_ValidateSessionLessRequest;
+        private SessionlessRequestBudget? m_sessionlessBudget;
 
         /// <summary>
         /// Last <see cref="IRoleManager"/> we wired
@@ -2795,5 +2886,12 @@ namespace Opc.Ua.Server
         public static partial void SessionlessAccessTokenRejected(
             this ILogger logger,
             AuthenticationOutcome outcome);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 19, Level = LogLevel.Debug,
+            Message = "Server - Refused a session-less {RequestType} request, the {Limit} limit is reached.")]
+        public static partial void SessionlessRequestRefused(
+            this ILogger logger,
+            SessionlessLimit limit,
+            RequestType requestType);
     }
 }

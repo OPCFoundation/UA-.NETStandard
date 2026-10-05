@@ -293,6 +293,139 @@ namespace Opc.Ua.Sessions.Tests
             AssertOperationResult(response.Results[0].StatusCode);
         }
 
+        [Test]
+        public async Task ARequestWithoutATokenIsUnsupportedWhileTheFeatureIsOffAsync()
+        {
+            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation;
+            using SessionClient client = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
+                .ConfigureAwait(false);
+            try
+            {
+                m_sessionManager.SessionlessInvocation = null;
+
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await client.ReadAsync(
+                        new RequestHeader { TimeoutHint = kTimeout },
+                        0,
+                        TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        CancellationToken.None).ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
+
+                // a token that names no Session is still an invalid Session
+                error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await client.ReadAsync(
+                        new RequestHeader { AuthenticationToken = new NodeId(4711u, 0), TimeoutHint = kTimeout },
+                        0,
+                        TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        CancellationToken.None).ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            }
+            finally
+            {
+                m_sessionManager.SessionlessInvocation = options;
+            }
+        }
+
+        [Test]
+        public async Task SessionlessRequestsRunInABudgetOfTheirOwnAsync()
+        {
+            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation;
+            int maxRequests = options.MaxConcurrentRequests;
+            int maxPerChannel = options.MaxConcurrentRequestsPerChannel;
+            SessionClient client1 = null;
+            SessionClient client2 = null;
+            SessionClient client3 = null;
+            try
+            {
+                options.MaxConcurrentRequests = 2;
+                options.MaxConcurrentRequestsPerChannel = 0;
+                client1 = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
+                    .ConfigureAwait(false);
+                client2 = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
+                    .ConfigureAwait(false);
+                client3 = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
+                    .ConfigureAwait(false);
+
+                // two requests wait in the validation of their Access Token and hold their places
+                m_authenticator.HoldRequests();
+                Task<ReadResponse> first = ReadStateAsync(client1);
+                Task<ReadResponse> second = ReadStateAsync(client2);
+                await m_authenticator.WaitUntilHeldAsync(2).ConfigureAwait(false);
+
+                ServiceResultException busy = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await ReadStateAsync(client3).ConfigureAwait(false));
+                Assert.That(busy.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+
+                m_authenticator.ReleaseRequests();
+                Assert.That(StatusCode.IsGood((await first.ConfigureAwait(false)).Results[0].StatusCode), Is.True);
+                Assert.That(StatusCode.IsGood((await second.ConfigureAwait(false)).Results[0].StatusCode), Is.True);
+
+                // completed requests have returned their places
+                for (int i = 0; i < 5; i++)
+                {
+                    ReadResponse response = await ReadStateAsync(client3).ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
+                }
+
+                // a request the Service rejects returns its place too
+                for (int i = 0; i < 5; i++)
+                {
+                    ReadResponse response = await client3.ReadAsync(
+                        AccessTokenHeader(),
+                        0,
+                        TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = new NodeId(4711u, 0), AttributeId = Attributes.Value }],
+                        CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(StatusCode.IsBad(response.Results[0].StatusCode), Is.True);
+                }
+                ReadResponse last = await ReadStateAsync(client3).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(last.Results[0].StatusCode), Is.True);
+
+                // a channel can be limited on its own
+                options.MaxConcurrentRequests = 0;
+                options.MaxConcurrentRequestsPerChannel = 1;
+                m_authenticator.HoldRequests();
+                Task<ReadResponse> held = ReadStateAsync(client1);
+                await m_authenticator.WaitUntilHeldAsync(1).ConfigureAwait(false);
+
+                ServiceResultException channelBusy = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await ReadStateAsync(client1).ConfigureAwait(false));
+                Assert.That(channelBusy.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+
+                Task<ReadResponse> otherChannel = ReadStateAsync(client2);
+                await m_authenticator.WaitUntilHeldAsync(2).ConfigureAwait(false);
+
+                m_authenticator.ReleaseRequests();
+                Assert.That(StatusCode.IsGood((await held.ConfigureAwait(false)).Results[0].StatusCode), Is.True);
+                Assert.That(
+                    StatusCode.IsGood((await otherChannel.ConfigureAwait(false)).Results[0].StatusCode),
+                    Is.True);
+                ReadResponse again = await ReadStateAsync(client1).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(again.Results[0].StatusCode), Is.True);
+            }
+            finally
+            {
+                m_authenticator.ReleaseRequests();
+                client1?.Dispose();
+                client2?.Dispose();
+                client3?.Dispose();
+                options.MaxConcurrentRequests = maxRequests;
+                options.MaxConcurrentRequestsPerChannel = maxPerChannel;
+            }
+        }
+
+        private static Task<ReadResponse> ReadStateAsync(SessionClient client)
+        {
+            return client.ReadAsync(
+                AccessTokenHeader(),
+                0,
+                TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                CancellationToken.None).AsTask();
+        }
+
         private static RequestHeader AccessTokenHeader()
         {
             return new RequestHeader
@@ -350,23 +483,64 @@ namespace Opc.Ua.Sessions.Tests
 
             public int Calls => m_calls;
 
-            public ValueTask<AuthenticationResult> AuthenticateAsync(
+            /// <summary>
+            /// Makes the validation of every Access Token wait until
+            /// <see cref="ReleaseRequests"/>.
+            /// </summary>
+            public void HoldRequests()
+            {
+                Volatile.Write(
+                    ref m_gate,
+                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+
+            public void ReleaseRequests()
+            {
+                Interlocked.Exchange(ref m_gate, null)?.TrySetResult(true);
+            }
+
+            public async Task WaitUntilHeldAsync(int count)
+            {
+                DateTime deadline = DateTime.UtcNow.AddMilliseconds(kTimeout);
+                while (Volatile.Read(ref m_held) < count)
+                {
+                    Assert.That(DateTime.UtcNow, Is.LessThan(deadline), "the requests did not reach the validation");
+                    await Task.Delay(10).ConfigureAwait(false);
+                }
+            }
+
+            public async ValueTask<AuthenticationResult> AuthenticateAsync(
                 AuthenticationContext context,
                 CancellationToken ct = default)
             {
                 Interlocked.Increment(ref m_calls);
+                TaskCompletionSource<bool> gate = Volatile.Read(ref m_gate);
+                if (gate != null)
+                {
+                    Interlocked.Increment(ref m_held);
+                    try
+                    {
+                        await Task.WhenAny(gate.Task, Task.Delay(Timeout.Infinite, ct)).ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
+                    }
+                    finally
+                    {
+                        Interlocked.Decrement(ref m_held);
+                    }
+                }
                 if (context.TokenHandler is IssuedIdentityTokenHandler issued &&
                     issued.DecryptedTokenData != null &&
                     Encoding.UTF8.GetString(issued.DecryptedTokenData) == m_accessToken)
                 {
-                    return new ValueTask<AuthenticationResult>(
-                        AuthenticationResult.Accept(new UserIdentity(issued)));
+                    return AuthenticationResult.Accept(new UserIdentity(issued));
                 }
-                return new ValueTask<AuthenticationResult>(AuthenticationResult.NotHandled);
+                return AuthenticationResult.NotHandled;
             }
 
             private readonly string m_accessToken;
+            private TaskCompletionSource<bool> m_gate;
             private int m_calls;
+            private int m_held;
         }
     }
 }
