@@ -1398,6 +1398,13 @@ namespace Opc.Ua.Server
                 }
                 throw;
             }
+            catch (OperationCanceledException)
+            {
+                // The request was cancelled or timed out, for example while a
+                // Session-less Access Token was validated: the endpoint maps it
+                // to the status of the request lifetime.
+                throw;
+            }
             catch (Exception e)
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
@@ -1484,7 +1491,7 @@ namespace Opc.Ua.Server
                         secureChannelContext,
                         requestType,
                         requestLifetime,
-                        args.Identity);
+                        MapSessionlessRoles(args.Identity, secureChannelContext));
                 }
                 else
                 {
@@ -1499,7 +1506,7 @@ namespace Opc.Ua.Server
                         secureChannelContext,
                         requestType,
                         requestLifetime,
-                        identity);
+                        MapSessionlessRoles(identity, secureChannelContext));
                 }
 
                 if (lease != null)
@@ -1513,6 +1520,24 @@ namespace Opc.Ua.Server
             {
                 lease?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Maps the roles of the identity of a Session-less request the way
+        /// ActivateSession maps those of a Session, so that role-mapped Nodes
+        /// are accessed under the same rules. Without a Session there is no
+        /// client application certificate, so no TrustedApplication role and
+        /// no application-based role mapping.
+        /// </summary>
+        private IUserIdentity MapSessionlessRoles(
+            IUserIdentity? identity,
+            SecureChannelContext secureChannelContext)
+        {
+            if (identity == null)
+            {
+                return null!;
+            }
+            return ResolveRoles(identity, null, secureChannelContext.EndpointDescription);
         }
 
         /// <summary>
@@ -1782,6 +1807,39 @@ namespace Opc.Ua.Server
             OperationContext context,
             IUserIdentity effectiveIdentity)
         {
+            // Only a client certificate that passed validation identifies the
+            // application. One whose validation error an OnApplicationCertificateError
+            // override accepted still signs the session but grants neither
+            // TrustedApplication nor application-based role mappings.
+            Certificate? applicationCertificate =
+                ClientCertificateProvenance.IsValidated(session)
+                    ? session.ClientCertificate
+                    : null;
+
+            return ResolveRoles(
+                effectiveIdentity,
+                applicationCertificate,
+                context.ChannelContext?.EndpointDescription);
+        }
+
+        /// <summary>
+        /// Maps the roles of an identity: the restriction of a user that must change
+        /// the password, the TrustedApplication role and the live
+        /// <see cref="IRoleManager"/> identity-mapping rules. A Session receives them
+        /// through <see cref="AddMandatoryRoles"/>, a Session-less request through
+        /// <see cref="CreateSessionlessContextAsync"/>, so both resolve the roles alike.
+        /// </summary>
+        /// <param name="effectiveIdentity">The identity to map the roles of.</param>
+        /// <param name="applicationCertificate">
+        /// The validated application certificate of the client, or <see langword="null"/>
+        /// if the client has none or its certificate did not pass validation.
+        /// </param>
+        /// <param name="endpoint">The endpoint the request arrived on.</param>
+        private IUserIdentity ResolveRoles(
+            IUserIdentity effectiveIdentity,
+            Certificate? applicationCertificate,
+            EndpointDescription? endpoint)
+        {
             // Part 18 5.2.8 - the Session "shall have only the Role Anonymous" if
             // the user has MustChangePassword set, so every other role and any
             // role-derived privilege of the impersonated identity is discarded
@@ -1799,18 +1857,9 @@ namespace Opc.Ua.Server
                     m_server.NamespaceUris);
             }
 
-            // Only a client certificate that passed validation identifies the
-            // application. One whose validation error an OnApplicationCertificateError
-            // override accepted still signs the session but grants neither
-            // TrustedApplication nor application-based role mappings.
-            Certificate? applicationCertificate =
-                ClientCertificateProvenance.IsValidated(session)
-                    ? session.ClientCertificate
-                    : null;
-
             // Assign TrustedApplication role per OPC UA Part 3 §4.9.
             if (applicationCertificate != null &&
-                context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
+                endpoint?.SecurityMode >= MessageSecurityMode.Sign)
             {
                 if (effectiveIdentity is RoleBasedIdentity rbi)
                 {
@@ -1834,7 +1883,7 @@ namespace Opc.Ua.Server
                 IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
                     applicationCertificate,
-                    context.ChannelContext?.EndpointDescription);
+                    endpoint);
 
                 if (dynamicRoleIds.Count > 0)
                 {

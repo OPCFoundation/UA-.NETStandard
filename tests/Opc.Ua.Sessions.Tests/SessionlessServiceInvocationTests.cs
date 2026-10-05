@@ -51,6 +51,7 @@ namespace Opc.Ua.Sessions.Tests
     public class SessionlessServiceInvocationTests : TestFixture
     {
         private const string kAccessToken = "e2e.session-less.access-token";
+        private const string kAdminAccessToken = "e2e.session-less.admin-token";
         private const int kTimeout = 30_000;
 
         private AccessTokenAuthenticator m_authenticator;
@@ -61,7 +62,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             m_sessionManager = (SessionManager)ReferenceServer.CurrentInstance.SessionManager;
             m_sessionManager.SessionlessInvocation = new SessionlessInvocationOptions();
-            m_authenticator = new AccessTokenAuthenticator(kAccessToken);
+            m_authenticator = new AccessTokenAuthenticator(kAccessToken, kAdminAccessToken);
             ReferenceServer.CurrentInstance.IdentityRegistry.Register(m_authenticator);
         }
 
@@ -416,6 +417,99 @@ namespace Opc.Ua.Sessions.Tests
             }
         }
 
+        [Test]
+        public async Task ARoleMappedNodeIsReadWithTheRolesMappedFromTheAccessTokenAsync()
+        {
+            // The summary of the server diagnostics is readable for the SecurityAdmin role only.
+            IRoleManager roleManager = ReferenceServer.CurrentInstance.RoleManager;
+            var rule = new IdentityMappingRuleType
+            {
+                CriteriaType = IdentityCriteriaType.Role,
+                Criteria = "SecurityAdmin"
+            };
+            using SessionClient client = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
+                .ConfigureAwait(false);
+
+            // the claim alone grants nothing: the role mapping of the server decides
+            StatusCode unmapped = await ReadDiagnosticsSummaryAsync(client, kAdminAccessToken)
+                .ConfigureAwait(false);
+            Assert.That(unmapped, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            Assert.That(ServiceResult.IsGood(
+                roleManager.AddIdentity(ObjectIds.WellKnownRole_SecurityAdmin, rule)), Is.True);
+            try
+            {
+                StatusCode mapped = await ReadDiagnosticsSummaryAsync(client, kAdminAccessToken)
+                    .ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(mapped), Is.True, mapped.ToString());
+
+                // a token without the claim stays denied
+                StatusCode other = await ReadDiagnosticsSummaryAsync(client, kAccessToken)
+                    .ConfigureAwait(false);
+                Assert.That(other, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+            finally
+            {
+                roleManager.RemoveIdentity(ObjectIds.WellKnownRole_SecurityAdmin, rule);
+            }
+        }
+
+        [Test]
+        public async Task ACancelledAccessTokenValidationAnswersTheTimeoutAndReturnsItsPlaceAsync()
+        {
+            SessionlessInvocationOptions options = m_sessionManager.SessionlessInvocation;
+            int maxRequests = options.MaxConcurrentRequests;
+            try
+            {
+                options.MaxConcurrentRequests = 1;
+                using SessionClient client = await OpenClientAsync(MessageSecurityMode.SignAndEncrypt)
+                    .ConfigureAwait(false);
+
+                // the validation waits until the request times out on the server
+                m_authenticator.HoldRequests();
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await client.ReadAsync(
+                        new RequestHeader
+                        {
+                            AuthenticationToken = new NodeId(kAccessToken, 0),
+                            TimeoutHint = 1000
+                        },
+                        0,
+                        TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        CancellationToken.None).ConfigureAwait(false));
+                m_authenticator.ReleaseRequests();
+
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+
+                // the only place of the budget is free again
+                ReadResponse response = await ReadStateAsync(client).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
+            }
+            finally
+            {
+                m_authenticator.ReleaseRequests();
+                options.MaxConcurrentRequests = maxRequests;
+            }
+        }
+
+        private static async Task<StatusCode> ReadDiagnosticsSummaryAsync(SessionClient client, string accessToken)
+        {
+            ReadResponse response = await client.ReadAsync(
+                new RequestHeader { AuthenticationToken = new NodeId(accessToken, 0), TimeoutHint = kTimeout },
+                0,
+                TimestampsToReturn.Neither,
+                [
+                    new ReadValueId
+                    {
+                        NodeId = VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary,
+                        AttributeId = Attributes.Value
+                    }
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            return response.Results[0].StatusCode;
+        }
+
         private static Task<ReadResponse> ReadStateAsync(SessionClient client)
         {
             return client.ReadAsync(
@@ -472,9 +566,10 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         private sealed class AccessTokenAuthenticator : IUserTokenAuthenticator
         {
-            public AccessTokenAuthenticator(string accessToken)
+            public AccessTokenAuthenticator(string accessToken, string adminAccessToken)
             {
                 m_accessToken = accessToken;
+                m_adminAccessToken = adminAccessToken;
             }
 
             public UserTokenType TokenType => UserTokenType.IssuedToken;
@@ -534,10 +629,25 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     return AuthenticationResult.Accept(new UserIdentity(issued));
                 }
+                if (context.TokenHandler is IssuedIdentityTokenHandler admin &&
+                    admin.DecryptedTokenData != null &&
+                    Encoding.UTF8.GetString(admin.DecryptedTokenData) == m_adminAccessToken)
+                {
+                    // a token that asserts the SecurityAdmin role claim
+                    string[] roles = ["SecurityAdmin"];
+                    var claims = new System.Collections.Generic.Dictionary<string, object>
+                    {
+                        ["sub"] = "admin-user",
+                        ["roles"] = roles
+                    };
+                    return AuthenticationResult.Accept(
+                        new JwtUserIdentity(admin, claims, [], roles, "urn:test:issuer", "admin-user"));
+                }
                 return AuthenticationResult.NotHandled;
             }
 
             private readonly string m_accessToken;
+            private readonly string m_adminAccessToken;
             private TaskCompletionSource<bool> m_gate;
             private int m_calls;
             private int m_held;

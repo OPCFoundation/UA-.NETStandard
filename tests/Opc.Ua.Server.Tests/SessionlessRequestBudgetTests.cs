@@ -462,8 +462,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(busy!.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
 
             Assert.That(lifetime.TryCancel(StatusCodes.BadRequestCancelledByClient), Is.True);
-            // the manager reports the cancelled validation as an unexpected error
-            Assert.CatchAsync<ServiceResultException>(() => pending);
+            // the cancellation reaches the endpoint, which maps it to the status of the request lifetime
+            Assert.CatchAsync<OperationCanceledException>(() => pending);
 
             OperationContext context = await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false);
             context.Dispose();

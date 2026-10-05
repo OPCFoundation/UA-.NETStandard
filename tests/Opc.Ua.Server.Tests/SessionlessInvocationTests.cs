@@ -53,6 +53,7 @@ namespace Opc.Ua.Server.Tests
     public class SessionlessInvocationTests
     {
         private const string kGoodAccessToken = "good.jwt.token";
+        private static readonly string[] s_engineerRoles = ["Engineer"];
 
         private Mock<IServerInternal> m_serverMock = null!;
         private ITelemetryContext m_telemetry = null!;
@@ -209,6 +210,94 @@ namespace Opc.Ua.Server.Tests
                     CreateHttpsChannel(),
                     new NodeId("forged.jwt.token", 0)).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
+        public async Task SessionlessAccessTokenReceivesTheRolesMappedFromItsClaimsAsync()
+        {
+            using RoleManager roleManager = CreateEngineerRoleManager();
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+            UseJwtAuthenticator(new ClaimsTestIdentity(roles: s_engineerRoles));
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions()
+            };
+
+            OperationContext context = await ValidateAsync(
+                manager,
+                CreateHttpsChannel(),
+                new NodeId(kGoodAccessToken, 0)).ConfigureAwait(false);
+
+            Assert.That(context.Session, Is.Null);
+            Assert.That(context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Engineer), Is.True);
+            Assert.That(context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_AuthenticatedUser), Is.True);
+        }
+
+        [Test]
+        public async Task SessionlessAccessTokenWithoutTheMappedClaimIsNotGrantedTheRoleAsync()
+        {
+            using RoleManager roleManager = CreateEngineerRoleManager();
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+            UseJwtAuthenticator(new ClaimsTestIdentity(roles: ["Operator"]));
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions()
+            };
+
+            OperationContext context = await ValidateAsync(
+                manager,
+                CreateHttpsChannel(),
+                new NodeId(kGoodAccessToken, 0)).ConfigureAwait(false);
+
+            Assert.That(context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Engineer), Is.False);
+            Assert.That(context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_AuthenticatedUser), Is.True);
+        }
+
+        [Test]
+        public async Task AnAnonymousSessionlessRequestIsGrantedTheAnonymousRoleOnlyAsync()
+        {
+            using var roleManager = new RoleManager();
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            OperationContext context = await ValidateAsync(manager, CreateHttpsChannel(), NodeId.Null)
+                .ConfigureAwait(false);
+
+            Assert.That(context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Anonymous), Is.True);
+            Assert.That(context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_AuthenticatedUser), Is.False);
+        }
+
+        [Test]
+        public async Task TheIdentityOfAValidateSessionLessRequestHandlerReceivesTheMappedRolesAsync()
+        {
+            using RoleManager roleManager = CreateEngineerRoleManager();
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+            using var manager = new SessionManager(m_serverMock.Object, m_config);
+            manager.ValidateSessionLessRequest += (_, args) =>
+                args.Identity = new ClaimsTestIdentity(roles: s_engineerRoles);
+
+            OperationContext context = await ValidateAsync(manager, CreateHttpsChannel(), NodeId.Null)
+                .ConfigureAwait(false);
+
+            Assert.That(context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Engineer), Is.True);
+            Assert.That(context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_AuthenticatedUser), Is.True);
+        }
+
+        [Test]
+        public async Task AValidateSessionLessRequestHandlerThatSetsNoIdentityKeepsNoIdentityAsync()
+        {
+            using RoleManager roleManager = CreateEngineerRoleManager();
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+            using var manager = new SessionManager(m_serverMock.Object, m_config);
+            manager.ValidateSessionLessRequest += (_, _) => { };
+
+            OperationContext context = await ValidateAsync(manager, CreateHttpsChannel(), NodeId.Null)
+                .ConfigureAwait(false);
+
+            Assert.That(context.UserIdentity, Is.Null);
         }
 
         [Test]
@@ -424,6 +513,20 @@ namespace Opc.Ua.Server.Tests
                 channel,
                 requestType,
                 RequestLifetime.None);
+        }
+
+        private static RoleManager CreateEngineerRoleManager()
+        {
+            var roleManager = new RoleManager();
+            ServiceResult result = roleManager.AddIdentity(
+                ObjectIds.WellKnownRole_Engineer,
+                new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.Role,
+                    Criteria = "Engineer"
+                });
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            return roleManager;
         }
 
         private static SecureChannelContext CreateHttpsChannel()

@@ -66,6 +66,13 @@ sessionManager.SessionlessInvocation = new SessionlessInvocationOptions();
 | `authenticationToken` is a String NodeId | The Access Token, validated as an issued JWT token (OPC 10000-6 §7.6.5.2.3) by the server's identity registry, the authenticators ActivateSession uses | `AcceptAccessTokens` (default `true`) |
 | no `authenticationToken` | An anonymous user | `AllowAnonymous` (default `false`) |
 
+- The roles of the identity are mapped as ActivateSession maps those of a
+  Session: the roles granted by the `IRoleManager` identity-mapping rules,
+  including the configured Access Token claims and the built-in
+  AuthenticatedUser role, are added to the identity before the request runs.
+  This also applies to the identity a `ValidateSessionLessRequest` handler sets.
+  A request without a Session has no client application certificate, so it is
+  not granted the TrustedApplication role and no application-based mapping.
 - §6.3.1 requires encryption for the Access Token. It is only accepted over
   a SecureChannel with `SignAndEncrypt`, or over HTTPS. On any other channel
   the request is rejected.
@@ -93,9 +100,13 @@ Requests with a token that names no Session stay `Bad_SessionIdInvalid`.
 A request of a Session is accounted for by its Session. A session-less request
 has none, but it still occupies a worker and keeps its channel active. The
 [resource isolation](ResourceIsolation.md) of the server limits channels,
-queued requests and incomplete messages. Session-less requests also get a
-budget of their own, so that they cannot use up the capacity of the Sessions
-and the Sessions cannot use up theirs:
+queued requests and incomplete messages. Session-less requests share these
+queue and execution stages with the requests of Sessions. `AddSessionlessInvocation`
+adds a ceiling on the number of Session-less requests that run at the same
+time. The ceiling does not reserve any capacity: it neither keeps a share of
+the queue or the workers free for Sessions nor gives Session-less requests a
+share of their own, so Session-less requests below the ceiling still compete
+with the requests of Sessions for the shared stages:
 
 | Option | Default | Limits |
 | --- | --- | --- |
