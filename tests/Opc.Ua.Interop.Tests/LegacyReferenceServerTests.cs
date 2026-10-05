@@ -381,7 +381,7 @@ namespace Opc.Ua.Interop.Tests
             DataValue[] values = await ReadAsync(session, custom, Attributes.Value, ct).ConfigureAwait(false);
             DataValue[] accessLevels = await ReadAsync(session, custom, Attributes.UserAccessLevel, ct)
                 .ConfigureAwait(false);
-            var undecoded = new List<string>();
+            var undecoded = new List<(NodeId Variable, ExpandedNodeId TypeId)>();
             var writes = new List<WriteValue>();
             int structures = 0;
             for (int ii = 0; ii < custom.Count; ii++)
@@ -396,7 +396,7 @@ namespace Opc.Ua.Interop.Tests
                     structures++;
                     if (!extension.TryGetValue(out IEncodeable _))
                     {
-                        undecoded.Add($"{custom[ii]} ({extension.TypeId})");
+                        undecoded.Add((custom[ii], extension.TypeId));
                     }
                 }
                 if (extensions.Length > 0 &&
@@ -413,7 +413,28 @@ namespace Opc.Ua.Interop.Tests
                 }
             }
             Assert.That(structures, Is.GreaterThan(0), "no structure values were read");
-            Assert.That(undecoded, Is.Empty, $"{undecoded.Count} of {structures} structures were not decoded");
+            // The simulated variables of the reference server occasionally hold a
+            // random structure whose TypeId (a random opaque NodeId) is no node of
+            // the server; only a structure with an encoding the server defines
+            // must decode.
+            var failures = new List<string>();
+            if (undecoded.Count > 0)
+            {
+                List<NodeId> typeIds =
+                [
+                    .. undecoded.Select(u => ExpandedNodeId.ToNodeId(u.TypeId, session.NamespaceUris))
+                ];
+                DataValue[] nodeClasses = await ReadAsync(session, typeIds, Attributes.NodeClass, ct)
+                    .ConfigureAwait(false);
+                for (int ii = 0; ii < undecoded.Count; ii++)
+                {
+                    if (StatusCode.IsGood(nodeClasses[ii].StatusCode))
+                    {
+                        failures.Add($"{undecoded[ii].Variable} ({undecoded[ii].TypeId})");
+                    }
+                }
+            }
+            Assert.That(failures, Is.Empty, $"{failures.Count} of {structures} structures were not decoded");
             Assert.That(writes, Is.Not.Empty, "no writable structure variable found");
 
             ArrayOf<WriteValue> nodesToWrite = [.. writes];

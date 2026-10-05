@@ -109,6 +109,62 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that a data change of a localized text value is published in the
+        /// locale the session prefers (Part 4 5.4) without changing the queued value.
+        /// </summary>
+        [Test]
+        public void PublishSelectsTranslationOfLocalizedTextValue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock = CreateServerMock(telemetry, queueFactory);
+            using var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            serverMock.Setup(s => s.ResourceManager).Returns(resourceManager);
+            var session = new Mock<ISession>();
+            session.Setup(s => s.PreferredLocales).Returns(["de-DE"]);
+            using var monitoredItem = new MonitoredItem(
+                serverMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                1,
+                2,
+                new ReadValueId { NodeId = new NodeId("V", 1), AttributeId = Attributes.Value },
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                3,
+                null,
+                null,
+                null,
+                0,
+                10,
+                discardOldest: false,
+                sourceSamplingInterval: 0);
+            var text = new LocalizedText(new Dictionary<string, string>
+            {
+                { "en-US", "Hello" },
+                { "de-DE", "Hallo" }
+            });
+
+            monitoredItem.QueueValue(new DataValue(Variant.From(text)), ServiceResult.Good);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            monitoredItem.Publish(
+                new OperationContext(session.Object, DiagnosticsMasks.None),
+                notifications,
+                diagnostics,
+                1,
+                logger);
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Peek().Value.WrappedValue.TryGetValue(out LocalizedText published), Is.True);
+            Assert.That(published.Locale, Is.EqualTo("de-DE"));
+            Assert.That(published.Text, Is.EqualTo("Hallo"));
+            Assert.That(text.Locale, Is.EqualTo("en-US"));
+        }
+
+        /// <summary>
         /// Verifies creation of an event item and publication of its queued event.
         /// </summary>
         [Test]

@@ -47,6 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             DataTypeSystem = [];
             DataTypeNodes = [];
+            SuperTypes = [];
             Factory = EncodeableFactory.Create();
             FactoryBuilder = Factory.Builder;
             NamespaceUris = new NamespaceTable();
@@ -60,6 +61,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         internal IEncodeableFactory Factory { get; }
 
         public NodeIdDictionary<INode> DataTypeNodes { get; }
+
+        /// <summary>
+        /// Explicit super types of data type nodes, which take precedence
+        /// over the super type derived from the DataTypeDefinition
+        /// (e.g. for OptionSet subtypes that carry an EnumDefinition).
+        /// </summary>
+        public NodeIdDictionary<NodeId> SuperTypes { get; }
 
         /// <inheritdoc/>
         public NodeIdDictionary<DataDictionary> DataTypeSystem { get; }
@@ -217,6 +225,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default)
         {
+            if (SuperTypes.TryGetValue(typeId, out NodeId superType))
+            {
+                return Task.FromResult(superType);
+            }
             INode node = DataTypeNodes[typeId];
             if (node is DataTypeNode dataTypeNode)
             {
@@ -241,10 +253,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <returns><c>true</c> if the node is a direct subtype of <paramref name="baseDataType"/>.</returns>
         private bool IsSubTypeOf(DataTypeNode dataTypeNode, ExpandedNodeId baseDataType)
         {
+            if (SuperTypes.TryGetValue(dataTypeNode.NodeId, out NodeId superType))
+            {
+                return superType == ExpandedNodeId.ToNodeId(baseDataType, NamespaceUris);
+            }
             if (dataTypeNode.DataTypeDefinition.TryGetValue(
                 out StructureDefinition structureDefinition))
             {
-                return Utils.IsEqual(structureDefinition.BaseDataType, baseDataType);
+                return structureDefinition.BaseDataType ==
+                    ExpandedNodeId.ToNodeId(baseDataType, NamespaceUris);
             }
             if (dataTypeNode.DataTypeDefinition.TryGetValue(out EnumDefinition _))
             {

@@ -140,6 +140,14 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             // declare a parent which lives in another document.
             importer.Complete();
 
+            // A NodeSet Definition lists only the fields a DataType adds (Part 6
+            // F.12); the served StructureDefinition starts with the inherited ones,
+            // which may come from another document or another node manager.
+            await importer.CompleteDataTypeDefinitionsAsync(
+                Server,
+                availableNodes: null,
+                cancellationToken).ConfigureAwait(false);
+
             NodeStateCollection predefinedNodes = importer.ImportedNodes;
             ValidateOwnedNodeNamespaces(predefinedNodes);
 

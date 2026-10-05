@@ -683,6 +683,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 // a null here would produce the same NRE/format error as before.
                 return ExpandedNodeId.Parse(typeAttribute.ComplexTypeId!);
             }
+            if (!string.IsNullOrEmpty(FieldAttribute.DataTypeId))
+            {
+                // the declared DataType of the field, used when the runtime type
+                // (e.g. an OptionSet subtype) does not identify the DataType. The
+                // id is stored with its namespace uri, independent of the namespace
+                // table of the session that built the type.
+                return ExpandedNodeId.Parse(FieldAttribute.DataTypeId!);
+            }
             return TypeInfo.GetDataTypeId(type, namespaceTable);
         }
     }

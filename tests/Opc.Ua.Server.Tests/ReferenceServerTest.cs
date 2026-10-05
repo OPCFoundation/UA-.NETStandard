@@ -718,16 +718,22 @@ namespace Opc.Ua.Server.Tests
                 nodesToRead,
                 RequestLifetime.None).ConfigureAwait(false);
 
+            // the reference server grants StatusWrite and TimestampWrite on every
+            // writable variable (OPC 10000-3 8.57).
+            const byte expectedAccessLevel = (byte)(
+                AccessLevels.CurrentReadOrWrite |
+                AccessLevels.StatusWrite |
+                AccessLevels.TimestampWrite);
             Assert.That(response.Results, Has.Count.EqualTo(nodesToRead.Count));
             Assert.That(response.Results[0].WrappedValue.GetByte(),
-                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo(expectedAccessLevel));
             Assert.That(response.Results[1].WrappedValue.GetByte(),
-                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo(expectedAccessLevel));
 
             uint accessLevelEx = response.Results[2].WrappedValue.GetUInt32();
             Assert.That(
                 accessLevelEx & 0xff,
-                Is.EqualTo((uint)AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo((uint)expectedAccessLevel));
             Assert.That(
                 accessLevelEx & (uint)AccessLevelExType.NonatomicRead,
                 Is.EqualTo((uint)AccessLevelExType.NonatomicRead));
@@ -1067,6 +1073,47 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ReferenceDescription> references = response.Results[0].References;
             Assert.That(references.ToArray().Count(r => r.NodeClass == nodeClass), Is.GreaterThanOrEqualTo(2));
             Assert.That(references.ToArray().Count(r => r.NodeClass != nodeClass), Is.GreaterThanOrEqualTo(1));
+        }
+
+        /// <summary>
+        /// Views can only be the source of hierarchical References (Part 3 §5.4), and the
+        /// CTT (Base Info Core Structure 2 001.js) also rejects Views targeted by
+        /// non-hierarchical References.
+        /// </summary>
+        [Test]
+        [TestCase("Views_Operations")]
+        [TestCase("Views_Engineering")]
+        [TestCase("Views_Maintenance")]
+        public async Task SampleViewsHaveNoNonHierarchicalReferencesAsync(string identifier)
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
+                new BrowseDescription
+                {
+                    NodeId = new NodeId(identifier, namespaceIndex),
+                    BrowseDirection = BrowseDirection.Both,
+                    ReferenceTypeId = ReferenceTypeIds.NonHierarchicalReferences,
+                    IncludeSubtypes = true,
+                    NodeClassMask = 0,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            ];
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse response = await m_server.BrowseAsync(
+                m_secureChannelContext,
+                requestHeader,
+                null,
+                0,
+                nodesToBrowse,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results[0].References.ToArray(), Is.Empty);
         }
 
         /// <summary>

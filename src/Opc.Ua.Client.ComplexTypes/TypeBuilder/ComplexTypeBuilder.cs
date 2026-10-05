@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -53,6 +54,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TargetNamespace = targetNamespace;
             TargetNamespaceIndex = targetNamespaceIndex;
             m_moduleName = FindModuleName(moduleName, targetNamespace);
+            m_moduleFactory = moduleFactory;
             m_moduleBuilder = moduleFactory.GetModuleBuilder();
         }
 
@@ -175,11 +177,12 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// OptionSet sub-types are not supported by the Reflection.Emit
-        /// complex type builder. Use the default (source-generated)
-        /// complex type builder instead for OptionSet support.
+        /// Create a Structure-backed OptionSet sub-type. The wire format is
+        /// the inherited <c>Value</c>/<c>ValidBits</c> ByteStrings of the
+        /// abstract OptionSet DataType, so no type is emitted: the runtime
+        /// OptionSet type carries the TypeId, the encoding ids and the bits.
         /// </summary>
-        /// <exception cref="NotSupportedException">Always thrown.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="enumDefinition"/> is <c>null</c>.</exception>
         public IEncodeableType AddOptionSetType(
             QualifiedName typeName,
             ExpandedNodeId typeId,
@@ -187,9 +190,22 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId xmlEncodingId,
             EnumDefinition enumDefinition)
         {
-            throw new NotSupportedException(
-                "OptionSet DataTypes are not supported by the Reflection.Emit " +
-                "complex type builder. Use the default complex type builder.");
+            if (enumDefinition == null)
+            {
+                throw new ArgumentNullException(nameof(enumDefinition));
+            }
+            if (typeName.IsNull || string.IsNullOrEmpty(typeName.Name))
+            {
+                throw new ArgumentNullException(nameof(typeName));
+            }
+            var type = new Encoders.OptionSet(
+                new XmlQualifiedName(typeName.Name, TargetNamespace),
+                typeId,
+                binaryEncodingId,
+                xmlEncodingId,
+                enumDefinition);
+            m_moduleFactory.AddRuntimeType(type);
+            return type;
         }
 
         /// <summary>
@@ -230,6 +246,7 @@ namespace Opc.Ua.Client.ComplexTypes
             return result + browseName.Name;
         }
 
+        private readonly AssemblyModule m_moduleFactory;
         private readonly ModuleBuilder m_moduleBuilder;
         private readonly string m_moduleName;
     }

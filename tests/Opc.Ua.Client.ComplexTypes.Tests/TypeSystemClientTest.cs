@@ -444,10 +444,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             complexType["IntegerValue"] = new Variant((long)54321);
             complexType["UIntegerValue"] = new Variant((ulong)12345);
 
+            // without the TimestampWrite access level bit only a null
+            // SourceTimestamp may be written (OPC 10000-3 8.57).
             var dataWriteValue = new DataValue(
                 dataValue.WrappedValue,
-                StatusCodes.Good,
-                DateTime.UtcNow);
+                StatusCodes.Good);
 
             // write value back
             ArrayOf<WriteValue> writeValues =

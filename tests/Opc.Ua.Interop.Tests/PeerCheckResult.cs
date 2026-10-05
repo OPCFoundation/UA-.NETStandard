@@ -74,6 +74,7 @@ namespace Opc.Ua.Interop.Tests
                     $"The 1.5 client did not run '{check}'." + Environment.NewLine + peerOutput);
                 return;
             }
+            ExpectedDifferences.Apply(check, result.Passed, result.Message);
             Assert.That(
                 result.Passed,
                 Is.True,

@@ -47,6 +47,7 @@ namespace Opc.Ua.Interop.Tests
     /// in the namespace <see cref="kLegacyNamespace"/>.
     /// </summary>
     [TestFixture]
+    [PeerDifferences]
     [Category("Interop")]
     [NonParallelizable]
     [SetCulture("en-us")]
@@ -88,6 +89,7 @@ namespace Opc.Ua.Interop.Tests
                 .StartServerAsync(InteropPki.ServerPki(m_pkiRoot), s_startTimeout)
                 .ConfigureAwait(false);
             m_serverUrl = new Uri(url);
+            Assert.That(m_server.Info, Is.Not.Null, "The peer printed no PEER-INFO line before it was ready.");
 
             // The fixture-wide session is idle between tests; the 10 s default
             // lets the 1.5 server, a separate process, expire it during a stall
@@ -132,7 +134,7 @@ namespace Opc.Ua.Interop.Tests
             Assert.That(m_endpoints.Count, Is.GreaterThanOrEqualTo(SecurityCases.Length - 1));
             foreach (EndpointDescription endpoint in m_endpoints)
             {
-                Assert.That(endpoint.Server.ApplicationUri, Does.Contain("LegacyInteropServer"));
+                Assert.That(endpoint.Server.ApplicationUri, Is.EqualTo(m_server.Info.ApplicationUri));
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
                     Assert.That(endpoint.ServerCertificate.IsEmpty, Is.False, endpoint.SecurityPolicyUri);
@@ -200,8 +202,12 @@ namespace Opc.Ua.Interop.Tests
                 value.WrappedValue.ToString());
             Assert.That(status.State, Is.EqualTo(ServerState.Running));
             Assert.That(status.BuildInfo.ProductUri, Is.Not.Empty);
-            // A 1.5 release; -p:LegacyStackVersion selects which one.
-            Assert.That(status.BuildInfo.SoftwareVersion, Does.StartWith("1.5."));
+            Assert.That(status.BuildInfo.SoftwareVersion, Is.EqualTo(m_server.Info.SoftwareVersion));
+            if (m_server.Info.IsLegacy)
+            {
+                // A 1.5 release; -p:LegacyStackVersion selects which one.
+                Assert.That(status.BuildInfo.SoftwareVersion, Does.StartWith("1.5."));
+            }
         }
 
         [Test]

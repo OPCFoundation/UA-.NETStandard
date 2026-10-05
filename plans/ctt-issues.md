@@ -8,7 +8,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 
 - "Resolved / fixed" in Mantis means the fix is in the CTT script repository. It ships with a script
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
-- The ids (1–19, C1–C55, U1–U5) are stable references for notes and commit messages; missing ids were
+- The ids (1–19, C1–C56, U1–U5) are stable references for notes and commit messages; missing ids were
   withdrawn or no longer fail against the reference server.
 - Mantis states were last checked on 2026-09-25.
 
@@ -167,6 +167,13 @@ CTT project configuration notes follow the tables. The procedure for running the
   > found there. A GDS that also exposes AliasNames for its own nodes (its AliasFor targets have ServerIndex 0)
   > fails although it aggregated nothing. Please only report AliasNameType instances that have an AliasFor
   > reference whose target ExpandedNodeId has a ServerIndex other than 0.
+- **C56. Monitored Items Deadband Filter `Err-006.js`** modifies a MonitoredItem on the first static numeric
+  scalar (a BaseDataVariable without EURange) to a PercentDeadband and accepts only `Good` or
+  `Bad_MonitoredItemFilterUnsupported`. OPC 10000-8 §7.2 limits PercentDeadband to AnalogItems with an EURange,
+  and §7.3.2 Table 61 defines `Bad_DeadbandFilterInvalid` for "a PercentDeadband is not supported, since an
+  EURange is not configured", which the server returns since #4629 (Create and Modify alike). Monitor Basic
+  `Err-022.js` already accepts `Bad_FilterNotAllowed` for non-analog items; the accepted list of `Err-006.js`
+  needs `Bad_DeadbandFilterInvalid`. Draft ready, not filed yet.
 - **Aggregate expected-value differences.**
   - Non-numeric nodes: status-only aggregates (DurationGood/Bad, PercentGood/Bad, WorstQuality2, DurationInState*)
     differ on Boolean/String nodes from numeric nodes with the same status timeline, and the CTT returns
