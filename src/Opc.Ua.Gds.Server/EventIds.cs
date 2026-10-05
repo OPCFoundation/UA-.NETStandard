@@ -49,5 +49,6 @@ namespace Opc.Ua
         public const int GdsApplicationSelfAdminProvider = 50;
         public const int GdsServerHostedService = 60;
         public const int GlobalDiscoverySampleServer = 70;
+        public const int AliasNameAggregation = 80;
     }
 }

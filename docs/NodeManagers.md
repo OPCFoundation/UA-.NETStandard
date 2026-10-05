@@ -2320,6 +2320,19 @@ builder.Node("Events")
        });
 ```
 
+For any other condition type, such as an alarm type of a companion
+specification or a server-specific subtype, `.CreateAlarm<TState>` takes a
+factory for the uninitialized state. The alarm is attached, enabled and
+released on teardown exactly like the alarms of the dedicated helpers:
+
+```csharp
+builder.Node("Pumps/Pump #1/Events")
+       .CreateAlarm(
+           new QualifiedName("ValveDiscrepancy", pumpsNs),
+           parent => new DiscrepancyAlarmState(parent))
+       .OnAcknowledge((ctx, condition, eventId, comment) => ServiceResult.Good);
+```
+
 #### Boolean supervision → alarm activation (NAMUR pattern)
 
 `IVariableBuilder<bool>.OnRisingEdge` / `.OnFallingEdge` register
