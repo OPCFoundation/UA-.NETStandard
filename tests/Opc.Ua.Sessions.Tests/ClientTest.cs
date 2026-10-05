@@ -579,7 +579,9 @@ namespace Opc.Ua.Sessions.Tests
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await session.ReadNodeAsync(nodeId, CancellationToken.None)
                         .ConfigureAwait(false));
-            AssertRejectedAfterClose(sre);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid));
         }
 
         [Test]
@@ -612,7 +614,9 @@ namespace Opc.Ua.Sessions.Tests
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await session.ReadNodeAsync(nodeId, CancellationToken.None)
                         .ConfigureAwait(false));
-            AssertRejectedAfterClose(sre);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid));
 
             // reconnect/reactivate
             await session.OpenAsync(sessionName, userIdentity, CancellationToken.None)
@@ -1014,7 +1018,10 @@ namespace Opc.Ua.Sessions.Tests
             sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session1.ReadValueAsync<ServerStatusDataType>(
                     VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
-            AssertRejectedAfterClose(sre);
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid),
+                sre.Message);
 
             // close the channel
             await channel2.CloseAsync(ct).ConfigureAwait(false);
@@ -2569,20 +2576,6 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(serverLimit, Is.GreaterThanOrEqualTo(clientLimit));
                 Assert.That(clientLimit, Is.Not.Zero);
             }
-        }
-
-        /// <summary>
-        /// A closed Session sends its requests without authenticationToken,
-        /// which OPC 10000-4 §6.3.1 treats as a session-less invocation: a
-        /// server without it answers Bad_ServiceUnsupported. A client that
-        /// refuses such requests itself reports Bad_SessionIdInvalid.
-        /// </summary>
-        private static void AssertRejectedAfterClose(ServiceResultException sre)
-        {
-            Assert.That(
-                sre.StatusCode,
-                Is.AnyOf(StatusCodes.BadSessionIdInvalid, StatusCodes.BadServiceUnsupported),
-                sre.Message);
         }
 
         private static void IgnoreUnsupportedBrainpoolOnMacOs(string securityPolicyUri)
