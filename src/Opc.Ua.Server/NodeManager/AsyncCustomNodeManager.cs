@@ -5262,6 +5262,23 @@ namespace Opc.Ua.Server
                         }
                     }
 
+                    // an OptionSet write is validated and merged with the stored bits (Part 3 8.40).
+                    DataValue valueToWrite = nodeToWrite.Value;
+                    if (nodeToWrite.AttributeId == Attributes.Value &&
+                        handle.Node is BaseVariableState variableToWrite)
+                    {
+                        ServiceResult? optionSetResult = OptionSetWriteMerge.Apply(
+                            variableToWrite,
+                            nodeToWrite.ParsedIndexRange,
+                            ref valueToWrite);
+
+                        if (optionSetResult != null)
+                        {
+                            errors[ii] = optionSetResult;
+                            continue;
+                        }
+                    }
+
 #if DEBUG
                     m_logger.Write(nodeToWrite.NodeId, nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
 #endif
@@ -5289,7 +5306,7 @@ namespace Opc.Ua.Server
                         systemContext,
                         nodeToWrite.AttributeId,
                         nodeToWrite.ParsedIndexRange,
-                        nodeToWrite.Value,
+                        valueToWrite,
                         cancellationToken).ConfigureAwait(false);
 
                     // report the write value audit event
@@ -5342,15 +5359,86 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
         }
 
-        private void CheckIfSemanticsHaveChanged(
-            ServerSystemContext systemContext,
+        /// <summary>
+        /// Reports that server or application code changed the value of a Property, so that
+        /// a change of a Property with semantic meaning is handled like a change made through
+        /// the Write service (Part 3 5.6.2): a SemanticChangeEvent is raised and the
+        /// SemanticsChanged bit is set on the next value notification of the monitored items
+        /// of the Property's owner.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Assigning a Property value directly (for example <c>analogItem.EURange.Value = ...</c>)
+        /// does not raise a SemanticChangeEvent by itself. Call this method after such an
+        /// assignment, passing the value the Property had before.
+        /// </para>
+        /// <para>
+        /// A change is reported only if the value differs from
+        /// <paramref name="previousValue"/> and the Property has semantic meaning: its
+        /// AccessLevelEx has the SemanticChange bit set, or it is one of the Properties that
+        /// Part 8 defines as semantic for the owning DataItem (EURange, EngineeringUnits,
+        /// InstrumentRange, Title, AxisDefinition, X/Y/ZAxisDefinition, TrueState, FalseState,
+        /// EnumStrings). Use <see cref="ReportSemanticChange(ISystemContext, PropertyState)"/>
+        /// to report a change unconditionally.
+        /// </para>
+        /// </remarks>
+        /// <param name="context">The context of the change; the node manager's context if <c>null</c>.</param>
+        /// <param name="property">The Property whose value was changed.</param>
+        /// <param name="previousValue">The value of the Property before the change.</param>
+        /// <returns><c>true</c> if a semantic change was reported.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="property"/> is <c>null</c>.</exception>
+        public bool ReportPropertyValueChanged(
+            ISystemContext? context,
+            PropertyState property,
+            Variant previousValue)
+        {
+            if (property == null)
+            {
+                throw new ArgumentNullException(nameof(property));
+            }
+
+            return CheckIfSemanticsHaveChanged(
+                context ?? SystemContext,
+                property,
+                property.Value,
+                previousValue,
+                force: false);
+        }
+
+        /// <summary>
+        /// Reports unconditionally that the semantics of the owner of
+        /// <paramref name="property"/> changed (Part 3 5.6.2): a SemanticChangeEvent is raised
+        /// for the owner and the SemanticsChanged bit is set on the next value notification of
+        /// the monitored items of the owner's Value.
+        /// </summary>
+        /// <param name="context">The context of the change; the node manager's context if <c>null</c>.</param>
+        /// <param name="property">The Property whose change altered the semantics of its owner.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="property"/> is <c>null</c>.</exception>
+        public void ReportSemanticChange(ISystemContext? context, PropertyState property)
+        {
+            if (property == null)
+            {
+                throw new ArgumentNullException(nameof(property));
+            }
+
+            CheckIfSemanticsHaveChanged(
+                context ?? SystemContext,
+                property,
+                default,
+                default,
+                force: true);
+        }
+
+        private bool CheckIfSemanticsHaveChanged(
+            ISystemContext systemContext,
             PropertyState property,
             Variant newPropertyValue,
-            Variant previousPropertyValue)
+            Variant previousPropertyValue,
+            bool force = false)
         {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
-            bool hasSemanticChangeFlag = HasSemanticChangeFlag(property);
+            bool hasSemanticChangeFlag = force || HasSemanticChangeFlag(property);
 
             if (!hasSemanticChangeFlag &&
                 propertyName is not BrowseNames.EURange
@@ -5365,13 +5453,13 @@ namespace Opc.Ua.Server
                     and not BrowseNames.YAxisDefinition
                     and not BrowseNames.ZAxisDefinition)
             {
-                return;
+                return false;
             }
 
             // ceck if property value changed
-            if (Utils.IsEqual(newPropertyValue, previousPropertyValue))
+            if (!force && Utils.IsEqual(newPropertyValue, previousPropertyValue))
             {
-                return;
+                return false;
             }
 
             // the SemanticChangeEvent is raised once per change, whether or not the
@@ -5381,7 +5469,7 @@ namespace Opc.Ua.Server
                 !hasSemanticChangeFlag &&
                 !IsSemanticChangeProperty(changedNode, propertyName))
             {
-                return;
+                return false;
             }
 
             foreach (KeyValuePair<uint, IMonitoredItem> kvp in MonitoredItems)
@@ -5431,7 +5519,10 @@ namespace Opc.Ua.Server
             if (changedNode != null)
             {
                 RaiseSemanticChangeEvent(systemContext, changedNode, property);
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>

@@ -33,6 +33,7 @@ covers cross-cutting changes.
 - [Transport resource limits](#transport-resource-limits)
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
+- [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
   - [Asynchronous as default](#asynchronous-as-default)
   - [Observability](#observability)
@@ -926,6 +927,36 @@ to event where-clauses and every other `ContentFilter`:
 
 Clients whose where-clauses relied on the old matching of missing fields should
 test them explicitly with `IsNull`, for example `Or(IsNull(field), Equals(field, 0))`.
+
+## Write service Value semantics follow OPC 10000-3 and OPC 10000-4
+
+A Value written through the Write service is now checked the same way on every path of
+`BaseVariableState` ([OPC 10000-4 §5.11.4](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.11.4)):
+
+- **StatusWrite / TimestampWrite.** Without the `StatusWrite` bit of the AccessLevel only the
+  StatusCode Good may be written, and without the `TimestampWrite` bit only a null
+  SourceTimestamp ([OPC 10000-3 §8.57](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.57)).
+  Other combinations return `Bad_WriteNotSupported`. Server code that assigns `Value`,
+  `StatusCode` or `Timestamp` directly is not affected. Set
+  `AccessLevels.StatusWrite | AccessLevels.TimestampWrite` on Variables whose clients
+  legitimately write status codes or source timestamps.
+- **Type check before `OnWriteValue`.** The DataType and ValueRank are verified before the
+  synchronous `OnWriteValue` handler (fluent `OnWrite`) runs, so a handler no longer
+  receives a value of the wrong type; the write returns `Bad_TypeMismatch`.
+- **IndexRange with `OnWriteValue`.** After the handler accepts an IndexRange write, the slice
+  is merged into the cached value instead of replacing it.
+- **Enumerations.** Writing an Int32 that is not a defined value of an Enumeration DataType
+  registered with the encodeable factory returns `Bad_OutOfRange`.
+- **OptionSet.** A written OptionSet structure must have Value and ValidBits of the same size
+  as the stored value and may only select valid bits, otherwise `Bad_OutOfRange`. The selected
+  bits are merged into the stored value
+  ([OPC 10000-3 §8.40](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.40)).
+
+Server code that changes a Property with semantic meaning (for example `EURange` or
+`EngineeringUnits`) directly calls `ReportPropertyValueChanged(context, property, previousValue)`
+or `ReportSemanticChange(context, property)` on its `AsyncCustomNodeManager` or
+`CustomNodeManager2`, so that a SemanticChangeEvent is raised and the next value notification
+carries the SemanticsChanged bit ([OPC 10000-3 §5.6.2](https://reference.opcfoundation.org/Core/Part3/v105/docs/5.6.2)).
 
 ## Migrating from 1.05.377 to 1.05.378
 
