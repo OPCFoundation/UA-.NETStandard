@@ -300,7 +300,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
         private static string EncodingObject(uint id, string name, uint dataTypeId)
         {
-            return $"<UAObject NodeId=\"ns=1;i={id}\" BrowseName=\"{name}\" SymbolicName=\"{name.Replace(" ", string.Empty)}\">" +
+            return $"<UAObject NodeId=\"ns=1;i={id}\" BrowseName=\"{name}\" SymbolicName=\"{string.Concat(name.Split(' '))}\">" +
                 $"<DisplayName>{name}</DisplayName>" +
                 "<References>" +
                 $"<Reference ReferenceType=\"HasEncoding\" IsForward=\"false\">ns=1;i={dataTypeId}</Reference>" +
