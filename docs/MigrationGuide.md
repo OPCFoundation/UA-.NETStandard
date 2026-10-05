@@ -34,6 +34,7 @@ covers cross-cutting changes.
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
+- [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
   - [Asynchronous as default](#asynchronous-as-default)
   - [Observability](#observability)
@@ -957,6 +958,45 @@ Server code that changes a Property with semantic meaning (for example `EURange`
 or `ReportSemanticChange(context, property)` on its `AsyncCustomNodeManager` or
 `CustomNodeManager2`, so that a SemanticChangeEvent is raised and the next value notification
 carries the SemanticsChanged bit ([OPC 10000-3 §5.6.2](https://reference.opcfoundation.org/Core/Part3/v105/docs/5.6.2)).
+
+The PubSub subscriber that writes TargetVariables of an external server retries a write that
+fails with `Bad_WriteNotSupported` without the received timestamps and remembers the target
+([OPC 10000-14 §6.2.11.1](https://reference.opcfoundation.org/Core/Part14/v105/docs/6.2.11.1)).
+
+## Address space permissions, Call, NodeManagement and locales follow OPC 10000-3
+
+- **Role permissions on type nodes.** ObjectTypes, VariableTypes and their children stay
+  browsable and readable for every user, but all other permission bits are now checked on
+  them ([OPC 10000-3 §8.55](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.55)).
+  In particular `ReceiveEvents` is verified on the EventType: the standard NodeSet grants it on
+  `AuditEventType` and its subtypes only to `SecurityAdmin`, so Anonymous and
+  AuthenticatedUser sessions no longer receive audit events. Give the users that monitor
+  audit events the SecurityAdmin role (or change the RolePermissions of the audit event types).
+  `MasterNodeManager.ValidateAccessRestrictions` has an overload that takes the requested
+  permission; the existing two-argument overload behaves as a Browse/Read request.
+- **Call.** The `Call` permission is required on the Object passed as `objectId` as well as on
+  the Method, and the Object's AccessRestrictions apply. When the `methodId` is the Method
+  declaration of the ObjectType, the Method of the Object with the same BrowseName is
+  permission-checked and invoked ([OPC 10000-4 §5.12.2.2](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.12.2.2));
+  bind method handlers on the instance Methods. Trailing input arguments described by
+  `HasOptionalInputArgumentDescription` may be omitted by the client and reach the handler as
+  `Variant.Null`; override `MethodState.GetOptionalInputArgumentCount` to customize this.
+- **NodeManagement.** AddNodes rejects abstract TypeDefinitions (including `BaseVariableType`,
+  `BaseEventType` and Interfaces) with `Bad_TypeDefinitionInvalid` and creates the Mandatory
+  InstanceDeclarations of the type below the new node. AddReferences, DeleteReferences and
+  DeleteNodes bump the `NodeVersion` and raise `GeneralModelChangeEvent`s.
+- **Locales.** Read (DisplayName, Description, InverseName, LocalizedText values), Browse and
+  data change notifications return the translation that best matches the session's LocaleIds,
+  or all translations for `mul`
+  ([OPC 10000-4 §5.4](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.4)). The
+  selection uses `ResourceManager.TranslateValue`, which calls the overridable
+  `ResourceManager.Translate`. Locale ids are matched case-insensitively.
+- **NodeSet import.** `UANodeSet.Import` completes the `StructureDefinition` of structure
+  subtypes with the fields of their base types (base fields first,
+  [OPC 10000-3 §8.48](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.48)), creates a
+  definition for structures without fields, and sets the `DefaultEncodingId` of concrete
+  structures. `StructureDefinition.FirstExplicitFieldIndex` marks the first field of the
+  subtype; NodeSet export writes only those fields.
 
 ## Migrating from 1.05.377 to 1.05.378
 
