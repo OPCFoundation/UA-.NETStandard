@@ -17,6 +17,10 @@
     <Project Path="samples/AI/ModelManagementServer/ModelManagementServer.csproj" />
     <Project Path="samples/AI/ModelManagementClient/ModelManagementClient.csproj" />
   </Folder>
+  <Folder Name="/samples/AMB/">
+    <Project Path="samples/AMB/AmbServer/AmbServer.csproj" />
+    <Project Path="samples/AMB/AmbClient/AmbClient.csproj" />
+  </Folder>
   <Folder Name="/samples/DI/">
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
   </Folder>
@@ -155,6 +159,9 @@
     <Project Path="src/Opc.Ua.Scales/Opc.Ua.Scales.csproj" />
     <Project Path="src/Opc.Ua.Scales.Client/Opc.Ua.Scales.Client.csproj" />
     <Project Path="src/Opc.Ua.Scales.Server/Opc.Ua.Scales.Server.csproj" />
+    <Project Path="src/Opc.Ua.AMB/Opc.Ua.AMB.csproj" />
+    <Project Path="src/Opc.Ua.AMB.Client/Opc.Ua.AMB.Client.csproj" />
+    <Project Path="src/Opc.Ua.AMB.Server/Opc.Ua.AMB.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
@@ -355,6 +362,7 @@
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />

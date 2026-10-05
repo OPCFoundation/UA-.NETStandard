@@ -10,13 +10,21 @@ symbolic names follow the UA-ModelCompiler's conventions, which differ from the
 ones this repository's model source generator derives in
 `NodeSetToModelDesign.ImportSymbolicName` / `BuildSymbolicId`. Feeding the
 published table to the generator as a `ModelSourceGeneratorIdentifierFile`
-therefore fails with `MODELGEN025`. Three differences occur in practice:
+therefore fails with `MODELGEN025`. Four differences occur in practice:
 
 | Published | Generated | Why |
 | --- | --- | --- |
 | `Server_Namespaces_http___…_` | `http___…_` | the publication qualifies the namespace-metadata object with its server path; the NodeSet's own `SymbolicName` does not |
 | `X_ControlChannel` | `X_ControlChannel_Placeholder` | a `<Placeholder>` BrowseName maps to `Name_Placeholder` |
 | `DefaultBinary` | `RGBWDataType_Encoding_DefaultBinary` | encoding nodes are qualified with the data type they encode |
+| `Aliases_Assets_AssetsByAssetId` | `AssetsByAssetId` | the publication prefixes a top-level instance with the path of the objects organizing it, down from a base-namespace object (OPC 10000-110 AMB: `0:Aliases`, `0:Locations`); the generator starts the symbolic id at the instance, because organized nodes are no children |
+
+The table guards the symbols the generator derives, not the identifier constants
+it emits. Two kinds of valid rows have no constant in `Variables` /
+`VariableIds`: the entries of the type dictionaries
+(`TypeDictionary_BinarySchema_<DataType>`), and the children of a top-level
+instance that its type does not declare mandatory, such as a child the NodeSet
+adds to an instance on its own (AMB's `AssetsByProductInstanceUri_NodeVersion`).
 
 Run it once per vendored model and keep both files:
 
