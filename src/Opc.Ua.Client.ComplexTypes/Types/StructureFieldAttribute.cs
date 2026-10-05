@@ -67,5 +67,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The datatype of a field as BuiltInType.
         /// </summary>
         public int BuiltInType { get; set; }
+
+        /// <summary>
+        /// The declared DataType of an encodeable field as a NodeId string,
+        /// or <c>null</c> if the DataType is given by the field type.
+        /// </summary>
+        public string? DataTypeId { get; set; }
     }
 }

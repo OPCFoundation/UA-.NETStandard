@@ -1064,14 +1064,26 @@ namespace Opc.Ua
                                         .ConfigureAwait(false);
                                     ExpandedNodeId typeId = NormalizeExpandedNodeId(
                                         structType.NodeId);
-                                    newType = await AddOptionSetTypeAsync(
-                                            complexTypeBuilder,
-                                            dataTypeNode,
-                                            typeId,
-                                            binaryEncodingId,
-                                            xmlEncodingId,
-                                            ct)
-                                        .ConfigureAwait(false);
+                                    try
+                                    {
+                                        newType = await AddOptionSetTypeAsync(
+                                                complexTypeBuilder,
+                                                dataTypeNode,
+                                                typeId,
+                                                binaryEncodingId,
+                                                xmlEncodingId,
+                                                ct)
+                                            .ConfigureAwait(false);
+                                    }
+                                    catch (Exception ex) when (ex is not OperationCanceledException)
+                                    {
+                                        // a type the builder cannot create must not abort
+                                        // the load of the other types of the batch.
+                                        m_logger.SkipTypeNotSupportedException(
+                                            ex,
+                                            dataTypeNode.BrowseName.Name);
+                                        continue;
+                                    }
                                     if (newType != null)
                                     {
                                         foreach (NodeId encodingId in encodingIds)
@@ -1457,15 +1469,16 @@ namespace Opc.Ua
             // Mark as OptionSet (bit positions rather than ordinal values).
             enumDefinition.IsOptionSet = true;
 
-            // Add EnumDefinition to cache
-            AddDataTypeDefinitionToCache(dataTypeNode.NodeId, name, enumDefinition);
-
-            return complexTypeBuilder.AddOptionSetType(
+            IEncodeableType optionSetType = complexTypeBuilder.AddOptionSetType(
                 name,
                 typeId,
                 binaryEncodingId,
                 xmlEncodingId,
                 enumDefinition);
+
+            // Add EnumDefinition to cache once the type was created
+            AddDataTypeDefinitionToCache(dataTypeNode.NodeId, name, enumDefinition);
+            return optionSetType;
         }
 
         /// <summary>
