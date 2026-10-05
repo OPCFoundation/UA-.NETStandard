@@ -284,8 +284,8 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                 // Part 6, 5.4.2.4: 64 bit integers are JSON strings.
                 Assert.That(Shape(properties, "Int64"), Is.EqualTo("{\"type\":\"string\",\"format\":\"int64\"}"));
                 Assert.That(Shape(properties, "UInt64"), Is.EqualTo("{\"type\":\"string\",\"format\":\"uint64\"}"));
-                Assert.That(Shape(properties, "Float"), Is.EqualTo("{\"type\":\"number\",\"format\":\"float\"}"));
-                Assert.That(Shape(properties, "Double"), Is.EqualTo("{\"type\":\"number\",\"format\":\"double\"}"));
+                Assert.That(Shape(properties, "Float"), Is.EqualTo(FloatingPoint("float")));
+                Assert.That(Shape(properties, "Double"), Is.EqualTo(FloatingPoint("double")));
                 Assert.That(Shape(properties, "String"), Is.EqualTo("{\"type\":\"string\"}"));
                 Assert.That(Shape(properties, "XmlElement"), Is.EqualTo("{\"type\":\"string\"}"));
                 Assert.That(
@@ -325,7 +325,7 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                 Assert.That(Shape(properties, "Structure"), Is.EqualTo(Ref("ExtensionObject")));
                 Assert.That(Shape(properties, "Number"), Is.EqualTo(Ref("Variant")));
                 Assert.That(Shape(properties, "Duration"), Is.EqualTo(
-                    "{\"type\":\"number\",\"format\":\"double\"}"));
+                    FloatingPoint("double")));
             });
             foreach (string component in s_builtInComponents)
             {
@@ -373,7 +373,8 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                     Shape(properties, "Matrix"),
                     Is.EqualTo(
                         "{\"type\":\"object\",\"properties\":{\"Array\":{\"type\":\"array\",\"items\":" +
-                        "{\"type\":\"number\",\"format\":\"double\"}},\"Dimensions\":" +
+                        FloatingPoint("double") +
+                        "},\"Dimensions\":" +
                         dimensions +
                         "}}"));
                 Assert.That(
@@ -448,7 +449,7 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                     Is.EqualTo("{\"type\":\"boolean\"}"));
                 Assert.That(
                     ItemShape(properties, "DoubleArray"),
-                    Is.EqualTo("{\"type\":\"number\",\"format\":\"double\"}"));
+                    Is.EqualTo(FloatingPoint("double")));
                 Assert.That(
                     ItemShape(properties, "DateTimeArray"),
                     Is.EqualTo("{\"type\":\"string\",\"format\":\"date-time\"}"));
@@ -541,6 +542,15 @@ namespace Opc.Ua.Schema.Tests.OpenApi
         private static string Shape(JsonObject properties, string name)
         {
             return properties[name]!.ToJsonString();
+        }
+
+        private static string FloatingPoint(string format)
+        {
+            // NaN and the infinities are written as strings (Part 6, 5.4.2).
+            return "{\"oneOf\":[{\"type\":\"number\",\"format\":\"" +
+                format +
+                "\"}," +
+                "{\"type\":\"string\",\"enum\":[\"NaN\",\"Infinity\",\"-Infinity\"]}]}";
         }
 
         private static string ItemShape(JsonObject properties, string name)

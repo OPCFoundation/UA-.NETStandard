@@ -96,6 +96,19 @@ namespace Opc.Ua.Schema.Tests.OpenApi
         /// </summary>
         private const string kNullableItemsDifference = "array items are nullable only in the generated document";
 
+        /// <summary>
+        /// The third difference: JSON has no NaN and no infinity, so the
+        /// encoder writes a Float or Double that is one of them as the
+        /// string <c>NaN</c>, <c>Infinity</c> or <c>-Infinity</c>
+        /// (OPC 10000-6, 5.4.2). The generated document allows those
+        /// strings next to the number (<c>oneOf</c>); the publication
+        /// allows the number only. The affected properties are derived from
+        /// the published schemas in
+        /// <c>FloatingPointPropertiesAllowTheStringsOfNotANumberAndTheInfinities</c>.
+        /// </summary>
+        private const string kSpecialValuesDifference =
+            "floating point numbers also allow NaN and the infinities as strings only in the generated document";
+
         [Test]
         public void PathsAndOperationsMatchThePublication(
             [Values] WebApiServiceSet serviceSet,
@@ -173,7 +186,7 @@ namespace Opc.Ua.Schema.Tests.OpenApi
             }
 
             Assert.That(
-                differences.Where(d => !d.EndsWith(kNullableItemsDifference, StringComparison.Ordinal)),
+                differences.Where(d => !IsRecordedDifference(d)),
                 Is.EquivalentTo(s_knownDifferences));
         }
 
@@ -217,6 +230,52 @@ namespace Opc.Ua.Schema.Tests.OpenApi
 
             Assert.That(nullable, Is.Not.Empty);
             Assert.That(nullable, Is.EquivalentTo(expected));
+        }
+
+        [Test]
+        public void FloatingPointPropertiesAllowTheStringsOfNotANumberAndTheInfinities(
+            [Values] WebApiServiceSet serviceSet)
+        {
+            JsonObject published = LoadPublication(serviceSet);
+            JsonObject generated = Generate(serviceSet, includeSchemas: true);
+            JsonObject publishedSchemas = Schemas(published);
+
+            var differences = new List<string>();
+            foreach (KeyValuePair<string, JsonNode?> schema in Schemas(generated))
+            {
+                Compare(schema.Key, schema.Value!.AsObject(), publishedSchemas[schema.Key]!.AsObject(), differences);
+            }
+            string[] special = [.. differences
+                .Where(d => d.EndsWith(kSpecialValuesDifference, StringComparison.Ordinal))
+                .Select(d => d[..d.IndexOf(':', StringComparison.Ordinal)])];
+
+            // The oracle is the published schema: a number, or an array of numbers.
+            var expected = new List<string>();
+            HashSet<string> reachable = ReachableSchemas(published);
+            foreach (KeyValuePair<string, JsonNode?> schema in publishedSchemas.Where(s => reachable.Contains(s.Key)))
+            {
+                foreach (KeyValuePair<string, JsonNode?> property in
+                    schema.Value!.AsObject()["properties"]?.AsObject() ?? [])
+                {
+                    JsonObject shape = Normalize(property.Value!, isPublication: true);
+                    JsonObject element = (string?)shape["type"] == "array" && shape["items"] is JsonObject items
+                        ? items
+                        : shape;
+                    if ((string?)element["type"] == "number")
+                    {
+                        expected.Add($"{schema.Key}.{property.Key}");
+                    }
+                }
+            }
+
+            Assert.That(special, Is.Not.Empty);
+            Assert.That(special, Is.EquivalentTo(expected));
+        }
+
+        private static bool IsRecordedDifference(string difference)
+        {
+            return difference.EndsWith(kNullableItemsDifference, StringComparison.Ordinal) ||
+                difference.EndsWith(kSpecialValuesDifference, StringComparison.Ordinal);
         }
 
         private static bool CanBeNull(JsonObject items, JsonObject schemas)
@@ -301,6 +360,11 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                 if (UnwrapNullableItems(generatedNormalized))
                 {
                     differences.Add($"{name}.{property.Key}: {kNullableItemsDifference}");
+                }
+                generatedNormalized = UnwrapSpecialValues(generatedNormalized, out bool hadSpecialValues);
+                if (hadSpecialValues)
+                {
+                    differences.Add($"{name}.{property.Key}: {kSpecialValuesDifference}");
                 }
                 string generatedShape = generatedNormalized.ToJsonString();
                 string publishedShape = Normalize(counterpart!, isPublication: true).ToJsonString();
@@ -391,6 +455,28 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                 items.Remove("nullable");
             }
             return true;
+        }
+
+        /// <summary>
+        /// Replaces the number or special value string alternatives of a
+        /// property, or of the items of an array, by the number alone, so
+        /// the shape compares with the publication.
+        /// </summary>
+        private static JsonObject UnwrapSpecialValues(JsonObject shape, out bool unwrapped)
+        {
+            if (shape["oneOf"] is JsonArray { Count: 2 } alternatives &&
+                alternatives[0] is JsonObject number &&
+                (string?)number["type"] == "number")
+            {
+                unwrapped = true;
+                return Normalize(number, isPublication: false);
+            }
+            unwrapped = false;
+            if (shape["items"] is JsonObject items)
+            {
+                shape["items"] = UnwrapSpecialValues(items, out unwrapped);
+            }
+            return shape;
         }
 
         private static HashSet<string> ReachableSchemas(JsonObject publication)

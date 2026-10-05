@@ -338,7 +338,7 @@ namespace Opc.Ua.Schema.Tests.OpenApi
         {
             // The encoder writes a field of a fixed rank of two or more as
             // an inline matrix (Part 6, 5.4.5), also for a structure.
-            JsonObject document = new WebApiOpenApiGenerator(new MatrixFieldsResolver()).Generate(includeSchemas: true);
+            JsonObject document = new WebApiOpenApiGenerator(new ProbeFieldsResolver()).Generate(includeSchemas: true);
             ServiceMessageContext context = ServiceMessageContext.Create(null);
             using var memory = new MemoryStream();
             using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
@@ -347,7 +347,7 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                     "Strings",
                     Variant.From(new string[] { "a", null!, "c", "d" }.ToArrayOf().ToMatrix(2, 2)));
                 encoder.WriteInlineMatrixValue(
-                    "Doubles",
+                    "Matrix",
                     Variant.From(new double[] { 1, 2, 3, 4, 5, 6, 7, 8 }.ToArrayOf().ToMatrix(2, 2, 2)));
                 encoder.WriteEncodeableMatrix(
                     "Structures",
@@ -360,17 +360,82 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                 Assert.That(body["Strings"]!["Dimensions"]!.ToJsonString(), Is.EqualTo("[2,2]"));
                 Assert.That(body["Strings"]!["Array"]!.AsArray(), Has.Count.EqualTo(4));
                 Assert.That(body["Strings"]!["Array"]![1], Is.Null);
-                Assert.That(body["Doubles"]!["Dimensions"]!.ToJsonString(), Is.EqualTo("[2,2,2]"));
+                Assert.That(body["Matrix"]!["Dimensions"]!.ToJsonString(), Is.EqualTo("[2,2,2]"));
                 Assert.That(body["Structures"]!["Array"]![1], Is.Null);
                 Assert.That(Evaluate(document, "ReadRequest", body).IsValid, Is.True, body.ToJsonString());
             });
         }
 
         [Test]
+        public void NotANumberAndTheInfinitiesAreWrittenAsStringsAndValidate()
+        {
+            // JSON has no NaN or infinity: the encoder writes the strings.
+            var request = new ReadRequest { MaxAge = double.NaN };
+            JsonNode requestBody = Encode(request);
+            JsonObject document = new WebApiOpenApiGenerator(new ProbeFieldsResolver()).Generate(includeSchemas: true);
+            ServiceMessageContext context = ServiceMessageContext.Create(null);
+            using var memory = new MemoryStream();
+            using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
+            {
+                encoder.WriteDouble("Double", double.PositiveInfinity);
+                encoder.WriteFloat("Float", float.NegativeInfinity);
+                encoder.WriteDoubleArray(
+                    "Doubles",
+                    [1.5, double.NaN, double.PositiveInfinity, double.NegativeInfinity]);
+                encoder.WriteFloatArray(
+                    "Floats",
+                    [2.5f, float.NaN, float.PositiveInfinity, float.NegativeInfinity]);
+            }
+            JsonNode body = JsonNode.Parse(memory.ToArray())!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That((string?)requestBody["MaxAge"], Is.EqualTo("NaN"));
+                Assert.That((string?)body["Double"], Is.EqualTo("Infinity"));
+                Assert.That((string?)body["Float"], Is.EqualTo("-Infinity"));
+                Assert.That(
+                    body["Doubles"]!.ToJsonString(),
+                    Is.EqualTo("[1.5,\"NaN\",\"Infinity\",\"-Infinity\"]"));
+                Assert.That(
+                    body["Floats"]!.ToJsonString(),
+                    Is.EqualTo("[2.5,\"NaN\",\"Infinity\",\"-Infinity\"]"));
+                AssertValid("ReadRequest", requestBody);
+                Assert.That(Evaluate(document, "ReadRequest", body).IsValid, Is.True, body.ToJsonString());
+            });
+        }
+
+        [Test]
+        public void AStringThatIsNotOneOfTheSpecialFloatingPointValuesDoesNotValidate()
+        {
+            JsonNode body = Encode(new ReadRequest { MaxAge = 1.5 });
+            body.AsObject()["MaxAge"] = "1.5";
+
+            Assert.That(Evaluate("ReadRequest", body).IsValid, Is.False);
+        }
+
+        [Test]
+        public void TheCompactEncodingNeverWritesANullForAScalarField()
+        {
+            // The document describes the Compact encoding, which leaves a
+            // null field out (Part 6, 5.4.2.1); a scalar property is
+            // therefore not nullable, unlike the element of an array.
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { AuditEntryId = null, AuthenticationToken = NodeId.Null },
+                NodesToRead = [new ReadValueId { IndexRange = null, DataEncoding = QualifiedName.Null }]
+            };
+
+            JsonNode body = Encode(request);
+
+            Assert.That(body.ToJsonString(), Does.Not.Contain("null"));
+            AssertValid("ReadRequest", body);
+        }
+
+        [Test]
         public void AMatrixWrittenAsNestedArraysDoesNotValidate()
         {
-            JsonObject document = new WebApiOpenApiGenerator(new MatrixFieldsResolver()).Generate(includeSchemas: true);
-            JsonNode body = JsonNode.Parse("{\"Doubles\":[[1,2],[3,4]]}")!;
+            JsonObject document = new WebApiOpenApiGenerator(new ProbeFieldsResolver()).Generate(includeSchemas: true);
+            JsonNode body = JsonNode.Parse("{\"Matrix\":[[1,2],[3,4]]}")!;
 
             Assert.That(Evaluate(document, "ReadRequest", body).IsValid, Is.False);
         }
@@ -453,11 +518,12 @@ namespace Opc.Ua.Schema.Tests.OpenApi
 
         /// <summary>
         /// Resolves the standard types, but gives the ReadRequest the matrix
-        /// fields the services of the specification do not have.
+        /// fields the services of the specification do not have: matrices and
+        /// arrays of floating point numbers.
         /// </summary>
-        private sealed class MatrixFieldsResolver : IDataTypeDefinitionResolver
+        private sealed class ProbeFieldsResolver : IDataTypeDefinitionResolver
         {
-            public MatrixFieldsResolver()
+            public ProbeFieldsResolver()
             {
                 m_standard = new EncodeableFactoryDefinitionSource(EncodeableFactory.Create(), new NamespaceTable());
             }
@@ -490,8 +556,12 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                     StructureType = StructureType.Structure,
                     Fields =
                     [
+                        SchemaTestData.Field("Double", DataTypeIds.Double),
+                        SchemaTestData.Field("Float", DataTypeIds.Float),
+                        SchemaTestData.Field("Doubles", DataTypeIds.Double, ValueRanks.OneDimension),
+                        SchemaTestData.Field("Floats", DataTypeIds.Float, ValueRanks.OneDimension),
                         SchemaTestData.Field("Strings", DataTypeIds.String, ValueRanks.TwoDimensions),
-                        SchemaTestData.Field("Doubles", DataTypeIds.Double, 3),
+                        SchemaTestData.Field("Matrix", DataTypeIds.Double, 3),
                         SchemaTestData.Field("Structures", DataTypeIds.ReadValueId, ValueRanks.TwoDimensions)
                     ]
                 };

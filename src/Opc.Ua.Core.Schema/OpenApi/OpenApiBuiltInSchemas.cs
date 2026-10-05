@@ -199,9 +199,9 @@ namespace Opc.Ua.Schema.OpenApi
                 case BuiltInType.UInt64:
                     return new JsonObject { ["type"] = "string", ["format"] = "uint64" };
                 case BuiltInType.Float:
-                    return new JsonObject { ["type"] = "number", ["format"] = "float" };
+                    return FloatingPoint("float");
                 case BuiltInType.Double:
-                    return new JsonObject { ["type"] = "number", ["format"] = "double" };
+                    return FloatingPoint("double");
                 case BuiltInType.String:
                 case BuiltInType.XmlElement:
                     return new JsonObject { ["type"] = "string" };
@@ -320,6 +320,26 @@ namespace Opc.Ua.Schema.OpenApi
                 ["UaType"] = Integer("int32", 0, byte.MaxValue),
                 ["Value"] = new JsonObject(),
                 ["Dimensions"] = CreateDimensions()
+            };
+        }
+
+        /// <summary>
+        /// A Float or Double is a JSON number, except NaN and the two
+        /// infinities, which JSON cannot hold: the encoder writes them as
+        /// the strings <c>NaN</c>, <c>Infinity</c> and <c>-Infinity</c>
+        /// (OPC 10000-6, 5.4.2).
+        /// </summary>
+        private static JsonObject FloatingPoint(string format)
+        {
+            return new JsonObject
+            {
+                ["oneOf"] = new JsonArray(
+                    new JsonObject { ["type"] = "number", ["format"] = format },
+                    new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["enum"] = new JsonArray("NaN", "Infinity", "-Infinity")
+                    })
             };
         }
 
