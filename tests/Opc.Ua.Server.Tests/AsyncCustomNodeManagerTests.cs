@@ -2879,6 +2879,203 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that an application-side change of a semantic Property, reported through
+        /// the public API, raises one SemanticChangeEvent and sets the SemanticsChanged bit on
+        /// the monitored items of the owner, like a client write does (Part 3 5.6.2).
+        /// </summary>
+        [Test]
+        public async Task ReportPropertyValueChangedRaisesSemanticChangeForServerSideChangeAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new AnalogItemState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("ServerSideSemanticVar", nsIdx);
+            variable.BrowseName = new QualifiedName("ServerSideSemanticVar", nsIdx);
+            variable.TypeDefinitionId = VariableTypeIds.AnalogItemType;
+            variable.Value = 0;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+            var euProperty = new PropertyState(null);
+            euProperty.CreateAsPredefinedNode(context);
+            euProperty.NodeId = new NodeId("ServerSideSemanticVar.EURange", nsIdx);
+            euProperty.BrowseName = QualifiedName.From(BrowseNames.EURange);
+            euProperty.Value = 0;
+            euProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            variable.AddChild(euProperty);
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var monitoredItems = new List<IMonitoredItem> { null };
+            var createErrors = new List<ServiceResult> { null };
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                new List<MonitoredItemCreateRequest>
+                {
+                    new()
+                    {
+                        ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 0, QueueSize = 10 }
+                    }
+                },
+                createErrors,
+                new List<MonitoringFilterResult> { null },
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            var monitoredItem = monitoredItems[0] as IDataChangeMonitoredItem;
+            Assert.That(monitoredItem, Is.Not.Null);
+
+            // the application changes the property directly, without the Write service.
+            Variant previous = euProperty.Value;
+            euProperty.Value = 5;
+
+            bool reported = manager.ReportPropertyValueChanged(null, euProperty, previous);
+
+            Assert.That(reported, Is.True);
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e =>
+                    e is SemanticChangeEventState &&
+                    ((SemanticChangeEventState)e).Changes.Value[0].Affected == variable.NodeId)),
+                Times.Once);
+
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            monitoredItem.Publish(
+                new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None),
+                notifications,
+                diagnostics,
+                10,
+                m_mockLogger.Object);
+
+            Assert.That(notifications, Is.Not.Empty);
+            Assert.That(
+                notifications.Any(n => n.Value.StatusCode.SemanticsChanged),
+                Is.True,
+                "The next value notification must carry the SemanticsChanged bit.");
+
+            // an unchanged value is not a semantic change.
+            Assert.That(manager.ReportPropertyValueChanged(null, euProperty, euProperty.Value), Is.False);
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that <c>ReportSemanticChange</c> reports a semantic change of the owner
+        /// even for a Property that is not semantic by itself.
+        /// </summary>
+        [Test]
+        public async Task ReportSemanticChangeRaisesSemanticChangeEventUnconditionallyAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var owner = new BaseObjectState(null);
+            owner.CreateAsPredefinedNode(context);
+            owner.NodeId = new NodeId("ForcedSemanticOwner", nsIdx);
+            owner.BrowseName = new QualifiedName("ForcedSemanticOwner", nsIdx);
+            owner.TypeDefinitionId = ObjectTypeIds.BaseObjectType;
+
+            var property = new PropertyState(null);
+            property.CreateAsPredefinedNode(context);
+            property.NodeId = new NodeId("ForcedSemanticOwner.Mode", nsIdx);
+            property.BrowseName = new QualifiedName("Mode", nsIdx);
+            property.Value = 0;
+            property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            owner.AddChild(property);
+
+            await manager.AddNodeAsync(context, default, owner).ConfigureAwait(false);
+
+            property.Value = 1;
+            Assert.That(manager.ReportPropertyValueChanged(null, property, 0), Is.False);
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Never);
+
+            manager.ReportSemanticChange(context, property);
+
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e =>
+                    e is SemanticChangeEventState &&
+                    ((SemanticChangeEventState)e).Changes.Value[0].Affected == owner.NodeId)),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies the OptionSet Write semantics of Part 3 8.40: the written bits selected by
+        /// ValidBits are merged into the stored value, and size mismatches or invalid bits are
+        /// rejected with Bad_OutOfRange without changing the stored value.
+        /// </summary>
+        [TestCase(new byte[] { 0x02 }, new byte[] { 0x03 }, 0u, (byte)0x06)]
+        [TestCase(new byte[] { 0x0F }, new byte[] { 0x0F }, 0u, (byte)0x0F)]
+        [TestCase(new byte[] { 0x00 }, new byte[] { 0x0F }, 0u, (byte)0x00)]
+        [TestCase(new byte[] { 0x02 }, new byte[] { 0x03, 0x00 }, 0x803C0000u, (byte)0x05)]
+        [TestCase(new byte[] { 0x02, 0x00 }, new byte[] { 0x03, 0x00 }, 0x803C0000u, (byte)0x05)]
+        [TestCase(new byte[] { 0x10 }, new byte[] { 0x10 }, 0x803C0000u, (byte)0x05)]
+        public async Task WriteOptionSetMergesValidBitsAsync(
+            byte[] value,
+            byte[] validBits,
+            uint expectedStatus,
+            byte expectedStoredValue)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("OptionSetVar", nsIdx);
+            variable.BrowseName = new QualifiedName("OptionSetVar", nsIdx);
+            // the merge does not depend on the DataType; the test type table is minimal.
+            variable.DataType = DataTypeIds.BaseDataType;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.Value = new Variant(new ExtensionObject(new OptionSet
+            {
+                Value = ByteString.From(0x05),
+                ValidBits = ByteString.From(0x0F)
+            }));
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var writeErrors = new List<ServiceResult> { null };
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = variable.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(new ExtensionObject(new OptionSet
+                        {
+                            Value = ByteString.From(value),
+                            ValidBits = ByteString.From(validBits)
+                        })))
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(
+                (writeErrors[0]?.StatusCode ?? StatusCodes.Good).Code,
+                Is.EqualTo(expectedStatus));
+            Assert.That(variable.Value.TryGetStructure(out OptionSet stored), Is.True);
+            Assert.That(stored.Value.ToArray(), Is.EqualTo(new[] { expectedStoredValue }));
+            Assert.That(stored.ValidBits.ToArray(), Is.EqualTo(new byte[] { 0x0F }),
+                "The ValidBits of the stored value describe the bits the Server supports.");
+        }
+
+        /// <summary>
         /// Verifies that adding references registers external references.
         /// </summary>
         [Test]
@@ -10694,6 +10891,22 @@ namespace Opc.Ua.Server.Tests
         void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget);
 
         /// <summary>
+        /// Reports an application-side change of a Property value (Part 3 5.6.2).
+        /// </summary>
+        /// <param name="context">The context of the change.</param>
+        /// <param name="property">The changed Property.</param>
+        /// <param name="previousValue">The value before the change.</param>
+        /// <returns><c>true</c> if a semantic change was reported.</returns>
+        bool ReportPropertyValueChanged(ISystemContext? context, PropertyState property, Variant previousValue);
+
+        /// <summary>
+        /// Reports unconditionally that the semantics of a Property's owner changed.
+        /// </summary>
+        /// <param name="context">The context of the change.</param>
+        /// <param name="property">The Property whose change altered the semantics.</param>
+        void ReportSemanticChange(ISystemContext? context, PropertyState property);
+
+        /// <summary>
         /// Adds reverse references from predefined nodes to external targets.
         /// </summary>
         /// <param name="externalReferences">The external reference map to update.</param>
@@ -11642,6 +11855,16 @@ namespace Opc.Ua.Server.Tests
         public void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget)
         {
             m_cnm2.InvokeOnReportEvent(context, node, filterTarget);
+        }
+
+        public bool ReportPropertyValueChanged(ISystemContext? context, PropertyState property, Variant previousValue)
+        {
+            return m_cnm2.ReportPropertyValueChanged(context, property, previousValue);
+        }
+
+        public void ReportSemanticChange(ISystemContext? context, PropertyState property)
+        {
+            m_cnm2.ReportSemanticChange(context, property);
         }
 
         /// <summary>

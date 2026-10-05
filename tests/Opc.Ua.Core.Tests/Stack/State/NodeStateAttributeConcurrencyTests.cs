@@ -173,6 +173,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             (ISystemContext context, BaseVariableState node) = CreateWritableVariable();
 
+            // the writes carry a status code and a source timestamp (Part 3 8.57).
+            node.AccessLevel |= AccessLevels.StatusWrite | AccessLevels.TimestampWrite;
+
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var failures = new ConcurrentBag<string>();
 
