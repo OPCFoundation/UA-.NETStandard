@@ -152,6 +152,41 @@ namespace Opc.Ua.Bindings.WebApi
         }
 
         /// <summary>
+        /// Verifies that every scheme recorded by an
+        /// <c>AddWebApi*Auth()</c> opt-in on the application container is
+        /// registered on the listener host's container.
+        /// </summary>
+        /// <param name="listenerServices">The listener host's services.</param>
+        /// <returns><c>true</c> when the application opted into authentication.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// An opted-in scheme is missing on the listener host.
+        /// </exception>
+        private bool EnsureApplicationAuthSchemes(IServiceProvider listenerServices)
+        {
+            if (m_applicationServices == null)
+            {
+                return false;
+            }
+
+            bool authRequired = false;
+            AuthenticationOptions? options = null;
+            foreach (WebApiListenerAuthRegistration registration in m_applicationServices
+                .GetServices<WebApiListenerAuthRegistration>())
+            {
+                authRequired = true;
+                options ??= listenerServices.GetService<IOptions<AuthenticationOptions>>()?.Value;
+                if (options?.SchemeMap.ContainsKey(registration.SchemeName) != true)
+                {
+                    throw new InvalidOperationException(
+                        $"The OPC UA REST authentication scheme '{registration.SchemeName}' is not " +
+                        "registered on the HTTPS listener host; refusing to serve the REST routes " +
+                        "without the configured authentication.");
+                }
+            }
+            return authRequired;
+        }
+
+        /// <summary>
         /// Listener-scoped forwarder to the application's
         /// <see cref="ISessionlessIdentityProvider"/>, resolved from an
         /// application-container scope that the listener container
@@ -188,6 +223,12 @@ namespace Opc.Ua.Bindings.WebApi
         {
             ArgumentNullException.ThrowIfNull(appBuilder);
             ArgumentNullException.ThrowIfNull(listener);
+
+            // Fail closed: every scheme the application opted into must
+            // be registered on the host that serves the routes.
+            // Otherwise the auth middleware would be skipped silently
+            // and the REST routes served without the credential.
+            bool authRequired = EnsureApplicationAuthSchemes(appBuilder.ApplicationServices);
 
             // Late-bind the dispatcher to the listener's transport
             // callback. By the time Configure runs Kestrel has been
@@ -254,7 +295,7 @@ namespace Opc.Ua.Bindings.WebApi
             // bare AddWebApiTransport() (no auth) skips the
             // middleware entirely to preserve the historical anonymous
             // request flow.
-            bool hasAuth = HasNonAnonymousAuthScheme(appBuilder.ApplicationServices);
+            bool hasAuth = authRequired || HasNonAnonymousAuthScheme(appBuilder.ApplicationServices);
             if (hasAuth)
             {
                 appBuilder.UseAuthentication();

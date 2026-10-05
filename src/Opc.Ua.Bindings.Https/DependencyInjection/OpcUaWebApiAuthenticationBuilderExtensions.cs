@@ -93,6 +93,16 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <c>Microsoft.AspNetCore.Authentication.JwtBearer</c>
         /// middleware.
         /// </summary>
+        /// <remarks>
+        /// The HTTPS listener serves the REST routes from its own host
+        /// and service container, into which only this scheme
+        /// registration and <paramref name="configure"/> are replayed.
+        /// <see cref="JwtBearerOptions"/> set elsewhere on the
+        /// application container (<c>services.Configure</c> /
+        /// <c>PostConfigure</c>, or an <c>EventsType</c> resolved from
+        /// DI) do not apply to the listener: put every restriction into
+        /// <paramref name="configure"/>.
+        /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configure">
         /// Callback that configures the JWT validation parameters
@@ -112,6 +122,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
             AddWebApiAuthScheme(
                 builder.Services,
+                WebApiAuthSchemes.Bearer,
                 auth => auth.AddJwtBearer(WebApiAuthSchemes.Bearer, configure));
             return builder;
         }
@@ -183,6 +194,16 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="BasicAuthenticationHandler"/>. The supplied
         /// <paramref name="validate"/> callback verifies credentials.
         /// </summary>
+        /// <remarks>
+        /// The HTTPS listener serves the REST routes from its own host
+        /// and service container, into which only this scheme
+        /// registration, <paramref name="validate"/> and
+        /// <paramref name="configure"/> are replayed.
+        /// <see cref="BasicAuthenticationOptions"/> set elsewhere on the
+        /// application container (<c>services.Configure</c> /
+        /// <c>PostConfigure</c>) do not apply to the listener: put every
+        /// restriction into <paramref name="configure"/>.
+        /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="validate">
         /// Async callback that receives the (username, password) pair
@@ -208,6 +229,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
             AddWebApiAuthScheme(
                 builder.Services,
+                WebApiAuthSchemes.Basic,
                 auth => auth.AddScheme<BasicAuthenticationOptions, BasicAuthenticationHandler>(
                     WebApiAuthSchemes.Basic,
                     options =>
@@ -229,6 +251,16 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <c>HttpsSettings.HttpsMutualTls</c> is set, which is the
         /// expected path.
         /// </summary>
+        /// <remarks>
+        /// The HTTPS listener serves the REST routes from its own host
+        /// and service container, into which only this scheme
+        /// registration and <paramref name="configure"/> are replayed.
+        /// <see cref="CertificateAuthenticationOptions"/> set elsewhere on
+        /// the application container (<c>services.Configure</c> /
+        /// <c>PostConfigure</c>, or an <c>EventsType</c> resolved from
+        /// DI) do not apply to the listener: put every restriction into
+        /// <paramref name="configure"/>.
+        /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configure">
         /// Optional callback that customises certificate validation
@@ -247,6 +279,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
             AddWebApiAuthScheme(
                 builder.Services,
+                WebApiAuthSchemes.MutualTls,
                 auth =>
                 {
                     if (configure != null)
@@ -271,14 +304,16 @@ namespace Microsoft.Extensions.DependencyInjection
         /// container is never enforced on the REST routes.
         /// </summary>
         /// <param name="services">The application service collection.</param>
+        /// <param name="schemeName">The name of the registered scheme.</param>
         /// <param name="register">Adds the scheme to an authentication builder.</param>
         private static void AddWebApiAuthScheme(
             IServiceCollection services,
+            string schemeName,
             Action<AuthenticationBuilder> register)
         {
             EnsureWebApiPolicyScheme(services);
             register(services.AddAuthentication());
-            services.AddSingleton(new WebApiListenerAuthRegistration(register));
+            services.AddSingleton(new WebApiListenerAuthRegistration(schemeName, register));
         }
 
         /// <summary>

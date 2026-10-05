@@ -41,6 +41,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -124,6 +125,34 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             Assert.That(body, Is.EqualTo("custom challenge"));
             Assert.That(listener.Callback.LastRequest, Is.Null);
+        }
+
+        [Test]
+        public async Task ListenerHostWithoutReplayedSchemeFailsClosedAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(m_telemetry!);
+            services.AddOpcUa()
+                .AddWebApiTransport()
+                .AddWebApiBasicAuth((_, _) => Task.FromResult<ClaimsPrincipal?>(null));
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            WebApiHttpsStartupContributor contributor =
+                provider.GetRequiredService<WebApiHttpsStartupContributor>();
+
+            // A listener host whose services never went through the
+            // contributor's ConfigureServices (no replayed scheme).
+            await using ServiceProvider listenerServices = new ServiceCollection()
+                .AddLogging()
+                .AddRouting()
+                .BuildServiceProvider();
+            var factory = new HttpsTransportListenerFactory();
+            factory.StartupContributors.Add(contributor);
+            await using var listener = (HttpsTransportListener)factory.Create(m_telemetry!);
+
+            InvalidOperationException? ex = Assert.Throws<InvalidOperationException>(
+                () => contributor.Configure(new ApplicationBuilder(listenerServices), listener));
+            Assert.That(ex!.Message, Does.Contain(Opc.Ua.Bindings.WebApi.Authentication.WebApiAuthSchemes.Basic));
         }
 
         [Test]
