@@ -136,7 +136,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // no MVC controllers or AddApplicationPart reflection scan.
             services.AddRouting();
             services.TryAddSingleton(sp =>
-                new WebApiHttpsStartupContributor(sp.GetRequiredService<WebApiServer>()));
+                new WebApiHttpsStartupContributor(sp.GetRequiredService<WebApiServer>(), sp));
             services.AddSingleton<IHttpsListenerStartupContributor>(
                 sp => sp.GetRequiredService<WebApiHttpsStartupContributor>());
 
