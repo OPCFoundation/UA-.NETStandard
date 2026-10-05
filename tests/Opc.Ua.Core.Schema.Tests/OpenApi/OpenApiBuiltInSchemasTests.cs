@@ -83,5 +83,63 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                 component["properties"]!.AsObject().Select(p => p.Key),
                 Is.EqualTo(s_extensionObjectProperties));
         }
+
+        [TestCase(BuiltInType.String, true)]
+        [TestCase(BuiltInType.XmlElement, true)]
+        [TestCase(BuiltInType.Guid, true)]
+        [TestCase(BuiltInType.ByteString, true)]
+        [TestCase(BuiltInType.NodeId, true)]
+        [TestCase(BuiltInType.ExpandedNodeId, true)]
+        [TestCase(BuiltInType.QualifiedName, true)]
+        [TestCase(BuiltInType.LocalizedText, true)]
+        [TestCase(BuiltInType.ExtensionObject, true)]
+        [TestCase(BuiltInType.DataValue, true)]
+        [TestCase(BuiltInType.DiagnosticInfo, true)]
+        [TestCase(BuiltInType.Variant, true)]
+        [TestCase(BuiltInType.Boolean, false)]
+        [TestCase(BuiltInType.Int32, false)]
+        [TestCase(BuiltInType.UInt64, false)]
+        [TestCase(BuiltInType.Double, false)]
+        [TestCase(BuiltInType.DateTime, false)]
+        [TestCase(BuiltInType.StatusCode, false)]
+        [TestCase(BuiltInType.Enumeration, false)]
+        public void OnlyTheTypesWithANullValueCanBeNull(BuiltInType type, bool expected)
+        {
+            Assert.That(OpenApiBuiltInSchemas.CanBeNull(type), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void AnInlineSchemaIsMadeNullableInPlace()
+        {
+            JsonObject schema = OpenApiBuiltInSchemas.MakeNullable(
+                OpenApiBuiltInSchemas.CreateScalar(BuiltInType.String));
+
+            Assert.That(schema.ToJsonString(), Is.EqualTo("{\"type\":\"string\",\"nullable\":true}"));
+        }
+
+        [Test]
+        public void AReferenceIsMadeNullableInAnAllOfBecauseItCarriesNoKeywords()
+        {
+            JsonObject schema = OpenApiBuiltInSchemas.MakeNullable(
+                OpenApiBuiltInSchemas.Reference("DataValue"));
+
+            Assert.That(
+                schema.ToJsonString(),
+                Is.EqualTo("{\"nullable\":true,\"allOf\":[{\"$ref\":\"#/components/schemas/DataValue\"}]}"));
+        }
+
+        [Test]
+        public void AMatrixIsAnObjectWithTheFlattenedValuesAndTheDimensions()
+        {
+            JsonObject schema = OpenApiBuiltInSchemas.CreateMatrix(
+                OpenApiBuiltInSchemas.CreateScalar(BuiltInType.Boolean));
+
+            Assert.That(
+                schema.ToJsonString(),
+                Is.EqualTo(
+                    "{\"type\":\"object\",\"properties\":{\"Array\":{\"type\":\"array\",\"items\":" +
+                    "{\"type\":\"boolean\"}},\"Dimensions\":{\"type\":\"array\",\"items\":" +
+                    "{\"type\":\"integer\",\"format\":\"int32\",\"minimum\":0}}}}"));
+        }
     }
 }

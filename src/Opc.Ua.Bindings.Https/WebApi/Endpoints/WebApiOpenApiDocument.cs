@@ -33,6 +33,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using Opc.Ua.Schema.OpenApi;
 
 namespace Opc.Ua.Bindings.WebApi.Endpoints
@@ -70,22 +71,40 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
                 return cached;
             }
 
+            // Concurrent first requests wait for one generation instead of
+            // each running it: the generator and a custom resolver are not
+            // called concurrently, the cache cannot grow past its bound, and
+            // a document beyond the bound is generated one at a time.
+            lock (m_lock)
+            {
+                if (m_documents.TryGetValue(key, out cached))
+                {
+                    return cached;
+                }
+
+                ByteString bytes = Generate(generator, serverUrl);
+                if (m_documents.Count < kMaxCachedDocuments)
+                {
+                    m_documents.TryAdd(key, bytes);
+                }
+                return bytes;
+            }
+        }
+
+        private ByteString Generate(WebApiOpenApiGenerator generator, string? serverUrl)
+        {
             JsonObject document = generator.Generate(m_serviceSet, m_includeSchemas, serverUrl);
             using var stream = new MemoryStream();
             using (var writer = new Utf8JsonWriter(stream))
             {
                 document.WriteTo(writer);
             }
-            var bytes = new ByteString(stream.ToArray());
-            if (m_documents.Count < kMaxCachedDocuments)
-            {
-                m_documents.TryAdd(key, bytes);
-            }
-            return bytes;
+            return new ByteString(stream.ToArray());
         }
 
         private const int kMaxCachedDocuments = 16;
 
+        private readonly Lock m_lock = new();
         private readonly WebApiServiceSet m_serviceSet;
         private readonly bool m_includeSchemas;
         private readonly ConcurrentDictionary<string, ByteString> m_documents = new(StringComparer.Ordinal);

@@ -355,25 +355,33 @@ namespace Opc.Ua.Schema.OpenApi
 
             private JsonObject CreateField(StructureField field)
             {
-                JsonObject element = CreateElement(field.DataType);
                 switch (field.ValueRank)
                 {
                     case ValueRanks.Scalar:
-                        return element;
-                    case >= 1:
-                        // One array level per dimension (Part 6, 5.4.5).
-                        for (int dimension = 0; dimension < field.ValueRank; dimension++)
-                        {
-                            element = new JsonObject { ["type"] = "array", ["items"] = element };
-                        }
-                        return element;
+                        return CreateElement(field.DataType).Schema;
+                    case ValueRanks.OneDimension:
+                        return OpenApiBuiltInSchemas.CreateArray(CreateArrayItem(field.DataType));
+                    case >= 2:
+                        // Part 6, 5.4.5: the dimensions and the flattened values.
+                        return OpenApiBuiltInSchemas.CreateMatrix(CreateArrayItem(field.DataType));
                     default:
                         // Any, ScalarOrOneDimension or OneOrMoreDimensions.
                         return [];
                 }
             }
 
-            private JsonObject CreateElement(NodeId dataType)
+            /// <summary>
+            /// The schema of an element of an array. The encoder cannot
+            /// leave out a null element and writes the JSON literal
+            /// <c>null</c> (Part 6, 5.4.5).
+            /// </summary>
+            private JsonObject CreateArrayItem(NodeId dataType)
+            {
+                (JsonObject schema, bool canBeNull) = CreateElement(dataType);
+                return canBeNull ? OpenApiBuiltInSchemas.MakeNullable(schema) : schema;
+            }
+
+            private (JsonObject Schema, bool CanBeNull) CreateElement(NodeId dataType)
             {
                 // A field of the abstract number types carries a Variant on the wire.
                 if (dataType == DataTypeIds.Number ||
@@ -381,28 +389,31 @@ namespace Opc.Ua.Schema.OpenApi
                     dataType == DataTypeIds.UInteger)
                 {
                     EnsureBuiltIn(OpenApiBuiltInSchemas.Variant);
-                    return OpenApiBuiltInSchemas.Reference(OpenApiBuiltInSchemas.Variant);
+                    return (OpenApiBuiltInSchemas.Reference(OpenApiBuiltInSchemas.Variant), true);
                 }
 
                 BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType);
                 if (builtInType != BuiltInType.Null)
                 {
+                    bool canBeNull = OpenApiBuiltInSchemas.CanBeNull(builtInType);
                     string? componentName = OpenApiBuiltInSchemas.GetComponentName(builtInType);
                     if (componentName == null)
                     {
-                        return OpenApiBuiltInSchemas.CreateScalar(builtInType);
+                        return (OpenApiBuiltInSchemas.CreateScalar(builtInType), canBeNull);
                     }
                     EnsureBuiltIn(componentName);
-                    return OpenApiBuiltInSchemas.Reference(componentName);
+                    return (OpenApiBuiltInSchemas.Reference(componentName), canBeNull);
                 }
 
                 if (m_resolver.TryResolve(dataType, out UaTypeDescription? referenced))
                 {
-                    return OpenApiBuiltInSchemas.Reference(EnsureType(referenced));
+                    // An enumeration is written as a number; a structure can be null.
+                    bool canBeNull = referenced.Definition is not EnumDefinition || referenced.IsStructureOptionSet;
+                    return (OpenApiBuiltInSchemas.Reference(EnsureType(referenced)), canBeNull);
                 }
 
                 // A type the resolver does not know can hold any value.
-                return [];
+                return ([], false);
             }
 
             private void EnsureBuiltIn(string componentName)

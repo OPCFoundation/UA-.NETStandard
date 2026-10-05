@@ -345,7 +345,7 @@ namespace Opc.Ua.Schema.Tests.OpenApi
         }
 
         [Test]
-        public void ArraysAreNestedPerDimensionAndOtherRanksAcceptAnyValue()
+        public void ArraysHaveItemsAndOtherRanksAcceptAnyValue()
         {
             JsonObject properties = GenerateWithProbe()["ReadRequest"]!["properties"]!.AsObject();
 
@@ -354,13 +354,108 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                 Assert.That(
                     Shape(properties, "Array"),
                     Is.EqualTo("{\"type\":\"array\",\"items\":{\"type\":\"integer\",\"format\":\"int32\"}}"));
+                Assert.That(Shape(properties, "AnyRank"), Is.EqualTo("{}"));
+                Assert.That(Shape(properties, "ScalarOrArray"), Is.EqualTo("{}"));
+            });
+        }
+
+        [Test]
+        public void AFixedRankOfTwoOrMoreIsTheInlineMatrixObjectTheEncoderWrites()
+        {
+            JsonObject properties = GenerateWithProbe()["ReadRequest"]!["properties"]!.AsObject();
+            const string dimensions =
+                "{\"type\":\"array\",\"items\":{\"type\":\"integer\",\"format\":\"int32\",\"minimum\":0}}";
+
+            Assert.Multiple(() =>
+            {
+                // Part 6, 5.4.5: the flattened values in Array, the lengths in Dimensions.
                 Assert.That(
                     Shape(properties, "Matrix"),
                     Is.EqualTo(
-                        "{\"type\":\"array\",\"items\":{\"type\":\"array\",\"items\":" +
-                        "{\"type\":\"number\",\"format\":\"double\"}}}"));
-                Assert.That(Shape(properties, "AnyRank"), Is.EqualTo("{}"));
-                Assert.That(Shape(properties, "ScalarOrArray"), Is.EqualTo("{}"));
+                        "{\"type\":\"object\",\"properties\":{\"Array\":{\"type\":\"array\",\"items\":" +
+                        "{\"type\":\"number\",\"format\":\"double\"}},\"Dimensions\":" +
+                        dimensions +
+                        "}}"));
+                Assert.That(
+                    Shape(properties, "ThreeDimensions"),
+                    Is.EqualTo(
+                        "{\"type\":\"object\",\"properties\":{\"Array\":{\"type\":\"array\",\"items\":" +
+                        "{\"type\":\"integer\",\"format\":\"int32\"}},\"Dimensions\":" +
+                        dimensions +
+                        "}}"));
+
+                // The elements of a matrix are null elements like those of an array.
+                Assert.That(
+                    properties["StringMatrix"]!["properties"]!["Array"]!["items"]!.ToJsonString(),
+                    Is.EqualTo("{\"type\":\"string\",\"nullable\":true}"));
+                Assert.That(
+                    properties["StructureMatrix"]!["properties"]!["Array"]!["items"]!.ToJsonString(),
+                    Is.EqualTo(Nullable(Ref("ProbeNode"))));
+            });
+        }
+
+        [Test]
+        public void ArrayItemsThatTheEncoderWritesAsNullAreNullable()
+        {
+            // Part 6, 5.4.5: a null element of an array is the JSON literal null.
+            JsonObject properties = GenerateWithProbe()["ReadRequest"]!["properties"]!.AsObject();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ItemShape(properties, "StringArray"),
+                    Is.EqualTo("{\"type\":\"string\",\"nullable\":true}"));
+                Assert.That(
+                    ItemShape(properties, "XmlElementArray"),
+                    Is.EqualTo("{\"type\":\"string\",\"nullable\":true}"));
+                Assert.That(
+                    ItemShape(properties, "GuidArray"),
+                    Is.EqualTo("{\"type\":\"string\",\"format\":\"uuid\",\"nullable\":true}"));
+                Assert.That(
+                    ItemShape(properties, "ByteStringArray"),
+                    Is.EqualTo("{\"type\":\"string\",\"format\":\"byte\",\"nullable\":true}"));
+                Assert.That(
+                    ItemShape(properties, "NodeIdArray"),
+                    Is.EqualTo("{\"type\":\"string\",\"format\":\"UaNodeId\",\"nullable\":true}"));
+                Assert.That(
+                    ItemShape(properties, "ExpandedNodeIdArray"),
+                    Is.EqualTo("{\"type\":\"string\",\"format\":\"UaExpandedNodeId\",\"nullable\":true}"));
+                Assert.That(
+                    ItemShape(properties, "QualifiedNameArray"),
+                    Is.EqualTo("{\"type\":\"string\",\"format\":\"UaQualifiedName\",\"nullable\":true}"));
+                Assert.That(ItemShape(properties, "LocalizedTextArray"), Is.EqualTo(Nullable(Ref("LocalizedText"))));
+                Assert.That(ItemShape(properties, "VariantArray"), Is.EqualTo(Nullable(Ref("Variant"))));
+                Assert.That(ItemShape(properties, "NumberArray"), Is.EqualTo(Nullable(Ref("Variant"))));
+                Assert.That(ItemShape(properties, "DataValueArray"), Is.EqualTo(Nullable(Ref("DataValue"))));
+                Assert.That(ItemShape(properties, "DiagnosticInfoArray"), Is.EqualTo(Nullable(Ref("DiagnosticInfo"))));
+                Assert.That(
+                    ItemShape(properties, "ExtensionObjectArray"),
+                    Is.EqualTo(Nullable(Ref("ExtensionObject"))));
+                Assert.That(ItemShape(properties, "StructureArray"), Is.EqualTo(Nullable(Ref("ProbeNode"))));
+                Assert.That(ItemShape(properties, "UnionArray"), Is.EqualTo(Nullable(Ref("ProbeUnion"))));
+            });
+        }
+
+        [Test]
+        public void ArrayItemsThatTheEncoderAlwaysWritesAreNotNullable()
+        {
+            JsonObject properties = GenerateWithProbe()["ReadRequest"]!["properties"]!.AsObject();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ItemShape(properties, "BooleanArray"),
+                    Is.EqualTo("{\"type\":\"boolean\"}"));
+                Assert.That(
+                    ItemShape(properties, "DoubleArray"),
+                    Is.EqualTo("{\"type\":\"number\",\"format\":\"double\"}"));
+                Assert.That(
+                    ItemShape(properties, "DateTimeArray"),
+                    Is.EqualTo("{\"type\":\"string\",\"format\":\"date-time\"}"));
+                Assert.That(ItemShape(properties, "StatusCodeArray"), Is.EqualTo(Ref("StatusCode")));
+                Assert.That(ItemShape(properties, "EnumerationArray"), Is.EqualTo(Ref("ProbeMode")));
+                Assert.That(ItemShape(properties, "OptionSetArray"), Is.EqualTo(Ref("ProbeFlags")));
+                Assert.That(ItemShape(properties, "UnknownArray"), Is.EqualTo("{}"));
             });
         }
 
@@ -448,9 +543,19 @@ namespace Opc.Ua.Schema.Tests.OpenApi
             return properties[name]!.ToJsonString();
         }
 
+        private static string ItemShape(JsonObject properties, string name)
+        {
+            return properties[name]!["items"]!.ToJsonString();
+        }
+
         private static string Ref(string name)
         {
             return "{\"$ref\":\"#/components/schemas/" + name + "\"}";
+        }
+
+        private static string Nullable(string reference)
+        {
+            return "{\"nullable\":true,\"allOf\":[" + reference + "]}";
         }
 
         private static IEnumerable<string> CollectReferences(JsonNode node)
@@ -602,6 +707,31 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                     ("Duration", DataTypeIds.Duration, ValueRanks.Scalar),
                     ("Array", Id(BuiltInType.Int32), ValueRanks.OneDimension),
                     ("Matrix", Id(BuiltInType.Double), 2),
+                    ("ThreeDimensions", Id(BuiltInType.Int32), 3),
+                    ("StringMatrix", Id(BuiltInType.String), 2),
+                    ("StructureMatrix", Custom(kNode), 2),
+                    ("BooleanArray", Id(BuiltInType.Boolean), ValueRanks.OneDimension),
+                    ("DoubleArray", Id(BuiltInType.Double), ValueRanks.OneDimension),
+                    ("DateTimeArray", Id(BuiltInType.DateTime), ValueRanks.OneDimension),
+                    ("StatusCodeArray", Id(BuiltInType.StatusCode), ValueRanks.OneDimension),
+                    ("EnumerationArray", Custom(kMode), ValueRanks.OneDimension),
+                    ("OptionSetArray", Custom(kFlags), ValueRanks.OneDimension),
+                    ("UnknownArray", new NodeId(9999, SchemaTestData.TestNamespaceIndex), ValueRanks.OneDimension),
+                    ("StringArray", Id(BuiltInType.String), ValueRanks.OneDimension),
+                    ("XmlElementArray", Id(BuiltInType.XmlElement), ValueRanks.OneDimension),
+                    ("GuidArray", Id(BuiltInType.Guid), ValueRanks.OneDimension),
+                    ("ByteStringArray", Id(BuiltInType.ByteString), ValueRanks.OneDimension),
+                    ("NodeIdArray", Id(BuiltInType.NodeId), ValueRanks.OneDimension),
+                    ("ExpandedNodeIdArray", Id(BuiltInType.ExpandedNodeId), ValueRanks.OneDimension),
+                    ("QualifiedNameArray", Id(BuiltInType.QualifiedName), ValueRanks.OneDimension),
+                    ("LocalizedTextArray", Id(BuiltInType.LocalizedText), ValueRanks.OneDimension),
+                    ("VariantArray", Id(BuiltInType.Variant), ValueRanks.OneDimension),
+                    ("NumberArray", DataTypeIds.Number, ValueRanks.OneDimension),
+                    ("DataValueArray", Id(BuiltInType.DataValue), ValueRanks.OneDimension),
+                    ("DiagnosticInfoArray", Id(BuiltInType.DiagnosticInfo), ValueRanks.OneDimension),
+                    ("ExtensionObjectArray", Id(BuiltInType.ExtensionObject), ValueRanks.OneDimension),
+                    ("StructureArray", Custom(kNode), ValueRanks.OneDimension),
+                    ("UnionArray", Custom(kUnion), ValueRanks.OneDimension),
                     ("AnyRank", Id(BuiltInType.Int32), ValueRanks.Any),
                     ("ScalarOrArray", Id(BuiltInType.Int32), ValueRanks.ScalarOrOneDimension),
                     (string.Empty, Id(BuiltInType.Int32), ValueRanks.Scalar),

@@ -82,6 +82,20 @@ namespace Opc.Ua.Schema.Tests.OpenApi
             "DataValue: property 'StatusCode' only in the published document"
         ];
 
+        /// <summary>
+        /// The second difference: the encoder writes the JSON literal
+        /// <c>null</c> for a null element of an array (OPC 10000-6, 5.4.5),
+        /// so the generated document marks the items of an array
+        /// <c>nullable</c> where the type of the element has a null value
+        /// (strings, Guid, ByteString, NodeId, ExpandedNodeId,
+        /// QualifiedName, XmlElement, LocalizedText, ExtensionObject,
+        /// DataValue, DiagnosticInfo, Variant and the structures); the
+        /// publication does not. The affected properties are derived from
+        /// the published items in
+        /// <c>ArrayItemsThatCanBeNullAreNullableInTheGeneratedDocument</c>.
+        /// </summary>
+        private const string kNullableItemsDifference = "array items are nullable only in the generated document";
+
         [Test]
         public void PathsAndOperationsMatchThePublication(
             [Values] WebApiServiceSet serviceSet,
@@ -158,7 +172,63 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                 Compare(schema.Key, schema.Value!.AsObject(), counterpart, differences);
             }
 
-            Assert.That(differences, Is.EquivalentTo(s_knownDifferences));
+            Assert.That(
+                differences.Where(d => !d.EndsWith(kNullableItemsDifference, StringComparison.Ordinal)),
+                Is.EquivalentTo(s_knownDifferences));
+        }
+
+        [Test]
+        public void ArrayItemsThatCanBeNullAreNullableInTheGeneratedDocument(
+            [Values] WebApiServiceSet serviceSet)
+        {
+            JsonObject published = LoadPublication(serviceSet);
+            JsonObject generated = Generate(serviceSet, includeSchemas: true);
+            JsonObject publishedSchemas = Schemas(published);
+
+            var differences = new List<string>();
+            foreach (KeyValuePair<string, JsonNode?> schema in Schemas(generated))
+            {
+                Compare(schema.Key, schema.Value!.AsObject(), publishedSchemas[schema.Key]!.AsObject(), differences);
+            }
+            string[] nullable = [.. differences
+                .Where(d => d.EndsWith(kNullableItemsDifference, StringComparison.Ordinal))
+                .Select(d => d[..d.IndexOf(':', StringComparison.Ordinal)])];
+
+            // The oracle is the published schema of the items: an object
+            // component (other than a StatusCode, which is always written)
+            // or a string that is not a date, a 64 bit integer or an
+            // enumeration has a null value; numbers and enumerations not.
+            var expected = new List<string>();
+            HashSet<string> reachable = ReachableSchemas(published);
+            foreach (KeyValuePair<string, JsonNode?> schema in publishedSchemas.Where(s => reachable.Contains(s.Key)))
+            {
+                foreach (KeyValuePair<string, JsonNode?> property in
+                    schema.Value!.AsObject()["properties"]?.AsObject() ?? [])
+                {
+                    JsonObject shape = Normalize(property.Value!, isPublication: true);
+                    if ((string?)shape["type"] == "array" &&
+                        shape["items"] is JsonObject items &&
+                        CanBeNull(items, publishedSchemas))
+                    {
+                        expected.Add($"{schema.Key}.{property.Key}");
+                    }
+                }
+            }
+
+            Assert.That(nullable, Is.Not.Empty);
+            Assert.That(nullable, Is.EquivalentTo(expected));
+        }
+
+        private static bool CanBeNull(JsonObject items, JsonObject schemas)
+        {
+            if ((string?)items["$ref"] is string reference)
+            {
+                string name = reference.Split('/')[^1];
+                return name != "StatusCode" && (string?)schemas[name]!["type"] == "object";
+            }
+            return (string?)items["type"] == "string" &&
+                (string?)items["format"] is null or
+                    "uuid" or "byte" or "UaNodeId" or "UaExpandedNodeId" or "UaQualifiedName";
         }
 
         [Test]
@@ -227,7 +297,12 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                     differences.Add($"{name}: property '{property.Key}' only in the generated document");
                     continue;
                 }
-                string generatedShape = Normalize(property.Value!, isPublication: false).ToJsonString();
+                JsonObject generatedNormalized = Normalize(property.Value!, isPublication: false);
+                if (UnwrapNullableItems(generatedNormalized))
+                {
+                    differences.Add($"{name}.{property.Key}: {kNullableItemsDifference}");
+                }
+                string generatedShape = generatedNormalized.ToJsonString();
                 string publishedShape = Normalize(counterpart!, isPublication: true).ToJsonString();
                 if (generatedShape != publishedShape)
                 {
@@ -291,6 +366,31 @@ namespace Opc.Ua.Schema.Tests.OpenApi
                     : keyword.Value?.DeepClone();
             }
             return result;
+        }
+
+        /// <summary>
+        /// Takes the nullable form (<c>nullable</c> next to the item schema
+        /// or next to an <c>allOf</c> with the reference) off the items of an
+        /// array schema, so the shape compares with the publication.
+        /// </summary>
+        /// <returns><c>true</c> when the items were nullable.</returns>
+        private static bool UnwrapNullableItems(JsonObject shape)
+        {
+            if (shape["items"] is not JsonObject items ||
+                items["nullable"] is not JsonValue flag ||
+                !flag.GetValue<bool>())
+            {
+                return false;
+            }
+            if (items["allOf"] is JsonArray { Count: 1 } allOf)
+            {
+                shape["items"] = allOf[0]!.DeepClone();
+            }
+            else
+            {
+                items.Remove("nullable");
+            }
+            return true;
         }
 
         private static HashSet<string> ReachableSchemas(JsonObject publication)

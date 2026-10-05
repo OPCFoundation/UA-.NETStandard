@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -276,6 +278,103 @@ namespace Opc.Ua.Schema.Tests.OpenApi
             AssertValid("GetEndpointsResponse", Encode(response));
         }
 
+        [Test]
+        public void NullElementsOfArraysValidateAgainstTheNullableItems()
+        {
+            // Part 6, 5.4.5: a null element of an array is the JSON literal null.
+            var response = new ReadResponse
+            {
+                ResponseHeader = new ResponseHeader { StringTable = ["one", null!, "three"] },
+                Results = [default, new DataValue(Variant.From(1), StatusCodes.Good)],
+                DiagnosticInfos = [null!, new DiagnosticInfo { SymbolicId = 1 }]
+            };
+
+            JsonNode body = Encode(response);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(body["ResponseHeader"]!["StringTable"]![1], Is.Null);
+                Assert.That(body["Results"]![0], Is.Null);
+                Assert.That(body["DiagnosticInfos"]![0], Is.Null);
+                AssertValid("ReadResponse", body);
+            });
+        }
+
+        [Test]
+        public void NullStructuresAndExtensionObjectsInArraysValidateAgainstTheNullableItems()
+        {
+            var request = new ReadRequest
+            {
+                NodesToRead = [null!, new ReadValueId { NodeId = VariableIds.Server_ServerStatus_CurrentTime }]
+            };
+            var response = new PublishResponse
+            {
+                NotificationMessage = new NotificationMessage { NotificationData = [default] }
+            };
+
+            JsonNode requestBody = Encode(request);
+            JsonNode responseBody = Encode(response);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(requestBody["NodesToRead"]![0], Is.Null);
+                Assert.That(responseBody["NotificationMessage"]!["NotificationData"]![0], Is.Null);
+                AssertValid("ReadRequest", requestBody);
+                AssertValid("PublishResponse", responseBody);
+            });
+        }
+
+        [Test]
+        public void ANullElementOfAnArrayOfNumbersDoesNotValidate()
+        {
+            JsonNode body = Encode(new PublishResponse { AvailableSequenceNumbers = [1, 2] });
+            body["AvailableSequenceNumbers"]!.AsArray()[1] = null;
+
+            Assert.That(Evaluate("PublishResponse", body).IsValid, Is.False);
+        }
+
+        [Test]
+        public void MatricesAreWrittenAndDescribedAsObjectsWithTheFlattenedArrayAndTheDimensions()
+        {
+            // The encoder writes a field of a fixed rank of two or more as
+            // an inline matrix (Part 6, 5.4.5), also for a structure.
+            JsonObject document = new WebApiOpenApiGenerator(new MatrixFieldsResolver()).Generate(includeSchemas: true);
+            ServiceMessageContext context = ServiceMessageContext.Create(null);
+            using var memory = new MemoryStream();
+            using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
+            {
+                encoder.WriteInlineMatrixValue(
+                    "Strings",
+                    Variant.From(new string[] { "a", null!, "c", "d" }.ToArrayOf().ToMatrix(2, 2)));
+                encoder.WriteInlineMatrixValue(
+                    "Doubles",
+                    Variant.From(new double[] { 1, 2, 3, 4, 5, 6, 7, 8 }.ToArrayOf().ToMatrix(2, 2, 2)));
+                encoder.WriteEncodeableMatrix(
+                    "Structures",
+                    new ReadValueId[] { new() { AttributeId = Attributes.Value }, null! }.ToArrayOf().ToMatrix(1, 2));
+            }
+            JsonNode body = JsonNode.Parse(memory.ToArray())!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(body["Strings"]!["Dimensions"]!.ToJsonString(), Is.EqualTo("[2,2]"));
+                Assert.That(body["Strings"]!["Array"]!.AsArray(), Has.Count.EqualTo(4));
+                Assert.That(body["Strings"]!["Array"]![1], Is.Null);
+                Assert.That(body["Doubles"]!["Dimensions"]!.ToJsonString(), Is.EqualTo("[2,2,2]"));
+                Assert.That(body["Structures"]!["Array"]![1], Is.Null);
+                Assert.That(Evaluate(document, "ReadRequest", body).IsValid, Is.True, body.ToJsonString());
+            });
+        }
+
+        [Test]
+        public void AMatrixWrittenAsNestedArraysDoesNotValidate()
+        {
+            JsonObject document = new WebApiOpenApiGenerator(new MatrixFieldsResolver()).Generate(includeSchemas: true);
+            JsonNode body = JsonNode.Parse("{\"Doubles\":[[1,2],[3,4]]}")!;
+
+            Assert.That(Evaluate(document, "ReadRequest", body).IsValid, Is.False);
+        }
+
         private static JsonNode Encode(IEncodeable message)
         {
             ServiceMessageContext context = ServiceMessageContext.Create(null);
@@ -292,11 +391,16 @@ namespace Opc.Ua.Schema.Tests.OpenApi
 
         private static EvaluationResults Evaluate(string messageName, JsonNode body)
         {
+            return Evaluate(s_document.Value, messageName, body);
+        }
+
+        private static EvaluationResults Evaluate(JsonObject document, string messageName, JsonNode body)
+        {
             // The component schemas use the keywords OpenAPI 3.0 shares with
-            // JSON Schema 2020-12; only the location of the schemas differs
-            // and the enumeration names, an OpenAPI generator extension, go.
-            JsonObject schemas = JsonNode.Parse(
-                s_document.Value["components"]!["schemas"]!.ToJsonString())!.AsObject();
+            // JSON Schema 2020-12; only the location of the schemas differs,
+            // the enumeration names, an OpenAPI generator extension, go and
+            // nullable becomes the union with null.
+            var schemas = (JsonObject)ConvertNullable(document["components"]!["schemas"])!;
             foreach (KeyValuePair<string, JsonNode?> component in schemas)
             {
                 component.Value!.AsObject().Remove("x-enum-varnames");
@@ -311,6 +415,90 @@ namespace Opc.Ua.Schema.Tests.OpenApi
             return schema.Evaluate(
                 JsonSerializer.SerializeToElement(body),
                 new EvaluationOptions { OutputFormat = OutputFormat.List });
+        }
+
+        /// <summary>
+        /// Returns a copy of the schema in which every schema object with
+        /// <c>nullable: true</c> (OpenAPI 3.0) accepts <c>null</c> as well
+        /// (<c>anyOf</c> with the type <c>null</c>).
+        /// </summary>
+        private static JsonNode? ConvertNullable(JsonNode? node)
+        {
+            switch (node)
+            {
+                case JsonObject schema:
+                    bool nullable = false;
+                    var copy = new JsonObject();
+                    foreach (KeyValuePair<string, JsonNode?> member in schema)
+                    {
+                        if (member.Key == "nullable" && member.Value is JsonValue flag && flag.GetValue<bool>())
+                        {
+                            nullable = true;
+                            continue;
+                        }
+                        copy[member.Key] = ConvertNullable(member.Value);
+                    }
+                    return nullable
+                        ? new JsonObject
+                        {
+                            ["anyOf"] = new JsonArray(copy, new JsonObject { ["type"] = "null" })
+                        }
+                        : copy;
+                case JsonArray array:
+                    return new JsonArray([.. array.Select(ConvertNullable)]);
+                default:
+                    return node?.DeepClone();
+            }
+        }
+
+        /// <summary>
+        /// Resolves the standard types, but gives the ReadRequest the matrix
+        /// fields the services of the specification do not have.
+        /// </summary>
+        private sealed class MatrixFieldsResolver : IDataTypeDefinitionResolver
+        {
+            public MatrixFieldsResolver()
+            {
+                m_standard = new EncodeableFactoryDefinitionSource(EncodeableFactory.Create(), new NamespaceTable());
+            }
+
+            public bool TryResolve(ExpandedNodeId typeId, [NotNullWhen(true)] out UaTypeDescription? description)
+            {
+                return m_standard.TryResolve(typeId, out description);
+            }
+
+            public bool TryResolve(NodeId typeId, [NotNullWhen(true)] out UaTypeDescription? description)
+            {
+                return m_standard.TryResolve(typeId, out description);
+            }
+
+            public IReadOnlyCollection<UaTypeDescription> GetNamespaceTypes(string namespaceUri)
+            {
+                var types = new List<UaTypeDescription>();
+                foreach (UaTypeDescription type in m_standard.GetNamespaceTypes(namespaceUri))
+                {
+                    types.Add(type.Name == "ReadRequest" ? WithMatrixFields(type) : type);
+                }
+                return types;
+            }
+
+            private static UaTypeDescription WithMatrixFields(UaTypeDescription type)
+            {
+                var definition = new StructureDefinition
+                {
+                    BaseDataType = DataTypeIds.Structure,
+                    StructureType = StructureType.Structure,
+                    Fields =
+                    [
+                        SchemaTestData.Field("Strings", DataTypeIds.String, ValueRanks.TwoDimensions),
+                        SchemaTestData.Field("Doubles", DataTypeIds.Double, 3),
+                        SchemaTestData.Field("Structures", DataTypeIds.ReadValueId, ValueRanks.TwoDimensions)
+                    ]
+                };
+                return new UaTypeDescription(type.TypeId, type.BrowseName, definition, type.NamespaceUri);
+            }
+
+            private readonly EncodeableFactoryDefinitionSource m_standard;
         }
     }
 }

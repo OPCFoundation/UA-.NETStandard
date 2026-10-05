@@ -70,6 +70,93 @@ namespace Opc.Ua.Schema.OpenApi
         }
 
         /// <summary>
+        /// Returns whether the encoder writes the JSON literal <c>null</c>
+        /// for a null value of <paramref name="type"/> where it cannot omit
+        /// the value, which is an element of an array (OPC 10000-6, 5.4.5).
+        /// </summary>
+        /// <param name="type">The built-in type.</param>
+        /// <returns>
+        /// <c>true</c> for the types that have a null value: strings, Guid,
+        /// ByteString, NodeId, ExpandedNodeId, QualifiedName, XmlElement,
+        /// LocalizedText, ExtensionObject, DataValue, DiagnosticInfo and
+        /// Variant. The numbers, Boolean, DateTime, StatusCode and the
+        /// enumerations are always written.
+        /// </returns>
+        public static bool CanBeNull(BuiltInType type)
+        {
+            return type is
+                BuiltInType.String or
+                BuiltInType.XmlElement or
+                BuiltInType.Guid or
+                BuiltInType.ByteString or
+                BuiltInType.NodeId or
+                BuiltInType.ExpandedNodeId or
+                BuiltInType.QualifiedName or
+                BuiltInType.LocalizedText or
+                BuiltInType.ExtensionObject or
+                BuiltInType.DataValue or
+                BuiltInType.DiagnosticInfo or
+                BuiltInType.Variant;
+        }
+
+        /// <summary>
+        /// Makes <paramref name="schema"/> accept <c>null</c> in the form of
+        /// OpenAPI 3.0: <c>nullable</c> next to the schema, and next to an
+        /// <c>allOf</c> that holds the schema when it is a reference, which
+        /// cannot carry keywords of its own.
+        /// </summary>
+        /// <param name="schema">
+        /// The schema of a value; it is changed unless it is a reference.
+        /// </param>
+        /// <returns>The schema that also accepts <c>null</c>.</returns>
+        public static JsonObject MakeNullable(JsonObject schema)
+        {
+            if (schema.ContainsKey("$ref"))
+            {
+                return new JsonObject
+                {
+                    ["nullable"] = true,
+                    ["allOf"] = new JsonArray(schema)
+                };
+            }
+            schema["nullable"] = true;
+            return schema;
+        }
+
+        /// <summary>
+        /// Creates the schema of a one dimensional array
+        /// (OPC 10000-6, 5.4.5).
+        /// </summary>
+        /// <param name="items">The schema of an element.</param>
+        /// <returns>The array schema.</returns>
+        public static JsonObject CreateArray(JsonObject items)
+        {
+            return new JsonObject { ["type"] = "array", ["items"] = items };
+        }
+
+        /// <summary>
+        /// Creates the schema of a multi dimensional array that is the
+        /// value of a structure field: an object with the elements in
+        /// <c>Array</c>, flattened, and the length of each dimension in
+        /// <c>Dimensions</c> (OPC 10000-6, 5.4.5), the way the encoder
+        /// writes a field of a fixed value rank of two or more.
+        /// </summary>
+        /// <param name="items">The schema of an element.</param>
+        /// <returns>The matrix schema.</returns>
+        public static JsonObject CreateMatrix(JsonObject items)
+        {
+            return new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["Array"] = CreateArray(items),
+                    ["Dimensions"] = CreateDimensions()
+                }
+            };
+        }
+
+        /// <summary>
         /// Creates a reference to a component schema.
         /// </summary>
         /// <param name="componentName">The component schema name.</param>
@@ -232,17 +319,18 @@ namespace Opc.Ua.Schema.OpenApi
             {
                 ["UaType"] = Integer("int32", 0, byte.MaxValue),
                 ["Value"] = new JsonObject(),
-                ["Dimensions"] = new JsonObject
-                {
-                    ["type"] = "array",
-                    ["items"] = new JsonObject
-                    {
-                        ["type"] = "integer",
-                        ["format"] = "int32",
-                        ["minimum"] = 0
-                    }
-                }
+                ["Dimensions"] = CreateDimensions()
             };
+        }
+
+        private static JsonObject CreateDimensions()
+        {
+            return CreateArray(new JsonObject
+            {
+                ["type"] = "integer",
+                ["format"] = "int32",
+                ["minimum"] = 0
+            });
         }
 
         private static JsonObject UInt32()
