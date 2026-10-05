@@ -452,6 +452,55 @@ namespace Opc.Ua.Robotics.Client.Tests
             Assert.That(motorA1.MotorTemperatureId, Is.EqualTo(m_motorA1Temperature.NodeId));
         }
 
+        [Test]
+        public async Task EngineeringValuesAndGearRatiosAreReadAsync()
+        {
+            RoboticsTopologySnapshot snapshot = await m_client.ReadSystemAsync(
+                await SystemIdAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(snapshot.Axes, Has.Count.EqualTo(6));
+            foreach (AxisSnapshot axis in snapshot.Axes.ToArray()!)
+            {
+                string? name = axis.Identification.BrowseName.Name;
+                AxisEngineeringOptions engineering = axis.Engineering;
+                Assert.That(engineering.PositionUnit?.DisplayName.Text, Is.EqualTo("°"), name);
+                Assert.That(engineering.Limits.Position?.Low, Is.EqualTo(-180), name);
+                Assert.That(engineering.Limits.Position?.High, Is.EqualTo(180), name);
+                Assert.That(engineering.SpeedUnit?.DisplayName.Text, Is.EqualTo("°/s"), name);
+                Assert.That(engineering.Limits.Speed?.Low, Is.EqualTo(-250), name);
+                Assert.That(engineering.Limits.Speed?.High, Is.EqualTo(250), name);
+                Assert.That(engineering.AccelerationUnit?.DisplayName.Text, Is.EqualTo("°/s²"), name);
+                Assert.That(engineering.Limits.Acceleration, Is.Null, name);
+            }
+
+            MotionDeviceSnapshot robot = snapshot.MotionDevices[0];
+            LoadSnapshot flange = snapshot.Loads.ToArray()!.Single(l => l.NodeId == robot.FlangeLoadId);
+            Assert.That(flange.MassEngineering.EngineeringUnits?.DisplayName.Text, Is.EqualTo("kg"));
+            Assert.That(flange.MassEngineering.Range?.Low, Is.Zero);
+            Assert.That(flange.MassEngineering.Range?.High, Is.EqualTo(20));
+            NodeId toolId = snapshot.Axes.ToArray()!
+                .Single(a => a.Identification.BrowseName.Name == "A6").AdditionalLoadId;
+            LoadSnapshot tool = snapshot.Loads.ToArray()!.Single(l => l.NodeId == toolId);
+            Assert.That(tool.Mass.WrappedValue.TryGetValue(out double toolMass), Is.True);
+            Assert.That(toolMass, Is.EqualTo(2.0));
+            // EngineeringUnits is mandatory and always published, EURange is optional.
+            Assert.That(tool.MassEngineering.EngineeringUnits?.DisplayName.Text, Is.Not.EqualTo("kg"));
+            Assert.That(tool.MassEngineering.Range, Is.Null, "the tool load's Mass has no EURange");
+
+            Assert.That(snapshot.Gears, Has.Count.EqualTo(6));
+            foreach (GearSnapshot gear in snapshot.Gears.ToArray()!)
+            {
+                Assert.That(gear.GearRatio?.Numerator, Is.EqualTo(160), gear.Identification.BrowseName.Name);
+                Assert.That(gear.GearRatio?.Denominator, Is.EqualTo(1u), gear.Identification.BrowseName.Name);
+            }
+
+            // The per-node reader returns the same engineering values.
+            AxisSnapshot a1 = await m_client.ReadAxisAsync(await AxisIdAsync("A1").ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.That(a1.Engineering.PositionUnit?.UnitId, Is.EqualTo(Unit("DD", "°", "degree").UnitId));
+            Assert.That(a1.Engineering.Limits.Speed?.High, Is.EqualTo(250));
+        }
+
         private async Task<NodeId> SystemIdAsync()
         {
             await foreach (MotionDeviceSystemEntry entry in m_client.EnumerateMotionDeviceSystemsAsync()
@@ -558,28 +607,38 @@ namespace Opc.Ua.Robotics.Client.Tests
         private void BuildRobot(IMotionDeviceBuilder robot)
         {
             EUInformation degree = Unit("DD", "°", "degree");
+            EUInformation degreePerSecond = Unit("E96", "°/s", "degree per second");
+            EUInformation degreePerSecondSquared = Unit("M45", "°/s²", "degree per second squared");
             robot.WithComponentName("AR-6")
                 .WithIdentification(Identity("AR-6", "AR6", "AR6-0001"))
                 .WithCategory(MotionDeviceCategoryEnumeration.ARTICULATED_ROBOT)
                 .WithSpeedOverride(100.0)
-                .WithFlangeLoad(load => load.WithMass(6.5, Unit("KGM", "kg", "kilogram")));
+                .WithFlangeLoad(load => load.WithMass(6.5, Unit("KGM", "kg", "kilogram"), new Range(20, 0)));
             IDriveBuilder drive = robot.AddDrive("DriveA1", d => d.WithProductCode("DR-1"));
             for (int ii = 0; ii < s_axes.Length; ii++)
             {
                 int index = ii;
                 string name = s_axes[ii];
-                IAxisBuilder axis = robot.AddAxis(name, a => a
-                    .WithMotionProfile(AxisMotionProfileEnumeration.ROTARY)
-                    .WithActualPosition(s_home[index], degree, new Range(180, -180))
-                    .WithActualSpeed(0)
-                    .WithActualAcceleration(0)
-                    .Configure((node, context) =>
-                    {
-                        if (index == 0)
+                IAxisBuilder axis = robot.AddAxis(name, a =>
+                {
+                    // Every value with its unit; no EURange for ActualAcceleration.
+                    a.WithMotionProfile(AxisMotionProfileEnumeration.ROTARY)
+                        .WithActualPosition(s_home[index], degree, new Range(180, -180))
+                        .WithActualSpeed(0, degreePerSecond, new Range(250, -250))
+                        .WithActualAcceleration(0, degreePerSecondSquared)
+                        .Configure((node, context) =>
                         {
-                            m_a1Position = Child(node.ParameterSet!, context, BrowseNames.ActualPosition);
-                        }
-                    }));
+                            if (index == 0)
+                            {
+                                m_a1Position = Child(node.ParameterSet!, context, BrowseNames.ActualPosition);
+                            }
+                        });
+                    if (index == s_axes.Length - 1)
+                    {
+                        // A tool load with a mass only: no unit, no range.
+                        a.WithAdditionalLoad(load => load.WithMass(2.0));
+                    }
+                });
                 IPowerTrainBuilder powerTrain = robot.AddPowerTrain($"PT-{name}", pt =>
                 {
                     IMotorBuilder motor = pt.AddMotor($"M-{name}", m => m
