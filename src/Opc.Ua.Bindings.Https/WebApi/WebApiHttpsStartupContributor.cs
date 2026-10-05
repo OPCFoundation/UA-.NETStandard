@@ -66,16 +66,36 @@ namespace Opc.Ua.Bindings.WebApi
         IHttpsListenerServiceContributor
     {
         private readonly WebApiServer m_server;
+        private readonly IServiceProvider? m_applicationServices;
         private readonly WebApiTransportOptions m_options;
         private readonly WebApiOpenApiGenerator? m_openApiGenerator;
 
+        /// <summary>
+        /// Creates a contributor that replays the REST authentication
+        /// set up on the application container into each listener host.
+        /// </summary>
+        /// <param name="server">The REST dispatcher.</param>
+        /// <param name="applicationServices">
+        /// The application container holding the <c>AddWebApi*Auth()</c>
+        /// registrations and the <see cref="ISessionlessIdentityProvider"/>.
+        /// </param>
+        /// <param name="options">
+        /// The options that select the service set and the OpenAPI
+        /// document; the defaults when <c>null</c>.
+        /// </param>
+        /// <param name="openApiGenerator">
+        /// The generator of the OpenAPI document; the endpoint creates a
+        /// default one when <c>null</c>.
+        /// </param>
         public WebApiHttpsStartupContributor(
             WebApiServer server,
+            IServiceProvider? applicationServices = null,
             WebApiTransportOptions? options = null,
             WebApiOpenApiGenerator? openApiGenerator = null)
         {
             ArgumentNullException.ThrowIfNull(server);
             m_server = server;
+            m_applicationServices = applicationServices;
             m_options = options ?? new WebApiTransportOptions();
             m_openApiGenerator = openApiGenerator;
         }
@@ -102,6 +122,114 @@ namespace Opc.Ua.Bindings.WebApi
             // remains valid even before an auth opt-in lands; this is
             // a cheap registration (no runtime cost when no policies).
             services.AddAuthorization();
+
+            AddApplicationAuthentication(services);
+        }
+
+        /// <summary>
+        /// The listener host has its own service container, so the
+        /// authentication schemes and identity provider registered on the
+        /// application container by the <c>AddWebApi*Auth()</c> opt-ins
+        /// are replayed into it. Without this the listener sees no
+        /// scheme, skips <c>UseAuthentication()</c> /
+        /// <c>RequireAuthorization()</c> and serves the REST routes
+        /// unauthenticated.
+        /// </summary>
+        /// <remarks>
+        /// The identity provider is resolved per request from an
+        /// application-container scope that lives as long as the
+        /// listener's request scope, so scoped providers (and their
+        /// request-scoped dependencies) keep their lifetime; singleton
+        /// providers resolve to the application's instance.
+        /// </remarks>
+        private void AddApplicationAuthentication(IServiceCollection services)
+        {
+            if (m_applicationServices == null)
+            {
+                return;
+            }
+
+            IServiceProvider applicationServices = m_applicationServices;
+            if (applicationServices.GetService<IServiceProviderIsService>()?
+                .IsService(typeof(ISessionlessIdentityProvider)) != false)
+            {
+                services.TryAddScoped<ISessionlessIdentityProvider>(
+                    _ => new ApplicationIdentityProvider(applicationServices));
+            }
+
+            foreach (WebApiListenerAuthRegistration registration in m_applicationServices
+                .GetServices<WebApiListenerAuthRegistration>())
+            {
+                OpcUaWebApiAuthenticationBuilderExtensions.EnsureWebApiPolicyScheme(services);
+                registration.Register(services.AddAuthentication());
+            }
+        }
+
+        /// <summary>
+        /// Verifies that every scheme recorded by an
+        /// <c>AddWebApi*Auth()</c> opt-in on the application container is
+        /// registered on the listener host's container.
+        /// </summary>
+        /// <param name="listenerServices">The listener host's services.</param>
+        /// <returns><c>true</c> when the application opted into authentication.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// An opted-in scheme is missing on the listener host.
+        /// </exception>
+        private bool EnsureApplicationAuthSchemes(IServiceProvider listenerServices)
+        {
+            if (m_applicationServices == null)
+            {
+                return false;
+            }
+
+            bool authRequired = false;
+            AuthenticationOptions? options = null;
+            foreach (WebApiListenerAuthRegistration registration in m_applicationServices
+                .GetServices<WebApiListenerAuthRegistration>())
+            {
+                authRequired = true;
+                options ??= listenerServices.GetService<IOptions<AuthenticationOptions>>()?.Value;
+                if (options?.SchemeMap.ContainsKey(registration.SchemeName) != true)
+                {
+                    throw new InvalidOperationException(
+                        $"The OPC UA REST authentication scheme '{registration.SchemeName}' is not " +
+                        "registered on the HTTPS listener host; refusing to serve the REST routes " +
+                        "without the configured authentication.");
+                }
+            }
+            return authRequired;
+        }
+
+        /// <summary>
+        /// Listener-scoped forwarder to the application's
+        /// <see cref="ISessionlessIdentityProvider"/>, resolved from an
+        /// application-container scope that the listener container
+        /// disposes with the request. Forwarding (instead of handing out
+        /// the application's instance) keeps the listener container from
+        /// disposing an application-owned provider.
+        /// </summary>
+        private sealed class ApplicationIdentityProvider : ISessionlessIdentityProvider, IDisposable
+        {
+            private readonly IServiceProvider m_applicationServices;
+            private IServiceScope? m_scope;
+
+            public ApplicationIdentityProvider(IServiceProvider applicationServices)
+            {
+                m_applicationServices = applicationServices;
+            }
+
+            public IUserIdentity? Resolve(HttpContext context)
+            {
+                m_scope ??= m_applicationServices.CreateScope();
+                return m_scope.ServiceProvider
+                    .GetService<ISessionlessIdentityProvider>()?
+                    .Resolve(context);
+            }
+
+            public void Dispose()
+            {
+                m_scope?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
@@ -109,6 +237,12 @@ namespace Opc.Ua.Bindings.WebApi
         {
             ArgumentNullException.ThrowIfNull(appBuilder);
             ArgumentNullException.ThrowIfNull(listener);
+
+            // Fail closed: every scheme the application opted into must
+            // be registered on the host that serves the routes.
+            // Otherwise the auth middleware would be skipped silently
+            // and the REST routes served without the credential.
+            bool authRequired = EnsureApplicationAuthSchemes(appBuilder.ApplicationServices);
 
             // Late-bind the dispatcher to the listener's transport
             // callback. By the time Configure runs Kestrel has been
@@ -175,7 +309,7 @@ namespace Opc.Ua.Bindings.WebApi
             // bare AddWebApiTransport() (no auth) skips the
             // middleware entirely to preserve the historical anonymous
             // request flow.
-            bool hasAuth = HasNonAnonymousAuthScheme(appBuilder.ApplicationServices);
+            bool hasAuth = authRequired || HasNonAnonymousAuthScheme(appBuilder.ApplicationServices);
             if (hasAuth)
             {
                 appBuilder.UseAuthentication();

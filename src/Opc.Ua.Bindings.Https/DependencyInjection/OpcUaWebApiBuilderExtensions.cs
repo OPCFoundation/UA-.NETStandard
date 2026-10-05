@@ -142,6 +142,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton(sp =>
                 new WebApiHttpsStartupContributor(
                     sp.GetRequiredService<WebApiServer>(),
+                    sp,
                     sp.GetRequiredService<IOptions<WebApiTransportOptions>>().Value,
                     sp.GetRequiredService<WebApiOpenApiGenerator>()));
             services.AddSingleton<IHttpsListenerStartupContributor>(

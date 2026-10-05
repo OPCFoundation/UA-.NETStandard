@@ -360,7 +360,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 var telemetry = new TestTelemetryContext();
                 var listener = new HttpsTransportListener(Utils.UriSchemeHttps, telemetry);
                 var server = new WebApiServer(ServiceMessageContext.CreateEmpty(telemetry), "openapi-test");
-                var contributor = new WebApiHttpsStartupContributor(server, options, generator);
+                var contributor = new WebApiHttpsStartupContributor(
+                    server,
+                    options: options,
+                    openApiGenerator: generator);
 
                 IHost host = await new HostBuilder()
                     .ConfigureWebHost(webHost => webHost

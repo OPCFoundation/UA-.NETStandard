@@ -1,0 +1,50 @@
+{
+  "ComplexTypes": {
+    "reason": "asyncua 2.0.1 load_data_type_definitions() raises StopIteration on the TestData ScalarStructureDataType: structures104._default_value_for takes the first member of the abstract Enumeration DataType (i=29), which has none",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "LegacyServerInteropTests.BrowseWithContinuationPointsAsync": {
+    "reason": "the asyncua 2.0.1 server ignores RequestedMaxReferencesPerNode and does not implement BrowseNext",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "LegacyServerInteropTests.ReadAboveOperationLimitAsync": {
+    "reason": "the asyncua 2.0.1 server publishes MaxNodesPerRead but does not enforce it (no BadTooManyOperations)",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "LegacyServerInteropTests.ResponseAboveClientLimitIsRejectedAsync": {
+    "reason": "the asyncua 2.0.1 server closes the connection when a response exceeds the client's MaxMessageSize instead of answering with Bad_ResponseTooLarge (OPC 10000-6 6.7.2)",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "LegacyServerInteropTests.ValueAboveServerLimitIsRejectedAsync(\"Int32Array\")": {
+    "reason": "the asyncua 2.0.1 server has no MaxArrayLength and accepts a 150000 element Int32 array",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "LegacyServerInteropTests.CallMethodWithBadArgumentsIsRejectedAsync": {
+    "reason": "the asyncua 2.0.1 server answers a call with a missing input argument with Bad_UnexpectedError instead of Bad_ArgumentsMissing",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "ServerFeatureInteropTests.QueueOverflowSetsOverflowBitAsync": {
+    "reason": "the asyncua 2.0.1 server discards the oldest queued value without setting the Overflow info bits (InfoType DataValue + Overflow, OPC 10000-4 5.12.1.5): server/internal_subscription.py _enqueue_event only pops queue[mid][0]; the test receives 4:Good [0x00000000], 5:Good [0x00000000]",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "ServerFeatureInteropTests.TriggeringReportsLinkedItemAsync": {
+    "reason": "SetTriggering is not supported by the asyncua 2.0.1 server: server/uaprocessor.py has no SetTriggeringRequest handler (unknown services end in BadServiceUnsupported) and crypto/permission_rules.py lists no SetTriggering type, so SimpleRoleRuleset rejects the request with BadUserAccessDenied first (even for the Admin role)",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "ServerFeatureInteropTests.RepublishReportsUnavailableMessagesAsync": {
+    "reason": "the asyncua 2.0.1 server answers Republish of an unknown sequence number and of an unknown subscription with Good and an empty NotificationMessage instead of BadMessageNotAvailable / BadSubscriptionIdInvalid (OPC 10000-4 5.13.6): server/internal_subscription.py republish() returns ua.NotificationMessage(), server/subscription_service.py republish() has '# TODO: what should I do?' for an unknown subscription id",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "ServerFeatureInteropTests.TransferSubscriptionToNewSessionAsync": {
+    "reason": "the asyncua 2.0.1 server accepts TransferSubscriptions (Good) but does not implement Server.GetMonitoredItems (i=11492 has no method callback; Call returns BadNothingToDo from server/address_space.py MethodService._call), which the 2.0 client calls to adopt the monitored items of a transferred subscription (Subscription.TransferWithAcknowledgementsAsync), so TransferSubscriptionsAsync returns false",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "ServerFeatureInteropTests.IndexRangeWriteAndReadAsync": {
+    "reason": "the asyncua 2.0.1 server ignores the IndexRange of Read and Write (server/address_space.py AttributeService.read/write never look at ReadValueId/WriteValue.IndexRange): writing [20, 30] with IndexRange 2:3 replaces the whole array and reading 1:4 returns [20, 30]",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  },
+  "ServerFeatureInteropTests.SessionReconnectKeepsSessionAsync": {
+    "reason": "the asyncua 2.0.1 server closes an activated session without subscriptions as soon as its TCP connection is lost (server/uaprocessor.py close() / _should_close_session_on_transport_loss) instead of keeping it until the session timeout (OPC 10000-4 5.6.1, 6.7), so ActivateSession on the new secure channel fails with BadSessionIdInvalid; the asyncua client reproduces it (its reconnect of a session without subscriptions falls back to a new session)",
+    "issue": "upstream issue to be filed at https://github.com/FreeOpcUa/opcua-asyncio/issues"
+  }
+}

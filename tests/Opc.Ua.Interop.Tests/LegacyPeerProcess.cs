@@ -54,9 +54,23 @@ namespace Opc.Ua.Interop.Tests
         /// </summary>
         public const string PeerPathVariable = "OPCUA_INTEROP_LEGACY_PEER";
 
+        /// <summary>
+        /// Overrides the host that runs the peer, so a peer of another stack
+        /// (e.g. node with a node-opcua script in <see cref="PeerPathVariable"/>)
+        /// can stand in for the 1.5.378 peer. Defaults to the dotnet host.
+        /// </summary>
+        public const string PeerHostVariable = "OPCUA_INTEROP_PEER_HOST";
+
+        /// <summary>
+        /// Space separated arguments the host gets before the peer path,
+        /// e.g. "-jar" for java and a Milo peer jar.
+        /// </summary>
+        public const string PeerHostArgumentsVariable = "OPCUA_INTEROP_PEER_HOST_ARGUMENTS";
+
         private const string kPeerAssembly = "Opc.Ua.Interop.LegacyPeer.dll";
         private const string kResultPrefix = "RESULT ";
         private const string kServerReadyPrefix = "LEGACY-SERVER-READY ";
+        private const string kInfoPrefix = "PEER-INFO ";
 
         /// <summary>
         /// How much earlier than the harness timeout a client run ends its
@@ -113,6 +127,19 @@ namespace Opc.Ua.Interop.Tests
                 .Where(l => l.StartsWith(kResultPrefix, StringComparison.Ordinal))
                 .Select(l => PeerCheckResult.Parse(l.Substring(kResultPrefix.Length)))
         ];
+
+        /// <summary>
+        /// What the peer reported about itself in its "PEER-INFO {json}"
+        /// line, or null when it printed none (yet).
+        /// </summary>
+        public PeerInfo Info
+        {
+            get
+            {
+                string line = FindLine(kInfoPrefix);
+                return line == null ? null : PeerInfo.Parse(line.Substring(kInfoPrefix.Length));
+            }
+        }
 
         /// <summary>
         /// Runs the peer to completion and returns it for inspection of its
@@ -200,9 +227,12 @@ namespace Opc.Ua.Interop.Tests
         public static LegacyPeerProcess Start(params string[] arguments)
         {
             string peer = FindPeer();
+            // A native peer (no host configured, not a .NET assembly) runs itself.
+            bool native = string.IsNullOrEmpty(Environment.GetEnvironmentVariable(PeerHostVariable)) &&
+                !peer.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
             var startInfo = new ProcessStartInfo
             {
-                FileName = FindDotnetHost(),
+                FileName = native ? peer : FindPeerHost(),
                 UseShellExecute = false,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
@@ -210,7 +240,8 @@ namespace Opc.Ua.Interop.Tests
                 CreateNoWindow = true,
                 WorkingDirectory = Path.GetDirectoryName(peer)
             };
-            startInfo.Arguments = string.Join(" ", new[] { peer }.Concat(arguments).Select(Quote));
+            IEnumerable<string> allArguments = native ? arguments : HostArguments().Append(peer).Concat(arguments);
+            startInfo.Arguments = string.Join(" ", allArguments.Select(Quote));
 
             var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
             var peerProcess = new LegacyPeerProcess(process);
@@ -375,6 +406,11 @@ namespace Opc.Ua.Interop.Tests
             m_exited.TrySetResult(exitCode);
         }
 
+        /// <summary>
+        /// The folder of the peer, which may hold its expected differences.
+        /// </summary>
+        public static string PeerDirectory => Path.GetDirectoryName(FindPeer());
+
         private static string FindPeer()
         {
             string configured = Environment.GetEnvironmentVariable(PeerPathVariable);
@@ -390,6 +426,24 @@ namespace Opc.Ua.Interop.Tests
                     $"BuildLegacyInteropPeer target of Opc.Ua.Interop.Tests.csproj, or set {PeerPathVariable}.");
             }
             return peer;
+        }
+
+        /// <summary>
+        /// The host that runs the peer: <see cref="PeerHostVariable"/> when
+        /// set, otherwise the dotnet host.
+        /// </summary>
+        private static string FindPeerHost()
+        {
+            string host = Environment.GetEnvironmentVariable(PeerHostVariable);
+            return !string.IsNullOrEmpty(host) ? host : FindDotnetHost();
+        }
+
+        private static string[] HostArguments()
+        {
+            string arguments = Environment.GetEnvironmentVariable(PeerHostArgumentsVariable);
+            return string.IsNullOrWhiteSpace(arguments)
+                ? []
+                : arguments.Split([' '], StringSplitOptions.RemoveEmptyEntries);
         }
 
         /// <summary>

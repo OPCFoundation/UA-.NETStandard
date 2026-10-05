@@ -128,7 +128,15 @@ directions (2.0 client to 1.5 server and 1.5 client to 2.0 server):
   certificates, revoked certificates;
 - message sizes and service limits: multi-chunk messages, values above the
   peer's encoding limits, responses above the client's MaxMessageSize,
-  operation limits, browse continuation points and security token renewal.
+  operation limits, browse continuation points and security token renewal;
+- events and alarms: event subscriptions with select and where clauses,
+  ConditionRefresh and acknowledging an alarm of the reference server;
+- subscription features: absolute and percent deadbands, queue overflow with
+  DiscardOldest, triggering, Republish and TransferSubscriptions;
+- identities and services: wrong passwords, X509 user tokens, RegisterNodes,
+  HistoryRead, AddNodes/DeleteNodes, IndexRange, FindServers and reactivating
+  a session on a new secure channel (`ServerFeatureInteropTests` and the
+  feature checks of `LegacyClientInteropTests`).
 
 The 1.5 side is
 [`tests/Opc.Ua.Interop.LegacyPeer`](../tests/Opc.Ua.Interop.LegacyPeer), a
@@ -145,6 +153,34 @@ prebuilt `Opc.Ua.Interop.LegacyPeer.dll`. 1.5.378 cannot reload a certificate it
 has just created in a long store path, so the tests keep their PKI folders
 directly below the temp folder. The project is a `*.Tests.csproj`, so CI runs it
 on every pull-request test leg like any other test project.
+
+The same `LegacyServerInteropTests`, `LegacyClientInteropTests`,
+`ServerFeatureInteropTests` and `EccInteropTests` also run against peers built
+on other OPC UA stacks, in
+[`tests/Opc.Ua.Interop.Peers`](../tests/Opc.Ua.Interop.Peers): `node-opcua`
+(Node.js), `milo` (Eclipse Milo, Java), `asyncua` (Python), `open62541` (C),
+`async-opcua` (Rust) and `gopcua` (Go, client only). The
+[peer README](../tests/Opc.Ua.Interop.Peers/README.md) describes how to install
+the toolchains, build each peer and run the fixtures against it. A peer speaks the same command line and
+output protocol as the 1.5 peer: `server` prints `PEER-INFO {json}` (stack,
+version, application URI, software version and, optionally, `policies`: the
+security policy URIs the peer implements; `EccInteropTests` runs the policies
+beyond the four 1.5 ECC policies, e.g. `ECC_nistP256_AesGcm`, only against a
+peer that declares them) and then the ready line; `client`
+prints one `RESULT {json}` line per check. Select a peer with three variables:
+
+| Variable | node-opcua | Milo | asyncua | open62541, async-opcua, gopcua |
+| --- | --- | --- | --- | --- |
+| `OPCUA_INTEROP_PEER_HOST` | path of `node` | path of `java` | path of `python` | (unset) |
+| `OPCUA_INTEROP_PEER_HOST_ARGUMENTS` | (unset) | `-jar` | (unset) | (unset) |
+| `OPCUA_INTEROP_LEGACY_PEER` | `.../node-opcua/peer.mjs` | `.../milo/target/milo-peer.jar` | `.../asyncua/peer.py` | path of the executable |
+
+Known defects of a stack are listed in the peer's `expected-differences.json`,
+keyed by check name or `Fixture.Test`; a listed failure is reported as
+inconclusive with its reason, a listed test that passes as a warning. The
+[`Foreign stack interop`](../.github/workflows/interop-foreign.yml) workflow
+runs every peer on Windows, Linux and macOS (open62541 on Linux only) nightly, on demand and for pull
+requests labelled `interop`; it is not a required check.
 
 Channel recovery regressions use `ManagedSessionReconnectTests` in the client
 test project and `ClientChannelManagerManagedTests` / `ReconnectDeadlineTests`
