@@ -174,9 +174,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 (int)BuiltInType.Enumeration :
                 (int)GetBuiltInType(structureField.DataType);
 
-            // IEncodeable types are handled by type property as BuiltInType.Null
-            // But if we allow subtypes for the field we encode as extension object
-            if (builtInType == 0 && allowSubTypes)
+            // IEncodeable types are handled by type property as BuiltInType.Null.
+            // OPC 10000-6 5.1.7: in a StructureWithSubtypedValues or
+            // UnionWithSubtypedValues only a field with IsOptional=TRUE allows
+            // subtypes and is serialized as an ExtensionObject; with
+            // IsOptional=FALSE the field value is encoded directly.
+            if (builtInType == 0 && allowSubTypes && structureField.IsOptional)
             {
                 builtInType = (int)BuiltInType.ExtensionObject;
             }
@@ -185,6 +188,13 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 pi.Add(attributeType.GetProperty("BuiltInType")!);
                 pv.Add(builtInType);
+            }
+            else if (!structureField.DataType.IsNull)
+            {
+                // an encodeable field is written with the declared DataType id,
+                // also when its runtime type does not carry it (e.g. an OptionSet).
+                pi.Add(attributeType.GetProperty("DataTypeId")!);
+                pv.Add(structureField.DataType.ToString());
             }
 
             var builder = new CustomAttributeBuilder(

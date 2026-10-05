@@ -75,6 +75,17 @@ namespace Opc.Ua.Client.ComplexTypes
             // skip unresolved fields before reaching this point.
             Type typeOfField = fieldType!.Type;
             bool isEnum = fieldType is IEnumeratedType || typeOfField.IsEnum;
+            if (allowSubTypes &&
+                field.IsOptional &&
+                !isEnum &&
+                fieldType is IEncodeableType &&
+                typeOfField != typeof(ExtensionObject))
+            {
+                // OPC 10000-6 5.1.7: the field allows the DataType and any of its
+                // subtypes, which are unrelated generated types, so the property
+                // holds any encodeable and is serialized as an ExtensionObject.
+                typeOfField = typeof(IEncodeable);
+            }
             if (field.ValueRank == ValueRanks.OneDimension)
             {
                 typeOfField = typeOfField.MakeArrayType();
