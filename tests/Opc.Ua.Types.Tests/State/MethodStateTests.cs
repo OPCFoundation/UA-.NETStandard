@@ -477,6 +477,43 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
         }
 
+        [Test]
+        public void CallOmittingTwoOptionalArgumentsWithMixedDescriptionsSucceeds()
+        {
+            // the penultimate optional argument is described by a child, the last one only
+            // by a bare Reference whose target is not a child.
+            MethodState method = CreateMethodWithOptionalArgument(describeByChild: true);
+            method.InputArguments.Value =
+            [
+                new Argument { Name = "Required", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                new Argument { Name = "Optional", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                new Argument { Name = "Last", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+            ];
+            method.AddReference(new NodeId(131u), false, new NodeId(5002));
+            int receivedCount = -1;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                receivedCount = inputs.Count;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [new Variant(1)];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_callContext, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, result.ToString());
+            Assert.That(receivedCount, Is.EqualTo(3));
+
+            // the mandatory argument is still required.
+            result = method.Call(
+                m_callContext, new NodeId(1), [], new List<ServiceResult>(), new List<Variant>());
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+        }
+
         /// <summary>
         /// Creates a method with a required and a trailing argument. The
         /// trailing one is declared optional by a

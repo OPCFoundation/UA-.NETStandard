@@ -3076,6 +3076,291 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Every element of an OptionSet array is validated and merged with the stored
+        /// element at the same position (Part 3 8.40); an invalid element rejects the whole
+        /// write without changing the stored array.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetArrayValidatesAndMergesEachElementAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetArray",
+                ValueRanks.OneDimension,
+                new Variant(new ExtensionObject[]
+                {
+                    NewOptionSet(0x05, 0x0F),
+                    NewOptionSet(0x01, 0x0F)
+                }.ToArrayOf())).ConfigureAwait(false);
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[]
+                {
+                    NewOptionSet(0x02, 0x03),
+                    NewOptionSet(0x10, 0x10)
+                }.ToArrayOf())).ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x05, 0x01 }));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[]
+                {
+                    NewOptionSet(0x02, 0x03),
+                    NewOptionSet(0x08, 0x08)
+                }.ToArrayOf())).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x06, 0x09 }));
+        }
+
+        /// <summary>
+        /// An IndexRange write of OptionSet array elements is validated and merged with the
+        /// addressed stored elements.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetArrayIndexRangeValidatesAndMergesAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetArrayRange",
+                ValueRanks.OneDimension,
+                new Variant(new ExtensionObject[]
+                {
+                    NewOptionSet(0x05, 0x0F),
+                    NewOptionSet(0x01, 0x0F)
+                }.ToArrayOf())).ConfigureAwait(false);
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[] { NewOptionSet(0x10, 0x10) }.ToArrayOf()),
+                "1").ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x05, 0x01 }));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[] { NewOptionSet(0x02, 0x02) }.ToArrayOf()),
+                "1").ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x05, 0x03 }),
+                "Only the addressed element is merged; bits outside ValidBits are kept.");
+        }
+
+        /// <summary>
+        /// Every element of an OptionSet matrix is validated and merged.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetMatrixValidatesAndMergesEachElementAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetMatrix",
+                ValueRanks.TwoDimensions,
+                new Variant(new ExtensionObject[,]
+                {
+                    { NewOptionSet(0x05, 0x0F), NewOptionSet(0x01, 0x0F) }
+                })).ConfigureAwait(false);
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[,]
+                {
+                    { NewOptionSet(0x02, 0x03), NewOptionSet(0x02, 0x03, 0x00) }
+                })).ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x05, 0x01 }));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[,]
+                {
+                    { NewOptionSet(0x02, 0x03), NewOptionSet(0x08, 0x08) }
+                })).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x06, 0x09 }));
+        }
+
+        /// <summary>
+        /// A populated all-zero ValidBits of the stored value means that no bit is valid:
+        /// a write selecting a bit is rejected and the stored mask is preserved.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetRespectsAllZeroStoredValidBitsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetNoValidBits",
+                ValueRanks.Scalar,
+                new Variant(NewOptionSet(0x05, 0x00))).ConfigureAwait(false);
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(NewOptionSet(0x02, 0x02))).ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(NewOptionSet(0x02, 0x00))).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(variable.Value.TryGetStructure(out OptionSet stored), Is.True);
+            Assert.That(stored.Value.ToArray(), Is.EqualTo(new byte[] { 0x05 }));
+            Assert.That(stored.ValidBits.ToArray(), Is.EqualTo(new byte[] { 0x00 }),
+                "The stored all-zero ValidBits are preserved.");
+        }
+
+        /// <summary>
+        /// The OptionSet validation uses the effective UserAccessLevel: write access granted
+        /// by OnReadUserAccessLevel does not bypass it.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetValidatesWhenCallbackGrantsUserWriteAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetCallbackAccess",
+                ValueRanks.Scalar,
+                new Variant(NewOptionSet(0x05, 0x0F))).ConfigureAwait(false);
+            variable.UserAccessLevel = AccessLevels.CurrentRead;
+            variable.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte value) =>
+            {
+                value = AccessLevels.CurrentReadOrWrite;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(NewOptionSet(0x10, 0x10))).ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(NewOptionSet(0x02, 0x03))).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x06 }));
+        }
+
+        private static ExtensionObject NewOptionSet(byte value, byte validBits)
+        {
+            return new ExtensionObject(new OptionSet
+            {
+                Value = ByteString.From(value),
+                ValidBits = ByteString.From(validBits)
+            });
+        }
+
+        private static ExtensionObject NewOptionSet(byte value, byte validBits, byte extra)
+        {
+            return new ExtensionObject(new OptionSet
+            {
+                Value = ByteString.From(value, extra),
+                ValidBits = ByteString.From(validBits, extra)
+            });
+        }
+
+        private static async Task<BaseDataVariableState> AddOptionSetVariableAsync(
+            ITestNodeManager manager,
+            string name,
+            int valueRank,
+            Variant initialValue)
+        {
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId(name, nsIdx);
+            variable.BrowseName = new QualifiedName(name, nsIdx);
+            // the merge does not depend on the DataType; the test type table is minimal.
+            variable.DataType = DataTypeIds.BaseDataType;
+            variable.ValueRank = valueRank;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.Value = initialValue;
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+            return variable;
+        }
+
+        private static async Task<ServiceResult> WriteOptionSetAsync(
+            ITestNodeManager manager,
+            BaseDataVariableState variable,
+            Variant value,
+            string indexRange = null)
+        {
+            var writeErrors = new List<ServiceResult> { null };
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = variable.NodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = indexRange,
+                        ParsedIndexRange = indexRange == null
+                            ? NumericRange.Null
+                            : NumericRange.Parse(indexRange),
+                        Value = new DataValue(value)
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+            return writeErrors[0];
+        }
+
+        private static byte[] GetStoredBits(BaseDataVariableState variable)
+        {
+            Variant stored = variable.Value;
+            ExtensionObject[] elements;
+
+            if (stored.TypeInfo.IsScalar)
+            {
+                elements = [stored.GetExtensionObject()];
+            }
+            else if (stored.TryGetValue(out ArrayOf<ExtensionObject> array))
+            {
+                elements = array.ToArray();
+            }
+            else
+            {
+                Assert.That(stored.TryGetValue(out MatrixOf<ExtensionObject> matrix), Is.True);
+                elements = matrix.Span.ToArray();
+            }
+
+            return elements
+                .Select(e =>
+                {
+                    Assert.That(new Variant(e).TryGetStructure(out OptionSet optionSet), Is.True);
+                    return optionSet.Value.Span[0];
+                })
+                .ToArray();
+        }
+
+        /// <summary>
         /// Verifies that adding references registers external references.
         /// </summary>
         [Test]

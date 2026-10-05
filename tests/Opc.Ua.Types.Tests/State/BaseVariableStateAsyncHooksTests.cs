@@ -383,7 +383,9 @@ namespace Opc.Ua.Types.Tests.State
                 AccessLevel = (byte)(AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite |
                     AccessLevels.TimestampWrite),
-                UserAccessLevel = AccessLevels.CurrentReadOrWrite
+                UserAccessLevel = (byte)(AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite)
             };
 
             // the handler owns the data; the cached value was never assigned.

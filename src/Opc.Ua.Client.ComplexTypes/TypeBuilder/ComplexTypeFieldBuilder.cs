@@ -148,7 +148,17 @@ namespace Opc.Ua.Client.ComplexTypes
             propertyBuilder.SetGetMethod(getBuilder);
             propertyBuilder.SetSetMethod(setBuilder);
             propertyBuilder.DataMemberAttribute(fieldName, false, order);
-            propertyBuilder.StructureFieldAttribute(field, allowSubTypes, isEnum);
+            // a runtime encodeable type (e.g. an OptionSet subtype) does not identify
+            // its DataType by its .NET type; record its namespace-uri qualified TypeId.
+            ExpandedNodeId dataTypeId = default;
+            if (fieldType is IEncodeable encodeable &&
+                !encodeable.TypeId.IsNull &&
+                (encodeable.TypeId.NamespaceIndex == 0 ||
+                    !string.IsNullOrEmpty(encodeable.TypeId.NamespaceUri)))
+            {
+                dataTypeId = encodeable.TypeId;
+            }
+            propertyBuilder.StructureFieldAttribute(field, allowSubTypes, isEnum, dataTypeId);
         }
 
         /// <inheritdoc/>

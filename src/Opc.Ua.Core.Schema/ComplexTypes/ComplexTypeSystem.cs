@@ -1075,10 +1075,12 @@ namespace Opc.Ua
                                                 ct)
                                             .ConfigureAwait(false);
                                     }
-                                    catch (Exception ex) when (ex is not OperationCanceledException)
+                                    catch (Exception ex) when (
+                                        ex is NotSupportedException or DataTypeNotSupportedException)
                                     {
                                         // a type the builder cannot create must not abort
-                                        // the load of the other types of the batch.
+                                        // the load of the other types of the batch. Other
+                                        // failures (for example of the resolver) propagate.
                                         m_logger.SkipTypeNotSupportedException(
                                             ex,
                                             dataTypeNode.BrowseName.Name);

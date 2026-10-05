@@ -937,21 +937,31 @@ A Value written through the Write service is now checked the same way on every p
 - **StatusWrite / TimestampWrite.** Without the `StatusWrite` bit of the AccessLevel only the
   StatusCode Good may be written, and without the `TimestampWrite` bit only a null
   SourceTimestamp ([OPC 10000-3 §8.57](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.57)).
-  Other combinations return `Bad_WriteNotSupported`. Server code that assigns `Value`,
+  Other combinations return `Bad_WriteNotSupported`. The bits must also be present in the
+  effective UserAccessLevel of the caller (including `OnReadUserAccessLevel`); otherwise the
+  write returns `Bad_UserAccessDenied`. "Good" is compared by the code bits only, so Good
+  with info bits (for example SemanticsChanged or LimitBits) needs no StatusWrite, while a
+  Good SubCode such as `Good_Clamped` does. Server code that assigns `Value`,
   `StatusCode` or `Timestamp` directly is not affected. Set
-  `AccessLevels.StatusWrite | AccessLevels.TimestampWrite` on Variables whose clients
-  legitimately write status codes or source timestamps.
+  `AccessLevels.StatusWrite | AccessLevels.TimestampWrite` on both the AccessLevel and the
+  UserAccessLevel of Variables whose clients legitimately write status codes or source
+  timestamps.
 - **Type check before `OnWriteValue`.** The DataType and ValueRank are verified before the
   synchronous `OnWriteValue` handler (fluent `OnWrite`) runs, so a handler no longer
   receives a value of the wrong type; the write returns `Bad_TypeMismatch`.
 - **IndexRange with `OnWriteValue`.** After the handler accepts an IndexRange write, the slice
   is merged into the cached value instead of replacing it.
 - **Enumerations.** Writing an Int32 that is not a defined value of an Enumeration DataType
-  registered with the encodeable factory returns `Bad_OutOfRange`.
+  registered with the encodeable factory returns `Bad_OutOfRange` (also for every element of
+  an array or matrix).
 - **OptionSet.** A written OptionSet structure must have Value and ValidBits of the same size
-  as the stored value and may only select valid bits, otherwise `Bad_OutOfRange`. The selected
+  as the stored value and may only select valid bits, otherwise `Bad_OutOfRange`. The valid
+  bits are the ValidBits of the stored value (an all-zero mask means no bit is valid), or the
+  bits of the OptionSet DataType definition when the stored value has no ValidBits. The selected
   bits are merged into the stored value
   ([OPC 10000-3 §8.40](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.40)).
+  The same applies to each element of an OptionSet array or matrix, including elements
+  written through an IndexRange.
 
 Server code that changes a Property with semantic meaning (for example `EURange` or
 `EngineeringUnits`) directly calls `ReportPropertyValueChanged(context, property, previousValue)`

@@ -152,6 +152,26 @@ namespace Opc.Ua.Client.ComplexTypes
             bool allowSubTypes,
             bool isEnum)
         {
+            typeBuilder.StructureFieldAttribute(structureField, allowSubTypes, isEnum, default);
+        }
+
+        /// <summary>
+        /// Build the StructureField attribute for a complex type.
+        /// </summary>
+        /// <param name="typeBuilder">The property builder.</param>
+        /// <param name="structureField">The field.</param>
+        /// <param name="allowSubTypes">Whether the field allows subtypes.</param>
+        /// <param name="isEnum">Whether the field is an enumeration.</param>
+        /// <param name="dataTypeId">The namespace-uri qualified DataType id of an
+        /// encodeable field whose runtime type does not identify its DataType (for
+        /// example an OptionSet subtype), or null.</param>
+        public static void StructureFieldAttribute(
+            this PropertyBuilder typeBuilder,
+            StructureField structureField,
+            bool allowSubTypes,
+            bool isEnum,
+            ExpandedNodeId dataTypeId)
+        {
             Type attributeType = typeof(StructureFieldAttribute);
             // Reflection on a locally-defined attribute: ctor and properties are known.
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes)!;
@@ -189,12 +209,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 pi.Add(attributeType.GetProperty("BuiltInType")!);
                 pv.Add(builtInType);
             }
-            else if (!structureField.DataType.IsNull)
+            else if (!dataTypeId.IsNull)
             {
                 // an encodeable field is written with the declared DataType id,
                 // also when its runtime type does not carry it (e.g. an OptionSet).
+                // The id is stored with its namespace uri, so it does not depend on
+                // the namespace table of the session that built the type.
                 pi.Add(attributeType.GetProperty("DataTypeId")!);
-                pv.Add(structureField.DataType.ToString());
+                pv.Add(dataTypeId.ToString());
             }
 
             var builder = new CustomAttributeBuilder(

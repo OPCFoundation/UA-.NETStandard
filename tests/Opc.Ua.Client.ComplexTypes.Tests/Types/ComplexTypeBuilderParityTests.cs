@@ -256,6 +256,71 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             });
         }
 
+        /// <summary>
+        /// The DataType id recorded for an OptionSet subtype field of an emitted type is
+        /// namespace-uri qualified, so a context with a different namespace table (other
+        /// namespace indexes) still resolves the OptionSet type of the field.
+        /// </summary>
+        [Test]
+        public async Task OptionSetSubtypeFieldDataTypeIdIsIndependentOfNamespaceTableAsync()
+        {
+            TypeModel model = await LoadModelAsync(BuilderKind.Emit).ConfigureAwait(false);
+
+            IStructure holder = CreateInstance(model, model.HolderId);
+            holder["Options"] = Variant.FromStructure(CreateOptions(model));
+            byte[] encoded = EncodeBinary(model, (IEncodeable)holder);
+
+            // the same namespaces, shifted by one index.
+            var shifted = new NamespaceTable();
+            shifted.Append("urn:test:shifted");
+            for (uint ii = 1; ii < model.Context.NamespaceUris.Count; ii++)
+            {
+                shifted.Append(model.Context.NamespaceUris.GetString(ii));
+            }
+            var shiftedContext = new ServiceMessageContext(
+                NUnitTelemetryContext.Create(),
+                model.Context.Factory)
+            {
+                NamespaceUris = shifted
+            };
+
+            IEncodeable decodedHolder;
+            using (var decoder = new BinaryDecoder(encoded, shiftedContext))
+            {
+                decodedHolder = decoder.ReadEncodeable<IEncodeable>(
+                    null,
+                    NodeId.ToExpandedNodeId(model.HolderId, model.Context.NamespaceUris));
+            }
+
+            var decodedOptions = ((IStructure)decodedHolder)["Options"]
+                .GetStructure<IEncodeable>() as Encoders.OptionSet;
+            Assert.That(decodedOptions, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(decodedOptions.TypeId, Is.EqualTo(model.OptionsTypeId));
+                Assert.That(decodedOptions["Read"], Is.True);
+                Assert.That(decodedOptions["Execute"], Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Only the builder's unsupported-type failure skips an OptionSet subtype; any
+        /// other failure (for example a resolver communication error) is not swallowed
+        /// and the load reports that not all types were loaded.
+        /// </summary>
+        [Test]
+        public async Task OptionSetSubtypeFailureOtherThanNotSupportedIsNotSwallowedAsync()
+        {
+            TypeModel model = await LoadModelAsync(
+                BuilderKind.Emit,
+                f => new NoOptionSetFactory(
+                    f,
+                    () => new ServiceResultException(StatusCodes.BadCommunicationError)))
+                .ConfigureAwait(false);
+
+            Assert.That(model.Loaded, Is.False);
+        }
+
         private static void AssertSubtypedStructure(IStructure decoded)
         {
             IStructure fixedInner = decoded["Fixed"].GetStructure<IEncodeable>() as IStructure;
@@ -558,9 +623,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         private sealed class NoOptionSetFactory : IComplexTypeFactory
         {
-            public NoOptionSetFactory(IComplexTypeFactory inner)
+            public NoOptionSetFactory(IComplexTypeFactory inner, Func<Exception> createException = null)
             {
                 m_inner = inner;
+                m_createException = createException ??
+                    (() => new NotSupportedException("OptionSet subtypes are not supported."));
             }
 
             public IComplexTypeBuilder Create(
@@ -568,7 +635,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 int targetNamespaceIndex,
                 string moduleName = null)
             {
-                return new Builder(m_inner.Create(targetNamespace, targetNamespaceIndex, moduleName));
+                return new Builder(
+                    m_inner.Create(targetNamespace, targetNamespaceIndex, moduleName),
+                    m_createException);
             }
 
             public IReadOnlyList<IType> GetTypes()
@@ -578,9 +647,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             private sealed class Builder : IComplexTypeBuilder
             {
-                public Builder(IComplexTypeBuilder inner)
+                public Builder(IComplexTypeBuilder inner, Func<Exception> createException)
                 {
                     m_inner = inner;
+                    m_createException = createException;
                 }
 
                 public string TargetNamespace => m_inner.TargetNamespace;
@@ -599,7 +669,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     ExpandedNodeId xmlEncodingId,
                     EnumDefinition enumDefinition)
                 {
-                    throw new NotSupportedException("OptionSet subtypes are not supported.");
+                    throw m_createException();
                 }
 
                 public IComplexTypeFieldBuilder AddStructuredType(
@@ -610,9 +680,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
 
                 private readonly IComplexTypeBuilder m_inner;
+                private readonly Func<Exception> m_createException;
             }
 
             private readonly IComplexTypeFactory m_inner;
+            private readonly Func<Exception> m_createException;
         }
     }
 }

@@ -1701,7 +1701,8 @@ namespace Opc.Ua
             // only the status code and timestamp the AccessLevel allows may be written.
             ServiceResult? statusOrTimestampResult = CheckStatusAndTimestampWritable(
                 statusCode,
-                sourceTimestamp);
+                sourceTimestamp,
+                userAccessLevel);
 
             if (statusOrTimestampResult != null)
             {
@@ -1826,18 +1827,30 @@ namespace Opc.Ua
         /// Enforces the StatusWrite and TimestampWrite bits of the AccessLevel (Part 3 8.57)
         /// for a Value written through the Write service: without StatusWrite only the
         /// StatusCode Good may be written, without TimestampWrite only a null SourceTimestamp.
-        /// Anything else is rejected with Bad_WriteNotSupported (Part 4 5.11.4.2, Table 55).
+        /// Anything else is rejected with Bad_WriteNotSupported (Part 4 5.11.4.2, Table 55),
+        /// or with Bad_UserAccessDenied if the AccessLevel allows it but the effective
+        /// UserAccessLevel of the caller does not (Part 3 5.6.2).
         /// </summary>
         /// <remarks>
+        /// <para>
+        /// "StatusCode Good" is identified by the code bits (bits 16-31) only: the low 16 bits
+        /// are flags that "do not affect the meaning of the StatusCode" (Part 4 7.38.1), so
+        /// Good with info bits (for example SemanticsChanged or LimitBits) is still Good.
+        /// A Good-severity code with a non-zero SubCode (for example Good_Clamped) is not.
+        /// </para>
+        /// <para>
         /// Server-internal updates assign <see cref="Value"/>, <see cref="StatusCode"/> and
         /// <see cref="Timestamp"/> directly and are not affected.
+        /// </para>
         /// </remarks>
         /// <param name="statusCode">The written status code.</param>
         /// <param name="sourceTimestamp">The written source timestamp.</param>
+        /// <param name="userAccessLevel">The effective UserAccessLevel of the caller.</param>
         /// <returns><c>null</c> if the combination may be written; the error otherwise.</returns>
         private ServiceResult? CheckStatusAndTimestampWritable(
             StatusCode statusCode,
-            DateTimeUtc sourceTimestamp)
+            DateTimeUtc sourceTimestamp,
+            byte userAccessLevel)
         {
             uint accessLevel;
             lock (m_attributeLock)
@@ -1845,20 +1858,38 @@ namespace Opc.Ua
                 accessLevel = m_accessLevel;
             }
 
-            if ((accessLevel & AccessLevels.StatusWrite) == 0 &&
-                !statusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
+            if (!statusCode.Equals(StatusCodes.Good, StatusCodeComparison.CodeBitsOnly))
             {
-                return ServiceResult.Create(
-                    StatusCodes.BadWriteNotSupported,
-                    "The AccessLevel of the Variable does not allow writing the StatusCode.");
+                if ((accessLevel & AccessLevels.StatusWrite) == 0)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadWriteNotSupported,
+                        "The AccessLevel of the Variable does not allow writing the StatusCode.");
+                }
+
+                if ((userAccessLevel & AccessLevels.StatusWrite) == 0)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "The UserAccessLevel of the Variable does not allow writing the StatusCode.");
+                }
             }
 
-            if ((accessLevel & AccessLevels.TimestampWrite) == 0 &&
-                sourceTimestamp != DateTimeUtc.MinValue)
+            if (sourceTimestamp != DateTimeUtc.MinValue)
             {
-                return ServiceResult.Create(
-                    StatusCodes.BadWriteNotSupported,
-                    "The AccessLevel of the Variable does not allow writing the SourceTimestamp.");
+                if ((accessLevel & AccessLevels.TimestampWrite) == 0)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadWriteNotSupported,
+                        "The AccessLevel of the Variable does not allow writing the SourceTimestamp.");
+                }
+
+                if ((userAccessLevel & AccessLevels.TimestampWrite) == 0)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "The UserAccessLevel of the Variable does not allow writing the SourceTimestamp.");
+                }
             }
 
             return null;
@@ -1923,7 +1954,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns <c>false</c> if <paramref name="dataType"/> is an Enumeration whose
         /// definition is registered with the encodeable factory and the Int32 value (or one
-        /// element of the array) is not one of its defined values. Returns <c>true</c> in all
+        /// element of the array or matrix) is not one of its defined values. Returns <c>true</c> in all
         /// other cases, including when the enumeration definition is unknown.
         /// </summary>
         internal static bool IsDefinedEnumerationValue(
@@ -1964,6 +1995,17 @@ namespace Opc.Ua
                 if (value.TypeInfo.IsArray && value.TryGetValue(out ArrayOf<EnumValue> array))
                 {
                     foreach (EnumValue element in array)
+                    {
+                        if (!enumeratedType.TryGetSymbol(element.Value, out _))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else if (value.TypeInfo.IsMatrix &&
+                    value.TryGetValue(out MatrixOf<EnumValue> matrix))
+                {
+                    foreach (EnumValue element in matrix)
                     {
                         if (!enumeratedType.TryGetSymbol(element.Value, out _))
                         {
@@ -2215,7 +2257,8 @@ namespace Opc.Ua
 
                 ServiceResult? statusOrTimestampResult = CheckStatusAndTimestampWritable(
                     statusCode,
-                    sourceTimestamp);
+                    sourceTimestamp,
+                    userAccessLevel);
 
                 if (statusOrTimestampResult != null)
                 {

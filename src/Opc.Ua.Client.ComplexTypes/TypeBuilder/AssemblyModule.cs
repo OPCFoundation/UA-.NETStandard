@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -77,7 +78,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         internal void AddRuntimeType(IType type)
         {
-            lock (m_runtimeTypes)
+            lock (m_runtimeTypesLock)
             {
                 m_runtimeTypes.Add(type);
             }
@@ -88,7 +89,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         internal IReadOnlyList<IType> GetRuntimeTypes()
         {
-            lock (m_runtimeTypes)
+            lock (m_runtimeTypesLock)
             {
                 return [.. m_runtimeTypes];
             }
@@ -97,6 +98,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly AssemblyBuilder m_assemblyBuilder;
         private readonly ModuleBuilder m_moduleBuilder;
         private readonly List<IType> m_runtimeTypes = [];
+        private readonly Lock m_runtimeTypesLock = new();
         private const string kOpcTypesModuleName = "Opc.Ua.ComplexTypes.Module";
     }
 }

@@ -686,11 +686,10 @@ namespace Opc.Ua.Client.ComplexTypes
             if (!string.IsNullOrEmpty(FieldAttribute.DataTypeId))
             {
                 // the declared DataType of the field, used when the runtime type
-                // (e.g. an OptionSet subtype) does not identify the DataType.
-                // The id is stored with the namespace index of the session, the
-                // factory is keyed by the namespace uri.
-                var dataTypeId = NodeId.Parse(FieldAttribute.DataTypeId!);
-                return NodeId.ToExpandedNodeId(dataTypeId, namespaceTable);
+                // (e.g. an OptionSet subtype) does not identify the DataType. The
+                // id is stored with its namespace uri, independent of the namespace
+                // table of the session that built the type.
+                return ExpandedNodeId.Parse(FieldAttribute.DataTypeId!);
             }
             return TypeInfo.GetDataTypeId(type, namespaceTable);
         }

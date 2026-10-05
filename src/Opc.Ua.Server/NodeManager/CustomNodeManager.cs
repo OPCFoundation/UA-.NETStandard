@@ -2843,6 +2843,7 @@ namespace Opc.Ua.Server
                         handle.Node is BaseVariableState variableToWrite)
                     {
                         ServiceResult? optionSetResult = OptionSetWriteMerge.Apply(
+                            systemContext,
                             variableToWrite,
                             nodeToWrite.ParsedIndexRange,
                             ref valueToWrite);

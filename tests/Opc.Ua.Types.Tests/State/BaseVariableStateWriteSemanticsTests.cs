@@ -48,6 +48,7 @@ namespace Opc.Ua.Types.Tests.State
     [Parallelizable]
     public class BaseVariableStateWriteSemanticsTests
     {
+        private const uint kGoodClamped = 0x00300000;
         private static readonly int[] s_initialArray = [1, 2, 3, 4];
         private static readonly int[] s_slice = [20, 30];
         private static readonly int[] s_mergedArray = [1, 20, 30, 4];
@@ -109,7 +110,8 @@ namespace Opc.Ua.Types.Tests.State
         private static BaseDataVariableState CreateVariable(
             NodeId dataType,
             int valueRank,
-            byte accessLevel = AccessLevels.CurrentReadOrWrite)
+            byte accessLevel = AccessLevels.CurrentReadOrWrite,
+            byte? userAccessLevel = null)
         {
             return new BaseDataVariableState(null)
             {
@@ -119,7 +121,7 @@ namespace Opc.Ua.Types.Tests.State
                 DataType = dataType,
                 ValueRank = valueRank,
                 AccessLevel = accessLevel,
-                UserAccessLevel = AccessLevels.CurrentReadOrWrite
+                UserAccessLevel = userAccessLevel ?? accessLevel
             };
         }
 
@@ -299,6 +301,157 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
             Assert.That(called, Is.False);
+        }
+
+        [Test]
+        public void WriteRejectsStatusCodeWhenUserAccessLevelLacksStatusWrite()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(
+                DataTypeIds.Double,
+                ValueRanks.Scalar,
+                (byte)(AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite),
+                AccessLevels.CurrentReadOrWrite);
+            variable.Value = 1.0;
+
+            ServiceResult result = variable.WriteAttribute(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0), StatusCodes.Uncertain));
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+        }
+
+        [Test]
+        public void WriteRejectsSourceTimestampWhenUserAccessLevelLacksTimestampWrite()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(
+                DataTypeIds.Double,
+                ValueRanks.Scalar,
+                (byte)(AccessLevels.CurrentReadOrWrite | AccessLevels.TimestampWrite),
+                AccessLevels.CurrentReadOrWrite);
+            variable.Value = 1.0;
+
+            ServiceResult result = variable.WriteAttribute(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0), StatusCodes.Good, new DateTimeUtc(2024, 1, 2, 3, 4, 5)));
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+        }
+
+        [Test]
+        public void WriteUsesUserAccessLevelFromCallbackForStatusWrite()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(
+                DataTypeIds.Double,
+                ValueRanks.Scalar,
+                (byte)(AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite));
+            variable.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte value) =>
+            {
+                value = AccessLevels.CurrentReadOrWrite;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = variable.WriteAttribute(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0), StatusCodes.Uncertain));
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public async Task WriteAttributeAsyncRejectsStatusCodeWhenUserAccessLevelLacksStatusWriteAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(
+                DataTypeIds.Double,
+                ValueRanks.Scalar,
+                (byte)(AccessLevels.CurrentReadOrWrite | AccessLevels.StatusWrite),
+                AccessLevels.CurrentReadOrWrite);
+            bool called = false;
+            variable.OnWriteValueAsync = (c, n, range, value, ct) =>
+            {
+                called = true;
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(ServiceResult.Good));
+            };
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0), StatusCodes.Uncertain)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(called, Is.False);
+        }
+
+        [Test]
+        public void WriteAcceptsGoodStatusWithInfoBitsWithoutStatusWrite()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(DataTypeIds.Double, ValueRanks.Scalar);
+            StatusCode goodWithInfoBits = StatusCodes.Good
+                .SetSemanticsChanged(true)
+                .WithLimitBits(LimitBits.High);
+
+            ServiceResult result = variable.WriteAttribute(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0), goodWithInfoBits));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True,
+                "The low 16 bits do not affect the meaning of the StatusCode (Part 4 7.38.1).");
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(2.0));
+        }
+
+        [Test]
+        public void WriteRejectsGoodSubCodeWithoutStatusWrite()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(DataTypeIds.Double, ValueRanks.Scalar);
+            variable.Value = 1.0;
+
+            ServiceResult result = variable.WriteAttribute(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(2.0), new StatusCode(kGoodClamped)));
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
+            Assert.That(variable.Value.GetDouble(), Is.EqualTo(1.0));
+        }
+
+        [Test]
+        public void WriteRejectsEnumerationMatrixWithUndefinedElement()
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState variable = CreateVariable(s_enumTypeId, ValueRanks.TwoDimensions);
+            variable.Value = new Variant((MatrixOf<int>)new int[,] { { 0, 0 }, { 0, 0 } });
+
+            ServiceResult good = variable.WriteAttribute(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant((MatrixOf<int>)new int[,] { { 0, 1 }, { 5, 0 } })));
+            ServiceResult bad = variable.WriteAttribute(
+                context,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant((MatrixOf<int>)new int[,] { { 0, 1 }, { 3, 0 } })));
+
+            Assert.That(ServiceResult.IsGood(good), Is.True);
+            Assert.That(bad.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
         }
 
         [TestCase(0, true)]

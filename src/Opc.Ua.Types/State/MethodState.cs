@@ -898,21 +898,30 @@ namespace Opc.Ua
                 }
             }
 
+            // walk the trailing arguments: an argument named by a child description is
+            // optional; any other argument consumes one unresolved description, so child
+            // and bare-reference descriptions may be mixed in any order.
             int optionalCount = 0;
-            if (optionalNames != null)
+            for (int ii = inputArguments.Count - 1; ii >= 0; ii--)
             {
-                for (int ii = inputArguments.Count - 1; ii >= 0; ii--)
+                string? name = inputArguments[ii]?.Name;
+                if (name != null && optionalNames != null && optionalNames.Contains(name))
                 {
-                    string? name = inputArguments[ii]?.Name;
-                    if (name == null || !optionalNames.Contains(name))
-                    {
-                        break;
-                    }
                     optionalCount++;
+                    continue;
                 }
+
+                if (unresolved > 0)
+                {
+                    unresolved--;
+                    optionalCount++;
+                    continue;
+                }
+
+                break;
             }
 
-            return Math.Min(inputArguments.Count, optionalCount + unresolved);
+            return optionalCount;
         }
 
         private static bool IsOptionalInputArgumentDescription(

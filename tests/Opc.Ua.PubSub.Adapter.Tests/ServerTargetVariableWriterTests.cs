@@ -127,6 +127,50 @@ namespace Opc.Ua.PubSub.Adapter.Tests
         }
 
         [Test]
+        public async Task WriteAsyncRejectedServerTimestampKeepsSourceTimestampAsync()
+        {
+            // the target accepts SourceTimestamps but no ServerTimestamp: dropping the
+            // ServerTimestamp must not suppress the SourceTimestamp of later writes.
+            Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
+            var written = new System.Collections.Generic.List<DataValue>();
+            session
+                .Setup(s => s.WriteAsync(
+                    It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
+                .Returns<ArrayOf<WriteValue>, CancellationToken>((w, _) =>
+                {
+                    DataValue value = w[0].Value;
+                    written.Add(value);
+                    StatusCode status = value.ServerTimestamp == DateTimeUtc.MinValue
+                        ? StatusCodes.Good
+                        : StatusCodes.BadWriteNotSupported;
+                    return new ValueTask<ArrayOf<StatusCode>>(new[] { status }.ToArrayOf());
+                });
+            var writer = new ServerTargetVariableWriter(
+                session.Object, AdapterTestHelpers.Telemetry());
+            var node = new NodeId(7u);
+            var source = new DateTimeUtc(new DateTime(2026, 10, 5, 0, 0, 0, DateTimeKind.Utc));
+            var server = new DateTimeUtc(new DateTime(2026, 10, 5, 0, 0, 1, DateTimeKind.Utc));
+
+            StatusCode first = await writer
+                .WriteAsync(node, Attributes.Value, null,
+                    new DataValue(new Variant(1.0), StatusCodes.Good, source, server))
+                .ConfigureAwait(false);
+            StatusCode second = await writer
+                .WriteAsync(node, Attributes.Value, null,
+                    new DataValue(new Variant(2.0), StatusCodes.Good, source, server))
+                .ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(first), Is.True);
+            Assert.That(StatusCode.IsGood(second), Is.True);
+            Assert.That(written, Has.Count.EqualTo(3));
+            Assert.That(written[1].ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(written[1].SourceTimestamp, Is.EqualTo(source));
+            Assert.That(written[2].ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(written[2].SourceTimestamp, Is.EqualTo(source),
+                "Only the rejected ServerTimestamp is remembered.");
+        }
+
+        [Test]
         public async Task WriteAsyncKeepsStatusCodeWhenDroppingTimestampsAsync()
         {
             Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();

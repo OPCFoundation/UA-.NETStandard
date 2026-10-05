@@ -41,38 +41,185 @@ namespace Opc.Ua.Server
     /// must match the OptionSet currently stored in the Variable; otherwise
     /// Bad_OutOfRange.</item>
     /// <item>ValidBits must not select a bit the Server does not consider valid (the
-    /// ValidBits of the stored value, or the bits defined by the OptionSet DataType);
-    /// otherwise Bad_OutOfRange and no bit is changed.</item>
+    /// ValidBits of the stored value, or the bits defined by the OptionSet DataType when
+    /// the stored value has no ValidBits); otherwise Bad_OutOfRange and no bit is
+    /// changed.</item>
     /// <item>The written bits are merged into the stored value:
     /// new value = (value &amp; validBits) | (current value &amp; ~validBits).</item>
     /// </list>
+    /// The rules apply to a scalar OptionSet and to every element of an OptionSet array or
+    /// matrix, including the elements addressed by an IndexRange; each element is merged
+    /// with the stored element at the same position.
     /// </remarks>
     internal static class OptionSetWriteMerge
     {
         /// <summary>
         /// Validates an OptionSet written to <paramref name="variable"/> and replaces
-        /// <paramref name="value"/> with the merged OptionSet.
+        /// <paramref name="value"/> with the merged OptionSet(s).
         /// </summary>
+        /// <param name="context">The context of the write (resolves the UserAccessLevel).</param>
         /// <param name="variable">The Variable that is written.</param>
         /// <param name="indexRange">The index range of the write.</param>
         /// <param name="value">The written value; replaced by the merged value.</param>
         /// <returns><c>null</c> if the write may proceed; the error otherwise.</returns>
         public static ServiceResult? Apply(
+            ISystemContext context,
             BaseVariableState variable,
             NumericRange indexRange,
             ref DataValue value)
         {
-            // only a whole scalar OptionSet is merged; the access checks run first so the
-            // caller still sees Bad_NotWritable for read-only variables.
-            if (!indexRange.IsNull ||
-                (variable.AccessLevelEx & AccessLevels.CurrentWrite) == 0 ||
-                (variable.UserAccessLevel & AccessLevels.CurrentWrite) == 0 ||
-                !value.WrappedValue.TypeInfo.IsScalar ||
-                !value.WrappedValue.TryGetStructure<OptionSet>(out OptionSet? written) ||
-                written == null)
+            // the access checks run first (in WriteAttribute) so the caller still sees
+            // Bad_NotWritable / Bad_UserAccessDenied for variables it cannot write.
+            if ((variable.AccessLevelEx & AccessLevels.CurrentWrite) == 0)
             {
                 return null;
             }
+
+            // the effective UserAccessLevel, as resolved by the write path.
+            byte userAccessLevel = variable.UserAccessLevel;
+            variable.OnReadUserAccessLevel?.Invoke(context, variable, ref userAccessLevel);
+
+            if ((userAccessLevel & AccessLevels.CurrentWrite) == 0)
+            {
+                return null;
+            }
+
+            Variant written = value.WrappedValue;
+
+            if (written.IsNull || written.TypeInfo.BuiltInType != BuiltInType.ExtensionObject)
+            {
+                return null;
+            }
+
+            if (written.TypeInfo.IsScalar)
+            {
+                // an IndexRange cannot address a part of a scalar Structure; WriteAttribute
+                // reports that error.
+                if (!indexRange.IsNull ||
+                    !written.TryGetStructure<OptionSet>(out OptionSet? writtenScalar) ||
+                    writtenScalar == null)
+                {
+                    return null;
+                }
+
+                OptionSet? stored = variable.Value.TypeInfo.IsScalar
+                    ? GetOptionSet(variable.Value)
+                    : null;
+
+                ServiceResult? scalarResult = MergeElement(
+                    writtenScalar,
+                    stored,
+                    stored,
+                    out OptionSet? mergedScalar);
+
+                if (scalarResult != null)
+                {
+                    return scalarResult;
+                }
+
+                if (mergedScalar != null)
+                {
+                    value = WithValue(value, new Variant(new ExtensionObject(mergedScalar)));
+                }
+
+                return null;
+            }
+
+            ExtensionObject[] elements;
+            int[]? dimensions = null;
+
+            if (written.TypeInfo.IsArray &&
+                written.TryGetValue(out ArrayOf<ExtensionObject> writtenArray))
+            {
+                elements = writtenArray.ToArray() ?? [];
+            }
+            else if (written.TypeInfo.IsMatrix &&
+                written.TryGetValue(out MatrixOf<ExtensionObject> writtenMatrix))
+            {
+                elements = writtenMatrix.Span.ToArray();
+                dimensions = writtenMatrix.Dimensions;
+            }
+            else
+            {
+                return null;
+            }
+
+            ExtensionObject[] storedElements = GetStoredElements(variable.Value, indexRange);
+
+            // the reference for the size and the valid bits of elements that have no stored
+            // counterpart (for example an array that grows).
+            OptionSet? reference = null;
+            foreach (ExtensionObject storedElement in storedElements)
+            {
+                reference = GetOptionSet(new Variant(storedElement));
+                if (reference != null)
+                {
+                    break;
+                }
+            }
+
+            bool changed = false;
+
+            for (int ii = 0; ii < elements.Length; ii++)
+            {
+                if (!new Variant(elements[ii]).TryGetStructure<OptionSet>(out OptionSet? element) ||
+                    element == null)
+                {
+                    continue;
+                }
+
+                OptionSet? current = ii < storedElements.Length
+                    ? GetOptionSet(new Variant(storedElements[ii]))
+                    : null;
+
+                ServiceResult? elementResult = MergeElement(
+                    element,
+                    current,
+                    current ?? reference,
+                    out OptionSet? merged);
+
+                if (elementResult != null)
+                {
+                    return elementResult;
+                }
+
+                if (merged != null)
+                {
+                    elements[ii] = new ExtensionObject(merged);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                ArrayOf<ExtensionObject> mergedArray = elements;
+                value = WithValue(
+                    value,
+                    dimensions == null
+                        ? new Variant(mergedArray)
+                        : new Variant(mergedArray.ToMatrix(dimensions)));
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Validates one written OptionSet and merges it with the stored OptionSet.
+        /// </summary>
+        /// <param name="written">The written OptionSet.</param>
+        /// <param name="current">The stored OptionSet at the same position, if any.</param>
+        /// <param name="reference">The stored OptionSet that defines the expected size and
+        /// the valid bits (the current one, or another element of the same Variable).</param>
+        /// <param name="merged">The merged OptionSet, or <c>null</c> if the written value
+        /// is used as is.</param>
+        /// <returns><c>null</c> if the element may be written; the error otherwise.</returns>
+        private static ServiceResult? MergeElement(
+            OptionSet written,
+            OptionSet? current,
+            OptionSet? reference,
+            out OptionSet? merged)
+        {
+            merged = null;
 
             ReadOnlySpan<byte> writtenValue = written.Value.Span;
             ReadOnlySpan<byte> writtenValid = written.ValidBits.Span;
@@ -84,15 +231,7 @@ namespace Opc.Ua.Server
                     "The Value and ValidBits of the OptionSet have a different size.");
             }
 
-            OptionSet? current = null;
-            if (variable.Value.TryGetStructure<OptionSet>(out OptionSet? stored) &&
-                stored != null &&
-                !stored.Value.IsEmpty)
-            {
-                current = stored;
-            }
-
-            int expectedLength = current?.Value.Length ??
+            int expectedLength = reference?.Value.Length ??
                 (written is Encoders.OptionSet runtimeType ? runtimeType.ByteLength : -1);
 
             if (expectedLength > 0 && writtenValue.Length != expectedLength)
@@ -102,7 +241,7 @@ namespace Opc.Ua.Server
                     "The size of the OptionSet does not match the OptionSet of the Variable.");
             }
 
-            byte[]? allowed = GetValidBitMask(current, written, writtenValue.Length);
+            byte[]? allowed = GetValidBitMask(reference, written, writtenValue.Length);
 
             if (allowed != null)
             {
@@ -123,49 +262,42 @@ namespace Opc.Ua.Server
             }
 
             ReadOnlySpan<byte> currentValue = current.Value.Span;
-            byte[] merged = new byte[writtenValue.Length];
+            byte[] mergedValue = new byte[writtenValue.Length];
 
-            for (int ii = 0; ii < merged.Length; ii++)
+            for (int ii = 0; ii < mergedValue.Length; ii++)
             {
-                merged[ii] = (byte)((writtenValue[ii] & writtenValid[ii]) |
+                mergedValue[ii] = (byte)((writtenValue[ii] & writtenValid[ii]) |
                     (currentValue[ii] & ~writtenValid[ii]));
             }
 
             var result = (OptionSet)written.Clone();
-            result.Value = ByteString.From(merged);
+            result.Value = ByteString.From(mergedValue);
 
             // the ValidBits of the stored value describe which bits have a meaning.
-            if (HasAnyBit(current.ValidBits.Span))
+            if (HasValidBits(current, mergedValue.Length))
             {
                 result.ValidBits = current.ValidBits;
             }
 
-            value = new DataValue(
-                new Variant(new ExtensionObject(result)),
-                value.StatusCode,
-                value.SourceTimestamp,
-                value.ServerTimestamp);
-
+            merged = result;
             return null;
         }
 
         /// <summary>
         /// Returns the bits the Server considers valid, or <c>null</c> if they are unknown.
         /// </summary>
-        private static byte[]? GetValidBitMask(OptionSet? current, OptionSet written, int length)
+        private static byte[]? GetValidBitMask(OptionSet? stored, OptionSet written, int length)
         {
-            // an all-zero ValidBits of the stored value carries no information (for example a
-            // value initialized without ValidBits), so fall back to the DataType definition.
-            if (current != null &&
-                current.ValidBits.Length == length &&
-                length > 0 &&
-                HasAnyBit(current.ValidBits.Span))
+            // populated ValidBits of the stored value define the valid bits, even if no bit
+            // is set (then no bit may be written). Only an absent mask falls back to the
+            // DataType definition.
+            if (stored != null && HasValidBits(stored, length))
             {
-                return current.ValidBits.ToArray();
+                return stored.ValidBits.ToArray();
             }
 
             EnumDefinition? definition = (written as Encoders.OptionSet)?.Definition ??
-                (current as Encoders.OptionSet)?.Definition;
+                (stored as Encoders.OptionSet)?.Definition;
 
             if (definition == null || definition.Fields.IsEmpty)
             {
@@ -186,17 +318,71 @@ namespace Opc.Ua.Server
             return mask;
         }
 
-        private static bool HasAnyBit(ReadOnlySpan<byte> bytes)
+        /// <summary>
+        /// Returns <c>true</c> if the stored OptionSet carries a ValidBits mask of the
+        /// expected size.
+        /// </summary>
+        private static bool HasValidBits(OptionSet stored, int length)
         {
-            foreach (byte b in bytes)
+            return length > 0 && stored.ValidBits.Length == length;
+        }
+
+        /// <summary>
+        /// Returns the stored OptionSet, or <c>null</c> if the value is not a non-empty
+        /// OptionSet.
+        /// </summary>
+        private static OptionSet? GetOptionSet(in Variant value)
+        {
+            if (value.TryGetStructure<OptionSet>(out OptionSet? stored) &&
+                stored != null &&
+                !stored.Value.IsEmpty)
             {
-                if (b != 0)
-                {
-                    return true;
-                }
+                return stored;
             }
 
-            return false;
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the stored elements that correspond to the written elements: the whole
+        /// stored array or matrix, or the elements addressed by the IndexRange. Returns an
+        /// empty array if the stored value is not an array or matrix of Structures or the
+        /// IndexRange does not address it.
+        /// </summary>
+        private static ExtensionObject[] GetStoredElements(Variant stored, NumericRange indexRange)
+        {
+            if (stored.IsNull ||
+                stored.TypeInfo.BuiltInType != BuiltInType.ExtensionObject ||
+                stored.TypeInfo.IsScalar)
+            {
+                return [];
+            }
+
+            if (!indexRange.IsNull && StatusCode.IsBad(indexRange.ApplyRange(ref stored)))
+            {
+                return [];
+            }
+
+            if (stored.TypeInfo.IsArray && stored.TryGetValue(out ArrayOf<ExtensionObject> array))
+            {
+                return array.ToArray() ?? [];
+            }
+
+            if (stored.TypeInfo.IsMatrix && stored.TryGetValue(out MatrixOf<ExtensionObject> matrix))
+            {
+                return matrix.Span.ToArray();
+            }
+
+            return [];
+        }
+
+        private static DataValue WithValue(DataValue value, Variant newValue)
+        {
+            return new DataValue(
+                newValue,
+                value.StatusCode,
+                value.SourceTimestamp,
+                value.ServerTimestamp);
         }
     }
 }
