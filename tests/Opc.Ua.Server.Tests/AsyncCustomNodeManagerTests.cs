@@ -5151,6 +5151,92 @@ namespace Opc.Ua.Server.Tests
                 grantCall).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Part 4 §5.12.2.2: when the methodId of a Call is the Method declaration
+        /// of the ObjectType, the RolePermissions are verified with the Method of
+        /// the Object (the HasComponent target from the objectId), and that Method
+        /// is the one invoked. The Object's Method here has no MethodDeclarationId,
+        /// e.g. because a subtype overrides the declaration.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CallAsyncChecksRolePermissionsOfObjectMethodForTypeDeclarationMethodIdAsync(
+            bool securityAdmin)
+        {
+            Assume.That(m_managerType, Is.Not.EqualTo(AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter),
+                "The legacy adapter resolves permission handles through the synchronous master node manager.");
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            (BaseObjectTypeState objectType, MethodState typeMethod) = CreateTypeWithMethod(context, nsIdx);
+            objectType.IsPartOfTypeHierarchy = true;
+            int typeCalls = 0;
+            typeMethod.OnCallMethod = (_, _, _, _) =>
+            {
+                typeCalls++;
+                return ServiceResult.Good;
+            };
+
+            var instance = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("PermInstance", nsIdx),
+                BrowseName = new QualifiedName("PermInstance", nsIdx),
+                TypeDefinitionId = objectType.NodeId
+            };
+            instance.CreateAsPredefinedNode(context);
+
+            var instanceMethod = new MethodState(instance)
+            {
+                NodeId = new NodeId("PermInstanceMethod", nsIdx),
+                BrowseName = typeMethod.BrowseName,
+                RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+                    },
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)PermissionType.Browse
+                    }
+                ]
+            };
+            instanceMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(instanceMethod)
+            {
+                Value = []
+            };
+            instanceMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(instanceMethod)
+            {
+                Value = []
+            };
+            int instanceCalls = 0;
+            instanceMethod.OnCallMethod = (_, _, _, _) =>
+            {
+                instanceCalls++;
+                return ServiceResult.Good;
+            };
+            instance.AddChild(instanceMethod);
+
+            await manager.AddPredefinedNodeAsync(context, objectType).ConfigureAwait(false);
+            await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
+            m_mockServer.Object.TypeTree.AddSubtype(objectType.NodeId, NodeId.Null);
+
+            await AssertCallWithRoleAsync(
+                manager,
+                instance.NodeId,
+                typeMethod.NodeId,
+                securityAdmin
+                    ? ObjectIds.WellKnownRole_SecurityAdmin
+                    : ObjectIds.WellKnownRole_AuthenticatedUser,
+                securityAdmin).ConfigureAwait(false);
+
+            Assert.That(typeCalls, Is.Zero);
+            Assert.That(instanceCalls, Is.EqualTo(securityAdmin ? 1 : 0));
+        }
+
         private static (BaseObjectTypeState ObjectType, MethodState Method) CreateTypeWithMethod(
             ServerSystemContext context,
             ushort nsIdx)
