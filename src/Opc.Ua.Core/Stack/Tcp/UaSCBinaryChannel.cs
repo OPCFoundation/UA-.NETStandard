@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -289,8 +290,20 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
+        /// <remarks>
+        /// Runs once: the listener's own Dispose and ChannelClosed on the
+        /// receive thread can dispose the same channel concurrently, and the
+        /// overrides release certificates that must not be released twice.
+        /// </remarks>
+        [SuppressMessage("Design", "CA1063:Implement IDisposable Correctly",
+            Justification = "The once-guard must precede Dispose(bool): the overrides release " +
+                "certificates before chaining to the base, so a guard in Dispose(bool) is too late.")]
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref m_disposeStarted, 1) != 0)
+            {
+                return;
+            }
             Dispose(true);
             GC.SuppressFinalize(this);
         }
@@ -2218,6 +2231,7 @@ namespace Opc.Ua.Bindings
         private Task m_sendGateTail = Task.CompletedTask;
         private readonly HashSet<SendGateTicket> m_sendGateTickets = [];
         private bool m_sendGateClosed;
+        private int m_disposeStarted;
 
         /// <summary>
         /// Coordinates cancellation and completion of one receive loop without disposing an active cancellation source.

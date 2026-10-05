@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>AmbServer</AssemblyName>
+    <PackageId>AmbServer</PackageId>
+    <RootNamespace>AmbSample</RootNamespace>
+    <Description>Console OPC UA server that makes two Device Integration devices and a Machinery machine manageable assets with Opc.Ua.AMB.Server: discovery through the AMB alias categories, a configurable AssetId, DeviceHealth with health alarms and root causes, maintenance activities on the MaintenanceEventStateMachine, documentation links clients can add and remove, locations, classification and structure, persisted in the local file system and driven by a simulation.</Description>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- CA1812: Plant, PlantSimulation and PressConfigurator are constructed by the DI container,
+         which the analyzer cannot see, so it reports them as never instantiated. -->
+    <NoWarn>$(NoWarn);CA1812</NoWarn>
+    <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+</Project>

@@ -2162,6 +2162,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            ViewDescriptionValidator.ValidateParameters(view);
+
             _ =
                 FindPredefinedNode<ViewState>(view.ViewId)
                 ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);

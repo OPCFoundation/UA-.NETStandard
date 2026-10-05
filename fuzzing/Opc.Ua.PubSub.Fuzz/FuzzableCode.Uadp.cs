@@ -61,7 +61,10 @@ namespace Opc.Ua.Fuzzing
             ReadOnlyMemory<byte> input,
             PubSubNetworkMessageContext context)
         {
-            return UadpDecoder.Decode(input, context);
+            return FuzzOracles.MeasureAllocation(
+                nameof(UadpDecoder),
+                input.Length,
+                () => UadpDecoder.Decode(input, context));
         }
 
         internal static void ExerciseUadpChunks(
@@ -72,7 +75,14 @@ namespace Opc.Ua.Fuzzing
             // independently generated, valid split/reassemble oracle.
             using (var probe = new UadpReassembler(context.TimeProvider))
             {
-                if (probe.TryAddChunk(SeedPublisherId, 1, input, out ReadOnlyMemory<byte>? decodedChunk))
+                // The reassembler must charge memory for chunks received, not for the TotalSize
+                // an unauthenticated chunk header claims.
+                ReadOnlyMemory<byte>? decodedChunk = null;
+                bool completed = FuzzOracles.MeasureAllocation(
+                    nameof(UadpReassembler),
+                    input.Length,
+                    () => probe.TryAddChunk(SeedPublisherId, 1, input, out decodedChunk));
+                if (completed)
                 {
                     ReadOnlyMemory<byte> complete = decodedChunk
                         ?? throw new InvalidOperationException("Completed chunk did not return a message.");

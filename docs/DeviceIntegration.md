@@ -619,17 +619,28 @@ wired at startup. The server merges these contributions into
 `Server/ServerCapabilities/ConformanceUnits` alongside the base server
 profiles.
 
-The current gating is implementation-derived:
+The conformance units follow what is built:
 
-| Runtime condition | Server profile URI | Conformance units |
+| Runtime condition | Conformance units |
+| --- | --- |
+| DI `DeviceSet` exists | `DI DeviceTopology` |
+| A `LockingServicesState` has `InitLock`, `RenewLock`, or `ExitLock` wired | `DI Locking` |
+| The same lock service also wires `BreakLock` | `DI BreakLocking` |
+| Any software-update loading mode is recorded | `DI SU Software Update`, `DI SU PrepareForUpdate`, `DI SU Resume Update` |
+| `SoftwareLoadingMode.Direct` | `DI SU DirectLoading` |
+| `SoftwareLoadingMode.Cached` | `DI SU CachedLoading` |
+
+A facet is advertised only while every conformance unit the DI 1.05
+profile database marks mandatory for it is advertised:
+
+| Server profile URI | Mandatory conformance units | Advertised |
 | --- | --- | --- |
-| DI `DeviceSet` exists | `http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost` | `DI DeviceTopology`, `DI Offline` |
-| A `LockingServicesState` has `InitLock`, `RenewLock`, or `ExitLock` wired | `http://opcfoundation.org/UA-Profile/DI/Server/Locking` | `DI Locking` |
-| The same lock service also wires `BreakLock` | same `Locking` profile | `DI BreakLocking` |
-| Any software-update loading mode is recorded | `http://opcfoundation.org/UA-Profile/DI/Server/SoftwareUpdateBase` | `DI SU Software Update`, `DI SU PrepareForUpdate`, `DI SU Resume Update` |
-| `SoftwareLoadingMode.Package` | `http://opcfoundation.org/UA-Profile/DI/Server/FileSystemLoading` | `DI SU FileSystem Loading`, `DI SU Installation for File System` |
-| `SoftwareLoadingMode.Direct` | `http://opcfoundation.org/UA-Profile/DI/Server/DirectLoading` | `DI SU DirectLoading`, `DI SU UpdateStatus` |
-| `SoftwareLoadingMode.Cached` | `http://opcfoundation.org/UA-Profile/DI/Server/CachedLoading` | `DI SU CachedLoading`, `DI SU Installation for Cached Loading`, `DI SU UpdateStatus` |
+| `http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost` | `DI DeviceTopology`, `DI Offline` | No: offline and online device representations are not built |
+| `http://opcfoundation.org/UA-Profile/DI/Server/Locking` | `DI Locking` | When a lock service is wired |
+| `http://opcfoundation.org/UA-Profile/DI/Server/SoftwareUpdateBase` | `DI SU Software Update` | When a software update is attached |
+| `http://opcfoundation.org/UA-Profile/DI/Server/FileSystemLoading` | Software Update Base, `DI SU FileSystem Loading`, `DI SU Installation for File System` | No: `Package` builds a `PackageLoadingType`, not a `FileSystemLoadingType`, and the installation offers `InstallSoftwarePackage` |
+| `http://opcfoundation.org/UA-Profile/DI/Server/DirectLoading` | Software Update Base, `DI SU DirectLoading`, `DI SU UpdateStatus` | No: the `UpdateStatus` variable is not built |
+| `http://opcfoundation.org/UA-Profile/DI/Server/CachedLoading` | Software Update Base, `DI SU CachedLoading`, `DI SU Installation for Cached Loading`, `DI SU UpdateStatus` | No: the `UpdateStatus` variable is not built and the installation offers `InstallFiles` |
 
 ### Client-side surface
 
@@ -1046,6 +1057,12 @@ Integration DataTypes:
 ### Not yet implemented
 
 - `TransferServicesType` (§10.4) — parameter set transfer.
+- Offline and online device representations (§6.3) — needed for the
+  `DI Offline` conformance unit and so for the DeviceIntegrationHost facet.
+- The `UpdateStatus` variable of `SoftwareUpdateType` (§8.4.1.8) and a
+  `FileSystemLoadingType` loading mode — needed for the Direct, Cached and
+  FileSystem Loading facets (see
+  [Runtime conformance advertisement](#runtime-conformance-advertisement)).
 
 ## See also
 

@@ -79,6 +79,30 @@ namespace Opc.Ua.Server.AliasNames
         void Unregister(IAliasNameStore store);
 
         /// <summary>
+        /// Registers <paramref name="store"/> as a read-only contributor:
+        /// its aliases are added to the <c>FindAlias</c>/<c>FindAliasVerbose</c>
+        /// results of every category it reports through
+        /// <see cref="IAliasNameStore.OwnsCategory"/>, next to those of the
+        /// category's owning store (if any). Contributors may overlap with
+        /// owners and with each other, are asked at dispatch time (so their
+        /// category set may change), never receive
+        /// <c>AddAliasesToCategory</c>/<c>DeleteAliasesFromCategory</c>
+        /// calls and are not listed in <see cref="Stores"/>.
+        /// </summary>
+        /// <remarks>
+        /// Used by an aggregating Server or GDS (Part 17 Annex B/C) whose
+        /// aggregated aliases share the well-known <c>TagVariables</c> and
+        /// <c>Topics</c> categories with the server's own aliases.
+        /// </remarks>
+        void RegisterContributor(IAliasNameStore store);
+
+        /// <summary>
+        /// Unregisters a contributor added by <see cref="RegisterContributor"/>.
+        /// No-op if not registered.
+        /// </summary>
+        void UnregisterContributor(IAliasNameStore store);
+
+        /// <summary>
         /// Resolves the store that owns <paramref name="categoryId"/>, or
         /// <c>null</c> if no registered store does.
         /// </summary>

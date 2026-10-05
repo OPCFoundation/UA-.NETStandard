@@ -70,13 +70,16 @@ namespace Opc.Ua.Di.Tests
             "http://opcfoundation.org/UA-Profile/DI/Server/FileSystemLoading";
 
         [Test]
-        public async Task PlainDiServerDeclaresDeviceIntegrationHostAsync()
+        public async Task PlainDiServerDoesNotClaimDeviceIntegrationHostWithoutOfflineSupportAsync()
         {
             IReadOnlyList<string> profiles = await ReadProfilesAsync(null)
                 .ConfigureAwait(false);
 
             Assert.That(profiles, Does.Contain(StandardUa2017));
-            Assert.That(profiles, Does.Contain(DeviceIntegrationHost));
+            Assert.That(
+                profiles,
+                Does.Not.Contain(DeviceIntegrationHost),
+                "The facet mandates DI Offline, which a DeviceSet alone does not meet.");
             Assert.That(profiles, Does.Not.Contain(Locking));
             Assert.That(profiles, Does.Not.Contain(SoftwareUpdateBase));
             Assert.That(profiles, Does.Not.Contain(FileSystemLoading));
@@ -103,9 +106,11 @@ namespace Opc.Ua.Di.Tests
                 .ConfigureAwait(false);
 
             Assert.That(withoutSoftwareUpdate, Does.Not.Contain(SoftwareUpdateBase));
-            Assert.That(withoutSoftwareUpdate, Does.Not.Contain(FileSystemLoading));
             Assert.That(withSoftwareUpdate, Does.Contain(SoftwareUpdateBase));
-            Assert.That(withSoftwareUpdate, Does.Contain(FileSystemLoading));
+            Assert.That(
+                withSoftwareUpdate,
+                Does.Not.Contain(FileSystemLoading),
+                "Package loading builds no FileSystemLoadingType.");
         }
 
         [Test]
@@ -115,9 +120,9 @@ namespace Opc.Ua.Di.Tests
                 .ConfigureAwait(false);
 
             Assert.That(profiles, Does.Contain(StandardUa2017));
-            Assert.That(profiles, Does.Contain(DeviceIntegrationHost));
             Assert.That(profiles, Does.Contain(SoftwareUpdateBase));
-            Assert.That(profiles, Does.Contain(FileSystemLoading));
+            Assert.That(profiles, Does.Not.Contain(DeviceIntegrationHost));
+            Assert.That(profiles, Does.Not.Contain(FileSystemLoading));
             Assert.That(profiles, Does.Not.Contain(Locking));
         }
 

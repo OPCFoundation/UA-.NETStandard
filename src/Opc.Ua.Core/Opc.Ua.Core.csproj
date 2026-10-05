@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />

@@ -571,6 +571,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
+            // the timestamp/version checks are service level results (OPC 10000-4, 5.9.2.3).
+            ViewDescriptionValidator.ValidateParameters(view);
+
             if (view != null && !view.ViewId.IsNull)
             {
                 (object? viewHandle, IAsyncNodeManager? viewManager) =

@@ -354,6 +354,59 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public async Task ANodeReachedThroughTwoReferencesIsEnumeratedOnceAsync()
+        {
+            // HierarchicalReferences include HasNotifier and HasEventSource,
+            // so a server that registers a machine as a notifier of the
+            // Machines folder returns one description per reference.
+            NodeId machine = m_machine!.NodeId;
+            ReferenceDescription Reference(NodeId referenceTypeId)
+            {
+                return new ReferenceDescription
+                {
+                    ReferenceTypeId = referenceTypeId,
+                    IsForward = true,
+                    NodeId = machine,
+                    BrowseName = new QualifiedName("Press-1"),
+                    DisplayName = new LocalizedText("Press-1"),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = Ua.ObjectTypeIds.BaseObjectType
+                };
+            }
+            m_session!
+                .Setup(session => session.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            References =
+                            [
+                                Reference(ReferenceTypeIds.Organizes),
+                                Reference(ReferenceTypeIds.HasNotifier)
+                            ]
+                        }
+                    ]
+                });
+
+            var machines = new List<MachineEntry>();
+            await foreach (MachineEntry entry in m_client!.EnumerateMachinesAsync())
+            {
+                machines.Add(entry);
+            }
+
+            Assert.That(machines.ConvertAll(entry => entry.NodeId), Is.EqualTo([machine]));
+        }
+
+        [Test]
         public void EnumeratingPropagatesAFailedBrowseCall()
         {
             // A lost session or a timeout is not the same as a machine without

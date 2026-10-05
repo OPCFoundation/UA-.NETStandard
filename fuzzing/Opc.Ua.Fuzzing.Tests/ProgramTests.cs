@@ -72,6 +72,7 @@ namespace Opc.Ua.Fuzzing.Tests
                     nameof(FuzzableCode.ThrowingStringTarget),
                     nameof(FuzzableCode.ThrowingSpanTarget),
                     nameof(FuzzableCode.HangingSpanTarget),
+                    nameof(FuzzableCode.DeepRecursionSpanTarget),
                     string.Empty
                 }));
             Assert.That(m_standardError, Is.Empty);

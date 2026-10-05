@@ -53,7 +53,7 @@ namespace Opc.Ua.Fuzzing.Tests
             nameof(FuzzableCode.StringTarget), nameof(FuzzableCode.ThrowingStringTarget))]
         [TestCase(typeof(FuzzMethods.LibFuzzSpan),
             nameof(FuzzableCode.SpanTarget), nameof(FuzzableCode.ThrowingSpanTarget),
-            nameof(FuzzableCode.HangingSpanTarget))]
+            nameof(FuzzableCode.HangingSpanTarget), nameof(FuzzableCode.DeepRecursionSpanTarget))]
         public void DiscoveryReturnsOnlySupportedStaticVoidMethods(
             Type delegateType,
             params string[] targets)

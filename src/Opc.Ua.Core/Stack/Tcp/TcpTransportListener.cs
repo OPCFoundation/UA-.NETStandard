@@ -403,7 +403,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                ICollection<TcpListenerChannel> channels = [];
+                var channels = new List<TcpListenerChannel>();
                 lock (m_lock)
                 {
                     m_inactivityDetectionTimer?.Dispose();
@@ -419,9 +419,15 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        // Values is an atomic snapshot; copying the live dictionary can race channel closure.
-                        channels = m_channels.Values;
-                        m_channels.Clear();
+                        // ChannelClosed removes and disposes channels without the lock, so
+                        // claim each channel with TryRemove: whoever removes it disposes it.
+                        foreach (uint channelId in m_channels.Keys)
+                        {
+                            if (m_channels.TryRemove(channelId, out TcpListenerChannel? channel))
+                            {
+                                channels.Add(channel);
+                            }
+                        }
                         m_channels = null;
                     }
                 }
@@ -709,6 +715,19 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Registers a channel unless the listener is disposed. Taken under
+        /// <c>m_lock</c> so it cannot slip in after Dispose drained the
+        /// channels and the channel is never disposed.
+        /// </summary>
+        internal bool TryRegisterChannel(uint channelId, TcpListenerChannel channel)
+        {
+            lock (m_lock)
+            {
+                return m_channels?.TryAdd(channelId, channel) == true;
+            }
+        }
+
+        /// <summary>
         /// Indicate that the reverse hello connection attempt completed.
         /// </summary>
         /// <remarks>
@@ -722,7 +741,7 @@ namespace Opc.Ua.Bindings
             {
                 channel!.EndReverseConnect(result);
 
-                if (!m_channels!.TryAdd(channel.Id, channel))
+                if (!TryRegisterChannel(channel.Id, channel))
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
@@ -997,9 +1016,12 @@ namespace Opc.Ua.Bindings
 
                 if (!accepted)
                 {
-                    // add back in for other connection attempt.
-                    m_channels?.TryAdd(channelId, channel!);
-                    channel = null;
+                    // add back in for other connection attempt; once the listener
+                    // is disposed the channel is not registered and is disposed below.
+                    if (TryRegisterChannel(channelId, channel!))
+                    {
+                        channel = null;
+                    }
                 }
             }
             finally
