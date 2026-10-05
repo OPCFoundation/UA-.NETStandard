@@ -167,6 +167,51 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void ReadDataTypeDefinitionReportsDefaultEncodingWithoutMutatingTheStoredValue()
+        {
+            var stored = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                Fields = [new StructureField { Name = "Name", DataType = DataTypeIds.String, ValueRank = -1 }]
+            };
+            var dt = new DataTypeState
+            {
+                NodeId = DataTypeIds.Argument,
+                SuperTypeId = DataTypeIds.Structure,
+                DataTypeDefinition = new ExtensionObject(stored)
+            };
+
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = m_context.NamespaceUris,
+                ServerUris = m_context.ServerUris,
+                EncodeableFactory = EncodeableFactory.Create()
+            };
+
+            DataValue value = new();
+            ServiceResult result = dt.ReadAttribute(
+                context, Attributes.DataTypeDefinition, default, default, ref value);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
+            Assert.That(extension.TryGetValue(out StructureDefinition read), Is.True);
+            Assert.That(read.DefaultEncodingId, Is.EqualTo(
+                ExpandedNodeId.ToNodeId(ObjectIds.Argument_Encoding_DefaultBinary, context.NamespaceUris)));
+            Assert.That(stored.DefaultEncodingId.IsNull, Is.True,
+                "A read must not modify the definition shared by all readers.");
+
+            // Part 3 8.48: an abstract DataType has no DefaultEncodingId.
+            dt.IsAbstract = true;
+            value = new DataValue();
+            result = dt.ReadAttribute(
+                context, Attributes.DataTypeDefinition, default, default, ref value);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(value.WrappedValue.TryGetValue(out extension), Is.True);
+            Assert.That(extension.TryGetValue(out read), Is.True);
+            Assert.That(read.DefaultEncodingId.IsNull, Is.True);
+        }
+
+        [Test]
         public void WriteDataTypeDefinitionChecksWriteMaskFirst()
         {
             var dt = new DataTypeState

@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Export;
 using Opc.Ua.Server.Nodes;
 
@@ -216,6 +218,138 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             m_completed = true;
         }
 
+        /// <summary>
+        /// Completes the StructureDefinitions of every DataType in the batch with the
+        /// fields inherited from supertypes in other documents of the batch or owned
+        /// by the server (Part 3 8.48, Part 6 F.12).
+        /// </summary>
+        /// <param name="server">The server whose address space owns external supertypes.</param>
+        /// <param name="availableNodes">
+        /// Additional staged nodes which are not yet part of the address space.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask CompleteDataTypeDefinitionsAsync(
+            IServerInternal server,
+            IReadOnlyDictionary<NodeId, NodeState>? availableNodes,
+            CancellationToken cancellationToken = default)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            // Definitions owned outside the batch are complete already; resolve the
+            // direct supertypes which leave the batch once, asynchronously.
+            var externalDefinitions = new Dictionary<NodeId, DataTypeDefinition?>();
+            for (int i = 0; i < m_importedNodes.Count; i++)
+            {
+                if (m_importedNodes[i] is not DataTypeState dataType)
+                {
+                    continue;
+                }
+
+                NodeId superTypeId = dataType.SuperTypeId;
+                if (superTypeId.IsNull ||
+                    m_nodesById.ContainsKey(superTypeId) ||
+                    externalDefinitions.ContainsKey(superTypeId))
+                {
+                    continue;
+                }
+
+                externalDefinitions[superTypeId] = await ResolveExternalDefinitionAsync(
+                    server,
+                    availableNodes,
+                    superTypeId,
+                    0,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            UANodeSet.CompleteDataTypeDefinitions(
+                m_context,
+                m_importedNodes,
+                dataTypeId => externalDefinitions.TryGetValue(
+                    dataTypeId,
+                    out DataTypeDefinition? definition)
+                    ? definition
+                    : null);
+        }
+
+        private static async ValueTask<DataTypeDefinition?> ResolveExternalDefinitionAsync(
+            IServerInternal server,
+            IReadOnlyDictionary<NodeId, NodeState>? availableNodes,
+            NodeId dataTypeId,
+            int depth,
+            CancellationToken cancellationToken)
+        {
+            if (dataTypeId.IsNull || depth > kMaxSuperTypeDepth)
+            {
+                return null;
+            }
+            if (dataTypeId == DataTypeIds.Structure || dataTypeId == DataTypeIds.Union)
+            {
+                return new StructureDefinition
+                {
+                    BaseDataType = dataTypeId == DataTypeIds.Union
+                        ? DataTypeIds.Structure
+                        : DataTypeIds.BaseDataType,
+                    StructureType = dataTypeId == DataTypeIds.Union
+                        ? StructureType.Union
+                        : StructureType.Structure,
+                    Fields = []
+                };
+            }
+
+            // A compiled type describes its complete layout.
+            var typeId = NodeId.ToExpandedNodeId(dataTypeId, server.NamespaceUris);
+            if (server.Factory.TryGetEncodeableType(typeId, out IEncodeableType? encodeableType) &&
+                encodeableType is IDataTypeDefinitionSource structureSource)
+            {
+                return structureSource.GetDataTypeDefinition(server.NamespaceUris);
+            }
+            if (server.Factory.TryGetEnumeratedType(typeId, out IEnumeratedType? enumeratedType) &&
+                enumeratedType is IDataTypeDefinitionSource enumSource)
+            {
+                return enumSource.GetDataTypeDefinition(server.NamespaceUris);
+            }
+
+            NodeState? node = null;
+            if (availableNodes?.TryGetValue(dataTypeId, out node) != true)
+            {
+                node = await server.NodeManager
+                    .FindNodeInAddressSpaceAsync(dataTypeId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            if (node is not DataTypeState dataType)
+            {
+                return null;
+            }
+            if (dataType.DataTypeDefinition.TryGetValue(out DataTypeDefinition? definition) &&
+                definition != null)
+            {
+                return definition;
+            }
+
+            // A Structure subtype without own fields has the layout of its supertype.
+            NodeId superTypeId = dataType.SuperTypeId.IsNull
+                ? server.TypeTree.FindSuperType(dataTypeId)
+                : dataType.SuperTypeId;
+            if (await ResolveExternalDefinitionAsync(
+                server,
+                availableNodes,
+                superTypeId,
+                depth + 1,
+                cancellationToken).ConfigureAwait(false) is StructureDefinition baseDefinition)
+            {
+                return new StructureDefinition
+                {
+                    BaseDataType = superTypeId,
+                    StructureType = baseDefinition.StructureType,
+                    Fields = baseDefinition.Fields
+                };
+            }
+            return null;
+        }
+
         private void RegisterMappingNamespaces(UANodeSet nodeSet)
         {
             if (nodeSet.NamespaceUris is null)
@@ -233,6 +367,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             }
         }
 
+        private const int kMaxSuperTypeDepth = 64;
         private readonly ISystemContext m_context;
         private readonly NodeSetImportFactoryRegistry m_factoryRegistry;
         private readonly NodeStateCollection m_importedNodes = [];

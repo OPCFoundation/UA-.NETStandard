@@ -565,6 +565,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         Existing.Remove(node.NodeId);
                         return default;
                     },
+                    server: null,
                     CancellationToken.None);
             }
         }
