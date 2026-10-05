@@ -7111,6 +7111,19 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                // Part 3 §8.55 Call: the Call permission is required on the Object
+                // passed as ObjectId and on the Method.
+                errors[ii] = await ValidateRolePermissionsAsync(
+                    context,
+                    methodToCall.ObjectId,
+                    PermissionType.Call,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (ServiceResult.IsBad(errors[ii]))
+                {
+                    continue;
+                }
+
                 // validate the role permissions for method to be executed,
                 // it may be a different MethodState that does not have the MethodId specified in the method call
                 errors[ii] = await ValidateRolePermissionsAsync(
