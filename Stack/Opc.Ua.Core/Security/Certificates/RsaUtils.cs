@@ -309,18 +309,22 @@ namespace Opc.Ua
             System.Diagnostics.Debug.Assert(plainText.Count == buffer.Length);
 
             // decode length.
-            int length = 0;
+            int length = -1;
 
-            length += plainText.Array[plainText.Offset + 0];
-            length += plainText.Array[plainText.Offset + 1] << 8;
-            length += plainText.Array[plainText.Offset + 2] << 16;
-            length += plainText.Array[plainText.Offset + 3] << 24;
-
-            if (length > (plainText.Count - plainText.Offset - 4))
+            if (plainText.Count >= 4)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEndOfStream,
-                    "Could not decrypt data. Invalid total length.");
+                length = plainText.Array[plainText.Offset + 0];
+                length += plainText.Array[plainText.Offset + 1] << 8;
+                length += plainText.Array[plainText.Offset + 2] << 16;
+                length += plainText.Array[plainText.Offset + 3] << 24;
+            }
+
+            // an invalid length must fail exactly like invalid padding, otherwise
+            // the caller can tell a conforming padding from a non conforming one.
+            if (length < 0 || length > plainText.Count - 4)
+            {
+                Array.Clear(buffer, 0, buffer.Length);
+                throw new CryptographicException("Could not decrypt data.");
             }
 
             byte[] decryptedData = new byte[length];

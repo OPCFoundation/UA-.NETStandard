@@ -65,7 +65,6 @@ namespace Opc.Ua.Server
                 .MaxHistoryContinuationPoints;
 
             m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
-            m_lastSessionId = BitConverter.ToUInt32(Nonce.CreateRandomNonceData(sizeof(uint)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -192,22 +191,12 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // can assign a simple identifier if secured.
-                authenticationToken = default;
-                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
-                    context.ChannelContext.EndpointDescription
-                        .SecurityMode != MessageSecurityMode.None)
-                {
-                    authenticationToken = new NodeId(
-                        Utils.IncrementIdentifier(ref m_lastSessionId));
-                }
-
-                // must assign a hard-to-guess id if not secured.
-                if (authenticationToken == null)
-                {
-                    byte[] token = Nonce.CreateRandomNonceData(32);
-                    authenticationToken = new NodeId(token);
-                }
+                // always assign a hard-to-guess id. A secure channel id does not
+                // make a sequential token safe: HTTPS shares one SecureChannelId
+                // between every client of a listener, so the token is the only
+                // secret that binds a request to its session (Part 6 7.4.1).
+                byte[] token = Nonce.CreateRandomNonceData(32);
+                authenticationToken = new NodeId(token);
 
                 // determine session timeout.
                 if (requestedSessionTimeout > m_maxSessionTimeout)
@@ -719,7 +708,6 @@ namespace Opc.Ua.Server
         private HashSet<string> m_activatedChannels = new(StringComparer.Ordinal);
 
         private readonly NodeIdDictionary<ISession> m_sessions;
-        private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;
 
         private readonly int m_minSessionTimeout;
