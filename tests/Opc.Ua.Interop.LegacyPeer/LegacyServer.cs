@@ -161,7 +161,15 @@ namespace Opc.Ua.Interop.LegacyPeer
             }
             await application.StartAsync(instance).ConfigureAwait(false);
 
-            // The test harness waits for this exact line before it connects.
+            // What the tests compare the server against, then the exact line
+            // the test harness waits for before it connects.
+            Console.WriteLine("PEER-INFO " + System.Text.Json.JsonSerializer.Serialize(new
+            {
+                stack = "UA-.NETStandard",
+                version = Utils.GetAssemblySoftwareVersion(),
+                applicationUri = application.ApplicationConfiguration.ApplicationUri,
+                softwareVersion = Utils.GetAssemblySoftwareVersion()
+            }));
             Console.WriteLine("LEGACY-SERVER-READY " + endpointUrl);
             Console.Out.Flush();
 
@@ -244,6 +252,12 @@ namespace Opc.Ua.Interop.LegacyPeer
                 throw ServiceResultException.Create(
                     StatusCodes.BadUserAccessDenied,
                     "Invalid user name or password.");
+            }
+            if (args.NewIdentity is X509IdentityToken x509)
+            {
+                // The certificate was validated by the session manager (user
+                // trust list, auto-accept for the interop tests).
+                args.Identity = new UserIdentity(x509);
             }
         }
 
@@ -330,6 +344,7 @@ namespace Opc.Ua.Interop.LegacyPeer
                 m_counter.UserAccessLevel = AccessLevels.CurrentRead;
 
                 CreateAddMethod(folder);
+                CreateRaiseEventMethod(folder);
 
                 AddPredefinedNode(SystemContext, folder);
                 AddRootNotifier(folder);
@@ -423,6 +438,41 @@ namespace Opc.Ua.Interop.LegacyPeer
                 return ServiceResult.Good;
             };
 
+            parent.AddChild(method);
+        }
+
+        /// <summary>
+        /// RaiseEvent() reports one BaseEventType event with the message
+        /// "interop event" and Severity 500 through the Server object.
+        /// </summary>
+        private void CreateRaiseEventMethod(NodeState parent)
+        {
+            var method = new MethodState(parent)
+            {
+                SymbolicName = "RaiseEvent",
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                NodeId = new NodeId("RaiseEvent", NamespaceIndex),
+                BrowseName = new QualifiedName("RaiseEvent", NamespaceIndex),
+                DisplayName = new LocalizedText("en", "RaiseEvent"),
+                WriteMask = AttributeWriteMask.None,
+                UserWriteMask = AttributeWriteMask.None,
+                Executable = true,
+                UserExecutable = true
+            };
+            method.OnCallMethod = (context, m, inputs, outputs) =>
+            {
+                var e = new BaseEventState(null);
+                e.Initialize(
+                    SystemContext,
+                    null,
+                    EventSeverity.Medium,
+                    new LocalizedText("en", "interop event"));
+                e.SetChildValue(SystemContext, BrowseNames.SourceNode, parent.NodeId, false);
+                e.SetChildValue(SystemContext, BrowseNames.SourceName, "Interop", false);
+                e.Severity.Value = 500;
+                Server.ReportEvent(SystemContext, e);
+                return ServiceResult.Good;
+            };
             parent.AddChild(method);
         }
 

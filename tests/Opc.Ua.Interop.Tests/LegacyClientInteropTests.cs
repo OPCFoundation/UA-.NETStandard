@@ -44,6 +44,7 @@ namespace Opc.Ua.Interop.Tests
     /// each check separately; every check is its own test result here.
     /// </summary>
     [TestFixture]
+    [PeerDifferences]
     [Category("Interop")]
     [NonParallelizable]
     [SetCulture("en-us")]
@@ -86,6 +87,33 @@ namespace Opc.Ua.Interop.Tests
             "CloseSession"
         ];
 
+        /// <summary>
+        /// Checks of events and alarms, subscription features, identities and
+        /// further services; they run once on a SignAndEncrypt channel.
+        /// SessionReconnect runs last because it replaces the channel.
+        /// </summary>
+        private static readonly string[] s_featureChecks =
+        [
+            "Connect",
+            "EventSubscription",
+            "ConditionRefresh",
+            "AlarmAcknowledge",
+            "DeadbandFilter",
+            "QueueOverflow",
+            "Triggering",
+            "Republish",
+            "TransferSubscription",
+            "WrongPasswordRejected",
+            "X509UserToken",
+            "RegisterNodes",
+            "HistoryReadRaw",
+            "NodeManagement",
+            "IndexRange",
+            "FindServers",
+            "SessionReconnect",
+            "CloseSession"
+        ];
+
         private static readonly Dictionary<string, (string Policy, MessageSecurityMode Mode, bool UserName)>
             s_securityConfigurations = new()
             {
@@ -124,6 +152,11 @@ namespace Opc.Ua.Interop.Tests
             return s_extendedChecks.Select(check => new TestCaseData(check));
         }
 
+        public static IEnumerable<TestCaseData> FeatureCases()
+        {
+            return s_featureChecks.Select(check => new TestCaseData(check));
+        }
+
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
@@ -143,6 +176,10 @@ namespace Opc.Ua.Interop.Tests
             // log on as a user of the reference server's user database.
             m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
+            // The X509UserToken check logs on with a self-signed user certificate,
+            // which the auto-accepting fixture trusts.
+            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+                new UserTokenPolicy(UserTokenType.Certificate);
             await m_serverFixture.StartAsync().ConfigureAwait(false);
             m_serverUrl = string.Format(
                 CultureInfo.InvariantCulture,
@@ -215,6 +252,25 @@ namespace Opc.Ua.Interop.Tests
                     "--policy", SecurityPolicies.Basic256Sha256,
                     "--mode", nameof(MessageSecurityMode.SignAndEncrypt),
                     "--checks", string.Join(",", s_extendedChecks)
+                ]).ConfigureAwait(false);
+            run.AssertPassed(check);
+        }
+
+        /// <summary>
+        /// The peer client's event, alarm, subscription, identity and service
+        /// checks against the 2.0 reference server (with the Alarms, TestData
+        /// and history node managers) on a Basic256Sha256 SignAndEncrypt channel.
+        /// </summary>
+        [Test]
+        [TestCaseSource(nameof(FeatureCases))]
+        public async Task LegacyClientFeatureCheckAsync(string check)
+        {
+            PeerRun run = await GetRunAsync(
+                "features",
+                [
+                    "--policy", SecurityPolicies.Basic256Sha256,
+                    "--mode", nameof(MessageSecurityMode.SignAndEncrypt),
+                    "--checks", string.Join(",", s_featureChecks)
                 ]).ConfigureAwait(false);
             run.AssertPassed(check);
         }

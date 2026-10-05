@@ -1,0 +1,14 @@
+[package]
+name = "async-opcua-peer"
+version = "1.0.0"
+edition = "2021"
+publish = false
+description = "async-opcua interop peer for the Opc.Ua.Interop.Tests suite"
+
+[dependencies]
+async-opcua = { version = "=0.19.0", features = ["server", "client"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+log = "0.4"
+async-trait = "0.1"
+env_logger = "0.11"

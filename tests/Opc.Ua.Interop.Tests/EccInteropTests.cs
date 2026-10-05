@@ -49,27 +49,53 @@ namespace Opc.Ua.Interop.Tests
     /// their default RSA and ECC application certificates.
     /// </summary>
     [TestFixture]
+    [PeerDifferences]
     [Category("Interop")]
     [NonParallelizable]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     public class EccInteropTests
     {
+        /// <summary>
+        /// Long enough for two renewals of a 60 s token at 75 %.
+        /// </summary>
+        private const int kAeadRenewalSeconds = 100;
+
         private static readonly TimeSpan s_peerTimeout = TimeSpan.FromMinutes(3);
 
         /// <summary>
-        /// The ECC policies of OPC UA 1.05 that 1.5.x implements (the
-        /// curve25519/448 policies are 2.0 only).
+        /// The ECC policies of OPC UA 1.05 that 1.5.x implements; every
+        /// peer of the ECC fixture is expected to offer them.
+        /// </summary>
+        private static readonly string[] s_legacyPolicies =
+        [
+            SecurityPolicies.ECC_nistP256,
+            SecurityPolicies.ECC_nistP384,
+            SecurityPolicies.ECC_brainpoolP256r1,
+            SecurityPolicies.ECC_brainpoolP384r1
+        ];
+
+        /// <summary>
+        /// ECC policies that 1.5.x does not implement: the authenticated
+        /// encryption (AesGcm, ChaChaPoly) and Edwards curve policies. They
+        /// run only against a peer that declares them in the policies of its
+        /// PEER-INFO line, e.g. open62541 built with OpenSSL.
+        /// </summary>
+        private static readonly string[] s_declaredPolicies =
+        [
+            SecurityPolicies.ECC_nistP256_AesGcm,
+            SecurityPolicies.ECC_nistP256_ChaChaPoly,
+            SecurityPolicies.ECC_curve25519,
+            SecurityPolicies.ECC_curve448
+        ];
+
+        /// <summary>
+        /// The ECC policies with SignAndEncrypt (anonymous and user name)
+        /// and Sign.
         /// </summary>
         public static IEnumerable<TestCaseData> EccCases()
         {
-            foreach (string policy in new[]
-            {
-                SecurityPolicies.ECC_nistP256,
-                SecurityPolicies.ECC_nistP384,
-                SecurityPolicies.ECC_brainpoolP256r1,
-                SecurityPolicies.ECC_brainpoolP384r1
-            })
+            foreach (string policy in s_legacyPolicies.Concat(s_declaredPolicies))
             {
                 string name = policy.Substring(policy.LastIndexOf('#') + 1);
                 yield return new TestCaseData(policy, MessageSecurityMode.SignAndEncrypt, false)
@@ -77,7 +103,8 @@ namespace Opc.Ua.Interop.Tests
                 yield return new TestCaseData(policy, MessageSecurityMode.SignAndEncrypt, true)
                     .SetArgDisplayNames(name, "SignAndEncrypt", "UserName");
                 // Sign only derives its keys with a different HKDF salt length
-                // than SignAndEncrypt (Part 6, 6.8.1).
+                // than SignAndEncrypt (Part 6, 6.8.1), except with
+                // authenticated encryption, whose tag needs the keys.
                 yield return new TestCaseData(policy, MessageSecurityMode.Sign, false)
                     .SetArgDisplayNames(name, "Sign", "Anonymous");
             }
@@ -153,6 +180,7 @@ namespace Opc.Ua.Interop.Tests
             {
                 Assert.Ignore($"The 2.0 client does not support {policy} on this platform.");
             }
+            RequirePeerPolicy(policy);
             EndpointDescription description = m_legacyEndpoints.ToArray()
                 .FirstOrDefault(e => e.SecurityPolicyUri == policy && e.SecurityMode == mode);
             if (description == null)
@@ -192,6 +220,7 @@ namespace Opc.Ua.Interop.Tests
             {
                 Assert.Ignore($"The 2.0 server does not offer {policy}/{mode} on this platform.");
             }
+            RequirePeerPolicy(policy);
             var arguments = new List<string>
             {
                 "client",
@@ -217,6 +246,24 @@ namespace Opc.Ua.Interop.Tests
         }
 
         /// <summary>
+        /// Ignores a policy beyond the 1.5.x ECC policies unless the peer
+        /// declares it; the peer server and the peer client are the same
+        /// build, so the server's declaration covers both directions.
+        /// </summary>
+        private void RequirePeerPolicy(string policy)
+        {
+            if (s_legacyPolicies.Contains(policy))
+            {
+                return;
+            }
+            PeerInfo info = m_legacyServer.Info;
+            if (info == null || !info.DeclaresPolicy(policy))
+            {
+                Assert.Ignore($"The peer ({info?.Stack ?? "unknown stack"}) does not declare {policy}.");
+            }
+        }
+
+        /// <summary>
         /// The 2.0 client keeps reading on an ECC_nistP256 SignAndEncrypt
         /// channel of the 1.5 server through a security token renewal. ECC
         /// renewals derive the new keys with HKDF; the ECC policies of OPC UA
@@ -226,15 +273,81 @@ namespace Opc.Ua.Interop.Tests
         /// </summary>
         [Test]
         [CancelAfter(180_000)]
-        public async Task ClientToLegacyServerTokenRenewalAsync(CancellationToken ct)
+        public Task ClientToLegacyServerTokenRenewalAsync(CancellationToken ct)
         {
-            const string policy = SecurityPolicies.ECC_nistP256;
+            return ClientToLegacyServerTokenRenewalAsync(SecurityPolicies.ECC_nistP256, 65, 0, ct);
+        }
+
+        /// <summary>
+        /// The 1.5 client keeps reading on an ECC_nistP256 SignAndEncrypt
+        /// channel of the 2.0 server through a security token renewal.
+        /// </summary>
+        [Test]
+        public Task LegacyClientToServerTokenRenewalAsync()
+        {
+            return LegacyClientToServerTokenRenewalAsync(SecurityPolicies.ECC_nistP256, 65, 0);
+        }
+
+        /// <summary>
+        /// The authenticated encryption ECC policies, whose renewals chain
+        /// the previous key material into the HKDF of the new keys
+        /// (SecureChannelEnhancements, Part 6, 6.7.4 and 6.8).
+        /// </summary>
+        public static IEnumerable<TestCaseData> AeadRenewalCases()
+        {
+            foreach (string policy in new[]
+            {
+                SecurityPolicies.ECC_nistP256_AesGcm,
+                SecurityPolicies.ECC_nistP256_ChaChaPoly
+            })
+            {
+                yield return new TestCaseData(policy).SetArgDisplayNames(policy.Substring(policy.LastIndexOf('#') + 1));
+            }
+        }
+
+        /// <summary>
+        /// The 2.0 client keeps reading on an authenticated encryption
+        /// SignAndEncrypt channel of the peer server through two security
+        /// token renewals (at about 45 s and 90 s), so the second renewal
+        /// chains from key material that was itself chained.
+        /// </summary>
+        [Test]
+        [CancelAfter(240_000)]
+        [TestCaseSource(nameof(AeadRenewalCases))]
+        public Task ClientToLegacyServerAeadTokenRenewalAsync(string policy)
+        {
+            return ClientToLegacyServerTokenRenewalAsync(
+                policy, kAeadRenewalSeconds, 3, TestContext.CurrentContext.CancellationToken);
+        }
+
+        /// <summary>
+        /// The peer client keeps reading on an authenticated encryption
+        /// SignAndEncrypt channel of the 2.0 server through two security
+        /// token renewals.
+        /// </summary>
+        [Test]
+        [TestCaseSource(nameof(AeadRenewalCases))]
+        public Task LegacyClientToServerAeadTokenRenewalAsync(string policy)
+        {
+            return LegacyClientToServerTokenRenewalAsync(policy, kAeadRenewalSeconds, 2);
+        }
+
+        private async Task ClientToLegacyServerTokenRenewalAsync(
+            string policy,
+            int seconds,
+            int minimumTokens,
+            CancellationToken ct)
+        {
+            if (!m_client.Config.SecurityConfiguration.SupportedSecurityPolicies.Contains(policy))
+            {
+                Assert.Ignore($"The 2.0 client does not support {policy} on this platform.");
+            }
+            RequirePeerPolicy(policy);
             EndpointDescription description = m_legacyEndpoints.ToArray().FirstOrDefault(e =>
                 e.SecurityPolicyUri == policy && e.SecurityMode == MessageSecurityMode.SignAndEncrypt);
-            if (description == null ||
-                !m_client.Config.SecurityConfiguration.SupportedSecurityPolicies.Contains(policy))
+            if (description == null)
             {
-                Assert.Ignore($"{policy} is not available on this platform.");
+                Assert.Ignore($"The peer server does not offer {policy}/SignAndEncrypt.");
             }
 
             await using var client = new ClientFixture(telemetry: m_telemetry);
@@ -245,18 +358,28 @@ namespace Opc.Ua.Interop.Tests
             ISession session = await client.ConnectAsync(endpoint).ConfigureAwait(false);
             try
             {
+                var tokens = new List<uint>();
                 var elapsed = System.Diagnostics.Stopwatch.StartNew();
                 int reads = 0;
-                while (elapsed.Elapsed < TimeSpan.FromSeconds(65))
+                while (elapsed.Elapsed < TimeSpan.FromSeconds(seconds))
                 {
                     DataValue value = await session
                         .ReadValueAsync(VariableIds.Server_ServerStatus_CurrentTime, ct)
                         .ConfigureAwait(false);
                     Assert.That(StatusCode.IsGood(value.StatusCode), Is.True,
-                        $"read {reads} after {elapsed.Elapsed.TotalSeconds:F0} s: {value.StatusCode}");
+                        $"read {reads} after {elapsed.Elapsed.TotalSeconds:F0} s (tokens {string.Join(",", tokens)}): " +
+                        value.StatusCode);
+                    uint tokenId = (session.TransportChannel as ISecureChannel)?.CurrentToken?.TokenId ?? 0;
+                    if (tokens.Count == 0 || tokens[^1] != tokenId)
+                    {
+                        tokens.Add(tokenId);
+                    }
                     reads++;
                     await Task.Delay(500, ct).ConfigureAwait(false);
                 }
+                TestContext.Out.WriteLine($"{reads} reads with the security tokens {string.Join(",", tokens)}");
+                Assert.That(tokens, Has.Count.GreaterThanOrEqualTo(minimumTokens),
+                    "the security token was not renewed often enough");
             }
             finally
             {
@@ -266,32 +389,36 @@ namespace Opc.Ua.Interop.Tests
         }
 
         /// <summary>
-        /// The 1.5 client keeps reading on an ECC_nistP256 SignAndEncrypt
-        /// channel of the 2.0 server through a security token renewal.
+        /// minimumRenewals: passed as --min-renewals to a peer client that
+        /// counts its renewals (the open62541 peer); 0 checks only that the
+        /// reads keep working.
         /// </summary>
-        [Test]
-        public async Task LegacyClientToServerTokenRenewalAsync()
+        private async Task LegacyClientToServerTokenRenewalAsync(string policy, int seconds, int minimumRenewals)
         {
-            const string policy = SecurityPolicies.ECC_nistP256;
             bool offered = m_server.Config.ServerConfiguration.SecurityPolicies.ToArray()
                 .Any(p => p.SecurityPolicyUri == policy && p.SecurityMode == MessageSecurityMode.SignAndEncrypt);
             if (!offered)
             {
                 Assert.Ignore($"The 2.0 server does not offer {policy} on this platform.");
             }
-            PeerRun run = await PeerRun.ExecuteAsync(
-                s_peerTimeout,
-                [
-                    "client",
-                    "--url", m_serverUrl,
-                    "--pki", InteropPki.ClientPki(m_pkiRoot) + "l",
-                    "--ecc", "true",
-                    "--policy", policy,
-                    "--mode", nameof(MessageSecurityMode.SignAndEncrypt),
-                    "--checks", "TokenRenewal",
-                    "--token-lifetime", "60000",
-                    "--token-test-seconds", "65"
-                ]).ConfigureAwait(false);
+            RequirePeerPolicy(policy);
+            var arguments = new List<string>
+            {
+                "client",
+                "--url", m_serverUrl,
+                "--pki", InteropPki.ClientPki(m_pkiRoot) + "l",
+                "--ecc", "true",
+                "--policy", policy,
+                "--mode", nameof(MessageSecurityMode.SignAndEncrypt),
+                "--checks", "TokenRenewal",
+                "--token-lifetime", "60000",
+                "--token-test-seconds", seconds.ToString(CultureInfo.InvariantCulture)
+            };
+            if (minimumRenewals > 0)
+            {
+                arguments.AddRange(["--min-renewals", minimumRenewals.ToString(CultureInfo.InvariantCulture)]);
+            }
+            PeerRun run = await PeerRun.ExecuteAsync(s_peerTimeout, [.. arguments]).ConfigureAwait(false);
             run.AssertPassed("Connect");
             run.AssertPassed("TokenRenewal");
             run.AssertPassed("CloseSession");
