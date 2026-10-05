@@ -742,7 +742,12 @@ namespace Opc.Ua
                 expectedCount = expectedInputArguments.Value.Count;
             }
 
-            if (expectedCount > inputArguments.Count)
+            // trailing optional input arguments may be omitted by the client
+            // (Part 4 5.12.2.2); only a missing non-optional one is an error.
+            if (expectedCount > inputArguments.Count &&
+                expectedCount - GetOptionalInputArgumentCount(
+                    context,
+                    expectedInputArguments!.Value) > inputArguments.Count)
             {
                 return StatusCodes.BadArgumentsMissing;
             }
@@ -775,6 +780,13 @@ namespace Opc.Ua
             if (error)
             {
                 return ServiceResult.Good;
+            }
+
+            // omitted optional arguments are passed to the handler as null
+            // values so it always receives one entry per declared argument.
+            while (inputs.Count < expectedCount)
+            {
+                inputs.Add(Variant.Null);
             }
 
             // set output arguments to default values.
@@ -821,6 +833,119 @@ namespace Opc.Ua
 
             return result;
         }
+
+        /// <summary>
+        /// Returns how many trailing input arguments of the method are
+        /// optional and may therefore be omitted by the client.
+        /// </summary>
+        /// <remarks>
+        /// A Method declares an optional input argument with a
+        /// HasOptionalInputArgumentDescription Reference to a Variable whose
+        /// BrowseName equals the Argument name (Part 3 5.7.1/5.7.3, the
+        /// namespace of the BrowseName is ignored). Optional arguments always
+        /// follow the non-optional ones, so the count is taken from the end of
+        /// the declared argument list. A description Reference held only in
+        /// the reference table, whose target is not a child and therefore has
+        /// no BrowseName at hand, counts as one optional trailing argument.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <param name="inputArguments">The declared input arguments.</param>
+        /// <returns>The number of optional trailing input arguments.</returns>
+        protected virtual int GetOptionalInputArgumentCount(
+            ISystemContext context,
+            ArrayOf<Argument> inputArguments)
+        {
+            if (inputArguments.Count == 0)
+            {
+                return 0;
+            }
+
+            HashSet<string>? optionalNames = null;
+            HashSet<NodeId>? describedNodeIds = null;
+            var children = new List<BaseInstanceState>();
+            GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                string? childName = child.BrowseName.IsNull ? null : child.BrowseName.Name;
+                if (string.IsNullOrEmpty(childName) ||
+                    !IsOptionalInputArgumentDescription(context, child.ReferenceTypeId))
+                {
+                    continue;
+                }
+                (optionalNames ??= new HashSet<string>(StringComparer.Ordinal))
+                    .Add(childName!);
+                if (!child.NodeId.IsNull)
+                {
+                    (describedNodeIds ??= []).Add(child.NodeId);
+                }
+            }
+
+            int unresolved = 0;
+            var references = new List<IReference>();
+            GetReferences(
+                context,
+                references,
+                s_hasOptionalInputArgumentDescription,
+                false);
+            var unresolvedTargets = new HashSet<ExpandedNodeId>();
+            foreach (IReference reference in references)
+            {
+                var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                if ((targetId.IsNull || describedNodeIds == null || !describedNodeIds.Contains(targetId)) &&
+                    unresolvedTargets.Add(reference.TargetId))
+                {
+                    unresolved++;
+                }
+            }
+
+            // walk the trailing arguments: an argument named by a child description is
+            // optional; any other argument consumes one unresolved description, so child
+            // and bare-reference descriptions may be mixed in any order.
+            int optionalCount = 0;
+            for (int ii = inputArguments.Count - 1; ii >= 0; ii--)
+            {
+                string? name = inputArguments[ii]?.Name;
+                if (name != null && optionalNames != null && optionalNames.Contains(name))
+                {
+                    optionalCount++;
+                    continue;
+                }
+
+                if (unresolved > 0)
+                {
+                    unresolved--;
+                    optionalCount++;
+                    continue;
+                }
+
+                break;
+            }
+
+            return optionalCount;
+        }
+
+        private static bool IsOptionalInputArgumentDescription(
+            ISystemContext context,
+            NodeId referenceTypeId)
+        {
+            if (referenceTypeId.IsNull)
+            {
+                return false;
+            }
+            if (referenceTypeId == s_hasOptionalInputArgumentDescription)
+            {
+                return true;
+            }
+            return context?.TypeTable != null &&
+                context.TypeTable.IsTypeOf(
+                    referenceTypeId,
+                    s_hasOptionalInputArgumentDescription);
+        }
+
+        /// <summary>
+        /// The HasOptionalInputArgumentDescription ReferenceType (i=131).
+        /// </summary>
+        private static readonly NodeId s_hasOptionalInputArgumentDescription = new(131u);
 
         /// <summary>
         /// Invokes the method, returns the result and output argument.

@@ -1343,11 +1343,16 @@ namespace Opc.Ua.Server.Fluent
         /// </param>
         /// <param name="addNodeAsync">Registers an imported node subtree.</param>
         /// <param name="removeNodeAsync">Removes a displaced node subtree.</param>
+        /// <param name="server">
+        /// The server used to resolve DataType supertypes owned outside the batch, or
+        /// <c>null</c> to complete definitions only from the imported documents.
+        /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
         internal async ValueTask CompleteNodeSetImportsAsync(
             IReadOnlyDictionary<NodeId, NodeState> existingNodes,
             Func<NodeState, CancellationToken, ValueTask> addNodeAsync,
             Func<NodeState, CancellationToken, ValueTask> removeNodeAsync,
+            IServerInternal? server = null,
             CancellationToken cancellationToken = default)
         {
             if (existingNodes is null)
@@ -1376,6 +1381,16 @@ namespace Opc.Ua.Server.Fluent
                     ReferenceEquals(existing, node),
                 (replaced, replacement) =>
                     replacements.Add((replaced, replacement)));
+
+            if (server is not null)
+            {
+                // Merge inherited structure fields once the whole batch is known
+                // (Part 3 8.48, Part 6 F.12).
+                await m_nodeSetImporter.CompleteDataTypeDefinitionsAsync(
+                    server,
+                    existingNodes,
+                    cancellationToken).ConfigureAwait(false);
+            }
 
             Dictionary<NodeId, NodeId> mappings = ApplyReplacements(
                 replacements,

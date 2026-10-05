@@ -857,6 +857,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             string expectedMessage =
                 $"DataType '{testPointId}' has an incompatible definition. " +
                 "Runtime DataType definitions are immutable for the server lifetime.";
+            // TestPoint3D inherits the TestPoint fields (Part 3 8.48), so its
+            // definition changes with them and may be the one reported first.
+            string expectedSubtypeMessage =
+                $"DataType '{new NodeId(15030, ns)}' has an incompatible definition. " +
+                "Runtime DataType definitions are immutable for the server lifetime.";
             await Assert.ThatAsync(
                 () => m_server.NodeManagerLifecycle
                     .ReloadRuntimeNodeSetAsync(
@@ -865,7 +870,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         null)
                     .AsTask(),
                 Throws.TypeOf<InvalidOperationException>()
-                    .With.Message.EqualTo(expectedMessage)).ConfigureAwait(false);
+                    .With.Message.EqualTo(expectedMessage)
+                    .Or.Message.EqualTo(expectedSubtypeMessage)).ConfigureAwait(false);
 
             ArrayOf<NodeManagerRegistration> registrations =
                 GetNonStartupRegistrations();

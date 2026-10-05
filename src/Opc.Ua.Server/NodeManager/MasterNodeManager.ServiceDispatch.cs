@@ -853,20 +853,70 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The permissions that are granted on type hierarchy nodes
+        /// (<see cref="NodeMetadata.IsPartOfTypeHierarchy"/>) regardless of
+        /// their RolePermissions and AccessRestrictions: browsing a type, reading
+        /// its attributes (including the Value of InstanceDeclarations) and reading
+        /// its RolePermissions. This keeps the type system discoverable by generic
+        /// clients even though the InstanceDeclarations carry the permissions of the
+        /// instances they describe. Every other permission (Part 3 §8.55), for
+        /// example ReceiveEvents on an EventType, Call on a Method declared on a
+        /// type, or Write/AddReference/DeleteNode, is enforced on type nodes as on
+        /// any other node.
+        /// </summary>
+        internal const PermissionType TypeHierarchyVisibilityPermissions =
+            PermissionType.Browse |
+            PermissionType.ReadRolePermissions |
+            PermissionType.Read;
+
+        /// <summary>
+        /// Returns true if the requested permission is satisfied by the type
+        /// hierarchy visibility exemption.
+        /// </summary>
+        private static bool IsTypeHierarchyVisibilityRequest(
+            NodeMetadata nodeMetadata,
+            PermissionType requestedPermission)
+        {
+            return nodeMetadata.IsPartOfTypeHierarchy &&
+                (requestedPermission & ~TypeHierarchyVisibilityPermissions) == 0;
+        }
+
+        /// <summary>
         /// Validate the AccessRestrictions attribute
         /// </summary>
         /// <param name="context">The Operation Context</param>
         /// <param name="nodeMetadata">Metadata</param>
         /// <returns>Good if the AccessRestrictions passes the validation</returns>
+        /// <remarks>
+        /// The type hierarchy exemption is applied as for a visibility (Browse/Read)
+        /// request. Use the overload taking the requested permission to enforce the
+        /// restrictions on type nodes for any other operation.
+        /// </remarks>
         protected internal static ServiceResult ValidateAccessRestrictions(
             OperationContext context,
             NodeMetadata nodeMetadata)
         {
+            return ValidateAccessRestrictions(context, nodeMetadata, PermissionType.None);
+        }
+
+        /// <summary>
+        /// Validate the AccessRestrictions attribute for the requested permission.
+        /// </summary>
+        /// <param name="context">The Operation Context</param>
+        /// <param name="nodeMetadata">Metadata</param>
+        /// <param name="requestedPermission">The permission the operation requires.</param>
+        /// <returns>Good if the AccessRestrictions passes the validation</returns>
+        protected internal static ServiceResult ValidateAccessRestrictions(
+            OperationContext context,
+            NodeMetadata nodeMetadata,
+            PermissionType requestedPermission)
+        {
             ServiceResult serviceResult = StatusCodes.Good;
 
             // Type hierarchy nodes (ObjectType/VariableType and their children)
-            // are universally accessible regardless of AccessRestrictions.
-            if (nodeMetadata.IsPartOfTypeHierarchy)
+            // stay browsable and readable regardless of AccessRestrictions; any
+            // other operation on them is restricted like on any other node.
+            if (IsTypeHierarchyVisibilityRequest(nodeMetadata, requestedPermission))
             {
                 return serviceResult;
             }
@@ -950,8 +1000,10 @@ namespace Opc.Ua.Server
             }
 
             // Type hierarchy nodes (ObjectType/VariableType and their children)
-            // are universally accessible regardless of RolePermissions.
-            if (nodeMetadata.IsPartOfTypeHierarchy)
+            // stay browsable and readable regardless of RolePermissions. All other
+            // permissions are enforced (Part 3 §8.55), e.g. ReceiveEvents on the
+            // EventType of an event or Call on a Method declared on a type.
+            if (IsTypeHierarchyVisibilityRequest(nodeMetadata, requestedPermission))
             {
                 return StatusCodes.Good;
             }

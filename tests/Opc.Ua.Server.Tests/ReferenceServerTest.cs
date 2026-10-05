@@ -718,16 +718,22 @@ namespace Opc.Ua.Server.Tests
                 nodesToRead,
                 RequestLifetime.None).ConfigureAwait(false);
 
+            // the reference server grants StatusWrite and TimestampWrite on every
+            // writable variable (OPC 10000-3 8.57).
+            const byte expectedAccessLevel = (byte)(
+                AccessLevels.CurrentReadOrWrite |
+                AccessLevels.StatusWrite |
+                AccessLevels.TimestampWrite);
             Assert.That(response.Results, Has.Count.EqualTo(nodesToRead.Count));
             Assert.That(response.Results[0].WrappedValue.GetByte(),
-                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo(expectedAccessLevel));
             Assert.That(response.Results[1].WrappedValue.GetByte(),
-                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo(expectedAccessLevel));
 
             uint accessLevelEx = response.Results[2].WrappedValue.GetUInt32();
             Assert.That(
                 accessLevelEx & 0xff,
-                Is.EqualTo((uint)AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo((uint)expectedAccessLevel));
             Assert.That(
                 accessLevelEx & (uint)AccessLevelExType.NonatomicRead,
                 Is.EqualTo((uint)AccessLevelExType.NonatomicRead));

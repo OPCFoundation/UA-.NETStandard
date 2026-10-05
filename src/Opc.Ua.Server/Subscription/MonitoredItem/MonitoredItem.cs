@@ -1565,10 +1565,10 @@ namespace Opc.Ua.Server
                 // add the value to the list of event fields.
                 if (!value.IsNull)
                 {
-                    // translate any localized text.
-                    if (value.TryGetValue(out LocalizedText text))
+                    // translate any localized text (scalar or array).
+                    if (value.TypeInfo.BuiltInType == BuiltInType.LocalizedText)
                     {
-                        value = m_server.ResourceManager.Translate(Session?.PreferredLocales!, text);
+                        value = m_server.ResourceManager.TranslateValue(Session?.PreferredLocales!, value);
                     }
 
                     // add value.
@@ -2131,6 +2131,15 @@ namespace Opc.Ua.Server
                 }
 
                 m_structureChanged = false;
+            }
+
+            // select the translation the session prefers for a localized text value
+            // (Part 4 5.4); the queued value keeps all its translations.
+            if (value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.LocalizedText &&
+                m_server.ResourceManager != null)
+            {
+                value = value.WithWrappedValue(
+                    m_server.ResourceManager.TranslateValue(context.PreferredLocales, value.WrappedValue));
             }
 
             // copy data value.
