@@ -135,8 +135,9 @@ namespace Opc.Ua.Server.Tests
             AssertText(values[2], "de-DE", "Hallo");
             AssertText(values[3], "de-DE", "KomponenteVon");
             Assert.That(values[4].WrappedValue.TryGetValue(out ArrayOf<LocalizedText> texts), Is.True);
-            Assert.That(texts.ToArray().Select(t => t.Text), Is.EqualTo(new[] { "Eins", "Zwei" }));
-            Assert.That(texts.ToArray().Select(t => t.Locale), Is.EqualTo(new[] { "de-DE", "de-DE" }));
+            Assert.That(texts.Count, Is.EqualTo(2));
+            AssertText(texts[0], "de-DE", "Eins");
+            AssertText(texts[1], "de-DE", "Zwei");
         }
 
         [Test]
@@ -229,6 +230,11 @@ namespace Opc.Ua.Server.Tests
         {
             Assert.That(StatusCode.IsGood(value.StatusCode), Is.True, value.StatusCode.ToString());
             Assert.That(value.WrappedValue.TryGetValue(out LocalizedText result), Is.True);
+            AssertText(result, locale, text);
+        }
+
+        private static void AssertText(LocalizedText result, string locale, string text)
+        {
             Assert.That(result.Locale, Is.EqualTo(locale));
             Assert.That(result.Text, Is.EqualTo(text));
         }
