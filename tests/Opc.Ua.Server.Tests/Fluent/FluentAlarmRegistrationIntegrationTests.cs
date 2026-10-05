@@ -80,6 +80,32 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task CreateAlarmIsBrowsableAndFindableAsync()
+        {
+            using Harness h = CreateHarness();
+
+            IAlarmBuilder<DiscrepancyAlarmState> alarm = h.Builder.Node(h.Source.NodeId)
+                .CreateAlarm(
+                    new QualifiedName("ValveDiscrepancy", h.NamespaceIndex),
+                    parent => new DiscrepancyAlarmState(parent));
+
+            IList<ReferenceDescription> references = await BrowseAsync(h, h.Source.NodeId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    references.Select(reference => reference.BrowseName),
+                    Has.Member(alarm.Alarm.BrowseName));
+                Assert.That(
+                    h.Manager.FindPredefinedNodePublic<DiscrepancyAlarmState>(alarm.Alarm.NodeId),
+                    Is.SameAs(alarm.Alarm));
+                Assert.That(
+                    h.Root.EventNotifier & EventNotifiers.SubscribeToEvents,
+                    Is.EqualTo(EventNotifiers.SubscribeToEvents));
+            });
+        }
+
+        [Test]
         public void CreateLimitAlarmPromotesParentAndAncestorsAsEventNotifiers()
         {
             using Harness h = CreateHarness();

@@ -46,8 +46,9 @@ using Opc.Ua.Redundancy.Server;
 namespace Opc.Ua.Redundancy.Kubernetes.Tests
 {
     /// <summary>
-    /// End-to-end HTTP probe tests for <see cref="KubernetesReadinessServer"/>. Each test binds an ephemeral
-    /// loopback port, drives the readiness and liveness endpoints over real HTTP, and disposes the listener.
+    /// End-to-end HTTP probe tests for <see cref="KubernetesReadinessServer"/>. Each test starts the server on a
+    /// loopback port of its own (see <see cref="ReadinessTestServer"/>), drives the readiness and liveness
+    /// endpoints over real HTTP, and disposes the listener.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
@@ -57,13 +58,9 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task ReadinessProbeReturnsOkWhenServiceLevelMeetsMinimumAsync()
         {
-            int port = GetFreePort();
-            await using var server = new KubernetesReadinessServer(
-                new ConstantServiceLevelProvider(255),
-                NewOptions(port));
-            server.Start();
+            await using ReadinessTestServer readiness = await StartServerAsync(255).ConfigureAwait(false);
 
-            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/readyz").ConfigureAwait(false);
+            (HttpStatusCode status, string body) = await GetAsync(readiness.Port, "readyz").ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(body, Is.EqualTo("ok"));
@@ -72,13 +69,9 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task ReadinessProbeReturnsServiceUnavailableWhenBelowMinimumAsync()
         {
-            int port = GetFreePort();
-            await using var server = new KubernetesReadinessServer(
-                new ConstantServiceLevelProvider(0),
-                NewOptions(port));
-            server.Start();
+            await using ReadinessTestServer readiness = await StartServerAsync(0).ConfigureAwait(false);
 
-            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/readyz").ConfigureAwait(false);
+            (HttpStatusCode status, string body) = await GetAsync(readiness.Port, "readyz").ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(HttpStatusCode.ServiceUnavailable));
             Assert.That(body, Is.EqualTo("not ready"));
@@ -87,13 +80,9 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task LivenessProbeAlwaysReturnsOkAsync()
         {
-            int port = GetFreePort();
-            await using var server = new KubernetesReadinessServer(
-                new ConstantServiceLevelProvider(0),
-                NewOptions(port));
-            server.Start();
+            await using ReadinessTestServer readiness = await StartServerAsync(0).ConfigureAwait(false);
 
-            (HttpStatusCode status, string body) = await GetAsync($"http://localhost:{port}/livez").ConfigureAwait(false);
+            (HttpStatusCode status, string body) = await GetAsync(readiness.Port, "livez").ConfigureAwait(false);
 
             Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(body, Is.EqualTo("ok"));
@@ -102,16 +91,63 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task StartIsIdempotentAndDisposeStopsListenerAsync()
         {
-            int port = GetFreePort();
-            var server = new KubernetesReadinessServer(new ConstantServiceLevelProvider(255), NewOptions(port));
-            server.Start();
-            server.Start();
+            ReadinessTestServer readiness = await StartServerAsync(255).ConfigureAwait(false);
+            readiness.Server.Start();
 
-            (HttpStatusCode status, _) = await GetAsync($"http://localhost:{port}/readyz").ConfigureAwait(false);
+            (HttpStatusCode status, _) = await GetAsync(readiness.Port, "readyz").ConfigureAwait(false);
             Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
 
-            await server.DisposeAsync().ConfigureAwait(false);
-            await server.DisposeAsync().ConfigureAwait(false);
+            await readiness.Server.DisposeAsync().ConfigureAwait(false);
+            await readiness.Server.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task StartFailsWhenAnotherServerRegisteredTheSamePrefixAsync()
+        {
+            // Two readiness servers on one port register the same URL prefixes:
+            // the second start is rejected (ERROR_ALREADY_EXISTS from http.sys on
+            // Windows) and must leave the first server serving.
+            await using ReadinessTestServer occupant = await StartServerAsync(255).ConfigureAwait(false);
+            var second = new KubernetesReadinessServer(
+                new ConstantServiceLevelProvider(255),
+                NewOptions(occupant.Port));
+
+            Assert.That(second.Start, Throws.TypeOf<HttpListenerException>());
+            await second.DisposeAsync().ConfigureAwait(false);
+
+            (HttpStatusCode status, _) = await GetAsync(occupant.Port, "readyz").ConfigureAwait(false);
+            Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        [Test]
+        public async Task StartMovesToAFreshPortWhenThePrefixIsAlreadyRegisteredAsync()
+        {
+            await using ReadinessTestServer occupant = await StartServerAsync(255).ConfigureAwait(false);
+            int attempts = 0;
+
+            // The first attempt is pointed at the occupied port, as if another
+            // process had taken the probed port before the start.
+            await using ReadinessTestServer readiness = await ReadinessTestServer.StartAsync(
+                port => new KubernetesReadinessServer(
+                    new ConstantServiceLevelProvider(255),
+                    NewOptions(++attempts == 1 ? occupant.Port : port))).ConfigureAwait(false);
+
+            // Another process can take the fresh port as well, so a later
+            // attempt may be the one that succeeds.
+            Assert.That(attempts, Is.GreaterThanOrEqualTo(2));
+            Assert.That(readiness.Port, Is.Not.EqualTo(occupant.Port));
+            (HttpStatusCode status, _) = await GetAsync(readiness.Port, "readyz").ConfigureAwait(false);
+            Assert.That(status, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        [Test]
+        public void UniqueFreePortsAreNeverHandedOutTwice()
+        {
+            var ports = new int[32];
+
+            Parallel.For(0, ports.Length, i => ports[i] = ReadinessTestServer.GetUniqueFreePort());
+
+            Assert.That(ports, Is.Unique);
         }
 
         [Test]
@@ -160,7 +196,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         {
             var server = new KubernetesReadinessServer(
                 new ConstantServiceLevelProvider(255),
-                NewOptions(GetFreePort()));
+                NewOptions(ReadinessTestServer.GetUniqueFreePort()));
             await server.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(server.Start, Throws.TypeOf<ObjectDisposedException>());
@@ -191,10 +227,20 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 Throws.ArgumentNullException);
         }
 
-        private static async Task<(HttpStatusCode Status, string Body)> GetAsync(string url)
+        private static Task<ReadinessTestServer> StartServerAsync(byte serviceLevel)
+        {
+            return ReadinessTestServer.StartAsync(
+                port => new KubernetesReadinessServer(
+                    new ConstantServiceLevelProvider(serviceLevel),
+                    NewOptions(port)));
+        }
+
+        private static async Task<(HttpStatusCode Status, string Body)> GetAsync(int port, string path)
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            using HttpResponseMessage response = await client.GetAsync(new Uri(url)).ConfigureAwait(false);
+            using HttpResponseMessage response = await client
+                .GetAsync(new Uri($"http://localhost:{port}/{path}"))
+                .ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             return (response.StatusCode, body);
         }
@@ -206,20 +252,6 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 Host = "localhost",
                 Port = port
             };
-        }
-
-        private static int GetFreePort()
-        {
-            var probe = new TcpListener(IPAddress.Loopback, 0);
-            probe.Start();
-            try
-            {
-                return ((IPEndPoint)probe.LocalEndpoint).Port;
-            }
-            finally
-            {
-                probe.Stop();
-            }
         }
     }
 }

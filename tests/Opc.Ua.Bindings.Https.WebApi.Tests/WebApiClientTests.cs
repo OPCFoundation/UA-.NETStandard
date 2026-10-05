@@ -284,7 +284,7 @@ namespace Opc.Ua.Client.WebApi
             }
 
             [Test]
-            public void InvokeAsyncThrowsHttpRequestExceptionOnNon2xxStatus()
+            public void InvokeAsyncThrowsServiceResultExceptionOnNon2xxStatus()
             {
                 var errorResponse = new HttpResponseMessage(HttpStatusCode.InternalServerError)
                 {
@@ -303,10 +303,14 @@ namespace Opc.Ua.Client.WebApi
                     NodesToRead = new ArrayOf<ReadValueId>()
                 };
 
-                Assert.ThrowsAsync<HttpRequestException>(async () =>
+                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client
                         .InvokeAsync<ReadRequest, ReadResponse>(request)
                         .ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+                Assert.That(
+                    (error.InnerException as HttpRequestException)?.StatusCode,
+                    Is.EqualTo(HttpStatusCode.InternalServerError));
             }
 
             [Test]

@@ -308,6 +308,29 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void NonElementXmlBodyOfKnownTypeFailsWithoutARuntimeException()
+        {
+            // A body that is not an XML element dereferenced a null element; the
+            // NullReferenceException surfaced wrapped in the BadDecodingError.
+            ServiceMessageContext context = CreateContext();
+            context.Factory.AddEncodeableType(typeof(XmlSample));
+            byte[] bytes = BuildXmlBodyExtensionObjects(
+                context,
+                new NodeId(XmlSample.XmlId, 0),
+                1);
+
+            using var decoder = new BinaryDecoder(bytes, context);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadExtensionObjectArray(null));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            for (Exception inner = ex.InnerException; inner != null; inner = inner.InnerException)
+            {
+                Assert.That(inner, Is.InstanceOf<ServiceResultException>().Or.InstanceOf<System.Xml.XmlException>());
+            }
+        }
+
+        [Test]
         public void MalformedXmlBodyIsRecoveredOnlyUpToMaxDecoderRecoveries()
         {
             const string uri = "urn:test:xmlsample";

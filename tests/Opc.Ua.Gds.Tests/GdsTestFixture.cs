@@ -64,6 +64,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 DatabaseStorePath = databaseStorePath
             };
+            ConfigureGds(gdsConfig);
 
             ServerFixture = new ServerFixture<ReferenceServer>(
                 t =>
@@ -203,6 +204,13 @@ namespace Opc.Ua.Gds.Tests
         {
             Telemetry = NUnitTelemetryContext.Create();
             m_logger = Telemetry.CreateLogger<GdsTestFixture>();
+        }
+
+        /// <summary>
+        /// Lets a fixture adjust the GDS configuration before the server starts.
+        /// </summary>
+        protected virtual void ConfigureGds(GlobalDiscoveryServerConfiguration configuration)
+        {
         }
 
         /// <summary>

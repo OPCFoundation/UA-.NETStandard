@@ -150,10 +150,13 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                using XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-                reader.MoveToContent();
-                using var decoder = new XmlDecoder(reader, MessageContext);
-                return decoder.DecodeMessage<IEncodeable>();
+                return DecodeWithOracles(nameof(XmlDecoder), GetRemainingLength(stream), () =>
+                {
+                    using XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                    reader.MoveToContent();
+                    using var decoder = new XmlDecoder(reader, MessageContext);
+                    return decoder.DecodeMessage<IEncodeable>();
+                });
             }
             catch (XmlException exception)
             {

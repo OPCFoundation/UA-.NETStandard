@@ -22,6 +22,8 @@ mounted on the same Kestrel host as the binary and
 - [Hosting modes](#hosting-modes)
 - [Long-poll `/publish`](#long-poll-publish)
 - [Client integration](#client-integration)
+- [Client errors](#client-errors)
+- [Compressed responses](#compressed-responses)
 - [Related plans and follow-ups](#related-plans-and-follow-ups)
 
 - **Server side**: ASP.NET Core Minimal-API endpoints (one `MapPost`
@@ -324,6 +326,66 @@ ReadResponse response = await session.ReadAsync(new ReadRequest
 
 The companion `UseWssOpenApiEndpoint(url)` shortcut binds the same
 session model to the WebSocket `opcua+openapi` sub-protocol.
+
+## Client errors
+
+Errors of a processed request come back in the OPC UA response
+(`ResponseHeader.ServiceResult`, HTTP 200). An HTTP error status alone
+does not tell whether the service ran. The WebApi server of this stack
+sends 400 (undecodable body), 401 and 403 (authentication and
+authorization), 404 and 405 (no matching route), 413 (request body over
+the limit) and 429 (rate limiting) before it invokes the service. For
+any other status the outcome is unknown: the server answers 500 when it
+cannot encode the response of a service that already ran, and a proxy
+or gateway can answer 502, 503 or 504 after the server executed the
+request. A status from a proxy or another server implementation tells
+only what that component reports. Retry a service that changes state,
+such as Write or Call, only when repeating it is harmless.
+`WebApiClient` (and therefore `ManagedSession` over
+`UseWebApiEndpoint`) reports the HTTP error as a
+`ServiceResultException`:
+
+| HTTP | StatusCode |
+| --- | --- |
+| 400 | `Bad_DecodingError` (the server could not decode the body) |
+| 401 | `Bad_IdentityTokenInvalid` when the client sent no credentials, `Bad_UserAccessDenied` when it did |
+| 403 | `Bad_UserAccessDenied` |
+| 404, 405, 501 | `Bad_ServiceUnsupported` (the route is not mapped) |
+| 408, 504 | `Bad_Timeout` |
+| 413 | `Bad_RequestTooLarge` |
+| 415 | `Bad_DataEncodingUnsupported` |
+| 429, 503 | `Bad_ServerTooBusy`, with a `Retry-After` header as `RetryAfterMs=<n>` in `AdditionalInfo` |
+| 500 | `Bad_InternalError` |
+| any other | `Bad_CommunicationError` |
+
+The message names the HTTP status, the reason phrase and the route, and
+the inner exception is an `HttpRequestException` (on .NET 5 and later
+with its `StatusCode` set). An elapsed `RequestTimeout` or
+`HttpClient.Timeout` is `Bad_RequestTimeout`. A request that fails below
+HTTP (no connection, failed TLS handshake) gets the StatusCode the HTTPS
+transport channel reports for the same failure, for example
+`Bad_NotConnected` for a refused connection. Cancelling the caller's
+token still throws `OperationCanceledException`.
+
+## Compressed responses
+
+OPC 10000-6 §7.4.5 lets JSON messages be compressed with gzip (IETF RFC
+1952), announced by `Content-Encoding: gzip`. On the client,
+`WebApiClientOptions.AcceptCompressedResponses = true` sends
+`Accept-Encoding: gzip` (on a shared `HttpClient` per request, without
+changing its default headers):
+
+```csharp
+using WebApiClient client = WebApiClient.Create(
+    new Uri("https://server:4843/"),
+    new WebApiClientOptions { AcceptCompressedResponses = true });
+```
+
+A gzip response is inflated whether it was asked for or not. The
+`MaxMessageSize` limit applies to the inflated body, a corrupt gzip body
+is `Bad_DecodingError`, and a content coding other than gzip or identity
+is rejected with `Bad_DecodingError`. The HTTPS binary channel reads its
+responses through the same code.
 
 ## Related plans and follow-ups
 

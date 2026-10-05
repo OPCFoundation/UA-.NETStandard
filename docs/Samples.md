@@ -51,6 +51,16 @@ Minimal Client together.
 - [Pump Device Integration Server](../samples/DI/PumpDeviceIntegrationServer/README.md) —
   Device Integration Part 100 server using `Opc.Ua.Di.Server`'s fluent
   builder.
+- [AMB Server](../samples/AMB/README.md) — OPC 10000-110 Asset Management
+  Basics with `AddAssetManagement` next to `AddMachinery`: a cooling pump and
+  a flow sensor (Device Integration devices) and a hydraulic press (a
+  Machinery machine) as assets with configurable AssetIds, health alarms with
+  root causes, maintenance activities, documentation links, locations and
+  persistence, and a simulation that raises alarms and moves the maintenance
+  on.
+- [AMB Client](../samples/AMB/README.md) — discovers every asset with
+  `AmbClient`, prints snapshots and the location hierarchies, adds and removes
+  a documentation link, and streams health alarms and maintenance activities.
 - [Minimal Robot Server](../samples/Robotics/MinimalRobotServer/README.md) —
   OPC 40010 Robotics with independently configurable RSL/GPOS motion and
   live OpenUSD transforms.

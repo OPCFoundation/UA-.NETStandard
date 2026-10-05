@@ -98,5 +98,15 @@ namespace Opc.Ua.Client.WebApi
         /// instead of the client timeout.
         /// </summary>
         public TimeSpan? RequestTimeout { get; set; }
+
+        /// <summary>
+        /// When <c>true</c>, requests carry <c>Accept-Encoding: gzip</c> so
+        /// a server that compresses responses can answer with gzip
+        /// compressed JSON (OPC 10000-6 §7.4.5). Defaults to <c>false</c>.
+        /// A gzip response (<c>Content-Encoding: gzip</c>) is decompressed
+        /// whether or not it was asked for, within the
+        /// <c>MaxMessageSize</c> of <see cref="MessageContext"/>.
+        /// </summary>
+        public bool AcceptCompressedResponses { get; set; }
     }
 }

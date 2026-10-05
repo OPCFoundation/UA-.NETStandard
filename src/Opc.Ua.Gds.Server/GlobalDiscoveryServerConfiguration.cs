@@ -68,6 +68,29 @@ namespace Opc.Ua.Gds.Server
 
         [DataTypeField(Order = 7)]
         public string? UsersDatabaseStorePath { get; set; }
+
+        /// <summary>
+        /// Enables the GDS AliasName Server facet (OPC 10000-17 Annex C):
+        /// the GDS reads the AliasNames of every registered Server whose
+        /// ServerCapabilities contain <c>ALIAS</c>, merges them into its own
+        /// <c>Aliases</c> hierarchy and adds the Server to its
+        /// <c>ServerArray</c>.
+        /// </summary>
+        /// <remarks>
+        /// Off by default: the GDS then opens client connections to the
+        /// DiscoveryUrls of registered applications.
+        /// </remarks>
+        [DataTypeField(Order = 8)]
+        public bool EnableAliasNameAggregation { get; set; }
+
+        /// <summary>
+        /// Interval, in seconds, at which the GDS reads the AliasNames of
+        /// the registered AliasName Servers again, which also retries a
+        /// Server that could not be read when it registered. 0 reads them
+        /// only on RegisterApplication and UpdateApplication.
+        /// </summary>
+        [DataTypeField(Order = 9)]
+        public int AliasNameRefreshInterval { get; set; }
     }
 
     /// <summary>

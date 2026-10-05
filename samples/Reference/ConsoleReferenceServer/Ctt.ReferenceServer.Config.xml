@@ -293,6 +293,9 @@
         </CertificateGroups>
         <KnownHostNames />
         <DatabaseStorePath></DatabaseStorePath>
+        <!-- GDS AliasName Server facet (OPC 10000-17 Annex C): merge the AliasNames of Servers
+             registered with the ALIAS capability (CTT GDS AliasName Discovery). -->
+        <EnableAliasNameAggregation>true</EnableAliasNameAggregation>
       </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
     <ua:XmlElement>
