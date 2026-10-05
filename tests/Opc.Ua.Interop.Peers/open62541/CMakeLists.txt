@@ -21,4 +21,8 @@ find_package(open62541 1.5 REQUIRED)
 
 add_executable(open62541-peer peer.c checks.h)
 target_link_libraries(open62541-peer PRIVATE open62541::open62541)
-set_target_properties(open62541-peer PROPERTIES C_STANDARD 99)
+# C11 for <stdatomic.h> (the stop flag is shared with the stdin thread).
+set_target_properties(open62541-peer PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
+if(MSVC)
+  target_compile_options(open62541-peer PRIVATE /experimental:c11atomics)
+endif()

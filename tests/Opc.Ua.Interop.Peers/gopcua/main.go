@@ -715,6 +715,10 @@ func runClient() int {
 		if ns, err := client.FindNamespace(deadline, referenceNamespace); err == nil {
 			x.ns = ns
 		}
+		// A check that times out keeps its context; the next checks continue
+		// on a fresh copy of this template with a new client.
+		template := *x
+		template.c = nil
 		for _, check := range checks {
 			if !selected[check.name] {
 				continue
@@ -726,21 +730,23 @@ func runClient() int {
 			// stalling the remaining ones past the harness timeout.
 			checkCtx, checkCancel := context.WithTimeout(deadline, checkTimeout)
 			done := make(chan error, 1)
-			go func() {
+			go func(cx *ctx) {
 				defer func() {
 					if p := recover(); p != nil {
 						done <- fmt.Errorf("panic: %v", p)
 					}
 				}()
-				done <- check.fn(checkCtx, x)
-			}()
+				done <- check.fn(checkCtx, cx)
+			}(x)
 			var err error
 			select {
 			case err = <-done:
 			case <-time.After(checkTimeout + 5*time.Second):
 				err = fmt.Errorf("the check did not finish within %s", checkTimeout)
-				// The abandoned goroutine may still use the session.
-				x.c = nil
+				// The abandoned goroutine keeps the old context and client;
+				// nothing after this point touches either.
+				fresh := template
+				x = &fresh
 			}
 			checkCancel()
 			report(check.name, err, t)

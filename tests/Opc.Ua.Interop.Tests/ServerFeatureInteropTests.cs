@@ -108,8 +108,6 @@ namespace Opc.Ua.Interop.Tests
             }
         }
 
-        // ------------------------------------------------------------------ events
-
         /// <summary>
         /// An event subscription on the Server object receives the event of
         /// RaiseEvent() with its EventId, Message and Severity.
@@ -169,8 +167,6 @@ namespace Opc.Ua.Interop.Tests
                 await DeleteAsync(subscription, ct).ConfigureAwait(false);
             }
         }
-
-        // ------------------------------------------------------------------ subscriptions
 
         /// <summary>
         /// An absolute deadband of 10 on Interop/Double suppresses changes
@@ -389,8 +385,6 @@ namespace Opc.Ua.Interop.Tests
             }
         }
 
-        // ------------------------------------------------------------------ identity
-
         /// <summary>
         /// A session with an X509 user identity token (a self-signed user
         /// certificate the peer auto-accepts) reads the server state.
@@ -421,8 +415,6 @@ namespace Opc.Ua.Interop.Tests
                 session.Dispose();
             }
         }
-
-        // ------------------------------------------------------------------ services
 
         /// <summary>
         /// RegisterNodes returns ids that read like the originals.
@@ -558,8 +550,6 @@ namespace Opc.Ua.Interop.Tests
                 session.Dispose();
             }
         }
-
-        // ------------------------------------------------------------------ helpers
 
         private async Task<ISession> ConnectAsync(IUserIdentity identity)
         {

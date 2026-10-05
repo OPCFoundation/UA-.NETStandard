@@ -48,8 +48,6 @@ namespace Opc.Ua.Interop.LegacyPeer
 
         private static readonly TimeSpan s_eventWait = TimeSpan.FromSeconds(10);
 
-        // ------------------------------------------------------------------ events
-
         /// <summary>
         /// Subscribes to BaseEventType events of the Server object and writes the
         /// reference server's event trigger node, which reports one event.
@@ -261,8 +259,6 @@ namespace Opc.Ua.Interop.LegacyPeer
             }, c.Ct).ConfigureAwait(false);
             return response.Results[0];
         }
-
-        // ------------------------------------------------------------------ subscriptions
 
         /// <summary>
         /// Absolute and percent deadbands on the static AnalogItem
@@ -548,8 +544,6 @@ namespace Opc.Ua.Interop.LegacyPeer
             Require(StatusCode.IsGood(response.Results[0]), $"write of {node} returned {response.Results[0]}");
         }
 
-        // ------------------------------------------------------------------ identity
-
         /// <summary>
         /// A second session with a wrong password is rejected.
         /// </summary>
@@ -595,8 +589,6 @@ namespace Opc.Ua.Interop.LegacyPeer
                 session.Dispose();
             }
         }
-
-        // ------------------------------------------------------------------ services
 
         /// <summary>
         /// Registers two nodes, reads through the registered ids, unregisters.

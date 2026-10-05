@@ -26,9 +26,12 @@ workflow is the reference for the build steps below.
 Every peer is a command line program with two modes.
 
 - `server --port <n> --pki <dir> [--kind interop|reference] [--ecc] [--init-only]`
-  prints `PEER-INFO {json}` (stack, version, applicationUri, security policies,
-  user tokens, limits, features), then `PEER-SERVER-READY <url>`, and stops
-  when it reads `stop` on stdin. The server exposes the `Interop` folder
+  prints `PEER-INFO {json}` with the fields `stack`, `version`,
+  `applicationUri`, `softwareVersion` and, optionally, `policies` (the
+  security policy URIs it implements), then the ready line
+  `LEGACY-SERVER-READY <url>` that the harness waits for, and stops when it
+  reads `stop` on stdin. (The foreign peers also print `PEER-SERVER-READY
+  <url>` before it; the harness ignores that line.) The server exposes the `Interop` folder
   (scalar and array variables, methods, `RaiseEvent`) that the fixtures use.
 - `client --url <url> --pki <dir> --policy <uri> --mode <mode> [--user <u> --password <p>] --checks <a,b,...> [--expect-connect-error] [--token-lifetime <ms>] [--token-test-seconds <s>] [--timeout-seconds <s>]`
   prints one `RESULT {"check","outcome","message","milliseconds"}` line per

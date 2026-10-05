@@ -35,6 +35,8 @@
 #include <open62541/server_config_default.h>
 
 #include <stdarg.h>
+#include <stdatomic.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -247,7 +249,8 @@ static void jsonString(FILE *out, const char *s) {
 
 /* ------------------------------------------------------------------ stdin */
 
-static volatile UA_Boolean s_running = true;
+/* Written by the stdin thread, read by the server loop. */
+static atomic_bool s_running = true;
 
 #ifdef _WIN32
 static DWORD WINAPI watchStdin(LPVOID arg) {
@@ -260,7 +263,7 @@ static void *watchStdin(void *arg) {
         if(strncmp(line, "stop", 4) == 0)
             break;
     }
-    s_running = false;
+    atomic_store(&s_running, false);
     return 0;
 }
 
@@ -529,7 +532,7 @@ static int runServer(void) {
     printf("LEGACY-SERVER-READY opc.tcp://localhost:%d\n", port);
     fflush(stdout);
     startStdinWatcher();
-    while(s_running)
+    while(atomic_load(&s_running))
         UA_Server_run_iterate(server, true);
     UA_Server_run_shutdown(server);
     UA_Server_delete(server);
