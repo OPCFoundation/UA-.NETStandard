@@ -29,10 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Encoders;
 using Opc.Ua.Tests;
@@ -223,19 +220,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IEncodeable emitValue = create(emitModel);
                 string defaultText = EncodeText(defaultModel, encodingType, defaultValue);
                 string emitText = EncodeText(emitModel, encodingType, emitValue);
-                if (encodingType == EncodingType.Json)
-                {
-                    Assert.That(emitText, Is.EqualTo(defaultText));
-                }
-                else
-                {
-                    // the XML of the default builder names the body element
-                    // after the runtime class, so only the content is compared
-                    Assert.That(
-                        StripXml(emitText),
-                        Is.EqualTo(StripXml(defaultText)),
-                        emitText + Environment.NewLine + defaultText);
-                }
+                Assert.That(emitText, Is.EqualTo(defaultText));
 
                 IEncodeable defaultDecoded = DecodeText(defaultModel, encodingType, defaultText);
                 IEncodeable emitDecoded = DecodeText(emitModel, encodingType, emitText);
@@ -269,33 +254,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Assert.That(model.Context.Factory.TryGetEncodeableType(
                     model.SubtypedTypeId, out _), Is.True);
             });
-        }
-
-        /// <summary>
-        /// The element structure of an XML document without namespaces and
-        /// without the names of the elements inside an ExtensionObject Body.
-        /// </summary>
-        private static string StripXml(string xml)
-        {
-            var document = new XmlDocument { XmlResolver = null };
-            using (var reader = XmlReader.Create(
-                new System.IO.StringReader(xml),
-                new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null }))
-            {
-                document.Load(reader);
-            }
-            var builder = new StringBuilder();
-            foreach (System.Xml.XmlElement element in
-                document.SelectNodes("//*").OfType<System.Xml.XmlElement>())
-            {
-                string name = element.ParentNode?.LocalName == "Body" ? "*" : element.LocalName;
-                builder.Append('<').Append(name).Append('>');
-                if (!element.HasChildNodes || element.FirstChild is XmlText)
-                {
-                    builder.Append(element.InnerText);
-                }
-            }
-            return builder.ToString();
         }
 
         private static void AssertSubtypedStructure(IStructure decoded)
