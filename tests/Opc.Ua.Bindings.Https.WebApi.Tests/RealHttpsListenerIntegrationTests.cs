@@ -60,7 +60,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class RealHttpsListenerIntegrationTests
+    public sealed partial class RealHttpsListenerIntegrationTests
     {
         private static readonly MethodInfo s_decodeBodyMethod = typeof(WebApiBodyCodec)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)

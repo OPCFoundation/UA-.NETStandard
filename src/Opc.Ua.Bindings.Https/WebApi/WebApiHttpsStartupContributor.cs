@@ -65,11 +65,29 @@ namespace Opc.Ua.Bindings.WebApi
         IHttpsListenerServiceContributor
     {
         private readonly WebApiServer m_server;
+        private readonly IServiceProvider? m_applicationServices;
 
         public WebApiHttpsStartupContributor(WebApiServer server)
+            : this(server, applicationServices: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a contributor that replays the REST authentication
+        /// set up on the application container into each listener host.
+        /// </summary>
+        /// <param name="server">The REST dispatcher.</param>
+        /// <param name="applicationServices">
+        /// The application container holding the <c>AddWebApi*Auth()</c>
+        /// registrations and the <see cref="ISessionlessIdentityProvider"/>.
+        /// </param>
+        public WebApiHttpsStartupContributor(
+            WebApiServer server,
+            IServiceProvider? applicationServices)
         {
             ArgumentNullException.ThrowIfNull(server);
             m_server = server;
+            m_applicationServices = applicationServices;
         }
 
         /// <inheritdoc/>
@@ -90,6 +108,39 @@ namespace Opc.Ua.Bindings.WebApi
             // remains valid even before an auth opt-in lands; this is
             // a cheap registration (no runtime cost when no policies).
             services.AddAuthorization();
+
+            AddApplicationAuthentication(services);
+        }
+
+        /// <summary>
+        /// The listener host has its own service container, so the
+        /// authentication schemes and identity provider registered on the
+        /// application container by the <c>AddWebApi*Auth()</c> opt-ins
+        /// are replayed into it. Without this the listener sees no
+        /// scheme, skips <c>UseAuthentication()</c> /
+        /// <c>RequireAuthorization()</c> and serves the REST routes
+        /// unauthenticated.
+        /// </summary>
+        private void AddApplicationAuthentication(IServiceCollection services)
+        {
+            if (m_applicationServices == null)
+            {
+                return;
+            }
+
+            ISessionlessIdentityProvider? identityProvider = m_applicationServices
+                .GetService<ISessionlessIdentityProvider>();
+            if (identityProvider != null)
+            {
+                services.TryAddSingleton(identityProvider);
+            }
+
+            foreach (WebApiListenerAuthRegistration registration in m_applicationServices
+                .GetServices<WebApiListenerAuthRegistration>())
+            {
+                OpcUaWebApiAuthenticationBuilderExtensions.EnsureWebApiPolicyScheme(services);
+                registration.Register(services.AddAuthentication());
+            }
         }
 
         /// <inheritdoc/>
