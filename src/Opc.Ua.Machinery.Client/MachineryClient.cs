@@ -108,6 +108,13 @@ namespace Opc.Ua.Machinery.Client
         /// <summary>
         /// Enumerates the machines below the <c>Machines</c> folder.
         /// </summary>
+        /// <remarks>
+        /// Every hierarchical reference from the folder is followed, so a
+        /// machine is found whether the server organizes it or makes it a
+        /// component. A machine the folder reaches through more than one of
+        /// them - typically <c>Organizes</c> plus <c>HasNotifier</c> once the
+        /// server exposes its event hierarchy - is returned once.
+        /// </remarks>
         /// <param name="cancellationToken">Cancels the operation.</param>
         public IAsyncEnumerable<MachineEntry> EnumerateMachinesAsync(
             CancellationToken cancellationToken = default)
@@ -527,13 +534,21 @@ namespace Opc.Ua.Machinery.Client
             ArrayOf<ReferenceDescription> references =
                 result.Results.Count > 0 ? result.Results[0] : default;
 
+            // The browse returns one description per reference, not per node.
+            // HierarchicalReferences include HasEventSource and HasNotifier,
+            // so a child that is also an event source or notifier of its
+            // parent - a machine registered as a notifier of the Machines
+            // folder, a component that raises alarms - is reached twice.
+            // Every attribute reported here belongs to the target node, so
+            // the first description stands for the node.
+            var seen = new HashSet<NodeId>();
             for (int ii = 0; ii < references.Count; ii++)
             {
                 ReferenceDescription reference = references[ii];
                 var nodeId = ExpandedNodeId.ToNodeId(
                     reference.NodeId,
                     Session.NamespaceUris);
-                if (nodeId.IsNull)
+                if (nodeId.IsNull || !seen.Add(nodeId))
                 {
                     continue;
                 }

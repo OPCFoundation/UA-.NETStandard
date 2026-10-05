@@ -34,7 +34,8 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
-  Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
+  Transfer), Part 100 (Device Integration), Part 110 (Asset Management
+  Basics), Parts 210/211 (Relative
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
   Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
   Administration Shell V2 and V3, OPC 10100-1

@@ -808,12 +808,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal async ValueTask<bool> TrySynchronizeHandlesAsync(
             CancellationToken ct)
         {
-            (bool success, IReadOnlyList<(uint serverHandle, uint clientHandle)>? serverHandleStateMap) = await GetMonitoredItemsAsync(
-                ct).ConfigureAwait(false);
+            MonitoredItemsHandles result = await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
+            bool success = result.Success;
+            IReadOnlyList<(uint serverHandle, uint clientHandle)> serverHandleStateMap = result.Handles;
 
             ArrayOf<uint> itemsToDelete;
             lock (m_monitoredItemsLock)
             {
+                if (!success &&
+                    GetMonitoredItemsFallback.IsMethodUnavailable(result.Status) &&
+                    TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> cachedHandles))
+                {
+                    //
+                    // GetMonitoredItems is an optional method of ServerType
+                    // (OPC 10000-5, 6.3.1 and 9.1) and several stacks do not
+                    // implement it, while the transfer itself succeeded. A
+                    // transfer keeps the item ids and client handles, which is
+                    // why a client is expected to store them (OPC 10000-4,
+                    // 6.8): the ids this client already knows are as good as
+                    // the answer of the method.
+                    //
+                    m_logger.SubscriptionUsingCachedHandlesAfterTransfer(
+                        m_context.Id,
+                        result.Status,
+                        cachedHandles.Count);
+                    serverHandleStateMap = cachedHandles;
+                    success = true;
+                }
+
                 if (!success)
                 {
                     // Reset all items
@@ -966,7 +988,27 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         private record struct MonitoredItemsHandles(bool Success,
-            IReadOnlyList<(uint serverHandle, uint clientHandle)> Handles);
+            IReadOnlyList<(uint serverHandle, uint clientHandle)> Handles,
+            StatusCode Status);
+
+        /// <summary>
+        /// The server and client handles of the items this client already
+        /// knows to exist on the server. Fails when there are items but none
+        /// of them has a server id (e.g. a clone of a live subscription), as
+        /// they then cannot be mapped. Must be called under the item lock.
+        /// </summary>
+        private bool TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> handles)
+        {
+            handles = [];
+            foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+            {
+                if (monitoredItem.ServerId != 0)
+                {
+                    handles.Add((monitoredItem.ServerId, monitoredItem.ClientHandle));
+                }
+            }
+            return handles.Count > 0 || m_monitoredItems.Count == 0;
+        }
 
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
@@ -1012,14 +1054,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
                 return new MonitoredItemsHandles(
                     true,
-                    serverHandles.ToList().Zip(clientHandles.ToList()).ToList());
+                    serverHandles.ToList().Zip(clientHandles.ToList()).ToList(),
+                    StatusCodes.Good);
             }
             catch (ServiceResultException sre)
             {
                 m_logger.SubscriptionFailedCallGetMonitoredItemsServer(
                     sre,
                     m_context.Id);
-                return new MonitoredItemsHandles(false, []);
+                return new MonitoredItemsHandles(false, [], sre.StatusCode);
             }
         }
 
@@ -2036,5 +2079,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Exception? exception,
             uint subscriptionId,
             string name);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItemManager + 6, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: GetMonitoredItems is not available after transfer ({StatusCode})," +
+                " using the {Count} monitored item ids known to the client.")]
+        public static partial void SubscriptionUsingCachedHandlesAfterTransfer(
+            this ILogger logger,
+            uint subscriptionId,
+            StatusCode statusCode,
+            int count);
     }
 }

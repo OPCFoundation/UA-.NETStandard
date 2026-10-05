@@ -144,6 +144,8 @@ namespace Opc.Ua.Gds.Server
             m_globalDiscoveryServerConfiguration =
                 configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
+            AliasNameAggregationEnabled =
+                m_globalDiscoveryServerConfiguration.EnableAliasNameAggregation;
 
             // use suitable defaults if no configuration exists.
 
@@ -268,6 +270,8 @@ namespace Opc.Ua.Gds.Server
             // stages the node, finalises its NodeIds before handing it back,
             // and registers it once this pass returns.
             ConfigureAuthorizationService(EnsureDefaultAuthorizationService(builder));
+
+            InitializeAliasNameAggregation();
         }
 
         /// <summary>
@@ -285,7 +289,7 @@ namespace Opc.Ua.Gds.Server
             Method<QueryApplicationsMethodState>(directory, BrowseNames.QueryApplications)
                 .OnCall = OnQueryApplications;
             Method<RegisterApplicationMethodState>(directory, BrowseNames.RegisterApplication)
-                .OnCall = OnRegisterApplication;
+                .OnCallAsync = OnRegisterApplicationAsync;
             Method<RevokeCertificateMethodState>(directory, BrowseNames.RevokeCertificate)
                 .OnCallAsync = OnRevokeCertificateAsync;
             Method<CheckRevocationStatusMethodState>(directory, BrowseNames.CheckRevocationStatus)
@@ -1153,13 +1157,14 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnRegisterApplication(
+        private async ValueTask<RegisterApplicationMethodStateResult> OnRegisterApplicationAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
             ApplicationRecordDataType application,
-            ref NodeId applicationId)
+            CancellationToken cancellationToken)
         {
+            NodeId applicationId;
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.DiscoveryAdminOrAppAdmin);
@@ -1184,9 +1189,18 @@ namespace Opc.Ua.Gds.Server
                     method,
                     inputArguments,
                     m_logger);
+
+                // GDS AliasName Server facet (OPC 10000-17 Annex C.2): merge
+                // the AliasNames of the registering Server before returning.
+                await OnAliasNameSourceRegisteredAsync(applicationId, application, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
-            return ServiceResult.Good;
+            return new RegisterApplicationMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                ApplicationId = applicationId
+            };
         }
 
         private ServiceResult OnUpdateApplication(
@@ -1227,6 +1241,13 @@ namespace Opc.Ua.Gds.Server
                 method,
                 inputArguments,
                 m_logger);
+
+            // The record may have gained or lost the ALIAS capability or
+            // changed its DiscoveryUrls; read it again in the background.
+            if (AliasNameAggregator != null)
+            {
+                _ = RefreshAliasNameSourceInBackground(application.ApplicationId);
+            }
 
             return ServiceResult.Good;
         }
@@ -1280,6 +1301,11 @@ namespace Opc.Ua.Gds.Server
             }
 
             m_database.UnregisterApplication(applicationId);
+
+            // OPC 10000-17 Annex C.3. The record is gone, so the cleanup must
+            // not be cancelled with the request.
+            await OnAliasNameSourceUnregisteredAsync(applicationId, CancellationToken.None)
+                .ConfigureAwait(false);
 
             ArrayOf<Variant> inputArguments = [applicationId];
             Server.ReportApplicationRegistrationChangedAuditEvent(
@@ -3192,6 +3218,8 @@ namespace Opc.Ua.Gds.Server
         {
             if (disposing)
             {
+                DisposeAliasNameAggregation();
+
                 // Every group this manager created is in the owning list, so
                 // a startup that failed before Configure could bind and index
                 // the groups still releases them.

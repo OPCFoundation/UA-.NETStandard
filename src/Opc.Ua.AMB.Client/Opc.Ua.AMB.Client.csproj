@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).AMB.Client</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.AMB.Client</PackageId>
+    <RootNamespace>Opc.Ua.AMB.Client</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Client-side helpers for OPC 10000-110 Asset Management Basics (AMB): discover the manageable assets of a server through the AMB alias categories, read their identification and write the AssetId, follow health alarms with their root causes and maintenance activities, read and edit documentation links, browse locations, sub-assets and relations, and take an asset snapshot in one call.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.AMB.Tests" />
+  </ItemGroup>
+  <!-- AMB identifies and supervises assets with OPC 10000-100 building
+       blocks (Table 59 makes the DI namespace mandatory), so the client
+       references the DI client for its hosting extension and the DI model
+       for the health enumeration and the alarm types. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.AMB\Opc.Ua.AMB.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

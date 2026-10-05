@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).AMB</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.AMB</PackageId>
+    <RootNamespace>Opc.Ua.AMB</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Source-generated OPC 10000-110 Asset Management Basics (AMB) information model (root cause and maintenance event interfaces, the maintenance event state machine, the DocumentationLinks AddIn, the AMB condition classes, the asset discovery alias categories and the location entry points), including model identifiers, typed node states, client proxies, the AddOpcUaAMB model loader and the server/client-independent AMB contracts.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.AMB.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.AMB.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.AMB.Tests" />
+  </ItemGroup>
+  <!-- The AMB NodeSet requires the base namespace only (RequiredModel
+       http://opcfoundation.org/UA/ 1.05.02, a lower bound). AMB applies DI
+       building blocks by usage rule rather than by reference, so this model
+       assembly stays DI-free; the DI-dependent contracts live in
+       Opc.Ua.AMB.Server and Opc.Ua.AMB.Client. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.AMB.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.AMB.NodeIds.csv" />
+  </ItemGroup>
+  <!-- The NodeSet2 XML is the unmodified OPC Foundation publication from
+       UA-Nodeset/latest/AMB (model http://opcfoundation.org/UA/AMB/, version
+       1.01.1, 2024-02-27, UA-Nodeset commit 29a22fcd; git blob
+       21f9475b646e9c5508171277ffe5b74edbeb0a58, SHA-256
+       d2ea805b6f799589156c85ffc7799b5d296a68f4d7cace3a5ffb40a0fd1f065c).
+
+       Prefix and Name are pinned: they are the contract this assembly
+       publishes through [ModelDependencyAttribute] (Opc.Ua.AMB.Namespaces.AMB,
+       AddOpcUaAMB).
+
+       Model\Opc.Ua.AMB.NodeIds.csv is a drift guard, not a NodeId source. It
+       is derived from the unmodified publication
+       (Model\Opc.Ua.AMB.Upstream.NodeIds.csv, kept out of AdditionalFiles)
+       with tools/nodesets/derive-identifier-table.py, and the generator fails
+       the build when model and table disagree. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.AMB.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/AMB/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>AMB</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.AMB</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.AMB.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.AMB.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project does
+         not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

@@ -188,6 +188,59 @@ namespace Opc.Ua.Machinery.Tests.Integration
             });
         }
 
+        /// <summary>
+        /// A server that builds its event hierarchy through the address space
+        /// links a machine to the <c>Machines</c> folder a second time with
+        /// <c>HasNotifier</c>, a component to its <c>Components</c> folder with
+        /// <c>HasEventSource</c>, and a process value to <c>Monitoring</c> the
+        /// same way. Both are hierarchical references, so the browse returns
+        /// each node twice; the client still has to report it once.
+        /// </summary>
+        [Test]
+        public Task NodesThatAreAlsoEventSourcesOfTheirParentAreEnumeratedOnceAsync()
+        {
+            return RunAgainstPressAsync(async (machinery, configurator, _, _, ct) =>
+            {
+                configurator.AddEventHierarchy();
+                NodeId machine = configurator.Machine!.NodeId;
+
+                var machines = new List<NodeId>();
+                await foreach (MachineEntry entry in machinery
+                    .EnumerateMachinesAsync(ct)
+                    .ConfigureAwait(false))
+                {
+                    machines.Add(entry.NodeId);
+                }
+                ArrayOf<NodeId> discovered = await machinery
+                    .DiscoverMachinesAsync(ct)
+                    .ConfigureAwait(false);
+                var components = new List<string?>();
+                await foreach (MachineEntry entry in machinery
+                    .EnumerateComponentsAsync(machine, ct)
+                    .ConfigureAwait(false))
+                {
+                    components.Add(entry.BrowseName.Name);
+                }
+                var processValues = new List<NodeId>();
+                await foreach (MachineEntry entry in machinery
+                    .EnumerateProcessValuesAsync(machine, ct)
+                    .ConfigureAwait(false))
+                {
+                    processValues.Add(entry.NodeId);
+                }
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(machines, Is.EqualTo([machine]));
+                    Assert.That(discovered.ToArray(), Is.EqualTo([machine]));
+                    Assert.That(components, Is.EqualTo(s_expectedComponents));
+                    Assert.That(
+                        processValues,
+                        Is.EqualTo([configurator.OilTemperature!.NodeId]));
+                }
+            });
+        }
+
         private static async Task RunAgainstPressAsync(
             Func<MachineryClient,
                 PressConfigurator,
@@ -1678,6 +1731,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 Contains.Item(new QualifiedName("Machinery-Result GetLatestResult")));
         }
 
+        private static readonly string[] s_expectedComponents = ["HydraulicUnit"];
+
         private static readonly string[] s_expectedResources =
             ["CompressedAir", "Electricity"];
 
@@ -1807,10 +1862,65 @@ namespace Opc.Ua.Machinery.Tests.Integration
 
             public IProcessValueHandle? OilTemperature { get; private set; }
 
+            /// <summary>
+            /// Adds the notifier references a server that exposes its event
+            /// hierarchy in the address space creates on top of the
+            /// organizing ones: <c>Machines</c> to the machine, the
+            /// <c>Components</c> folder to the component and
+            /// <c>Monitoring</c> to the process value.
+            /// </summary>
+            public void AddEventHierarchy()
+            {
+                ISystemContext context = m_context!;
+                BaseObjectState machine = Machine!.State;
+                ushort machineryNamespaceIndex = (ushort)context.NamespaceUris!.GetIndex(
+                    Namespaces.Machinery);
+
+                LinkEventSource(
+                    context,
+                    m_machinesFolder!,
+                    machine,
+                    ReferenceTypeIds.HasNotifier);
+
+                NodeState components = machine.FindChild(
+                    context,
+                    new QualifiedName(BrowseNames.Components, machineryNamespaceIndex))!;
+                NodeState component = components.FindChild(
+                    context,
+                    new QualifiedName("HydraulicUnit", m_instanceNamespaceIndex))!;
+                LinkEventSource(
+                    context,
+                    components,
+                    component,
+                    ReferenceTypeIds.HasEventSource);
+
+                NodeState monitoring = machine.FindChild(
+                    context,
+                    new QualifiedName(BrowseNames.Monitoring, machineryNamespaceIndex))!;
+                LinkEventSource(
+                    context,
+                    monitoring,
+                    OilTemperature!.State,
+                    ReferenceTypeIds.HasEventSource);
+            }
+
+            private static void LinkEventSource(
+                ISystemContext context,
+                NodeState source,
+                NodeState target,
+                NodeId referenceTypeId)
+            {
+                source.AddNotifier(context, referenceTypeId, false, target);
+                target.AddNotifier(context, referenceTypeId, true, source);
+            }
+
             public async ValueTask ConfigureAsync(
                 IMachineryBuildContext context,
                 CancellationToken cancellationToken)
             {
+                m_context = context.Context;
+                m_machinesFolder = context.MachinesFolder;
+                m_instanceNamespaceIndex = context.InstanceNamespaceIndex;
                 IProcessValueHandle? oilTemperature = null;
                 Machine = await context
                     .AddMachine(new QualifiedName("Press-E2E"))
@@ -1906,6 +2016,9 @@ namespace Opc.Ua.Machinery.Tests.Integration
             }
 
             private readonly InMemoryIsa95JobControlProvider m_jobProvider;
+            private ISystemContext? m_context;
+            private NodeState? m_machinesFolder;
+            private ushort m_instanceNamespaceIndex;
         }
     }
 }

@@ -45,7 +45,22 @@ namespace Opc.Ua.Di.Tests
     /// </summary>
     internal sealed class DiServerFixture : IAsyncDisposable
     {
-        private ServerFixture<StandardServer>? m_fixture;
+        /// <summary>
+        /// Creates a fixture that registers a plain <see cref="DiNodeManager"/>.
+        /// </summary>
+        public DiServerFixture()
+            : this((server, configuration) => new DiNodeManager(server, configuration))
+        {
+        }
+
+        /// <summary>
+        /// Creates a fixture that registers the manager the factory creates,
+        /// such as a subclass a companion specification would add.
+        /// </summary>
+        public DiServerFixture(Func<IServerInternal, ApplicationConfiguration, DiNodeManager> createManager)
+        {
+            m_createManager = createManager;
+        }
 
         public StandardServer Server { get; private set; } = null!;
         public DiNodeManager Manager { get; private set; } = null!;
@@ -63,7 +78,7 @@ namespace Opc.Ua.Di.Tests
             // Construct the DiNodeManager against the running server and
             // populate its address space by running the standard
             // CreateAddressSpaceAsync pipeline.
-            Manager = new DiNodeManager(Server.CurrentInstance, m_fixture.Config);
+            Manager = m_createManager(Server.CurrentInstance, m_fixture.Config);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await Manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
         }
@@ -76,5 +91,8 @@ namespace Opc.Ua.Di.Tests
                 await m_fixture.StopAsync().ConfigureAwait(false);
             }
         }
+
+        private readonly Func<IServerInternal, ApplicationConfiguration, DiNodeManager> m_createManager;
+        private ServerFixture<StandardServer>? m_fixture;
     }
 }

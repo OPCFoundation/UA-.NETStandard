@@ -883,8 +883,13 @@ namespace Opc.Ua
                         m_nestingLevel);
                     try
                     {
-                        System.Xml.XmlElement? xmlElement = element.AsXmlElement();
-                        xmlDecoder.PushNamespace(xmlElement!.NamespaceURI);
+                        // A body that does not parse as an element is malformed input.
+                        System.Xml.XmlElement xmlElement = element.AsXmlElement() ??
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "The XML body of ExtensionObject {0} is not an XML element.",
+                                extension.TypeId);
+                        xmlDecoder.PushNamespace(xmlElement.NamespaceURI);
                         IEncodeable body = xmlDecoder.ReadEncodeable<IEncodeable>(
                             xmlElement.LocalName,
                             extension.TypeId);

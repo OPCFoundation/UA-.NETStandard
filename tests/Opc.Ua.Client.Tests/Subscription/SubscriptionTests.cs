@@ -2083,8 +2083,13 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// An unusable GetMonitoredItems answer is treated like a server that
+        /// does not provide the optional method: the server ids the client
+        /// knows complete the transfer.
+        /// </summary>
         [Test]
-        public async Task TryCompleteTransferAsyncShouldReturnFalseWhenResponseWrong1Async()
+        public async Task TryCompleteTransferAsyncShouldUseKnownServerIdsWhenResponseWrong1Async()
         {
             // Arrange
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
@@ -2125,13 +2130,19 @@ namespace Opc.Ua.Client.Subscriptions
                 success = await sut.TryCompleteTransferAsync([], CancellationToken.None).ConfigureAwait(false);
 
                 // Assert
-                Assert.That(success, Is.False);
+                Assert.That(success, Is.True);
+                Assert.That(monitoredItem.Created, Is.True);
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
         }
 
+        /// <summary>
+        /// An unusable GetMonitoredItems answer is treated like a server that
+        /// does not provide the optional method: the server ids the client
+        /// knows complete the transfer.
+        /// </summary>
         [Test]
-        public async Task TryCompleteTransferAsyncShouldReturnFalseWhenResponseWrong2Async()
+        public async Task TryCompleteTransferAsyncShouldUseKnownServerIdsWhenResponseWrong2Async()
         {
             // Arrange
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
@@ -2172,7 +2183,8 @@ namespace Opc.Ua.Client.Subscriptions
                 success = await sut.TryCompleteTransferAsync([], CancellationToken.None).ConfigureAwait(false);
 
                 // Assert
-                Assert.That(success, Is.False);
+                Assert.That(success, Is.True);
+                Assert.That(monitoredItem.Created, Is.True);
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
         }
@@ -2449,8 +2461,14 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        [Test]
-        public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndReturnFalseIfFailingAsync()
+        /// <summary>
+        /// GetMonitoredItems is an optional method (OPC 10000-5, 9.1). When
+        /// the server does not provide it, the server ids the client already
+        /// knows complete the transfer instead of failing it.
+        /// </summary>
+        [TestCaseSource(nameof(UnavailableGetMonitoredItemsResults))]
+        public async Task TryCompleteTransferAsyncShouldUseKnownServerIdsIfGetMonitoredItemsIsUnavailableAsync(
+            StatusCode statusCode)
         {
             // Arrange
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
@@ -2462,37 +2480,121 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(monitoredItem, Is.Not.Null);
                 Assert.That(success, Is.True);
                 Assert.That(monitoredItem.Created, Is.True);
+                uint clientId = monitoredItem.ClientHandle;
+                uint serverId = monitoredItem.ServerId;
 
-                m_mockMethodServices
-                    .Setup(s => s.CallAsync(
-                        It.IsAny<RequestHeader>(),
-                        It.Is<ArrayOf<CallMethodRequest>>(r =>
-                            r.Count == 1 &&
-                            r[0].InputArguments.Count == 1 &&
-                            r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
-                            r[0].ObjectId == ObjectIds.Server &&
-                            r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(new CallResponse
-                    {
-                        Results =
-                        [
-                            new ()
-                            {
-                                StatusCode = StatusCodes.Bad,
-                                OutputArguments = []
-                            }
-                        ]
-                    })
-                    .Verifiable(Times.Once);
+                SetupGetMonitoredItemsResult(statusCode);
 
                 // Act
                 success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
 
                 // Assert
-                // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
+                Assert.That(success, Is.True);
+                Assert.That(monitoredItem.Created, Is.True);
+                Assert.That(monitoredItem.ServerId, Is.EqualTo(serverId));
+                Assert.That(monitoredItem.ClientHandle, Is.EqualTo(clientId));
+                m_mockMonitoredItemServices.Verify(s => s.DeleteMonitoredItemsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// A transient GetMonitoredItems failure still fails the transfer, and
+        /// so does an unavailable method when no server id is known (the items
+        /// cannot be mapped): the caller then recreates the subscription.
+        /// </summary>
+        [Test]
+        public async Task TryCompleteTransferAsyncShouldFailIfGetMonitoredItemsFailsTransientlyOrNoServerIdIsKnownAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (sut.ConfigureAwait(false))
+            {
+                OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
+                bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
+                Assert.That(success, Is.True);
+                Assert.That(monitoredItem.Created, Is.True);
+
+                // Act: a timeout does not prove anything, the items are reset
+                SetupGetMonitoredItemsResult(StatusCodes.BadTimeout);
+                success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(success, Is.False);
+                Assert.That(monitoredItem.Created, Is.False);
+
+                // Act: the method is unavailable and no server id is known
+                SetupGetMonitoredItemsResult(StatusCodes.BadMethodInvalid);
+                success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
+
+                // Assert
                 Assert.That(success, Is.False);
                 Assert.That(monitoredItem.Created, Is.False);
             }
+        }
+
+        /// <summary>
+        /// BadSubscriptionIdInvalid comes from a server that implements
+        /// GetMonitoredItems but no longer has the subscription, so the known
+        /// server ids must not be trusted.
+        /// </summary>
+        [Test]
+        public async Task TryCompleteTransferAsyncShouldFailIfGetMonitoredItemsRejectsTheSubscriptionAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (sut.ConfigureAwait(false))
+            {
+                OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
+                bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
+                Assert.That(success, Is.True);
+                Assert.That(monitoredItem.Created, Is.True);
+
+                SetupGetMonitoredItemsResult(StatusCodes.BadSubscriptionIdInvalid);
+
+                // Act
+                success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(success, Is.False);
+                Assert.That(monitoredItem.Created, Is.False);
+            }
+        }
+
+        private static IEnumerable<StatusCode> UnavailableGetMonitoredItemsResults()
+        {
+            yield return StatusCodes.Bad;
+            yield return StatusCodes.BadMethodInvalid;
+            yield return StatusCodes.BadNotSupported;
+            yield return StatusCodes.BadNothingToDo; // asyncua
+            yield return StatusCodes.BadInternalError; // open62541 without XML encoding
+        }
+
+        private void SetupGetMonitoredItemsResult(StatusCode statusCode)
+        {
+            m_mockMethodServices
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<CallMethodRequest>>(r =>
+                        r.Count == 1 &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    Results =
+                    [
+                        new ()
+                        {
+                            StatusCode = statusCode,
+                            OutputArguments = []
+                        }
+                    ]
+                });
         }
 
         [Test]

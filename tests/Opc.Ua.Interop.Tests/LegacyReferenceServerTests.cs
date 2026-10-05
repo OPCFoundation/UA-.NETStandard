@@ -339,7 +339,7 @@ namespace Opc.Ua.Interop.Tests
         /// Loads the custom data types of the 1.5 server (TestData
         /// structures, unions, structures with optional fields,
         /// enumerations) with the 2.0 complex type system, decodes every
-        /// variable whose data type is not a namespace 0 type, and writes a
+        /// variable whose data type is a custom structure, and writes a
         /// sample of the decoded structures back unchanged.
         /// </summary>
         [Test]
@@ -363,15 +363,20 @@ namespace Opc.Ua.Interop.Tests
             List<NodeId> variables = await BrowseVariablesAsync(session, ct).ConfigureAwait(false);
             DataValue[] dataTypes = await ReadAsync(session, variables, Attributes.DataType, ct)
                 .ConfigureAwait(false);
+            // Only structure data types: a BaseDataType-derived type such as
+            // VariantDataType can hold a random ExtensionObject nobody can decode.
+            HashSet<NodeId> structureTypes = await BrowseStructureTypesAsync(session, ct).ConfigureAwait(false);
             var custom = new List<NodeId>();
             for (int ii = 0; ii < variables.Count; ii++)
             {
-                if (dataTypes[ii].WrappedValue.TryGetValue(out NodeId dataType) && dataType.NamespaceIndex != 0)
+                if (dataTypes[ii].WrappedValue.TryGetValue(out NodeId dataType) &&
+                    dataType.NamespaceIndex != 0 &&
+                    structureTypes.Contains(dataType))
                 {
                     custom.Add(variables[ii]);
                 }
             }
-            Assert.That(custom, Has.Count.GreaterThanOrEqualTo(10), "variables with a custom data type");
+            Assert.That(custom, Has.Count.GreaterThanOrEqualTo(10), "variables with a custom structure data type");
 
             DataValue[] values = await ReadAsync(session, custom, Attributes.Value, ct).ConfigureAwait(false);
             DataValue[] accessLevels = await ReadAsync(session, custom, Attributes.UserAccessLevel, ct)
@@ -463,30 +468,8 @@ namespace Opc.Ua.Interop.Tests
                 {
                     continue;
                 }
-                ArrayOf<BrowseDescription> nodesToBrowse =
-                [
-                    new BrowseDescription
-                    {
-                        NodeId = nodeId,
-                        BrowseDirection = BrowseDirection.Forward,
-                        ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                        IncludeSubtypes = true,
-                        NodeClassMask = 0,
-                        ResultMask = (uint)BrowseResultMask.All
-                    }
-                ];
-                BrowseResponse response = await session.BrowseAsync(null, null, 0, nodesToBrowse, ct)
-                    .ConfigureAwait(false);
-                var references = new List<ReferenceDescription>(response.Results[0].References.ToArray());
-                ByteString continuationPoint = response.Results[0].ContinuationPoint;
-                while (!continuationPoint.IsEmpty)
-                {
-                    BrowseNextResponse next = await session
-                        .BrowseNextAsync(null, false, [continuationPoint], ct)
-                        .ConfigureAwait(false);
-                    references.AddRange(next.Results[0].References.ToArray());
-                    continuationPoint = next.Results[0].ContinuationPoint;
-                }
+                List<ReferenceDescription> references = await BrowseAsync(
+                    session, nodeId, ReferenceTypeIds.HierarchicalReferences, ct).ConfigureAwait(false);
                 foreach (ReferenceDescription reference in references)
                 {
                     if (reference.NodeId.IsAbsolute)
@@ -506,6 +489,66 @@ namespace Opc.Ua.Interop.Tests
                 }
             }
             return variables;
+        }
+
+        /// <summary>
+        /// Structure and all its subtypes.
+        /// </summary>
+        private static async Task<HashSet<NodeId>> BrowseStructureTypesAsync(ISession session, CancellationToken ct)
+        {
+            var types = new HashSet<NodeId> { DataTypeIds.Structure };
+            var queue = new Queue<NodeId>();
+            queue.Enqueue(DataTypeIds.Structure);
+            while (queue.Count > 0)
+            {
+                List<ReferenceDescription> subtypes = await BrowseAsync(
+                    session, queue.Dequeue(), ReferenceTypeIds.HasSubtype, ct).ConfigureAwait(false);
+                foreach (ReferenceDescription subtype in subtypes)
+                {
+                    var id = ExpandedNodeId.ToNodeId(subtype.NodeId, session.NamespaceUris);
+                    if (!id.IsNull && types.Add(id))
+                    {
+                        queue.Enqueue(id);
+                    }
+                }
+            }
+            return types;
+        }
+
+        /// <summary>
+        /// Browses the forward references of one node, following continuation points.
+        /// </summary>
+        private static async Task<List<ReferenceDescription>> BrowseAsync(
+            ISession session,
+            NodeId nodeId,
+            NodeId referenceTypeId,
+            CancellationToken ct)
+        {
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
+                new BrowseDescription
+                {
+                    NodeId = nodeId,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = referenceTypeId,
+                    IncludeSubtypes = true,
+                    NodeClassMask = 0,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            ];
+            BrowseResponse response = await session.BrowseAsync(null, null, 0, nodesToBrowse, ct)
+                .ConfigureAwait(false);
+            var references = new List<ReferenceDescription>(response.Results[0].References.ToArray());
+            ByteString continuationPoint = response.Results[0].ContinuationPoint;
+            while (!continuationPoint.IsEmpty)
+            {
+                BrowseNextResponse next = await session
+                    .BrowseNextAsync(null, false, [continuationPoint], ct)
+                    .ConfigureAwait(false);
+                references.AddRange(next.Results[0].References.ToArray());
+                continuationPoint = next.Results[0].ContinuationPoint;
+            }
+            return references;
         }
 
         private static async Task<DataValue[]> ReadAsync(

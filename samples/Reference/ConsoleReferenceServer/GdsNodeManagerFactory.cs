@@ -99,15 +99,18 @@ namespace Quickstarts.ReferenceServer
                 : JsonApplicationsDatabase.Load(databaseStorePath!);
 
 #pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
-            return new ValueTask<IAsyncNodeManager>(
-                new ApplicationsNodeManager(
-                    server,
-                    configuration,
-                    database,
-                    database,
-                    new CertificateGroup(server.Telemetry),
-                    autoApprove: true));
+            var nodeManager = new ApplicationsNodeManager(
+                server,
+                configuration,
+                database,
+                database,
+                new CertificateGroup(server.Telemetry),
+                autoApprove: true);
 #pragma warning restore CA2000
+            // GDS AliasName Server facet (OPC 10000-17 Annex C), enabled in
+            // the CTT configuration.
+            nodeManager.AliasNameAggregationEnabled |= m_gdsConfiguration.EnableAliasNameAggregation;
+            return new ValueTask<IAsyncNodeManager>(nodeManager);
         }
     }
 }
