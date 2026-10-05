@@ -1425,8 +1425,7 @@ namespace Opc.Ua.InformationModel.Tests
                     (ObjectIds.UserManagement, ["Users", "AddUser", "ModifyUser", "RemoveUser"]),
                     (ObjectIds.ServerConfiguration,
                         ["UpdateCertificate", "ApplyChanges", "CreateSigningRequest", "GetRejectedList"]),
-                    (ObjectIds.Server_ServerDiagnostics,
-                        ["ServerDiagnosticsSummary", "SubscriptionDiagnosticsArray"])
+                    (ObjectIds.Server_ServerDiagnostics, ["ServerDiagnosticsSummary"])
                 ];
 
                 foreach ((NodeId parentId, string[] childNames) in groups)
@@ -1457,6 +1456,14 @@ namespace Opc.Ua.InformationModel.Tests
                             $"{childName} is Mandatory and must be visible to SecurityAdmin.");
                     }
                 }
+
+                // every session may browse SubscriptionDiagnosticsArray to find its own
+                // subscriptions (Part 5 6.3.5); its value stays restricted.
+                BrowseResult diagnostics = await BrowseForwardResultAsync(ObjectIds.Server_ServerDiagnostics)
+                    .ConfigureAwait(false);
+                Assert.That(diagnostics.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(HasReference(diagnostics, "SubscriptionDiagnosticsArray"), Is.True,
+                    "SubscriptionDiagnosticsArray must be browsable by a low-privilege session.");
 
                 DataValue currentSessionCount = await ReadAttributeAsync(
                     VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary_CurrentSessionCount,

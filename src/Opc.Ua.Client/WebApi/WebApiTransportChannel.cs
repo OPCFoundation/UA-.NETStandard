@@ -570,7 +570,8 @@ namespace Opc.Ua.Client.WebApi
                 // OperationTimeout governs each request; the HttpClient's
                 // 100 s default would otherwise cut long-poll Publish short.
                 RequestTimeout = m_userOptions.RequestTimeout ??
-                    (OperationTimeout > 0 ? Timeout.InfiniteTimeSpan : null)
+                    (OperationTimeout > 0 ? Timeout.InfiniteTimeSpan : null),
+                AcceptCompressedResponses = m_userOptions.AcceptCompressedResponses
             };
         }
 

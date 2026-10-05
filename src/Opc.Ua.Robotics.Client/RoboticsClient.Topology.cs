@@ -304,6 +304,7 @@ namespace Opc.Ua.Robotics.Client
                 Identification = await ReadIdentificationAsync(axis, cancellationToken).ConfigureAwait(false),
                 MotionProfile = await ReadEnumValueAsync<AxisMotionProfileEnumeration>(
                     motionProfile, cancellationToken).ConfigureAwait(false),
+                Engineering = await ReadAxisEngineeringAsync(axis, cancellationToken).ConfigureAwait(false),
                 State = await ReadAxisStateAsync(axis, cancellationToken).ConfigureAwait(false),
                 AdditionalLoadId = load?.ObjectId ?? NodeId.Null
             };
@@ -394,14 +395,25 @@ namespace Opc.Ua.Robotics.Client
 
         private async Task<LoadSnapshot> ReadLoadAsync(NodeId load, CancellationToken cancellationToken)
         {
-            NodeId mass = await ResolveChildAsync(load, MemberPath(RoboticsBrowseNames.Mass), cancellationToken)
-                .ConfigureAwait(false);
+            QualifiedName[] mass = MemberPath(RoboticsBrowseNames.Mass);
+            (ArrayOf<NodeId> nodes, ArrayOf<DataValue> values) = await ReadChildrenAsync(
+                load,
+                [
+                    mass,
+                    UaChildPath(mass, UaBrowseNames.EngineeringUnits),
+                    UaChildPath(mass, UaBrowseNames.EURange)
+                ],
+                cancellationToken).ConfigureAwait(false);
             return new LoadSnapshot
             {
                 NodeId = load,
-                Mass = mass.IsNull ? DataValue.Null : await Session.ReadValueAsync(mass, cancellationToken)
-                    .ConfigureAwait(false),
-                MassId = mass,
+                Mass = values[0],
+                MassId = nodes[0],
+                MassEngineering = new RoboticsEngineeringValue
+                {
+                    EngineeringUnits = ToStructure<EUInformation>(values[1]),
+                    Range = ToStructure<Range>(values[2])
+                },
                 CenterOfMass = await ReadChildValueAsync(
                     load, MemberPath(RoboticsBrowseNames.CenterOfMass), cancellationToken).ConfigureAwait(false),
                 Inertia = await ReadChildValueAsync(load, MemberPath(RoboticsBrowseNames.Inertia), cancellationToken)
@@ -521,13 +533,16 @@ namespace Opc.Ua.Robotics.Client
 
         private async Task<GearSnapshot> ReadGearAsync(NodeId gear, CancellationToken cancellationToken)
         {
-            (NodeId pitchId, DataValue pitch) = await ReadChildAsync(
-                gear, MemberPath(RoboticsBrowseNames.Pitch), cancellationToken).ConfigureAwait(false);
+            (ArrayOf<NodeId> nodes, ArrayOf<DataValue> values) = await ReadChildrenAsync(
+                gear,
+                [MemberPath(RoboticsBrowseNames.GearRatio), MemberPath(RoboticsBrowseNames.Pitch)],
+                cancellationToken).ConfigureAwait(false);
             return new GearSnapshot
             {
                 Identification = await ReadIdentificationAsync(gear, cancellationToken).ConfigureAwait(false),
-                Pitch = pitch,
-                PitchId = pitchId
+                GearRatio = ToStructure<RationalNumber>(values[0]),
+                Pitch = values[1],
+                PitchId = nodes[1]
             };
         }
 
@@ -667,6 +682,45 @@ namespace Opc.Ua.Robotics.Client
                 ActualSpeedId = nodes[1],
                 ActualAcceleration = values.Count > 2 ? values[2] : DataValue.Null,
                 ActualAccelerationId = nodes[2]
+            };
+        }
+
+        /// <summary>
+        /// Reads the <c>EngineeringUnits</c> and <c>EURange</c> of the axis's
+        /// ActualPosition, ActualSpeed and ActualAcceleration (AnalogUnitType variables
+        /// below the DI <c>ParameterSet</c>, OPC 40010-1) with one
+        /// TranslateBrowsePathsToNodeIds and one Read. A property the server does not
+        /// publish, whose read fails or whose value has a bad status stays null.
+        /// </summary>
+        private async Task<AxisEngineeringOptions> ReadAxisEngineeringAsync(
+            NodeId axis,
+            CancellationToken cancellationToken)
+        {
+            QualifiedName[] position = ParameterPath(RoboticsBrowseNames.ActualPosition);
+            QualifiedName[] speed = ParameterPath(RoboticsBrowseNames.ActualSpeed);
+            QualifiedName[] acceleration = ParameterPath(RoboticsBrowseNames.ActualAcceleration);
+            (_, ArrayOf<DataValue> values) = await ReadChildrenAsync(
+                axis,
+                [
+                    UaChildPath(position, UaBrowseNames.EngineeringUnits),
+                    UaChildPath(position, UaBrowseNames.EURange),
+                    UaChildPath(speed, UaBrowseNames.EngineeringUnits),
+                    UaChildPath(speed, UaBrowseNames.EURange),
+                    UaChildPath(acceleration, UaBrowseNames.EngineeringUnits),
+                    UaChildPath(acceleration, UaBrowseNames.EURange)
+                ],
+                cancellationToken).ConfigureAwait(false);
+            return new AxisEngineeringOptions
+            {
+                PositionUnit = ToStructure<EUInformation>(values[0]),
+                SpeedUnit = ToStructure<EUInformation>(values[2]),
+                AccelerationUnit = ToStructure<EUInformation>(values[4]),
+                Limits = new AxisLimits
+                {
+                    Position = ToStructure<Range>(values[1]),
+                    Speed = ToStructure<Range>(values[3]),
+                    Acceleration = ToStructure<Range>(values[5])
+                }
             };
         }
 

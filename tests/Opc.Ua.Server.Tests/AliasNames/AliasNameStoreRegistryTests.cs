@@ -45,6 +45,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
     {
         private static readonly NodeId s_a = new("A", 2);
         private static readonly NodeId s_b = new("B", 2);
+        private static readonly string[] s_remoteUris = ["urn:remote"];
 
         private static InMemoryAliasNameStore Store(NodeId rootId, string name)
         {
@@ -234,6 +235,92 @@ namespace Opc.Ua.Server.Tests.AliasNames
             registry.Dispose();
             Assert.That(registry.Dispose, Throws.Nothing,
                 "Dispose must be idempotent — the SDK's standard server-shutdown flow disposes node managers twice.");
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task ContributorAliasesAreAddedToOwnerResultsAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore owner = Store(s_a, "A");
+            using InMemoryAliasNameStore contributor = Store(s_a, "A");
+            owner.Seed(s_a, "Own", new ExpandedNodeId("T1", 2), null, ReferenceTypeIds.AliasFor);
+            contributor.Seed(s_a, "Aggregated", new ExpandedNodeId("T2", 2), "urn:remote", ReferenceTypeIds.AliasFor);
+            registry.Register(owner);
+            registry.RegisterContributor(contributor);
+
+            (ServiceResult result, System.Collections.Generic.IReadOnlyList<AliasNameDataType> aliases) = await registry
+                .DispatchFindAliasAsync(s_a, "%", NodeId.Null, new TypeTable(new NamespaceTable()))
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(aliases, Has.Count.EqualTo(2));
+            Assert.That(aliases[0].AliasName.Name, Is.EqualTo("Own"), "The owner answers first.");
+            Assert.That(aliases[1].AliasName.Name, Is.EqualTo("Aggregated"));
+            Assert.That(registry.Stores, Is.EqualTo(new[] { owner }),
+                "A contributor is not an owning store.");
+            Assert.That(registry.GetStoreForCategory(s_a), Is.SameAs(owner));
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task ContributorAloneAnswersFindAliasVerboseAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore contributor = Store(s_a, "A");
+            contributor.Seed(s_a, "Aggregated", new ExpandedNodeId("T2", 2), "urn:remote", ReferenceTypeIds.AliasFor);
+            registry.RegisterContributor(contributor);
+            registry.RegisterContributor(contributor);
+
+            (ServiceResult result, System.Collections.Generic.IReadOnlyList<AliasNameVerboseDataType> aliases) =
+                await registry
+                    .DispatchFindAliasVerboseAsync(s_a, "Agg%", NodeId.Null, new TypeTable(new NamespaceTable()))
+                    .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(aliases, Has.Count.EqualTo(1), "Registering a contributor twice is a no-op.");
+            Assert.That(aliases[0].ServerUris.ToArray(), Is.EqualTo(s_remoteUris));
+
+            (result, _) = await registry
+                .DispatchFindAliasAsync(s_b, "%", NodeId.Null, new TypeTable(new NamespaceTable()))
+                .ConfigureAwait(false);
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotImplemented),
+                "A category neither owned nor contributed is still not implemented.");
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task ContributorReceivesNoMutationsAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            var descriptor = new AliasNameCategoryDescriptor(
+                s_a, new QualifiedName("A", 2), AliasNameCapabilities.AddAliasesToCategory);
+            using var contributor = new InMemoryAliasNameStore([descriptor]);
+            registry.RegisterContributor(contributor);
+
+            (ServiceResult result, StatusCode[] _) = await registry
+                .DispatchAddAliasesAsync(s_a,
+                    [new AliasAddRequest("X", new ExpandedNodeId("T", 2), null, ReferenceTypeIds.AliasFor)])
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotImplemented));
+            (_, System.Collections.Generic.IReadOnlyList<AliasNameDataType> aliases) = await registry
+                .DispatchFindAliasAsync(s_a, "%", NodeId.Null, new TypeTable(new NamespaceTable()))
+                .ConfigureAwait(false);
+            Assert.That(aliases, Is.Empty);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task UnregisterContributorStopsContributionAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore contributor = Store(s_a, "A");
+            contributor.Seed(s_a, "Aggregated", new ExpandedNodeId("T2", 2), null, ReferenceTypeIds.AliasFor);
+            registry.RegisterContributor(contributor);
+            registry.UnregisterContributor(contributor);
+            registry.UnregisterContributor(contributor);
+
+            (ServiceResult result, _) = await registry
+                .DispatchFindAliasAsync(s_a, "%", NodeId.Null, new TypeTable(new NamespaceTable()))
+                .ConfigureAwait(false);
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotImplemented));
         }
     }
 }

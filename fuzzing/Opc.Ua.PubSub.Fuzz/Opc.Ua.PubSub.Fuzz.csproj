@@ -26,5 +26,6 @@
   <Import Project="..\OneFuzz\OneFuzz.targets" Condition="'$(OneFuzz)' == 'true'" />
   <ItemGroup>
     <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzOracles.cs" Link="FuzzOracles.cs" />
   </ItemGroup>
 </Project>

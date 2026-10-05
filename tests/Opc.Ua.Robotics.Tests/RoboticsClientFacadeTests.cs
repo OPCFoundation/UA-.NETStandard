@@ -493,6 +493,148 @@ namespace Opc.Ua.Robotics.Client.Tests
         }
 
         [Test]
+        public async Task EngineeringValuesAndTheGearRatioComeFromTheVariablesTheyDescribe()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+
+            RoboticsTopologySnapshot snapshot = await h.Client.ReadSystemAsync(h.SystemId).ConfigureAwait(false);
+            AxisSnapshot single = await h.Client.ReadAxisAsync(h.AxisId).ConfigureAwait(false);
+
+            AxisEngineeringOptions axis = snapshot.Axes[0].Engineering;
+            LoadSnapshot flange = snapshot.Loads.ToList().Single(l => l.NodeId == h.FlangeLoadId);
+            Assert.Multiple(() =>
+            {
+                // The properties of the ParameterSet variables, not of the decoy below the axis.
+                Assert.That(axis.PositionUnit?.UnitId, Is.EqualTo(h.Degree.UnitId));
+                Assert.That(axis.Limits.Position?.Low, Is.EqualTo(-170d));
+                Assert.That(axis.Limits.Position?.High, Is.EqualTo(170d));
+                Assert.That(axis.SpeedUnit?.UnitId, Is.EqualTo(h.DegreePerSecond.UnitId));
+                Assert.That(axis.Limits.Speed?.Low, Is.EqualTo(-250d));
+                Assert.That(axis.Limits.Speed?.High, Is.EqualTo(250d));
+                Assert.That(axis.AccelerationUnit?.UnitId, Is.EqualTo(h.DegreePerSecondSquared.UnitId));
+                Assert.That(axis.Limits.Acceleration, Is.Null, "ActualAcceleration publishes no EURange");
+                Assert.That(single.Engineering.PositionUnit?.UnitId, Is.EqualTo(h.Degree.UnitId));
+                Assert.That(single.Engineering.Limits.Speed?.High, Is.EqualTo(250d));
+
+                Assert.That(flange.MassEngineering.EngineeringUnits?.UnitId, Is.EqualTo(h.Kilogram.UnitId));
+                Assert.That(flange.MassEngineering.Range?.Low, Is.Zero);
+                Assert.That(flange.MassEngineering.Range?.High, Is.EqualTo(20d));
+                Assert.That(flange.Mass.WrappedValue.TryGetValue(out double mass), Is.True);
+                Assert.That(mass, Is.EqualTo(10d));
+                Assert.That(flange.MassId, Is.EqualTo(h.Resolve(h.FlangeLoadId, h.Rob(RoboticsBrowseNames.Mass))));
+
+                // The Robotics GearRatio, not the namespace-0 decoy.
+                Assert.That(snapshot.Gears[0].GearRatio?.Numerator, Is.EqualTo(160));
+                Assert.That(snapshot.Gears[0].GearRatio?.Denominator, Is.EqualTo(1u));
+                Assert.That(snapshot.Gears[0].Pitch.WrappedValue.TryGetValue(out double pitch), Is.True);
+                Assert.That(pitch, Is.EqualTo(1.0d));
+            });
+        }
+
+        [Test]
+        public async Task AbsentOrUnreadableEngineeringValuesAndGearRatiosStayNull()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            // Both resolve, but their reads fail.
+            h.FailRead(h.AxisPositionUnitsId);
+            h.FailRead(h.GearRatioId);
+
+            RoboticsTopologySnapshot snapshot = await h.Client.ReadSystemAsync(h.SystemId).ConfigureAwait(false);
+
+            AxisEngineeringOptions axis = snapshot.Axes[0].Engineering;
+            LoadSnapshot additional = snapshot.Loads.ToList().Single(l => l.NodeId == h.AxisLoadId);
+            GearSnapshot gear = snapshot.Gears[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(axis.PositionUnit, Is.Null, "a failed read is no unit, not an exception");
+                Assert.That(axis.Limits.Position?.High, Is.EqualTo(170d), "the other properties are still read");
+                Assert.That(axis.SpeedUnit?.UnitId, Is.EqualTo(h.DegreePerSecond.UnitId));
+                // The axis load's Mass publishes neither EngineeringUnits nor EURange.
+                Assert.That(additional.MassEngineering.EngineeringUnits, Is.Null);
+                Assert.That(additional.MassEngineering.Range, Is.Null);
+                Assert.That(additional.Mass.WrappedValue.TryGetValue(out double mass), Is.True);
+                Assert.That(mass, Is.EqualTo(10d));
+                Assert.That(gear.GearRatio, Is.Null, "a failed read is no ratio, not an exception");
+                Assert.That(gear.Pitch.WrappedValue.TryGetValue(out double pitch), Is.True);
+                Assert.That(pitch, Is.EqualTo(1.0d));
+                Assert.That(gear.Identification.SerialNumber, Is.EqualTo("GearSerial"));
+            });
+        }
+
+        [Test]
+        public async Task BadQualityEngineeringValuesAndGearRatiosReadAsNoStructure()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            // The values are still there, but the server reports them with a bad status.
+            h.SetBadQuality(h.Resolve(h.AxisSpeedId, RoboticsSessionHarness.Ua(Opc.Ua.BrowseNames.EURange)));
+            NodeId massId = h.Resolve(h.FlangeLoadId, h.Rob(RoboticsBrowseNames.Mass));
+            h.SetBadQuality(h.Resolve(massId, RoboticsSessionHarness.Ua(Opc.Ua.BrowseNames.EngineeringUnits)));
+            h.SetBadQuality(h.GearRatioId);
+
+            RoboticsTopologySnapshot snapshot = await h.Client.ReadSystemAsync(h.SystemId).ConfigureAwait(false);
+
+            AxisEngineeringOptions axis = snapshot.Axes[0].Engineering;
+            LoadSnapshot flange = snapshot.Loads.ToList().Single(l => l.NodeId == h.FlangeLoadId);
+            GearSnapshot gear = snapshot.Gears[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(axis.Limits.Speed, Is.Null, "a bad read is not a range");
+                Assert.That(axis.SpeedUnit?.UnitId, Is.EqualTo(h.DegreePerSecond.UnitId));
+                Assert.That(flange.MassEngineering.EngineeringUnits, Is.Null, "a bad read is not a unit");
+                Assert.That(flange.MassEngineering.Range?.High, Is.EqualTo(20d));
+                Assert.That(gear.GearRatio, Is.Null, "a bad read is not a ratio");
+                Assert.That(gear.Pitch.WrappedValue.TryGetValue(out double pitch), Is.True);
+                Assert.That(pitch, Is.EqualTo(1.0d));
+            });
+        }
+
+        [Test]
+        public async Task AFailedMassOrPitchReadKeepsTheStatusAndTheSnapshot()
+        {
+            RoboticsSessionHarness h = new();
+            h.ConfigureCompleteTopology();
+            NodeId massId = h.Resolve(h.FlangeLoadId, h.Rob(RoboticsBrowseNames.Mass));
+            NodeId pitchId = h.Resolve(h.GearId, h.Rob(RoboticsBrowseNames.Pitch));
+            h.FailRead(massId);
+            h.FailRead(pitchId);
+
+            RoboticsTopologySnapshot snapshot = await h.Client.ReadSystemAsync(h.SystemId).ConfigureAwait(false);
+
+            LoadSnapshot flange = snapshot.Loads.ToList().Single(l => l.NodeId == h.FlangeLoadId);
+            GearSnapshot gear = snapshot.Gears[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(flange.Mass.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(flange.MassId, Is.EqualTo(massId));
+                Assert.That(flange.MassEngineering.EngineeringUnits?.UnitId, Is.EqualTo(h.Kilogram.UnitId));
+                Assert.That(gear.Pitch.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(gear.PitchId, Is.EqualTo(pitchId));
+                Assert.That(gear.GearRatio?.Numerator, Is.EqualTo(160));
+            });
+        }
+
+        [Test]
+        public async Task AnAxisWithoutAParameterSetHasNoEngineeringValues()
+        {
+            RoboticsSessionHarness h = new();
+
+            AxisSnapshot axis = await h.Client.ReadAxisAsync(h.AxisId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(axis.Engineering.PositionUnit, Is.Null);
+                Assert.That(axis.Engineering.SpeedUnit, Is.Null);
+                Assert.That(axis.Engineering.AccelerationUnit, Is.Null);
+                Assert.That(axis.Engineering.Limits.Position, Is.Null);
+                Assert.That(axis.Engineering.Limits.Speed, Is.Null);
+                Assert.That(axis.Engineering.Limits.Acceleration, Is.Null);
+            });
+        }
+
+        [Test]
         public async Task ProgramsAsyncReturnsFileSystemClientAndFailsWhenAbsent()
         {
             RoboticsSessionHarness h = new();
@@ -841,13 +983,19 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             public NodeId MotorTemperatureId { get; } = new(1404, 2);
 
-            public EUInformation Celsius { get; } = new()
-            {
-                NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
-                UnitId = 4408652,
-                DisplayName = new LocalizedText("en", "°C"),
-                Description = new LocalizedText("en", "degree Celsius")
-            };
+            public NodeId GearRatioId { get; } = new(1405, 2);
+
+            public NodeId AxisPositionUnitsId { get; } = new(1307, 2);
+
+            public EUInformation Celsius { get; } = Unit(4408652, "°C", "degree Celsius");
+
+            public EUInformation Degree { get; } = Unit(17476, "°", "degree");
+
+            public EUInformation DegreePerSecond { get; } = Unit(4536630, "°/s", "degree per second");
+
+            public EUInformation DegreePerSecondSquared { get; } = Unit(5059637, "°/s²", "degree per second squared");
+
+            public EUInformation Kilogram { get; } = Unit(4933453, "kg", "kilogram");
 
             public void ConfigureCompleteTopology()
             {
@@ -893,8 +1041,20 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddValueChild(AxisId, Rob(RoboticsBrowseNames.ActualPosition), -1d);
                 AddValueChild(AxisId, Rob(RoboticsBrowseNames.MotionProfile), (int)AxisMotionProfileEnumeration.ROTARY,
                     AxisMotionProfileId);
+                // A unit per axis value, a range for position and speed only. The
+                // decoy below the axis has a unit of its own.
+                AddValueChild(AxisPositionId, Ua(Opc.Ua.BrowseNames.EngineeringUnits), Degree, AxisPositionUnitsId);
+                AddValueChild(AxisPositionId, Ua(Opc.Ua.BrowseNames.EURange), new Range(170, -170));
+                AddValueChild(AxisSpeedId, Ua(Opc.Ua.BrowseNames.EngineeringUnits), DegreePerSecond);
+                AddValueChild(AxisSpeedId, Ua(Opc.Ua.BrowseNames.EURange), new Range(250, -250));
+                AddValueChild(AxisAccelerationId, Ua(Opc.Ua.BrowseNames.EngineeringUnits), DegreePerSecondSquared);
+                AddValueChild(
+                    Resolve(AxisId, Rob(RoboticsBrowseNames.ActualPosition)),
+                    Ua(Opc.Ua.BrowseNames.EngineeringUnits),
+                    Kilogram);
+                // The flange load's Mass has a unit and a range, the axis load's none.
                 AddLoad(AxisLoadId);
-                AddLoad(FlangeLoadId);
+                AddLoad(FlangeLoadId, Kilogram, new Range(20, 0));
 
                 AddIdentification(PowerTrainId, "PowerTrain");
                 // Motors and gears instantiate the <MotorIdentifier>/<GearIdentifier>
@@ -912,6 +1072,15 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddValueChild(MotorId, Rob(RoboticsBrowseNames.MotorTemperature), -1d);
                 AddIdentification(GearId, "Gear");
                 AddValueChild(GearId, Rob(RoboticsBrowseNames.Pitch), 1.0d);
+                AddValueChild(
+                    GearId,
+                    Rob(RoboticsBrowseNames.GearRatio),
+                    new RationalNumber { Numerator = 160, Denominator = 1 },
+                    GearRatioId);
+                AddValueChild(
+                    GearId,
+                    Ua(RoboticsBrowseNames.GearRatio),
+                    new RationalNumber { Numerator = 1, Denominator = 1 });
                 AddIdentification(DriveId, "Drive");
 
                 AddIdentification(SafetyId, "Safety");
@@ -1067,6 +1236,15 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddValueChild(currentState, Ua(Opc.Ua.BrowseNames.Id), stateId);
             }
 
+            /// <summary>
+            /// Drops the value of <paramref name="nodeId"/>: the node still resolves,
+            /// but its read fails with Bad_NodeIdUnknown.
+            /// </summary>
+            public void FailRead(NodeId nodeId)
+            {
+                m_values.Remove(nodeId);
+            }
+
             public void AddStateReads(NodeId stateMachine, string stateName)
             {
                 AddChild(stateMachine, Ua(Opc.Ua.BrowseNames.CurrentState), CurrentStateNode);
@@ -1203,9 +1381,18 @@ namespace Opc.Ua.Robotics.Client.Tests
                 AddValueChild(nodeId, Ua(DiBrowseNames.SoftwareRevision), "wrong namespace");
             }
 
-            private void AddLoad(NodeId load)
+            private void AddLoad(NodeId load, EUInformation? units = null, Range? range = null)
             {
                 AddValueChild(load, Rob(RoboticsBrowseNames.Mass), 10.0d);
+                NodeId mass = Resolve(load, Rob(RoboticsBrowseNames.Mass));
+                if (units != null)
+                {
+                    AddValueChild(mass, Ua(Opc.Ua.BrowseNames.EngineeringUnits), units);
+                }
+                if (range != null)
+                {
+                    AddValueChild(mass, Ua(Opc.Ua.BrowseNames.EURange), range);
+                }
                 AddValueChild(load, Rob(RoboticsBrowseNames.CenterOfMass), "center");
                 AddValueChild(load, Rob(RoboticsBrowseNames.Inertia), "inertia");
             }
@@ -1399,6 +1586,21 @@ namespace Opc.Ua.Robotics.Client.Tests
             private static BrowsePathResult BadPath()
             {
                 return new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch, Targets = [] };
+            }
+
+            /// <summary>
+            /// A UNECE unit; each test unit has its own UnitId, so a value read from
+            /// the wrong variable shows.
+            /// </summary>
+            private static EUInformation Unit(int unitId, string symbol, string name)
+            {
+                return new EUInformation
+                {
+                    NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+                    UnitId = unitId,
+                    DisplayName = new LocalizedText("en", symbol),
+                    Description = new LocalizedText("en", name)
+                };
             }
 
             private static DataValue Value(object value)
