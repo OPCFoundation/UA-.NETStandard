@@ -718,7 +718,7 @@ namespace Opc.Ua.Schema.Model
         public XmlQualifiedName TargetId { get; set; }
 
         /// <summary>
-        /// Defined on type
+        /// Declared on a type rather than on an instance or instance declaration.
         /// </summary>
         public bool DefinedOnType { get; set; }
 

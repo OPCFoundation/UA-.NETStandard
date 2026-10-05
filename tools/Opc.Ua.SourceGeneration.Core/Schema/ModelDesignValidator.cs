@@ -6082,6 +6082,7 @@ namespace Opc.Ua.Schema.Model
                     currentPath,
                     source.SymbolicId,
                     source.References[ii]);
+                reference.DefinedOnType = source is TypeDesign;
 
                 references.Add(reference);
 
