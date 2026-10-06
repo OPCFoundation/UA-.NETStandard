@@ -451,6 +451,103 @@ namespace Opc.Ua.Server.Tests
             Assert.That(auditServer.Events.OfType<TrustListUpdatedAuditEventState>().Count(), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// AddCertificate of a CA without a CRL succeeds (the server only warns
+        /// that its certificates fail the revocation check); a CA whose CRL is
+        /// already in the TrustList is added as well.
+        /// </summary>
+        [Test]
+        public async Task AddCertificateOfCaWithAndWithoutCrlSucceedsAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTransactionalTrustList(node);
+            trustList.SetCertificateValidation(new SecurityConfiguration { RejectUnknownRevocationStatus = true });
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+            using Certificate caWithoutCrl = CreateCa("CN=Push CA Without CRL");
+            using Certificate caWithCrl = CreateCa("CN=Push CA With CRL");
+            using (ICertificateStore issuerStore = m_issuerStore.OpenStore(m_telemetry))
+            {
+                // The directory store only accepts a CRL whose issuer it holds.
+                await issuerStore.AddAsync(caWithCrl).ConfigureAwait(false);
+                await issuerStore.AddCRLAsync(EmptyCrl(caWithCrl)).ConfigureAwait(false);
+            }
+
+            AddCertificateMethodStateResult withoutCrl = await AddCertificateAsync(node, context, caWithoutCrl.RawData)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(withoutCrl.ServiceResult), Is.True, withoutCrl.ServiceResult?.ToString());
+            AddCertificateMethodStateResult withCrl = await AddCertificateAsync(node, context, caWithCrl.RawData)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(withCrl.ServiceResult), Is.True, withCrl.ServiceResult?.ToString());
+
+            ServiceResult applyResult = await m_coordinator
+                .ApplyChangesAsync(GetSessionId(context), CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(applyResult), Is.True);
+            Assert.That(await CountTrustedAsync(caWithoutCrl.Thumbprint).ConfigureAwait(false), Is.EqualTo(1));
+            Assert.That(await CountTrustedAsync(caWithCrl.Thumbprint).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// CloseAndUpdate from a Session that does not own the active
+        /// transaction returns Bad_TransactionPending and is audited with
+        /// Status=false through the server.
+        /// </summary>
+        [Test]
+        public async Task CloseAndUpdateWhileAnotherSessionOwnsTheTransactionIsAuditedAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTransactionalTrustList(node);
+            var auditServer = new CapturingAuditEventServer(CreateContext(new NodeId(Guid.NewGuid(), 1)));
+            trustList.SetAuditEventServer(auditServer);
+            ISystemContext writer = CreateContext(new NodeId(Guid.NewGuid(), 1));
+            ISystemContext owner = CreateContext(new NodeId(Guid.NewGuid(), 1));
+            using Certificate cert = CreateSelfSigned("CN=Push Foreign Transaction");
+
+            OpenMethodStateResult open = await node.Open.OnCallAsync(
+                writer,
+                node.Open,
+                node.NodeId,
+                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                CancellationToken.None).ConfigureAwait(false);
+            await node.Write.OnCallAsync(
+                writer,
+                node.Write,
+                node.NodeId,
+                open.FileHandle,
+                EncodeTrustListPayload(writer, new TrustListDataType
+                {
+                    SpecifiedLists = (uint)TrustListMasks.TrustedCertificates,
+                    TrustedCertificates = new[] { cert.RawData.ToByteString() }
+                }),
+                CancellationToken.None).ConfigureAwait(false);
+
+            // another Session starts a transaction while the file is open
+            m_coordinator.Stage(GetSessionId(owner), new PushConfigurationOperation
+            {
+                CommitAsync = _ => Task.CompletedTask
+            });
+
+            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate.OnCallAsync(
+                writer,
+                node.CloseAndUpdate,
+                node.NodeId,
+                open.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadTransactionPending));
+            TrustListUpdatedAuditEventState updated = auditServer.Events
+                .OfType<TrustListUpdatedAuditEventState>()
+                .Single();
+            Assert.That(updated.Status.Value, Is.False);
+            m_coordinator.CancelChanges(GetSessionId(owner));
+        }
+
+        [Test]
+        public void IsX509Version3RejectsNull()
+        {
+            Assert.Throws<ArgumentNullException>(() => X509Utils.IsX509Version3(null));
+        }
+
         [Test]
         public void IsX509Version3DistinguishesVersion1FromVersion3()
         {
@@ -626,7 +723,7 @@ namespace Opc.Ua.Server.Tests
         /// version field and the extensions are stripped from its TBS and the
         /// result is signed again.
         /// </summary>
-        private static byte[] CreateVersion1Certificate(string subject)
+        internal static byte[] CreateVersion1Certificate(string subject)
         {
             using var key = RSA.Create(2048);
             var request = new CertificateRequest(subject, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
