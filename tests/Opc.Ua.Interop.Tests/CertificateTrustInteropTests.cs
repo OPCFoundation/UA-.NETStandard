@@ -105,6 +105,7 @@ namespace Opc.Ua.Interop.Tests
             {
                 await using ClientFixture client = await CreateClientAsync(autoAccept: true).ConfigureAwait(false);
 
+                // TODO: Remove when CA2025 recognizes NUnit's Assert.ThrowsAsync task completion.
 #pragma warning disable CA2025 // Assert.ThrowsAsync completes the task before the client is disposed
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                     () => ConnectAsync(client, url));
@@ -135,6 +136,7 @@ namespace Opc.Ua.Interop.Tests
             {
                 await using ClientFixture client = await CreateClientAsync(autoAccept: false).ConfigureAwait(false);
 
+                // TODO: Remove when CA2025 recognizes NUnit's Assert.ThrowsAsync task completion.
 #pragma warning disable CA2025 // Assert.ThrowsAsync completes the task before the client is disposed
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                     () => ConnectAsync(client, url));
@@ -242,6 +244,7 @@ namespace Opc.Ua.Interop.Tests
                 await using ClientFixture client = await CreateClientAsync(autoAccept: false).ConfigureAwait(false);
                 if (revokeClient)
                 {
+                    // TODO: Remove when CA2025 recognizes NUnit's Assert.ThrowsAsync task completion.
 #pragma warning disable CA2025 // Assert.ThrowsAsync completes the task before the client is disposed
                     ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                         () => ConnectAsync(client, url));

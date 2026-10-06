@@ -362,7 +362,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 CodecMessageKind.ReadResponse => CreateReadResponse(Count),
                 CodecMessageKind.PublishResponse => CreatePublishResponse(Count),
                 CodecMessageKind.NestedVariant => CreateNestedVariant(Count),
-                _ => throw new ArgumentOutOfRangeException(nameof(Kind))
+                _ => throw new InvalidOperationException($"Unsupported message kind {Kind}.")
             };
             m_encoded = BinaryEncoder.EncodeMessage(m_message, m_context);
             m_stream = new MemoryStream(m_encoded.Length * 2);
