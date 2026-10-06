@@ -2,7 +2,7 @@ function Test-PreviewPackageId {
     param([Parameter(Mandatory)][string]$PackageId)
 
     $baseId = $PackageId -replace '\.Debug$', ''
-    return $baseId -match '^OPCFoundation\.NetStandard\.Opc\.Ua\.(XRegistry|WotCon|Vision|Robotics|Redundancy|Positioning|OpenUsd|ISA95|AI|Di)(\.|$)' -or
+    return $baseId -match '^OPCFoundation\.NetStandard\.Opc\.Ua\.(XRegistry|WotCon|Vision|Robotics|Redundancy|Positioning|OpenUsd|AI)(\.|$)' -or
         $baseId -in @(
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics',
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision',
