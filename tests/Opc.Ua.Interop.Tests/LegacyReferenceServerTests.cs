@@ -58,6 +58,8 @@ namespace Opc.Ua.Interop.Tests
     public class LegacyReferenceServerTests
     {
         private static readonly TimeSpan s_startTimeout = TimeSpan.FromMinutes(2);
+        private static readonly string[] s_complexTypeNames =
+            ["ScalarStructureDataType", "VectorUnion", "VectorWithOptionalFields"];
 
         private LegacyPeerProcess m_server;
         private string m_pkiRoot;
@@ -357,7 +359,7 @@ namespace Opc.Ua.Interop.Tests
             string[] typeNames = [.. typeSystem.GetDefinedTypes().Select(t => t.Name)];
             Assert.That(
                 typeNames,
-                Is.SupersetOf(new[] { "ScalarStructureDataType", "VectorUnion", "VectorWithOptionalFields" }),
+                Is.SupersetOf(s_complexTypeNames),
                 string.Join(", ", typeNames));
 
             List<NodeId> variables = await BrowseVariablesAsync(session, ct).ConfigureAwait(false);

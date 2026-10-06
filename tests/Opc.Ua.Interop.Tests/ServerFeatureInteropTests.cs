@@ -61,6 +61,7 @@ namespace Opc.Ua.Interop.Tests
         private const string kInteropNamespace = "urn:opcfoundation.org:interop:legacy";
         private static readonly TimeSpan s_startTimeout = TimeSpan.FromMinutes(2);
         private static readonly TimeSpan s_wait = TimeSpan.FromSeconds(10);
+        private static readonly int[] s_partiallyWrittenInt32Array = [1, 20, 30, 4];
 
         private ITelemetryContext m_telemetry;
         private LegacyPeerProcess m_server;
@@ -447,7 +448,7 @@ namespace Opc.Ua.Interop.Tests
                     NodeId = new NodeId("Int32Array", m_ns),
                     AttributeId = Attributes.Value,
                     IndexRange = "2:3",
-                    Value = new DataValue(new Variant(new[] { 20, 30 }))
+                    Value = new DataValue(new Variant((ArrayOf<int>)[20, 30]))
                 }
             ], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(write.Results[0]), Is.True, "write 2:3 returned " + write.Results[0]);
@@ -457,7 +458,7 @@ namespace Opc.Ua.Interop.Tests
             ], CancellationToken.None).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(read.Results[0].StatusCode), Is.True, "read 1:4 returned " + read.Results[0].StatusCode);
             Assert.That(read.Results[0].WrappedValue.TryGetValue(out ArrayOf<int> part), Is.True, read.Results[0].WrappedValue.ToString());
-            Assert.That(part.ToArray(), Is.EqualTo(new[] { 1, 20, 30, 4 }));
+            Assert.That(part.ToArray(), Is.EqualTo(s_partiallyWrittenInt32Array));
         }
 
         /// <summary>
@@ -468,7 +469,7 @@ namespace Opc.Ua.Interop.Tests
         [Test]
         public async Task AddAndDeleteNodeAsync()
         {
-            string name = "Added_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            string name = "Added_" + Guid.NewGuid().ToString("N")[..8];
             AddNodesResponse added;
             try
             {

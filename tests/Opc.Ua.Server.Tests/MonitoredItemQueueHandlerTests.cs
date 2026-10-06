@@ -43,6 +43,10 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class MonitoredItemQueueHandlerTests
     {
+        private static readonly int[] s_composedEventValues = [10, 11, 12, 13, 20];
+        private static readonly int[] s_firstTransformedEventValue = [11];
+        private static readonly int[] s_lastTransformedEventValue = [4];
+
         [Test]
         public void EventQueueDuplicateCheckScansNewestEntries()
         {
@@ -313,7 +317,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 notifications.Select(n => n.EventFields[0].GetInt32()),
-                Is.EqualTo(new[] { 10, 11, 12, 13, 20 }));
+                Is.EqualTo(s_composedEventValues));
             Assert.That(handler.Overflow, Is.False);
         }
 
@@ -340,12 +344,12 @@ namespace Opc.Ua.Server.Tests
             handler.Publish(null!, notifications, 10, out bool overflowEventDue);
 
             // 1 -> 10 -> 11 is published, 2 -> 20 is dropped, the overflow event follows 11.
-            Assert.That(notifications.Select(n => n.EventFields[0].GetInt32()), Is.EqualTo(new[] { 11 }));
+            Assert.That(notifications.Select(n => n.EventFields[0].GetInt32()), Is.EqualTo(s_firstTransformedEventValue));
             Assert.That(overflowEventDue, Is.True);
 
             notifications.Clear();
             handler.Publish(null!, notifications, 10, out overflowEventDue);
-            Assert.That(notifications.Select(n => n.EventFields[0].GetInt32()), Is.EqualTo(new[] { 4 }));
+            Assert.That(notifications.Select(n => n.EventFields[0].GetInt32()), Is.EqualTo(s_lastTransformedEventValue));
             Assert.That(overflowEventDue, Is.False);
             Assert.That(handler.Overflow, Is.False);
         }

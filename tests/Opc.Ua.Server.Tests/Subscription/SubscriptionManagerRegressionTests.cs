@@ -323,7 +323,9 @@ namespace Opc.Ua.Server.Tests
             Task<CreateSubscriptionResponse> creating;
             try
             {
+#pragma warning disable CA2025 // awaited below, before the manager is disposed
                 creating = StartCreateSubscription(manager, session);
+#pragma warning restore CA2025
                 Assert.That(creating.IsCompleted, Is.False);
                 session.Closing = true;
             }
@@ -397,7 +399,9 @@ namespace Opc.Ua.Server.Tests
             {
                 for (int ii = 0; ii < 3; ii++)
                 {
+#pragma warning disable CA2025 // awaited below, before the manager is disposed
                     creating.Add(StartCreateSubscription(manager, session));
+#pragma warning restore CA2025
                 }
             }
             finally

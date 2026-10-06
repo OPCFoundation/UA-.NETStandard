@@ -812,7 +812,11 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, ISampledDataChangeMonitoredItem> m_items;
         private readonly List<SamplingRateGroup> m_samplingRates;
         private Task? m_samplingTask;
+        // Dispose detaches the source and CancelSamplingLoop disposes it once the loop completes.
+        // TODO: Remove the pragma when CA2213 recognizes deferred ownership transfer.
+#pragma warning disable CA2213
         private CancellationTokenSource? m_samplingCts;
+#pragma warning restore CA2213
     }
 
     /// <summary>

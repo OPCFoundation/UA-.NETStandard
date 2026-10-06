@@ -47,6 +47,7 @@ namespace Opc.Ua.Interop.LegacyPeer
         public const string AlarmsNamespace = "http://test.org/UA/Alarms/";
 
         private static readonly TimeSpan s_eventWait = TimeSpan.FromSeconds(10);
+        private static readonly int[] s_partialInt32Array = [20, 30];
 
         /// <summary>
         /// Subscribes to BaseEventType events of the Server object and writes the
@@ -642,7 +643,7 @@ namespace Opc.Ua.Interop.LegacyPeer
         /// </summary>
         private static async Task NodeManagementAsync(ClientContext c)
         {
-            string name = "InteropAdded_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            string name = "InteropAdded_" + Guid.NewGuid().ToString("N")[..8];
             var requested = new NodeId(name, c.Ns);
             AddNodesResponse added = await c.Session.AddNodesAsync(null, new AddNodesItemCollection
             {
@@ -686,7 +687,7 @@ namespace Opc.Ua.Interop.LegacyPeer
                     NodeId = node,
                     AttributeId = Attributes.Value,
                     IndexRange = "2:3",
-                    Value = new DataValue(new Variant(new[] { 20, 30 }))
+                    Value = new DataValue(new Variant(s_partialInt32Array))
                 }
             }, c.Ct).ConfigureAwait(false);
             Require(StatusCode.IsGood(write.Results[0]), "writing the index range 2:3 returned " + write.Results[0]);
