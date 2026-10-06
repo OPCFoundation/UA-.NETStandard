@@ -341,7 +341,7 @@ namespace Opc.Ua
             }
 
             using X509Certificate2 x509 = certificate.AsX509Certificate2();
-            return x509.Version >= 3;
+            return x509.Version == 3;
         }
 
         /// <summary>

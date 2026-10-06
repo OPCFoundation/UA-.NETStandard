@@ -30,7 +30,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 
@@ -87,6 +89,41 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(fixture.Server.CurrentInstance.CurrentState, Is.EqualTo(ServerState.Running));
                 Assert.That(await ReadServerStateAsync(fixture.Server).ConfigureAwait(false),
                     Is.EqualTo(ServerState.Running));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The hosted server derives its startup state from the registered
+        /// <see cref="ServerConfigurationOptions.InApplicationSetup"/>.
+        /// </summary>
+        [TestCase(true, ServerState.NoConfiguration)]
+        [TestCase(false, ServerState.Running)]
+        [TestCase(null, ServerState.Running)]
+        public async Task DependencyInjectionServerMapsInApplicationSetupToServerStateAsync(
+            bool? inApplicationSetup,
+            ServerState expected)
+        {
+            var services = new ServiceCollection();
+            if (inApplicationSetup.HasValue)
+            {
+                services.AddSingleton(new ServerConfigurationOptions { InApplicationSetup = inApplicationSetup });
+            }
+            using ServiceProvider provider = services.BuildServiceProvider();
+            var fixture = new ServerFixture<DependencyInjectionStandardServer>(
+                telemetry => new DependencyInjectionStandardServer(provider, telemetry, TimeProvider.System))
+            {
+                SecurityNone = true
+            };
+            await fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                Assert.That(fixture.Server.CurrentInstance.CurrentState, Is.EqualTo(expected));
+                Assert.That(await ReadServerStateAsync(fixture.Server).ConfigureAwait(false), Is.EqualTo(expected));
             }
             finally
             {

@@ -2258,11 +2258,10 @@ namespace Opc.Ua.Server
                 await GetStore(m_trustedStore).EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
             X509CRL[] crlPool = [.. newIssuerCrls.Concat(newTrustedCrls)];
 
-            // Only the CRL lists that are being replaced are checked: CRLs
-            // already in a store that is kept were accepted earlier.
-            ServiceResult crlResult = ValidateCrlIssuers(
-                pool,
-                [.. (issuerCrls ?? []).Concat(trustedCrls ?? [])]);
+            // Every CRL of the resulting TrustList is checked against the
+            // resulting certificates: a kept CRL list must not retain the CRL
+            // of a CA that this update removes.
+            ServiceResult crlResult = ValidateCrlIssuers(pool, crlPool);
             if (ServiceResult.IsBad(crlResult))
             {
                 return crlResult;

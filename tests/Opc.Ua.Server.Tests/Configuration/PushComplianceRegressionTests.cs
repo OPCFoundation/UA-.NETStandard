@@ -337,6 +337,48 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Replacing the trusted certificates while keeping the CRL list must
+        /// not leave the CRL of a removed CA behind: every CRL of the
+        /// resulting TrustList is validated, not only the uploaded ones.
+        /// </summary>
+        [Test]
+        public async Task CloseAndUpdateRejectsRetainedCrlOfRemovedCaAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTransactionalTrustList(node);
+            trustList.SetCertificateValidation(new SecurityConfiguration());
+            ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
+            using Certificate removedCa = CreateCa("CN=Push Removed CA");
+            using Certificate otherCa = CreateCa("CN=Push Remaining CA");
+            await SeedTrustedAsync(removedCa).ConfigureAwait(false);
+            using (ICertificateStore store = m_trustedStore.OpenStore(m_telemetry))
+            {
+                await store.AddCRLAsync(EmptyCrl(removedCa)).ConfigureAwait(false);
+            }
+
+            ServiceResult rejected = await CloseAndUpdateAsync(
+                node,
+                context,
+                new TrustListDataType
+                {
+                    SpecifiedLists = (uint)TrustListMasks.TrustedCertificates,
+                    TrustedCertificates = new[] { otherCa.RawData.ToByteString() }
+                }).ConfigureAwait(false);
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+
+            ServiceResult accepted = await CloseAndUpdateAsync(
+                node,
+                context,
+                new TrustListDataType
+                {
+                    SpecifiedLists = (uint)(TrustListMasks.TrustedCertificates | TrustListMasks.TrustedCrls),
+                    TrustedCertificates = new[] { otherCa.RawData.ToByteString() },
+                    TrustedCrls = new[] { EmptyCrl(otherCa).RawData.ToByteString() }
+                }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(accepted), Is.True, accepted.ToString());
+        }
+
+        /// <summary>
         /// With an audit event server attached the TrustList audit events are
         /// reported through the server (and so reach the Server Object)
         /// instead of the TrustList node, which is not an event notifier.

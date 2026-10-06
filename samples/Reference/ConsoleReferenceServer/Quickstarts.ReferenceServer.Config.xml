@@ -48,10 +48,13 @@
       </CertificateIdentifier>
       <CertificateIdentifier>
         <!-- The TLS certificate of the opc.https / opc.wss endpoints, managed
-             through the DefaultHttpsGroup (OPC 10000-12 §7.8.3). -->
+             through the DefaultHttpsGroup (OPC 10000-12 §7.8.3). It has its own
+             subject (CN = a DNS name of the host) and its own store: in the shared
+             own store the lookup falls back to the ApplicationUri and would reuse
+             the RSA application certificate instead of creating a TLS certificate. -->
         <StoreType>Directory</StoreType>
-        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
-        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <StorePath>%LocalApplicationData%/OPC Foundation/pki/ownHttps</StorePath>
+        <SubjectName>CN=localhost, O=OPC Foundation</SubjectName>
         <CertificateTypeString>Https</CertificateTypeString>
       </CertificateIdentifier>
     </ApplicationCertificates>
