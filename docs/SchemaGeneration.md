@@ -20,6 +20,7 @@ the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and JSON uses
 - [Working with the object model](#working-with-the-object-model)
 - [JSON encoding notes](#json-encoding-notes-part-6)
 - [PubSub schemas](#pubsub-schemas)
+- [OpenAPI document of the REST binding](#openapi-document-of-the-rest-binding)
 - [Trimming and NativeAOT](#trimming-and-nativeaot)
 
 ## Concepts
@@ -198,6 +199,33 @@ The `Opc.Ua.PubSub.Schema` library generates JSON Schemas for the PubSub JSON me
 - `CreateMetaDataMessageSchema(metaData, verbose)` — the `ua-metadata` message.
 
 The provider reuses the core `ISchemaProvider` to resolve complex (structured/enum) field data types, embedding them into the document `$defs` section.
+
+## OpenAPI document of the REST binding
+
+`WebApiOpenApiGenerator` generates the OpenAPI 3.0 document of the REST binding
+(Part 6 G.3, see [REST binding](WebApi.md)) from `WebApiServiceRoutes` and the
+structure definitions of the request and response types. It is not an
+`IUaSchemaGenerator`: a document describes a set of routes rather than one data
+type.
+
+```csharp
+var generator = new WebApiOpenApiGenerator();
+JsonObject document = generator.Generate(
+    WebApiServiceSet.Sessionless,   // or AllServices
+    includeSchemas: true,           // false: a JSON object as every body
+    serverUrl: "/opcua/");          // null: no servers list
+```
+
+Without `includeSchemas` the document holds the paths and operations only
+(about 12 KB for all 28 services). With it, every request, response and the
+structures and enumerations they contain become component schemas (about 46 KB),
+which is what OpenAPI client generators need. The schemas describe the Compact
+JSON encoding with the property names and types the published OPC Foundation
+documents use; [OPC UA over OpenAPI](OpenApi.md) lists the differences and the
+tests that keep the document correct. Pass an `IDataTypeDefinitionResolver` to
+the constructor to resolve the types from another source than the generated
+types of the OPC UA namespace. The generator is registered by
+`AddWebApiTransport()`, which serves the document.
 
 ## Trimming and NativeAOT
 

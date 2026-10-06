@@ -148,18 +148,26 @@ namespace Opc.Ua.Server.Hosting
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
+            ISessionManager? manager = null;
             foreach (OpcUaServerSessionManagerRegistration registration in
                 m_services.GetServices<OpcUaServerSessionManagerRegistration>())
             {
-                return registration.CreateManager(m_services, server, configuration);
+                manager = registration.CreateManager(m_services, server, configuration);
+                break;
             }
 
-            if (m_services.GetService<ISessionManager>() is { } sessionManager)
+            manager ??= m_services.GetService<ISessionManager>() ??
+                base.CreateSessionManager(server, configuration);
+
+            // AddSessionlessInvocation(...) enables OPC 10000-4 §6.3 on
+            // whichever session manager is in use, unless it was configured
+            // already.
+            if (manager is SessionManager sessionManager &&
+                m_services.GetService<SessionlessInvocationOptions>() is { } sessionless)
             {
-                return sessionManager;
+                sessionManager.SessionlessInvocation ??= sessionless;
             }
-
-            return base.CreateSessionManager(server, configuration);
+            return manager;
         }
 
         /// <inheritdoc/>

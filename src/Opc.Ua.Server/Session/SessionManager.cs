@@ -109,6 +109,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets or sets the built-in Session-less Service invocation
+        /// (OPC 10000-4 §6.3). <see langword="null"/>, the default, disables
+        /// it unless a <see cref="ValidateSessionLessRequest"/> handler
+        /// decides.
+        /// </summary>
+        /// <remarks>
+        /// While set, the Session-less requests of this manager are limited by
+        /// <see cref="SessionlessInvocationOptions.MaxConcurrentRequests"/> and
+        /// <see cref="SessionlessInvocationOptions.MaxConcurrentRequestsPerChannel"/>,
+        /// including those a <see cref="ValidateSessionLessRequest"/> handler
+        /// decides. Setting it starts a new budget.
+        /// </remarks>
+        public SessionlessInvocationOptions? SessionlessInvocation
+        {
+            get => Volatile.Read(ref m_sessionlessBudget)?.Options;
+            set => Volatile.Write(
+                ref m_sessionlessBudget,
+                value != null ? new SessionlessRequestBudget(value) : null);
+        }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -1300,24 +1321,21 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                 {
-                    EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
-
-                    if (handler != null)
+                    // Session-less invocation (OPC 10000-4 §6.3) is limited to
+                    // the View (without RegisterNodes/UnregisterNodes),
+                    // Attribute, Method, NodeManagement and Query Service Sets;
+                    // everything else needs a Session.
+                    if (!IsSessionlessService(requestType))
                     {
-                        var args = new ValidateSessionLessRequestEventArgs(
-                            requestHeader.AuthenticationToken,
-                            requestType);
-                        handler(this, args);
-
-                        if (ServiceResult.IsBad(args.Error))
-                        {
-                            throw new ServiceResultException(args.Error);
-                        }
-
-                        return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, args.Identity);
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                     }
 
-                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    return await CreateSessionlessContextAsync(
+                            requestHeader,
+                            secureChannelContext,
+                            requestType,
+                            requestLifetime)
+                        .ConfigureAwait(false);
                 }
 
                 // validate request header.
@@ -1380,10 +1398,275 @@ namespace Opc.Ua.Server
                 }
                 throw;
             }
+            catch (OperationCanceledException)
+            {
+                // The request was cancelled or timed out, for example while a
+                // Session-less Access Token was validated: the endpoint maps it
+                // to the status of the request lifetime.
+                throw;
+            }
             catch (Exception e)
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
             }
+        }
+
+        /// <summary>
+        /// Creates the context of a request that names no Session: it runs
+        /// within the Session-less request budget, as the identity the
+        /// <see cref="ValidateSessionLessRequest"/> handler or the
+        /// <see cref="SessionlessInvocation"/> options decide.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The request carries no acceptable identity, or the handler or the options refuse it.
+        /// </exception>
+        /// <exception cref="ServerBusyException">
+        /// The Session-less request budget has no place for the request.
+        /// </exception>
+        private async ValueTask<OperationContext> CreateSessionlessContextAsync(
+            RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
+            RequestType requestType,
+            RequestLifetime requestLifetime)
+        {
+            EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
+            SessionlessRequestBudget? budget = Volatile.Read(ref m_sessionlessBudget);
+            SessionlessInvocationOptions? sessionless = budget?.Options;
+
+            if (handler == null && sessionless == null)
+            {
+                // No authenticationToken at all is a Session-less call; a
+                // Server without support answers Bad_ServiceUnsupported
+                // (§6.3.1). A token that names no Session stays
+                // Bad_SessionIdInvalid, which is what a Client whose
+                // Session expired needs to see.
+                if (requestHeader.AuthenticationToken.IsNull)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadServiceUnsupported,
+                        "Session-less Service invocation is not enabled on this Server.");
+                }
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+            }
+
+            // The request has no Session to be accounted for: take its place in
+            // the Session-less budget before any identity is checked, which
+            // bounds the validations that run at the same time as well. The
+            // context returns the lease when the request is done, and every
+            // other way out of here does.
+            IDisposable? lease = null;
+            if (budget != null)
+            {
+                SessionlessLimit limit = budget.TryAcquire(secureChannelContext, out lease);
+                if (limit != SessionlessLimit.None)
+                {
+                    m_logger.SessionlessRequestRefused(limit, requestType);
+                    throw new ServerBusyException(
+                        new ServiceResult(
+                            StatusCodes.BadServerTooBusy,
+                            new LocalizedText(limit == SessionlessLimit.Server
+                                ? "The Server runs the maximum number of Session-less requests."
+                                : "The channel runs the maximum number of Session-less requests.")),
+                        retryAfter: null);
+                }
+            }
+
+            try
+            {
+                OperationContext context;
+                if (handler != null)
+                {
+                    var args = new ValidateSessionLessRequestEventArgs(
+                        requestHeader.AuthenticationToken,
+                        requestType);
+                    handler(this, args);
+
+                    if (ServiceResult.IsBad(args.Error))
+                    {
+                        throw new ServiceResultException(args.Error);
+                    }
+
+                    context = new OperationContext(
+                        requestHeader,
+                        secureChannelContext,
+                        requestType,
+                        requestLifetime,
+                        MapSessionlessRoles(args.Identity, secureChannelContext));
+                }
+                else
+                {
+                    IUserIdentity identity = await ValidateSessionlessRequestAsync(
+                            requestHeader.AuthenticationToken,
+                            secureChannelContext,
+                            sessionless!,
+                            requestLifetime.CancellationToken)
+                        .ConfigureAwait(false);
+                    context = new OperationContext(
+                        requestHeader,
+                        secureChannelContext,
+                        requestType,
+                        requestLifetime,
+                        MapSessionlessRoles(identity, secureChannelContext));
+                }
+
+                if (lease != null)
+                {
+                    context.AttachSessionlessLease(lease);
+                    lease = null;
+                }
+                return context;
+            }
+            finally
+            {
+                lease?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Maps the roles of the identity of a Session-less request the way
+        /// ActivateSession maps those of a Session, so that role-mapped Nodes
+        /// are accessed under the same rules. Without a Session there is no
+        /// client application certificate, so no TrustedApplication role and
+        /// no application-based role mapping.
+        /// </summary>
+        private IUserIdentity MapSessionlessRoles(
+            IUserIdentity? identity,
+            SecureChannelContext secureChannelContext)
+        {
+            if (identity == null)
+            {
+                return null!;
+            }
+            return ResolveRoles(identity, null, secureChannelContext.EndpointDescription);
+        }
+
+        /// <summary>
+        /// Returns whether a Service may be invoked without a Session
+        /// (OPC 10000-4 §6.3.1): the View (without RegisterNodes and
+        /// UnregisterNodes), Attribute, Method, NodeManagement and Query
+        /// Service Sets.
+        /// </summary>
+        /// <param name="requestType">The Service.</param>
+        /// <returns>
+        /// <see langword="true"/> if the Service may be invoked without a
+        /// Session; otherwise <see langword="false"/>.
+        /// </returns>
+        public static bool IsSessionlessService(RequestType requestType)
+        {
+            return requestType is
+                RequestType.Browse or
+                RequestType.BrowseNext or
+                RequestType.TranslateBrowsePathsToNodeIds or
+                RequestType.Read or
+                RequestType.HistoryRead or
+                RequestType.Write or
+                RequestType.HistoryUpdate or
+                RequestType.Call or
+                RequestType.AddNodes or
+                RequestType.AddReferences or
+                RequestType.DeleteNodes or
+                RequestType.DeleteReferences or
+                RequestType.QueryFirst or
+                RequestType.QueryNext;
+        }
+
+        /// <summary>
+        /// Determines the identity a Session-less request runs as, per
+        /// <paramref name="options"/>.
+        /// </summary>
+        /// <param name="authenticationToken">
+        /// The <c>authenticationToken</c> of the request header.
+        /// </param>
+        /// <param name="secureChannelContext">The channel the request arrived on.</param>
+        /// <param name="options">The Session-less invocation options.</param>
+        /// <param name="cancellationToken">Cancels the validation.</param>
+        /// <returns>The identity the request runs as.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="secureChannelContext"/> or <paramref name="options"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The request carries no acceptable identity.
+        /// </exception>
+        protected virtual async ValueTask<IUserIdentity> ValidateSessionlessRequestAsync(
+            NodeId authenticationToken,
+            SecureChannelContext secureChannelContext,
+            SessionlessInvocationOptions options,
+            CancellationToken cancellationToken)
+        {
+            if (secureChannelContext == null)
+            {
+                throw new ArgumentNullException(nameof(secureChannelContext));
+            }
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            EndpointDescription? endpoint = secureChannelContext.EndpointDescription;
+
+            if (!authenticationToken.IsNull)
+            {
+                // An Access Token (§6.3.1). Session tokens are UInt32 or
+                // ByteString NodeIds; a String NodeId carries the token itself.
+                if (!options.AcceptAccessTokens ||
+                    !authenticationToken.TryGetValue(out string accessToken) ||
+                    string.IsNullOrEmpty(accessToken))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                }
+
+                // "The SecureChannel shall have encryption enabled to prevent
+                // eavesdroppers from seeing the Access Token." HTTPS encrypts
+                // at the transport.
+                if (endpoint == null || !IsConfidential(endpoint))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityModeInsufficient,
+                        "An Access Token requires an encrypted SecureChannel.");
+                }
+
+                var tokenHandler = new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    System.Text.Encoding.UTF8.GetBytes(accessToken));
+                var policy = new UserTokenPolicy
+                {
+                    TokenType = UserTokenType.IssuedToken,
+                    IssuedTokenType = Profiles.JwtUserToken
+                };
+                AuthenticationResult result = await m_server.IdentityRegistry
+                    .AuthenticateAsync(
+                        new AuthenticationContext(tokenHandler, policy, endpoint, m_server.MessageContext),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (result.Outcome == AuthenticationOutcome.Accepted && result.Identity != null)
+                {
+                    return result.Identity;
+                }
+
+                m_logger.SessionlessAccessTokenRejected(result.Outcome);
+                throw new ServiceResultException(
+                    result.Error ?? new ServiceResult(StatusCodes.BadIdentityTokenRejected));
+            }
+
+            if (options.AllowAnonymous)
+            {
+                return new UserIdentity();
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadIdentityTokenInvalid,
+                "The Session-less request carries no Access Token.");
+        }
+
+        /// <summary>
+        /// Returns whether the channel of <paramref name="endpoint"/> keeps
+        /// an Access Token confidential: SignAndEncrypt, or an HTTPS
+        /// endpoint, whose transport encrypts.
+        /// </summary>
+        private static bool IsConfidential(EndpointDescription endpoint)
+        {
+            return endpoint.SecurityMode == MessageSecurityMode.SignAndEncrypt ||
+                (endpoint.EndpointUrl != null && Utils.IsUriHttpsScheme(endpoint.EndpointUrl));
         }
 
         /// <summary>
@@ -1524,6 +1807,39 @@ namespace Opc.Ua.Server
             OperationContext context,
             IUserIdentity effectiveIdentity)
         {
+            // Only a client certificate that passed validation identifies the
+            // application. One whose validation error an OnApplicationCertificateError
+            // override accepted still signs the session but grants neither
+            // TrustedApplication nor application-based role mappings.
+            Certificate? applicationCertificate =
+                ClientCertificateProvenance.IsValidated(session)
+                    ? session.ClientCertificate
+                    : null;
+
+            return ResolveRoles(
+                effectiveIdentity,
+                applicationCertificate,
+                context.ChannelContext?.EndpointDescription);
+        }
+
+        /// <summary>
+        /// Maps the roles of an identity: the restriction of a user that must change
+        /// the password, the TrustedApplication role and the live
+        /// <see cref="IRoleManager"/> identity-mapping rules. A Session receives them
+        /// through <see cref="AddMandatoryRoles"/>, a Session-less request through
+        /// <see cref="CreateSessionlessContextAsync"/>, so both resolve the roles alike.
+        /// </summary>
+        /// <param name="effectiveIdentity">The identity to map the roles of.</param>
+        /// <param name="applicationCertificate">
+        /// The validated application certificate of the client, or <see langword="null"/>
+        /// if the client has none or its certificate did not pass validation.
+        /// </param>
+        /// <param name="endpoint">The endpoint the request arrived on.</param>
+        private IUserIdentity ResolveRoles(
+            IUserIdentity effectiveIdentity,
+            Certificate? applicationCertificate,
+            EndpointDescription? endpoint)
+        {
             // Part 18 5.2.8 - the Session "shall have only the Role Anonymous" if
             // the user has MustChangePassword set, so every other role and any
             // role-derived privilege of the impersonated identity is discarded
@@ -1541,18 +1857,9 @@ namespace Opc.Ua.Server
                     m_server.NamespaceUris);
             }
 
-            // Only a client certificate that passed validation identifies the
-            // application. One whose validation error an OnApplicationCertificateError
-            // override accepted still signs the session but grants neither
-            // TrustedApplication nor application-based role mappings.
-            Certificate? applicationCertificate =
-                ClientCertificateProvenance.IsValidated(session)
-                    ? session.ClientCertificate
-                    : null;
-
             // Assign TrustedApplication role per OPC UA Part 3 §4.9.
             if (applicationCertificate != null &&
-                context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
+                endpoint?.SecurityMode >= MessageSecurityMode.Sign)
             {
                 if (effectiveIdentity is RoleBasedIdentity rbi)
                 {
@@ -1576,7 +1883,7 @@ namespace Opc.Ua.Server
                 IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
                     applicationCertificate,
-                    context.ChannelContext?.EndpointDescription);
+                    endpoint);
 
                 if (dynamicRoleIds.Count > 0)
                 {
@@ -2138,6 +2445,7 @@ namespace Opc.Ua.Server
         private event SessionEventHandler? m_SessionChannelKeepAlive;
         private event ImpersonateEventHandler? m_ImpersonateUser;
         private event EventHandler<ValidateSessionLessRequestEventArgs>? m_ValidateSessionLessRequest;
+        private SessionlessRequestBudget? m_sessionlessBudget;
 
         /// <summary>
         /// Last <see cref="IRoleManager"/> we wired
@@ -2621,5 +2929,18 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 18, Level = LogLevel.Warning,
+            Message = "Server - Rejected the access token of a session-less request ({Outcome}).")]
+        public static partial void SessionlessAccessTokenRejected(
+            this ILogger logger,
+            AuthenticationOutcome outcome);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 19, Level = LogLevel.Debug,
+            Message = "Server - Refused a session-less {RequestType} request, the {Limit} limit is reached.")]
+        public static partial void SessionlessRequestRefused(
+            this ILogger logger,
+            SessionlessLimit limit,
+            RequestType requestType);
     }
 }
