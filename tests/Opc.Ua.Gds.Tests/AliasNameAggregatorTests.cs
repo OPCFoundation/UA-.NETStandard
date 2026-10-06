@@ -55,6 +55,14 @@ namespace Opc.Ua.Gds.Tests
 
         private static readonly NodeId s_appA = new("appA", 2);
         private static readonly NodeId s_appB = new("appB", 2);
+        private static readonly string[] s_machinesAndPumps = ["Machines", "Pumps"];
+        private static readonly string[] s_machineAliases = ["A_Machine", "B_Machine"];
+        private static readonly string[] s_machines = ["Machines"];
+        private static readonly string[] s_sourceBAliases = ["Shared", "B_Machine"];
+        private static readonly string[] s_tagAlias = ["A_Tag"];
+        private static readonly string[] s_allAliases =
+            ["Shared", "A_Tag", "A_Pump", "A_Machine", "A_Topic", "B_Machine"];
+        private static readonly string[] s_tagVariableAliases = ["A_Tag", "A_Pump"];
 
         private static (AliasNameAggregator Aggregator, StringTable ServerUris, TypeTable TypeTree) Create(
             params string[] extraServerUris)
@@ -137,19 +145,19 @@ namespace Opc.Ua.Gds.Tests
             aggregator.SetSource(s_appB, SourceB());
 
             AliasNameAggregateView view = aggregator.GetView();
-            Assert.That(view.Categories.ToArray().Select(c => c.Name), Is.EquivalentTo(new[] { "Machines", "Pumps" }),
+            Assert.That(view.Categories.ToArray().Select(c => c.Name), Is.EquivalentTo(s_machinesAndPumps),
                 "Well-known categories are not created; Machines exists once.");
             AliasNameAggregateCategory machines = view.Categories.ToArray().Single(c => c.Name == "Machines");
             Assert.That(machines.ParentId, Is.EqualTo(Ua.ObjectIds.Aliases));
             Assert.That(view.Categories.ToArray().Single(c => c.Name == "Pumps").ParentId, Is.EqualTo(Ua.ObjectIds.TagVariables));
             Assert.That(view.Aliases.ToArray().Where(a => a.CategoryId == machines.NodeId).Select(a => a.Name),
-                Is.EquivalentTo(new[] { "A_Machine", "B_Machine" }));
+                Is.EquivalentTo(s_machineAliases));
 
             // Annex C.3: a category stays while another source uses it.
             Assert.That(aggregator.RemoveSource(s_appA), Is.True);
             view = aggregator.GetView();
-            Assert.That(view.Categories.ToArray().Select(c => c.Name), Is.EqualTo(new[] { "Machines" }));
-            Assert.That(view.Aliases.ToArray().Select(a => a.Name), Is.EquivalentTo(new[] { "Shared", "B_Machine" }));
+            Assert.That(view.Categories.ToArray().Select(c => c.Name), Is.EqualTo(s_machines));
+            Assert.That(view.Aliases.ToArray().Select(a => a.Name), Is.EquivalentTo(s_sourceBAliases));
             Assert.That(view.Aliases.ToArray().Single(a => a.Name == "Shared").Targets.ToArray(), Has.Length.EqualTo(1),
                 "The AliasFor reference to the removed Server is gone.");
 
@@ -195,7 +203,7 @@ namespace Opc.Ua.Gds.Tests
 
             AliasNameAggregateView view = aggregator.GetView();
             Assert.That(view.Categories.ToArray(), Is.Empty);
-            Assert.That(view.Aliases.ToArray().Select(a => a.Name), Is.EqualTo(new[] { "A_Tag" }));
+            Assert.That(view.Aliases.ToArray().Select(a => a.Name), Is.EqualTo(s_tagAlias));
             Assert.That(aggregator.Sources.ToArray(), Is.EqualTo(new[] { s_appA }));
         }
 
@@ -223,14 +231,14 @@ namespace Opc.Ua.Gds.Tests
             IReadOnlyList<AliasNameDataType> all = await aggregator
                 .FindAliasAsync(Ua.ObjectIds.Aliases, "%", NodeId.Null, typeTree).ConfigureAwait(false);
             Assert.That(all.Select(a => a.AliasName.Name),
-                Is.EquivalentTo(new[] { "Shared", "A_Tag", "A_Pump", "A_Machine", "A_Topic", "B_Machine" }));
+                Is.EquivalentTo(s_allAliases));
             Assert.That(all.Single(a => a.AliasName.Name == "Shared").ReferencedNodes.Count, Is.EqualTo(2));
             Assert.That(all.Select(a => a.AliasName.NamespaceIndex), Is.All.EqualTo(AggregateNs));
 
             IReadOnlyList<AliasNameDataType> tags = await aggregator
                 .FindAliasAsync(Ua.ObjectIds.TagVariables, "A%", ReferenceTypeIds.AliasFor, typeTree)
                 .ConfigureAwait(false);
-            Assert.That(tags.Select(a => a.AliasName.Name), Is.EquivalentTo(new[] { "A_Tag", "A_Pump" }),
+            Assert.That(tags.Select(a => a.AliasName.Name), Is.EquivalentTo(s_tagVariableAliases),
                 "Nested categories are searched, other categories are not.");
 
             NodeId machines = aggregator.GetView().Categories.ToArray().Single(c => c.Name == "Machines").NodeId;
@@ -268,15 +276,15 @@ namespace Opc.Ua.Gds.Tests
             {
                 ApplicationUri = UriA,
                 ApplicationType = ApplicationType.Server,
-                DiscoveryUrls = new[] { "opc.tcp://localhost:4840" }.ToArrayOf(),
-                ServerCapabilities = new[] { "DA", "ALIAS" }.ToArrayOf()
+                DiscoveryUrls = ["opc.tcp://localhost:4840"],
+                ServerCapabilities = ["DA", "ALIAS"]
             };
             Assert.That(ApplicationsNodeManager.IsAliasNameSource(record), Is.True);
 
-            record.ServerCapabilities = new[] { "DA" }.ToArrayOf();
+            record.ServerCapabilities = ["DA"];
             Assert.That(ApplicationsNodeManager.IsAliasNameSource(record), Is.False);
 
-            record.ServerCapabilities = new[] { "ALIAS" }.ToArrayOf();
+            record.ServerCapabilities = ["ALIAS"];
             record.DiscoveryUrls = default;
             Assert.That(ApplicationsNodeManager.IsAliasNameSource(record), Is.False);
             Assert.That(ApplicationsNodeManager.IsAliasNameSource(null), Is.False);

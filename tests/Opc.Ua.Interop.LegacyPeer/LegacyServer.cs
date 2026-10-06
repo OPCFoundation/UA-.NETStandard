@@ -333,10 +333,10 @@ namespace Opc.Ua.Interop.LegacyPeer
                     new QualifiedName("Name", NamespaceIndex));
                 CreateVariable(folder, "NodeId", DataTypeIds.NodeId, ValueRanks.Scalar,
                     new NodeId("Interop", NamespaceIndex));
-                CreateVariable(folder, "Int32Array", DataTypeIds.Int32, ValueRanks.OneDimension,
-                    new[] { 1, 2, 3 });
-                CreateVariable(folder, "StringArray", DataTypeIds.String, ValueRanks.OneDimension,
-                    new[] { "a", "b", "c" });
+                int[] int32Array = [1, 2, 3];
+                CreateVariable(folder, "Int32Array", DataTypeIds.Int32, ValueRanks.OneDimension, int32Array);
+                string[] stringArray = ["a", "b", "c"];
+                CreateVariable(folder, "StringArray", DataTypeIds.String, ValueRanks.OneDimension, stringArray);
                 CreateVariable(folder, "Range", DataTypeIds.Range, ValueRanks.Scalar,
                     new Range(100, 0));
                 m_counter = CreateVariable(folder, "Counter", DataTypeIds.Int32, ValueRanks.Scalar, 0);

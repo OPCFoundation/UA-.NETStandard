@@ -69,7 +69,7 @@ dotnet build UA.slnx
 
 Notes:
 
-- **Warnings are errors.** `TreatWarningsAsErrors` is enabled, so compiler (`CSxxxx`) and Roslynator (`RCSxxxx`) diagnostics fail the build. Microsoft Code Analysis (`CAxxxx`) diagnostics are emitted as non-fatal warnings unless a rule is promoted to error in `.editorconfig`. Fix all of them before opening a pull request.
+- **Warnings are errors.** `TreatWarningsAsErrors` and `CodeAnalysisTreatWarningsAsErrors` are enabled, so compiler (`CSxxxx`), Roslynator (`RCSxxxx`) and Microsoft Code Analysis (`CAxxxx`) warnings all fail the build. Fix them rather than suppressing them; a suppression must carry a comment explaining why and a TODO to remove it.
 - **Building a single target framework.** By default the libraries multi-target the whole matrix (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)). To restrict a local build to one framework, pass `-p:CustomTargetFrameworks`, for example:
 
   ```bash
