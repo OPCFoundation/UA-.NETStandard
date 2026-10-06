@@ -2891,10 +2891,8 @@ namespace Opc.Ua.Server.Tests
             // ApplyCertificateSlotChangeAsync must report exactly the
             // thumbprints it newly added (excluding any pre-existing
             // issuer that also happened to be part of the submitted
-            // chain), so a later rollback/self-compensation - exercised
-            // end-to-end in
-            // UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndRemovesNewIssuerAsync -
-            // removes only the issuers it actually introduced.
+            // chain), so a later rollback/self-compensation removes only
+            // the issuers it actually introduced.
             Type managerType = typeof(ConfigurationNodeManager);
             FieldInfo groupsField = managerType.GetField(
                 "m_certificateGroups",
@@ -3224,18 +3222,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndRemovesNewIssuerAsync()
+        public async Task UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndLeavesIssuerStoreAsync()
         {
-            // Issue: UpdateCertificate's commit imports the staged issuer
-            // chain into the group's issuer store, but its RollbackAsync
-            // only ever restored the application certificate. Any issuer
-            // newly imported by a successful UpdateCertificate therefore
-            // stayed behind forever once a LATER operation in the same
-            // transaction failed to commit and the coordinator reverse-
-            // compensated this already-successful UpdateCertificate.
-            // Verify that after such a later-operation failure, both the
-            // application certificate AND the issuer store are fully
-            // restored.
+            // When a LATER operation in the same transaction fails to
+            // commit, the coordinator reverse-compensates this already-
+            // successful UpdateCertificate: the application certificate
+            // must be fully restored. For the ApplicationCertificate-
+            // purpose group the supplied issuer list is ignored (OPC
+            // 10000-12 §7.10.5), so the issuer store must also end up
+            // without the supplied CA. Removal of issuers that a commit
+            // did import is covered directly by
+            // ApplyCertificateSlotChangeTracksNewlyAddedIssuersAndPreservesPreExistingOnesAsync,
+            // which also exercises RemoveIssuerCertificatesAsync.
             ISystemContext context = CreateAdminContext();
             ByteString originalCertificateBytes = GetCurrentRsaCertificate(context);
             using var original = Certificate.FromRawData(originalCertificateBytes);
@@ -3333,7 +3331,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     afterMatches,
                     Has.Count.EqualTo(0),
-                    "the newly imported issuer certificate must be removed once the transaction rolls back");
+                    "the supplied issuer certificate must never be in the issuer store after the rollback");
             }
             finally
             {
