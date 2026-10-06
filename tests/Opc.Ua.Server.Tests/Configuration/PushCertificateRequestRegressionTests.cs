@@ -80,6 +80,20 @@ namespace Opc.Ua.Server.Tests
             };
             security.HttpsIssuerCertificates = new CertificateTrustList { StorePath = Path.Combine(m_path, "https-issuers") };
             security.TrustedHttpsCertificates = new CertificateTrustList { StorePath = Path.Combine(m_path, "https-trusted") };
+            // OPC 10000-12 §7.10.5: the issuer of an uploaded certificate must
+            // already be in the group TrustList; supplied issuers do not count.
+            m_issuer = CertificateBuilder.Create("CN=Push Request Regression Issuer")
+                .SetCAConstraint().CreateForRSA();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            foreach (CertificateTrustList trustList in new[]
+            {
+                security.TrustedPeerCertificates,
+                security.TrustedHttpsCertificates
+            })
+            {
+                using ICertificateStore store = trustList.OpenStore(telemetry);
+                await store.AddAsync(m_issuer).ConfigureAwait(false);
+            }
             await m_fixture.StartAsync().ConfigureAwait(false);
             m_manager = (ConfigurationNodeManager)m_fixture.Server.CurrentInstance.ConfigurationNodeManager;
             m_node = m_manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
@@ -93,6 +107,7 @@ namespace Opc.Ua.Server.Tests
         public async Task StopAsync()
         {
             await m_fixture.StopAsync().ConfigureAwait(false);
+            m_issuer?.Dispose();
             if (Directory.Exists(m_path))
             {
                 Directory.Delete(m_path, recursive: true);
@@ -221,8 +236,7 @@ namespace Opc.Ua.Server.Tests
             }
             await CancelPendingAsync().ConfigureAwait(false);
 
-            using Certificate issuer = CertificateBuilder.Create("CN=Pending Signing Regression Issuer")
-                .SetCAConstraint().CreateForRSA();
+            Certificate issuer = m_issuer;
             using Certificate signed = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                 m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
                 .SetIssuer(issuer)
@@ -276,8 +290,7 @@ namespace Opc.Ua.Server.Tests
                     group, type, active.Certificate.Subject, true, new ByteString(nonce), CancellationToken.None)
                     .ConfigureAwait(false);
                 var request = new Pkcs10CertificationRequest(created.CertificateRequest.ToArray());
-                using Certificate issuer = CertificateBuilder.Create("CN=Cancellation Signing Regression Issuer")
-                    .SetCAConstraint().CreateForRSA();
+                Certificate issuer = m_issuer;
                 using Certificate signed = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                     m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject,
                     X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
@@ -569,8 +582,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             var request = new Pkcs10CertificationRequest(result.CertificateRequest.ToArray());
             Assert.That(request.Verify(), Is.True);
-            using Certificate issuer = CertificateBuilder.Create("CN=Transaction Test Issuer")
-                .SetCAConstraint().CreateForRSA();
+            Certificate issuer = m_issuer;
             return DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                 m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject,
                 X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
@@ -779,6 +791,11 @@ namespace Opc.Ua.Server.Tests
         /// Stores the temporary root removed after the server is stopped.
         /// </summary>
         private string m_path;
+
+        /// <summary>
+        /// The CA installed in the TrustLists that signs the uploaded certificates.
+        /// </summary>
+        private Certificate m_issuer;
 
         /// <summary>
         /// Defines the DNS name and IP address expected in the generated HTTPS certificate.

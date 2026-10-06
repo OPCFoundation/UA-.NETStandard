@@ -147,8 +147,9 @@ var options = new CertificateValidationOptions
 {
     AutoAcceptUntrustedCertificates = true,
     AcceptError = (certificate, error) =>
-        // Suppress chain-incomplete errors only for self-test scenarios.
-        error.StatusCode == StatusCodes.BadCertificateChainIncomplete
+        // Suppress host-name mismatches only for self-test scenarios. An incomplete
+        // chain (BadCertificateChainIncomplete) is never suppressible.
+        error.StatusCode == StatusCodes.BadCertificateHostNameInvalid
 };
 CertificateValidationResult devResult = await manager.ValidateAsync(
     serverCertificate,

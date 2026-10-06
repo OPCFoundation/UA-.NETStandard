@@ -289,7 +289,32 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.False);
             Assert.That(
                 result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
-            Assert.That(result.IsSuppressible, Is.True);
+            // OPC 10000-4 Table 100: "An error during the chain creation may
+            // not be suppressed."
+            Assert.That(result.IsSuppressible, Is.False);
+        }
+
+        [Test]
+        public async Task ValidateAsyncUnknownIssuerIsNotSuppressedByAcceptErrorAsync()
+        {
+            CertificateValidationCore core = NewCore();
+            using CertificateCollection chain = Chain(m_leafUnderIntermediate);
+            int callbackCount = 0;
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain,
+                (_, _) =>
+                {
+                    callbackCount++;
+                    return true;
+                },
+                null,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(
+                result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
+            Assert.That(callbackCount, Is.Zero);
         }
 
         [Test]
@@ -333,6 +358,42 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task ValidateAsyncTrustedLeafWithPeerSuppliedIssuerReturnsSuccessAsync()
+        {
+            // OPC 10000-4 §6.1.3: the chain certificates "may be stored locally
+            // or they may be provided with the application Certificate". A leaf
+            // trusted directly is valid when the peer sends its CA, even though
+            // the CA is installed in neither list.
+            string trustedDir = await WriteStoreAsync([m_leaf]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            using CertificateCollection chain = Chain(m_leaf, m_rootCa);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True, result.StatusCode.ToString());
+        }
+
+        [Test]
+        public async Task ValidateAsyncTrustedLeafWithoutAnyIssuerIsNotSuppressibleAsync()
+        {
+            // OPC 10000-4 §6.1.3: "Processing fails with Bad_SecurityChecksFailed
+            // if an element in the chain cannot be found"; trusting the leaf
+            // itself does not make the missing issuer optional.
+            string trustedDir = await WriteStoreAsync([m_leaf]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            using CertificateCollection chain = Chain(m_leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(
+                result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
+            Assert.That(result.IsSuppressible, Is.False);
         }
 
         [Test]

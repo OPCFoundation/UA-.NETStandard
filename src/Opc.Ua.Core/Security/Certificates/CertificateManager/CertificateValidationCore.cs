@@ -2269,13 +2269,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The list of suppressible status codes.
+        /// The list of suppressible status codes. Bad_CertificateChainIncomplete
+        /// is not one of them: OPC 10000-4 Table 100 (Build Certificate Chain)
+        /// "An error during the chain creation may not be suppressed."
         /// </summary>
         private static readonly HashSet<StatusCode> s_suppressibleStatusCodes = new(
             [
                 StatusCodes.BadCertificateHostNameInvalid,
                 StatusCodes.BadCertificateIssuerRevocationUnknown,
-                StatusCodes.BadCertificateChainIncomplete,
                 StatusCodes.BadCertificateIssuerTimeInvalid,
                 StatusCodes.BadCertificateIssuerUseNotAllowed,
                 StatusCodes.BadCertificateRevocationUnknown,
