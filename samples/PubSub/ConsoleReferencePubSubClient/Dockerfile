@@ -11,7 +11,7 @@
 #   --build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=<folder>
 ARG PUBLISH_SOURCE=build
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .
@@ -26,7 +26,7 @@ COPY ${PUBLISH_DIR}/ /app/publish/
 
 FROM ${PUBLISH_SOURCE} AS publish
 
-FROM mcr.microsoft.com/dotnet/runtime AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0-distroless-extra AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 # OPC UA endpoint and PubSub (UADP/MQTT) ports.

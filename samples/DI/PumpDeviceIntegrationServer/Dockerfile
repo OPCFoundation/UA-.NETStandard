@@ -100,7 +100,7 @@ RUN mkdir -p /openssl /layout/app/pki /layout/diag \
     && chown -R $APP_UID:0 /layout/app /layout/diag \
     && chmod -R g=u /layout/app /layout/diag
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0-distroless-extra AS final
 COPY --from=layout /openssl/openssl.cnf /etc/pki/tls/openssl.cnf
 # Copy the parent so /app and /diag keep their owner and mode, not only
 # their contents.
