@@ -2280,10 +2280,10 @@ namespace Opc.Ua.Server
                 AllowCertificateDownload = false,
                 UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
                 // OPC 10000-12 §7.8.2: a certificate issued by a CA that is not
-                // in the TrustList is a validation error, even though the
-                // validator classifies an incomplete chain as suppressible.
-                AcceptError = static (_, serviceResult) =>
-                    serviceResult.StatusCode != StatusCodes.BadCertificateChainIncomplete
+                // in the TrustList is a validation error. The validator never
+                // lets an incomplete chain be suppressed (OPC 10000-4 Table 100),
+                // so accepting every suppressible error still rejects it.
+                AcceptError = static (_, _) => true
             };
 
             try

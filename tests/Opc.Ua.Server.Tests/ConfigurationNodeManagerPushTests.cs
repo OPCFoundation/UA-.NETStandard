@@ -1571,6 +1571,186 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ApplyChangesRequired, Is.True);
         }
 
+        [TestCase("null")]
+        [TestCase("empty")]
+        [TestCase("unrelated")]
+        [TestCase("malformed")]
+        public async Task UpdateCertificateForApplicationCertificateGroupAcceptsCaSignedRenewalSignedByInstalledCaAsync(
+            string issuerCase)
+        {
+            // OPC 10000-12 §7.10.5: the issuers of an ApplicationCertificate
+            // are already in the group's TrustList, so a renewal signed by
+            // an installed CA must succeed whatever issuerCertificates the
+            // caller supplies (none, empty, unrelated or malformed), and
+            // nothing supplied may be imported into the TrustList.
+            ISystemContext context = CreateAdminContext();
+            using Certificate installedCa = CreateTestCa("CN=Installed Renewal CA ");
+            await AddTrustedCertificateAsync(installedCa).ConfigureAwait(false);
+            using Certificate unrelatedCa = CreateTestCa("CN=Unrelated Supplied CA ");
+            try
+            {
+                (string[] trustedBefore, string[] issuersBefore) = await ReadTrustListThumbprintsAsync(
+                    m_fixture.Config).ConfigureAwait(false);
+                using Certificate newCertificate = CreateCaSignedReplacement(
+                    context, installedCa, m_fixture.Config.ApplicationUri);
+
+                UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate.OnCallAsync(
+                        context,
+                        m_configNode.UpdateCertificate,
+                        m_configNode.NodeId,
+                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        newCertificate.RawData.ToByteString(),
+                        CreateIssuerArgument(issuerCase, unrelatedCa),
+                        "pfx",
+                        newCertificate.Export(X509ContentType.Pfx).ToByteString(),
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(result.ApplyChangesRequired, Is.True);
+                (string[] trustedAfter, string[] issuersAfter) = await ReadTrustListThumbprintsAsync(
+                    m_fixture.Config).ConfigureAwait(false);
+                Assert.That(trustedAfter, Is.EquivalentTo(trustedBefore), "Trusted store changed.");
+                Assert.That(issuersAfter, Is.EquivalentTo(issuersBefore), "Issuer store changed.");
+            }
+            finally
+            {
+                await CancelChangesAsync(context).ConfigureAwait(false);
+                await RemoveTrustedCertificateAsync(installedCa.Thumbprint).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task UpdateCertificateForApplicationCertificateGroupRejectsRenewalWhoseCaIsOnlySuppliedAsIssuerAsync()
+        {
+            // OPC 10000-12 §7.10.5: the ignored issuerCertificates list
+            // cannot substitute for the TrustList. A renewal signed by a CA
+            // that is not installed fails chain building, which OPC 10000-4
+            // Table 100 does not allow to be suppressed, and leaves the
+            // TrustList and the current certificate untouched.
+            ISystemContext context = CreateAdminContext();
+            ByteString certificateBefore = GetCurrentRsaCertificate(context);
+            using Certificate uninstalledCa = CreateTestCa("CN=Uninstalled Renewal CA ");
+            (string[] trustedBefore, string[] issuersBefore) = await ReadTrustListThumbprintsAsync(
+                m_fixture.Config).ConfigureAwait(false);
+            using Certificate newCertificate = CreateCaSignedReplacement(
+                context, uninstalledCa, m_fixture.Config.ApplicationUri);
+
+            try
+            {
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_configNode.UpdateCertificate.OnCallAsync(
+                            context,
+                            m_configNode.UpdateCertificate,
+                            m_configNode.NodeId,
+                            ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                            ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                            newCertificate.RawData.ToByteString(),
+                            [uninstalledCa.RawData.ToByteString()],
+                            "pfx",
+                            newCertificate.Export(X509ContentType.Pfx).ToByteString(),
+                            CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(
+                    ContainsStatusCode(sre.Result, StatusCodes.BadCertificateChainIncomplete),
+                    Is.True,
+                    sre.Result.ToLongString());
+
+                (string[] trustedAfter, string[] issuersAfter) = await ReadTrustListThumbprintsAsync(
+                    m_fixture.Config).ConfigureAwait(false);
+                Assert.That(trustedAfter, Is.EquivalentTo(trustedBefore), "Trusted store changed.");
+                Assert.That(issuersAfter, Is.EquivalentTo(issuersBefore), "Issuer store changed.");
+            }
+            finally
+            {
+                await CancelChangesAsync(context).ConfigureAwait(false);
+            }
+
+            Assert.That(GetCurrentRsaCertificate(context), Is.EqualTo(certificateBefore));
+        }
+
+        [Test]
+        public async Task UpdateCertificateForApplicationCertificateGroupCommitsCaSignedRenewalWithoutIssuersAsync()
+        {
+            // End-to-end CTT renewal scenario: the CA is installed in the
+            // TrustList beforehand, UpdateCertificate omits the issuer list
+            // and ApplyChanges must commit the CA-signed replacement.
+            // Isolated fixture: this replaces the server's own application
+            // certificate.
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            StandardServer server = null;
+            using Certificate installedCa = CreateTestCa("CN=Installed Commit CA ");
+
+            try
+            {
+                server = await fixture.StartAsync().ConfigureAwait(false);
+                NodeState node = await server.CurrentInstance.NodeManager
+                    .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
+                    .ConfigureAwait(false);
+                var configNode = node as ServerConfigurationState;
+                Assert.That(configNode, Is.Not.Null);
+                var configManager = server.CurrentInstance.ConfigurationNodeManager as ConfigurationNodeManager;
+                Assert.That(configManager, Is.Not.Null);
+                ISystemContext context = CreateAdminContext();
+
+                using (ICertificateStore store = fixture.Config.SecurityConfiguration.TrustedPeerCertificates
+                    .OpenStore(s_telemetry))
+                {
+                    await store.AddAsync(installedCa).ConfigureAwait(false);
+                }
+                (string[] trustedBefore, string[] issuersBefore) = await ReadTrustListThumbprintsAsync(
+                    fixture.Config).ConfigureAwait(false);
+                using Certificate newCertificate = CreateCaSignedReplacement(
+                    context, configNode, installedCa, fixture.Config.ApplicationUri);
+
+                UpdateCertificateMethodStateResult updateResult = await configNode.UpdateCertificate.OnCallAsync(
+                        context,
+                        configNode.UpdateCertificate,
+                        configNode.NodeId,
+                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        newCertificate.RawData.ToByteString(),
+                        default,
+                        "pfx",
+                        newCertificate.Export(X509ContentType.Pfx).ToByteString(),
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(updateResult.ServiceResult), Is.True);
+                Assert.That(updateResult.ApplyChangesRequired, Is.True);
+
+                ServiceResult applyResult = await configNode.ApplyChanges.OnCallMethod2Async(
+                    context,
+                    configNode.ApplyChanges,
+                    configNode.NodeId,
+                    [],
+                    [],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(applyResult), Is.True);
+                await configManager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+
+                using var committed = Certificate.FromRawData(GetCurrentRsaCertificate(context, configNode));
+                Assert.That(committed.Thumbprint, Is.EqualTo(newCertificate.Thumbprint));
+                (string[] trustedAfter, string[] issuersAfter) = await ReadTrustListThumbprintsAsync(
+                    fixture.Config).ConfigureAwait(false);
+                Assert.That(trustedAfter, Is.EquivalentTo(trustedBefore), "Trusted store changed.");
+                Assert.That(issuersAfter, Is.EquivalentTo(issuersBefore), "Issuer store changed.");
+            }
+            finally
+            {
+                if (server != null)
+                {
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+                using ICertificateStore store = fixture.Config?.SecurityConfiguration.TrustedPeerCertificates
+                    .OpenStore(s_telemetry);
+                if (store != null)
+                {
+                    await store.DeleteAsync(installedCa.Thumbprint).ConfigureAwait(false);
+                }
+            }
+        }
+
         [Test]
         public async Task UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync()
         {
@@ -1637,7 +1817,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ApplyChangesRequired, Is.True);
         }
 
-        private async Task<ByteString> StageCertificateWithRegeneratedPrivateKeyAsync()
+        /// <summary>
+        /// Stages a CA-signed certificate for a regenerated key. The issuing
+        /// CA is installed in the group's TrustList (OPC 10000-12 §7.10.5);
+        /// callers remove it with <see cref="RemoveTrustedCertificateAsync"/>.
+        /// </summary>
+        private async Task<(ByteString Certificate, string IssuerThumbprint)> StageCertificateWithRegeneratedPrivateKeyAsync()
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
@@ -1647,6 +1832,7 @@ namespace Opc.Ua.Server.Tests
                 .SetCAConstraint(0)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
+            await AddTrustedCertificateAsync(issuer).ConfigureAwait(false);
             CreateSigningRequestMethodStateResult signingRequest = await m_configNode
                 .CreateSigningRequest.OnCallAsync(
                     context,
@@ -1686,21 +1872,38 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.ApplyChangesRequired, Is.True);
-            return signedCertificate.RawData.ToByteString();
+            return (signedCertificate.RawData.ToByteString(), issuer.Thumbprint);
         }
 
         [Test]
         public async Task UpdateCertificateWithRegeneratedPrivateKeyStagesCertificateAsync()
         {
-            _ = await StageCertificateWithRegeneratedPrivateKeyAsync().ConfigureAwait(false);
+            (_, string issuerThumbprint) = await StageCertificateWithRegeneratedPrivateKeyAsync()
+                .ConfigureAwait(false);
+            await RemoveTrustedCertificateAsync(issuerThumbprint).ConfigureAwait(false);
         }
 
         [Test]
         public async Task UpdateCertificateWithRegeneratedPrivateKeyCanBeRetriedAfterCancelAsync()
         {
             ISystemContext context = CreateAdminContext();
-            ByteString certificate = await StageCertificateWithRegeneratedPrivateKeyAsync()
+            (ByteString certificate, string issuerThumbprint) = await StageCertificateWithRegeneratedPrivateKeyAsync()
                 .ConfigureAwait(false);
+            try
+            {
+                await RetryRegeneratedPrivateKeyCertificateAfterCancelAsync(context, certificate)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await RemoveTrustedCertificateAsync(issuerThumbprint).ConfigureAwait(false);
+            }
+        }
+
+        private async Task RetryRegeneratedPrivateKeyCertificateAfterCancelAsync(
+            ISystemContext context,
+            ByteString certificate)
+        {
 
             ServiceResult cancelResult = await m_configNode.CancelChanges.OnCallMethod2Async(
                 context,
@@ -2688,10 +2891,8 @@ namespace Opc.Ua.Server.Tests
             // ApplyCertificateSlotChangeAsync must report exactly the
             // thumbprints it newly added (excluding any pre-existing
             // issuer that also happened to be part of the submitted
-            // chain), so a later rollback/self-compensation - exercised
-            // end-to-end in
-            // UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndRemovesNewIssuerAsync -
-            // removes only the issuers it actually introduced.
+            // chain), so a later rollback/self-compensation removes only
+            // the issuers it actually introduced.
             Type managerType = typeof(ConfigurationNodeManager);
             FieldInfo groupsField = managerType.GetField(
                 "m_certificateGroups",
@@ -3021,18 +3222,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndRemovesNewIssuerAsync()
+        public async Task UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndLeavesIssuerStoreAsync()
         {
-            // Issue: UpdateCertificate's commit imports the staged issuer
-            // chain into the group's issuer store, but its RollbackAsync
-            // only ever restored the application certificate. Any issuer
-            // newly imported by a successful UpdateCertificate therefore
-            // stayed behind forever once a LATER operation in the same
-            // transaction failed to commit and the coordinator reverse-
-            // compensated this already-successful UpdateCertificate.
-            // Verify that after such a later-operation failure, both the
-            // application certificate AND the issuer store are fully
-            // restored.
+            // When a LATER operation in the same transaction fails to
+            // commit, the coordinator reverse-compensates this already-
+            // successful UpdateCertificate: the application certificate
+            // must be fully restored. For the ApplicationCertificate-
+            // purpose group the supplied issuer list is ignored (OPC
+            // 10000-12 §7.10.5), so the issuer store must also end up
+            // without the supplied CA. Removal of issuers that a commit
+            // did import is covered directly by
+            // ApplyCertificateSlotChangeTracksNewlyAddedIssuersAndPreservesPreExistingOnesAsync,
+            // which also exercises RemoveIssuerCertificatesAsync.
             ISystemContext context = CreateAdminContext();
             ByteString originalCertificateBytes = GetCurrentRsaCertificate(context);
             using var original = Certificate.FromRawData(originalCertificateBytes);
@@ -3063,6 +3264,11 @@ namespace Opc.Ua.Server.Tests
                     .FindByThumbprintAsync(issuerCa.Thumbprint).ConfigureAwait(false);
                 Assert.That(beforeMatches, Has.Count.EqualTo(0), "the fresh issuer CA must not already be trusted");
             }
+
+            // OPC 10000-12 §7.10.5: the issuer must already be in the
+            // group's TrustList; install it as a trusted (not issuer)
+            // certificate so the issuer-store assertion stays meaningful.
+            await AddTrustedCertificateAsync(issuerCa).ConfigureAwait(false);
 
             try
             {
@@ -3125,7 +3331,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     afterMatches,
                     Has.Count.EqualTo(0),
-                    "the newly imported issuer certificate must be removed once the transaction rolls back");
+                    "the supplied issuer certificate must never be in the issuer store after the rollback");
             }
             finally
             {
@@ -3146,6 +3352,7 @@ namespace Opc.Ua.Server.Tests
 
                 using ICertificateStore cleanupStore = issuerStoreIdentifier.OpenStore(s_telemetry);
                 await cleanupStore.DeleteAsync(issuerCa.Thumbprint).ConfigureAwait(false);
+                await RemoveTrustedCertificateAsync(issuerCa.Thumbprint).ConfigureAwait(false);
             }
         }
 
@@ -3494,12 +3701,17 @@ namespace Opc.Ua.Server.Tests
 
         private ByteString GetCurrentRsaCertificate(ISystemContext context)
         {
+            return GetCurrentRsaCertificate(context, m_configNode);
+        }
+
+        private static ByteString GetCurrentRsaCertificate(ISystemContext context, ServerConfigurationState configNode)
+        {
             ArrayOf<NodeId> certificateTypeIds = default;
             ArrayOf<ByteString> certificates = default;
-            ServiceResult getResult = m_configNode.GetCertificates.OnCall(
+            ServiceResult getResult = configNode.GetCertificates.OnCall(
                 context,
-                m_configNode.GetCertificates,
-                m_configNode.NodeId,
+                configNode.GetCertificates,
+                configNode.NodeId,
                 ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                 ref certificateTypeIds,
                 ref certificates);
@@ -3508,6 +3720,109 @@ namespace Opc.Ua.Server.Tests
                 .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
             Assert.That(index, Is.GreaterThanOrEqualTo(0));
             return certificates[index];
+        }
+
+        private static Certificate CreateTestCa(string subjectPrefix)
+        {
+            return CertificateBuilder
+                .Create(subjectPrefix + Guid.NewGuid().ToString("N")[..8])
+                .SetCAConstraint(0)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+        }
+
+        private Certificate CreateCaSignedReplacement(ISystemContext context, Certificate issuer, string applicationUri)
+        {
+            return CreateCaSignedReplacement(context, m_configNode, issuer, applicationUri);
+        }
+
+        /// <summary>
+        /// Creates a replacement for the current RSA application certificate
+        /// (same subject and domains) with a new key pair, signed by
+        /// <paramref name="issuer"/>.
+        /// </summary>
+        private static Certificate CreateCaSignedReplacement(
+            ISystemContext context,
+            ServerConfigurationState configNode,
+            Certificate issuer,
+            string applicationUri)
+        {
+            using var current = Certificate.FromRawData(GetCurrentRsaCertificate(context, configNode));
+            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
+            return CertificateBuilder.Create(current.Subject)
+                .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames))
+                .SetNotBefore(DateTime.UtcNow.Date.AddDays(-1))
+                .SetLifeTime(12)
+                .SetIssuer(issuer)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+        }
+
+        private static ArrayOf<ByteString> CreateIssuerArgument(string issuerCase, Certificate unrelatedCa)
+        {
+            switch (issuerCase)
+            {
+                case "null":
+                    return default;
+                case "empty":
+                    return [];
+                case "unrelated":
+                    return [unrelatedCa.RawData.ToByteString()];
+                case "malformed":
+                    return [ByteString.From([0xba, 0xd0, 0xbe, 0xef, 3])];
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(issuerCase), issuerCase, "Unknown issuer case.");
+            }
+        }
+
+        private async Task AddTrustedCertificateAsync(Certificate certificate)
+        {
+            using ICertificateStore store = m_fixture.Config.SecurityConfiguration.TrustedPeerCertificates
+                .OpenStore(s_telemetry);
+            await store.AddAsync(certificate).ConfigureAwait(false);
+        }
+
+        private async Task RemoveTrustedCertificateAsync(string thumbprint)
+        {
+            using ICertificateStore store = m_fixture.Config.SecurityConfiguration.TrustedPeerCertificates
+                .OpenStore(s_telemetry);
+            await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+        }
+
+        private static async Task<(string[] Trusted, string[] Issuers)> ReadTrustListThumbprintsAsync(
+            ApplicationConfiguration configuration)
+        {
+            SecurityConfiguration security = configuration.SecurityConfiguration;
+            using ICertificateStore trustedStore = security.TrustedPeerCertificates.OpenStore(s_telemetry);
+            using ICertificateStore issuerStore = security.TrustedIssuerCertificates.OpenStore(s_telemetry);
+            using CertificateCollection trusted = await trustedStore.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection issuers = await issuerStore.EnumerateAsync().ConfigureAwait(false);
+            return (
+                trusted.Select(c => c.Thumbprint).ToArray(),
+                issuers.Select(c => c.Thumbprint).ToArray());
+        }
+
+        private async Task CancelChangesAsync(ISystemContext context)
+        {
+            await m_configNode.CancelChanges.OnCallMethod2Async(
+                context,
+                m_configNode.CancelChanges,
+                m_configNode.NodeId,
+                [],
+                [],
+                CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private static bool ContainsStatusCode(ServiceResult result, StatusCode statusCode)
+        {
+            for (ServiceResult current = result; current != null; current = current.InnerResult)
+            {
+                if (current.StatusCode == statusCode)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         [Test]
