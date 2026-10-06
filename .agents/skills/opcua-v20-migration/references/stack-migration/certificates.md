@@ -8,6 +8,7 @@
 - [Certificate Management](#certificate-management)
   - [ECC security policies require .NET 8 or later](#ecc-security-policies-require-net-8-or-later)
   - [Certificates with an empty distinguished name are always rejected](#certificates-with-an-empty-distinguished-name-are-always-rejected)
+  - [An incomplete certificate chain can no longer be accepted](#an-incomplete-certificate-chain-can-no-longer-be-accepted)
   - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
   - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
   - [CertificateIdentifier is metadata-only](#certificateidentifier-is-metadata-only)
@@ -87,6 +88,20 @@ if (DistinguishedNameUtils.HasEmptyDistinguishedName(certificate))
     // Bad_CertificateInvalid - re-issue with a real subject and issuer.
 }
 ```
+
+### An incomplete certificate chain can no longer be accepted
+
+`Bad_CertificateChainIncomplete` is now **non-suppressible**. OPC 10000-4 §6.1.3 (Table 100, Build Certificate Chain) states that "an error during the chain creation may not be suppressed": a certificate is only trusted when every certificate of its chain can be found.
+
+On 1.5.378 the validator classified this error as suppressible, so a `CertificateValidation` event handler that set `e.Accept = true`, or an `AcceptError` callback that returned `true`, could approve a CA-signed certificate whose CA was neither installed nor sent by the peer. That approval is now ignored: the callback is not invoked for this error and validation fails. `AutoAcceptUntrustedCertificates` is unaffected; it never accepted this error.
+
+The same rule applies to PushManagement `UpdateCertificate` for the default application group: the `issuerCertificates` argument is ignored (OPC 10000-12 §7.10.5), so the issuing CA must already be in the group's TrustList, or the call fails with `Bad_CertificateChainIncomplete`.
+
+**Migration steps:**
+
+- Install the issuing CA certificates (and their CRLs) in the trusted or issuer certificate store, or make sure the peer sends its full chain.
+- Remove `BadCertificateChainIncomplete` from any list of approved codes in validation callbacks; it no longer has an effect.
+- Before calling `UpdateCertificate` with a CA-signed certificate, add the CA to the server's TrustList (for example with `UpdateTrustList` or `AddCertificate`).
 
 ### Certificate and CertificateCollection wrapper types
 
