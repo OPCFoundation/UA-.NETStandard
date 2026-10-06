@@ -111,6 +111,49 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
         }
 
+        [TestCase("basic", "none", HttpStatusCode.Unauthorized)]
+        [TestCase("basic", "basic-wrong", HttpStatusCode.Unauthorized)]
+        [TestCase("basic", "basic-valid", HttpStatusCode.OK)]
+        [TestCase("bearer", "none", HttpStatusCode.Unauthorized)]
+        [TestCase("bearer", "bearer-valid", HttpStatusCode.OK)]
+        public async Task OpenApiDocumentIsEnforcedLikeTheServiceRoutesOnRealHttpsListenerAsync(
+            string authMode,
+            string credential,
+            HttpStatusCode expectedStatus)
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                authMode,
+                configureWebApi: options => options.OpenApiDocumentPath = "/openapi.json")
+                .ConfigureAwait(false);
+
+            using HttpResponseMessage response = await listener
+                .GetAsync("/openapi.json", CreateAuthorizationHeader(credential))
+                .ConfigureAwait(false);
+
+            Assert.That(response.StatusCode, Is.EqualTo(expectedStatus));
+            if (expectedStatus == HttpStatusCode.OK)
+            {
+                string document = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                Assert.That(document, Does.Contain("\"operationId\":\"Read\""));
+                return;
+            }
+
+            string[] challenges = [.. response.Headers.WwwAuthenticate.Select(h => h.Scheme)];
+            Assert.That(challenges, Does.Contain(authMode == "basic" ? "Basic" : "Bearer"));
+        }
+
+        [Test]
+        public async Task OpenApiDocumentIsNotServedUnlessConfiguredOnRealHttpsListenerAsync()
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync("basic").ConfigureAwait(false);
+
+            using HttpResponseMessage response = await listener
+                .GetAsync("/openapi.json", CreateAuthorizationHeader("basic-valid"))
+                .ConfigureAwait(false);
+
+            Assert.That(response.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK));
+        }
+
         [Test]
         public async Task CustomBearerChallengeIsNotOverwrittenOnRealHttpsListenerAsync()
         {
@@ -237,14 +280,15 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private async Task<AuthListener> OpenAuthListenerAsync(
             string authMode,
             X509Certificate2? clientCertificate = null,
-            Action<IServiceCollection>? configureServices = null)
+            Action<IServiceCollection>? configureServices = null,
+            Action<WebApiTransportOptions>? configureWebApi = null)
         {
             var services = new ServiceCollection();
             configureServices?.Invoke(services);
             services.AddLogging();
             services.AddSingleton(m_telemetry!);
             IOpcUaBuilder builder = services.AddOpcUa();
-            builder.AddWebApiTransport();
+            builder.AddWebApiTransport(configureWebApi);
             switch (authMode)
             {
                 case "basic":
@@ -471,6 +515,16 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         RequestHeader = new RequestHeader { RequestHandle = 1, Timestamp = DateTime.UtcNow }
                     },
                     authorization);
+            }
+
+            public async Task<HttpResponseMessage> GetAsync(
+                string path,
+                AuthenticationHeaderValue? authorization)
+            {
+                using var message = new HttpRequestMessage(HttpMethod.Get, path);
+                message.Headers.Authorization = authorization;
+                return await m_client!.SendAsync(message, HttpCompletionOption.ResponseContentRead)
+                    .ConfigureAwait(false);
             }
 
             public async Task<HttpResponseMessage> PostAsync(
