@@ -1364,14 +1364,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(
                 result.StatusCode,
                 Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
-            // approver tries to suppress error which is not suppressable; the
-            // attach/detach should have no effect on the captured result.
+            Assert.That(result.IsSuppressible, Is.False);
+            // approver tries to suppress error which is not suppressible
+            // (OPC 10000-4 Table 100, Build Certificate Chain).
             var approver = new CertValidationApprover(
                 [StatusCodes.BadCertificateTimeInvalid, StatusCodes.BadCertificateChainIncomplete]);
             certValidator.AcceptError = approver.AcceptError;
+            result = await certValidator
+                .ValidateAsync(cert, ct: CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.False);
             Assert.That(
                 result.StatusCode,
                 Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
+            Assert.That(approver.Count, Is.Zero, "an unsuppressible error must not reach the callback");
             certValidator.AcceptError = null;
         }
 

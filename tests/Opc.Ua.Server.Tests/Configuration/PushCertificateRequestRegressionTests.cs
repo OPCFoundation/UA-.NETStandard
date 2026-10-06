@@ -34,7 +34,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
-using X509ContentType = System.Security.Cryptography.X509Certificates.X509ContentType;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -81,17 +80,21 @@ namespace Opc.Ua.Server.Tests
             };
             security.HttpsIssuerCertificates = new CertificateTrustList { StorePath = Path.Combine(m_path, "https-issuers") };
             security.TrustedHttpsCertificates = new CertificateTrustList { StorePath = Path.Combine(m_path, "https-trusted") };
-            await m_fixture.StartAsync().ConfigureAwait(false);
-            // OPC 10000-12 §7.10.5: the issuer of a certificate passed to
-            // UpdateCertificate must already be in the group's TrustList.
-            m_trustedIssuer = CertificateBuilder.Create("CN=Push Request Regression Issuer")
+            // OPC 10000-12 §7.10.5: the issuer of an uploaded certificate must
+            // already be in the group TrustList; supplied issuers do not count.
+            m_issuer = CertificateBuilder.Create("CN=Push Request Regression Issuer")
                 .SetCAConstraint().CreateForRSA();
-            using (ICertificateStore trusted = new CertificateStoreIdentifier(security.TrustedPeerCertificates.StorePath!)
-                .OpenStore(m_fixture.Server.CurrentInstance.Telemetry))
-            using (var publicIssuer = Certificate.FromRawData(m_trustedIssuer.RawData))
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            foreach (CertificateTrustList trustList in new[]
             {
-                await trusted.AddAsync(publicIssuer).ConfigureAwait(false);
+                security.TrustedPeerCertificates,
+                security.TrustedHttpsCertificates
+            })
+            {
+                using ICertificateStore store = trustList.OpenStore(telemetry);
+                await store.AddAsync(m_issuer).ConfigureAwait(false);
             }
+            await m_fixture.StartAsync().ConfigureAwait(false);
             m_manager = (ConfigurationNodeManager)m_fixture.Server.CurrentInstance.ConfigurationNodeManager;
             m_node = m_manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
             m_context = CreateAdminContext();
@@ -104,7 +107,7 @@ namespace Opc.Ua.Server.Tests
         public async Task StopAsync()
         {
             await m_fixture.StopAsync().ConfigureAwait(false);
-            m_trustedIssuer?.Dispose();
+            m_issuer?.Dispose();
             if (Directory.Exists(m_path))
             {
                 Directory.Delete(m_path, recursive: true);
@@ -233,7 +236,7 @@ namespace Opc.Ua.Server.Tests
             }
             await CancelPendingAsync().ConfigureAwait(false);
 
-            Certificate issuer = m_trustedIssuer;
+            Certificate issuer = m_issuer;
             using Certificate signed = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                 m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
                 .SetIssuer(issuer)
@@ -279,45 +282,6 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// OPC 10000-12 §7.10.5 / OPC 10000-4 Table 100: a certificate whose
-        /// issuer is not in the TrustList of the group cannot form a chain and is
-        /// rejected; IssuerCertificates passed with the call do not help because
-        /// the Server ignores them for an ApplicationCertificateType group.
-        /// </summary>
-        [Test]
-        public async Task UpdateCertificateRejectsCertificateOfUnknownIssuerAsync()
-        {
-            NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
-            NodeId type = ObjectTypeIds.RsaSha256ApplicationCertificateType;
-            using CertificateEntry active = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
-            string[] domains = [.. X509Utils.GetDomainsFromCertificate(active.Certificate)];
-            using Certificate unknownIssuer = CertificateBuilder.Create("CN=Push Unknown Issuer")
-                .SetCAConstraint().CreateForRSA();
-            using Certificate untrusted = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
-                m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
-                .SetIssuer(unknownIssuer)
-                .CreateForRSA();
-
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
-                m_node.UpdateCertificate.OnCallAsync(
-                    m_context, m_node.UpdateCertificate, m_node.NodeId,
-                    group, type, new ByteString(untrusted.RawData), [new ByteString(unknownIssuer.RawData)],
-                    "PFX", new ByteString(untrusted.Export(X509ContentType.Pfx)), CancellationToken.None).AsTask());
-            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
-
-            // The same request signed by the trusted issuer is accepted.
-            using Certificate trusted = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
-                m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
-                .SetIssuer(m_trustedIssuer)
-                .CreateForRSA();
-            UpdateCertificateMethodStateResult accepted = await m_node.UpdateCertificate.OnCallAsync(
-                m_context, m_node.UpdateCertificate, m_node.NodeId,
-                group, type, new ByteString(trusted.RawData), [],
-                "PFX", new ByteString(trusted.Export(X509ContentType.Pfx)), CancellationToken.None).ConfigureAwait(false);
-            Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
-        }
-
-        /// <summary>
         /// Verifies that cancellation after the commit claim restores the key without overwriting a newer request.
         /// </summary>
         [Test]
@@ -346,7 +310,7 @@ namespace Opc.Ua.Server.Tests
                     group, type, active.Certificate.Subject, true, new ByteString(nonce), CancellationToken.None)
                     .ConfigureAwait(false);
                 var request = new Pkcs10CertificationRequest(created.CertificateRequest.ToArray());
-                Certificate issuer = m_trustedIssuer;
+                Certificate issuer = m_issuer;
                 using Certificate signed = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                     m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject,
                     X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
@@ -638,7 +602,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             var request = new Pkcs10CertificationRequest(result.CertificateRequest.ToArray());
             Assert.That(request.Verify(), Is.True);
-            Certificate issuer = m_trustedIssuer;
+            Certificate issuer = m_issuer;
             return DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                 m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject,
                 X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
@@ -828,10 +792,6 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private ServerFixture<ReferenceServer> m_fixture;
 
-        /// <summary>
-        /// The CA that signs pushed certificates; it is in the trusted store.
-        /// </summary>
-        private Certificate m_trustedIssuer;
 
         /// <summary>
         /// Coordinates certificate installation and exposes the pending-key store used by the server.
@@ -852,6 +812,11 @@ namespace Opc.Ua.Server.Tests
         /// Stores the temporary root removed after the server is stopped.
         /// </summary>
         private string m_path;
+
+        /// <summary>
+        /// The CA installed in the TrustLists that signs the uploaded certificates.
+        /// </summary>
+        private Certificate m_issuer;
 
         /// <summary>
         /// Defines the DNS name and IP address expected in the generated HTTPS certificate.

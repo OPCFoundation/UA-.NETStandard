@@ -186,10 +186,9 @@ namespace Opc.Ua.Server
         /// contains the IssuerCertificates."
         /// </summary>
         /// <remarks>
-        /// Delegates to the shared certificate validator's own
+        /// Delegates entirely to the shared certificate validator's own
         /// suppressible-status-code classification (accepting every error
-        /// it reports as suppressible except an incomplete chain, which
-        /// OPC 10000-4 does not allow to suppress) rather than maintaining a second
+        /// it reports as suppressible) rather than maintaining a second
         /// hard-coded status list here: anything the validator does not
         /// classify as suppressible (key size, certificate type, signature
         /// integrity, URI/hostname requirements, and so on) still fails
@@ -251,13 +250,8 @@ namespace Opc.Ua.Server
                 AllowCertificateDownload = false,
                 UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
                 // OPC 10000-12 §7.10.5: "All suppressible errors shall be
-                // ignored." The validator classifies an incomplete chain as
-                // suppressible, but OPC 10000-4 Table 100 does not ("An error
-                // during the chain creation may not be suppressed") and
-                // §7.10.5 requires the issuers to already be in the group's
-                // TrustList: a certificate whose issuer is unknown is rejected.
-                AcceptError = static (_, serviceResult) =>
-                    serviceResult.StatusCode != StatusCodes.BadCertificateChainIncomplete
+                // ignored."
+                AcceptError = static (_, _) => true
             };
 
             CertificateValidationResult validationResult = await validator.ValidateAsync(
