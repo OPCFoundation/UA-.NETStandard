@@ -68,6 +68,9 @@ namespace Opc.Ua.Server
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
+            ClientTimestamp = requestHeader.Timestamp.IsNull
+                ? DateTime.MinValue
+                : (DateTime)requestHeader.Timestamp;
             RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
             RequestType = requestType;
             ClientHandle = requestHeader.RequestHandle;
@@ -107,6 +110,9 @@ namespace Opc.Ua.Server
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
+            ClientTimestamp = requestHeader.Timestamp.IsNull
+                ? DateTime.MinValue
+                : (DateTime)requestHeader.Timestamp;
             RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
             RequestType = requestType;
             ClientHandle = requestHeader.RequestHandle;
@@ -233,6 +239,36 @@ namespace Opc.Ua.Server
         public uint ClientHandle { get; }
 
         /// <summary>
+        /// The time the client sent the request (RequestHeader.Timestamp), or
+        /// <see cref="DateTime.MinValue"/> when unknown.
+        /// </summary>
+        internal DateTime ClientTimestamp { get; }
+
+        /// <summary>
+        /// The id of the Session an ActivateSession request is activating, or null.
+        /// </summary>
+        /// <remarks>
+        /// An ActivateSession request runs without a Session context (its Session is not
+        /// activated yet, so <see cref="Session"/> and <see cref="SessionId"/> stay null), but a
+        /// close of the Session it targets still has to abort it like any other outstanding
+        /// request of that Session (OPC 10000-4 5.7.2.1). It is assigned before the request is
+        /// registered with the request manager and never changes afterwards.
+        /// </remarks>
+        internal NodeId ActivationTargetSessionId { get; set; }
+
+        /// <summary>
+        /// Whether a CreateSession request's client certificate is kept although an
+        /// <see cref="StandardServer.OnApplicationCertificateError"/> override accepted a
+        /// validation error for it.
+        /// </summary>
+        /// <remarks>
+        /// Assigned before the session manager creates the Session, so the Session is
+        /// marked as not validated (<see cref="ClientCertificateProvenance"/>) before it is
+        /// published to other requests, to role evaluation or to a session mirror.
+        /// </remarks>
+        internal bool ClientCertificateErrorAccepted { get; set; }
+
+        /// <summary>
         /// Updates the status code (thread safe).
         /// </summary>
         /// <param name="statusCode">The status code.</param>
@@ -328,7 +364,14 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+                try
+                {
+                    System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+                }
+                finally
+                {
+                    System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                }
             }
         }
 
@@ -342,7 +385,18 @@ namespace Opc.Ua.Server
             m_requestScope = requestScope;
         }
 
+        /// <summary>
+        /// Attaches the capacity a Session-less request holds in the Session-less request budget, so
+        /// that disposing the context returns it however the request ends.
+        /// </summary>
+        /// <param name="lease">The lease to dispose with the context.</param>
+        internal void AttachSessionlessLease(IDisposable lease)
+        {
+            m_sessionlessLease = lease;
+        }
+
         private IDisposable? m_requestScope;
+        private IDisposable? m_sessionlessLease;
         private static uint s_lastRequestId;
     }
 }

@@ -4208,6 +4208,17 @@ namespace Opc.Ua.SourceGeneration
 
                 bool isInverse = reference.IsInverse;
 
+                // The type's GeneratesEvent references describe its instances; an Object or
+                // Variable cannot be their source (Part 3 §7.15), so they stay on the type.
+                if (!isInverse &&
+                    reference.DefinedOnType &&
+                    reference.SourcePath == node.Path &&
+                    root is ObjectDesign or VariableDesign &&
+                    IsGeneratesEventReference(reference.ReferenceType))
+                {
+                    continue;
+                }
+
                 if (reference.TargetId != null)
                 {
                     if (!m_context.ModelDesign.TryFindNode(
@@ -4300,6 +4311,37 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.Namespaces,
                     kNamespaceTableContextVariable))));
             return references;
+        }
+
+        /// <summary>
+        /// True for GeneratesEvent and its subtypes such as AlwaysGeneratesEvent.
+        /// </summary>
+        private bool IsGeneratesEventReference(XmlQualifiedName referenceTypeId)
+        {
+            var generatesEvent = new XmlQualifiedName("GeneratesEvent", Ua.Types.Namespaces.OpcUa);
+            if (referenceTypeId == generatesEvent)
+            {
+                return true;
+            }
+            if (referenceTypeId == null ||
+                !m_context.ModelDesign.TryFindNode(
+                    referenceTypeId,
+                    string.Empty,
+                    string.Empty,
+                    out NodeDesign design))
+            {
+                return false;
+            }
+            for (TypeDesign type = (design as ReferenceTypeDesign)?.BaseTypeNode;
+                type != null;
+                type = type.BaseTypeNode)
+            {
+                if (type.SymbolicId == generatesEvent)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private List<InstanceDesign> GetAdditionalChildren(NodeToGenerate node)

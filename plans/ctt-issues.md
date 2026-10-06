@@ -8,7 +8,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 
 - "Resolved / fixed" in Mantis means the fix is in the CTT script repository. It ships with a script
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
-- The ids (1–19, C1–C53, U1–U4) are stable references for notes and commit messages; missing ids were
+- The ids (1–19, C1–C56, U1–U5) are stable references for notes and commit messages; missing ids were
   withdrawn or no longer fail against the reference server.
 - Mantis states were last checked on 2026-09-25.
 
@@ -20,15 +20,15 @@ CTT project configuration notes follow the tables. The procedure for running the
 | --- | --- | --- | --- |
 | 3 | Aggregate – Base `002-01.js`…`002-04.js` (every Aggregate CU) | The multi-node path of `HAAggregateHelper.js` dereferences `possibleNodeId` without a guard. | [11251](https://mantis.opcfoundation.org/view.php?id=11251) |
 | 4 | Aggregate – Base `Err-004.js` | Sends an equal-time request when the ProcessingInterval setting is blank. | [11252](https://mantis.opcfoundation.org/view.php?id=11252) |
-| C1 | Aggregate – Base `003-01.js`…`003-04.js`, `004-01.js`…`004-04.js`, `Err-004.js` | The harness always sends `UseServerCapabilitiesDefaults = TRUE`, so the server uses its defaults while the oracle applies the test configuration. | [11420](https://mantis.opcfoundation.org/view.php?id=11420) |
-| C2 | Aggregate – AnnotationCount | The oracle counts raw values instead of Annotations. | [11421](https://mantis.opcfoundation.org/view.php?id=11421) |
-| C3 | Aggregate – WorstQuality2 | The oracle also includes the end bound. | [11422](https://mantis.opcfoundation.org/view.php?id=11422) |
-| C4 | Aggregate – DurationInStateZero / DurationInStateNonZero | The oracle reports Bad below PercentDataBad. | [11423](https://mantis.opcfoundation.org/view.php?id=11423) |
-| C5 | Aggregate – DurationGood/Bad, PercentGood/Bad `002-01.js`…`002-04.js` | The oracle truncates durations to whole milliseconds. | [11424](https://mantis.opcfoundation.org/view.php?id=11424) |
-| C6 | Aggregate – DurationGood, PercentGood | The oracle ignores the raw value before the interval for the status of the first region. | [11425](https://mantis.opcfoundation.org/view.php?id=11425) |
-| C48 | Aggregate – Minimum, Maximum, MinimumActualTime, MaximumActualTime `001-02.js`… | The oracle ignores Uncertain values beyond the Good extremum and expects Good instead of UncertainDataSubNormal. | [11426](https://mantis.opcfoundation.org/view.php?id=11426) |
-| C49 | Aggregate – Minimum, MinimumActualTime, MaximumActualTime | The oracle does not set the Calculated bit when non-Good values make the status Uncertain. | [11427](https://mantis.opcfoundation.org/view.php?id=11427) |
-| U2 | Aggregate – Minimum2 (reverse reads) | The oracle clears the Calculated bit when the minimum is the End bound at the early end of a reverse interval (Part 11 §6.5.4.2). | [11461](https://mantis.opcfoundation.org/view.php?id=11461) |
+| C1 | Aggregate – Base `003-01.js`…`003-04.js`, `004-01.js`…`004-04.js`, `Err-004.js`; Aggregate – NumberOfTransitions `003-02.js`, `004-02.js` (TreatUncertainAsBad = False) | The harness always sends `UseServerCapabilitiesDefaults = TRUE`, so the server uses its defaults while the CTT applies the test configuration. | [11420](https://mantis.opcfoundation.org/view.php?id=11420) |
+| C2 | Aggregate – AnnotationCount | The CTT counts raw values instead of Annotations. | [11421](https://mantis.opcfoundation.org/view.php?id=11421) |
+| C3 | Aggregate – WorstQuality2 | The CTT also includes the end bound. | [11422](https://mantis.opcfoundation.org/view.php?id=11422) |
+| C4 | Aggregate – DurationInStateZero / DurationInStateNonZero | The CTT reports Bad below PercentDataBad. | [11423](https://mantis.opcfoundation.org/view.php?id=11423) |
+| C5 | Aggregate – DurationGood/Bad, PercentGood/Bad `002-01.js`…`002-04.js` | The CTT truncates durations to whole milliseconds. | [11424](https://mantis.opcfoundation.org/view.php?id=11424) |
+| C6 | Aggregate – DurationGood, PercentGood | The CTT ignores the raw value before the interval for the status of the first region. | [11425](https://mantis.opcfoundation.org/view.php?id=11425) |
+| C48 | Aggregate – Minimum, Maximum, MinimumActualTime, MaximumActualTime `001-02.js`… | The CTT ignores Uncertain values beyond the Good extremum and expects Good instead of UncertainDataSubNormal. | [11426](https://mantis.opcfoundation.org/view.php?id=11426) |
+| C49 | Aggregate – Minimum, MinimumActualTime, MaximumActualTime | The CTT does not set the Calculated bit when non-Good values make the status Uncertain. | [11427](https://mantis.opcfoundation.org/view.php?id=11427) |
+| U2 | Aggregate – Minimum2 (reverse reads) | The CTT clears the Calculated bit when the minimum is the End bound at the early end of a reverse interval (Part 11 §6.5.4.2). | [11461](https://mantis.opcfoundation.org/view.php?id=11461) |
 
 ### Historical Access
 
@@ -128,14 +128,76 @@ CTT project configuration notes follow the tables. The procedure for running the
   per-condition state, which feeds itself (up to about 850 events in 15 s). In 8 of 28 Enable runs the CTT alarm
   thread then returned no events for the rest of the CU, although the server sent and the CTT acknowledged them,
   and the remaining test cases ran to 3 × Alarm Cycle Time. Held back: needs more investigation.
-- **Aggregate oracle differences.**
+- **C54. GDS AliasName Discovery `002.js`, `004.js`, `006.js`, `007.js`, `009.js`, `011.js`, `012.js`, `014.js`,
+  `015.js`** compare each AliasFor target the GDS replicated with the target read from the AliasName source
+  using `UaExpandedNodeId.equals()` (`AssertAliasNamesReplicated`, `library/GDS/AliasNameDiscoveryHelpers.js`
+  line 92). The source references its own node (`ns=5;i=10012`, ServerIndex 0); the GDS has to reference that
+  node on the source (OPC 10000-17 Annex C.1: "the ExpandedNodeId of all of the referenced NodeIds and the
+  ServerUri of the Server containing the NodeId"; OPC 10000-4 §7.16: ServerIndex is the index in the local
+  ServerArray, 0 is the local Server), so a conformant GDS never matches: *"AliasFor reference to
+  'AliasNameVar_Topic_1' (NodeId: ns=5;i=10006, NamespaceUri: , ServerIndex: 0) is missing on replicated
+  element 'Topic_Alias_1'"*. Fix: compare the identifier and the namespace URI of the source target with the
+  GDS target, and require the GDS target's ServerIndex to select the source's ApplicationUri in the GDS
+  ServerArray. With that comparison (a diagnostic script copy compared the identifier and required a ServerIndex
+  above 0) and the C55 fix, all 15 test cases pass. Draft Mantis text:
+  > **GDS AliasName Discovery: AssertAliasNamesReplicated compares AliasFor targets of different Servers with
+  > equals().** `AssertAliasNamesReplicated()` checks the replicated AliasFor references with
+  > `currentFindReference.NodeId.equals( currentSearchReference.NodeId )`. `currentFindReference` was browsed
+  > on the AliasName source, where the target is a local node (ServerIndex 0, namespace index of the source).
+  > On the GDS the same target is a node of another Server: Part 17 Annex C.1 requires the GDS to provide "the
+  > ExpandedNodeId of all of the referenced NodeIds and the ServerUri of the Server containing the NodeId", so
+  > the reference carries the ServerIndex of the source in the GDS ServerArray (Part 4 §7.16) and, because the
+  > GDS namespace table differs from the source's, the namespace URI instead of the source's namespace index.
+  > The two ExpandedNodeIds can never be equal, and every test case that registers a source fails with
+  > "AliasFor reference to ... is missing on replicated element". Please compare the identifier, resolve the
+  > source's namespace index to its URI (source NamespaceArray) and compare it with the GDS target's
+  > NamespaceUri, and check that the GDS ServerArray entry at the target's ServerIndex is the source's
+  > ApplicationUri.
+- **C55. GDS AliasName Discovery `001.js`, `005.js`, `010.js`, `013.js`** describe the check as "No Alias name
+  instances associated with remote alias servers are present under TagVariables/Topics" but fail on every
+  AliasNameType instance in the folders, also on aliases the GDS defines for its own nodes. A GDS that is also
+  an AliasName Server (the reference server in `--ctt` mode: `TIC101_PV`, `Devices.Heater_Power`,
+  `ServerEvents`, …) can never pass, although OPC 10000-17 does not forbid local aliases on a GDS. Fix: count only
+  aliases with an AliasFor reference to another Server (ServerIndex > 0). With that filter the four test cases
+  pass against the reference server; a GDS without own aliases passes unchanged.
+  Draft Mantis text:
+  > **GDS AliasName Discovery 001/005/010/013: "no remote aliases" check fails on the GDS's own aliases.** The
+  > test cases expect "No Alias name instances associated with remote alias servers" under TagVariables
+  > (i=23479) and Topics (i=23488) before anything is registered, but report every AliasNameType instance
+  > found there. A GDS that also exposes AliasNames for its own nodes (its AliasFor targets have ServerIndex 0)
+  > fails although it aggregated nothing. Please only report AliasNameType instances that have an AliasFor
+  > reference whose target ExpandedNodeId has a ServerIndex other than 0.
+- **C56. Monitored Items Deadband Filter `Err-006.js`** modifies a MonitoredItem on the first static numeric
+  scalar (a BaseDataVariable without EURange) to a PercentDeadband and accepts only `Good` or
+  `Bad_MonitoredItemFilterUnsupported`. OPC 10000-8 §7.2 limits PercentDeadband to AnalogItems with an EURange,
+  and §7.3.2 Table 61 defines `Bad_DeadbandFilterInvalid` for "a PercentDeadband is not supported, since an
+  EURange is not configured", which the server returns since #4629 (Create and Modify alike). Monitor Basic
+  `Err-022.js` already accepts `Bad_FilterNotAllowed` for non-analog items; the accepted list of `Err-006.js`
+  needs `Bad_DeadbandFilterInvalid`. Draft ready, not filed yet.
+- **Aggregate expected-value differences.**
   - Non-numeric nodes: status-only aggregates (DurationGood/Bad, PercentGood/Bad, WorstQuality2, DurationInState*)
-    differ on Boolean/String nodes from numeric nodes with the same status timeline, and the oracle returns
+    differ on Boolean/String nodes from numeric nodes with the same status timeline, and the CTT returns
     `BadNoData` for valid Boolean/String StartBound/EndBound. Related: [11274](https://mantis.opcfoundation.org/view.php?id=11274).
-  - Int32 conversion: Interpolative, TimeAverage, Total, DeltaBounds and StartBound/EndBound differ on Int32 nodes
-    only (for example 24 vs 23): the server rounds interpolated values, the oracle truncates.
+    Only numeric values can be interpolated with a sloped line (Part 13 §5.4.2.3, Table 50), so the server
+    uses stepped interpolation for Boolean, String and other non-numeric values whatever the Stepped property
+    says (a String bound between "23" and "24" is "23", not "23.8").
+  - Int32 conversion: the CTT truncates interpolated bounds of Int32 nodes, the server keeps them real
+    (Part 13 §3.1.8) and rounds them (add 0.5 and truncate, Part 4 §7.7.3) only for aggregates that return the
+    raw data type (Interpolative, StartBound/EndBound, DeltaBounds, Minimum2/Maximum2/Range2,
+    MinimumActualTime2/MaximumActualTime2), for example 24 vs 23. TimeAverage, TimeAverage2, Total and Total2
+    return a Double and use the real bound: a ramp from 0 to 23.8 averages 11.9; the CTT's truncated bound
+    gives 11.8866, and Total `005-03.js` (end bound 2.38 vs 2) gives 28.3196 vs 27.598. Corrections that rewrite
+    the expected values of the four aggregates, and of Range2 when the start bound is followed by a non-Good
+    value with TreatUncertainAsBad (the native selection does not use that Uncertain bound), make all 78
+    TimeAverage/TimeAverage2/Total/Total2 and 4 Range2 Int32 test cases pass except the U4 cases.
   - MinimumActualTime2/MaximumActualTime2: with a sloped End bound the server returns the bound at EffectiveEndTime
-    (Part 13 §§5.4.3.17–.18); the oracle selects an earlier raw value.
+    (Part 13 §§5.4.3.17–.18); the CTT selects an earlier raw value.
+- **Aggregate Bad data search reads forward.** `HAAggregateHelper.GetBadData` reads 120 raw values "backward"
+  from the configured `StartOfBadData*` time with EndTime = `0001-01-01` (`new UaDateTime()`). That is the
+  null DateTime, so the request has only a StartTime and the server reads forward (Part 11 §6.5.3); the helper
+  then takes the last of those values as the earliest. Its final read therefore spans the 120th value after
+  the configured time to the 120th value after the first non-Good value it finds, and the Bad block must lie
+  inside that range (see *Bad data entries for aggregates*).
 
 ## Needs clarification
 
@@ -146,18 +208,47 @@ Uncertain the status will be Uncertain_DataSubNormal."* A logged run (AGGDIAG pr
 DeltaBounds `003-01.js`…`008-01.js` on the Double and Float nodes differs in 200 readings; the timestamps always
 agree:
 
-| Readings | Server | Oracle | Cause |
+| Readings | Server | CTT | Cause |
 | --- | --- | --- | --- |
-| 80 | value 24, Good | value 23, Good | Int32 rounding (see *Aggregate oracle differences*) |
+| 80 | value 24, Good | value 23, Good | Int32 rounding (see *Aggregate expected-value differences*) |
 | 72 | `BadNoData` | value, `UncertainDataSubNormal` | TreatUncertainAsBad=false requested, but C1 makes the server use its default true; the Uncertain raw value before the bound then counts as Bad and no bound exists |
-| 48 | value, `UncertainDataSubNormal` | `BadNoData` | TreatUncertainAsBad=true; the raw value after the bound is Bad, so §3.1.9 makes the bound Uncertain, and the oracle then treats the Uncertain bound as Bad |
+| 48 | value, `UncertainDataSubNormal` | `BadNoData` | TreatUncertainAsBad=true; the raw value after the bound is Bad, so §3.1.9 makes the bound Uncertain, and the CTT then treats the Uncertain bound as Bad |
 
 §3.1.9 (Simple Bounding Values) and Table 78 never mention TreatUncertainAsBad, §4.2.1.2 applies it to every
 aggregate calculation *"unless the Aggregate definition says otherwise"*, and its note (*"still treated as
 Uncertain when the StatusCode for the result is calculated"*) contradicts §5.4.3.2.1. Whether TreatUncertainAsBad
-applies to the raw values that form a bound (server), to the resulting bound (oracle) or not at all is open. A
+applies to the raw values that form a bound (server), to the resulting bound (CTT) or not at all is open. A
 spec clarification request is filed as [11462](https://mantis.opcfoundation.org/view.php?id=11462); neither side changes
 before the answer.
+
+With the Bad data entry of the reference server (see *Bad data entries for aggregates*) the same question shows
+in more test cases: DeltaBounds `005-05.js` (an Uncertain raw value at the end bound with TreatUncertainAsBad:
+server value with `UncertainDataSubNormal`, CTT `BadNoData`) and TimeAverage2/Total2 `003-01.js`, `003-04.js`,
+`004-01.js`, `004-04.js` on every numeric node (the raw value after the simple start bound is Uncertain and
+TreatUncertainAsBad is true: the server treats it as Bad and uses the stepped bound 348, §3.1.9 only names a
+Bad value, so the CTT uses the sloped bound 348.56). Interpolative applies TreatUncertainAsBad to a raw
+value exactly at the interval start, as the server does for the raw values around a bound; that agrees with
+the CTT.
+
+### U5. TreatUncertainAsBad = false: are Uncertain values Good for the value and for the status?
+
+§4.2.1.2 makes an Uncertain value equivalent to Good when TreatUncertainAsBad is false *"unless the Aggregate
+definition says otherwise"*, and adds that the value *"is still treated as Uncertain when the StatusCode for
+the result is calculated"*. §5.4.3.2.1 counts Uncertain regions as Good regions in that case. The definitions
+of Average, Count, Delta, StandardDeviation* and Variance* speak of Good (or non-Good) values, NumberOfTransitions
+of Bad values. Since C1 is fixed the CTT sends TreatUncertainAsBad = false in `003-02.js`, `003-03.js`,
+`004-02.js`, `004-03.js`, and 34 test cases differ:
+
+| Aggregates | Server | CTT |
+| --- | --- | --- |
+| Average, Count, Delta, StandardDeviation*, Variance* | includes the Uncertain values (§4.2.1.2), status Good when no Bad value is in the interval (§5.4.3.2.1) | excludes them (the definitions say Good), status `UncertainDataSubNormal` (§4.2.1.2 note) |
+| NumberOfTransitions | same value; status Good | same value; status `UncertainDataSubNormal` |
+| Range | ignores an Uncertain value beyond the Good extremum and reports `UncertainDataSubNormal` (§5.4.3.14) | Good (as C48) |
+
+Until then Average and Count used the Good values only for the value but counted Uncertain as Good for the
+status; they now include the Uncertain values like StandardDeviation and NumberOfTransitions already did. Not
+filed; the open part (does the definition's "Good" override §4.2.1.2, and which rule sets the status) belongs
+to the same clarification as U4.
 
 ## CTT project configuration notes
 
@@ -168,13 +259,19 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   `/Server Test/NodeIds/Static/HA Profile/Aggregates/ProcessingInterval` to 1; keep it positive (see issue 4).
 - **Bad data entries for aggregates.** `005-05.js`/`005-06.js` need an explicit Bad data entry. Without
   it, `HAAggregateHelper.GetRequestEntry` falls back to the start entry (*"Bad Data Entry no found,
-  using start data"*) or throws (*"GetRequestEntry failed due to incorrect test configuration"*). The
-  reference server seeds a deterministic pattern on every history node: index mod 10 = 7 is
-  `BadDataUnavailable`, index mod 10 = 9 is `UncertainSubstituteValue`, the rest Good. No project setting
-  can supply the entry: `GetStartBadDataTime` (`HAAggregateHelper.js` line 1023) reads
-  `.../Aggregates/StartOfBadData<Name>` as an absolute time, the server seeds its history relative to its
-  start time, and the pattern never has the two consecutive non-Good values the helper looks for. It needs a
-  history seed anchored to a fixed date with a longer Bad block, plus that date in the template.
+  using start data"*) or throws (*"GetRequestEntry failed due to incorrect test configuration"*).
+  `GetStartBadDataTime` (`HAAggregateHelper.js` line 1023) reads `.../Aggregates/StartOfBadData<Name>` as an
+  absolute time and the helper looks for a block of at least two consecutive non-Good values. The reference
+  server seeds every history node with 1001 values relative to its start time (10 s apart; index mod 10 = 7 is
+  `BadDataUnavailable`, index mod 10 = 9 is `UncertainSubstituteValue`, the rest Good) and every scalar
+  history node also with 400 values from `2026-01-01T00:00:00Z` (value = index, source timestamp + 1.234 s):
+  index 0–149 repeat the pattern (the CTT uses the first 120 values as the start data of the other test
+  cases), 150–267 are Good, 268 is Bad, 269–274 Good, 275–279 the Bad block, 280–399 the pattern again.
+  `samples/UAReferenceServer.ctt.xml` sets all ten `StartOfBadData*` settings to `2026-01-01T00:25:01.234Z`
+  (index 150). The layout follows the forward-reading search (see *Aggregate Bad data search reads forward*):
+  120 values after index 150 must contain a non-Good value followed by a Good one (268), and the block must lie
+  between index 269 and 387. The `003-xx`/`004-xx` test cases that request "bad or start" data use this block
+  too. The server's StartOfArchive is the fixed date.
 - **Reference server settings for #4479.** `samples/UAReferenceServer.ctt.xml` sets the following; a project
   created from an older template keeps the old values, so copy them over:
   - `/Server Test/NodeIds/Static/All Profiles/Scalar/Bool` = `ns=2;s=Scalar_Static_NonHistorizing_Boolean`.
@@ -223,22 +320,34 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   earlier runs and changes the record counts every test expects. Delete that file before each run.
   Run the four GDS CUs in one run: the test cases within a CU depend on the records registered by
   its `initialize.js` and earlier test cases (`012.js` and `019.js` unregister and re-register them).
-- **GDS AliasName Discovery.** Not applicable: this CU belongs to the *GDS AliasName Server Facet*
-  (OPC 10000-17 Annex C.2: aggregate the AliasNames of registered Servers into TagVariables/Topics
-  and add their ServerUri to ServerArray), which `Opc.Ua.Gds.Server` does not implement, so `002.js`
-  and `004.js` fail on any GDS built from it. `001.js` additionally fails only against the reference
-  server: it expects empty TagVariables (`i=23479`) and Topics (`i=23488`) folders on a GDS without
-  registrations, but the reference server is itself an AliasName Server and exposes its own aliases
-  there (`Devices.Heater_Power`, `TIC101_PV`, `ServerEvents`, …). Deselect the CU until the facet is
-  implemented. `005.js`–`015.js` also need two or three AliasName sources configured
-  (`/Server Test/GDS/AliasName Discovery/AliasName Source N URL`).
+- **GDS AliasName Discovery.** The CU tests the *GDS AliasName Server Facet* (OPC 10000-17 Annex C). The
+  reference server in `--ctt` mode implements it: `Ctt.ReferenceServer.Config.xml` sets
+  `<EnableAliasNameAggregation>true</EnableAliasNameAggregation>` in its `GlobalDiscoveryServerConfiguration`,
+  so the GDS reads the AliasNames of every Server registered with the ServerCapability `ALIAS` before
+  RegisterApplication returns. `initialize.js` always uses the CTT's embedded server as the first source.
+  `005.js`–`009.js` need a second and `010.js`–`015.js` a third AliasName Server
+  (`/Server Test/GDS/AliasName Discovery/AliasName Source 1 URL`, `... Source 2 URL`, plus UserName/Password
+  if they do not allow Anonymous). `samples/UAReferenceServer.ctt.xml` leaves them empty because the repository
+  has no suitable server: a second reference server is no good source, as it has the same alias and category
+  names as the GDS host (`Devices`), and the checks match categories by name (see below). Each source must
+  - offer Anonymous on an endpoint the CTT selects (it prefers SecurityMode None) and trust the CTT and the GDS,
+  - use alias and category names that neither the other sources nor the GDS itself use: after a source is
+    unregistered, `CheckReplicationOfOtherCategories(AssertNotReplicated)` fails on any category of that name
+    that is still there, although Annex C.3 keeps a category another Server still provides,
+  - expose no optional children (`FindAliasVerbose`, `AddAliasesToCategory`, `LastChange`) on its own
+    categories: the check expects every hierarchical reference of a source category on the replicated one,
+    while the GDS exposes `FindAlias` only on the categories it merges.
+  `RegisterApplication` warns (*"delay in excess of ... ms"*) because it waits for the source to be read.
+  `001.js`, `005.js`, `010.js` and `013.js` fail against the reference server because of its own aliases (C55),
+  and the test cases that check AliasFor references fail on any conformant GDS (C54).
 - **GDS LDS-ME Connectivity.** `initialize.js` skips the CU unless QueryApplications with
   `ServerCapabilities = ["LDS"]` returns a record: register an LDS/LDS-ME with the GDS first. The
   reference server does not include an LDS.
-- **Node Management client NodeIds.** Leave `/Server Test/NodeIds/NodeManagement/RequestedNodeId` disabled.
-  When enabled, scripts 1.05.513 request NodeIds in namespace 1 regardless of `RequestedNodeId_Namespace`
-  (C34), and six Add Node test cases fail with `BadNodeIdRejected`. `Err-008.js` therefore keeps failing
-  (issue 9). The setting's default namespace value (911) is meaningless.
+- **Node Management client NodeIds.** `samples/UAReferenceServer.ctt.xml` enables
+  `/Server Test/NodeIds/NodeManagement/RequestedNodeId` with `RequestedNodeId_Namespace` = 2 (the reference
+  server namespace). That needs the C34 fix: scripts 1.05.513 request NodeIds in namespace 1 regardless of
+  `RequestedNodeId_Namespace`, and six Add Node test cases fail with `BadNodeIdRejected`. With unfixed scripts
+  disable the setting; `Err-008.js` then keeps failing (issue 9).
 - **Monitored Item Services manual test cases.** Monitor Basic `036.js`, Monitor Complex Value `001.js`–`003.js`,
   Monitor Events `002.js`/`003.js`, Monitor Queueing `013.js`/`014.js`, and the Monitor Complex Event Filter
   and Monitor QueueSize_ServerMax CUs are *Not Implemented* (manual or test-lab) in scripts 1.05.513. So are

@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
     /// Internal abstraction shielding the rest of the library from
     /// the MQTTnet v4 / v5 API drift. The library compiles against
     /// MQTTnet 5 on net8/9/10 and the pinned v4.3.7.1207 on
-    /// netstandard2.1 / net48 / net472; both arms produce a
+    /// net48; both arms produce a
     /// behaviourally identical implementation of this interface so
     /// callers never see version-specific types.
     /// </summary>

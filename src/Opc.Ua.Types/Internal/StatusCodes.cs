@@ -117,6 +117,11 @@ namespace Opc.Ua.Types
         public static readonly StatusCode BadIndexRangeNoData = new(0x80370000, nameof(BadIndexRangeNoData));
 
         /// <summary>
+        /// The value was out of range.
+        /// </summary>
+        public static readonly StatusCode BadOutOfRange = new(0x803C0000, nameof(BadOutOfRange));
+
+        /// <summary>
         /// The written data does not match the IndexRange specified.
         /// </summary>
         public static readonly StatusCode BadIndexRangeDataMismatch = new(0x80EA0000, nameof(BadIndexRangeDataMismatch));

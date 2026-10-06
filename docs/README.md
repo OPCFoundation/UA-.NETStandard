@@ -167,6 +167,10 @@ models that each model depends on.
 
 - [Device Integration](DeviceIntegration.md) (OPC 10000-100; preview package) —
   devices, topology, and locking.
+- [Asset Management Basics](AMB.md) (OPC 10000-110; preview
+  package) — make devices, machines, pumps or scales manageable assets:
+  discovery, identification, health alarms, maintenance, documentation links
+  and locations. Read Device Integration first.
 - [Software update](SoftwareUpdate.md) (OPC 10000-100; preview package) —
   software package storage, installation, and confirmation. Read Device
   Integration first.
@@ -174,6 +178,15 @@ models that each model depends on.
   model and job control.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
+- [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101; preview
+  package) — machines with identification, server-driven state machines,
+  process values, job management, energy and result transfer, based on the
+  Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
+- [Pumps](Pumps.md) (OPC 40223; preview package) — pumps and vacuum pumps,
+  published both as Device Integration devices and as Machinery machines.
+- [Scales](Scales.md) (OPC 40200 and OPC 30050; preview package) — weighing
+  technology with every scale kind, scale systems, recipes and PackML state
+  machines, based on the Machinery model.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
   systems, based on the Industrial Automation and Device Integration models.
   The guide's draft Robot Intent model is listed in [stage 7](#7-draft-and-experimental-capabilities).
@@ -220,7 +233,12 @@ Assumes the client or server path.
 - [Transports](Transports.md) — UA-TCP, HTTPS, and WebSocket transports.
 - [REST binding](WebApi.md) — OpenAPI mapping, encoding negotiation, and HTTP
   authentication.
+- [OPC UA over OpenAPI](OpenApi.md) — serve the OpenAPI document the stack
+  generates from its REST routes and call the server from generated REST
+  clients.
 - [Reverse Connect](ReverseConnect.md) — server-initiated connections.
+- [Session-less invocation](SessionlessInvocation.md) — let clients call
+  Read, Browse, Call and the other §6.3 Services without a Session.
 - [PubSub external-server adapter](PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
   — bind PubSub to an OPC UA server through a managed client session. Assumes
   the client and PubSub paths.

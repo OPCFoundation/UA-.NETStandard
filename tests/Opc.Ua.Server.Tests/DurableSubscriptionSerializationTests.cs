@@ -105,6 +105,31 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that the current sample format preserves the triggering links between
+        /// monitored items (OPC 10000-4 §5.13.1.6).
+        /// </summary>
+        [Test]
+        public void RoundTripSubscriptionTriggeringLinks()
+        {
+            StoredSubscription original = CreateMinimalSubscription(id: 45);
+            original.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+            {
+                [1] = [2u, 3u],
+                [4] = [5u]
+            };
+
+            StoredSubscription result = RoundTripSubscription(original);
+
+            Assert.That(result.TriggeringLinks, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.TriggeringLinks.Keys, Is.EquivalentTo(new uint[] { 1, 4 }));
+                Assert.That(result.TriggeringLinks[1], Is.EqualTo(new uint[] { 2, 3 }));
+                Assert.That(result.TriggeringLinks[4], Is.EqualTo(new uint[] { 5 }));
+            });
+        }
+
+        /// <summary>
         /// Verifies that version-one sample records migrate to the safe default publishing state.
         /// </summary>
         [Test]
@@ -234,7 +259,7 @@ namespace Opc.Ua.Server.Tests
             byte[] bytes = encoder.CloseAndReturnBuffer();
             using var decoder = new BinaryDecoder(bytes, m_context);
 
-            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 3)
+            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 4)
                 .MonitoredItems.Single();
 
             Assert.That(restored.Id, Is.EqualTo(item.Id));

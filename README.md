@@ -25,7 +25,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
 - **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
-  .NET Framework 4.8, and .NET Standard 2.1; ships
+  .NET Framework 4.8; ships
   Native-AOT-friendly assemblies.
 - **Certified for compliance** — the reference server has been
   certified through an OPC Foundation Certification Test Lab and is
@@ -34,12 +34,16 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
-  Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
+  Transfer), Part 100 (Device Integration), Part 110 (Asset Management
+  Basics), Parts 210/211 (Relative
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
   Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
   Administration Shell V2 and V3, OPC 10100-1
-  (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
-  (Robotics).
+  (WoT Connectivity), Part 200 (Industrial Automation), OPC 40001-1/-2/-3/-4/-101
+  (Machinery with Process Values, Job Management, Energy and Result
+  Transfer), OPC 34100 (Energy Consumption Management), OPC 30081
+  (PA-DIM), OPC 40010-1 (Robotics), OPC 40223 (Pumps and Vacuum Pumps),
+  OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so

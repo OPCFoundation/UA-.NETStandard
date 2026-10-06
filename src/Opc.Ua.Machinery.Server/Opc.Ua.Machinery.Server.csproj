@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Machinery.Server</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Machinery.Server</PackageId>
+    <RootNamespace>Opc.Ua.Machinery.Server</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Server hosting for the source-generated OPC 40001 Machinery models: a DI-based node manager that materialises the Machines folder and the building blocks of OPC 40001-1, fluent builders for identification, monitoring, components, process values, job management, energy and result transfer, and fluent application configuration APIs.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Machinery.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.ProcessValues\Opc.Ua.Machinery.ProcessValues.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Jobs\Opc.Ua.Machinery.Jobs.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Energy\Opc.Ua.Machinery.Energy.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Result\Opc.Ua.Machinery.Result.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- The five OPC 40001 NodeSets are linked, not copied: with
+       ModelSourceGeneratorFluentAccessorsOnly the generator emits only the
+       typed fluent accessors here and takes the model itself from the
+       referenced model assembly, which publishes it with OmitFluentApi. Every
+       linked (ModelUri, Prefix) pair therefore needs its model assembly among
+       the ProjectReferences above, or that model fails with MODELGEN014.
+
+       The dependency NodeSets - DI, IA, ISA95 Job Control V2, PADIM, IRDI and
+       ECM - are deliberately not linked. They resolve through the
+       [ModelDependencyAttribute] payloads their assemblies carry. -->
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.Machinery\Model\Opc.Ua.Machinery.NodeSet2.xml">
+      <Link>Model\Opc.Ua.Machinery.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\Opc.Ua.Machinery.ProcessValues\Model\Opc.Ua.Machinery.ProcessValues.NodeSet2.xml">
+      <Link>Model\Opc.Ua.Machinery.ProcessValues.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery.ProcessValues</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\Opc.Ua.Machinery.Jobs\Model\Opc.Ua.Machinery.Jobs.NodeSet2.xml">
+      <Link>Model\Opc.Ua.Machinery.Jobs.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery.Jobs</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\Opc.Ua.Machinery.Energy\Model\Opc.Ua.Machinery.Energy.NodeSet2.xml">
+      <Link>Model\Opc.Ua.Machinery.Energy.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery.Energy</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\Opc.Ua.Machinery.Result\Model\Opc.Ua.Machinery.Result.NodeSet2.xml">
+      <Link>Model\Opc.Ua.Machinery.Result.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Machinery.Result</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorFluentAccessorsOnly>true</ModelSourceGeneratorFluentAccessorsOnly>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

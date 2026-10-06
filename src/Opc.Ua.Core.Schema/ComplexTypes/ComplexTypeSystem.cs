@@ -1064,14 +1064,28 @@ namespace Opc.Ua
                                         .ConfigureAwait(false);
                                     ExpandedNodeId typeId = NormalizeExpandedNodeId(
                                         structType.NodeId);
-                                    newType = await AddOptionSetTypeAsync(
-                                            complexTypeBuilder,
-                                            dataTypeNode,
-                                            typeId,
-                                            binaryEncodingId,
-                                            xmlEncodingId,
-                                            ct)
-                                        .ConfigureAwait(false);
+                                    try
+                                    {
+                                        newType = await AddOptionSetTypeAsync(
+                                                complexTypeBuilder,
+                                                dataTypeNode,
+                                                typeId,
+                                                binaryEncodingId,
+                                                xmlEncodingId,
+                                                ct)
+                                            .ConfigureAwait(false);
+                                    }
+                                    catch (Exception ex) when (
+                                        ex is NotSupportedException or DataTypeNotSupportedException)
+                                    {
+                                        // a type the builder cannot create must not abort
+                                        // the load of the other types of the batch. Other
+                                        // failures (for example of the resolver) propagate.
+                                        m_logger.SkipTypeNotSupportedException(
+                                            ex,
+                                            dataTypeNode.BrowseName.Name);
+                                        continue;
+                                    }
                                     if (newType != null)
                                     {
                                         foreach (NodeId encodingId in encodingIds)
@@ -1457,15 +1471,16 @@ namespace Opc.Ua
             // Mark as OptionSet (bit positions rather than ordinal values).
             enumDefinition.IsOptionSet = true;
 
-            // Add EnumDefinition to cache
-            AddDataTypeDefinitionToCache(dataTypeNode.NodeId, name, enumDefinition);
-
-            return complexTypeBuilder.AddOptionSetType(
+            IEncodeableType optionSetType = complexTypeBuilder.AddOptionSetType(
                 name,
                 typeId,
                 binaryEncodingId,
                 xmlEncodingId,
                 enumDefinition);
+
+            // Add EnumDefinition to cache once the type was created
+            AddDataTypeDefinitionToCache(dataTypeNode.NodeId, name, enumDefinition);
+            return optionSetType;
         }
 
         /// <summary>
@@ -1527,6 +1542,24 @@ namespace Opc.Ua
             ArrayOf<StructureField> declaredFields = structureDefinition.Fields;
             var resolvedFields = new StructureField[declaredFields.Count];
             bool fieldsResolved = false;
+
+            // OPC 10000-6 5.2.7: the EncodingMask has one bit per optional field,
+            // so a structure with more than 32 optional fields cannot be encoded.
+            if (structureDefinition.StructureType == StructureType.StructureWithOptionalFields)
+            {
+                int optionalFields = 0;
+                foreach (StructureField field in declaredFields)
+                {
+                    if (field.IsOptional &&
+                        ++optionalFields > Encoders.StructureWithOptionalFields.MaxOptionalFields)
+                    {
+                        throw new DataTypeNotSupportedException(
+                            complexTypeId,
+                            "The structure definition has more than " +
+                            $"{Encoders.StructureWithOptionalFields.MaxOptionalFields} optional fields.");
+                    }
+                }
+            }
 
             // check all types
             var typeList = new List<IType?>();

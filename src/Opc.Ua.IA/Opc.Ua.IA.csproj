@@ -1,0 +1,76 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).IA</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.IA</PackageId>
+    <RootNamespace>Opc.Ua.IA</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Source-generated OPC 10000-200 Industrial Automation (IA) information model over OPC 10000-100 DI, including model identifiers, typed node states, client proxies and the AddOpcUaIA model loader.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Robotics" />
+    <InternalsVisibleTo Include="Opc.Ua.Robotics.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Robotics.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.IA.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.IA.NodeIds.csv" />
+  </ItemGroup>
+  <!-- OPC 10000-200 is source-generated from its NodeSet2 XML over the
+       source-generated OPC UA DI base model. It lived inside Opc.Ua.Robotics
+       until Machinery needed it too: two assemblies generating the same model
+       URI under the same C# prefix collide at the consumer, so the model has
+       exactly one producer.
+
+       Prefix and Name are pinned rather than defaulted. They are the public
+       contract this assembly publishes through [ModelDependencyAttribute], and
+       Opc.Ua.Robotics.Server resolves Opc.Ua.IA.Namespaces.IA against exactly
+       these values.
+
+       The identifier file is not a NodeId source - for a NodeSet2 input the
+       NodeIds come from the XML. It is a drift guard: the generator validates
+       every row against the imported symbols and fails the build when the
+       upstream model and the pinned mapping disagree. Model\*.Upstream.NodeIds.csv
+       is the unmodified OPC Foundation publication, kept out of AdditionalFiles
+       so the two can be diffed. The only repair is stripping the
+       "Server_Namespaces_" prefix the publication adds to the namespace-metadata
+       rows, which the NodeSet itself does not carry. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.IA.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/IA/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>IA</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.IA</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.IA.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.IA.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project does
+         not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

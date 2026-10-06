@@ -1,0 +1,9 @@
+<Project>
+  <!--
+    The legacy interop peer is built against the published 1.5.378 NuGet packages, not
+    against the sources in this repository. It deliberately does not chain to the
+    repository Directory.Build.props: the repository build settings (central package
+    management, target framework profiles, analyzers, versioning) apply to the 2.0
+    sources and would either pin a 2.0 version or reject this project outright.
+  -->
+</Project>

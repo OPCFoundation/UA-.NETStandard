@@ -557,7 +557,14 @@ namespace Opc.Ua
 
             if (decoder.EncodingType == EncodingType.Binary && decoder is BinaryDecoder binary)
             {
-                if (!binary.TryReadRemainingBodyBytes(out byte[] unscaled))
+                // The octets are a ByteString in all but name, so the
+                // MaxByteStringLength limit applies; the fixed cap keeps every
+                // later rendering as decimal digits (which is quadratic in the
+                // number of digits) cheap. Both are checked before reading.
+                int maxOctets = decoder.Context.MaxByteStringLength > 0
+                    ? Math.Min(decoder.Context.MaxByteStringLength, MaxUnscaledOctets)
+                    : MaxUnscaledOctets;
+                if (!binary.TryReadRemainingBodyBytes(maxOctets, out byte[] unscaled))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
@@ -582,10 +589,58 @@ namespace Opc.Ua
             }
 
             string? text = decoder.ReadString("Value");
-            UnscaledValue = string.IsNullOrEmpty(text)
-                ? BigInteger.Zero
-                : BigInteger.Parse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+            if (string.IsNullOrEmpty(text))
+            {
+                UnscaledValue = BigInteger.Zero;
+                return;
+            }
+
+            // Parsing decimal digits is quadratic on some runtimes; bound the
+            // digits like the binary octets before parsing them.
+            int digits = text!.Length - (text[0] is '-' or '+' ? 1 : 0);
+            if (digits > MaxUnscaledDigits)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The Decimal value has {0} digits, more than the limit of {1}.",
+                    digits,
+                    MaxUnscaledDigits);
+            }
+
+            // OPC 10000-6 5.4.3 renders the unscaled value as a base-10 signed
+            // integer string; anything else is a malformed value.
+            if (!BigInteger.TryParse(
+                text,
+                NumberStyles.AllowLeadingSign,
+                CultureInfo.InvariantCulture,
+                out BigInteger unscaledValue))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "The Decimal value '{0}' is not a base-10 integer.",
+                    text.Length > 32 ? text[..32] + "..." : text);
+            }
+            UnscaledValue = unscaledValue;
         }
+
+        /// <summary>
+        /// The largest number of octets of the unscaled value that is decoded.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 5.1.10 does not bound the unscaled value. Rendering a
+        /// value as decimal digits (<see cref="ToString()"/>, the JSON and XML
+        /// encodings) costs time quadratic in its length, so a decoded value is
+        /// held to 2048 octets, a 16384-bit integer of up to 4933 decimal
+        /// digits, far beyond any practical precision.
+        /// </remarks>
+        public const int MaxUnscaledOctets = 2048;
+
+        /// <summary>
+        /// The largest number of decimal digits of the unscaled value that is
+        /// decoded from the JSON and XML encodings: the most digits
+        /// <see cref="MaxUnscaledOctets"/> octets can carry.
+        /// </summary>
+        public const int MaxUnscaledDigits = 4933;
 
         /// <inheritdoc/>
         public bool IsEqual(IEncodeable? encodeable)

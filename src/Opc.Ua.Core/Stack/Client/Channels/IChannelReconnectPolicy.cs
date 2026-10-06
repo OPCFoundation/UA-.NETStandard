@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// <see cref="ChannelState.Faulted"/>.</returns>
         TimeSpan GetDelay(int attempt);
 
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Compute the delay before the next reconnect attempt while
         /// consulting a shared retry budget.
@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// <param name="budget">Optional shared retry budget.</param>
         /// <returns>The wait period, capped to the remaining budget
         /// when possible.</returns>
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         new TimeSpan GetDelay(int attempt, IRetryBudget? budget);
 #else
         TimeSpan GetDelay(int attempt, IRetryBudget? budget);
@@ -118,7 +118,7 @@ namespace Opc.Ua
         /// Maximum time a single participant's <see cref="IReconnectParticipant.OnReconnectAsync"/>
         /// invocation may run during one reconnect cycle.
         /// </summary>
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         new TimeSpan ParticipantTimeout { get; }
 #else
         TimeSpan ParticipantTimeout { get; }

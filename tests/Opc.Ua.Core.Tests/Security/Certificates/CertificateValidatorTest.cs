@@ -1413,10 +1413,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestSHA1RejectedAsync(bool trusted, bool rejectSHA1)
         {
-#if NET472_OR_GREATER || NET5_0_OR_GREATER
             Assert
                 .Ignore("To create SHA1 certificates is unsupported on this .NET version");
-#endif
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             using Certificate cert = s_factory

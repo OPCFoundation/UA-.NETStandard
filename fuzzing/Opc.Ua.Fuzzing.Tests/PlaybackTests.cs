@@ -150,7 +150,8 @@ namespace Opc.Ua.Fuzzing.Tests
             [
                 nameof(FuzzableCode.SpanTarget),
                 nameof(FuzzableCode.ThrowingSpanTarget),
-                nameof(FuzzableCode.HangingSpanTarget)
+                nameof(FuzzableCode.HangingSpanTarget),
+                nameof(FuzzableCode.DeepRecursionSpanTarget)
             ];
 
             AggregateException failure =
@@ -163,7 +164,7 @@ namespace Opc.Ua.Fuzzing.Tests
             }));
             Assert.That(failure.InnerExceptions.Select(exception => exception.InnerException),
                 Is.All.SameAs(FuzzableCode.InjectedFailure));
-            Assert.That(FuzzableCode.Invocations, Has.Count.EqualTo(6));
+            Assert.That(FuzzableCode.Invocations, Has.Count.EqualTo(8));
             Assert.That(FuzzableCode.Invocations.Select(call => call.Target).Distinct(), Is.EquivalentTo(targets));
             foreach (string target in targets)
             {
@@ -171,7 +172,7 @@ namespace Opc.Ua.Fuzzing.Tests
                     Is.EqualTo(new[] { new byte[] { 0x61 }, new byte[] { 0x7a } }));
                 Assert.That(m_standardOutput, Does.Contain(target + ": " + first).And.Contain(target + ": " + last));
             }
-            Assert.That(OutputLines(m_standardOutput), Has.Length.EqualTo(6));
+            Assert.That(OutputLines(m_standardOutput), Has.Length.EqualTo(8));
             Assert.That(OutputLines(m_standardError),
                 Is.EqualTo(Enumerable.Repeat(FuzzableCode.InjectedFailure.Message, 2)));
         }

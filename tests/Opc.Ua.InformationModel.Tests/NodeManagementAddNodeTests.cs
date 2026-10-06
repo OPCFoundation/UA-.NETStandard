@@ -224,6 +224,123 @@ namespace Opc.Ua.InformationModel.Tests
             }
         }
 
+        [Description("add an Object of a type with Mandatory InstanceDeclarations; they are created (Part 4 5.8.2.1).")]
+        [Test]
+        public async Task AddNodeCreatesMandatoryMembersOfTypeDefinitionAsync()
+        {
+            var addRequest = new AddNodesItem
+            {
+                ParentNodeId = new ExpandedNodeId(ObjectIds.ObjectsFolder),
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                RequestedNewNodeId = ExpandedNodeId.Null,
+                BrowseName = new QualifiedName(
+                    "ConformanceFile_" + System.Guid.NewGuid().ToString("N"), 2),
+                NodeClass = NodeClass.Object,
+                TypeDefinition = new ExpandedNodeId(ObjectTypeIds.FileType)
+            };
+
+            try
+            {
+                AddNodesResponse response = await Session.AddNodesAsync(
+                    null,
+                    new AddNodesItem[] { addRequest }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True,
+                    response.Results[0].StatusCode.ToString());
+                NodeId added = response.Results[0].AddedNodeId;
+
+                BrowseResponse browse = await Session.BrowseAsync(
+                    null, null, 0,
+                    new BrowseDescription[]
+                    {
+                        new() {
+                            NodeId = added,
+                            BrowseDirection = BrowseDirection.Forward,
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                            IncludeSubtypes = true,
+                            NodeClassMask = 0,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                var names = new System.Collections.Generic.List<string>();
+                ArrayOf<ReferenceDescription> references = browse.Results[0].References;
+                for (int ii = 0; ii < references.Count; ii++)
+                {
+                    names.Add(references[ii].BrowseName.Name);
+                }
+                Assert.That(names, Is.SupersetOf(new[]
+                {
+                    BrowseNames.Size, BrowseNames.Writable, BrowseNames.UserWritable,
+                    BrowseNames.OpenCount, BrowseNames.Open, BrowseNames.Close,
+                    BrowseNames.Read, BrowseNames.Write, BrowseNames.GetPosition,
+                    BrowseNames.SetPosition
+                }));
+                Assert.That(names, Does.Not.Contain(BrowseNames.MimeType));
+
+                // Cleanup.
+                try
+                {
+                    await Session.DeleteNodesAsync(
+                        null,
+                        new DeleteNodesItem[]
+                        {
+                            new() {
+                                NodeId = added,
+                                DeleteTargetReferences = true
+                            }
+                        }.ToArrayOf(),
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                    // Best-effort cleanup.
+                }
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadServiceUnsupported)
+            {
+                Assert.Ignore("AddNodes service not supported by ReferenceServer.");
+            }
+        }
+
+        [Description("add an Object whose TypeDefinition is abstract; rejected (Part 3 5.5.2).")]
+        [Test]
+        public async Task AddNodeWithAbstractTypeDefinitionReturnsBadTypeDefinitionInvalidAsync()
+        {
+            var addRequest = new AddNodesItem
+            {
+                ParentNodeId = new ExpandedNodeId(ObjectIds.ObjectsFolder),
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                RequestedNewNodeId = ExpandedNodeId.Null,
+                BrowseName = new QualifiedName(
+                    "ConformanceAbstract_" + System.Guid.NewGuid().ToString("N"), 2),
+                NodeClass = NodeClass.Object,
+                TypeDefinition = new ExpandedNodeId(ObjectTypeIds.BaseEventType)
+            };
+
+            try
+            {
+                AddNodesResponse response = await Session.AddNodesAsync(
+                    null,
+                    new AddNodesItem[] { addRequest }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                Assert.That(
+                    response.Results[0].StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadTypeDefinitionInvalid));
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadServiceUnsupported)
+            {
+                Assert.Ignore("AddNodes service not supported by ReferenceServer.");
+            }
+        }
+
         [Description("add a node but do not specify any properties. */")]
         [Test]
         public async Task AddNodeWithoutPropertiesReturnsBadStatusAsync()

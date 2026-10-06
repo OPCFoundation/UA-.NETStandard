@@ -330,7 +330,8 @@ namespace Opc.Ua.Bindings
             {
                 if (Volatile.Read(ref m_disposed) != 0 ||
                     UsedBySession ||
-                    State is not (TcpChannelState.Open or TcpChannelState.Faulted) ||
+                    !(State is TcpChannelState.Open or TcpChannelState.Faulted ||
+                        (State == TcpChannelState.Connecting && IsReclaimableWhileConnecting)) ||
                     HasPartialMessage ||
                     HasPendingWrites ||
                     Volatile.Read(ref m_pendingServiceRequests) != 0)
@@ -344,6 +345,14 @@ namespace Opc.Ua.Bindings
                 LocalizedText.From("Channel closed due to inactivity.")));
             return true;
         }
+
+        /// <summary>
+        /// Whether a channel that is still connecting may be closed to make room for
+        /// admission. A handshake in progress is entitled to make progress, so this is
+        /// false unless the channel has received nothing that starts its handshake.
+        /// Evaluated under <see cref="UaSCUaBinaryChannel.Gate"/>.
+        /// </summary>
+        private protected virtual bool IsReclaimableWhileConnecting => false;
 
         /// <summary>
         /// Keeps a decoded sessionless request classified as in-use through dispatch and asynchronous processing.
@@ -997,7 +1006,12 @@ namespace Opc.Ua.Bindings
                 encoder.WriteUInt32(null, TcpMessageType.Error);
                 encoder.WriteUInt32(null, 0);
 
-                WriteErrorMessageBody(encoder, error);
+                // the reason is cut to what the peer's receive buffer holds after
+                // the message header, status code and reason length.
+                WriteErrorMessageBody(
+                    encoder,
+                    error,
+                    SendBufferSize - TcpMessageLimits.MessageTypeAndSize - 8);
 
                 int size = encoder.Close();
                 UpdateMessageSize(buffer, 0, size);

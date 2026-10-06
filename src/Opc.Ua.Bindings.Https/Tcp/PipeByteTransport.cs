@@ -94,21 +94,33 @@ namespace Opc.Ua.Bindings
 
         public async ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
         {
-            ThrowIfClosed();
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using CancellationTokenSource linkedCts = await EnterSendAsync(ct).ConfigureAwait(false);
             try
             {
                 PipeWriter writer = m_connection.Transport.Output;
                 Memory<byte> destination = writer.GetMemory(chunk.Length);
                 chunk.CopyTo(destination);
                 writer.Advance(chunk.Length);
-                FlushResult result = await writer.FlushAsync(ct).ConfigureAwait(false);
+                FlushResult result = await writer.FlushAsync(linkedCts.Token).ConfigureAwait(false);
                 if (result.IsCompleted || result.IsCanceled)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConnectionClosed,
                         "Outbound pipe completed/canceled while writing chunk.");
                 }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Transport closed while writing chunk.");
+            }
+            catch (Exception ex) when (IsWriterClosedByClose(ex))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    ex,
+                    "Transport closed while writing chunk.");
             }
             finally
             {
@@ -122,8 +134,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(buffers));
             }
-            ThrowIfClosed();
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using CancellationTokenSource linkedCts = await EnterSendAsync(ct).ConfigureAwait(false);
             try
             {
                 PipeWriter writer = m_connection.Transport.Output;
@@ -137,13 +148,26 @@ namespace Opc.Ua.Bindings
                     new ReadOnlyMemory<byte>(segment.Array, segment.Offset, segment.Count).CopyTo(destination);
                     writer.Advance(segment.Count);
                 }
-                FlushResult result = await writer.FlushAsync(ct).ConfigureAwait(false);
+                FlushResult result = await writer.FlushAsync(linkedCts.Token).ConfigureAwait(false);
                 if (result.IsCompleted || result.IsCanceled)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConnectionClosed,
                         "Outbound pipe completed/canceled while writing buffer collection.");
                 }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Transport closed while writing buffer collection.");
+            }
+            catch (Exception ex) when (IsWriterClosedByClose(ex))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    ex,
+                    "Transport closed while writing buffer collection.");
             }
             finally
             {
@@ -179,6 +203,15 @@ namespace Opc.Ua.Bindings
 
                     Span<byte> headerSpan = stackalloc byte[8];
                     buffer.Slice(0, 8).CopyTo(headerSpan);
+                    uint messageType = BinaryPrimitives.ReadUInt32LittleEndian(headerSpan);
+                    if (!TcpMessageType.IsValid(messageType))
+                    {
+                        reader.AdvanceTo(buffer.End);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadTcpMessageTypeInvalid,
+                            "Message type 0x{0:X8} is invalid.",
+                            messageType);
+                    }
                     int size = BinaryPrimitives.ReadInt32LittleEndian(headerSpan[4..]);
                     if (size < 8)
                     {
@@ -270,6 +303,17 @@ namespace Opc.Ua.Bindings
             {
                 return;
             }
+            // Wake queued and in-flight senders first so they fail with
+            // BadConnectionClosed and release their buffers. The semaphore
+            // is deliberately not disposed: disposing it would orphan queued
+            // waiters forever (as in TcpByteTransport).
+            try
+            {
+                m_sendCancellation.Cancel();
+            }
+            catch
+            {
+            }
             try
             {
                 m_connection.Transport.Input.Complete();
@@ -291,12 +335,54 @@ namespace Opc.Ua.Bindings
             catch
             {
             }
-            m_sendLock.Dispose();
         }
 
         public void Dispose()
         {
             Close();
+        }
+
+        /// <summary>
+        /// Waits for the send lock, failing with <see cref="StatusCodes.BadConnectionClosed"/>
+        /// when the transport closes while queued. Returns the linked token source
+        /// the caller uses for the send and disposes afterwards.
+        /// </summary>
+        private async ValueTask<CancellationTokenSource> EnterSendAsync(CancellationToken ct)
+        {
+            ThrowIfClosed();
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token);
+            try
+            {
+                await m_sendLock.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                return linkedCts;
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                linkedCts.Dispose();
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Transport is closed.");
+            }
+            catch
+            {
+                linkedCts.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// A sender that holds the send lock can race <see cref="Close"/>,
+        /// which completes the output writer without taking the lock. The
+        /// writer then rejects the write (InvalidOperationException from a
+        /// completed pipe) and that must surface as
+        /// <see cref="StatusCodes.BadConnectionClosed"/>. Close sets the
+        /// closed flag before completing the writer, so the flag is set
+        /// whenever the writer fails for that reason.
+        /// </summary>
+        private bool IsWriterClosedByClose(Exception ex)
+        {
+            return ex is not ServiceResultException and not OperationCanceledException &&
+                Volatile.Read(ref m_closed) != 0;
         }
 
         private void ThrowIfClosed()
@@ -313,7 +399,17 @@ namespace Opc.Ua.Bindings
         private readonly BufferManager m_bufferManager;
         private int m_receiveBufferSize;
         private readonly ILogger m_logger;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "The semaphore must remain undisposed so queued send waiters can observe transport cancellation and unwind.")]
         private readonly SemaphoreSlim m_sendLock;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "The lifetime token remains available to concurrent send setup while close cancellation unwinds those sends.")]
+        private readonly CancellationTokenSource m_sendCancellation = new();
         private int m_closed;
     }
 

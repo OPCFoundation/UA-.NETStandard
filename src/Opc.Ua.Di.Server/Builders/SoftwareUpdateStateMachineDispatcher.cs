@@ -56,6 +56,7 @@ namespace Opc.Ua.Di.Server.Builders
         internal const uint PrepareForUpdate_Idle = PrepareForUpdateStateMachineTypeIds.StateIds.Idle;
         internal const uint PrepareForUpdate_Preparing = PrepareForUpdateStateMachineTypeIds.StateIds.Preparing;
         internal const uint PrepareForUpdate_PreparedForUpdate = PrepareForUpdateStateMachineTypeIds.StateIds.PreparedForUpdate;
+        internal const uint PrepareForUpdate_Resuming = PrepareForUpdateStateMachineTypeIds.StateIds.Resuming;
 
         internal const uint Installation_Idle = InstallationStateMachineTypeIds.StateIds.Idle;
         internal const uint Installation_Installing = InstallationStateMachineTypeIds.StateIds.Installing;
@@ -71,6 +72,7 @@ namespace Opc.Ua.Di.Server.Builders
         internal const uint PrepareForUpdate_PreparingToIdle = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparingToIdle;
         internal const uint PrepareForUpdate_PreparingToPreparedForUpdate = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparingToPreparedForUpdate;
         internal const uint PrepareForUpdate_PreparedForUpdateToResuming = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparedForUpdateToResuming;
+        internal const uint PrepareForUpdate_ResumingToIdle = PrepareForUpdateStateMachineTypeIds.TransitionIds.ResumingToIdle;
 
         internal const uint Installation_IdleToInstalling = InstallationStateMachineTypeIds.TransitionIds.IdleToInstalling;
         internal const uint Installation_InstallingToIdle = InstallationStateMachineTypeIds.TransitionIds.InstallingToIdle;
@@ -88,6 +90,8 @@ namespace Opc.Ua.Di.Server.Builders
              PrepareForUpdateStateMachineTypeIds.StateNumbers.Preparing, "Preparing"),
             new(PrepareForUpdate_PreparedForUpdate,
              PrepareForUpdateStateMachineTypeIds.StateNumbers.PreparedForUpdate, "PreparedForUpdate"),
+            new(PrepareForUpdate_Resuming,
+             PrepareForUpdateStateMachineTypeIds.StateNumbers.Resuming, "Resuming"),
             new(Installation_Idle,
              InstallationStateMachineTypeIds.StateNumbers.Idle, "Idle"),
             new(Installation_Installing,
@@ -118,6 +122,9 @@ namespace Opc.Ua.Di.Server.Builders
             new(PrepareForUpdate_PreparedForUpdateToResuming,
              PrepareForUpdateStateMachineTypeIds.TransitionNumbers.PreparedForUpdateToResuming,
              "PreparedForUpdateToResuming"),
+            new(PrepareForUpdate_ResumingToIdle,
+             PrepareForUpdateStateMachineTypeIds.TransitionNumbers.ResumingToIdle,
+             "ResumingToIdle"),
             new(Installation_IdleToInstalling,
              InstallationStateMachineTypeIds.TransitionNumbers.IdleToInstalling,
              "IdleToInstalling"),
@@ -189,6 +196,17 @@ namespace Opc.Ua.Di.Server.Builders
             ISystemContext context)
         {
             CreateDispatcher(diNamespaceIndex).Move(sm, toStateId, transitionId, context);
+        }
+
+        /// <summary>
+        /// Reads the state identifier <see cref="Move"/> last wrote.
+        /// </summary>
+        internal static bool TryGetCurrentState(
+            FiniteStateMachineState sm,
+            ushort diNamespaceIndex,
+            out uint stateId)
+        {
+            return CreateDispatcher(diNamespaceIndex).TryGetCurrentState(sm, out stateId);
         }
 
         /// <summary>

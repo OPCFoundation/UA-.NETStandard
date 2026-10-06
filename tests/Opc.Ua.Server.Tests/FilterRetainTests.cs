@@ -963,6 +963,123 @@ namespace Opc.Ua.Server.Tests
             Assert.Throws<ArgumentNullException>(() => new FilteredRetainTarget(null!));
         }
 
+        /// <summary>
+        /// A trailing event still queued when the select clauses change is rebuilt with the
+        /// client specific Retain = false, in the new field layout.
+        /// </summary>
+        [Test]
+        public void TrailingEventKeepsRetainFalseWhenSelectClausesChange()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+            SystemContext systemContext = GetSystemContext(telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(
+                GetRetainEventFilter(GetHighOnlyFilter(), telemetry),
+                telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            Assert.That(PublishRetain(monitoredItem), Is.True);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = true;
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+
+            ModifyToRetainFirst(monitoredItem, telemetry);
+
+            Assert.That(PublishRetainAt(monitoredItem, 0), Is.False, "trailing event");
+        }
+
+        /// <summary>
+        /// Published field lists go back to a process wide pool. A recycled instance that
+        /// once carried a trailing event must not hand its Retain override on to the event
+        /// it carries next.
+        /// </summary>
+        [Test]
+        public void RecycledFieldListDoesNotInheritRetainOverride()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+            SystemContext systemContext = GetSystemContext(telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(
+                GetRetainEventFilter(GetHighOnlyFilter(), telemetry),
+                telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            Assert.That(PublishRetain(monitoredItem), Is.True);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = true;
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            var notifications = new Queue<EventFieldList>();
+            _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
+            Assert.That(notifications, Has.Count.EqualTo(1));
+
+            // the acknowledged trailing event goes back to the pool.
+            notifications.Dequeue().Reuse();
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+
+            ModifyToRetainFirst(monitoredItem, telemetry);
+
+            Assert.That(PublishRetainAt(monitoredItem, 0), Is.True, "the server's value");
+        }
+
+        /// <summary>
+        /// Moves Retain to the first select clause and keeps the where clause.
+        /// </summary>
+        private void ModifyToRetainFirst(MonitoredItem monitoredItem, ITelemetryContext telemetry)
+        {
+            EventFilter current = GetRetainEventFilter(GetHighOnlyFilter(), telemetry);
+            var modified = new EventFilter
+            {
+                SelectClauses =
+                [
+                    current.SelectClauses[kRetainFieldIndex],
+                    current.SelectClauses[0],
+                    current.SelectClauses[2]
+                ],
+                WhereClause = GetHighOnlyFilter()
+            };
+            _ = modified.Validate(GetFilterContext(telemetry));
+
+            ServiceResult result = monitoredItem.ModifyAttributes(
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Server,
+                monitoredItem.ClientHandle,
+                modified,
+                modified,
+                null,
+                0,
+                10,
+                true);
+            Assert.That(ServiceResult.IsBad(result), Is.False);
+        }
+
+        private static bool PublishRetainAt(MonitoredItem monitoredItem, int index)
+        {
+            var notifications = new Queue<EventFieldList>();
+            _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(
+                notifications.Dequeue().EventFields[index].TryGetValue(out bool retain),
+                Is.True,
+                "Retain is a selected field");
+            return retain;
+        }
+
         private const int kRetainFieldIndex = 1;
 
         /// <summary>

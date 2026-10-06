@@ -154,6 +154,16 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public StatusCode KeepAliveStatus { get; set; } = StatusCodes.Good;
 
         /// <summary>
+        /// Makes only the next server-state keepalive read return the given status; the read that consumes it
+        /// restores <see cref="KeepAliveStatus"/> for every later read, before any recovery it triggers can read.
+        /// </summary>
+        /// <param name="status">The data-value status returned by the next keepalive read.</param>
+        public void FailNextKeepAlive(StatusCode status)
+        {
+            Volatile.Write(ref m_nextKeepAliveStatus, unchecked((int)status.Code));
+        }
+
+        /// <summary>
         /// Gets or sets whether the second subscription-creation request waits
         /// at <see cref="ReplacementSubscription"/>.
         /// </summary>
@@ -549,10 +559,17 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     read.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State:
                     Interlocked.Increment(ref m_keepAliveReadCount);
                     m_initialKeepAliveRead.TrySetResult(true);
+                    var nextKeepAliveStatus = new StatusCode(unchecked((uint)Interlocked.Exchange(
+                        ref m_nextKeepAliveStatus, unchecked((int)StatusCodes.Good.Code))));
                     return new ReadResponse
                     {
                         ResponseHeader = channel.CreateGoodHeader(),
-                        Results = [new DataValue(new Variant((int)ServerState.Running), KeepAliveStatus)]
+                        Results =
+                        [
+                            new DataValue(
+                                new Variant((int)ServerState.Running),
+                                StatusCode.IsBad(nextKeepAliveStatus) ? nextKeepAliveStatus : KeepAliveStatus)
+                        ]
                     };
                 default:
                     return channel.CreateResponse(request);
@@ -806,6 +823,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         private IManagedTransportChannel? m_recoveryLease;
         private long m_recoveryStartedAt;
         private int m_keepAliveReadCount;
+        private int m_nextKeepAliveStatus = unchecked((int)StatusCodes.Good.Code);
         private int m_channelCount;
         private int m_sessionCount;
         private int m_activationCount;

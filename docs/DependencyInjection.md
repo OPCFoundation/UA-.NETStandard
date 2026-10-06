@@ -131,6 +131,7 @@ Identity-provider extensions hang off `IOpcUaServerBuilder`,
 | `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
 | `WithAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
 | `WithKeyCredentialPush(...)`                  | server                   | —                                |
+| `AddSessionlessInvocation(...)`               | server                   | —                                |
 | `ConfigureRoles(...)`                         | server, gds              | `OpcUa:Server:Roles`             |
 | `AddIdentityProvider(...)` / `<T>()`          | client                   | `OpcUa:Client:Identity`          |
 | `AddAccessTokenProvider(...)` / `<T>()`       | client                   | —                                |
@@ -1022,6 +1023,7 @@ one policy per token type of the registered authenticators instead
 | `AddDefaultIdentityAuthenticators(Action<DefaultAuthenticatorOptions>)` / `(IConfiguration)` | Registers the four in-box authenticators (Anonymous, UserNamePassword, X509, Jwt) with toggles per type plus the JWT audience / clock-skew settings. |
 | `AddJwtIssuer(Action<JwtIssuerOptions>)` / `(IConfiguration)` | Registers a trusted JWT issuer. Multiple calls coexist; each contributes a `StaticIssuerKeyResolver` and / or `JwksIssuerKeyResolver` keyed by `IssuerUri`. |
 | `WithKeyCredentialPush(Action<KeyCredentialPushOptions>?)` | Enables the Part 12 §8 resource-server Push binding and registers an `IKeyCredentialStore` if none is supplied. |
+| `AddSessionlessInvocation(Action<SessionlessInvocationOptions>?)` | Enables Session-less Service invocation (OPC 10000-4 §6.3) with an Access Token in the RequestHeader; anonymous callers only with `AllowAnonymous`. See [Session-less invocation](SessionlessInvocation.md). |
 
 Configuration binding under `OpcUa:Server:Identity`:
 
@@ -1941,8 +1943,7 @@ compatibility.
 
 Notes:
 
-- The source generator targets net8.0+. On older TFMs (net48 /
-  netstandard2.0 / netstandard2.1) the generator is a no-op and the
+- The source generator targets net8.0+. On older TFMs (net48) the generator is a no-op and the
   reflection-based binder is used — those TFMs don't support
   PublishAot anyway.
 - Options properties whose type is an interface or a non-default-

@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -69,6 +70,16 @@ namespace Opc.Ua.Fuzzing
         [
             .. AssetCollection<TestcaseAsset>.CreateFromFiles(
                 TestUtils.EnumerateTestAssets("Assets", "slow*.*"))
+        ];
+
+        /// <summary>
+        /// Deeply nested inputs. They are replayed through every target in a child process,
+        /// because a stack overflow cannot be caught and would end the test host.
+        /// </summary>
+        public static readonly TestcaseAsset[] StackTestcases =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("StackTestcases", "*.*"))
         ];
 
         [DatapointSource]
@@ -129,7 +140,16 @@ namespace Opc.Ua.Fuzzing
                     // Emit the reproducer inline, bounded so a systemic failure cannot bury
                     // the log. Only failures consume the budget, so tolerated findings cannot
                     // exhaust it ahead of a failure. A passing run emits nothing.
-                    if (reproducers++ < kMaxEmittedReproducers &&
+                    // A resource finding (allocation, time, limit) on an input from outside
+                    // the tree is a resource-abuse regression the fix may not have shipped for yet, so
+                    // its bytes stay out of the public log: only its name and size are logged.
+                    if (IsResourceFinding(ex) && !IsCuratedAsset(messageEncoder))
+                    {
+                        TestContext.Error.WriteLine(
+                            $"REPRODUCER {messageEncoder} withheld: resource finding on a " +
+                            $"private corpus input ({messageEncoder.Testcase.Length} bytes).");
+                    }
+                    else if (reproducers++ < kMaxEmittedReproducers &&
                         messageEncoder.Testcase.Length <= kMaxEmittedReproducerBytes)
                     {
                         TestContext.Error.WriteLine(
@@ -200,6 +220,23 @@ namespace Opc.Ua.Fuzzing
         }
 
         /// <summary>
+        /// A resource finding means an oracle of <see cref="FuzzOracles"/> flagged the input
+        /// for allocation, time or an exceeded encoding limit. It is never tolerated.
+        /// </summary>
+        private static bool IsResourceFinding(Exception exception)
+        {
+            for (Exception current = exception; current != null; current = current.InnerException)
+            {
+                if (current is ResourceBudgetException)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Curated assets live under Assets/Repo in the tree and are always enforced strictly.
         /// Everything else in the Assets folder is overlaid by the pipeline before the build.
         /// </summary>
@@ -225,6 +262,44 @@ namespace Opc.Ua.Fuzzing
             [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder)
         {
             await ReplayWithWatchdogAsync(fuzzableCode, messageEncoder.Testcase).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task FuzzStackTestcasesAsync()
+        {
+            // The child runs each target on the small stack worker of FuzzOracles, so an
+            // unguarded recursion overflows there and fails with a non-zero exit instead of
+            // ending this test host.
+            var failures = new List<string>();
+            foreach (TestcaseAsset stackTestcase in StackTestcases)
+            {
+                string file = Path.Combine(Path.GetTempPath(), $"opcua-fuzz-{Guid.NewGuid():N}.bin");
+                File.WriteAllBytes(file, stackTestcase.Testcase);
+                try
+                {
+#if NETFRAMEWORK
+                    string arguments = string.Empty;
+#else
+                    string arguments = $"\"{FuzzableCodeType.Assembly.Location}\" ";
+#endif
+                    ProcessStartInfo startInfo = CreateReplayStartInfo(
+                        $"{arguments}{FuzzReplayProgram.ReplayAllOption} \"{file}\"");
+                    (int exitCode, bool timedOut, string standardOutput, string standardError) =
+                        await FuzzProcessWatchdog.RunAsync(startInfo, TimeSpan.FromSeconds(120)).ConfigureAwait(false);
+                    if (timedOut || exitCode != 0)
+                    {
+                        failures.Add(
+                            $"{stackTestcase}: exit 0x{exitCode:X8}, timed out {timedOut}" +
+                            Environment.NewLine + standardOutput + Environment.NewLine + standardError);
+                    }
+                }
+                finally
+                {
+                    File.Delete(file);
+                }
+            }
+
+            Assert.That(failures, Is.Empty, string.Join(Environment.NewLine, failures));
         }
 
         [Test]
@@ -333,31 +408,51 @@ namespace Opc.Ua.Fuzzing
                 throw new InvalidOperationException(
                     "Fuzzable function must have exactly one parameter.");
             }
-            if (parameters[0].ParameterType == typeof(string))
+            // The same stack and time oracles as the fuzzers, so a curated reproducer of a
+            // resource finding fails here as it did under libFuzzer.
+            FuzzOracles.RunTarget(
+                fuzzableCode.MethodInfo.Name,
+                blob.Length,
+                () => InvokeFuzzTarget(fuzzableCode, parameters[0].ParameterType, blob));
+        }
+
+        private static void InvokeFuzzTarget(FuzzTargetFunction fuzzableCode, Type parameterType, byte[] blob)
+        {
+            try
             {
-                string text = Encoding.UTF8.GetString(blob);
-                _ = fuzzableCode.MethodInfo.Invoke(null, [text]);
-            }
-            else if (typeof(Stream).IsAssignableFrom(parameters[0].ParameterType))
-            {
-                using var stream = new MemoryStream(blob);
-                _ = fuzzableCode.MethodInfo.Invoke(null, [stream]);
-            }
-            else if (parameters[0].ParameterType == typeof(ReadOnlySpan<byte>))
-            {
-                var span = new ReadOnlySpan<byte>(blob);
+                if (parameterType == typeof(string))
+                {
+                    string text = Encoding.UTF8.GetString(blob);
+                    _ = fuzzableCode.MethodInfo.Invoke(null, [text]);
+                }
+                else if (typeof(Stream).IsAssignableFrom(parameterType))
+                {
+                    using var stream = new MemoryStream(blob);
+                    _ = fuzzableCode.MethodInfo.Invoke(null, [stream]);
+                }
+                else if (parameterType == typeof(ReadOnlySpan<byte>))
+                {
+                    var span = new ReadOnlySpan<byte>(blob);
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-                LibFuzzTemplate fuzzFunction = fuzzableCode.MethodInfo
-                    .CreateDelegate<LibFuzzTemplate>();
+                    LibFuzzTemplate fuzzFunction = fuzzableCode.MethodInfo
+                        .CreateDelegate<LibFuzzTemplate>();
 #else
-                var fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo
-                    .CreateDelegate(typeof(LibFuzzTemplate));
+                    var fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo
+                        .CreateDelegate(typeof(LibFuzzTemplate));
 #endif
-                fuzzFunction(span);
+                    fuzzFunction(span);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Unsupported fuzz target signature.");
+                }
             }
-            else
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
             {
-                throw new InvalidOperationException("Unsupported fuzz target signature.");
+                // Report the finding of the target, not the reflection wrapper, so the
+                // resource and fidelity classification sees the exception the target threw.
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
             }
         }
     }

@@ -27,7 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Globalization;
+using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Xml;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -95,6 +100,233 @@ namespace Opc.Ua
                     "MaxStringLength {0} < {1}",
                     maxStringLength,
                     byteLength);
+            }
+        }
+
+        /// <summary>
+        /// Throws if the bytes a base64 text decodes to do not fit into
+        /// MaxByteStringLength, before the text is decoded.
+        /// </summary>
+        /// <remarks>
+        /// Every four significant characters (whitespace and padding are not)
+        /// decode to three bytes, so the count is exact for valid base64.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the decoded
+        /// value would be over the limit.</exception>
+        public static void CheckBase64Length(int maxByteStringLength, string base64)
+        {
+            // no base64 text of this length can decode to more than the limit.
+            if (maxByteStringLength <= 0 || base64.Length * 3L / 4 <= maxByteStringLength)
+            {
+                return;
+            }
+
+            long significant = 0;
+            foreach (char c in base64)
+            {
+                if (c != '=' && !char.IsWhiteSpace(c))
+                {
+                    significant++;
+                }
+            }
+
+            long byteLength = significant * 3 / 4;
+            if (byteLength > maxByteStringLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    maxByteStringLength,
+                    byteLength);
+            }
+        }
+
+        /// <summary>
+        /// Returns the deepest element nesting accepted inside XML content that
+        /// the codecs keep as raw XML (XmlElement values and ExtensionObject
+        /// bodies of unknown types).
+        /// </summary>
+        /// <remarks>
+        /// XML element depth is not counted by the decoder nesting level, but
+        /// System.Xml and LINQ to XML operations that are later applied to such
+        /// content (XmlNode.InnerXml/InnerText, ImportNode, XNode.DeepEquals,
+        /// XElement.Value) recurse once per level and would exhaust the stack.
+        /// The limit is the nesting levels left below
+        /// <paramref name="nestingLevel"/>, the level the XML is read or
+        /// written at, out of MaxEncodingNestingLevels (or its default when
+        /// the context sets none).
+        /// </remarks>
+        public static int GetMaxXmlElementDepth(
+            IServiceMessageContext context,
+            uint nestingLevel = 0)
+        {
+            long max = context.MaxEncodingNestingLevels > 0
+                ? context.MaxEncodingNestingLevels
+                : DefaultEncodingLimits.MaxEncodingNestingLevels;
+            return (int)Math.Max(0, max - nestingLevel);
+        }
+
+        /// <summary>
+        /// Copies the element the reader is positioned on, with its content, to
+        /// a string and leaves the reader on the node that follows it.
+        /// </summary>
+        /// <remarks>
+        /// The copy is made node by node, so it never recurses, and fails as
+        /// soon as an element is nested deeper than <paramref name="maxDepth"/>
+        /// below the copied element. Attributes keep their prefix and namespace.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the content
+        /// is nested too deep or exceeds <paramref name="maxStringLength"/>.</exception>
+        /// <exception cref="XmlException">Thrown when the content is not
+        /// well-formed.</exception>
+        public static string ReadXmlElementContent(
+            XmlReader reader,
+            int maxDepth,
+            int maxStringLength,
+            bool declareNoNamespace = false)
+        {
+            var settings = new XmlWriterSettings
+            {
+                OmitXmlDeclaration = true,
+                ConformanceLevel = ConformanceLevel.Fragment,
+                NewLineHandling = NewLineHandling.Entitize
+            };
+
+            using var text = new StringWriter(CultureInfo.InvariantCulture);
+            using (var writer = XmlWriter.Create(text, settings))
+            {
+                CopyXmlElement(reader, writer, maxDepth, declareNoNamespace);
+            }
+
+            string result = text.ToString();
+            CheckStringLength(maxStringLength, result);
+            return result;
+        }
+
+        /// <summary>
+        /// Copies the element the reader is positioned on, with its content, to
+        /// a writer node by node and leaves the reader on the node that follows
+        /// it. Fails as soon as an element is nested deeper than
+        /// <paramref name="maxDepth"/> below the copied element. With
+        /// <paramref name="declareNoNamespace"/> a root element in no namespace
+        /// declares xmlns="", so the copy keeps its namespace when it is later
+        /// written raw inside an element with a default namespace.
+        /// </summary>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the content
+        /// is nested too deep.</exception>
+        /// <exception cref="XmlException">Thrown when the content is not
+        /// well-formed.</exception>
+        public static void CopyXmlElement(
+            XmlReader reader,
+            XmlWriter writer,
+            int maxDepth,
+            bool declareNoNamespace = false)
+        {
+            int startDepth = reader.Depth;
+            do
+            {
+                switch (reader.NodeType)
+                {
+                    case XmlNodeType.Element:
+                        if (reader.Depth - startDepth > maxDepth)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingLimitsExceeded,
+                                "XML element nesting exceeds the maximum depth of {0}.",
+                                maxDepth);
+                        }
+                        writer.WriteStartElement(
+                            reader.Prefix,
+                            reader.LocalName,
+                            reader.NamespaceURI);
+                        bool isRoot = reader.Depth == startDepth;
+                        if (declareNoNamespace && isRoot && reader.NamespaceURI.Length == 0)
+                        {
+                            writer.WriteAttributeString("xmlns", string.Empty);
+                        }
+                        if (reader.MoveToFirstAttribute())
+                        {
+                            do
+                            {
+                                // xmlns="" on the root is redundant in a copy
+                                // that stands alone (or is declared above).
+                                if (isRoot &&
+                                    reader.Prefix.Length == 0 &&
+                                    reader.LocalName == "xmlns" &&
+                                    reader.Value.Length == 0)
+                                {
+                                    continue;
+                                }
+                                writer.WriteAttributeString(
+                                    reader.Prefix,
+                                    reader.LocalName,
+                                    reader.NamespaceURI,
+                                    reader.Value);
+                            } while (reader.MoveToNextAttribute());
+                            reader.MoveToElement();
+                        }
+                        if (reader.IsEmptyElement)
+                        {
+                            writer.WriteEndElement();
+                        }
+                        break;
+                    case XmlNodeType.Text:
+                        writer.WriteString(reader.Value);
+                        break;
+                    case XmlNodeType.Whitespace:
+                    case XmlNodeType.SignificantWhitespace:
+                        writer.WriteWhitespace(reader.Value);
+                        break;
+                    case XmlNodeType.CDATA:
+                        writer.WriteCData(reader.Value);
+                        break;
+                    case XmlNodeType.EntityReference:
+                        writer.WriteEntityRef(reader.Name);
+                        break;
+                    case XmlNodeType.ProcessingInstruction:
+                        writer.WriteProcessingInstruction(reader.Name, reader.Value);
+                        break;
+                    case XmlNodeType.Comment:
+                        writer.WriteComment(reader.Value);
+                        break;
+                    case XmlNodeType.EndElement:
+                        writer.WriteFullEndElement();
+                        break;
+                }
+            } while (reader.Read() &&
+                (startDepth < reader.Depth ||
+                    (startDepth == reader.Depth &&
+                        reader.NodeType == XmlNodeType.EndElement)));
+        }
+
+        /// <summary>
+        /// Throws if the current thread is running out of stack.
+        /// </summary>
+        /// <remarks>
+        /// MaxEncodingNestingLevels bounds the recursion of the codecs, but the
+        /// stack a nesting level costs depends on the shape of the value, the
+        /// runtime and whether the code is jitted optimized, and the thread may
+        /// be one with a small stack. A stack overflow terminates the process
+        /// and cannot be caught, so every recursive entry point of a codec also
+        /// checks that enough stack is left and fails the message instead.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the
+        /// remaining stack is too small to continue safely.</exception>
+        public static void EnsureSufficientStack()
+        {
+            try
+            {
+                RuntimeHelpers.EnsureSufficientExecutionStack();
+            }
+            catch (InsufficientExecutionStackException)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Insufficient stack to encode or decode a nested value.");
             }
         }
     }

@@ -39,6 +39,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Bindings.WebApi;
 using Opc.Ua.Bindings.WebApi.Authentication;
@@ -92,6 +93,16 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <c>Microsoft.AspNetCore.Authentication.JwtBearer</c>
         /// middleware.
         /// </summary>
+        /// <remarks>
+        /// The HTTPS listener serves the REST routes from its own host
+        /// and service container, into which only this scheme
+        /// registration and <paramref name="configure"/> are replayed.
+        /// <see cref="JwtBearerOptions"/> set elsewhere on the
+        /// application container (<c>services.Configure</c> /
+        /// <c>PostConfigure</c>, or an <c>EventsType</c> resolved from
+        /// DI) do not apply to the listener: put every restriction into
+        /// <paramref name="configure"/>.
+        /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configure">
         /// Callback that configures the JWT validation parameters
@@ -109,10 +120,10 @@ namespace Microsoft.Extensions.DependencyInjection
             ArgumentNullException.ThrowIfNull(configure);
 
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
-            EnsureWebApiPolicyScheme(builder.Services);
-            builder.Services
-                .AddAuthentication()
-                .AddJwtBearer(WebApiAuthSchemes.Bearer, configure);
+            AddWebApiAuthScheme(
+                builder.Services,
+                WebApiAuthSchemes.Bearer,
+                auth => auth.AddJwtBearer(WebApiAuthSchemes.Bearer, configure));
             return builder;
         }
 
@@ -183,6 +194,16 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <see cref="BasicAuthenticationHandler"/>. The supplied
         /// <paramref name="validate"/> callback verifies credentials.
         /// </summary>
+        /// <remarks>
+        /// The HTTPS listener serves the REST routes from its own host
+        /// and service container, into which only this scheme
+        /// registration, <paramref name="validate"/> and
+        /// <paramref name="configure"/> are replayed.
+        /// <see cref="BasicAuthenticationOptions"/> set elsewhere on the
+        /// application container (<c>services.Configure</c> /
+        /// <c>PostConfigure</c>) do not apply to the listener: put every
+        /// restriction into <paramref name="configure"/>.
+        /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="validate">
         /// Async callback that receives the (username, password) pair
@@ -206,16 +227,16 @@ namespace Microsoft.Extensions.DependencyInjection
             ArgumentNullException.ThrowIfNull(validate);
 
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
-            EnsureWebApiPolicyScheme(builder.Services);
-            builder.Services
-                .AddAuthentication()
-                .AddScheme<BasicAuthenticationOptions, BasicAuthenticationHandler>(
+            AddWebApiAuthScheme(
+                builder.Services,
+                WebApiAuthSchemes.Basic,
+                auth => auth.AddScheme<BasicAuthenticationOptions, BasicAuthenticationHandler>(
                     WebApiAuthSchemes.Basic,
                     options =>
                     {
                         options.ValidateCredentials = validate;
                         configure?.Invoke(options);
-                    });
+                    }));
             return builder;
         }
 
@@ -230,6 +251,16 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <c>HttpsSettings.HttpsMutualTls</c> is set, which is the
         /// expected path.
         /// </summary>
+        /// <remarks>
+        /// The HTTPS listener serves the REST routes from its own host
+        /// and service container, into which only this scheme
+        /// registration and <paramref name="configure"/> are replayed.
+        /// <see cref="CertificateAuthenticationOptions"/> set elsewhere on
+        /// the application container (<c>services.Configure</c> /
+        /// <c>PostConfigure</c>, or an <c>EventsType</c> resolved from
+        /// DI) do not apply to the listener: put every restriction into
+        /// <paramref name="configure"/>.
+        /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configure">
         /// Optional callback that customises certificate validation
@@ -246,18 +277,43 @@ namespace Microsoft.Extensions.DependencyInjection
             ArgumentNullException.ThrowIfNull(builder);
 
             builder.Services.TryAddSingleton<ISessionlessIdentityProvider, DefaultSessionlessIdentityProvider>();
-            EnsureWebApiPolicyScheme(builder.Services);
-
-            AuthenticationBuilder authBuilder = builder.Services.AddAuthentication();
-            if (configure != null)
-            {
-                authBuilder.AddCertificate(WebApiAuthSchemes.MutualTls, configure);
-            }
-            else
-            {
-                authBuilder.AddCertificate(WebApiAuthSchemes.MutualTls);
-            }
+            AddWebApiAuthScheme(
+                builder.Services,
+                WebApiAuthSchemes.MutualTls,
+                auth =>
+                {
+                    if (configure != null)
+                    {
+                        auth.AddCertificate(WebApiAuthSchemes.MutualTls, configure);
+                    }
+                    else
+                    {
+                        auth.AddCertificate(WebApiAuthSchemes.MutualTls);
+                    }
+                });
             return builder;
+        }
+
+        /// <summary>
+        /// Registers an authentication scheme on the application
+        /// container and records it so that
+        /// <see cref="WebApiHttpsStartupContributor"/> replays it into
+        /// the service container of every HTTPS listener host. The
+        /// listener builds its own Kestrel host with a separate
+        /// container; a scheme that only exists in the application
+        /// container is never enforced on the REST routes.
+        /// </summary>
+        /// <param name="services">The application service collection.</param>
+        /// <param name="schemeName">The name of the registered scheme.</param>
+        /// <param name="register">Adds the scheme to an authentication builder.</param>
+        private static void AddWebApiAuthScheme(
+            IServiceCollection services,
+            string schemeName,
+            Action<AuthenticationBuilder> register)
+        {
+            EnsureWebApiPolicyScheme(services);
+            register(services.AddAuthentication());
+            services.AddSingleton(new WebApiListenerAuthRegistration(schemeName, register));
         }
 
         /// <summary>
@@ -269,7 +325,13 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         private sealed class WebApiPolicySchemeSentinel;
 
-        private static void EnsureWebApiPolicyScheme(IServiceCollection services)
+        /// <summary>
+        /// Installs the multi-scheme policy scheme (as the default
+        /// authenticate / challenge / forbid scheme) and the
+        /// no-credentials fallback scheme, once per collection.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        internal static void EnsureWebApiPolicyScheme(IServiceCollection services)
         {
             if (services.Any(d => d.ServiceType == typeof(WebApiPolicySchemeSentinel)))
             {
@@ -287,39 +349,48 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AddPolicyScheme(
                     WebApiAuthSchemes.Default,
                     displayName: "OPC UA WebApi (multi-scheme)",
-                    options => options.ForwardDefaultSelector = SelectWebApiAuthScheme);
+                    options => options.ForwardDefaultSelector = SelectWebApiAuthScheme)
+                .AddScheme<AuthenticationSchemeOptions, WebApiNoCredentialsAuthenticationHandler>(
+                    WebApiNoCredentialsAuthenticationHandler.SchemeName,
+                    displayName: null,
+                    configureOptions: null);
         }
 
         /// <summary>
-        /// Picks the auth scheme that should handle the current request
-        /// based on the credentials presented. Returning null falls
-        /// through to anonymous (no scheme processed) — which is correct
-        /// for unauthenticated requests; RequireAuthorization() on the
-        /// endpoint is what actually rejects them.
+        /// Picks the registered auth scheme that should handle the
+        /// current request based on the credentials presented. A request
+        /// without a credential of a registered type is forwarded to the
+        /// no-credentials scheme, which authenticates nobody and answers
+        /// the challenge issued by RequireAuthorization() with 401.
         /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
-        private static string? SelectWebApiAuthScheme(HttpContext context)
+        /// <param name="context">The current request.</param>
+        /// <returns>The scheme to forward to.</returns>
+        private static string SelectWebApiAuthScheme(HttpContext context)
         {
+            AuthenticationOptions options = context.RequestServices
+                .GetRequiredService<IOptions<AuthenticationOptions>>().Value;
             string? authHeader = context.Request.Headers.Authorization.Count > 0
                 ? context.Request.Headers.Authorization[0]
                 : null;
             if (!string.IsNullOrEmpty(authHeader))
             {
-                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) &&
+                    options.SchemeMap.ContainsKey(WebApiAuthSchemes.Bearer))
                 {
                     return WebApiAuthSchemes.Bearer;
                 }
-                if (authHeader.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
+                if (authHeader.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase) &&
+                    options.SchemeMap.ContainsKey(WebApiAuthSchemes.Basic))
                 {
                     return WebApiAuthSchemes.Basic;
                 }
             }
-            if (context.Connection.ClientCertificate != null)
+            if (context.Connection.ClientCertificate != null &&
+                options.SchemeMap.ContainsKey(WebApiAuthSchemes.MutualTls))
             {
                 return WebApiAuthSchemes.MutualTls;
             }
-            return null;
+            return WebApiNoCredentialsAuthenticationHandler.SchemeName;
         }
     }
 }

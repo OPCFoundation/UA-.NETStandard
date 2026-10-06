@@ -516,7 +516,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static bool TryParseSlice(string source, int start, int length, out int value)
         {
-#if NET || NETSTANDARD2_1_OR_GREATER
+#if NET
             return int.TryParse(source.AsSpan(start, length), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
 #else
             return int.TryParse(source.Substring(start, length), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);

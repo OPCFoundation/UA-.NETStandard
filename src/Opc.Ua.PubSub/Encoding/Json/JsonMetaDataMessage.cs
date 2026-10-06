@@ -57,8 +57,27 @@ namespace Opc.Ua.PubSub.Encoding.Json
         public ushort DataSetWriterId { get; init; }
 
         /// <summary>
-        /// DataSetClassId per Part 14 §7.2.5.3. Bound to
-        /// <c>DataSetClassId</c> in the wire envelope.
+        /// WriterGroupName of the writer group that owns the DataSetWriter
+        /// (mandatory in Part 14 §7.2.5.5.2 Table 188).
+        /// </summary>
+        public string WriterGroupName { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Name of the DataSetWriter (mandatory in Part 14 §7.2.5.5.2
+        /// Table 188).
+        /// </summary>
+        public string DataSetWriterName { get; init; } = string.Empty;
+
+        /// <summary>
+        /// When the message was first sent to the middleware (mandatory in
+        /// Part 14 §7.2.5.5.2 Table 188). The encoder uses the current time
+        /// when it is not set.
+        /// </summary>
+        public DateTimeUtc Timestamp { get; init; } = DateTimeUtc.MinValue;
+
+        /// <summary>
+        /// DataSetClassId. Not part of the Part 14 §7.2.5.5.2 wire layout;
+        /// used only to key the registry for a locally built message.
         /// </summary>
         public Uuid DataSetClassId { get; init; }
 

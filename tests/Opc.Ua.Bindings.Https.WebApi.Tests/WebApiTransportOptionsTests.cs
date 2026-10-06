@@ -86,6 +86,38 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
+        public void ServiceSetDefaultsToAllServices()
+        {
+            var options = new WebApiTransportOptions();
+
+            Assert.That(options.ServiceSet, Is.EqualTo(WebApiServiceSet.AllServices));
+        }
+
+        [Test]
+        public void OpenApiDocumentIsOffByDefault()
+        {
+            var options = new WebApiTransportOptions();
+
+            Assert.That(options.OpenApiDocumentPath, Is.Null);
+            Assert.That(options.OpenApiIncludeSchemas, Is.False);
+        }
+
+        [Test]
+        public void OpenApiPropertiesRoundtrip()
+        {
+            var options = new WebApiTransportOptions
+            {
+                ServiceSet = WebApiServiceSet.Sessionless,
+                OpenApiDocumentPath = "/openapi.json",
+                OpenApiIncludeSchemas = true
+            };
+
+            Assert.That(options.ServiceSet, Is.EqualTo(WebApiServiceSet.Sessionless));
+            Assert.That(options.OpenApiDocumentPath, Is.EqualTo("/openapi.json"));
+            Assert.That(options.OpenApiIncludeSchemas, Is.True);
+        }
+
+        [Test]
         public void MultiplePropertyMutationsAreIndependent()
         {
             var options = new WebApiTransportOptions

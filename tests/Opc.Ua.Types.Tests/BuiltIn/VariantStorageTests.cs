@@ -422,7 +422,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(decoder.ReadVariant("matrix"), Is.EqualTo(matrixValue));
         }
 
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         [Test]
         public void PinnedArrayMemoryRetainsRawOwnerIndexAndLength()
         {
@@ -436,18 +436,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(after.Object, Is.SameAs(before.Object));
             Assert.That(after.Index, Is.EqualTo(before.Index));
             Assert.That(after.Length, Is.EqualTo(before.Length));
-            Assert.That(actual[0], Is.EqualTo(42));
-        }
-#elif NET_STANDARD_TESTS
-        [Test]
-        public void NetStandardByteStringFallbackPreservesTheOriginalSlice()
-        {
-            byte[] buffer = [8, 1, 2, 9];
-            var input = new ByteString(buffer.AsMemory(1, 2));
-
-            Assert.That(Variant.From(input).TryGetValue(out ByteString actual), Is.True);
-            Assert.That(actual.Memory, Is.EqualTo(input.Memory));
-            buffer[1] = 42;
             Assert.That(actual[0], Is.EqualTo(42));
         }
 #endif

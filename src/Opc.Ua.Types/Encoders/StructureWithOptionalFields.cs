@@ -62,16 +62,32 @@ namespace Opc.Ua.Encoders
 
             // build optional field mask attribute
             uint optionalFieldMask = 1;
+            int optionalFields = 0;
             foreach (Field property in PropertyList)
             {
                 property.OptionalFieldMask = 0;
                 if (property.IsOptional)
                 {
+                    // OPC 10000-6 5.2.7: the EncodingMask is a 32-bit unsigned
+                    // integer and each optional field is assigned exactly one
+                    // bit, so a 33rd optional field cannot be represented.
+                    if (++optionalFields > MaxOptionalFields)
+                    {
+                        throw new ArgumentException(
+                            $"The structure has more than {MaxOptionalFields} optional fields.",
+                            nameof(structureDefinition));
+                    }
                     property.OptionalFieldMask = optionalFieldMask;
                     optionalFieldMask <<= 1;
                 }
             }
         }
+
+        /// <summary>
+        /// The most optional fields a structure can have: one per bit of the
+        /// 32-bit EncodingMask (OPC 10000-6 5.2.7).
+        /// </summary>
+        public const int MaxOptionalFields = 32;
 
         /// <summary>
         /// Copy constructor
