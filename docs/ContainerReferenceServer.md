@@ -41,6 +41,20 @@ and publishes the sample images below to the GitHub Container Registry
 | `pubsubclient` | `samples/PubSub/ConsoleReferencePubSubClient` |
 | `pumpserver` | `samples/DI/PumpDeviceIntegrationServer` |
 
+The workflow does not compile anything under emulation. Its
+`publish-samples` job publishes every sample above once, natively, as
+framework-dependent portable IL (no runtime identifier and no app host). The
+same output then runs on both platforms. Each `build-and-push-image` leg
+downloads that output and builds its Dockerfile with
+`--build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=<folder>`. That
+build only copies files onto the platform's .NET runtime base image, so QEMU
+is not needed.
+
+A local `docker build` without these arguments compiles from source in the
+Dockerfile's `build` stage. That stage is pinned to `$BUILDPLATFORM`, so a
+multi-platform `docker buildx build --platform linux/amd64,linux/arm64` also
+compiles natively.
+
 Image tags follow the [release-branch-only publication model](ReleaseProcess.md):
 
 - **Stable tags** include `<image>:latest`, `<image>:release`, and version

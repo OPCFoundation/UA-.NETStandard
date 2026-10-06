@@ -1,7 +1,17 @@
-FROM mcr.microsoft.com/dotnet/aspnet AS base
-WORKDIR /app
+# OPC UA ConsoleReferenceServer sample image.
+#
+# The build context must be the repository ROOT so the project references resolve.
+# Build directly:
+#   docker build -f samples/Reference/ConsoleReferenceServer/Dockerfile -t opcua-reference-server .
+#
+# The SDK stages always run on the build platform ($BUILDPLATFORM): the
+# publish output is portable IL, so a multi-platform build never compiles
+# under emulation. Images CI publishes every sample once in a native pre-job
+# and selects the "prebuilt" stage instead, so the image legs only copy files:
+#   --build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=<folder>
+ARG PUBLISH_SOURCE=build
 
-FROM mcr.microsoft.com/dotnet/sdk AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk AS restore
 WORKDIR /src
 
 # copy csproj and restore as distinct layers
@@ -38,11 +48,17 @@ ARG SimpleVersion
 ARG InformationalVersion
 ENV OPTIONS="-c Release -f net10.0 -p:PublishAot=false -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion} -p:CustomTestTarget=net10.0"
 
-FROM build AS publish
+FROM restore AS build
 ENV DOTNET_EnableWriteXorExecute=0
-RUN dotnet publish "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -o /app/publish
+RUN dotnet publish "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -p:UseAppHost=false -o /app/publish
 
-FROM base AS final
+FROM scratch AS prebuilt
+ARG PUBLISH_DIR=artifacts/docker/publish
+COPY ${PUBLISH_DIR}/ /app/publish/
+
+FROM ${PUBLISH_SOURCE} AS publish
+
+FROM mcr.microsoft.com/dotnet/aspnet AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 EXPOSE 62541

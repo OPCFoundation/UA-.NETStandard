@@ -16,8 +16,16 @@
 #
 # The final image runs as a non-root user and listens on 0.0.0.0:62542
 # (override host/port via the `host` / `port` environment variables).
+#
+# Every RUN instruction executes on the build platform ($BUILDPLATFORM): the
+# publish output is portable IL and the final stage only copies files, so a
+# multi-platform build never runs anything under emulation. Images CI
+# publishes every sample once in a native pre-job and selects the "prebuilt"
+# stage instead of compiling here:
+#   --build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=<folder>
+ARG PUBLISH_SOURCE=build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
 WORKDIR /src
 
 # JIT is disabled for the source generators unless W^X is turned off on
@@ -59,9 +67,18 @@ RUN dotnet publish "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegration
         -p:AssemblyVersion=${SimpleVersion} \
         -p:FileVersion=${Version} \
         -p:InformationalVersion=${InformationalVersion} \
+        -p:UseAppHost=false \
         -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS final
+FROM scratch AS prebuilt
+ARG PUBLISH_DIR=artifacts/docker/publish
+COPY ${PUBLISH_DIR}/ /app/publish/
+
+FROM ${PUBLISH_SOURCE} AS publish
+
+# Lay out the final file system natively; the final stage below only copies
+# it, which needs no emulation for a foreign target platform.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS layout
 
 # AzureLinux forces the SymCrypt OpenSSL provider as the default for all
 # EVP operations (default_properties = "?provider=symcryptprovider" in
@@ -70,21 +87,27 @@ FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS final
 # certificate ("operation not supported for this keytype"). Clearing the
 # forced default lets the standard OpenSSL default provider handle ECDSA
 # (still fully secure; just not the FIPS-validated SymCrypt module).
-RUN sed -i 's/^default_properties = .*/default_properties = ""/' /etc/pki/tls/openssl.cnf
-
-WORKDIR /app
-COPY --from=build /app/publish .
-
+#
 # The .NET base images ship a predefined non-root user `app` (UID 1654,
 # exposed via the APP_UID env var). The server creates its
 # certificate/PKI store under /app at runtime. The shared /diag
 # directory carries the diagnostic socket and collected artifacts for
 # the companion Kubernetes diagnostics container.
+COPY --from=publish /app/publish /layout/app/
+RUN mkdir -p /openssl /layout/app/pki /layout/diag \
+    && cp -p /etc/pki/tls/openssl.cnf /openssl/openssl.cnf \
+    && sed -i 's/^default_properties = .*/default_properties = ""/' /openssl/openssl.cnf \
+    && chown -R $APP_UID:0 /layout/app /layout/diag \
+    && chmod -R g=u /layout/app /layout/diag
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS final
+COPY --from=layout /openssl/openssl.cnf /etc/pki/tls/openssl.cnf
+# Copy the parent so /app and /diag keep their owner and mode, not only
+# their contents.
+COPY --from=layout /layout/ /
+WORKDIR /app
 ENV HOME=/app \
     DOTNET_DiagnosticPorts=/diag/dotnet-diagnostic.sock,suspend=n,listen
-RUN mkdir -p /app/pki /diag \
-    && chown -R $APP_UID:0 /app /diag \
-    && chmod -R g=u /app /diag
 
 USER $APP_UID
 
