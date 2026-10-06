@@ -514,12 +514,16 @@ namespace Opc.Ua.Server
                         StatusCodes.BadInvalidArgument,
                         "No existing certificate found for the specified certificate type and subject name.");
 
+                bool isApplicationCertificateGroup = Utils.IsEqual(
+                    certificateGroup.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
                 var newIssuerCollection = new X509Certificate2Collection();
 
                 try
                 {
-                    // build issuer chain
-                    if (issuerCertificates != null)
+                    // Application-group issuers must already be installed in the
+                    // configured TrustList. Ignore supplied issuer bytes entirely.
+                    if (!isApplicationCertificateGroup && issuerCertificates != null)
                     {
                         foreach (byte[] issuerRawCert in issuerCertificates)
                         {
@@ -547,27 +551,26 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // Verify the integrity of the new certificate and the supplied issuer
-                        // chain. Seed the validator from the server's SecurityConfiguration so
-                        // operator-configured policy (minimum key size, SHA-1, revocation) is
-                        // honored, then trust the caller-supplied issuer chain as the trust
-                        // anchor for the new certificate. The application trust list is not
-                        // consulted here since the caller supplies the issuer chain as part of
-                        // the UpdateCertificate input.
+                        // Honor the server's certificate validation policy and use its
+                        // configured trust and issuer stores for application certificates.
                         var certValidator = new CertificateValidator(Server.Telemetry);
                         await certValidator.UpdateAsync(
                             m_configuration.SecurityConfiguration,
                             m_configuration.ApplicationUri,
                             ct).ConfigureAwait(false);
 
-                        var issuerStore = new CertificateTrustList();
-                        var issuerCollection = new CertificateIdentifierCollection();
-                        foreach (X509Certificate2 issuerCert in newIssuerCollection)
+                        if (newIssuerCollection.Count > 0)
                         {
-                            issuerCollection.Add(new CertificateIdentifier(issuerCert));
+                            // Preserve supplied-chain handling for other certificate groups.
+                            var issuerStore = new CertificateTrustList();
+                            var issuerCollection = new CertificateIdentifierCollection();
+                            foreach (X509Certificate2 issuerCert in newIssuerCollection)
+                            {
+                                issuerCollection.Add(new CertificateIdentifier(issuerCert));
+                            }
+                            issuerStore.TrustedCertificates = issuerCollection;
+                            certValidator.Update(issuerStore, issuerStore, null);
                         }
-                        issuerStore.TrustedCertificates = issuerCollection;
-                        certValidator.Update(issuerStore, issuerStore, null);
 
                         await certValidator.ValidateAsync(newCert, ct).ConfigureAwait(false);
                     }

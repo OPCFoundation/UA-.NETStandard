@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -39,6 +40,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
@@ -760,6 +762,7 @@ namespace Opc.Ua.Gds.Tests
             } while (certificate == null);
             Assert.NotNull(issuerCertificates);
             Assert.IsNull(privateKey);
+            await InstallGdsTrustListOnPushServerAsync().ConfigureAwait(false);
             await DisconnectGDSClientAsync().ConfigureAwait(false);
             TestContext.Out.WriteLine("Update Certificate");
             bool success = await m_pushClient.PushClient.UpdateCertificateAsync(
@@ -776,6 +779,298 @@ namespace Opc.Ua.Gds.Tests
             }
             TestContext.Out.WriteLine("Verify Cert Update");
             await VerifyNewPushServerCertAsync(certificate).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Renew using an installed CA without supplying issuers.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        [Order(511)]
+        public async Task UpdateCertificateTrustedIssuerNotPassedAsync(
+            bool regeneratePrivateKey,
+            bool emptyIssuerArray)
+        {
+            await UpdateCertificateUsingConfiguredStoresAsync(
+                regeneratePrivateKey, emptyIssuerArray ? "empty" : "null").ConfigureAwait(false);
+        }
+
+        [TestCase(false, "matching")]
+        [TestCase(true, "matching")]
+        [TestCase(false, "unrelated")]
+        [TestCase(true, "unrelated")]
+        [TestCase(false, "malformed")]
+        [TestCase(true, "malformed")]
+        [Order(512)]
+        public async Task UpdateCertificateIgnoresSuppliedIssuersAsync(
+            bool regeneratePrivateKey,
+            string issuerCase)
+        {
+            await UpdateCertificateUsingConfiguredStoresAsync(
+                regeneratePrivateKey, issuerCase).ConfigureAwait(false);
+        }
+
+        private async Task UpdateCertificateUsingConfiguredStoresAsync(
+            bool regeneratePrivateKey,
+            string issuerCase)
+        {
+#if NETFRAMEWORK || SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
+            if (m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                NUnit.Framework.Assert.Ignore("ECC signing requests not supported on this target.");
+            }
+#endif
+            // Establish the original administrative session.
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
+            using X509Certificate2 oldCertificate = Utils.ParseCertificateBlob(
+                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate,
+                m_telemetry);
+
+            // Install the CA and its CRL before UpdateCertificate. Issuers supply the
+            // chain; the trusted peer store establishes trust in that CA.
+            using (ICertificateStore caStore = new CertificateStoreIdentifier(
+                m_pushClient.TempStorePath, false).OpenStore(m_telemetry))
+            {
+                X509CRLCollection crls = await caStore.EnumerateCRLsAsync().ConfigureAwait(false);
+                Assert.Greater(crls.Count, 0, "The installed CA must have revocation information.");
+                foreach (SecurityConfiguration security in new[]
+                {
+                    m_server.Config.SecurityConfiguration,
+                    m_pushClient.Config.SecurityConfiguration,
+                    m_gdsClient.Configuration.SecurityConfiguration
+                })
+                {
+                    foreach (CertificateTrustList trustList in new[]
+                    {
+                        security.TrustedIssuerCertificates,
+                        security.TrustedPeerCertificates
+                    })
+                    {
+                        using ICertificateStore store = trustList.OpenStore(m_telemetry);
+                        if ((await store.FindByThumbprintAsync(m_caCert.Thumbprint)
+                            .ConfigureAwait(false)).Count == 0)
+                        {
+                            await store.AddAsync(m_caCert).ConfigureAwait(false);
+                        }
+                        foreach (X509CRL crl in crls)
+                        {
+                            await store.AddCRLAsync(crl).ConfigureAwait(false);
+                        }
+                    }
+                }
+            }
+
+            (string[] Trusted, string[] Issuers) trustBefore =
+                await ReadServerTrustThumbprintsAsync().ConfigureAwait(false);
+            byte[][] suppliedIssuers = CreateIssuerArgument(issuerCase);
+
+            // Reuse the key with an empty nonce or regenerate it with a 32-byte
+            // nonce. Use a concrete type advertised by the group.
+            byte[] nonce = regeneratePrivateKey ? new byte[32] : [];
+            if (regeneratePrivateKey)
+            {
+                using RandomNumberGenerator random = RandomNumberGenerator.Create();
+                random.GetBytes(nonce);
+            }
+            byte[] csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
+                certificateGroupId: null,
+                certificateTypeId: m_certificateType,
+                subjectName: null,
+                regeneratePrivateKey: regeneratePrivateKey,
+                nonce: nonce).ConfigureAwait(false);
+            Assert.IsNotNull(csr);
+            var request = new Pkcs10CertificationRequest(csr);
+            Assert.IsTrue(request.Verify(), "PKCS#10 signature must be valid.");
+
+            // Sign the CSR with the already installed test CA.
+            using X509Certificate2 issuedCertificate = SignCertificateRequest(request, m_caCert);
+            Assert.IsFalse(X509Utils.IsSelfSigned(issuedCertificate));
+            Assert.AreEqual(!regeneratePrivateKey,
+                Utils.IsEqual(oldCertificate.GetPublicKey(), issuedCertificate.GetPublicKey()),
+                "The CSR must honor regeneratePrivateKey.");
+
+            // The client API puts issuerCertificates LAST (sixth argument).
+            // Awaiting the call asserts success; any ServiceResultException fails here.
+            bool applyChangesRequired = await m_pushClient.PushClient.UpdateCertificateAsync(
+                certificateGroupId: null,
+                certificateTypeId: m_certificateType,
+                certificate: issuedCertificate.RawData,
+                privateKeyFormat: null,
+                privateKey: null,
+                issuerCertificates: suppliedIssuers).ConfigureAwait(false);
+            await AssertServerTrustUnchangedAsync(trustBefore).ConfigureAwait(false);
+
+            // A separate client creates a new secure channel and session.
+            using var otherClient = new ServerPushConfigurationClient(m_pushClient.Config)
+            {
+                Endpoint = m_pushClient.PushClient.Endpoint,
+                AdminCredentials = m_pushClient.SysAdminUser
+            };
+            await otherClient.ConnectAsync().ConfigureAwait(false);
+            Assert.AreNotEqual(m_pushClient.PushClient.Session.SessionId, otherClient.Session.SessionId);
+            using X509Certificate2 observedCertificate = Utils.ParseCertificateBlob(
+                otherClient.Session.ConfiguredEndpoint.Description.ServerCertificate, m_telemetry);
+            Assert.IsTrue(Utils.IsEqual(
+                applyChangesRequired ? oldCertificate.RawData : issuedCertificate.RawData,
+                observedCertificate.RawData), "Certificate before ApplyChanges.");
+
+            // Session transaction ownership is outside this regression:
+            // this server supports deferred activation, not session transactions.
+            await otherClient.DisconnectAsync().ConfigureAwait(false);
+
+            // Apply the pending change on the original session.
+            if (applyChangesRequired)
+            {
+                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+            }
+
+            // Disconnect and wait for certificate activation, then verify
+            // the certificate on a fresh secure channel (ApplyChanges is asynchronous).
+            await VerifyNewPushServerCertAsync(issuedCertificate.RawData).ConfigureAwait(false);
+            await AssertServerTrustUnchangedAsync(trustBefore).ConfigureAwait(false);
+        }
+
+        [TestCase("unrelated")]
+        [TestCase("malformed")]
+        [Order(502)]
+        public async Task UpdateCertificateSelfSignedIgnoresSuppliedIssuersAsync(string issuerCase)
+        {
+            if (m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                NUnit.Framework.Assert.Ignore("Test only supported for RSA");
+            }
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
+            using X509Certificate2 certificate = Utils.ParseCertificateBlob(
+                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate,
+                m_telemetry);
+            if (!X509Utils.IsSelfSigned(certificate))
+            {
+                NUnit.Framework.Assert.Ignore("Server has no self signed cert in use.");
+            }
+
+            (string[] Trusted, string[] Issuers) trustBefore =
+                await ReadServerTrustThumbprintsAsync().ConfigureAwait(false);
+            bool applyChangesRequired = await m_pushClient.PushClient.UpdateCertificateAsync(
+                certificateGroupId: null,
+                certificateTypeId: m_certificateType,
+                certificate: certificate.RawData,
+                privateKeyFormat: null,
+                privateKey: null,
+                issuerCertificates: CreateIssuerArgument(issuerCase)).ConfigureAwait(false);
+            await AssertServerTrustUnchangedAsync(trustBefore).ConfigureAwait(false);
+            if (applyChangesRequired)
+            {
+                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+            }
+            await VerifyNewPushServerCertAsync(certificate.RawData).ConfigureAwait(false);
+            await AssertServerTrustUnchangedAsync(trustBefore).ConfigureAwait(false);
+        }
+
+        [Test]
+        [Order(513)]
+        public async Task UpdateCertificateSuppliedIssuerCannotReplaceConfiguredTrustAsync()
+        {
+#if NETFRAMEWORK || SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
+            if (m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                NUnit.Framework.Assert.Ignore("ECC signing requests not supported on this target.");
+            }
+#endif
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
+            using X509Certificate2 oldCertificate = Utils.ParseCertificateBlob(
+                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate,
+                m_telemetry);
+            (string[] Trusted, string[] Issuers) trustBefore =
+                await ReadServerTrustThumbprintsAsync().ConfigureAwait(false);
+            (NodeId[] typesBefore, byte[][] certificatesBefore) = await m_pushClient.PushClient
+                .GetCertificatesAsync(m_pushClient.PushClient.DefaultApplicationGroup).ConfigureAwait(false);
+
+            ICertificateBuilder caBuilder = CertificateBuilder.Create($"CN=Uninstalled CA {Guid.NewGuid()}")
+                .SetCAConstraint();
+            ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
+            using X509Certificate2 uninstalledCa = curve != null
+                ? caBuilder.SetECCurve(curve.Value).CreateForECDsa()
+                : caBuilder.CreateForRSA();
+            byte[] csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
+                null, m_certificateType, null, false, []).ConfigureAwait(false);
+            var request = new Pkcs10CertificationRequest(csr);
+            Assert.IsTrue(request.Verify());
+            using X509Certificate2 issuedCertificate = SignCertificateRequest(request, uninstalledCa);
+
+            ServiceResultException exception = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
+                () => m_pushClient.PushClient.UpdateCertificateAsync(
+                    certificateGroupId: null,
+                    certificateTypeId: m_certificateType,
+                    certificate: issuedCertificate.RawData,
+                    privateKeyFormat: null,
+                    privateKey: null,
+                    issuerCertificates: [uninstalledCa.RawData]));
+            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateChainIncomplete,
+                (StatusCode)exception.StatusCode);
+            await AssertServerTrustUnchangedAsync(trustBefore).ConfigureAwait(false);
+            (NodeId[] typesAfter, byte[][] certificatesAfter) = await m_pushClient.PushClient
+                .GetCertificatesAsync(m_pushClient.PushClient.DefaultApplicationGroup).ConfigureAwait(false);
+            Assert.IsTrue(Utils.IsEqual(typesBefore, typesAfter));
+            Assert.IsTrue(Utils.IsEqual(certificatesBefore, certificatesAfter));
+            // A rejected update must leave the certificate presented on fresh channels unchanged.
+            await VerifyNewPushServerCertAsync(oldCertificate.RawData).ConfigureAwait(false);
+        }
+
+        private byte[][] CreateIssuerArgument(string issuerCase)
+        {
+            switch (issuerCase)
+            {
+                case "null":
+                    return null;
+                case "empty":
+                    return [];
+                case "matching":
+                    return [m_caCert.RawData];
+                case "unrelated":
+                    using (X509Certificate2 unrelated = CertificateBuilder
+                        .Create($"CN=Unrelated CA {Guid.NewGuid()}")
+                        .SetCAConstraint()
+                        .CreateForRSA())
+                    {
+                        return [unrelated.RawData];
+                    }
+                case "malformed":
+                    return [[0xba, 0xd0, 0xbe, 0xef, 3]];
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(issuerCase), issuerCase, "Unknown issuer case.");
+            }
+        }
+
+        private X509Certificate2 SignCertificateRequest(Pkcs10CertificationRequest request, X509Certificate2 issuer)
+        {
+            ICertificateBuilderIssuer builder = CertificateBuilder.Create(request.Subject)
+                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
+                .SetLifeTime(TimeSpan.FromDays(30))
+                .AddExtension(new X509SubjectAltNameExtension(m_applicationRecord.ApplicationUri, m_domainNames))
+                .SetIssuer(issuer);
+            return EccUtils.GetCurveFromCertificateTypeId(m_certificateType) != null
+                ? builder.SetECDsaPublicKey(request.SubjectPublicKeyInfo).CreateForECDsa()
+                : builder.SetRSAPublicKey(request.SubjectPublicKeyInfo).CreateForRSA();
+        }
+
+        private async Task<(string[] Trusted, string[] Issuers)> ReadServerTrustThumbprintsAsync()
+        {
+            SecurityConfiguration security = m_server.Config.SecurityConfiguration;
+            using ICertificateStore trusted = security.TrustedPeerCertificates.OpenStore(m_telemetry);
+            using ICertificateStore issuers = security.TrustedIssuerCertificates.OpenStore(m_telemetry);
+            X509Certificate2Collection trustedCertificates = await trusted.EnumerateAsync().ConfigureAwait(false);
+            X509Certificate2Collection issuerCertificates = await issuers.EnumerateAsync().ConfigureAwait(false);
+            return (trustedCertificates.Cast<X509Certificate2>().Select(c => c.Thumbprint).ToArray(),
+                issuerCertificates.Cast<X509Certificate2>().Select(c => c.Thumbprint).ToArray());
+        }
+
+        private async Task AssertServerTrustUnchangedAsync((string[] Trusted, string[] Issuers) expected)
+        {
+            (string[] Trusted, string[] Issuers) actual = await ReadServerTrustThumbprintsAsync().ConfigureAwait(false);
+            NUnit.Framework.Assert.That(actual.Trusted, Is.EquivalentTo(expected.Trusted), "Trusted store changed.");
+            NUnit.Framework.Assert.That(actual.Issuers, Is.EquivalentTo(expected.Issuers), "Issuer store changed.");
         }
 
         [Test]
@@ -923,6 +1218,7 @@ namespace Opc.Ua.Gds.Tests
             } while (certificate == null);
             Assert.NotNull(issuerCertificates);
             Assert.NotNull(privateKey);
+            await InstallGdsTrustListOnPushServerAsync().ConfigureAwait(false);
             await DisconnectGDSClientAsync().ConfigureAwait(false);
 
             bool success = await m_pushClient.PushClient.UpdateCertificateAsync(
@@ -1057,6 +1353,42 @@ namespace Opc.Ua.Gds.Tests
         private async Task DisconnectGDSClientAsync()
         {
             await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
+        }
+
+        private async Task InstallGdsTrustListOnPushServerAsync()
+        {
+            NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(
+                m_applicationRecord.ApplicationId, default).ConfigureAwait(false);
+            TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(
+                trustListId, 0).ConfigureAwait(false);
+            SecurityConfiguration security = m_server.Config.SecurityConfiguration;
+            await AddTrustMaterialToStoreAsync(security.TrustedPeerCertificates,
+                trustList.TrustedCertificates, trustList.TrustedCrls).ConfigureAwait(false);
+            await AddTrustMaterialToStoreAsync(security.TrustedIssuerCertificates,
+                trustList.IssuerCertificates, trustList.IssuerCrls).ConfigureAwait(false);
+        }
+
+        private async Task AddTrustMaterialToStoreAsync(
+            CertificateTrustList trustList,
+            IEnumerable<byte[]> certificates,
+            IEnumerable<byte[]> crls)
+        {
+            // Renewal requires preinstalled trust; preserve unrelated store entries.
+            using ICertificateStore store = trustList.OpenStore(m_telemetry);
+            foreach (byte[] rawCertificate in certificates)
+            {
+                using X509Certificate2 certificate = CertificateFactory.Create(rawCertificate);
+                if ((await store.FindByThumbprintAsync(certificate.Thumbprint)
+                    .ConfigureAwait(false)).Count == 0)
+                {
+                    await store.AddAsync(certificate).ConfigureAwait(false);
+                }
+            }
+            // The issuer certificates must be present before their CRLs are added.
+            foreach (byte[] rawCrl in crls)
+            {
+                await store.AddCRLAsync(new X509CRL(rawCrl)).ConfigureAwait(false);
+            }
         }
 
         private async Task RegisterPushServerApplicationAsync(
