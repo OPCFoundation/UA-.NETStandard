@@ -96,6 +96,46 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Selects, for every <see cref="LocalizedText"/> held by the value (a scalar
+        /// or a one-dimensional array), the translation that is the most preferred
+        /// for the requested locales, or all translations when "mul" is requested
+        /// (OPC 10000-4 5.4, OPC 10000-3 8.5). Any other value is returned unchanged.
+        /// </summary>
+        /// <remarks>
+        /// The value is never modified in place, so a value stored in the address
+        /// space keeps all its translations. Nothing is selected when no locale is
+        /// requested, the stored value is returned as is.
+        /// </remarks>
+        /// <param name="preferredLocales">The locales of the session, most preferred first.</param>
+        /// <param name="value">The value to translate.</param>
+        /// <returns>The value with every localized text translated.</returns>
+        public virtual Variant TranslateValue(ArrayOf<string> preferredLocales, Variant value)
+        {
+            if (preferredLocales.Count == 0 || value.IsNull)
+            {
+                return value;
+            }
+
+            if (value.TryGetValue(out LocalizedText text))
+            {
+                return Translate(preferredLocales, text);
+            }
+
+            if (value.TryGetValue(out ArrayOf<LocalizedText> texts) && texts.Count > 0)
+            {
+                // copy, the array may be shared with the value stored in the node.
+                var translated = new LocalizedText[texts.Count];
+                for (int ii = 0; ii < translated.Length; ii++)
+                {
+                    translated[ii] = Translate(preferredLocales, texts[ii]);
+                }
+                return Variant.From(translated.ToArrayOf());
+            }
+
+            return value;
+        }
+
+        /// <summary>
         /// Translates a service result.
         /// </summary>
         public ServiceResult Translate(ArrayOf<string> preferredLocales, ServiceResult result)
@@ -326,22 +366,25 @@ namespace Opc.Ua.Server
             // check for exact match.
             if (preferredLocales.Count > 0)
             {
+                // locale ids are compared case-insensitively (RFC 5646).
                 if (!defaultText.IsNullOrEmpty &&
                     !isMultilanguageRequested &&
-                    preferredLocales[0] == defaultText.Locale)
+                    string.Equals(preferredLocales[0], defaultText.Locale, StringComparison.OrdinalIgnoreCase))
                 {
                     return defaultText;
                 }
 
-                // MultiLanguageText requested, specified numer of locales was found in the default text.
+                // MultiLanguageText requested and the default text holds exactly the
+                // requested locales.
                 if (isMultilanguageRequested &&
                     preferredLocales.Count > 1 &&
-                    defaultText.Translations?.Count == preferredLocales.Count - 1)
+                    defaultText.Translations?.Count == preferredLocales.Count - 1 &&
+                    ContainsAllLocales(defaultText.Translations, preferredLocales))
                 {
                     return defaultText.AsMultiLanguage();
                 }
 
-                if (preferredLocales[0] == info.Locale)
+                if (string.Equals(preferredLocales[0], info.Locale, StringComparison.OrdinalIgnoreCase))
                 {
                     return new LocalizedText(info);
                 }
@@ -390,7 +433,10 @@ namespace Opc.Ua.Server
                                 out CultureInfo culture);
                             if (translation != null)
                             {
-                                translations[preferredLocales[i]] = translation;
+                                // label the text with the locale of the table it came
+                                // from, which may be another region of the requested
+                                // language.
+                                translations[culture.Name] = translation;
                             }
                         }
                     }
@@ -489,6 +535,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns true if every locale requested after "mul" or "qst" has a
+        /// translation (compared case-insensitively).
+        /// </summary>
+        private static bool ContainsAllLocales(
+            IReadOnlyDictionary<string, string> translations,
+            ArrayOf<string> preferredLocales)
+        {
+            for (int ii = 1; ii < preferredLocales.Count; ii++)
+            {
+                string requested = preferredLocales[ii];
+                if (translations.ContainsKey(requested))
+                {
+                    continue;
+                }
+                bool found = false;
+                foreach (string locale in translations.Keys)
+                {
+                    if (string.Equals(locale, requested, StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Finds the best translation for the requested locales.
         /// </summary>
         private string? FindBestTranslation(
@@ -528,8 +606,11 @@ namespace Opc.Ua.Server
                 {
                     TranslationTable translationTable = m_translationTables[ii];
 
-                    // all done if exact match found.
-                    if (translationTable!.Locale!.Name == preferredLocales[jj] &&
+                    // all done if exact match found (locale ids are case-insensitive, RFC 5646).
+                    if (string.Equals(
+                            translationTable!.Locale!.Name,
+                            preferredLocales[jj],
+                            StringComparison.OrdinalIgnoreCase) &&
                         translationTable.Translations.TryGetValue(key, out string? exactMatch))
                     {
                         culture = translationTable.Locale;
@@ -538,7 +619,10 @@ namespace Opc.Ua.Server
 
                     // check for matching language but different region.
                     if (match == null &&
-                        translationTable.Locale.TwoLetterISOLanguageName == language &&
+                        string.Equals(
+                            translationTable.Locale.TwoLetterISOLanguageName,
+                            language,
+                            StringComparison.OrdinalIgnoreCase) &&
                         translationTable.Translations.TryGetValue(key, out translatedText))
                     {
                         culture = translationTable.Locale;

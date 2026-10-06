@@ -275,5 +275,66 @@ namespace Opc.Ua.Types.Tests
             Assert.That(selected.Text, Is.Empty);
             Assert.That(selected.TranslationInfo, Is.EqualTo(fallback));
         }
+
+        [Test]
+        public void FilterByPreferredLocalesMatchesLocaleCaseInsensitively()
+        {
+            // RFC 5646 language tags are case-insensitive: "DE-de" is "de-DE",
+            // not just any German region.
+            var text = new LocalizedText(new Dictionary<string, string>
+            {
+                { "de-AT", "Servus" },
+                { "de-DE", "Hallo" }
+            });
+
+            LocalizedText selected = text.FilterByPreferredLocales(["DE-de"]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(selected.Locale, Is.EqualTo("de-DE"));
+                Assert.That(selected.Text, Is.EqualTo("Hallo"));
+            });
+        }
+
+        [Test]
+        public void FilterByPreferredLocalesMulMatchesLocaleCaseInsensitively()
+        {
+            var text = new LocalizedText(new Dictionary<string, string>
+            {
+                { "en-US", "Hello" },
+                { "de-DE", "Hallo" },
+                { "fr-FR", "Bonjour" }
+            });
+
+            LocalizedText selected = text.FilterByPreferredLocales(["mul", "DE-DE", "FR-fr"]);
+
+            Assert.That(selected.IsMultiLanguage, Is.True);
+            Assert.That(selected.Translations, Is.EquivalentTo(new Dictionary<string, string>
+            {
+                { "de-DE", "Hallo" },
+                { "fr-FR", "Bonjour" }
+            }));
+        }
+
+        [Test]
+        public void FilterByPreferredLocalesMulFallsBackToRegionOfSameLanguage()
+        {
+            var text = new LocalizedText(new Dictionary<string, string>
+            {
+                { "en-US", "Hello" },
+                { "de-DE", "Hallo" },
+                { "fr-FR", "Bonjour" }
+            });
+
+            LocalizedText selected = text.FilterByPreferredLocales(["mul", "de-AT", "fr-CA"]);
+
+            // each text keeps the locale it is written in.
+            Assert.That(selected.IsMultiLanguage, Is.True);
+            Assert.That(selected.Translations, Is.EquivalentTo(new Dictionary<string, string>
+            {
+                { "de-DE", "Hallo" },
+                { "fr-FR", "Bonjour" }
+            }));
+        }
     }
 }

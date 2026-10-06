@@ -113,6 +113,31 @@ namespace Opc.Ua.Server.Tests
                 }
             }
 
+            // TestPoint3D inherits X, Y and Name from TestPoint.
+            NodeState point3DNode = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(
+                    new NodeId(ServerComplexTypesTestNodeManager.Point3DValueVariable, namespaceIndex),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            var point3DTypeId = NodeId.ToExpandedNodeId(
+                new NodeId(ServerComplexTypesTestNodeManager.TestPoint3DDataType, namespaceIndex),
+                server.NamespaceUris);
+            if (point3DNode is BaseVariableState point3DVariable &&
+                server.Factory.TryGetEncodeableType(point3DTypeId, out IEncodeableType point3DType))
+            {
+                IEncodeable body = point3DType.CreateInstance();
+                if (body is Structure structure)
+                {
+                    structure["X"] = new Variant(1);
+                    structure["Y"] = new Variant(2);
+                    structure["Name"] = new Variant("corner");
+                    structure["Z"] = new Variant(5);
+                }
+
+                point3DVariable.Value = new Variant(new ExtensionObject(body));
+                point3DVariable.ClearChangeMasks(server.DefaultSystemContext, false);
+            }
+
             // TestColor.Green == 1; the wire form of an enumeration is Int32.
             var colorVariableId = new NodeId(
                 ServerComplexTypesTestNodeManager.ColorValueVariable,

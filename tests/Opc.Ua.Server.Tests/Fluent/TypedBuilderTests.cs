@@ -319,8 +319,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var dv = new DataValue(
                 new Variant(2.5),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
             ServiceResult result = v.WriteAttribute(
                 CreateContext(), Attributes.Value, NumericRange.Null, dv);
 
@@ -346,8 +345,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             SystemContext ctx = CreateContext();
             var dv = new DataValue(
                 new Variant(11.0),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
             v.WriteAttribute(ctx, Attributes.Value, NumericRange.Null, dv);
 
             Assert.That(seenContext, Is.SameAs(ctx));
@@ -390,8 +388,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var dv = new DataValue(
                 new Variant(7.5),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
             ServiceResult result = await v.WriteAttributeAsync(
                 CreateContext(), Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
 
@@ -420,8 +417,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             SystemContext ctx = CreateContext();
             var dv = new DataValue(
                 new Variant(1.0),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
             await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv, cts.Token).ConfigureAwait(false);
 
@@ -463,8 +459,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var dv = new DataValue(
                 new Variant("hello"),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
             v.WriteAttribute(CreateContext(), Attributes.Value, NumericRange.Null, dv);
 
             Assert.That(captured, Is.EqualTo("hello"));

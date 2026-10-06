@@ -92,6 +92,15 @@ services
                                       // AddWebApiMutualTlsAuth()
 ```
 
+`WebApiTransportOptions.ServiceSet` maps all 28 services or the 8
+sessionless ones. The binding can describe the routes it maps as an OpenAPI
+document, generated from the route table and the request and response types
+(`WebApiOpenApiGenerator` in `Opc.Ua.Core.Schema`). The document is off by
+default: set `OpenApiDocumentPath` (for example `/openapi.json`) to serve it
+with `GET`, behind the same authentication as the REST routes, and
+`OpenApiIncludeSchemas` to add the component schemas an OpenAPI client
+generator needs.
+
 The companion WSS sub-profile `opcua+openapi` (profile/2339) is
 provided by `WebApiWssTransportChannel` (client) and
 `HttpsTransportListener.AcceptWebSocketOpenApiAsync` (server).

@@ -52,7 +52,7 @@ namespace Opc.Ua.Interop.LegacyPeer
     /// line into a test result of its own. "Connect" and "CloseSession" run
     /// always; the other checks run when named by --checks.
     /// </remarks>
-    public static class LegacyClientChecks
+    public static partial class LegacyClientChecks
     {
         public const string ApplicationName = "LegacyInteropClient";
         public const string ReferenceServerNamespace = "http://opcfoundation.org/Quickstarts/ReferenceServer";
@@ -78,7 +78,27 @@ namespace Opc.Ua.Interop.LegacyPeer
             ("OversizedRequestRejected", OversizedRequestRejectedAsync),
             ("BrowseContinuationPoints", BrowseContinuationPointsAsync),
             ("ReadManyNodes", ReadManyNodesAsync),
-            ("TokenRenewal", TokenRenewalAsync)
+            ("TokenRenewal", TokenRenewalAsync),
+            // Events and alarms & conditions.
+            ("EventSubscription", EventSubscriptionAsync),
+            ("ConditionRefresh", ConditionRefreshAsync),
+            ("AlarmAcknowledge", AlarmAcknowledgeAsync),
+            // Subscription depth.
+            ("DeadbandFilter", DeadbandFilterAsync),
+            ("QueueOverflow", QueueOverflowAsync),
+            ("Triggering", TriggeringAsync),
+            ("Republish", RepublishAsync),
+            ("TransferSubscription", TransferSubscriptionAsync),
+            // Identity.
+            ("WrongPasswordRejected", WrongPasswordRejectedAsync),
+            ("X509UserToken", X509UserTokenAsync),
+            // Services breadth.
+            ("RegisterNodes", RegisterNodesAsync),
+            ("HistoryReadRaw", HistoryReadRawAsync),
+            ("NodeManagement", NodeManagementAsync),
+            ("IndexRange", IndexRangeAsync),
+            ("FindServers", FindServersAsync),
+            ("SessionReconnect", SessionReconnectAsync)
         ];
 
         private const string kDefaultChecks =
@@ -162,6 +182,7 @@ namespace Opc.Ua.Interop.LegacyPeer
             var checks = new CheckRunner();
 
             ISession session = null;
+            ConfiguredEndpoint configured = null;
             await checks.RunAsync("Connect", async () =>
             {
                 try
@@ -171,7 +192,7 @@ namespace Opc.Ua.Interop.LegacyPeer
                     IUserIdentity identity = string.IsNullOrEmpty(user)
                         ? new UserIdentity()
                         : new UserIdentity(user, System.Text.Encoding.UTF8.GetBytes(password));
-                    var configured = new ConfiguredEndpoint(null, endpoint, EndpointConfiguration.Create(config));
+                    configured = new ConfiguredEndpoint(null, endpoint, EndpointConfiguration.Create(config));
                     session = await new DefaultSessionFactory(telemetry)
                         .CreateAsync(config, configured, false, false, ApplicationName, 60000, identity, null, ct)
                         .ConfigureAwait(false);
@@ -198,7 +219,16 @@ namespace Opc.Ua.Interop.LegacyPeer
 
             try
             {
-                var context = new ClientContext(session, telemetry, options, ct);
+                var context = new ClientContext(session, telemetry, options, ct)
+                {
+                    Config = config,
+                    Url = url,
+                    Endpoint = configured,
+                    // Further sessions on the same endpoint (wrong password, X509
+                    // user, subscription transfer) with another identity.
+                    NewSessionAsync = identity => new DefaultSessionFactory(telemetry).CreateAsync(
+                        config, configured, false, false, ApplicationName + " 2", 60000, identity, null, ct)
+                };
                 foreach ((string name, Func<ClientContext, Task> check) in s_checks)
                 {
                     if (selected.Contains(name))
@@ -940,6 +970,10 @@ namespace Opc.Ua.Interop.LegacyPeer
             public PeerOptions Options { get; }
             public CancellationToken Ct { get; }
             public ushort Ns { get; }
+            public ApplicationConfiguration Config { get; init; }
+            public string Url { get; init; }
+            public ConfiguredEndpoint Endpoint { get; init; }
+            public Func<IUserIdentity, Task<ISession>> NewSessionAsync { get; init; }
 
             public NodeId Id(string name)
             {

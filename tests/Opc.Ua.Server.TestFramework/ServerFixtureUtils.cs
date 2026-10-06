@@ -69,7 +69,8 @@ namespace Opc.Ua.Server.TestFramework
             UserIdentityToken identityToken = null,
             double sessionTimeout = DefaultSessionTimeout,
             uint maxResponseMessageSize = DefaultMaxResponseMessageSize,
-            string clientApplicationUri = null)
+            string clientApplicationUri = null,
+            ArrayOf<string> localeIds = default)
         {
             if (clientApplicationUri != null && clientApplicationUri.Length == 0)
             {
@@ -205,7 +206,7 @@ namespace Opc.Ua.Server.TestFramework
                     requestHeader,
                     clientSignature,
                     [],
-                    [],
+                    localeIds.IsNull ? [] : localeIds,
                     identityToken != null ? new ExtensionObject(identityToken) : default,
                     null,
                     RequestLifetime.None).ConfigureAwait(false);

@@ -438,5 +438,131 @@ namespace Opc.Ua.Server.Tests
             Assert.That(translated.NamespaceUri, Is.EqualTo(namespaceUri));
             Assert.That(translated.SymbolicId, Is.EqualTo(name));
         }
+
+        [TestCase("de-DE", "de-DE", "Hallo")]
+        [TestCase("en-US", "en-US", "Hello")]
+        [TestCase("DE-de", "de-DE", "Hallo")]
+        [TestCase("de-CH", "de-DE", "Hallo")]
+        [TestCase("xx-XX", "en-US", "Hello")]
+        public void TranslateSelectsTheTextsOwnTranslation(
+            string requested,
+            string expectedLocale,
+            string expectedText)
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+
+            LocalizedText result = resourceManager.Translate([requested], CreateHelloText());
+
+            Assert.That(result.Locale, Is.EqualTo(expectedLocale));
+            Assert.That(result.Text, Is.EqualTo(expectedText));
+        }
+
+        [Test]
+        public void TranslateMulReturnsAllOwnTranslations()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+
+            LocalizedText result = resourceManager.Translate(["mul"], CreateHelloText());
+
+            Assert.That(result.Locale, Is.EqualTo("mul"));
+            Assert.That(result.Translations, Is.EquivalentTo(new Dictionary<string, string>
+            {
+                { "en-US", "Hello" },
+                { "de-DE", "Hallo" }
+            }));
+        }
+
+        [Test]
+        public void TranslateMulWithLocalesReturnsOnlyRequestedTranslations()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+
+            // as many locales requested as the text holds, but not the same ones.
+            LocalizedText result = resourceManager.Translate(
+                ["mul", "fr-FR", "de-DE"],
+                CreateHelloText());
+
+            Assert.That(result.Locale, Is.EqualTo("de-DE"));
+            Assert.That(result.Text, Is.EqualTo("Hallo"));
+        }
+
+        [Test]
+        public void TranslateMatchesTranslationTableCaseInsensitively()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            resourceManager.Add("greeting", "de-DE", "Hallo");
+
+            LocalizedText result = resourceManager.Translate(
+                ["DE-de"],
+                new LocalizedText("greeting", "en-US", "Hello"));
+
+            Assert.That(result.Locale, Is.EqualTo("de-DE"));
+            Assert.That(result.Text, Is.EqualTo("Hallo"));
+        }
+
+        [Test]
+        public void TranslateMulLabelsRegionFallbackWithItsOwnLocale()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            resourceManager.Add("greeting", "de-DE", "Hallo");
+
+            LocalizedText result = resourceManager.Translate(
+                ["mul", "de-AT"],
+                new LocalizedText("greeting", "en-US", "Hello"));
+
+            // the de-DE text must not be labelled as de-AT.
+            Assert.That(result.Locale, Is.EqualTo("de-DE"));
+            Assert.That(result.Text, Is.EqualTo("Hallo"));
+        }
+
+        [Test]
+        public void TranslateValueSelectsTranslationOfScalarAndArray()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            LocalizedText[] stored = [CreateHelloText(), CreateHelloText()];
+
+            Variant scalar = resourceManager.TranslateValue(["de-DE"], Variant.From(CreateHelloText()));
+            Variant array = resourceManager.TranslateValue(["de-DE"], Variant.From(stored.ToArrayOf()));
+
+            Assert.That(scalar.TryGetValue(out LocalizedText text), Is.True);
+            Assert.That(text.Text, Is.EqualTo("Hallo"));
+            Assert.That(array.TryGetValue(out ArrayOf<LocalizedText> texts), Is.True);
+            Assert.That(texts.Count, Is.EqualTo(2));
+            Assert.That(texts[0].Text, Is.EqualTo("Hallo"));
+            Assert.That(texts[1].Locale, Is.EqualTo("de-DE"));
+            // the stored value keeps all its translations.
+            Assert.That(stored[0].Translations, Has.Count.EqualTo(2));
+            Assert.That(stored[0].Locale, Is.EqualTo("en-US"));
+        }
+
+        [Test]
+        public void TranslateValueLeavesOtherValuesUnchanged()
+        {
+            using var resourceManager = new ResourceManager(
+                new ApplicationConfiguration(NUnitTelemetryContext.Create()));
+            Variant number = Variant.From(42);
+            Variant text = Variant.From(CreateHelloText());
+
+            Assert.That(resourceManager.TranslateValue(["de-DE"], number), Is.EqualTo(number));
+            Assert.That(resourceManager.TranslateValue(["de-DE"], Variant.Null), Is.EqualTo(Variant.Null));
+            Variant untranslated = resourceManager.TranslateValue([], text);
+            Assert.That(untranslated.TryGetValue(out LocalizedText value), Is.True);
+            Assert.That(value.Locale, Is.EqualTo("en-US"));
+        }
+
+        private static LocalizedText CreateHelloText()
+        {
+            return new LocalizedText(new Dictionary<string, string>
+            {
+                { "en-US", "Hello" },
+                { "de-DE", "Hallo" }
+            });
+        }
     }
 }

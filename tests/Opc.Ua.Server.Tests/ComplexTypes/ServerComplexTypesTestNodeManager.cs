@@ -73,6 +73,22 @@ namespace Opc.Ua.Server.Tests
         public const uint ColorValueVariable = 15022;
 
         /// <summary>
+        /// Identifier of the runtime <c>TestPoint3D</c> structure DataType, a
+        /// subtype of <c>TestPoint</c> which adds the field <c>Z</c>.
+        /// </summary>
+        public const uint TestPoint3DDataType = 15030;
+
+        /// <summary>
+        /// Identifier of the <c>TestPoint3D</c> Default Binary encoding node.
+        /// </summary>
+        public const uint TestPoint3DBinaryEncoding = 15031;
+
+        /// <summary>
+        /// Identifier of the <c>Point3DValue</c> variable (of type TestPoint3D).
+        /// </summary>
+        public const uint Point3DValueVariable = 15032;
+
+        /// <summary>
         /// Initializes the node manager for the test namespace.
         /// </summary>
         /// <param name="server">The server that owns the node manager.</param>

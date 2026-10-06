@@ -1,0 +1,6 @@
+{
+  "ComplexTypes": {
+    "reason": "node-opcua 2.186.15 cannot build ScalarStructureDataType (field of the abstract Enumeration DataType, i=29: 'Cannot find enumeration with type Structure') nor UserScalarValueDataType (BaseDataType field) of the TestData model, which Part 6 F.13 allows",
+    "issue": "upstream issue to be filed at https://github.com/node-opcua/node-opcua/issues"
+  }
+}
