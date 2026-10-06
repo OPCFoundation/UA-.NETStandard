@@ -803,7 +803,6 @@ The following validation errors can be suppressed by handling the `CertificateVa
 - **BadCertificateUntrusted**: The certificate is not trusted (not in the trusted store or chain).
 - **BadCertificateHostNameInvalid**: The domain name in the endpoint URL does not match any domain in the certificate.
 - **BadCertificateIssuerRevocationUnknown**: The revocation status of the issuer cannot be determined.
-- **BadCertificateChainIncomplete**: The certificate chain is incomplete (missing issuer certificates).
 - **BadCertificateIssuerTimeInvalid**: The issuer certificate has expired or is not yet valid.
 - **BadCertificateIssuerUseNotAllowed**: An issuer/CA certificate in the chain is not valid for use as a CA — for example it does not assert the `keyCertSign` and `cRLSign` KeyUsage bits required for a CA (see [CA (issuer) KeyUsage validation](#ca-issuer-keyusage-validation)).
 - **BadCertificateRevocationUnknown**: The revocation status of the certificate cannot be determined.
@@ -811,7 +810,7 @@ The following validation errors can be suppressed by handling the `CertificateVa
 - **BadCertificatePolicyCheckFailed**: The certificate does not meet policy requirements (e.g., key size, signature algorithm).
 - **BadCertificateUseNotAllowed**: The certificate is not valid for the intended use (missing key usage flags).
 
-All other validation errors are **non-suppressible** and will always cause the validation to fail.
+All other validation errors are **non-suppressible** and will always cause the validation to fail. This includes **BadCertificateChainIncomplete** (an issuer certificate is missing from the trusted and issuer stores): OPC 10000-4 Table 100 does not allow chain-building errors to be suppressed, so install the issuing CA instead of accepting the error.
 
 #### CA (issuer) KeyUsage validation
 
