@@ -374,8 +374,21 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            return new ReferenceServerMainNodeManagerFactory(configuration, server);
+            // In provisioning mode the server is in the application setup
+            // state (OPC 10000-12 Annex G.2): expose InApplicationSetup=TRUE.
+            return new ReferenceServerMainNodeManagerFactory(
+                configuration,
+                server,
+                ProvisioningMode ? new ServerConfigurationOptions { InApplicationSetup = true } : null);
         }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// OPC 10000-12 Annex G.2: while the server is in the application
+        /// setup state (provisioning mode) its ServerState is NoConfiguration.
+        /// </remarks>
+        protected override ServerState StartupServerState =>
+            ProvisioningMode ? ServerState.NoConfiguration : base.StartupServerState;
 
         /// <summary>
         /// Returns a default <see cref="Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider"/>

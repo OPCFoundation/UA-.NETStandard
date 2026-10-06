@@ -560,7 +560,8 @@ namespace Opc.Ua
             { ObjectTypes.EccCurve448ApplicationCertificateType, "Curve448" },
             { ObjectTypes.RsaSha256ApplicationCertificateType, "RsaSha256" },
             { ObjectTypes.RsaMinApplicationCertificateType, "RsaMin" },
-            { ObjectTypes.ApplicationCertificateType, "Rsa" }
+            { ObjectTypes.ApplicationCertificateType, "Rsa" },
+            { ObjectTypes.HttpsCertificateType, "Https" }
         };
 
 #if UNUSED

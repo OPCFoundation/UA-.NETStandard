@@ -1000,7 +1000,10 @@ namespace Opc.Ua.Server
 
                 lock (m_diagnosticsLock)
                 {
-                    if (NonThreadSafeStatus.Value.State == ServerState.Running)
+                    // NoConfiguration (OPC 10000-5 §12.6, OPC 10000-12 G.2):
+                    // the server is running but waits for its configuration;
+                    // it still serves requests, for example to be provisioned.
+                    if (NonThreadSafeStatus.Value.State is ServerState.Running or ServerState.NoConfiguration)
                     {
                         return true;
                     }

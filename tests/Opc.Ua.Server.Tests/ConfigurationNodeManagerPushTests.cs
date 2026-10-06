@@ -124,7 +124,37 @@ namespace Opc.Ua.Server.Tests
                     GetCoordinatorField(m_configManager).Reset();
                 }
             }
+
+            if (m_trustedTestCaThumbprints.Count > 0)
+            {
+                using ICertificateStore trustedStore = new CertificateStoreIdentifier(
+                    m_fixture.Config.SecurityConfiguration.TrustedPeerCertificates.StorePath!)
+                    .OpenStore(s_telemetry);
+                foreach (string thumbprint in m_trustedTestCaThumbprints)
+                {
+                    await trustedStore.DeleteAsync(thumbprint).ConfigureAwait(false);
+                }
+                m_trustedTestCaThumbprints.Clear();
+            }
         }
+
+        /// <summary>
+        /// OPC 10000-12 §7.10.5: the issuer of a certificate passed to
+        /// UpdateCertificate must already be in the TrustList of the
+        /// DefaultApplicationGroup. Trusts <paramref name="ca"/> for the
+        /// duration of the current test.
+        /// </summary>
+        private async Task TrustCaForTestAsync(Certificate ca)
+        {
+            using ICertificateStore trustedStore = new CertificateStoreIdentifier(
+                m_fixture.Config.SecurityConfiguration.TrustedPeerCertificates.StorePath!)
+                .OpenStore(s_telemetry);
+            using var publicCa = Certificate.FromRawData(ca.RawData);
+            await trustedStore.AddAsync(publicCa).ConfigureAwait(false);
+            m_trustedTestCaThumbprints.Add(ca.Thumbprint);
+        }
+
+        private readonly System.Collections.Generic.List<string> m_trustedTestCaThumbprints = [];
 
         [Test]
         public void GetRejectedListReturnsGoodForAdmin()
@@ -1647,6 +1677,7 @@ namespace Opc.Ua.Server.Tests
                 .SetCAConstraint(0)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
+            await TrustCaForTestAsync(issuer).ConfigureAwait(false);
             CreateSigningRequestMethodStateResult signingRequest = await m_configNode
                 .CreateSigningRequest.OnCallAsync(
                     context,
@@ -3063,6 +3094,11 @@ namespace Opc.Ua.Server.Tests
                     .FindByThumbprintAsync(issuerCa.Thumbprint).ConfigureAwait(false);
                 Assert.That(beforeMatches, Has.Count.EqualTo(0), "the fresh issuer CA must not already be trusted");
             }
+
+            // §7.10.5: the issuer must already be in the group's TrustList;
+            // it is trusted (not added to the issuer store) so the issuer
+            // store assertion below stays meaningful.
+            await TrustCaForTestAsync(issuerCa).ConfigureAwait(false);
 
             try
             {

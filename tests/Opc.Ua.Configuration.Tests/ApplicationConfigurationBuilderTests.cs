@@ -472,6 +472,10 @@ namespace Opc.Ua.Configuration.Tests
                 SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
                 Assert.That(secConfig.TrustedHttpsCertificates, Is.Not.Null);
                 Assert.That(secConfig.HttpsIssuerCertificates, Is.Not.Null);
+                // both stores live under the roots that were passed in (the
+                // trusted store used to be derived from the store type).
+                Assert.That(secConfig.TrustedHttpsCertificates.StorePath, Does.StartWith(httpsTrusted));
+                Assert.That(secConfig.HttpsIssuerCertificates.StorePath, Does.StartWith(httpsIssuer));
             }
         }
 

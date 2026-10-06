@@ -46,6 +46,14 @@
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
       </CertificateIdentifier>
+      <CertificateIdentifier>
+        <!-- The TLS certificate of the opc.https / opc.wss endpoints, managed
+             through the DefaultHttpsGroup (OPC 10000-12 §7.8.3). -->
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
+        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>Https</CertificateTypeString>
+      </CertificateIdentifier>
     </ApplicationCertificates>
     <!-- Where the other application certificates are stored -->
     <!-- Where the issuer certificate are stored (certificate authorities) -->
@@ -84,6 +92,16 @@
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/trustedUser</StorePath>
     </TrustedUserCertificates>
+    <!-- Where the Https issuer certificates are stored -->
+    <HttpsIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuerHttps</StorePath>
+    </HttpsIssuerCertificates>
+    <!-- Where the Https trust list (TLS client certificates) is stored -->
+    <TrustedHttpsCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC Foundation/pki/trustedHttps</StorePath>
+    </TrustedHttpsCertificates>
   </SecurityConfiguration>
   <TransportConfigurations></TransportConfigurations>
   <TransportQuotas>

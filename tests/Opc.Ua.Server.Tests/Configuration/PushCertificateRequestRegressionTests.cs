@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
+using X509ContentType = System.Security.Cryptography.X509Certificates.X509ContentType;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -81,6 +82,16 @@ namespace Opc.Ua.Server.Tests
             security.HttpsIssuerCertificates = new CertificateTrustList { StorePath = Path.Combine(m_path, "https-issuers") };
             security.TrustedHttpsCertificates = new CertificateTrustList { StorePath = Path.Combine(m_path, "https-trusted") };
             await m_fixture.StartAsync().ConfigureAwait(false);
+            // OPC 10000-12 §7.10.5: the issuer of a certificate passed to
+            // UpdateCertificate must already be in the group's TrustList.
+            m_trustedIssuer = CertificateBuilder.Create("CN=Push Request Regression Issuer")
+                .SetCAConstraint().CreateForRSA();
+            using (ICertificateStore trusted = new CertificateStoreIdentifier(security.TrustedPeerCertificates.StorePath!)
+                .OpenStore(m_fixture.Server.CurrentInstance.Telemetry))
+            using (var publicIssuer = Certificate.FromRawData(m_trustedIssuer.RawData))
+            {
+                await trusted.AddAsync(publicIssuer).ConfigureAwait(false);
+            }
             m_manager = (ConfigurationNodeManager)m_fixture.Server.CurrentInstance.ConfigurationNodeManager;
             m_node = m_manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
             m_context = CreateAdminContext();
@@ -93,6 +104,7 @@ namespace Opc.Ua.Server.Tests
         public async Task StopAsync()
         {
             await m_fixture.StopAsync().ConfigureAwait(false);
+            m_trustedIssuer?.Dispose();
             if (Directory.Exists(m_path))
             {
                 Directory.Delete(m_path, recursive: true);
@@ -221,8 +233,7 @@ namespace Opc.Ua.Server.Tests
             }
             await CancelPendingAsync().ConfigureAwait(false);
 
-            using Certificate issuer = CertificateBuilder.Create("CN=Pending Signing Regression Issuer")
-                .SetCAConstraint().CreateForRSA();
+            Certificate issuer = m_trustedIssuer;
             using Certificate signed = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                 m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
                 .SetIssuer(issuer)
@@ -245,6 +256,65 @@ namespace Opc.Ua.Server.Tests
             byte[] hash = new byte[32];
             byte[] signature = privateKey.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             Assert.That(publicKey.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.8.3: an HttpsCertificateType certificate belongs to
+        /// the DefaultHttpsGroup only; DefaultApplicationGroup lists the
+        /// ApplicationCertificateType subtypes.
+        /// </summary>
+        [Test]
+        public void HttpsCertificateTypeIsOnlyInTheDefaultHttpsGroup()
+        {
+            CertificateGroupState applicationGroup = m_manager.FindPredefinedNode<CertificateGroupState>(
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
+            CertificateGroupState httpsGroup = m_manager.FindPredefinedNode<CertificateGroupState>(
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup);
+
+            Assert.That(httpsGroup, Is.Not.Null, "Https stores are configured, so DefaultHttpsGroup is exposed");
+            Assert.That(httpsGroup.CertificateTypes.Value.ToArray(), Is.EqualTo(new[] { ObjectTypeIds.HttpsCertificateType }));
+            Assert.That(applicationGroup.CertificateTypes.Value.ToArray(), Does.Not.Contain(ObjectTypeIds.HttpsCertificateType));
+            Assert.That(applicationGroup.CertificateTypes.Value.ToArray(),
+                Does.Contain(ObjectTypeIds.RsaSha256ApplicationCertificateType));
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.10.5 / OPC 10000-4 Table 100: a certificate whose
+        /// issuer is not in the TrustList of the group cannot form a chain and is
+        /// rejected; IssuerCertificates passed with the call do not help because
+        /// the Server ignores them for an ApplicationCertificateType group.
+        /// </summary>
+        [Test]
+        public async Task UpdateCertificateRejectsCertificateOfUnknownIssuerAsync()
+        {
+            NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+            NodeId type = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            using CertificateEntry active = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(type);
+            string[] domains = [.. X509Utils.GetDomainsFromCertificate(active.Certificate)];
+            using Certificate unknownIssuer = CertificateBuilder.Create("CN=Push Unknown Issuer")
+                .SetCAConstraint().CreateForRSA();
+            using Certificate untrusted = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
+                .SetIssuer(unknownIssuer)
+                .CreateForRSA();
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_node.UpdateCertificate.OnCallAsync(
+                    m_context, m_node.UpdateCertificate, m_node.NodeId,
+                    group, type, new ByteString(untrusted.RawData), [new ByteString(unknownIssuer.RawData)],
+                    "PFX", new ByteString(untrusted.Export(X509ContentType.Pfx)), CancellationToken.None).AsTask());
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
+
+            // The same request signed by the trusted issuer is accepted.
+            using Certificate trusted = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject, domains)
+                .SetIssuer(m_trustedIssuer)
+                .CreateForRSA();
+            UpdateCertificateMethodStateResult accepted = await m_node.UpdateCertificate.OnCallAsync(
+                m_context, m_node.UpdateCertificate, m_node.NodeId,
+                group, type, new ByteString(trusted.RawData), [],
+                "PFX", new ByteString(trusted.Export(X509ContentType.Pfx)), CancellationToken.None).ConfigureAwait(false);
+            Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         /// <summary>
@@ -276,8 +346,7 @@ namespace Opc.Ua.Server.Tests
                     group, type, active.Certificate.Subject, true, new ByteString(nonce), CancellationToken.None)
                     .ConfigureAwait(false);
                 var request = new Pkcs10CertificationRequest(created.CertificateRequest.ToArray());
-                using Certificate issuer = CertificateBuilder.Create("CN=Cancellation Signing Regression Issuer")
-                    .SetCAConstraint().CreateForRSA();
+                Certificate issuer = m_trustedIssuer;
                 using Certificate signed = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                     m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject,
                     X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
@@ -569,8 +638,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             var request = new Pkcs10CertificationRequest(result.CertificateRequest.ToArray());
             Assert.That(request.Verify(), Is.True);
-            using Certificate issuer = CertificateBuilder.Create("CN=Transaction Test Issuer")
-                .SetCAConstraint().CreateForRSA();
+            Certificate issuer = m_trustedIssuer;
             return DefaultCertificateFactory.Instance.CreateApplicationCertificate(
                 m_fixture.Config.ApplicationUri, m_fixture.Config.ApplicationName, active.Certificate.Subject,
                 X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
@@ -759,6 +827,11 @@ namespace Opc.Ua.Server.Tests
         /// Hosts the reference server with certificate slots exercised by the requests.
         /// </summary>
         private ServerFixture<ReferenceServer> m_fixture;
+
+        /// <summary>
+        /// The CA that signs pushed certificates; it is in the trusted store.
+        /// </summary>
+        private Certificate m_trustedIssuer;
 
         /// <summary>
         /// Coordinates certificate installation and exposes the pending-key store used by the server.

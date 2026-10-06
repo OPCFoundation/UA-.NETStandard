@@ -330,6 +330,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Determines whether the certificate is an X.509 version 3
+        /// certificate, the only version OPC 10000-6 §6.2.2 permits.
+        /// </summary>
+        public static bool IsX509Version3(Certificate certificate)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
+            using X509Certificate2 x509 = certificate.AsX509Certificate2();
+            return x509.Version >= 3;
+        }
+
+        /// <summary>
         /// Return the key usage flags of a certificate.
         /// </summary>
         public static X509KeyUsageFlags GetKeyUsage(Certificate cert)
