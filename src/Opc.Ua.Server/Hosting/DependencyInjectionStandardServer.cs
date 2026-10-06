@@ -296,6 +296,17 @@ namespace Opc.Ua.Server.Hosting
             return options;
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// <see cref="ServerState.NoConfiguration"/> when the registered
+        /// <see cref="ServerConfigurationOptions.InApplicationSetup"/> is
+        /// <see langword="true"/> (OPC 10000-12 Annex G.2).
+        /// </remarks>
+        protected override ServerState StartupServerState =>
+            ResolveServerConfigurationOptions(m_services)?.InApplicationSetup == true
+                ? ServerState.NoConfiguration
+                : base.StartupServerState;
+
         private readonly IServiceProvider m_services;
     }
 }

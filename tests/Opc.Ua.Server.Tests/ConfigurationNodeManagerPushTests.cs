@@ -1449,6 +1449,30 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void UpdateCertificateWithVersion1CertificateThrowsBadCertificateInvalid()
+        {
+            // OPC 10000-6 §6.2.2: application certificates are X.509 v3.
+            ISystemContext context = CreateAdminContext();
+            byte[] version1 = PushComplianceRegressionTests.CreateVersion1Certificate("CN=Update Version 1");
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_configNode.UpdateCertificate.OnCallAsync(
+                        context,
+                        m_configNode.UpdateCertificate,
+                        m_configNode.NodeId,
+                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        ByteString.From(version1),
+                        [],
+                        null,
+                        ByteString.Empty,
+                        CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+        }
+
+        [Test]
         public void UpdateCertificateNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();

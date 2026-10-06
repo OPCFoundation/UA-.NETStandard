@@ -262,6 +262,26 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// OPC 10000-12 §7.8.3: an HttpsCertificateType certificate belongs to
+        /// the DefaultHttpsGroup only; DefaultApplicationGroup lists the
+        /// ApplicationCertificateType subtypes.
+        /// </summary>
+        [Test]
+        public void HttpsCertificateTypeIsOnlyInTheDefaultHttpsGroup()
+        {
+            CertificateGroupState applicationGroup = m_manager.FindPredefinedNode<CertificateGroupState>(
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
+            CertificateGroupState httpsGroup = m_manager.FindPredefinedNode<CertificateGroupState>(
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup);
+
+            Assert.That(httpsGroup, Is.Not.Null, "Https stores are configured, so DefaultHttpsGroup is exposed");
+            Assert.That(httpsGroup.CertificateTypes.Value.ToArray(), Is.EqualTo(new[] { ObjectTypeIds.HttpsCertificateType }));
+            Assert.That(applicationGroup.CertificateTypes.Value.ToArray(), Does.Not.Contain(ObjectTypeIds.HttpsCertificateType));
+            Assert.That(applicationGroup.CertificateTypes.Value.ToArray(),
+                Does.Contain(ObjectTypeIds.RsaSha256ApplicationCertificateType));
+        }
+
+        /// <summary>
         /// Verifies that cancellation after the commit claim restores the key without overwriting a newer request.
         /// </summary>
         [Test]
@@ -771,6 +791,7 @@ namespace Opc.Ua.Server.Tests
         /// Hosts the reference server with certificate slots exercised by the requests.
         /// </summary>
         private ServerFixture<ReferenceServer> m_fixture;
+
 
         /// <summary>
         /// Coordinates certificate installation and exposes the pending-key store used by the server.
