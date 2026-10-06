@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,6 +55,7 @@ namespace Opc.Ua.Server.Tests
     {
         private const string kGoodAccessToken = "good.jwt.token";
         private static readonly string[] s_engineerRoles = ["Engineer"];
+        private static readonly byte[] s_clientCertificate = [1, 2, 3, 4];
 
         private Mock<IServerInternal> m_serverMock = null!;
         private ITelemetryContext m_telemetry = null!;
@@ -77,7 +79,8 @@ namespace Opc.Ua.Server.Tests
                     MaxSessionCount = 100,
                     MaxRequestAge = 60_000,
                     MaxBrowseContinuationPoints = 10,
-                    MaxHistoryContinuationPoints = 10
+                    MaxHistoryContinuationPoints = 10,
+                    HttpsMutualTls = false
                 }
             };
         }
@@ -186,6 +189,158 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
             Assert.That(context.Session, Is.Null);
+        }
+
+        [Test]
+        public async Task AnAnonymousRequestOnASecureChannelNeedsTheClientCertificateOfTheChannelAsync(
+            [Values(MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt)] MessageSecurityMode securityMode)
+        {
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ValidateAsync(manager, CreateTcpChannel(securityMode), NodeId.Null)
+                    .ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+
+            // the SecureChannel of opc.tcp carries the certificate it authenticated.
+            OperationContext context = await ValidateAsync(
+                manager,
+                CreateTcpChannel(securityMode, s_clientCertificate),
+                NodeId.Null).ConfigureAwait(false);
+            Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+        }
+
+        [Test]
+        public async Task AnAnonymousRequestOnAnUnsecuredTcpEndpointNeedsNoClientCertificateAsync()
+        {
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            OperationContext context = await ValidateAsync(
+                manager,
+                CreateTcpChannel(MessageSecurityMode.None),
+                NodeId.Null).ConfigureAwait(false);
+
+            Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+        }
+
+        [Test]
+        public async Task AnAnonymousRequestOverHttpsWithMutualTlsNeedsTheTlsClientCertificateAsync(
+            [Values] bool secureEndpoint)
+        {
+            m_config.ServerConfiguration!.HttpsMutualTls = true;
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ValidateAsync(
+                    manager,
+                    CreateHttpsChannel(secureEndpoint),
+                    NodeId.Null).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+
+            OperationContext context = await ValidateAsync(
+                manager,
+                CreateHttpsChannel(secureEndpoint, s_clientCertificate),
+                NodeId.Null).ConfigureAwait(false);
+            Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+        }
+
+        [Test]
+        public async Task AnAnonymousRequestOverHttpsWithoutMutualTlsNeedsNoCertificateOnAnUnsecuredEndpointAsync()
+        {
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            OperationContext context = await ValidateAsync(manager, CreateHttpsChannel(), NodeId.Null)
+                .ConfigureAwait(false);
+            Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+
+            // an endpoint that uses security asks for the certificate whatever the HTTPS setting.
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ValidateAsync(
+                    manager,
+                    CreateHttpsChannel(secureEndpoint: true),
+                    NodeId.Null).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public async Task AnAnonymousRequestNeedsAnAnonymousUserTokenPolicyOfTheEndpointAsync()
+        {
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            // an endpoint without user token policies does not restrict.
+            OperationContext context = await ValidateAsync(manager, CreateHttpsChannel(), NodeId.Null)
+                .ConfigureAwait(false);
+            Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+
+            context = await ValidateAsync(
+                manager,
+                CreateHttpsChannel(userTokenTypes: [UserTokenType.UserName, UserTokenType.Anonymous]),
+                NodeId.Null).ConfigureAwait(false);
+            Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ValidateAsync(
+                    manager,
+                    CreateHttpsChannel(userTokenTypes: [UserTokenType.UserName, UserTokenType.IssuedToken]),
+                    NodeId.Null).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
+        public void AnAnonymousRequestOnAnUnknownEndpointIsRejected()
+        {
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ValidateAsync(
+                    manager,
+                    new SecureChannelContext("unknown", endpointDescription: null, RequestEncoding.Binary),
+                    NodeId.Null).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
+        }
+
+        [Test]
+        public async Task AnAccessTokenAndAHandlerNeedNoClientCertificateAsync()
+        {
+            m_config.ServerConfiguration!.HttpsMutualTls = true;
+            IUserIdentity issued = CreateUserNameIdentity("token-user");
+            UseJwtAuthenticator(issued);
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            OperationContext context = await ValidateAsync(
+                manager,
+                CreateHttpsChannel(secureEndpoint: true),
+                new NodeId(kGoodAccessToken, 0)).ConfigureAwait(false);
+            Assert.That(context.UserIdentity, Is.SameAs(issued));
+
+            // a handler decides on its own.
+            IUserIdentity handlerIdentity = CreateUserNameIdentity("handler-user");
+            manager.ValidateSessionLessRequest += (_, args) => args.Identity = handlerIdentity;
+            context = await ValidateAsync(manager, CreateHttpsChannel(secureEndpoint: true), NodeId.Null)
+                .ConfigureAwait(false);
+            Assert.That(context.UserIdentity, Is.SameAs(handlerIdentity));
         }
 
         [Test]
@@ -529,18 +684,31 @@ namespace Opc.Ua.Server.Tests
             return roleManager;
         }
 
-        private static SecureChannelContext CreateHttpsChannel()
+        private static SecureChannelContext CreateHttpsChannel(
+            bool secureEndpoint = false,
+            byte[]? clientCertificate = null,
+            UserTokenType[]? userTokenTypes = null)
         {
             var endpoint = new EndpointDescription
             {
                 EndpointUrl = "https://localhost:4843/",
-                SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None
+                SecurityMode = secureEndpoint ? MessageSecurityMode.SignAndEncrypt : MessageSecurityMode.None,
+                SecurityPolicyUri = secureEndpoint ? SecurityPolicies.Basic256Sha256 : SecurityPolicies.None,
+                UserIdentityTokens = userTokenTypes == null
+                    ? default
+                    : new ArrayOf<UserTokenPolicy>(
+                        userTokenTypes.Select(t => new UserTokenPolicy(t)).ToArray().AsMemory())
             };
-            return new SecureChannelContext("rest", endpoint, RequestEncoding.Json);
+            return new SecureChannelContext(
+                "rest",
+                endpoint,
+                RequestEncoding.Json,
+                clientChannelCertificate: clientCertificate);
         }
 
-        private static SecureChannelContext CreateTcpChannel(MessageSecurityMode securityMode)
+        private static SecureChannelContext CreateTcpChannel(
+            MessageSecurityMode securityMode,
+            byte[]? clientCertificate = null)
         {
             var endpoint = new EndpointDescription
             {
@@ -550,7 +718,11 @@ namespace Opc.Ua.Server.Tests
                     ? SecurityPolicies.None
                     : SecurityPolicies.Basic256Sha256
             };
-            return new SecureChannelContext("tcp", endpoint, RequestEncoding.Binary);
+            return new SecureChannelContext(
+                "tcp",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: clientCertificate);
         }
 
         private static IUserIdentity CreateUserNameIdentity(string userName)
