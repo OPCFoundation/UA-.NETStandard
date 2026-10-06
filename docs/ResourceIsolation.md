@@ -36,6 +36,7 @@ instances. A host can instead supply an `IServerResourceIsolationProvider`.
   - [What happens when a limit is reached](#what-happens-when-a-limit-is-reached)
   - [Configuring request and caller limits](#configuring-request-and-caller-limits)
   - [Memory for clients that already have a Session](#memory-for-clients-that-already-have-a-session)
+  - [Requests without a Session](#requests-without-a-session)
 - [Trust, anonymous clients and NAT](#trust-anonymous-clients-and-nat)
   - [Before a caller is authenticated](#before-a-caller-is-authenticated)
   - [After application or Session authentication](#after-application-or-session-authentication)
@@ -638,6 +639,16 @@ implements `IResourceIsolationReassemblyProvider` can replace that rule with
 its own classification policy, independently of `UseFairScheduling`. The
 shared budget still enforces its total-byte limit. A provider without that capability keeps the
 occupancy rule, even if it enables fair request scheduling.
+
+### Requests without a Session
+
+A request that names no Session ([Session-less invocation](SessionlessInvocation.md),
+OPC 10000-4 §6.3) is not charged to a Session. It uses the same queue and
+execution stages as other requests, and `AddSessionlessInvocation` adds a
+budget of its own: the number of such requests that run at the same time on the
+server and on one channel. A request over the budget receives
+`BadServerTooBusy`. See
+[Limiting concurrent requests](SessionlessInvocation.md#limiting-concurrent-requests).
 
 ## Trust, anonymous clients and NAT
 

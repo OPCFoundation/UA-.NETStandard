@@ -364,7 +364,14 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+                try
+                {
+                    System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+                }
+                finally
+                {
+                    System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                }
             }
         }
 
@@ -378,7 +385,18 @@ namespace Opc.Ua.Server
             m_requestScope = requestScope;
         }
 
+        /// <summary>
+        /// Attaches the capacity a Session-less request holds in the Session-less request budget, so
+        /// that disposing the context returns it however the request ends.
+        /// </summary>
+        /// <param name="lease">The lease to dispose with the context.</param>
+        internal void AttachSessionlessLease(IDisposable lease)
+        {
+            m_sessionlessLease = lease;
+        }
+
         private IDisposable? m_requestScope;
+        private IDisposable? m_sessionlessLease;
         private static uint s_lastRequestId;
     }
 }

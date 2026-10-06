@@ -34,6 +34,7 @@ using System.Net;
 using System.Net.Security;
 using System.Net.WebSockets;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -1620,15 +1621,30 @@ namespace Opc.Ua.Bindings
         /// listener, including the middleware contributors, which may be
         /// assigned after the listener was opened.
         /// </summary>
-        private string GetSharedHostSettings()
+        /// <remarks>
+        /// Contributors are identified by instance, not only by type: the
+        /// shared host registers services from the first listener's
+        /// contributors only, so a listener whose contributor instance
+        /// carries different services (for example the REST
+        /// authentication of another application container) must not
+        /// reuse that host.
+        /// </remarks>
+        internal string GetSharedHostSettings()
         {
             var contributors = new List<string>(StartupContributors.Count);
             foreach (IHttpsListenerStartupContributor contributor in StartupContributors)
             {
-                contributors.Add(contributor.GetType().FullName ?? contributor.GetType().Name);
+                string id = s_contributorIds.GetValue(
+                    contributor,
+                    static _ => Interlocked.Increment(ref s_nextContributorId)
+                        .ToString(CultureInfo.InvariantCulture));
+                contributors.Add((contributor.GetType().FullName ?? contributor.GetType().Name) + "#" + id);
             }
             return m_sharedHostSettings + ";contributors=" + string.Join(",", contributors);
         }
+
+        private static readonly ConditionalWeakTable<IHttpsListenerStartupContributor, string> s_contributorIds = new();
+        private static long s_nextContributorId;
 
         /// <summary>
         /// Starts a dedicated host when no compatible shared host can serve the listener.

@@ -60,7 +60,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class RealHttpsListenerIntegrationTests
+    public sealed partial class RealHttpsListenerIntegrationTests
     {
         private static readonly MethodInfo s_decodeBodyMethod = typeof(WebApiBodyCodec)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -778,7 +778,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
         private static TransportListenerSettings CreateListenerSettings(
             ICertificateRegistry certificateRegistry,
-            int port)
+            int port,
+            bool mutualTls = false)
         {
             var endpoint = new EndpointDescription
             {
@@ -813,7 +814,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 CertificateValidator = new AcceptAllCertificateValidator(),
                 NamespaceUris = new NamespaceTable(),
                 Factory = ServiceMessageContext.Create(new TestTelemetryContext()).Factory,
-                HttpsMutualTls = false
+                HttpsMutualTls = mutualTls
             };
         }
 

@@ -133,6 +133,12 @@ namespace Opc.Ua.Server
                         errors[ii] = StatusCodes.BadMethodInvalid;
                         continue;
                     }
+                    // Part 3 §8.55 Call: required on the Object and on the Method.
+                    errors[ii] = ValidateRolePermissions(context, request.ObjectId, PermissionType.Call);
+                    if (ServiceResult.IsBad(errors[ii]))
+                    {
+                        continue;
+                    }
                     errors[ii] = ValidateRolePermissions(context, method.NodeId, PermissionType.Call);
                     if (ServiceResult.IsBad(errors[ii]))
                     {

@@ -613,6 +613,55 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Is.EqualTo(TypeInfo.Create(BuiltInType.Variant, ValueRanks.OneOrMoreDimensions)));
         }
 
+        [Test]
+        public void XmlExtensionObjectBodyOfDynamicStructureUsesDataTypeName()
+        {
+            // Part 6 5.3.1.16: the Body element of an XML ExtensionObject is
+            // named after the data type, not after the CLR class that holds it.
+            ServiceMessageContext context = CreateContext();
+            var definition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields = [CreateField("Value", DataTypeIds.Int32, ValueRanks.Scalar)]
+            };
+            var input = new Structure(
+                new XmlQualifiedName("Subtyped", kCompanionNs),
+                new ExpandedNodeId(77910u),
+                new ExpandedNodeId(77911u),
+                new ExpandedNodeId(77912u),
+                definition,
+                new Dictionary<string, BuiltInType> { ["Value"] = BuiltInType.Int32 });
+            input["Value"] = new Variant(42);
+            context.Factory.Builder.AddEncodeableType(input).Commit();
+
+            string xml = EncodeXml(
+                context,
+                encoder => encoder.WriteExtensionObject("F", new ExtensionObject(input)));
+
+            var document = new XmlDocument { XmlResolver = null };
+            using (var reader = XmlReader.Create(
+                new StringReader(xml),
+                CoreUtils.DefaultXmlReaderSettings()))
+            {
+                document.Load(reader);
+            }
+            XmlNodeList bodies = document.GetElementsByTagName("Body", kNs);
+            Assert.That(bodies, Has.Count.EqualTo(1));
+            XmlNode body = bodies[0]!.FirstChild;
+            Assert.That(body, Is.Not.Null);
+            Assert.That(body.NodeType, Is.EqualTo(XmlNodeType.Element));
+            Assert.That(body.LocalName, Is.EqualTo("Subtyped"));
+            Assert.That(body.NamespaceURI, Is.EqualTo(kCompanionNs));
+
+            using XmlDecoder decoder = CreateXmlDecoder(xml, context);
+            decoder.PushNamespace(kNs);
+            ExtensionObject value = decoder.ReadExtensionObject("F");
+            Assert.That(value.TryGetValue(out IEncodeable decoded), Is.True);
+            Assert.That(decoded, Is.InstanceOf<Structure>());
+            Assert.That(((Structure)decoded)["Value"], Is.EqualTo(new Variant(42)));
+        }
+
         private static Structure RoundTrip(
             ServiceMessageContext context,
             Structure input,

@@ -2512,6 +2512,15 @@ namespace Opc.Ua
                     return xmlName;
                 }
             }
+            // Instances that describe their own data type (e.g. the dynamic
+            // Encoders.Structure or OptionSet) carry the data type's xml name.
+            // The CLR type name would be the same for every such data type.
+            if (value is IEncodeableType selfDescribing &&
+                selfDescribing.XmlName != null &&
+                !selfDescribing.XmlName.IsEmpty)
+            {
+                return selfDescribing.XmlName;
+            }
             return GetXmlName(value?.GetType());
         }
 

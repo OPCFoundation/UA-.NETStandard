@@ -301,7 +301,12 @@ Assumes the client or server path.
 - [Transports](Transports.md) — UA-TCP, HTTPS, and WebSocket transports.
 - [REST binding](WebApi.md) — OpenAPI mapping, encoding negotiation, and HTTP
   authentication.
+- [OPC UA over OpenAPI](OpenApi.md) — serve the OpenAPI document the stack
+  generates from its REST routes and call the server from generated REST
+  clients.
 - [Reverse Connect](ReverseConnect.md) — server-initiated connections.
+- [Session-less invocation](SessionlessInvocation.md) — let clients call
+  Read, Browse, Call and the other §6.3 Services without a Session.
 - [PubSub external-server adapter](PubSub.md#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
   — bind PubSub to an OPC UA server through a managed client session. Assumes
   the client and PubSub paths.

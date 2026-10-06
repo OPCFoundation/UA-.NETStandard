@@ -14,6 +14,7 @@ mounted on the same Kestrel host as the binary and
 
 - [Quick start](#quick-start)
 - [Routes (full coverage)](#routes-full-coverage)
+- [Service sets and the OpenAPI document](#service-sets-and-the-openapi-document)
 - [Encoding negotiation](#encoding-negotiation)
 - [Discovery](#discovery)
 - [Wire format](#wire-format)
@@ -24,7 +25,6 @@ mounted on the same Kestrel host as the binary and
 - [Client integration](#client-integration)
 - [Client errors](#client-errors)
 - [Compressed responses](#compressed-responses)
-- [Related plans and follow-ups](#related-plans-and-follow-ups)
 
 - **Server side**: ASP.NET Core Minimal-API endpoints (one `MapPost`
   per spec service) — **NativeAOT-compatible**; no MVC reflection, no
@@ -73,7 +73,7 @@ Verbose JSON flavour.
 ## Routes (full coverage)
 
 The binding implements every service in the spec's
-[`opc.ua.openapi.allservices.json`](https://github.com/OPCFoundation/UA-Nodeset/blob/latest/Schema/opc.ua.openapi.allservices.json)
+[`opc.ua.openapi.allservices.json`](https://github.com/OPCFoundation/UA-Nodeset/blob/latest/OpenApi/opc.ua.openapi.allservices.json)
 document — 28 services across the Discovery, Session, View, Attribute,
 Method, MonitoredItem, and Subscription service sets. NodeManagement
 (Part 4 §5.8) and Query (§5.10) are **not in scope** — the spec
@@ -93,6 +93,57 @@ All routes are `POST` with a JSON body holding the matching
 `<Service>Request`; the response body is the matching
 `<Service>Response`. The route table is the source of truth — see
 `WebApiServiceRoutes` in `src/Opc.Ua.Core/Stack/WebApi/`.
+
+## Service sets and the OpenAPI document
+
+`WebApiTransportOptions.ServiceSet` selects the services the binding maps:
+
+| `WebApiServiceSet` | Routes |
+| --- | --- |
+| `AllServices` (default) | all 28 |
+| `Sessionless` | `/read`, `/write`, `/historyread`, `/historyupdate`, `/call`, `/browse`, `/browsenext`, `/translate` (the services a client can call without a session, OPC 10000-4 §6.3) |
+
+`Sessionless` leaves discovery and session management to the binary and
+`opcua+uajson` endpoints of the same listener.
+
+The binding can describe the routes it maps as an OpenAPI 3.0 document. The
+route is **off by default**; set `OpenApiDocumentPath` to serve the document
+of the selected service set with `GET`. The route belongs to the REST
+routes and requires the same authentication and authorization as they do
+(only `/findservers` and `/getendpoints` are anonymous).
+
+```csharp
+services.AddOpcUa()
+    .AddHttpsTransport()
+    .AddWebApiTransport(opt =>
+    {
+        opt.ServiceSet = WebApiServiceSet.Sessionless;
+        opt.OpenApiDocumentPath = "/openapi.json";  // default null: not served
+        opt.OpenApiIncludeSchemas = true;           // default false
+    });
+```
+
+The document is **generated from the code**, not copied from the
+publication: `WebApiOpenApiGenerator` (package `Opc.Ua.Core.Schema`) builds
+it from `WebApiServiceRoutes` and the structure definitions of the request
+and response types, so it describes what the binding actually accepts and
+sends. Without `OpenApiIncludeSchemas` each body is a JSON object and the
+document is about 12 KB; with it the document has one component schema per
+request, response and contained structure and enumeration (about 46 KB for
+all services) and is what an OpenAPI client generator needs to emit typed
+models. A conformance test compares the generated document with the ones
+the OPC Foundation publishes in
+[`UA-Nodeset/OpenApi`](https://github.com/OPCFoundation/UA-Nodeset/tree/latest/OpenApi);
+the one difference in the contract is the status field of a DataValue
+(`Status` per Part 6 Table 42, `StatusCode` in the publication,
+[UA-Nodeset#146](https://github.com/OPCFoundation/UA-Nodeset/issues/146)).
+
+Hosts that compose their own pipeline call
+`endpoints.MapWebApiEndpoints(options)`; the document route joins the
+returned group, so `group.RequireAuthorization()` covers it as well. The
+[OPC UA over OpenAPI](OpenApi.md) guide covers generating clients, the JSON
+generated clients send, their known issues and how the document is kept
+correct.
 
 ## Encoding negotiation
 
@@ -386,10 +437,3 @@ A gzip response is inflated whether it was asked for or not. The
 is `Bad_DecodingError`, and a content coding other than gzip or identity
 is rejected with `Bad_DecodingError`. The HTTPS binary channel reads its
 responses through the same code.
-
-## Related plans and follow-ups
-
-- **Source-generated OpenAPI document** (deferred) — the spec's
-  `opc.ua.openapi.allservices.json` document and a runtime `/openapi/v1.json`
-  endpoint will land in a future PR; the current binding produces
-  spec-shaped JSON bodies without needing the document itself.

@@ -147,6 +147,7 @@ namespace Quickstarts.ReferenceServer
                 // through the fluent builder in Configure().
                 RegisterSimulationVariables();
                 InitializeMissingStaticValues();
+                EnableStatusAndTimestampWrites();
 
                 // Reset the random generator and generate boundary values so the
                 // fluent simulation loop (registered in Configure and started
@@ -197,6 +198,36 @@ namespace Quickstarts.ReferenceServer
                     !string.Equals(identifier, SimulationEnabledNodeName, StringComparison.Ordinal))
                 {
                     m_dynamicNodes.Add(variable);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The reference server accepts a StatusCode and SourceTimestamp written
+        /// together with the Value on every writable data variable (CTT conformance
+        /// units "Attribute Write StatusCode &amp; Timestamp" and Data Access
+        /// PercentDeadband). OPC 10000-3 §8.57 requires the StatusWrite and
+        /// TimestampWrite AccessLevel bits for that, so they are added wherever
+        /// CurrentWrite is granted. The NodeSet2 model only carries the basic bits.
+        /// </summary>
+        private void EnableStatusAndTimestampWrites()
+        {
+            const byte statusAndTimestampWrite = (byte)(AccessLevels.StatusWrite | AccessLevels.TimestampWrite);
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is not BaseDataVariableState variable)
+                {
+                    continue;
+                }
+
+                if ((variable.AccessLevel & AccessLevels.CurrentWrite) != 0)
+                {
+                    variable.AccessLevel |= statusAndTimestampWrite;
+                }
+
+                if ((variable.UserAccessLevel & AccessLevels.CurrentWrite) != 0)
+                {
+                    variable.UserAccessLevel |= statusAndTimestampWrite;
                 }
             }
         }

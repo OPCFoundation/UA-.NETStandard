@@ -71,6 +71,19 @@ namespace Opc.Ua.Aot.Tests
         }
 
         [Test]
+        public async Task OpenApiDocumentIsGeneratedAndServedAsync()
+        {
+            using HttpResponseMessage raw = await fixture.HttpClient
+                .GetAsync(new Uri("/openapi.json", UriKind.Relative))
+                .ConfigureAwait(false);
+
+            await Assert.That(raw.StatusCode).IsEqualTo(HttpStatusCode.OK);
+            string document = await raw.Content.ReadAsStringAsync().ConfigureAwait(false);
+            await Assert.That(document).Contains("\"operationId\":\"Read\"");
+            await Assert.That(document).Contains("\"ReadRequest\":{");
+        }
+
+        [Test]
         public async Task BrowseEndpointRoundTripsAsync()
         {
             var request = new BrowseRequest

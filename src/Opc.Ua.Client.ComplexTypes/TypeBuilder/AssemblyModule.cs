@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
@@ -70,8 +72,33 @@ namespace Opc.Ua.Client.ComplexTypes
             return m_assemblyBuilder.GetTypes();
         }
 
+        /// <summary>
+        /// Register a type that is created without Reflection.Emit,
+        /// e.g. a Structure-backed OptionSet sub-type.
+        /// </summary>
+        internal void AddRuntimeType(IType type)
+        {
+            lock (m_runtimeTypesLock)
+            {
+                m_runtimeTypes.Add(type);
+            }
+        }
+
+        /// <summary>
+        /// Get the types created without Reflection.Emit.
+        /// </summary>
+        internal IReadOnlyList<IType> GetRuntimeTypes()
+        {
+            lock (m_runtimeTypesLock)
+            {
+                return [.. m_runtimeTypes];
+            }
+        }
+
         private readonly AssemblyBuilder m_assemblyBuilder;
         private readonly ModuleBuilder m_moduleBuilder;
+        private readonly List<IType> m_runtimeTypes = [];
+        private readonly Lock m_runtimeTypesLock = new();
         private const string kOpcTypesModuleName = "Opc.Ua.ComplexTypes.Module";
     }
 }

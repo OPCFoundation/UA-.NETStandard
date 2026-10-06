@@ -38,6 +38,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
+using Opc.Ua.Bindings.WebApi;
 using Opc.Ua.Bindings.WebApi.Authentication;
 using TUnit.Core.Interfaces;
 
@@ -109,7 +110,11 @@ namespace Opc.Ua.Aot.Tests
                     {
                         app.UseRouting();
                         app.UseAuthentication();
-                        app.UseEndpoints(e => e.MapWebApiEndpoints());
+                        app.UseEndpoints(e => e.MapWebApiEndpoints(new WebApiTransportOptions
+                        {
+                            OpenApiDocumentPath = "/openapi.json",
+                            OpenApiIncludeSchemas = true
+                        }));
                     });
                 });
 

@@ -297,8 +297,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dv = new DataValue(
                 new Variant(99.5),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -322,8 +321,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dv = new DataValue(
                 new Variant(99.5),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -359,8 +357,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dv = new DataValue(
                 Variant.From(s_slice),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Parse("1:2"), dv).ConfigureAwait(false);
@@ -382,8 +379,13 @@ namespace Opc.Ua.Types.Tests.State
                 DisplayName = new LocalizedText("ArrNoCache"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.OneDimension,
-                AccessLevel = AccessLevels.CurrentReadOrWrite,
-                UserAccessLevel = AccessLevels.CurrentReadOrWrite
+                // the write carries a status code and a source timestamp (Part 3 8.57).
+                AccessLevel = (byte)(AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite),
+                UserAccessLevel = (byte)(AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.StatusWrite |
+                    AccessLevels.TimestampWrite)
             };
 
             // the handler owns the data; the cached value was never assigned.
@@ -425,8 +427,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dv = new DataValue(
                 new Variant(11.0),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -446,8 +447,7 @@ namespace Opc.Ua.Types.Tests.State
             var range = NumericRange.Parse("0:3");
             var dv = new DataValue(
                 new Variant(11.0),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, range, dv).ConfigureAwait(false);
@@ -507,8 +507,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dv = new DataValue(
                 new Variant(2.0),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -574,8 +573,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var dv = new DataValue(
                 new Variant(2.0),
-                StatusCodes.Good,
-                DateTimeUtc.Now);
+                StatusCodes.Good);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);

@@ -743,7 +743,7 @@ namespace Opc.Ua
                 return localizedText;
             }
 
-            // TODO: Match case insensitive
+            // Locale ids are matched case-insensitively (RFC 5646 language tags).
 
             // Handle if mul or qst are requested as per Part 4 rules
             // A null or empty locale id means "unknown" (Part 3 8.4) and is
@@ -752,7 +752,8 @@ namespace Opc.Ua
             {
                 // If there are no further entries, return all languages available.
                 // If there are more languages included after ‘mul’ or ‘qst’, return
-                // only those languages from that list.
+                // only those languages from that list. A requested locale without
+                // a translation is served by another region of the same language.
                 if (preferredLocales.Count > 1 && Translations != null)
                 {
                     var filtered = new Dictionary<string, string>();
@@ -760,9 +761,10 @@ namespace Opc.Ua
                     {
                         string requested = preferredLocales[i];
                         if (!string.IsNullOrEmpty(requested) &&
-                            Translations.TryGetValue(requested, out string? t))
+                            (TryGetTranslation(requested, out string? key, out string? t) ||
+                                TryGetLanguageTranslation(requested, out key, out t)))
                         {
-                            filtered[requested] = t;
+                            filtered[key!] = t!;
                         }
                     }
                     if (filtered.Count > 0)
@@ -783,33 +785,81 @@ namespace Opc.Ua
             foreach (string locale in preferredLocales)
             {
                 if (!string.IsNullOrEmpty(locale) &&
-                    Translations.TryGetValue(locale, out string? text))
+                    TryGetTranslation(locale, out string? key, out string? text))
                 {
-                    return new LocalizedText(locale, text, this);
+                    return new LocalizedText(key, text, this);
                 }
             }
 
             // Match language only e.g. en matches en-US and en-GB
             foreach (string locale in preferredLocales)
             {
-                if (string.IsNullOrEmpty(locale))
+                if (!string.IsNullOrEmpty(locale) &&
+                    TryGetLanguageTranslation(locale, out string? key, out string? text))
                 {
-                    continue;
-                }
-                string language = locale.Split('-')[0];
-                foreach (KeyValuePair<string, string> kvp in Translations)
-                {
-                    if (kvp.Key.StartsWith(language + "-", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(kvp.Key, language, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return new LocalizedText(kvp.Key, kvp.Value, this);
-                    }
+                    return new LocalizedText(key, text, this);
                 }
             }
 
             // Return the first entry instead
             KeyValuePair<string, string> first = Translations.First();
             return new LocalizedText(first.Key, first.Value, this);
+        }
+
+        /// <summary>
+        /// Finds the translation for the locale, compared case-insensitively
+        /// (RFC 5646). Returns the locale as stored.
+        /// </summary>
+        private bool TryGetTranslation(string locale, out string? key, out string? text)
+        {
+            if (Translations != null)
+            {
+                if (Translations.TryGetValue(locale, out text))
+                {
+                    key = locale;
+                    return true;
+                }
+                foreach (KeyValuePair<string, string> kvp in Translations)
+                {
+                    if (string.Equals(kvp.Key, locale, StringComparison.OrdinalIgnoreCase))
+                    {
+                        key = kvp.Key;
+                        text = kvp.Value;
+                        return true;
+                    }
+                }
+            }
+            key = null;
+            text = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Finds a translation in the language of the locale, ignoring the region,
+        /// e.g. en matches en-US and en-GB.
+        /// </summary>
+        private bool TryGetLanguageTranslation(string locale, out string? key, out string? text)
+        {
+            if (Translations != null)
+            {
+                int index = locale.IndexOf('-', StringComparison.Ordinal);
+                string language = index < 0 ? locale : locale.Substring(0, index);
+                foreach (KeyValuePair<string, string> kvp in Translations)
+                {
+                    if ((kvp.Key.Length > language.Length &&
+                            kvp.Key[language.Length] == '-' &&
+                            kvp.Key.StartsWith(language, StringComparison.OrdinalIgnoreCase)) ||
+                        string.Equals(kvp.Key, language, StringComparison.OrdinalIgnoreCase))
+                    {
+                        key = kvp.Key;
+                        text = kvp.Value;
+                        return true;
+                    }
+                }
+            }
+            key = null;
+            text = null;
+            return false;
         }
 
         /// <summary>

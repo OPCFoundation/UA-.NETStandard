@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using ModelChangeVerbs = Opc.Ua.Server.NodeManager.ModelChangeVerbs;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -128,7 +129,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestedNewNodeId = requestedId,
                 BrowseName = new QualifiedName("Variable", ns),
                 NodeClass = NodeClass.Variable,
-                TypeDefinition = VariableTypeIds.BaseVariableType,
+                TypeDefinition = VariableTypeIds.BaseDataVariableType,
                 NodeAttributes = new ExtensionObject(attributes)
             };
 
@@ -159,7 +160,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 BrowseName = new QualifiedName("Variable", ns),
                 NodeClass = NodeClass.Variable,
-                TypeDefinition = VariableTypeIds.BaseVariableType,
+                TypeDefinition = VariableTypeIds.BaseDataVariableType,
                 NodeAttributes = new ExtensionObject(new VariableAttributes
                 {
                     SpecifiedAttributes = (uint)NodeAttributesMask.DataType |
@@ -638,7 +639,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ReferenceTypeId = ReferenceTypeIds.Organizes,
                         BrowseName = new QualifiedName("Child" + ii, ns),
                         NodeClass = NodeClass.Variable,
-                        TypeDefinition = VariableTypeIds.BaseVariableType
+                        TypeDefinition = VariableTypeIds.BaseDataVariableType
                     }).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(result), Is.True, $"child {ii}: {result}");
                 if (ii == 42)
@@ -654,7 +655,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
                     BrowseName = new QualifiedName("Child250", ns),
                     NodeClass = NodeClass.Variable,
-                    TypeDefinition = VariableTypeIds.BaseVariableType
+                    TypeDefinition = VariableTypeIds.BaseDataVariableType
                 }).ConfigureAwait(false);
             Assert.That(duplicate.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
             Assert.That(duplicateId.IsNull, Is.True);
@@ -672,7 +673,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     RequestedNewNodeId = renamedId,
                     BrowseName = new QualifiedName("Child42", ns),
                     NodeClass = NodeClass.Variable,
-                    TypeDefinition = VariableTypeIds.BaseVariableType
+                    TypeDefinition = VariableTypeIds.BaseDataVariableType
                 }).ConfigureAwait(false);
             Assert.That(collision.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
             Assert.That(collisionId.IsNull, Is.True);
@@ -688,7 +689,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
                     BrowseName = new QualifiedName("Child42", ns),
                     NodeClass = NodeClass.Variable,
-                    TypeDefinition = VariableTypeIds.BaseVariableType
+                    TypeDefinition = VariableTypeIds.BaseDataVariableType
                 }).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(freed), Is.True, $"expected Good result; got {freed}");
             Assert.That(freedId.IsNull, Is.False);
@@ -704,7 +705,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
                     BrowseName = new QualifiedName("Renamed", ns),
                     NodeClass = NodeClass.Variable,
-                    TypeDefinition = VariableTypeIds.BaseVariableType
+                    TypeDefinition = VariableTypeIds.BaseDataVariableType
                 }).ConfigureAwait(false);
             Assert.That(taken.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
@@ -818,7 +819,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 BrowseName = new QualifiedName("AttrVar", ns),
                 NodeClass = NodeClass.Variable,
-                TypeDefinition = VariableTypeIds.BaseVariableType,
+                TypeDefinition = VariableTypeIds.BaseDataVariableType,
                 NodeAttributes = new ExtensionObject(attributes)
             };
 
@@ -1117,6 +1118,485 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public async Task AddReferenceBumpsNodeVersionAndReportsReferenceAddedAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId sourceId = await h.AddObjectAsync("Source").ConfigureAwait(false);
+            PropertyState<string> nodeVersion =
+                h.Manager.EnableModelChangeTrackingFor(h.Manager.PredefinedNodes[sourceId]);
+            string before = nodeVersion.Value;
+
+            ServiceResult result = await h.Manager.AddReferenceAsync(
+                h.OperationContext,
+                new AddReferencesItem
+                {
+                    SourceNodeId = sourceId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    IsForward = true,
+                    TargetNodeId = new NodeId("Target", ns)
+                }).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(nodeVersion.Value, Is.Not.EqualTo(before));
+            Assert.That(
+                GetReportedModelChanges(h).Any(c =>
+                    c.Affected == sourceId && c.Verb == (byte)ModelChangeVerbs.ReferenceAdded),
+                Is.True);
+        }
+
+        [Test]
+        public async Task DeleteReferenceBumpsNodeVersionAndReportsReferenceDeletedAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId sourceId = await h.AddObjectAsync("Source").ConfigureAwait(false);
+            var targetId = new NodeId("Target", ns);
+            NodeState source = h.Manager.PredefinedNodes[sourceId];
+            source.AddReference(ReferenceTypeIds.Organizes, false, targetId);
+            PropertyState<string> nodeVersion = h.Manager.EnableModelChangeTrackingFor(source);
+            string before = nodeVersion.Value;
+
+            ServiceResult result = await h.Manager.DeleteReferenceAsync(
+                h.OperationContext,
+                new DeleteReferencesItem
+                {
+                    SourceNodeId = sourceId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    IsForward = true,
+                    TargetNodeId = targetId
+                }).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(nodeVersion.Value, Is.Not.EqualTo(before));
+            Assert.That(
+                GetReportedModelChanges(h).Any(c =>
+                    c.Affected == sourceId && c.Verb == (byte)ModelChangeVerbs.ReferenceDeleted),
+                Is.True);
+        }
+
+        [Test]
+        public async Task FailedDeleteReferenceLeavesNodeVersionUnchangedAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId sourceId = await h.AddObjectAsync("Source").ConfigureAwait(false);
+            PropertyState<string> nodeVersion =
+                h.Manager.EnableModelChangeTrackingFor(h.Manager.PredefinedNodes[sourceId]);
+            string before = nodeVersion.Value;
+
+            ServiceResult result = await h.Manager.DeleteReferenceAsync(
+                h.OperationContext,
+                new DeleteReferencesItem
+                {
+                    SourceNodeId = sourceId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    IsForward = true,
+                    TargetNodeId = new NodeId("NoSuchTarget", ns)
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
+            Assert.That(nodeVersion.Value, Is.EqualTo(before));
+            Assert.That(GetReportedModelChanges(h), Is.Empty);
+        }
+
+        [Test]
+        public async Task DeleteNodeReportsReferenceDeletedOnParentAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            (ServiceResult addResult, NodeId childId) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Child", ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = ObjectTypeIds.BaseObjectType
+                }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(addResult), Is.True);
+            PropertyState<string> nodeVersion =
+                h.Manager.EnableModelChangeTrackingFor(h.Manager.PredefinedNodes[parentId]);
+            string before = nodeVersion.Value;
+
+            ServiceResult result = await h.Manager.DeleteNodeAsync(
+                h.OperationContext,
+                new DeleteNodesItem { NodeId = childId }).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(nodeVersion.Value, Is.Not.EqualTo(before));
+            Assert.That(
+                GetReportedModelChanges(h).Any(c =>
+                    c.Affected == parentId && c.Verb == (byte)ModelChangeVerbs.ReferenceDeleted),
+                Is.True);
+        }
+
+        [Test]
+        public async Task AddNodeCreatesMandatoryInstanceDeclarationsAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId typeId = await AddMandatoryTestTypesAsync(h).ConfigureAwait(false);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            NodeId first = await AddInstanceAsync(h, parentId, "First", typeId).ConfigureAwait(false);
+            NodeId second = await AddInstanceAsync(h, parentId, "Second", typeId).ConfigureAwait(false);
+
+            NodeState instance = h.Manager.PredefinedNodes[first];
+            BaseInstanceState mandatory = FindChild(h, instance, "MandatoryProp");
+            BaseInstanceState inherited = FindChild(h, instance, "Inherited");
+            BaseInstanceState method = FindChild(h, instance, "DoIt");
+            BaseInstanceState component = FindChild(h, instance, "Component");
+            Assert.That(mandatory, Is.Not.Null);
+            Assert.That(inherited, Is.Not.Null, "a Mandatory member of the supertype is created");
+            Assert.That(method, Is.InstanceOf<MethodState>());
+            Assert.That(component, Is.Not.Null);
+            Assert.That(FindChild(h, instance, "OptionalProp"), Is.Null);
+            Assert.That(FindChild(h, instance, "Overridden"), Is.Null,
+                "an Optional override hides the Mandatory declaration of the supertype");
+            Assert.That(FindChild(h, component, "Nested"), Is.Not.Null);
+            Assert.That(FindChild(h, component, "NestedOptional"), Is.Null);
+            Assert.That(FindChild(h, component, "TypeMember"), Is.Not.Null,
+                "a child is completed from its own TypeDefinition");
+
+            var subtree = new List<BaseInstanceState>();
+            CollectDescendants(h, instance, subtree);
+            // MandatoryProp, Inherited, DoIt, Component, Nested and TypeMember.
+            Assert.That(subtree, Has.Count.EqualTo(6));
+            foreach (BaseInstanceState node in subtree)
+            {
+                Assert.That(node.NodeId.NamespaceIndex, Is.EqualTo(ns), node.BrowseName.ToString());
+                Assert.That(h.Manager.PredefinedNodes.TryGetValue(node.NodeId, out NodeState indexed), Is.True);
+                Assert.That(indexed, Is.SameAs(node));
+                Assert.That(node.IsPartOfTypeHierarchy, Is.False);
+                Assert.That(node.ModellingRuleId.IsNull, Is.True);
+            }
+            Assert.That(((MethodState)method).MethodDeclarationId, Is.EqualTo(new NodeId("TestType_DoIt", ns)));
+
+            // two instances of the same type never share an instance NodeId.
+            var secondSubtree = new List<BaseInstanceState>();
+            CollectDescendants(h, h.Manager.PredefinedNodes[second], secondSubtree);
+            Assert.That(
+                secondSubtree.Select(n => n.NodeId).Intersect(subtree.Select(n => n.NodeId)),
+                Is.Empty);
+
+            // the type declarations stay untouched.
+            NodeState type = h.Manager.PredefinedNodes[typeId];
+            Assert.That(FindChild(h, type, "OptionalProp"), Is.Not.Null);
+            Assert.That(
+                FindChild(h, type, "MandatoryProp").NodeId,
+                Is.EqualTo(new NodeId("TestType_MandatoryProp", ns)));
+        }
+
+        [Test]
+        public async Task AddVariableCreatesMandatoryInstanceDeclarationsAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(VariableTypeIds.BaseVariableType, NodeId.Null);
+            types.AddSubtype(VariableTypeIds.BaseDataVariableType, VariableTypeIds.BaseVariableType);
+            var typeId = new NodeId("TestVariableType", ns);
+            types.AddSubtype(typeId, VariableTypeIds.BaseDataVariableType);
+            var variableType = new ConstrainedVariableType
+            {
+                NodeId = typeId,
+                BrowseName = new QualifiedName("TestVariableType", ns),
+                SuperTypeId = VariableTypeIds.BaseDataVariableType,
+                DataType = DataTypeIds.BaseDataType,
+                ValueRank = ValueRanks.Any
+            };
+            variableType.AddChild(CreateDeclaration(variableType, "Unit", ns, ObjectIds.ModellingRule_Mandatory));
+            variableType.AddChild(CreateDeclaration(variableType, "Range", ns, ObjectIds.ModellingRule_Optional));
+            await h.Manager.AddPredefinedNodeAsyncPublic(h.Context, variableType).ConfigureAwait(false);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            (ServiceResult result, NodeId added) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    BrowseName = new QualifiedName("Value", ns),
+                    NodeClass = NodeClass.Variable,
+                    TypeDefinition = typeId
+                }).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            NodeState variable = h.Manager.PredefinedNodes[added];
+            BaseInstanceState unit = FindChild(h, variable, "Unit");
+            Assert.That(unit, Is.Not.Null);
+            Assert.That(unit.NodeId, Is.Not.EqualTo(new NodeId("TestVariableType_Unit", ns)));
+            Assert.That(FindChild(h, variable, "Range"), Is.Null);
+        }
+
+        [Test]
+        public async Task AddNodeRejectsAbstractObjectTypeAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(ObjectTypeIds.BaseObjectType, NodeId.Null);
+            var typeId = new NodeId("AbstractType", ns);
+            types.AddSubtype(typeId, ObjectTypeIds.BaseObjectType);
+            var type = new BaseObjectTypeState
+            {
+                NodeId = typeId,
+                BrowseName = new QualifiedName("AbstractType", ns),
+                SuperTypeId = ObjectTypeIds.BaseObjectType,
+                IsAbstract = true
+            };
+            await h.Manager.AddPredefinedNodeAsyncPublic(h.Context, type).ConfigureAwait(false);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            (ServiceResult result, NodeId added) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Child", ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = typeId
+                }).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+            Assert.That(added.IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task AddNodeRejectsInterfaceTypeAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(ObjectTypeIds.BaseObjectType, NodeId.Null);
+            types.AddSubtype(ObjectTypeIds.BaseInterfaceType, ObjectTypeIds.BaseObjectType);
+            var interfaceId = new NodeId("ITestInterface", ns);
+            types.AddSubtype(interfaceId, ObjectTypeIds.BaseInterfaceType);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            foreach (NodeId typeDefinition in new[] { ObjectTypeIds.BaseInterfaceType, interfaceId })
+            {
+                (ServiceResult result, NodeId added) = await h.Manager.AddNodeAsync(
+                    h.OperationContext,
+                    new AddNodesItem
+                    {
+                        ParentNodeId = parentId,
+                        ReferenceTypeId = ReferenceTypeIds.Organizes,
+                        BrowseName = new QualifiedName("Child", ns),
+                        NodeClass = NodeClass.Object,
+                        TypeDefinition = typeDefinition
+                    }).ConfigureAwait(false);
+
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid), typeDefinition.ToString());
+                Assert.That(added.IsNull, Is.True);
+            }
+        }
+
+        [Test]
+        public async Task AddNodeRejectsAbstractStandardTypesAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            (ServiceResult variableResult, _) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    BrowseName = new QualifiedName("Variable", ns),
+                    NodeClass = NodeClass.Variable,
+                    TypeDefinition = VariableTypeIds.BaseVariableType
+                }).ConfigureAwait(false);
+            (ServiceResult eventResult, _) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Event", ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = ObjectTypeIds.BaseEventType
+                }).ConfigureAwait(false);
+
+            Assert.That(variableResult.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+            Assert.That(eventResult.StatusCode, Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
+        }
+
+        [TestCase("BaseDataVariableType")]
+        [TestCase("PropertyType")]
+        public async Task AddVariableAcceptsConcreteStandardTypesAsync(string typeName)
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            NodeId typeDefinition = typeName == "PropertyType"
+                ? VariableTypeIds.PropertyType
+                : VariableTypeIds.BaseDataVariableType;
+
+            (ServiceResult result, NodeId added) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    BrowseName = new QualifiedName("Variable", ns),
+                    NodeClass = NodeClass.Variable,
+                    TypeDefinition = typeDefinition
+                }).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            Assert.That(added.IsNull, Is.False);
+        }
+
+        private static List<ModelChangeStructureDataType> GetReportedModelChanges(Harness h)
+        {
+            var changes = new List<ModelChangeStructureDataType>();
+            foreach (IInvocation invocation in h.MockServer.Invocations)
+            {
+                if (invocation.Method.Name != nameof(IServerInternal.ReportEvent))
+                {
+                    continue;
+                }
+                foreach (GeneralModelChangeEventState e in invocation.Arguments.OfType<GeneralModelChangeEventState>())
+                {
+                    ArrayOf<ModelChangeStructureDataType> reported = e.Changes.Value;
+                    for (int ii = 0; ii < reported.Count; ii++)
+                    {
+                        changes.Add(reported[ii]);
+                    }
+                }
+            }
+            return changes;
+        }
+
+        private static async Task<NodeId> AddInstanceAsync(Harness h, NodeId parentId, string name, NodeId typeId)
+        {
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            (ServiceResult result, NodeId added) = await h.Manager.AddNodeAsync(
+                h.OperationContext,
+                new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName(name, ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = typeId
+                }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            return added;
+        }
+
+        private static BaseInstanceState FindChild(Harness h, NodeState node, string name)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(h.Context, children);
+            return children.FirstOrDefault(c => c.BrowseName.Name == name);
+        }
+
+        private static void CollectDescendants(Harness h, NodeState node, List<BaseInstanceState> result)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(h.Context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                result.Add(child);
+                CollectDescendants(h, child, result);
+            }
+        }
+
+        private static PropertyState CreateDeclaration(NodeState parent, string name, ushort ns, NodeId modellingRule)
+        {
+            return new PropertyState(parent)
+            {
+                NodeId = new NodeId(parent.BrowseName.Name + "_" + name, ns),
+                BrowseName = new QualifiedName(name, ns),
+                DisplayName = new LocalizedText(name),
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                TypeDefinitionId = VariableTypeIds.PropertyType,
+                ModellingRuleId = modellingRule,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+        }
+
+        /// <summary>
+        /// Registers ChildType (Mandatory TypeMember), BaseTestType (Mandatory
+        /// Inherited and Overridden) and TestType, a subtype of BaseTestType
+        /// with Mandatory MandatoryProp, DoIt and Component (of ChildType, with
+        /// a Mandatory Nested and an Optional NestedOptional child), an
+        /// Optional OptionalProp and an Optional override of Overridden.
+        /// </summary>
+        private static async Task<NodeId> AddMandatoryTestTypesAsync(Harness h)
+        {
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            var types = (TypeTable)h.Context.TypeTable;
+            types.AddSubtype(ObjectTypeIds.BaseObjectType, NodeId.Null);
+            var childTypeId = new NodeId("ChildType", ns);
+            var baseTypeId = new NodeId("BaseTestType", ns);
+            var typeId = new NodeId("TestType", ns);
+            types.AddSubtype(childTypeId, ObjectTypeIds.BaseObjectType);
+            types.AddSubtype(baseTypeId, ObjectTypeIds.BaseObjectType);
+            types.AddSubtype(typeId, baseTypeId);
+
+            var childType = new BaseObjectTypeState
+            {
+                NodeId = childTypeId,
+                BrowseName = new QualifiedName("ChildType", ns),
+                SuperTypeId = ObjectTypeIds.BaseObjectType
+            };
+            childType.AddChild(CreateDeclaration(childType, "TypeMember", ns, ObjectIds.ModellingRule_Mandatory));
+            await h.Manager.AddPredefinedNodeAsyncPublic(h.Context, childType).ConfigureAwait(false);
+
+            var baseType = new BaseObjectTypeState
+            {
+                NodeId = baseTypeId,
+                BrowseName = new QualifiedName("BaseTestType", ns),
+                SuperTypeId = ObjectTypeIds.BaseObjectType
+            };
+            baseType.AddChild(CreateDeclaration(baseType, "Inherited", ns, ObjectIds.ModellingRule_Mandatory));
+            baseType.AddChild(CreateDeclaration(baseType, "Overridden", ns, ObjectIds.ModellingRule_Mandatory));
+            await h.Manager.AddPredefinedNodeAsyncPublic(h.Context, baseType).ConfigureAwait(false);
+
+            var type = new BaseObjectTypeState
+            {
+                NodeId = typeId,
+                BrowseName = new QualifiedName("TestType", ns),
+                SuperTypeId = baseTypeId
+            };
+            type.AddChild(CreateDeclaration(type, "MandatoryProp", ns, ObjectIds.ModellingRule_Mandatory));
+            type.AddChild(CreateDeclaration(type, "OptionalProp", ns, ObjectIds.ModellingRule_Optional));
+            type.AddChild(CreateDeclaration(type, "Overridden", ns, ObjectIds.ModellingRule_Optional));
+            type.AddChild(new MethodState(type)
+            {
+                NodeId = new NodeId("TestType_DoIt", ns),
+                BrowseName = new QualifiedName("DoIt", ns),
+                DisplayName = new LocalizedText("DoIt"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                ModellingRuleId = ObjectIds.ModellingRule_Mandatory
+            });
+            var component = new BaseObjectState(type)
+            {
+                NodeId = new NodeId("TestType_Component", ns),
+                BrowseName = new QualifiedName("Component", ns),
+                DisplayName = new LocalizedText("Component"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = childTypeId,
+                ModellingRuleId = ObjectIds.ModellingRule_Mandatory
+            };
+            component.AddChild(CreateDeclaration(component, "Nested", ns, ObjectIds.ModellingRule_Mandatory));
+            component.AddChild(CreateDeclaration(component, "NestedOptional", ns, ObjectIds.ModellingRule_Optional));
+            type.AddChild(component);
+            await h.Manager.AddPredefinedNodeAsyncPublic(h.Context, type).ConfigureAwait(false);
+            return typeId;
+        }
+
+        [Test]
         public void AddPredefinedNodeSynchronously_RegistersNodeAndChildren()
         {
             using Harness h = CreateHarness();
@@ -1249,7 +1729,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var opContext = new OperationContext(
                 new RequestHeader(), null!, RequestType.AddNodes, RequestLifetime.None, mockSession.Object);
 
-            return new Harness(manager, serverSystemContext, opContext, monitoredItemQueueFactory, mockMasterNodeManager);
+            return new Harness(manager, serverSystemContext, opContext, monitoredItemQueueFactory, mockMasterNodeManager)
+            {
+                MockServer = mockServer
+            };
         }
 
         private static IEnumerable<TestCaseData> DimensionValueTypeCases()
@@ -1341,7 +1824,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestedNewNodeId = requestedId,
                 BrowseName = new QualifiedName("DimensionedVariable", ns),
                 NodeClass = NodeClass.Variable,
-                TypeDefinition = VariableTypeIds.BaseVariableType,
+                TypeDefinition = VariableTypeIds.BaseDataVariableType,
                 NodeAttributes = new ExtensionObject(new VariableAttributes
                 {
                     SpecifiedAttributes = (uint)NodeAttributesMask.DataType |
@@ -1392,6 +1875,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public ServerSystemContext Context { get; }
             public OperationContext OperationContext { get; }
             public Mock<IMasterNodeManager> MockMasterNodeManager { get; }
+            public Mock<IServerInternal> MockServer { get; set; } = null!;
 
             private readonly MonitoredItemQueueFactory m_queueFactory;
 
