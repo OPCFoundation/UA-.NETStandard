@@ -36,6 +36,33 @@ function Get-PreviewPackageBuildNumber {
     return $node.InnerText.Trim()
 }
 
+function Get-PreviewPackageOrderingExemptions {
+    <#
+    .SYNOPSIS
+        Reads the exact published versions (see preview-version.props) that
+        the preview ordering gate must not treat as blocking because no
+        numbered preview can ever outrank them and they cannot be removed
+        from the feed.
+    #>
+    param(
+        [string]$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+    )
+
+    $propsPath = Join-Path $RepositoryRoot 'preview-version.props'
+    if (-not (Test-Path -LiteralPath $propsPath)) {
+        throw "Cannot resolve the preview ordering exemptions: '$propsPath' was not found."
+    }
+
+    [xml]$props = Get-Content -LiteralPath $propsPath -Raw
+    $node = $props.SelectSingleNode('//*[local-name()="PreviewPackageOrderingExemptions"]')
+    if ($null -eq $node) {
+        return , @()
+    }
+    return , @($node.InnerText -split ';' |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne '' })
+}
+
 function ConvertTo-PreviewPackageVersion {
     param(
         [Parameter(Mandatory)][string]$Version,
@@ -44,6 +71,13 @@ function ConvertTo-PreviewPackageVersion {
 
     if ($Version -match '-preview(?:[.+-]|$)') {
         return $Version
+    }
+    if ($Version -cmatch '^[^-+]+-g[0-9a-f]+(\+.*)?$') {
+        # A commit id as the only prerelease identifier (a non-public build
+        # of a stable version.json). "-preview.g<commit>" would outrank every
+        # numbered preview under SemVer 2, so number it 0; version.targets
+        # applies the same rule.
+        return $Version -creplace '^([^-+]+)-(g[0-9a-f]+)', '$1-preview.0.$2'
     }
     if ($Version.Contains('-')) {
         return $Version.Replace('-', '-preview.')
@@ -108,7 +142,9 @@ function Get-BlockingPublishedPreviewVersions {
     param(
         [Parameter(Mandatory)][string]$BaseVersion,
         [string[]]$PublishedVersions = @(),
-        [string]$PreviewPackageBuildNumber = (Get-PreviewPackageBuildNumber)
+        [string]$PreviewPackageBuildNumber = (Get-PreviewPackageBuildNumber),
+        # Exact versions that never block (see preview-version.props).
+        [string[]]$ExemptVersions = @()
     )
 
     if ($PreviewPackageBuildNumber -notmatch '^\d+$') {
@@ -132,6 +168,11 @@ function Get-BlockingPublishedPreviewVersions {
         }
         $value = $published.Trim()
         if (-not $value.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            continue
+        }
+        if ($ExemptVersions -contains $value) {
+            # An explicitly listed, unremovable version; PowerShell's
+            # -contains compares case-insensitively like NuGet versions.
             continue
         }
         if ($value.Length -eq $prefix.Length) {
