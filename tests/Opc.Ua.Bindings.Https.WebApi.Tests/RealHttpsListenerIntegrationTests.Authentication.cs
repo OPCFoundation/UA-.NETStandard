@@ -510,6 +510,56 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(listener.Callback.LastRequest, Is.SameAs(warmUp));
         }
 
+        [Test]
+        public async Task RefusedUpgradeOverHttp2KeepsItsConnectionCountedAsync()
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                "basic",
+                configureSettings: settings => settings.MaxChannelCount = 1).ConfigureAwait(false);
+            using HttpMessageInvoker first = AuthListener.CreateHttp2Connection();
+
+            // Refuse an upgrade on an HTTP/2 connection. The readiness probe
+            // may still hold the only connection slot for a moment.
+            HttpStatusCode refusal = default;
+            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (refusal != HttpStatusCode.Unauthorized && DateTime.UtcNow < deadline)
+            {
+                using ClientWebSocket socket = await listener
+                    .ConnectWebSocketAsync(Profiles.OpcUaWsSubProtocolOpenApi, authorization: null, first)
+                    .ConfigureAwait(false);
+                Assert.That(socket.State, Is.Not.EqualTo(WebSocketState.Open));
+                refusal = socket.HttpStatusCode;
+                if (refusal != HttpStatusCode.Unauthorized)
+                {
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+            }
+            Assert.That(refusal, Is.EqualTo(HttpStatusCode.Unauthorized));
+
+            // The HTTP/2 connection outlives the refused stream, so it keeps
+            // its connection slot: another connection is not admitted ...
+            using (HttpMessageInvoker second = AuthListener.CreateHttp2Connection())
+            {
+                Assert.That(
+                    async () =>
+                    {
+                        using HttpResponseMessage rejected = await listener
+                            .PostAsync("/read", CreateReadRequest(1), CreateAuthorizationHeader("basic-valid"), second)
+                            .ConfigureAwait(false);
+                    },
+                    Throws.InstanceOf<HttpRequestException>());
+            }
+
+            // ... while the first connection keeps serving requests.
+            using (HttpResponseMessage response = await listener
+                .PostAsync("/read", CreateReadRequest(2), CreateAuthorizationHeader("basic-valid"), first)
+                .ConfigureAwait(false))
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(response.Version, Is.EqualTo(HttpVersion.Version20));
+            }
+        }
+
         [TestCase("1700000000", 1_700_000_000_000L)]
         [TestCase("1700000000.25", 1_700_000_000_250L)]
         public void CredentialExpiryIsReadFromTheExpClaim(string exp, long expectedUnixMilliseconds)
@@ -575,7 +625,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             X509Certificate2? clientCertificate = null,
             Action<IServiceCollection>? configureServices = null,
             Action<WebApiTransportOptions>? configureWebApi = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            Action<TransportListenerSettings>? configureSettings = null)
         {
             var services = new ServiceCollection();
             configureServices?.Invoke(services);
@@ -655,7 +706,13 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         created.TimeProvider = timeProvider ?? TimeProvider.System;
                         return created;
                     },
-                    p => CreateListenerSettings(m_certificateRegistry!, p, mutualTls: authMode == "mtls"),
+                    p =>
+                    {
+                        TransportListenerSettings settings =
+                            CreateListenerSettings(m_certificateRegistry!, p, mutualTls: authMode == "mtls");
+                        configureSettings?.Invoke(settings);
+                        return settings;
+                    },
                     callback).ConfigureAwait(false);
             }
             catch
@@ -863,7 +920,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public async Task<HttpResponseMessage> PostAsync(
                 string path,
                 IServiceRequest request,
-                AuthenticationHeaderValue? authorization)
+                AuthenticationHeaderValue? authorization,
+                HttpMessageInvoker? http2Connection = null)
             {
                 byte[] body = WebApiBodyCodec.EncodeBody(
                     (IEncodeable)request,
@@ -872,6 +930,20 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 using var content = new ByteArrayContent(body);
                 content.Headers.ContentType = MediaTypeHeaderValue.Parse(
                     WebApiMediaType.FormatContentType(WebApiEncoding.Compact));
+                if (http2Connection != null)
+                {
+                    using var http2Message = new HttpRequestMessage(
+                        HttpMethod.Post,
+                        new Uri(new Uri($"https://localhost:{m_port}/"), path))
+                    {
+                        Content = content,
+                        Version = HttpVersion.Version20,
+                        VersionPolicy = HttpVersionPolicy.RequestVersionExact
+                    };
+                    http2Message.Headers.Authorization = authorization;
+                    return await http2Connection.SendAsync(http2Message, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
                 using var message = new HttpRequestMessage(HttpMethod.Post, path)
                 {
                     Content = content
@@ -882,13 +954,29 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
 
             /// <summary>
+            /// A client that keeps one HTTP/2 connection to the listener.
+            /// </summary>
+            public static HttpMessageInvoker CreateHttp2Connection()
+            {
+                return new HttpMessageInvoker(new SocketsHttpHandler
+                {
+                    // The listener presents the test's self-signed certificate.
+                    SslOptions =
+                    {
+                        RemoteCertificateValidationCallback = static (_, certificate, _, _) => certificate != null
+                    }
+                });
+            }
+
+            /// <summary>
             /// Upgrades to a WebSocket with the given sub-protocol. A
             /// refused upgrade returns the socket with the HTTP status of
             /// the refusal instead of throwing.
             /// </summary>
             public async Task<ClientWebSocket> ConnectWebSocketAsync(
                 string subProtocol,
-                AuthenticationHeaderValue? authorization)
+                AuthenticationHeaderValue? authorization,
+                HttpMessageInvoker? http2Connection = null)
             {
                 var socket = new ClientWebSocket();
                 socket.Options.AddSubProtocol(subProtocol);
@@ -897,14 +985,21 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 {
                     socket.Options.SetRequestHeader("Authorization", authorization.ToString());
                 }
+                if (http2Connection != null)
+                {
+                    socket.Options.HttpVersion = HttpVersion.Version20;
+                    socket.Options.HttpVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+                }
                 // The REST client's handler carries the server certificate
                 // validation and the client certificate.
-                using var invoker = new HttpMessageInvoker(m_handler!, disposeHandler: false);
+                using var restConnection = new HttpMessageInvoker(m_handler!, disposeHandler: false);
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 try
                 {
-                    await socket.ConnectAsync(new Uri($"wss://localhost:{m_port}/"), invoker, timeout.Token)
-                        .ConfigureAwait(false);
+                    await socket.ConnectAsync(
+                        new Uri($"wss://localhost:{m_port}/"),
+                        http2Connection ?? restConnection,
+                        timeout.Token).ConfigureAwait(false);
                 }
                 catch (WebSocketException)
                 {

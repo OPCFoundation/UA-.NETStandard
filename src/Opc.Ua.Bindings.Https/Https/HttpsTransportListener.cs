@@ -1893,18 +1893,44 @@ namespace Opc.Ua.Bindings
             finally
             {
                 m_activeUpgrades.TryRemove(lease, out _);
-                if (context.Response.HasStarted &&
-                    context.Response.StatusCode != (int)HttpStatusCode.SwitchingProtocols &&
-                    !context.RequestAborted.IsCancellationRequested)
-                {
-                    // The upgrade was refused with an HTTP response (401,
-                    // 403, 503, ...). Aborting now would reset the
-                    // connection before Kestrel has sent that response;
-                    // Kestrel closes it after the response instead.
-                    lease.SetAbortAction(static () => { });
-                }
-                lease.Close();
+                ReleaseUpgradeLease(context, lease);
             }
+        }
+
+        /// <summary>
+        /// Ends the admission of an upgrade request once it is processed.
+        /// </summary>
+        /// <remarks>
+        /// An accepted upgrade has run to completion and its lease is
+        /// closed with the connection. A refused upgrade (401, 403, 503,
+        /// ...) must not abort the connection, which would reset it before
+        /// Kestrel has sent the response. When the lease is the physical
+        /// connection's own, the connection outlives the request: on
+        /// HTTP/1.x Kestrel closes it after the response
+        /// (<c>Connection: close</c>), while an HTTP/2 connection stays
+        /// usable for other streams. The lease is then left to
+        /// <see cref="RunHttpsConnectionAsync"/>, which keeps the connection
+        /// counted until it really closes; the handshake is complete since
+        /// the connection served a response. A lease taken for this
+        /// request alone is released now.
+        /// </remarks>
+        private static void ReleaseUpgradeLease(HttpContext context, UaScConnectionAdmission.Lease lease)
+        {
+            bool refused = context.Response.HasStarted &&
+                context.Response.StatusCode != (int)HttpStatusCode.SwitchingProtocols &&
+                !context.RequestAborted.IsCancellationRequested;
+            if (!refused)
+            {
+                lease.Close();
+                return;
+            }
+            if (ReferenceEquals(context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease, lease))
+            {
+                lease.CompleteHandshake();
+                return;
+            }
+            lease.SetAbortAction(static () => { });
+            lease.Close();
         }
 
         /// <summary>
