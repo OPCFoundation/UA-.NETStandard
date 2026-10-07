@@ -569,7 +569,7 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
             // The bound is the assertion: after the first lap every lookup is a
             // cache hit, so an unguarded climb spins without ever calling the
             // mock again.
-            Task<INode> walk = nodeCache
+            Task<INode?> walk = nodeCache
                 .GetNodeWithBrowsePathAsync(
                     a,
                     new[] { new QualifiedName("Missing", 2) }.ToArrayOf(),

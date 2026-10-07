@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Is.GreaterThan(0));
 
             foreach (ReferenceDescription rd in
-                response.Results[0].References.ToArray())
+                response.Results[0].References.ToArray()!)
             {
                 var nsNodeId = ExpandedNodeId.ToNodeId(
                     rd.NodeId, Session.NamespaceUris);
@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<BrowseResponse> BrowseForwardAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             return await session.BrowseAsync(
@@ -107,7 +107,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<NodeId> FindChildAsync(
             NodeId parentId,
             string childName,
-            ISession session = null)
+            ISession? session = null)
         {
             BrowseResponse response =
                 await BrowseForwardAsync(parentId, session)
@@ -134,7 +134,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<DataValue> ReadPropertyValueAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             ReadResponse response = await session.ReadAsync(

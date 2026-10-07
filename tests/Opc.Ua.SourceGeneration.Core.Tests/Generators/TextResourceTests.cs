@@ -95,7 +95,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void GetLength_NullText_ThrowsArgumentNullException()
         {
             // Arrange
-            var resource = new TextResource("Test.Resource", null);
+            var resource = new TextResource("Test.Resource", null!);
             var mockFileSystem = new Mock<IFileSystem>();
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() => resource.GetLength(mockFileSystem.Object));
@@ -113,7 +113,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var resource = new TextResource("Test.Resource", text);
             long expectedByteCount = Encoding.UTF8.GetByteCount(text);
             // Act
-            long actualByteCount = resource.GetLength(null);
+            long actualByteCount = resource.GetLength(null!);
             // Assert
             Assert.That(actualByteCount, Is.EqualTo(expectedByteCount));
             Assert.That(actualByteCount, Is.EqualTo(9));

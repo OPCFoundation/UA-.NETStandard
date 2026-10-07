@@ -651,7 +651,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 null,
                 true);
 
-            IReference first = browser.Next();
+            IReference first = browser.Next()!;
             Assert.That(first, Is.Not.Null);
 
             browser.Push(first);
@@ -678,9 +678,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
         private static IEnumerable<IReference> Enumerate(INodeBrowser browser)
         {
-            for (IReference reference = browser.Next();
+            for (IReference reference = browser.Next()!;
                 reference != null;
-                reference = browser.Next())
+                reference = browser.Next()!)
             {
                 yield return reference;
             }
@@ -744,7 +744,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
         private static string FirstOrNone(ConcurrentBag<string> bag)
         {
-            return bag.TryPeek(out string first) ? first : "<none>";
+            return bag.TryPeek(out string? first) ? first : "<none>";
         }
     }
 }

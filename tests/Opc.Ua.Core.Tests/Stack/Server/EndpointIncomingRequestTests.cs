@@ -56,16 +56,16 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 FieldInfo field = typeof(ServerBase).GetField(
                     "m_messageContext",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                field.SetValue(this, ServiceMessageContext.Create(NUnitTelemetryContext.Create(true)));
+                    BindingFlags.NonPublic | BindingFlags.Instance)!;
+                field!.SetValue(this, ServiceMessageContext.Create(NUnitTelemetryContext.Create(true)));
                 FieldInfo queueField = typeof(ServerBase).GetField(
-                    "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance);
-                ((IDisposable)queueField.GetValue(this)).Dispose();
+                    "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                ((IDisposable)queueField!.GetValue(this)!).Dispose();
                 m_queue = new RequestQueue(this, 1, 1, 10);
                 queueField.SetValue(this, m_queue);
             }
 
-            public Action<IEndpointIncomingRequest> OnScheduleIncomingRequest { get; set; }
+            public Action<IEndpointIncomingRequest> OnScheduleIncomingRequest { get; set; } = null!;
 
             public override void ScheduleIncomingRequest(
                 IEndpointIncomingRequest request,
@@ -146,9 +146,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             public void TestEquality(IServiceRequest req1, IServiceRequest req2, IServiceRequest req3)
             {
-                var r1 = new EndpointIncomingRequest(this, null, req1);
-                var r2 = new EndpointIncomingRequest(this, null, req2);
-                var r3 = new EndpointIncomingRequest(this, null, req3);
+                var r1 = new EndpointIncomingRequest(this, null!, req1);
+                var r2 = new EndpointIncomingRequest(this, null!, req2);
+                var r3 = new EndpointIncomingRequest(this, null!, req3);
                 EndpointIncomingRequest rr1 = r1;
 
                 Assert.That(r1, Is.EqualTo(rr1));

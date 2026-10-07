@@ -117,7 +117,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [TestCase("abc[13-68]")]
         [TestCase("[^Ss]ensor")]
         [TestCase("5[%]")]
-        public void ValidPatternsAreAccepted(string pattern)
+        public void ValidPatternsAreAccepted(string? pattern)
         {
             Assert.That(AliasNameWildcardMatcher.IsValidPattern(pattern), Is.True);
         }

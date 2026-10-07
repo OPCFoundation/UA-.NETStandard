@@ -120,7 +120,7 @@ namespace Opc.Ua.Features.Tests
         [Category("FileSystem")]
         public async Task FirstFileSizeNotificationsAreRealAcrossCreateReattachAndReenableAsync()
         {
-            NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToArray()
+            NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToArray()!
                 .Single(value => value.NodeManager is FileSystemNodeManager);
             var manager = (FileSystemNodeManager)registration.NodeManager;
             NodeId sizeId = await ResolveSizeAsync(manager.NamespaceIndex).ConfigureAwait(false);
@@ -336,7 +336,7 @@ namespace Opc.Ua.Features.Tests
                 Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId));
                 foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
                 {
-                    if (notification.TryGetValue(out DataChangeNotification change))
+                    if (notification.TryGetValue(out DataChangeNotification? change))
                     {
                         Assert.That(change.MonitoredItems, Has.Count.EqualTo(1));
                         Assert.That(change.MonitoredItems[0].ClientHandle, Is.EqualTo(1));
@@ -439,7 +439,7 @@ namespace Opc.Ua.Features.Tests
                 Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId));
                 foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
                 {
-                    if (notification.TryGetValue(out EventNotificationList events))
+                    if (notification.TryGetValue(out EventNotificationList? events))
                     {
                         Assert.That(events.Events, Has.Count.EqualTo(1));
                         EventFieldList fields = events.Events[0];

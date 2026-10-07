@@ -140,7 +140,7 @@ namespace Opc.Ua.Fuzzing
             }
             catch (ServiceResultException sre) when (!throwAll && IsExpectedDecodingError(sre))
             {
-                return null;
+                return null!;
             }
         }
 

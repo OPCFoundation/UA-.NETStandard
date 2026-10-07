@@ -69,7 +69,7 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// Creates the exception for a finding of the given kind.
         /// </summary>
-        public ResourceBudgetException(ResourceFindingKind kind, string message, Exception innerException = null)
+        public ResourceBudgetException(ResourceFindingKind kind, string message, Exception? innerException = null)
             : base(message, innerException)
         {
             Kind = kind;
@@ -291,7 +291,7 @@ namespace Opc.Ua.Fuzzing
                 CheckAllocation(operation, inputLength, before, ex);
                 throw;
             }
-            CheckAllocation(operation, inputLength, before, null);
+            CheckAllocation(operation, inputLength, before, null!);
             return result;
         }
 
@@ -308,7 +308,7 @@ namespace Opc.Ua.Fuzzing
             _ = MeasureAllocation<object>(operation, inputLength, () =>
             {
                 decode();
-                return null;
+                return null!;
             });
         }
 
@@ -336,7 +336,7 @@ namespace Opc.Ua.Fuzzing
                         AllocationFactor,
                         AllocationAllowance,
                         inner == null ? string.Empty : " The decode then failed with " + inner.GetType().Name + "."),
-                    inner);
+                    inner!);
             }
         }
 
@@ -369,14 +369,14 @@ namespace Opc.Ua.Fuzzing
 
         private static double ReadTimeBudgetScale()
         {
-            string value = Environment.GetEnvironmentVariable(TimeBudgetScaleVariable);
+            string value = Environment.GetEnvironmentVariable(TimeBudgetScaleVariable)!;
             return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double scale) &&
                 scale >= 0 ? scale : 1.0;
         }
 
         private static int ReadWorkerStackSize()
         {
-            string value = Environment.GetEnvironmentVariable(WorkerStackVariable);
+            string value = Environment.GetEnvironmentVariable(WorkerStackVariable)!;
             return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int kilobytes) &&
                 kilobytes >= 0 ? kilobytes * 1024 : WorkerStackSize;
         }
@@ -409,7 +409,7 @@ namespace Opc.Ua.Fuzzing
 
                 ExceptionDispatchInfo error = m_error;
                 long elapsed = m_elapsed;
-                m_error = null;
+                m_error = null!;
                 error?.Throw();
                 return elapsed;
             }
@@ -420,14 +420,14 @@ namespace Opc.Ua.Fuzzing
                 while (true)
                 {
                     m_workReady.Wait();
-                    Action work = m_work;
-                    m_work = null;
+                    Action work = m_work!;
+                    m_work = null!;
 
-                    ExceptionDispatchInfo error = null;
+                    ExceptionDispatchInfo? error = null;
                     var stopwatch = Stopwatch.StartNew();
                     try
                     {
-                        work();
+                        work!();
                     }
                     catch (Exception ex)
                     {
@@ -435,7 +435,7 @@ namespace Opc.Ua.Fuzzing
                     }
 
                     m_elapsed = stopwatch.ElapsedMilliseconds;
-                    m_error = error;
+                    m_error = error!;
                     m_workDone.Release();
                 }
             }
@@ -448,8 +448,8 @@ namespace Opc.Ua.Fuzzing
 
             private readonly SemaphoreSlim m_workReady = new(0, 1);
             private readonly SemaphoreSlim m_workDone = new(0, 1);
-            private Action m_work;
-            private ExceptionDispatchInfo m_error;
+            private Action m_work = null!;
+            private ExceptionDispatchInfo m_error = null!;
             private long m_elapsed;
         }
 
@@ -457,7 +457,7 @@ namespace Opc.Ua.Fuzzing
         private static readonly Lazy<int> s_workerStackSize = new(ReadWorkerStackSize);
 
         [ThreadStatic]
-        private static SmallStackWorker s_worker;
+        private static SmallStackWorker? s_worker;
 
         [ThreadStatic]
         private static bool s_isWorkerThread;

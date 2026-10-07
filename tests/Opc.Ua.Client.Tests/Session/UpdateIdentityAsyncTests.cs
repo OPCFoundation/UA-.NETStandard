@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.Tests.Identity
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri);
+                endpoint.Description.SecurityPolicyUri!)!;
             if (identityPolicy == null)
             {
                 Assert.Ignore("The test server endpoint does not advertise UserName tokens.");
@@ -116,8 +116,8 @@ namespace Opc.Ua.Client.Tests.Identity
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri);
-            string eccPolicyUri = null;
+                endpoint.Description.SecurityPolicyUri!)!;
+            string? eccPolicyUri = null;
             foreach (UserTokenPolicy policy in endpoint.Description.UserIdentityTokens)
             {
                 if (policy.TokenType == UserTokenType.UserName &&
@@ -185,11 +185,11 @@ namespace Opc.Ua.Client.Tests.Identity
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri);
-            string currentPolicyUri = string.IsNullOrEmpty(identityPolicy?.SecurityPolicyUri)
+                endpoint.Description.SecurityPolicyUri!)!;
+            string currentPolicyUri = (string.IsNullOrEmpty(identityPolicy?.SecurityPolicyUri)
                 ? endpoint.Description.SecurityPolicyUri
-                : identityPolicy.SecurityPolicyUri;
-            string eccPolicyUri = null;
+                : identityPolicy.SecurityPolicyUri)!;
+            string? eccPolicyUri = null;
             foreach (UserTokenPolicy policy in endpoint.Description.UserIdentityTokens)
             {
                 if (policy.TokenType == UserTokenType.UserName &&

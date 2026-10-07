@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 });
 
             using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
-            using ICertificateStore issuer = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            using ICertificateStore issuer = manager.OpenIssuerStore(TrustListIdentifier.Peers)!;
             Assert.That(trusted, Is.SameAs(trustedStore.Object));
             Assert.That(issuer, Is.SameAs(issuerStore.Object));
             trustedStore.Verify(store => store.Open(kTrustedPath, true), Times.Once);

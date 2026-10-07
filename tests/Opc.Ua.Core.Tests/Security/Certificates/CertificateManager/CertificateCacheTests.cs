@@ -71,7 +71,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             cache.Set(pubOnly.Thumbprint, pubOnly);
 
-            Certificate cached = cache.TryGet(pubOnly.Thumbprint);
+            Certificate cached = cache.TryGet(pubOnly.Thumbprint)!;
             Assert.That(cached, Is.Not.Null);
             Assert.That(cached.Thumbprint, Is.EqualTo(pubOnly.Thumbprint));
             cached.Dispose();
@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             cache.Set(cert.Thumbprint, cert);
 
-            Certificate cached = cache.TryGet(cert.Thumbprint);
+            Certificate cached = cache.TryGet(cert.Thumbprint)!;
             Assert.That(cached, Is.Not.Null);
             Assert.That(cached.Thumbprint, Is.EqualTo(cert.Thumbprint));
             Assert.That(cached.HasPrivateKey, Is.True);
@@ -102,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             using var cache = new CertificateCache(m_telemetry);
 
-            Certificate result = cache.TryGet("AABBCCDD00112233");
+            Certificate? result = cache.TryGet("AABBCCDD00112233");
             Assert.That(result, Is.Null);
         }
 
@@ -122,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             cache.Set(thumbprint, pubOnly);
             cache.Remove(thumbprint);
 
-            Certificate cached = cache.TryGet(thumbprint);
+            Certificate? cached = cache.TryGet(thumbprint);
             Assert.That(cached, Is.Null);
 
             // Clean up the original refs that the test still owns
@@ -185,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             cache.Set(privCert.Thumbprint, privCert);
 
             // TryGet should return the private-key version (private tier is checked first)
-            Certificate cached = cache.TryGet(privCert.Thumbprint);
+            Certificate cached = cache.TryGet(privCert.Thumbprint)!;
             Assert.That(cached, Is.Not.Null);
             Assert.That(cached.HasPrivateKey, Is.True);
             cached.Dispose();
@@ -222,17 +222,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             // Miss: attempt to get a non-existent entry
-            Certificate miss = cache.TryGet(cert.Thumbprint);
+            Certificate? miss = cache.TryGet(cert.Thumbprint);
             Assert.That(miss, Is.Null);
 
             // Set and hit
             cache.Set(cert.Thumbprint, cert);
-            Certificate hit = cache.TryGet(cert.Thumbprint);
+            Certificate hit = cache.TryGet(cert.Thumbprint)!;
             Assert.That(hit, Is.Not.Null);
             hit.Dispose();
 
             // Verify cache returns correct data after operations
-            Certificate hit2 = cache.TryGet(cert.Thumbprint);
+            Certificate hit2 = cache.TryGet(cert.Thumbprint)!;
             Assert.That(hit2, Is.Not.Null);
             Assert.That(hit2.Thumbprint, Is.EqualTo(cert.Thumbprint));
             hit2.Dispose();
@@ -249,12 +249,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             cache.Set(cert.Thumbprint, cert);
 
-            Certificate cached = cache.TryGet(cert.Thumbprint);
+            Certificate cached = cache.TryGet(cert.Thumbprint)!;
             Assert.That(cached, Is.Not.Null);
             cached.Dispose();
 
             // Original should still be alive in the cache
-            Certificate stillCached = cache.TryGet(cert.Thumbprint);
+            Certificate stillCached = cache.TryGet(cert.Thumbprint)!;
             Assert.That(stillCached, Is.Not.Null);
             stillCached.Dispose();
             cert.Dispose();

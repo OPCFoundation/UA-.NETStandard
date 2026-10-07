@@ -83,13 +83,13 @@ namespace Opc.Ua.Server.Tests
             bool saved = await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false);
             Assert.That(saved, Is.True);
 
-            using Certificate taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
+            using Certificate taken = (await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(taken, Is.Not.Null);
             Assert.That(taken!.Thumbprint, Is.EqualTo(original.Thumbprint));
             Assert.That(taken.HasPrivateKey, Is.True);
 
             // TryTakeAsync consumes the entry.
-            using Certificate takenAgain = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
+            using Certificate? takenAgain = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(takenAgain, Is.Null);
         }
 
@@ -104,11 +104,11 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await store.SaveAsync(context, first, CancellationToken.None).ConfigureAwait(false), Is.True);
             Assert.That(await store.SaveAsync(context, second, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
+            using Certificate taken = (await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(taken, Is.Not.Null);
             Assert.That(taken!.Thumbprint, Is.EqualTo(second.Thumbprint));
 
-            using Certificate takenAgain = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
+            using Certificate? takenAgain = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(takenAgain, Is.Null, "only the most recent entry should remain");
         }
 
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
             await store.RemoveAsync(context, CancellationToken.None).ConfigureAwait(false);
 
-            using Certificate taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Null);
         }
 
@@ -140,8 +140,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(passwordProvider.ReturnedPasswords, Has.Count.EqualTo(1));
             Assert.That(passwordProvider.ReturnedPasswords[0], Is.All.EqualTo('\0'));
 
-            using Certificate taken = await store.TryTakeAsync(context, CancellationToken.None)
-                .ConfigureAwait(false);
+            using Certificate taken = (await store.TryTakeAsync(context, CancellationToken.None)
+                .ConfigureAwait(false))!;
             Assert.That(taken, Is.Not.Null);
             Assert.That(passwordProvider.ReturnedPasswords, Has.Count.EqualTo(2));
             Assert.That(passwordProvider.ReturnedPasswords[1], Is.All.EqualTo('\0'));
@@ -161,10 +161,10 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(await store.SaveAsync(contextA, certA, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate takenFromB = await store.TryTakeAsync(contextB, CancellationToken.None).ConfigureAwait(false);
+            using Certificate? takenFromB = await store.TryTakeAsync(contextB, CancellationToken.None).ConfigureAwait(false);
             Assert.That(takenFromB, Is.Null, "a different (group, type) scope must not see another scope's pending key");
 
-            using Certificate takenFromA = await store.TryTakeAsync(contextA, CancellationToken.None).ConfigureAwait(false);
+            using Certificate takenFromA = (await store.TryTakeAsync(contextA, CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(takenFromA, Is.Not.Null);
         }
 
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Tests
             bool saved = await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false);
             Assert.That(saved, Is.True);
 
-            using Certificate taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
+            using Certificate taken = (await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(taken, Is.Not.Null);
             Assert.That(taken!.Thumbprint, Is.EqualTo(original.Thumbprint));
 
@@ -216,7 +216,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await store.SaveAsync(context, first, CancellationToken.None).ConfigureAwait(false), Is.True);
             Assert.That(await store.SaveAsync(context, second, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
+            using Certificate taken = (await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(taken, Is.Not.Null);
             Assert.That(taken!.Thumbprint, Is.EqualTo(second.Thumbprint));
         }
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
             await store.RemoveAsync(context, CancellationToken.None).ConfigureAwait(false);
 
-            using Certificate taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Null);
         }
 
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests
         private PendingCertificateKeyContext CreateContext(
             NodeId certificateGroupId = default,
             NodeId certificateTypeId = default,
-            ICertificatePasswordProvider passwordProvider = null)
+            ICertificatePasswordProvider? passwordProvider = null)
         {
             return new PendingCertificateKeyContext(
                 new CertificateStoreIdentifier(m_basePath, CertificateStoreType.Directory),

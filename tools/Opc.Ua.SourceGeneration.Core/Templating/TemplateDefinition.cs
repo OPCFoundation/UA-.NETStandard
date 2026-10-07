@@ -39,27 +39,27 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// The template composite string
         /// </summary>
-        public TemplateString TemplateString { get; set; }
+        public TemplateString? TemplateString { get; set; }
 
         /// <summary>
         /// The targets that the template should be applied to.
         /// </summary>
-        public IReadOnlyList<object> Targets { get; set; }
+        public IReadOnlyList<object>? Targets { get; set; }
 
         /// <summary>
         /// The callback to call when loading the template.
         /// </summary>
-        public LoadTemplateEventHandler OnTemplateLoad { get; set; }
+        public LoadTemplateEventHandler? OnTemplateLoad { get; set; }
 
         /// <summary>
         /// The callback to call when writing the template.
         /// </summary>
-        public WriteTemplateEventHandler OnTemplateWrite { get; set; }
+        public WriteTemplateEventHandler? OnTemplateWrite { get; set; }
 
         /// <summary>
         /// Load the template.
         /// </summary>
-        public TemplateString Load(ILoadContext context)
+        public TemplateString? Load(ILoadContext context)
         {
             // check for override.
             if (OnTemplateLoad != null)
@@ -121,7 +121,7 @@ namespace Opc.Ua.SourceGeneration
     /// <summary>
     /// A delegate handle events associated with template.
     /// </summary>
-    internal delegate TemplateString LoadTemplateEventHandler(ILoadContext context);
+    internal delegate TemplateString? LoadTemplateEventHandler(ILoadContext context);
 
     /// <summary>
     /// Write context
@@ -171,7 +171,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Set the template
         /// </summary>
-        public Template Template { get; set; }
+        public Template Template { get; set; } = null!;
 
         /// <inheritdoc/>
         public ITemplateWriter Out { get; }
@@ -186,6 +186,6 @@ namespace Opc.Ua.SourceGeneration
         public int Index { get; set; }
 
         /// <inheritdoc/>
-        public object Target { get; set; }
+        public object Target { get; set; } = null!;
     }
 }

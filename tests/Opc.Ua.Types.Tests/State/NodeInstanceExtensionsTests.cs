@@ -113,7 +113,7 @@ namespace Opc.Ua.Types.Tests.State
             {
             }
 
-            public PropertyState Detail { get; private set; }
+            public PropertyState Detail { get; private set; } = null!;
 
             /// <summary>
             /// Whether a NodeIdFactory was visible the last time a child was
@@ -137,14 +137,14 @@ namespace Opc.Ua.Types.Tests.State
                 ISystemContext context,
                 QualifiedName browseName,
                 bool createOrReplace,
-                BaseInstanceState replacement,
+                BaseInstanceState? replacement,
                 bool assignInstanceNodeIds = true)
             {
                 if (browseName.Name != "Detail")
                 {
                     return base.FindChild(
                         context, browseName, createOrReplace, replacement,
-                        assignInstanceNodeIds);
+                        assignInstanceNodeIds)!;
                 }
                 if (!createOrReplace)
                 {
@@ -179,7 +179,7 @@ namespace Opc.Ua.Types.Tests.State
             {
             }
 
-            public PropertyState Extra { get; private set; }
+            public PropertyState Extra { get; private set; } = null!;
 
             public override void GetChildren(
                 ISystemContext context,
@@ -196,14 +196,14 @@ namespace Opc.Ua.Types.Tests.State
                 ISystemContext context,
                 QualifiedName browseName,
                 bool createOrReplace,
-                BaseInstanceState replacement,
+                BaseInstanceState? replacement,
                 bool assignInstanceNodeIds = true)
             {
                 if (browseName.Name != "Extra")
                 {
                     return base.FindChild(
                         context, browseName, createOrReplace, replacement,
-                        assignInstanceNodeIds);
+                        assignInstanceNodeIds)!;
                 }
                 if (!createOrReplace)
                 {
@@ -244,7 +244,7 @@ namespace Opc.Ua.Types.Tests.State
                 bool assignInstanceNodeIds = true)
             {
                 CreateChildCalls++;
-                return base.CreateChild(context, browseName, assignInstanceNodeIds);
+                return base.CreateChild(context, browseName, assignInstanceNodeIds)!;
             }
         }
 
@@ -425,7 +425,7 @@ namespace Opc.Ua.Types.Tests.State
 
             group.AddCertificateExpired(context);
 
-            CertificateExpirationAlarmState alarm = group.CertificateExpired;
+            CertificateExpirationAlarmState alarm = group.CertificateExpired!;
             Assert.That(alarm, Is.Not.Null);
             var descendants = new List<BaseInstanceState>();
             CollectDescendants(context, alarm, descendants);
@@ -444,7 +444,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AssignInstanceChildNodeIdsIsNoOpWithoutNodeIdFactory()
         {
-            SystemContext context = CreateContext(null);
+            SystemContext context = CreateContext(null!);
             (BaseObjectState root, BaseObjectState child, _) = BuildSubtreeWithTypeIds();
 
             context.AssignInstanceChildNodeIds(root);
@@ -457,7 +457,7 @@ namespace Opc.Ua.Types.Tests.State
         public void AssignInstanceChildNodeIdsIsNoOpForNullNode()
         {
             SystemContext context = CreateContext(new ChildIdFactory());
-            Assert.DoesNotThrow(() => context.AssignInstanceChildNodeIds(null));
+            Assert.DoesNotThrow(() => context.AssignInstanceChildNodeIds(null!));
         }
 
         /// <summary>
@@ -572,7 +572,7 @@ namespace Opc.Ua.Types.Tests.State
             var factory = new CountingNodeIdFactory();
             SystemContext context = CreateContext(factory);
 
-            var source = new CustomOwnerState(null)
+            var source = new CustomOwnerState(null!)
             {
                 NodeId = new NodeId("Owner", 3),
                 SymbolicName = "Owner",
@@ -582,7 +582,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(source.Detail, Is.Not.Null);
             int handoutsAfterSource = factory.Handouts;
 
-            var copy = new CustomOwnerState(null);
+            var copy = new CustomOwnerState(null!);
             copy.Create(context, source);
 
             Assert.That(copy.Detail, Is.Not.Null,
@@ -602,7 +602,7 @@ namespace Opc.Ua.Types.Tests.State
             var factory = new CountingNodeIdFactory();
             SystemContext context = CreateContext(factory);
 
-            var source = new CustomOwnerState(null)
+            var source = new CustomOwnerState(null!)
             {
                 NodeId = new NodeId("Owner", 3),
                 SymbolicName = "Owner",
@@ -611,7 +611,7 @@ namespace Opc.Ua.Types.Tests.State
             source.CreateChild(context, new QualifiedName("Detail", 3));
             int handoutsAfterSource = factory.Handouts;
 
-            var copy = new CustomOwnerState(null);
+            var copy = new CustomOwnerState(null!);
             copy.Create(context, source);
 
             Assert.That(copy.Detail, Is.Not.Null);
@@ -632,7 +632,7 @@ namespace Opc.Ua.Types.Tests.State
             var factory = new CountingNodeIdFactory();
             SystemContext context = CreateContext(factory);
 
-            var owner = new CustomOwnerState(null)
+            var owner = new CustomOwnerState(null!)
             {
                 NodeId = new NodeId("Owner", 3),
                 SymbolicName = "Owner",
@@ -640,7 +640,7 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             BaseInstanceState detail = owner.CreateChild(
-                context, new QualifiedName("Detail", 3));
+                context, new QualifiedName("Detail", 3))!;
 
             Assert.That(detail, Is.Not.Null);
             Assert.That(detail.NodeId.IsNull, Is.False,
@@ -658,7 +658,7 @@ namespace Opc.Ua.Types.Tests.State
             var factory = new CountingNodeIdFactory();
             SystemContext context = CreateContext(factory);
 
-            var source = new DerivedMethodState(null)
+            var source = new DerivedMethodState(null!)
             {
                 NodeId = new NodeId("Start", 3),
                 SymbolicName = "Start",
@@ -669,7 +669,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(source.Extra, Is.Not.Null);
             int handoutsAfterSource = factory.Handouts;
 
-            var copy = new DerivedMethodState(null);
+            var copy = new DerivedMethodState(null!);
             copy.Create(context, source);
 
             Assert.That(copy.Extra, Is.Not.Null,
@@ -689,7 +689,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             SystemContext context = CreateContext(new CountingNodeIdFactory());
 
-            var source = new CreateChildOverrideState(null)
+            var source = new CreateChildOverrideState(null!)
             {
                 NodeId = new NodeId("Owner", 3),
                 SymbolicName = "Owner",
@@ -704,7 +704,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             source.AddChild(detail);
 
-            var copy = new CreateChildOverrideState(null);
+            var copy = new CreateChildOverrideState(null!);
             copy.Create(context, source);
 
             Assert.That(copy.CreateChildCalls, Is.GreaterThan(0),
@@ -719,17 +719,17 @@ namespace Opc.Ua.Types.Tests.State
         public void FindingAnUndeclaredChildDoesNotRecurse()
         {
             SystemContext context = CreateContext(new CountingNodeIdFactory());
-            var owner = new CustomOwnerState(null)
+            var owner = new CustomOwnerState(null!)
             {
                 NodeId = new NodeId("Owner", 3),
                 SymbolicName = "Owner",
                 BrowseName = new QualifiedName("Owner", 3)
             };
 
-            BaseInstanceState found = null;
+            BaseInstanceState? found = null;
             Assert.DoesNotThrow(
                 () => found = owner.CreateChild(
-                    context, new QualifiedName("NoSuchChild", 3), false));
+                    context, new QualifiedName("NoSuchChild", 3), false)!);
             Assert.That(found, Is.Null);
         }
 
@@ -748,7 +748,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(inputs.NodeId, Is.Not.EqualTo(outputs.NodeId));
 
             BaseInstanceState found = method.FindChild(
-                context, new QualifiedName(BrowseNames.InputArguments, 3));
+                context, new QualifiedName(BrowseNames.InputArguments, 3))!;
 
             Assert.That(found, Is.SameAs(inputs),
                 "InputArguments must resolve to the input arguments property.");

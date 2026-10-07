@@ -53,7 +53,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void ParseValidRsaCsrFromFile()
         {
             // Load the test CSR file
-            string csrPath = Path.Combine(Utils.GetAbsoluteDirectoryPath("Assets", true, false, false), "test_rsa.csr");
+            string csrPath = Path.Combine(Utils.GetAbsoluteDirectoryPath("Assets", true, false, false)!, "test_rsa.csr");
             byte[] csrData = File.ReadAllBytes(csrPath);
 
             // Parse the CSR
@@ -160,7 +160,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void ParseNullCsrThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new Pkcs10CertificationRequest(null));
+            Assert.Throws<ArgumentNullException>(() => new Pkcs10CertificationRequest(null!));
         }
 
         /// <summary>
@@ -229,7 +229,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var csr = new Pkcs10CertificationRequest(csrData);
 
             // Extract Subject Alternative Name
-            X509SubjectAltNameExtension sanExtension = Pkcs10Utils.GetSubjectAltNameExtension(csr.Attributes);
+            X509SubjectAltNameExtension sanExtension = Pkcs10Utils.GetSubjectAltNameExtension(csr.Attributes)!;
 
             Assert.That(sanExtension, Is.Not.Null);
             Assert.That(sanExtension.Uris, Has.Count.EqualTo(1));
@@ -263,7 +263,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Extract Subject Alternative Name
             // CertificateFactory always creates a SAN extension, even if empty
-            X509SubjectAltNameExtension sanExtension = Pkcs10Utils.GetSubjectAltNameExtension(csr.Attributes);
+            X509SubjectAltNameExtension sanExtension = Pkcs10Utils.GetSubjectAltNameExtension(csr.Attributes)!;
 
             // SAN extension should exist (created by CertificateFactory)
             Assert.That(sanExtension, Is.Not.Null);

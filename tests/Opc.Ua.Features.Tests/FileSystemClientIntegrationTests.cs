@@ -235,8 +235,8 @@ namespace Opc.Ua.Features.Tests
                 Directory.Exists(Path.Combine(m_providerRoot, "level1", "level2")),
                 Is.True);
 
-            UaFileSystemInfo found = await client
-                .GetInfoAsync("level1/level2").ConfigureAwait(false);
+            UaFileSystemInfo found = (await client
+                .GetInfoAsync("level1/level2").ConfigureAwait(false))!;
             Assert.That(found, Is.InstanceOf<UaDirectoryInfo>());
         }
 
@@ -252,10 +252,10 @@ namespace Opc.Ua.Features.Tests
             Assert.That(namespaceIndex, Is.Not.Zero,
                 "The provider is expected to own a namespace of its own.");
 
-            UaFileSystemInfo unqualified = await client
-                .GetInfoAsync("qualified").ConfigureAwait(false);
-            UaFileSystemInfo qualified = await client
-                .GetInfoAsync($"{namespaceIndex}:qualified").ConfigureAwait(false);
+            UaFileSystemInfo unqualified = (await client
+                .GetInfoAsync("qualified").ConfigureAwait(false))!;
+            UaFileSystemInfo qualified = (await client
+                .GetInfoAsync($"{namespaceIndex}:qualified").ConfigureAwait(false))!;
 
             Assert.That(unqualified, Is.InstanceOf<UaDirectoryInfo>());
             Assert.That(qualified, Is.InstanceOf<UaDirectoryInfo>());
@@ -390,9 +390,9 @@ namespace Opc.Ua.Features.Tests
         public async Task GetInfoOnMissingPathReturnsNullAsync()
         {
             FileSystemClient client = OpenClient();
-            UaFileSystemInfo info = await client
+            UaFileSystemInfo info = (await client
                 .GetInfoAsync("does-not-exist.txt")
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(info, Is.Null);
         }
 

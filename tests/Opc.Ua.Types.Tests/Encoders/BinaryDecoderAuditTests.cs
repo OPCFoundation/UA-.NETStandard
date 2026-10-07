@@ -324,7 +324,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 () => decoder.ReadExtensionObjectArray(null));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            for (Exception inner = ex.InnerException; inner != null; inner = inner.InnerException)
+            for (Exception inner = ex.InnerException!; inner != null; inner = inner.InnerException!)
             {
                 Assert.That(inner, Is.InstanceOf<ServiceResultException>().Or.InstanceOf<System.Xml.XmlException>());
             }
@@ -411,7 +411,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Values = decoder.ReadInt32Array("Values");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }
@@ -445,7 +445,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is XmlSample other && other.Value == Value;
             }
@@ -479,7 +479,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is XmlSampleNs1 other && other.Value == Value;
             }

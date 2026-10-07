@@ -464,8 +464,8 @@ namespace Opc.Ua.Client.Tests
             ScriptedChannel.RequestOperation activation = await restored
                 .NextOperationAsync<ActivateSessionRequest>(CancellationToken.None).ConfigureAwait(false);
             Assert.That(((ActivateSessionRequest)activation.Request).UserIdentityToken.TryGetValue(
-                out UserNameIdentityToken token), Is.True);
-            Assert.That(token.UserName, Is.EqualTo("snapshot-user"));
+                out UserNameIdentityToken? token), Is.True);
+            Assert.That(token!.UserName, Is.EqualTo("snapshot-user"));
             Assert.That(token.Password.ToArray(), Is.EqualTo(secret));
             Assert.That(target.SessionId, Is.EqualTo(source.SessionId));
         }

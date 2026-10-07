@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Tests.StateMachines
         public void LegacyConstructorWithNullDefinitionThrows()
         {
             Assert.That(
-                () => new FluentFiniteStateMachineState(null, null!),
+                () => new FluentFiniteStateMachineState(null!, null!),
                 Throws.InstanceOf<ArgumentNullException>());
         }
 

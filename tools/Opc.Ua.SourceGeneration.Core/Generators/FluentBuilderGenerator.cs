@@ -72,14 +72,14 @@ namespace Opc.Ua.SourceGeneration
         /// passed to <see cref="NodeManagerGenerator.OverrideClassName"/>).
         /// Defaults to <c>{Prefix}NodeManager</c>.
         /// </summary>
-        public string OverrideManagerClassName { get; init; }
+        public string? OverrideManagerClassName { get; init; }
 
         /// <summary>
         /// Optional override for the manager namespace (matches the value
         /// passed to <see cref="NodeManagerGenerator.OverrideNamespace"/>).
         /// Defaults to the model's target-namespace prefix.
         /// </summary>
-        public string OverrideManagerNamespace { get; init; }
+        public string? OverrideManagerNamespace { get; init; }
 
         /// <summary>
         /// When <see langword="true"/>, emit the typed
@@ -353,7 +353,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     parent = path[..^trimLen];
                 }
-                if (!directChildren.TryGetValue(parent, out List<HierarchyNode> bucket))
+                if (!directChildren.TryGetValue(parent, out List<HierarchyNode>? bucket))
                 {
                     bucket = [];
                     directChildren[parent] = bucket;
@@ -412,7 +412,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string leafName = ResolveLeafName(root, relativePath, hnode.Instance);
-            string parentKey = ResolveParentKey(root, relativePath, leafName);
+            string? parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "Builder");
             var wrapper = new InstanceWrapper
             {
@@ -429,7 +429,7 @@ namespace Opc.Ua.SourceGeneration
             };
 
             // Children resolved relative to this node.
-            if (directChildren.TryGetValue(relativePath, out List<HierarchyNode> kids))
+            if (directChildren.TryGetValue(relativePath, out List<HierarchyNode>? kids))
             {
                 foreach (HierarchyNode kid in kids)
                 {
@@ -501,7 +501,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string leafName = ResolveLeafName(root, relativePath, method);
-            string parentKey = ResolveParentKey(root, relativePath, leafName);
+            string? parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "MethodBuilder");
             MethodDesign effectiveMethod = method.IsOverridden()
                 ? (MethodDesign)method.GetMergedInstance()
@@ -532,9 +532,9 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (m_wrappers.TryGetValue(child.ParentKey, out InstanceWrapper parent))
+                if (m_wrappers.TryGetValue(child.ParentKey, out InstanceWrapper? parent))
                 {
-                    parent.ChildObjectKeys.Add(child.Key);
+                    parent.ChildObjectKeys.Add(child.Key!);
                 }
             }
             foreach (MethodWrapper method in m_methodWrappers.Values)
@@ -543,9 +543,9 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (m_wrappers.TryGetValue(method.ParentKey, out InstanceWrapper parent))
+                if (m_wrappers.TryGetValue(method.ParentKey, out InstanceWrapper? parent))
                 {
-                    parent.ChildMethodKeys.Add(method.Key);
+                    parent.ChildMethodKeys.Add(method.Key!);
                 }
             }
             foreach (InstanceWrapper wrapper in m_wrappers.Values)
@@ -582,9 +582,9 @@ namespace Opc.Ua.SourceGeneration
                 // children share one member namespace (CS0102), and none of them
                 // may carry the name of the enclosing wrapper class (CS0542).
                 var seen = new Dictionary<string, ChildAccessor>(StringComparer.Ordinal);
-                foreach (ChildAccessor child in wrapper.Children)
+                foreach (ChildAccessor child in wrapper.Children!)
                 {
-                    if (reserved.Contains(child.AccessorName) ||
+                    if (reserved.Contains(child.AccessorName!) ||
                         string.Equals(
                             child.AccessorName,
                             wrapper.ClassName,
@@ -600,7 +600,7 @@ namespace Opc.Ua.SourceGeneration
                             child.AccessorName));
                     }
 
-                    if (seen.TryGetValue(child.AccessorName, out ChildAccessor existing))
+                    if (seen.TryGetValue(child.AccessorName!, out ChildAccessor? existing))
                     {
                         throw new InvalidOperationException(CoreUtils.Format(
                             "Fluent builder generation: children '{0}' and '{1}' on '{2}' both sanitize to the same C# accessor '{3}'. Rename one of the children in the design.",
@@ -609,7 +609,7 @@ namespace Opc.Ua.SourceGeneration
                             wrapper.ClassName,
                             child.AccessorName));
                     }
-                    seen[child.AccessorName] = child;
+                    seen[child.AccessorName!] = child;
                 }
 
                 foreach (ChildAccessor child in wrapper.Children)
@@ -632,7 +632,7 @@ namespace Opc.Ua.SourceGeneration
                             wrapper.ClassName,
                             nestedType));
                     }
-                    if (seen.TryGetValue(nestedType, out ChildAccessor existing))
+                    if (seen.TryGetValue(nestedType, out ChildAccessor? existing))
                     {
                         throw new InvalidOperationException(CoreUtils.Format(
                             "Fluent builder generation: the nested wrapper type '{0}' " +
@@ -678,7 +678,7 @@ namespace Opc.Ua.SourceGeneration
                         accessor,
                         typedBuilderClassName));
                 }
-                if (seen.TryGetValue(accessor, out InstanceDesign existing))
+                if (seen.TryGetValue(accessor, out InstanceDesign? existing))
                 {
                     throw new InvalidOperationException(CoreUtils.Format(
                         "Fluent builder generation: the predefined instances '{0}' " +
@@ -720,7 +720,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 string accessor = GetAccessorName(root);
                 string wrapperKey = ComposeKey(root, string.Empty);
-                if (!m_wrappers.TryGetValue(wrapperKey, out InstanceWrapper wrapper))
+                if (!m_wrappers.TryGetValue(wrapperKey, out InstanceWrapper? wrapper))
                 {
                     continue;
                 }
@@ -893,7 +893,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 string accessor = GetAccessorName(root);
                 string wrapperKey = ComposeKey(root, string.Empty);
-                if (!m_wrappers.TryGetValue(wrapperKey, out InstanceWrapper wrapper))
+                if (!m_wrappers.TryGetValue(wrapperKey, out InstanceWrapper? wrapper))
                 {
                     continue;
                 }
@@ -1023,7 +1023,7 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine("{0}/// <summary>Resolved underlying node.</summary>", memberIndent);
             writer.WriteLine("{0}public {1} Node => __node.Node;", memberIndent, wrapper.NodeStateType);
 
-            foreach (ChildAccessor child in wrapper.Children)
+            foreach (ChildAccessor child in wrapper.Children!)
             {
                 EmitChildAccessor(writer, child, memberIndent);
             }
@@ -1038,14 +1038,14 @@ namespace Opc.Ua.SourceGeneration
             // LinkChildWrappers) so generation is deterministic.
             foreach (string methodKey in wrapper.ChildMethodKeys)
             {
-                if (m_methodWrappers.TryGetValue(methodKey, out MethodWrapper nestedMethod))
+                if (m_methodWrappers.TryGetValue(methodKey, out MethodWrapper? nestedMethod))
                 {
                     EmitMethodWrapper(writer, nestedMethod, memberIndent);
                 }
             }
             foreach (string childKey in wrapper.ChildObjectKeys)
             {
-                if (m_wrappers.TryGetValue(childKey, out InstanceWrapper nested))
+                if (m_wrappers.TryGetValue(childKey, out InstanceWrapper? nested))
                 {
                     EmitInstanceWrapper(writer, nested, memberIndent);
                 }
@@ -1111,12 +1111,12 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                InstanceDesign[] children = objectType.Children?.Items;
+                InstanceDesign[]? children = objectType.Children?.Items;
                 if (children == null || children.Length == 0)
                 {
                     continue;
                 }
-                string parentClr = ResolveObjectTypeStateClr(objectType);
+                string? parentClr = ResolveObjectTypeStateClr(objectType);
                 if (string.IsNullOrEmpty(parentClr))
                 {
                     continue;
@@ -1271,7 +1271,7 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
             // ObjectDesign / MethodDesign — both are HasComponent.
-            string childStateClr = ResolveChildStateClr(child);
+            string? childStateClr = ResolveChildStateClr(child);
             writer.WriteLine();
             writer.WriteLine(
                 "{0}/// <summary>Walks the <c>{1}</c> HasComponent child.</summary>",
@@ -1299,7 +1299,7 @@ namespace Opc.Ua.SourceGeneration
         /// nearest emitted ancestor (the rule the proxy generator uses for
         /// base types), falling back to <c>BaseObjectState</c>.
         /// </summary>
-        private string ResolveObjectTypeStateClr(ObjectTypeDesign type)
+        private string? ResolveObjectTypeStateClr(ObjectTypeDesign? type)
         {
             while (type != null && m_context.ModelDesign.IsExcluded(type))
             {
@@ -1309,12 +1309,12 @@ namespace Opc.Ua.SourceGeneration
                     return "global::Opc.Ua.BaseObjectState";
                 }
             }
-            string typeName = type?.SymbolicName?.Name;
+            string? typeName = type?.SymbolicName?.Name;
             if (string.IsNullOrEmpty(typeName))
             {
                 return null;
             }
-            if (!string.IsNullOrEmpty(type.ClassName))
+            if (!string.IsNullOrEmpty(type!.ClassName))
             {
                 return type.GetClassName(m_context.ModelDesign.Namespaces) + "State";
             }
@@ -1322,7 +1322,7 @@ namespace Opc.Ua.SourceGeneration
                 ? typeName[..^"Type".Length]
                 : typeName;
             string stateName = className + "State";
-            string nsUri = type.SymbolicName?.Namespace;
+            string? nsUri = type.SymbolicName?.Namespace;
             string prefix = ResolveCSharpNamespaceForUri(nsUri);
             return string.IsNullOrEmpty(prefix)
                 ? "global::Opc.Ua." + stateName
@@ -1335,18 +1335,18 @@ namespace Opc.Ua.SourceGeneration
         /// the runtime state class). Falls back to the lowest-common-
         /// denominator state when no TypeDefinition is declared.
         /// </summary>
-        private string ResolveChildStateClr(InstanceDesign child)
+        private string? ResolveChildStateClr(InstanceDesign child)
         {
             if (child is MethodDesign)
             {
                 return "global::Opc.Ua.MethodState";
             }
-            System.Xml.XmlQualifiedName typeDef = child?.TypeDefinition;
+            System.Xml.XmlQualifiedName? typeDef = child?.TypeDefinition;
             if (typeDef == null || string.IsNullOrEmpty(typeDef.Name))
             {
-                return ResolveFallbackStateClrType(child);
+                return ResolveFallbackStateClrType(child!);
             }
-            if (child.TypeDefinitionNode is ObjectTypeDesign objectType)
+            if (child!.TypeDefinitionNode is ObjectTypeDesign objectType)
             {
                 return ResolveObjectTypeStateClr(objectType);
             }
@@ -1384,7 +1384,7 @@ namespace Opc.Ua.SourceGeneration
         /// (whose C# prefix is the empty <c>Opc.Ua</c> root) or when
         /// no mapping is found.
         /// </summary>
-        private string ResolveCSharpNamespaceForUri(string nsUri)
+        private string ResolveCSharpNamespaceForUri(string? nsUri)
         {
             if (string.IsNullOrEmpty(nsUri))
             {
@@ -1589,18 +1589,18 @@ namespace Opc.Ua.SourceGeneration
 
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             Namespace[] namespaces = m_context.ModelDesign.Namespaces;
-            Parameter[] inputs = method.Inputs;
-            Parameter[] outputs = method.Outputs;
+            Parameter[]? inputs = method.Inputs;
+            Parameter[]? outputs = method.Outputs;
 
-            string returnTypeAnnotation = GetReturnTypeAnnotation(outputs, targetNamespace, namespaces);
+            string returnTypeAnnotation = GetReturnTypeAnnotation(outputs!, targetNamespace, namespaces);
             string handlerType;
             if (async)
             {
-                if (inputs.Length == 0 && outputs.Length == 0)
+                if (inputs!.Length == 0 && outputs!.Length == 0)
                 {
                     handlerType = "global::System.Func<global::System.Threading.CancellationToken, global::System.Threading.Tasks.ValueTask>";
                 }
-                else if (outputs.Length == 0)
+                else if (outputs!.Length == 0)
                 {
                     handlerType = CoreUtils.Format(
                         "global::System.Func<{0}, global::System.Threading.CancellationToken, global::System.Threading.Tasks.ValueTask>",
@@ -1615,11 +1615,11 @@ namespace Opc.Ua.SourceGeneration
                         returnTypeAnnotation);
                 }
             }
-            else if (inputs.Length == 0 && outputs.Length == 0)
+            else if (inputs!.Length == 0 && outputs!.Length == 0)
             {
                 handlerType = "global::System.Action";
             }
-            else if (outputs.Length == 0)
+            else if (outputs!.Length == 0)
             {
                 handlerType = CoreUtils.Format(
                     "global::System.Action<{0}>",
@@ -1734,13 +1734,13 @@ namespace Opc.Ua.SourceGeneration
             string indent)
         {
             string innerIndent = indent + Indent;
-            string typeName = input.DataTypeNode.GetMethodArgumentTypeAsCode(
+            string typeName = input.DataTypeNode!.GetMethodArgumentTypeAsCode(
                 input.ValueRank,
                 targetNamespace,
                 namespaces,
                 input.IsOptional);
             string local = "__a" + index;
-            switch (input.DataTypeNode.BasicDataType)
+            switch (input.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
                     writer.WriteLine("{0}if (!__inputs[{1}].TryGetStructure(out {2} {3}))",
@@ -1825,7 +1825,7 @@ namespace Opc.Ua.SourceGeneration
 
             string indexLiteral = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-            switch (output.DataTypeNode.BasicDataType)
+            switch (output.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
                     writer.WriteLine("{0}__outputs[{1}] = global::Opc.Ua.Variant.FromStructure({2});", indent, indexLiteral, source);
@@ -1857,7 +1857,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return CoreUtils.Format(
                     "<{0}>",
-                    outputs[0].DataTypeNode.GetMethodArgumentTypeAsCode(
+                    outputs[0].DataTypeNode!.GetMethodArgumentTypeAsCode(
                         outputs[0].ValueRank,
                         targetNamespace,
                         namespaces,
@@ -1871,7 +1871,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     sb.Append(", ");
                 }
-                sb.Append(outputs[ii].DataTypeNode.GetMethodArgumentTypeAsCode(
+                sb.Append(outputs[ii].DataTypeNode!.GetMethodArgumentTypeAsCode(
                     outputs[ii].ValueRank,
                     targetNamespace,
                     namespaces,
@@ -1904,7 +1904,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     sb.Append(", ");
                 }
-                sb.Append(inputs[ii].DataTypeNode.GetMethodArgumentTypeAsCode(
+                sb.Append(inputs[ii].DataTypeNode!.GetMethodArgumentTypeAsCode(
                     inputs[ii].ValueRank,
                     targetNamespace,
                     namespaces,
@@ -1919,7 +1919,7 @@ namespace Opc.Ua.SourceGeneration
         /// to compose CLR class names. Combines the root's symbolic id
         /// with the relative path from the root.
         /// </summary>
-        private static string ComposeKey(InstanceDesign root, string relativePath)
+        private static string ComposeKey(InstanceDesign root, string? relativePath)
         {
             string rootId = root?.SymbolicId?.Name ?? string.Empty;
             if (string.IsNullOrEmpty(relativePath))
@@ -1940,14 +1940,14 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static string ResolveLeafName(
             InstanceDesign root,
-            string relativePath,
-            NodeDesign instance)
+            string? relativePath,
+            NodeDesign? instance)
         {
             if (string.IsNullOrEmpty(relativePath))
             {
                 return root?.SymbolicId?.Name ?? string.Empty;
             }
-            string symbolicName = instance?.SymbolicName?.Name;
+            string? symbolicName = instance?.SymbolicName?.Name;
             if (string.IsNullOrEmpty(symbolicName))
             {
                 return relativePath;
@@ -1962,7 +1962,7 @@ namespace Opc.Ua.SourceGeneration
         /// scope), the root's key for direct children, and the parent
         /// path's key for deeper nesting.
         /// </summary>
-        private static string ResolveParentKey(
+        private static string? ResolveParentKey(
             InstanceDesign root,
             string relativePath,
             string leafName)
@@ -2030,7 +2030,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string GetAccessorName(NodeDesign node)
         {
-            string name = node?.SymbolicName?.Name;
+            string? name = node?.SymbolicName?.Name;
             if (string.IsNullOrEmpty(name))
             {
                 return "Item";
@@ -2051,9 +2051,9 @@ namespace Opc.Ua.SourceGeneration
             return node?.SymbolicName?.Name ?? string.Empty;
         }
 
-        private string ResolveNodeBrowseNamespace(NodeDesign node)
+        private string ResolveNodeBrowseNamespace(NodeDesign? node)
         {
-            string ns = node?.SymbolicName?.Namespace;
+            string? ns = node?.SymbolicName?.Namespace;
             if (!string.IsNullOrEmpty(ns))
             {
                 return ns;
@@ -2063,7 +2063,7 @@ namespace Opc.Ua.SourceGeneration
 
         private string ResolveNodeIdNamespace(NodeDesign node)
         {
-            string ns = node?.SymbolicId?.Namespace;
+            string? ns = node?.SymbolicId?.Namespace;
             if (!string.IsNullOrEmpty(ns))
             {
                 return ns;
@@ -2083,13 +2083,13 @@ namespace Opc.Ua.SourceGeneration
         /// emitted only on spec-accurate notifier candidates so call sites
         /// don't drift from the model intent.
         /// </summary>
-        private static bool QualifiesAsEventNotifier(NodeDesign node)
+        private static bool QualifiesAsEventNotifier(NodeDesign? node)
         {
             if (node is ObjectDesign od && od.SupportsEvents)
             {
                 return true;
             }
-            Reference[] references = node?.References;
+            Reference[]? references = node?.References;
             if (references == null || references.Length == 0)
             {
                 return false;
@@ -2114,13 +2114,13 @@ namespace Opc.Ua.SourceGeneration
         /// Returns the C# type name of the runtime <see cref="NodeState"/>
         /// derivative for the supplied instance.
         /// </summary>
-        private string ResolveStateClrType(NodeDesign node)
+        private string? ResolveStateClrType(NodeDesign? node)
         {
             if (node is ObjectDesign objectDesign)
             {
                 return ResolveChildStateClr(objectDesign);
             }
-            return ResolveFallbackStateClrType(node);
+            return ResolveFallbackStateClrType(node!);
         }
 
         /// <summary>
@@ -2129,7 +2129,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string GetVariableValueClrType(VariableDesign variable)
         {
-            return variable.DataTypeNode.GetMethodArgumentTypeAsCode(
+            return variable.DataTypeNode!.GetMethodArgumentTypeAsCode(
                 variable.ValueRank,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
@@ -2142,7 +2142,7 @@ namespace Opc.Ua.SourceGeneration
         /// when present, then string, Guid and Opaque ids; otherwise falls back
         /// to the SymbolicId string.
         /// </summary>
-        private static string EmitNodeIdConstructorArg(InstanceDesign node)
+        private static string? EmitNodeIdConstructorArg(InstanceDesign node)
         {
             if (node.NumericIdSpecified && node.NumericId != 0u)
             {
@@ -2155,7 +2155,7 @@ namespace Opc.Ua.SourceGeneration
             }
             if (node.HasNonConstantIdentifier())
             {
-                return ModelDesignExtensions.GetIdentifierAsCode(node.GetIdentifier(), out _);
+                return ModelDesignExtensions.GetIdentifierAsCode(node.GetIdentifier()!, out _);
             }
             // No id assigned — fall back to the SymbolicId.Name as a string id.
             return CoreUtils.Format("\"{0}\"",
@@ -2169,7 +2169,7 @@ namespace Opc.Ua.SourceGeneration
         /// (CS1570) when the consuming project enables documentation-file
         /// generation.
         /// </summary>
-        private static string EscapeXmlDoc(string value)
+        private static string EscapeXmlDoc(string? value)
         {
             if (string.IsNullOrEmpty(value))
             {
@@ -2195,11 +2195,11 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private const string Indent = "    ";
 
-        private static string ToolName
+        private static string? ToolName
             => System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
 
         private static string ToolVersion
-            => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString();
 
         private enum ChildKind
         {
@@ -2210,54 +2210,54 @@ namespace Opc.Ua.SourceGeneration
 
         private sealed class InstanceWrapper
         {
-            public string Key;
-            public string ClassName;
-            public string LeafName;
-            public string ParentKey;
-            public string NodeStateType;
-            public string BrowseNamespaceUri;
+            public string? Key;
+            public string? ClassName;
+            public string? LeafName;
+            public string? ParentKey;
+            public string? NodeStateType;
+            public string? BrowseNamespaceUri;
             public bool SupportsPublish;
-            public List<ChildAccessor> Children;
+            public List<ChildAccessor>? Children;
             public List<string> ChildObjectKeys = [];
             public List<string> ChildMethodKeys = [];
         }
 
         private sealed class ChildAccessor
         {
-            public string AccessorName;
-            public string BrowseName;
-            public string BrowseNamespaceUri;
+            public string? AccessorName;
+            public string? BrowseName;
+            public string? BrowseNamespaceUri;
             public ChildKind Kind;
 
             /// <summary>
             /// CLR type name of the variable's value.
             /// </summary>
-            public string ValueClrType;
+            public string? ValueClrType;
 
             /// <summary>
             /// Generated wrapper class name for a method or object child.
             /// </summary>
-            public string WrapperClassName;
+            public string? WrapperClassName;
 
             /// <summary>
             /// Key into <c>m_wrappers</c> for object children.
             /// </summary>
-            public string ChildKey;
+            public string? ChildKey;
 
             /// <summary>
             /// Node state type for object children.
             /// </summary>
-            public string ChildStateType;
+            public string? ChildStateType;
         }
 
         private sealed class MethodWrapper
         {
-            public string Key;
-            public string ClassName;
-            public string LeafName;
-            public string ParentKey;
-            public Parameter[] Inputs;
-            public Parameter[] Outputs;
+            public string? Key;
+            public string? ClassName;
+            public string? LeafName;
+            public string? ParentKey;
+            public Parameter[]? Inputs;
+            public Parameter[]? Outputs;
         }
     }
 }

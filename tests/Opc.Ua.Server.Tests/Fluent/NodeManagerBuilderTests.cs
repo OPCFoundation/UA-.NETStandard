@@ -51,7 +51,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
         private static SystemContext CreateContext()
         {
-            return new SystemContext(telemetry: null);
+            return new SystemContext(telemetry: null!);
         }
 
         private static (NodeManagerBuilder Builder, BaseObjectState Root, BaseDataVariableState Var,
@@ -96,8 +96,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 ctx,
                 nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
-                rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                rootResolver: q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                nodeIdResolver: id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 typeIdResolver: _ => []);
 
             return (builder, root, var1, method);
@@ -421,11 +421,11 @@ namespace Opc.Ua.Server.Tests.Fluent
             bool handled = b.Dispatcher.TryHandleHistoryRead(
                 CreateContext(),
                 root,
-                details: null,
+                details: null!,
                 TimestampsToReturn.Both,
                 releaseContinuationPoints: false,
-                nodeToRead: null,
-                result: null,
+                nodeToRead: null!,
+                result: null!,
                 out ServiceResult status);
 
             Assert.That(handled, Is.False);
@@ -446,11 +446,11 @@ namespace Opc.Ua.Server.Tests.Fluent
             bool handled = b.Dispatcher.TryHandleHistoryRead(
                 CreateContext(),
                 v,
-                details: null,
+                details: null!,
                 TimestampsToReturn.Both,
                 releaseContinuationPoints: false,
-                nodeToRead: null,
-                result: null,
+                nodeToRead: null!,
+                result: null!,
                 out ServiceResult status);
 
             Assert.That(handled, Is.True);
@@ -477,8 +477,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             bool handled = b.Dispatcher.TryHandleHistoryUpdate(
                 CreateContext(),
                 root,
-                nodeToUpdate: null,
-                result: null,
+                nodeToUpdate: null!,
+                result: null!,
                 out ServiceResult _);
 
             Assert.That(handled, Is.False);
@@ -498,8 +498,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             bool handled = b.Dispatcher.TryHandleHistoryUpdate(
                 CreateContext(),
                 v,
-                nodeToUpdate: null,
-                result: null,
+                nodeToUpdate: null!,
+                result: null!,
                 out ServiceResult _);
 
             Assert.That(handled, Is.True);
@@ -581,7 +581,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             (NodeManagerBuilder b, _, _, _) = CreateBuilderWithGraph();
 
             Assert.Throws<ArgumentNullException>(
-                () => b.Node("Root/Var1").OnRead((NodeValueSimpleEventHandler)null));
+                () => b.Node("Root/Var1").OnRead((NodeValueSimpleEventHandler)null!));
         }
 
         [Test]
@@ -590,7 +590,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             (NodeManagerBuilder b, _, _, _) = CreateBuilderWithGraph();
 
             Assert.Throws<ArgumentNullException>(
-                () => b.Node("Root/Var1").OnNodeAdded(null));
+                () => b.Node("Root/Var1").OnNodeAdded(null!));
         }
 
         private static NodeManagerBuilder CreateBuilderWithTypeIndex(
@@ -600,9 +600,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateContext(),
                 FluentTestNodeManager.Create(kNs),
                 kNs,
-                _ => null,
-                _ => null,
-                id => byType.TryGetValue(id, out IReadOnlyList<NodeState> list)
+                _ => null!,
+                _ => null!,
+                id => byType.TryGetValue(id, out IReadOnlyList<NodeState>? list)
                     ? list
                     : []);
         }
@@ -624,8 +624,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateContext(),
                 FluentTestNodeManager.Create(kNs),
                 kNs,
-                _ => null,
-                _ => null,
+                _ => null!,
+                _ => null!,
                 _ => [],
                 dataTypeId => byDataType.TryGetValue(dataTypeId, out ArrayOf<NodeState> list)
                     ? list

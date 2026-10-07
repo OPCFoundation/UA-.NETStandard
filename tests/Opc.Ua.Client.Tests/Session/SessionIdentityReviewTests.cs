@@ -589,7 +589,7 @@ namespace Opc.Ua.Client.Tests
                 null,
                 description,
                 EndpointConfiguration.Create(ClientFixture.Config));
-            var identity = new UserIdentity("user1", "password"u8) { PolicyId = policy.PolicyId };
+            var identity = new UserIdentity("user1", "password"u8) { PolicyId = policy.PolicyId! };
             var factory = new DefaultSessionFactory(Telemetry);
 
             if (explicitNone)

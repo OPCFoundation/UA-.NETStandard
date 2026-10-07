@@ -111,7 +111,7 @@ namespace Opc.Ua.SourceGeneration
         /// by the <see cref="ObjectTypeProxyGenerator"/>. When unset,
         /// the model's target namespace prefix is used.
         /// </summary>
-        public string ObjectTypeProxyNamespace { get; set; }
+        public string? ObjectTypeProxyNamespace { get; set; }
 
         /// <summary>
         /// When set to <c>true</c>, the <see cref="NodeStateGenerator"/>
@@ -157,7 +157,7 @@ namespace Opc.Ua.SourceGeneration
         /// emitted by the <see cref="EventRecordGenerator"/>. When
         /// unset, the model's target namespace prefix is used.
         /// </summary>
-        public string EventRecordNamespace { get; set; }
+        public string? EventRecordNamespace { get; set; }
 
         /// <summary>
         /// Suppresses source-generated event record classes.

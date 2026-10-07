@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
         private static (NodeManagerBuilder Builder, MethodState Method) CreateBuilder()
         {
-            var ctx = new SystemContext(telemetry: null);
+            var ctx = new SystemContext(telemetry: null!);
 
             var root = new BaseObjectState(parent: null)
             {
@@ -96,8 +96,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 ctx,
                 nodeManager: Mock.Of<IAsyncNodeManager>(),
                 defaultNamespaceIndex: kNs,
-                rootResolver: q => q == root.BrowseName ? root : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                rootResolver: q => (q == root.BrowseName ? root : null)!,
+                nodeIdResolver: id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 typeIdResolver: _ => []);
 
             return (builder, method);

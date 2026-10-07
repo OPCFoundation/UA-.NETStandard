@@ -108,7 +108,7 @@ namespace Opc.Ua.Fuzzing
 
         private static void Usage()
         {
-            string applicationName = typeof(Program).Assembly.GetName().Name;
+            string applicationName = typeof(Program).Assembly.GetName().Name!;
             Console.Error.WriteLine(
                 "Usage: {0} <fuzzingFunction> | --list | --replay <target> <file-or-corpus>",
                 applicationName);

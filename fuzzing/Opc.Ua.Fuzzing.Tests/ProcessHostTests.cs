@@ -163,7 +163,7 @@ namespace Opc.Ua.Fuzzing.Tests
         public async Task SharedWatchdogRejectsNullStartInformationAsync()
         {
             Func<Task> run = async () =>
-                _ = await FuzzProcessWatchdog.RunAsync(null, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                _ = await FuzzProcessWatchdog.RunAsync(null!, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             await Assert.ThatAsync(run, Throws.TypeOf<ArgumentNullException>()
                 .With.Property(nameof(ArgumentException.ParamName)).EqualTo("startInfo")).ConfigureAwait(false);
@@ -248,6 +248,6 @@ namespace Opc.Ua.Fuzzing.Tests
             };
         }
 
-        private TestInputDirectory m_inputs;
+        private TestInputDirectory m_inputs = null!;
     }
 }

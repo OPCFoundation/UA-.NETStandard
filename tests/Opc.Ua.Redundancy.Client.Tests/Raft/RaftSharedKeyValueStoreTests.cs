@@ -40,8 +40,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;

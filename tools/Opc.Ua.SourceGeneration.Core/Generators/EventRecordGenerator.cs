@@ -159,7 +159,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static bool IsEventType(TypeDesign type)
         {
-            for (TypeDesign current = type;
+            for (TypeDesign? current = type;
                 current != null;
                 current = current.BaseTypeNode)
             {
@@ -335,7 +335,7 @@ namespace Opc.Ua.SourceGeneration
             // not in the target's BrowseNames, a target node with a browse
             // name in namespace 0 not necessarily in Opc.Ua.BrowseNames), so
             // any other name is a literal.
-            string ns = field.BrowseNameNamespaceUri ?? field.NamespaceUri;
+            string? ns = field.BrowseNameNamespaceUri ?? field.NamespaceUri;
             bool declaredByNamespaceModel = field.NamespaceUri == null ||
                 string.Equals(field.NamespaceUri, ns, StringComparison.Ordinal);
             string name;
@@ -435,7 +435,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ListOfActivatorRegistrations,
                 EventRecordTemplates.DecoderRegistration,
-                reg.Types,
+                reg.Types!,
                 WriteTemplate_DecoderRegistration);
             return context.Template.Render();
         }
@@ -507,7 +507,7 @@ namespace Opc.Ua.SourceGeneration
             // Walk parent chain to the BaseEventType, collecting the
             // chain root-to-leaf.
             var chain = new List<ObjectTypeDesign>();
-            for (TypeDesign current = type;
+            for (TypeDesign? current = type;
                 current is ObjectTypeDesign cot;
                 current = current.BaseTypeNode)
             {
@@ -525,7 +525,7 @@ namespace Opc.Ua.SourceGeneration
                 foreach (FieldEntry field in CollectFieldsAtLevel(level, seen))
                 {
                     fields.Add(field);
-                    seen.Add(field.BrowseName);
+                    seen.Add(field.BrowseName!);
                 }
             }
             return fields;
@@ -533,7 +533,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static bool IsConditionTypeOrSubtype(ObjectTypeDesign type)
         {
-            for (TypeDesign current = type;
+            for (TypeDesign? current = type;
                 current is ObjectTypeDesign objectType;
                 current = objectType.BaseTypeNode)
             {
@@ -559,7 +559,7 @@ namespace Opc.Ua.SourceGeneration
             HashSet<string> suppressed)
         {
             var fields = new List<FieldEntry>();
-            InstanceDesign[] children = type.Children?.Items;
+            InstanceDesign[]? children = type.Children?.Items;
             if (children == null)
             {
                 return fields;
@@ -576,7 +576,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                string browseName = child.SymbolicName?.Name;
+                string? browseName = child.SymbolicName?.Name;
                 if (string.IsNullOrEmpty(browseName))
                 {
                     continue;
@@ -606,7 +606,7 @@ namespace Opc.Ua.SourceGeneration
                         NamespaceUri = child.SymbolicId?.Namespace,
                         BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
                         BrowseNameText = child.BrowseName,
-                        ReaderMethod = MapReaderMethod(property.DataTypeNode, dotnet),
+                        ReaderMethod = MapReaderMethod(property.DataTypeNode!, dotnet),
                         IsTwoStateVariableId = false
                     });
                     continue;
@@ -614,7 +614,7 @@ namespace Opc.Ua.SourceGeneration
 
                 if (child is VariableDesign variable)
                 {
-                    string typeId = variable.TypeDefinitionNode?.SymbolicId?.Name;
+                    string? typeId = variable.TypeDefinitionNode?.SymbolicId?.Name;
                     if (typeId == "TwoStateVariableType")
                     {
                         fields.Add(new FieldEntry
@@ -648,7 +648,7 @@ namespace Opc.Ua.SourceGeneration
                         NamespaceUri = child.SymbolicId?.Namespace,
                         BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
                         BrowseNameText = child.BrowseName,
-                        ReaderMethod = MapReaderMethod(variable.DataTypeNode, dotnetVar),
+                        ReaderMethod = MapReaderMethod(variable.DataTypeNode!, dotnetVar),
                         IsTwoStateVariableId = false
                     });
                 }
@@ -668,7 +668,7 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<string> CollectInheritedFieldNames(ObjectTypeDesign type)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
-            for (TypeDesign current = type.BaseTypeNode;
+            for (TypeDesign? current = type.BaseTypeNode;
                 current is ObjectTypeDesign parent;
                 current = parent.BaseTypeNode)
             {
@@ -682,7 +682,7 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
-                    string name = child.SymbolicName?.Name;
+                    string? name = child.SymbolicName?.Name;
                     if (!string.IsNullOrEmpty(name))
                     {
                         names.Add(name);
@@ -704,7 +704,7 @@ namespace Opc.Ua.SourceGeneration
         /// in <c>Nullable&lt;Variant&gt;</c>.
         /// </summary>
         private string MapDataType(
-            DataTypeDesign dataType,
+            DataTypeDesign? dataType,
             ValueRank rank,
             ObjectTypeDesign declaringType,
             string fieldName)
@@ -731,7 +731,7 @@ namespace Opc.Ua.SourceGeneration
             return baseType;
         }
 
-        private static string StripNullable(string typeName)
+        private static string? StripNullable(string typeName)
         {
             if (typeName != null && typeName.EndsWith('?'))
             {
@@ -847,7 +847,7 @@ namespace Opc.Ua.SourceGeneration
         /// specific projection - a declared record property that the decoder
         /// never populates would read as null for every event.
         /// </summary>
-        private string MapReaderMethod(DataTypeDesign dataType, string dotnetType)
+        private string? MapReaderMethod(DataTypeDesign dataType, string dotnetType)
         {
             switch (dotnetType)
             {
@@ -984,8 +984,8 @@ namespace Opc.Ua.SourceGeneration
 
         private string ResolveCustomDataType(DataTypeDesign dataType)
         {
-            string name = dataType.SymbolicId?.Name;
-            string uri = dataType.SymbolicId?.Namespace;
+            string? name = dataType.SymbolicId?.Name;
+            string? uri = dataType.SymbolicId?.Namespace;
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(uri))
             {
                 return "global::Opc.Ua.Variant";
@@ -1007,7 +1007,7 @@ namespace Opc.Ua.SourceGeneration
                 foreach (Namespace ns in namespaces)
                 {
                     if (string.Equals(ns?.Value, uri, StringComparison.Ordinal) &&
-                        !string.IsNullOrWhiteSpace(ns.Prefix))
+                        !string.IsNullOrWhiteSpace(ns!.Prefix))
                     {
                         return CoreUtils.Format("global::{0}.{1}", ns.Prefix, name);
                     }
@@ -1030,7 +1030,7 @@ namespace Opc.Ua.SourceGeneration
                     typeName);
         }
 
-        private static string SanitizeDescription(string description)
+        private static string SanitizeDescription(string? description)
         {
             if (string.IsNullOrEmpty(description))
             {
@@ -1046,7 +1046,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string GetOutputNamespace()
         {
-            string @override = m_context.Options?.EventRecordNamespace;
+            string? @override = m_context.Options?.EventRecordNamespace;
             return string.IsNullOrWhiteSpace(@override)
                 ? m_context.ModelDesign.TargetNamespace.Prefix
                 : @override;
@@ -1074,7 +1074,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return kRootBaseRecord;
             }
-            string parentName = parent.SymbolicName?.Name;
+            string? parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))
             {
                 return kRootBaseRecord;
@@ -1098,8 +1098,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string ResolveRecordNamespaceForType(TypeDesign type)
         {
-            string typeUri = type.SymbolicName?.Namespace;
-            string targetUri = m_context.ModelDesign.TargetNamespace?.Value;
+            string? typeUri = type.SymbolicName?.Namespace;
+            string? targetUri = m_context.ModelDesign.TargetNamespace?.Value;
 
             if (!string.IsNullOrEmpty(typeUri) &&
                 string.Equals(typeUri, targetUri, StringComparison.Ordinal))
@@ -1109,10 +1109,10 @@ namespace Opc.Ua.SourceGeneration
 
             if (!string.IsNullOrEmpty(typeUri))
             {
-                IDictionary<string, string> overrides =
+                IDictionary<string, string>? overrides =
                     m_context.Options?.EventRecordExternalNamespaces;
                 if (overrides != null &&
-                    overrides.TryGetValue(typeUri, out string mapped) &&
+                    overrides.TryGetValue(typeUri, out string? mapped) &&
                     !string.IsNullOrWhiteSpace(mapped))
                 {
                     return mapped;
@@ -1129,7 +1129,7 @@ namespace Opc.Ua.SourceGeneration
                     foreach (Namespace ns in namespaces)
                     {
                         if (string.Equals(ns?.Value, typeUri, StringComparison.Ordinal) &&
-                            !string.IsNullOrWhiteSpace(ns.Prefix))
+                            !string.IsNullOrWhiteSpace(ns!.Prefix))
                         {
                             return ns.Prefix;
                         }
@@ -1146,14 +1146,14 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private sealed class FieldEntry
         {
-            public string PropertyName { get; set; }
-            public string DotNetType { get; set; }
-            public string Description { get; set; }
-            public string BrowseName { get; set; }
-            public string NamespaceUri { get; set; }
-            public string BrowseNameNamespaceUri { get; set; }
-            public string BrowseNameText { get; set; }
-            public string ReaderMethod { get; set; }
+            public string? PropertyName { get; set; }
+            public string? DotNetType { get; set; }
+            public string? Description { get; set; }
+            public string? BrowseName { get; set; }
+            public string? NamespaceUri { get; set; }
+            public string? BrowseNameNamespaceUri { get; set; }
+            public string? BrowseNameText { get; set; }
+            public string? ReaderMethod { get; set; }
             public bool IsTwoStateVariableId { get; set; }
             public bool IsConditionId { get; set; }
             public int FieldIndex { get; set; }
@@ -1166,9 +1166,9 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private sealed class RegistrationContext
         {
-            public List<ObjectTypeDesign> Types { get; set; }
-            public string ClassName { get; set; }
-            public string MethodName { get; set; }
+            public List<ObjectTypeDesign>? Types { get; set; }
+            public string? ClassName { get; set; }
+            public string? MethodName { get; set; }
         }
 
         private static readonly XmlQualifiedName kBaseEventTypeId =

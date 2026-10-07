@@ -166,8 +166,8 @@ namespace Opc.Ua.Gds.Tests
 
             Variant redacted = GdsAuditEvents.RedactUserIdentityToken(token);
 
-            Assert.That(redacted.TryGetStructure(out UserNameIdentityToken redactedToken), Is.True);
-            Assert.That(redactedToken.UserName, Is.EqualTo("alice"));
+            Assert.That(redacted.TryGetStructure<UserNameIdentityToken>(out UserNameIdentityToken? redactedToken), Is.True);
+            Assert.That(redactedToken!.UserName, Is.EqualTo("alice"));
             Assert.That(redactedToken.PolicyId, Is.EqualTo("username"));
             Assert.That(redactedToken.Password.IsEmpty, Is.True);
             Assert.That(redactedToken.EncryptionAlgorithm, Is.Null);
@@ -185,8 +185,8 @@ namespace Opc.Ua.Gds.Tests
 
             Variant redacted = GdsAuditEvents.RedactUserIdentityToken(token);
 
-            Assert.That(redacted.TryGetStructure(out IssuedIdentityToken redactedToken), Is.True);
-            Assert.That(redactedToken.PolicyId, Is.EqualTo("jwt"));
+            Assert.That(redacted.TryGetStructure<IssuedIdentityToken>(out IssuedIdentityToken? redactedToken), Is.True);
+            Assert.That(redactedToken!.PolicyId, Is.EqualTo("jwt"));
             Assert.That(redactedToken.TokenData.IsEmpty, Is.True);
             Assert.That(GdsAuditEvents.RedactUserIdentityToken(null).IsNull, Is.True);
         }

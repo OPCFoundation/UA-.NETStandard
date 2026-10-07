@@ -132,7 +132,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 }
 
                 // Retry publish to handle timing variations
-                DataChangeNotification dcn = null;
+                DataChangeNotification? dcn = null;
                 for (int attempt = 0; attempt < 3 && dcn == null; attempt++)
                 {
                     dcn = await PublishAndGetDcnAsync(
@@ -702,7 +702,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             Assert.That(dcn, Is.Not.Null);
             // Queue size 1 → at most 1 item per handle
-            var items = dcn.MonitoredItems.ToArray()
+            var items = dcn.MonitoredItems.ToArray()!
                 .Where(m => m.ClientHandle == 40).ToList();
             Assert.That(items, Has.Count.LessThanOrEqualTo(2),
                 "Queue size 1 should keep only the latest value " +
@@ -856,7 +856,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(dcn.MonitoredItems.Count, Is.GreaterThan(0));
 
             // Check if any item has the overflow bit set
-            bool hasOverflow = dcn.MonitoredItems.ToArray().Any(
+            bool hasOverflow = dcn.MonitoredItems.ToArray()!.Any(
                 m => m.Value.StatusCode.Overflow);
             // Server may or may not set overflow on queue size 1;
             // just verify we got data without error
@@ -990,7 +990,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             Assert.That(dcn, Is.Not.Null);
             // Both monitored items should have notifications
-            var handles = dcn.MonitoredItems.ToArray()
+            var handles = dcn.MonitoredItems.ToArray()!
                 .Select(m => m.ClientHandle).ToList();
             Assert.That(handles, Does.Contain(60u),
                 "First item should be notified");
@@ -1204,12 +1204,12 @@ namespace Opc.Ua.Subscriptions.Tests
 
             if (pubResp.NotificationMessage.NotificationData.Count == 0)
             {
-                return null;
+                return null!;
             }
 
-            return ExtensionObject.ToEncodeable(
+            return (ExtensionObject.ToEncodeable(
                 pubResp.NotificationMessage.NotificationData[0]) as
-                DataChangeNotification;
+                DataChangeNotification)!;
         }
 
         /// <summary>

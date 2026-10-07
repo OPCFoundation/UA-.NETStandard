@@ -161,7 +161,7 @@ namespace Opc.Ua.Tests
             get
             {
                 yield return new TestCaseData(
-                    (DiagnosticInfo)null);
+                    (DiagnosticInfo)null!);
                 yield return new TestCaseData(
                     new DiagnosticInfo
                     {
@@ -1279,7 +1279,7 @@ namespace Opc.Ua.Tests
         public static XmlElement SerializeXml<T>(T o)
         {
             var doc = new System.Xml.XmlDocument();
-            XPathNavigator nav = doc.CreateNavigator();
+            XPathNavigator? nav = doc.CreateNavigator();
             if (nav is null)
             {
                 return XmlElement.Empty;
@@ -1360,7 +1360,7 @@ namespace Opc.Ua.Tests
             decoder.ReadInt32(null);
         }
 
-        public bool IsEqual(IEncodeable encodeable)
+        public bool IsEqual(IEncodeable? encodeable)
         {
             return false;
         }

@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(accepted.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
             Assert.That(accepted.Identity, Is.SameAs(acceptedIdentity));
             Assert.That(rejected.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(mapped.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(mapped.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         private static Certificate CreateCertificate(string subject)
@@ -200,8 +200,6 @@ namespace Opc.Ua.Server.Tests.Identity
                 new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
-
-#nullable enable
 
         private sealed class TestCertificateValidator : ICertificateValidatorEx
         {

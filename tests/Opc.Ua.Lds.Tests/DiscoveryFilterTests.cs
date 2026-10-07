@@ -61,7 +61,7 @@ namespace Opc.Ua.Lds.Tests
                     default, CancellationToken.None).ConfigureAwait(false);
             Assert.That(all.Count, Is.GreaterThan(0));
 
-            string uri = all[0].ApplicationUri;
+            string uri = all[0].ApplicationUri!;
 
             // Now filter by that URI
             ArrayOf<ApplicationDescription> filtered =
@@ -298,7 +298,7 @@ namespace Opc.Ua.Lds.Tests
             Assert.That(servers.Count, Is.GreaterThan(0));
             foreach (ApplicationDescription app in servers)
             {
-                if (app.DiscoveryUrls != default)
+                if (app.DiscoveryUrls != default!)
                 {
                     foreach (string url in app.DiscoveryUrls)
                     {
@@ -316,12 +316,12 @@ namespace Opc.Ua.Lds.Tests
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
             Assert.That(endpoints.Count, Is.GreaterThan(0));
 
-            var uri0 = new Uri(endpoints[0].EndpointUrl);
+            var uri0 = new Uri(endpoints[0].EndpointUrl!);
             string host0 = uri0.Host;
 
             foreach (EndpointDescription ep in endpoints)
             {
-                var uri = new Uri(ep.EndpointUrl);
+                var uri = new Uri(ep.EndpointUrl!);
                 Assert.That(uri.Host, Is.EqualTo(host0),
                     "All endpoints should use the same hostname.");
             }
@@ -371,7 +371,7 @@ namespace Opc.Ua.Lds.Tests
             bool anyHasTokens = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default && ep.UserIdentityTokens.Count > 0)
+                if (ep.UserIdentityTokens != default! && ep.UserIdentityTokens.Count > 0)
                 {
                     anyHasTokens = true;
                 }
@@ -388,7 +388,7 @@ namespace Opc.Ua.Lds.Tests
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
             Assert.That(endpoints.Count, Is.GreaterThan(0));
 
-            string expectedUri = endpoints[0].Server.ApplicationUri;
+            string expectedUri = endpoints[0].Server.ApplicationUri!;
             Assert.That(expectedUri, Is.Not.Null.And.Not.Empty,
                 "First endpoint ApplicationUri should not be null or empty.");
 

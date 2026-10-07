@@ -167,7 +167,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
 
-                NodeState nodeState = nodeManager.Find(nodeId);
+                NodeState nodeState = nodeManager.Find(nodeId)!;
                 Assert.That(nodeState, Is.Not.Null);
 
                 var handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
-                nodeState = nodeManager.Find(nodeId);
+                nodeState = nodeManager.Find(nodeId)!;
                 Assert.That(nodeState, Is.Null);
 
                 handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
@@ -261,12 +261,12 @@ namespace Opc.Ua.Server.Tests
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        private static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallelAsync(
+        private static async Task<(bool IsSuccess, Exception? Error)> RunTaskInParallelAsync(
             Func<Task> task,
             int iterations)
         {
             using var cancellationTokenSource = new CancellationTokenSource();
-            Exception error = null;
+            Exception? error = null;
             int tasksCompletedCount = 0;
             ParallelLoopResult result = Parallel.For(
                 0,
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server.Tests
 
         public new NodeState LookupNodeInComponentCache(ISystemContext context, NodeHandle handle)
         {
-            return base.LookupNodeInComponentCache(context, handle);
+            return base.LookupNodeInComponentCache(context, handle)!;
         }
 
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;

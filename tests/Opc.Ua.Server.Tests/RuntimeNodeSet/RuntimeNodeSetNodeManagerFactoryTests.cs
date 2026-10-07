@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void ConstructorRejectsNullOptions()
         {
             Assert.That(
-                () => new RuntimeNodeSetNodeManagerFactory(null),
+                () => new RuntimeNodeSetNodeManagerFactory(null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("options"));
         }
 
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new RuntimeNodeSetOptions { Sources = [source] });
 
             Assert.That(
-                () => factory.CreateAsync(null, new ApplicationConfiguration(), default).AsTask(),
+                () => factory.CreateAsync(null!, new ApplicationConfiguration(), default).AsTask(),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("server"));
         }
 

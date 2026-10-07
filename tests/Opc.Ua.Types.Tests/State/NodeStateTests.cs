@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         private static BaseObjectState CreateObjectNode(
-            NodeState parent = null,
+            NodeState? parent = null,
             string name = "TestObject")
         {
             return new BaseObjectState(parent)
@@ -124,9 +124,9 @@ namespace Opc.Ua.Types.Tests.State
                 copy = new BaseObjectState(null);
                 copy.Create(m_context, original);
             }
-            var copiedMethod = (MethodState)copy.FindChild(m_context, method.BrowseName);
+            var copiedMethod = (MethodState)copy.FindChild(m_context, method.BrowseName)!;
             Assert.That(copiedMethod, Is.Not.Null);
-            BaseInstanceState copiedNested = copiedMethod.InputArguments.FindChild(m_context, nested.BrowseName);
+            BaseInstanceState copiedNested = copiedMethod.InputArguments!.FindChild(m_context, nested.BrowseName)!;
             Assert.Multiple(() =>
             {
                 Assert.That(copiedMethod, Is.Not.SameAs(method));
@@ -134,9 +134,9 @@ namespace Opc.Ua.Types.Tests.State
                 Assert.That(copiedMethod.InputArguments, Is.Not.SameAs(method.InputArguments));
                 Assert.That(copiedMethod.OutputArguments, Is.Not.SameAs(method.OutputArguments));
                 Assert.That(copiedMethod.InputArguments.Parent, Is.SameAs(copiedMethod));
-                Assert.That(copiedMethod.OutputArguments.Parent, Is.SameAs(copiedMethod));
+                Assert.That(copiedMethod.OutputArguments!.Parent, Is.SameAs(copiedMethod));
                 Assert.That(copiedNested, Is.Not.SameAs(nested));
-                Assert.That(copiedNested.Parent, Is.SameAs(copiedMethod.InputArguments));
+                Assert.That(copiedNested!.Parent, Is.SameAs(copiedMethod.InputArguments));
                 Assert.That(method.Parent, Is.SameAs(original));
                 Assert.That(method.InputArguments.Parent, Is.SameAs(method));
                 Assert.That(nested.Parent, Is.SameAs(method.InputArguments));
@@ -623,7 +623,7 @@ namespace Opc.Ua.Types.Tests.State
             PropertyState child = CreatePropertyChild(parent, "MyProp");
             parent.AddChild(child);
 
-            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("MyProp"));
+            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("MyProp"))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("MyProp")));
         }
@@ -632,7 +632,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildByBrowseNameReturnsNullForMissing()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("NonExistent"));
+            BaseInstanceState? found = parent.FindChild(m_context, QualifiedName.From("NonExistent"));
             Assert.That(found, Is.Null);
         }
 
@@ -644,7 +644,7 @@ namespace Opc.Ua.Types.Tests.State
             root.AddChild(child);
 
             var path = new List<QualifiedName> { QualifiedName.From("Level1") };
-            BaseInstanceState found = root.FindChild(m_context, path, 0);
+            BaseInstanceState found = root.FindChild(m_context, path, 0)!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("Level1")));
         }
@@ -654,7 +654,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             BaseObjectState root = CreateObjectNode();
             var path = new List<QualifiedName> { QualifiedName.From("Missing") };
-            BaseInstanceState found = root.FindChild(m_context, path, 0);
+            BaseInstanceState? found = root.FindChild(m_context, path, 0);
             Assert.That(found, Is.Null);
         }
 
@@ -674,7 +674,7 @@ namespace Opc.Ua.Types.Tests.State
             child.SymbolicName = "SymChild";
             parent.AddChild(child);
 
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "SymChild");
+            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "SymChild")!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.SymbolicName, Is.EqualTo("SymChild"));
         }
@@ -683,7 +683,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForEmpty()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, string.Empty);
+            BaseInstanceState? found = parent.FindChildBySymbolicName(m_context, string.Empty);
             Assert.That(found, Is.Null);
         }
 
@@ -691,7 +691,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForNull()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, null);
+            BaseInstanceState? found = parent.FindChildBySymbolicName(m_context, null!);
             Assert.That(found, Is.Null);
         }
 
@@ -703,7 +703,7 @@ namespace Opc.Ua.Types.Tests.State
             child.SymbolicName = "Child1";
             parent.AddChild(child);
 
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "///Child1");
+            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "///Child1")!;
             Assert.That(found, Is.Not.Null);
         }
 
@@ -711,7 +711,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForOnlySlashes()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "///");
+            BaseInstanceState? found = parent.FindChildBySymbolicName(m_context, "///");
             Assert.That(found, Is.Null);
         }
 
@@ -731,7 +731,7 @@ namespace Opc.Ua.Types.Tests.State
             leaf.SymbolicName = "Leaf";
             intermediate.AddChild(leaf);
 
-            BaseInstanceState found = root.FindChildBySymbolicName(m_context, "Mid/Leaf");
+            BaseInstanceState found = root.FindChildBySymbolicName(m_context, "Mid/Leaf")!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.SymbolicName, Is.EqualTo("Leaf"));
         }
@@ -740,7 +740,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForNonExistent()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "DoesNotExist");
+            BaseInstanceState? found = parent.FindChildBySymbolicName(m_context, "DoesNotExist");
             Assert.That(found, Is.Null);
         }
 
@@ -757,7 +757,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var children = new List<BaseInstanceState>();
             parent.GetChildren(m_context, children);
-            BaseInstanceState found = children.FirstOrDefault(c => c.BrowseName == QualifiedName.From("Prop"));
+            BaseInstanceState found = children.FirstOrDefault(c => c.BrowseName == QualifiedName.From("Prop"))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.NodeId, Is.EqualTo(new NodeId(9001, 0)));
         }
@@ -766,7 +766,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ReplaceChildThrowsForNullChild()
         {
             BaseObjectState parent = CreateObjectNode();
-            Assert.Throws<ArgumentException>(() => parent.ReplaceChild(m_context, null));
+            Assert.Throws<ArgumentException>(() => parent.ReplaceChild(m_context, null!));
         }
 
         [Test]
@@ -781,7 +781,7 @@ namespace Opc.Ua.Types.Tests.State
         public void CreateChildWithNullBrowseNameReturnsNull()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState result = parent.CreateChild(m_context, QualifiedName.Null);
+            BaseInstanceState? result = parent.CreateChild(m_context, QualifiedName.Null);
             Assert.That(result, Is.Null);
         }
 
@@ -945,7 +945,7 @@ namespace Opc.Ua.Types.Tests.State
         public void AddReferencesThrowsForNull()
         {
             BaseObjectState node = CreateObjectNode();
-            Assert.Throws<ArgumentNullException>(() => node.AddReferences(null));
+            Assert.Throws<ArgumentNullException>(() => node.AddReferences(null!));
         }
 
         [Test]
@@ -1209,7 +1209,7 @@ namespace Opc.Ua.Types.Tests.State
         public void DeepEqualsNullReturnsFalse()
         {
             BaseObjectState node = CreateObjectNode();
-            Assert.That(node.DeepEquals(null), Is.False);
+            Assert.That(node.DeepEquals(null!), Is.False);
         }
 
         [Test]
@@ -1943,7 +1943,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ReadAttributesWithNullReturnsEmpty()
         {
             BaseObjectState node = CreateObjectNode();
-            ArrayOf<Variant> values = node.ReadAttributes(m_context, null);
+            ArrayOf<Variant> values = node.ReadAttributes(m_context, null!);
             Assert.That(values.Count, Is.Zero);
         }
 
@@ -2205,10 +2205,10 @@ namespace Opc.Ua.Types.Tests.State
             node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
                 throw new InvalidOperationException("handler failure");
             var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
-            ServiceResult result = null;
+            ServiceResult? result = null;
             Assert.DoesNotThrow(() => result = node.WriteAttribute(
                 m_context, Attributes.DisplayName, default, dv));
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
         }
 
@@ -2804,7 +2804,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState node = CreateObjectNode();
             bool invoked = false;
             node.OnReportEvent = (ctx, n, e) => invoked = true;
-            node.ReportEvent(m_context, null);
+            node.ReportEvent(m_context, null!);
             Assert.That(invoked, Is.True);
         }
 
@@ -2822,7 +2822,7 @@ namespace Opc.Ua.Types.Tests.State
             bool parentEventReceived = false;
             parent.OnReportEvent = (ctx, n, e) => parentEventReceived = true;
 
-            source.ReportEvent(m_context, null);
+            source.ReportEvent(m_context, null!);
             Assert.That(parentEventReceived, Is.True);
         }
 
@@ -2857,7 +2857,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindMethodReturnsNullWhenNoMethods()
         {
             BaseObjectState node = CreateObjectNode();
-            MethodState result = node.FindMethod(m_context, new NodeId(999));
+            MethodState? result = node.FindMethod(m_context, new NodeId(999));
             Assert.That(result, Is.Null);
         }
 
@@ -2872,7 +2872,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             parent.AddChild(method);
 
-            MethodState found = parent.FindMethod(m_context, new NodeId(3001, 0));
+            MethodState found = parent.FindMethod(m_context, new NodeId(3001, 0))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.NodeId, Is.EqualTo(new NodeId(3001, 0)));
         }
@@ -2888,7 +2888,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             parent.AddChild(method);
 
-            MethodState found = parent.FindMethod(m_context, new NodeId(9999, 0));
+            MethodState? found = parent.FindMethod(m_context, new NodeId(9999, 0));
             Assert.That(found, Is.Null);
         }
 
@@ -3102,7 +3102,7 @@ namespace Opc.Ua.Types.Tests.State
             var context = new SystemContext(m_telemetry)
             {
                 NamespaceUris = m_context.NamespaceUris,
-                NodeIdFactory = null
+                NodeIdFactory = null!
             };
             var mapping = new Dictionary<NodeId, NodeId>();
             node.AssignNodeIds(context, mapping);
@@ -3120,7 +3120,7 @@ namespace Opc.Ua.Types.Tests.State
             parent.AddChild(child1);
             parent.AddChild(child2);
 
-            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("Dup"));
+            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("Dup"))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.NodeId, Is.EqualTo(new NodeId(3001, 0)));
         }
@@ -3142,7 +3142,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeCompletesLifecycleOnce()
         {
-            var node = new LifecycleProbeState(null);
+            var node = new LifecycleProbeState(null!);
 
             Assert.That(node.IsCreated, Is.False);
 
@@ -3157,7 +3157,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeCompletesLateChild()
         {
-            var parent = new LifecycleProbeState(null);
+            var parent = new LifecycleProbeState(null!);
             parent.CreateAsPredefinedNode(m_context);
 
             var child = new LifecycleProbeState(parent);
@@ -3175,7 +3175,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeCompletesChildAddedByOnAfterCreate()
         {
-            var parent = new ChildCreatingState(null);
+            var parent = new ChildCreatingState(null!);
 
             parent.CreateAsPredefinedNode(m_context);
 
@@ -3188,7 +3188,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeRejectsNonConvergingLifecycle()
         {
-            var node = new NonConvergingState(null);
+            var node = new NonConvergingState(null!);
 
             Assert.That(
                 () => node.CreateAsPredefinedNode(m_context),
@@ -3202,7 +3202,7 @@ namespace Opc.Ua.Types.Tests.State
             using var cts = new System.Threading.CancellationTokenSource();
             System.Threading.CancellationToken observed = default;
             var node = new LifecycleProbeState(
-                null,
+                null!,
                 ct => observed = ct);
 
             node.CreateAsPredefinedNode(m_context, cts.Token);
@@ -3215,7 +3215,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using var cts = new System.Threading.CancellationTokenSource();
             cts.Cancel();
-            var node = new LifecycleProbeState(null);
+            var node = new LifecycleProbeState(null!);
 
             Assert.That(
                 () => node.CreateAsPredefinedNode(m_context, cts.Token),
@@ -3229,7 +3229,7 @@ namespace Opc.Ua.Types.Tests.State
         public void CreateAsPredefinedNodeResumesAfterCancellationBetweenChildren()
         {
             using var cts = new System.Threading.CancellationTokenSource();
-            var parent = new LifecycleProbeState(null);
+            var parent = new LifecycleProbeState(null!);
             var first = new LifecycleProbeState(parent, _ => cts.Cancel());
             var second = new LifecycleProbeState(parent);
             parent.AddChild(first);
@@ -3256,7 +3256,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeleteResetsCreatedState()
         {
-            var node = new LifecycleProbeState(null);
+            var node = new LifecycleProbeState(null!);
             node.CreateAsPredefinedNode(m_context);
 
             node.Delete(m_context);
@@ -3279,7 +3279,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAlwaysRunsLifecycle()
         {
-            var node = new LifecycleProbeState(null);
+            var node = new LifecycleProbeState(null!);
 
             node.Create(
                 m_context,
@@ -3328,7 +3328,7 @@ namespace Opc.Ua.Types.Tests.State
                 QualifiedName.From("Mid"),
                 QualifiedName.From("Leaf")
             };
-            BaseInstanceState found = root.FindChild(m_context, path, 0);
+            BaseInstanceState found = root.FindChild(m_context, path, 0)!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("Leaf")));
         }
@@ -3665,7 +3665,7 @@ namespace Opc.Ua.Types.Tests.State
                 fieldName,
                 BindingFlags.Instance | BindingFlags.NonPublic) ??
                 throw new InvalidOperationException($"Could not find NodeState.{fieldName}.");
-            return field.GetValue(node);
+            return field.GetValue(node)!;
         }
 
         private static void UpdateMaximum(ref int maximum, int value)
@@ -3698,14 +3698,14 @@ namespace Opc.Ua.Types.Tests.State
 
         private sealed class LifecycleProbeState : BaseObjectState
         {
-            private readonly Action<System.Threading.CancellationToken> m_afterCreate;
+            private readonly Action<System.Threading.CancellationToken> m_afterCreate = null!;
 
             public LifecycleProbeState(
                 NodeState parent,
-                Action<System.Threading.CancellationToken> afterCreate = null)
+                Action<System.Threading.CancellationToken>? afterCreate = null)
                 : base(parent)
             {
-                m_afterCreate = afterCreate;
+                m_afterCreate = afterCreate!;
             }
 
             public int BeforeCreateCount { get; private set; }

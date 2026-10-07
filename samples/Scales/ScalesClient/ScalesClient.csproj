@@ -6,7 +6,6 @@
     <PackageId>ScalesClient</PackageId>
     <RootNamespace>ScalesSample.Client</RootNamespace>
     <Description>Console client that discovers every OPC 40200 scale and scale system of a server with Opc.Ua.Scales.Client, prints snapshots with identification, weighing ranges, current and registered weight, products and PackML state, drives zero, tare, register and product selection, and streams live weights and scale events and alarms.</Description>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
   </PropertyGroup>

@@ -134,7 +134,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         internal static Stream OpenTestStream()
         {
             Stream stream = typeof(RuntimeNodeSetTestServer).Assembly
-                .GetManifestResourceStream(kResourceName);
+                .GetManifestResourceStream(kResourceName)!;
 
             if (stream is null)
             {

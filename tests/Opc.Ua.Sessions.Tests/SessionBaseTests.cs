@@ -721,7 +721,7 @@ namespace Opc.Ua.Sessions.Tests
                 }))
             {
                 ISession first = await OpenAuxSessionAsync().ConfigureAwait(false);
-                ISession second = null;
+                ISession? second = null;
                 try
                 {
                     Assert.That(firstToken.IsNull, Is.False);
@@ -739,7 +739,7 @@ namespace Opc.Ua.Sessions.Tests
                 }
                 finally
                 {
-                    foreach (ISession s in new[] { first, second })
+                    foreach (ISession? s in new[] { first, second })
                     {
                         if (s == null)
                         {
@@ -812,7 +812,7 @@ namespace Opc.Ua.Sessions.Tests
             // On a SecurityPolicy=None channel the client does not
             // require a 32-byte nonce, so the connection completes.
             // On a signed channel the client would reject the response.
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await OpenAuxSessionAsync().ConfigureAwait(false);
@@ -846,7 +846,7 @@ namespace Opc.Ua.Sessions.Tests
             return AssertCreateSessionToleratesServerEndpointsMutationAsync(
                 mutate: (req, resp) =>
                 {
-                    if (resp.ServerEndpoints != null && resp.ServerEndpoints.Count > 0)
+                    if (resp.ServerEndpoints != null! && resp.ServerEndpoints.Count > 0)
                     {
                         // Tweak the application URI on every endpoint so it
                         // no longer matches the one returned by Discovery.
@@ -871,7 +871,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             using IDisposable expectation = MockController.WhenRequest(mutate);
 
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await OpenAuxSessionAsync().ConfigureAwait(false);
@@ -931,7 +931,7 @@ namespace Opc.Ua.Sessions.Tests
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
                 (req, resp) => resp.ServerSignature = new SignatureData());
 
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await OpenAuxSessionAsync().ConfigureAwait(false);
@@ -1416,7 +1416,7 @@ namespace Opc.Ua.Sessions.Tests
 
             // On a SecurityPolicy=None channel the empty nonce passes
             // through. On a signed channel the client would reject.
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await OpenAuxSessionAsync().ConfigureAwait(false);
@@ -1450,7 +1450,7 @@ namespace Opc.Ua.Sessions.Tests
             using IDisposable expectation = MockController.WhenRequest<ActivateSessionRequest, ActivateSessionResponse>(
                 (req, resp) =>
                 {
-                    int n = resp.Results == null ? 0 : resp.Results.Count;
+                    int n = resp.Results == null! ? 0 : resp.Results.Count;
                     var mutated = new StatusCode[Math.Max(n, 1)];
                     for (int i = 0; i < mutated.Length; i++)
                     {
@@ -1460,7 +1460,7 @@ namespace Opc.Ua.Sessions.Tests
                     resp.Results = mutated.ToArrayOf();
                 });
 
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await OpenAuxSessionAsync().ConfigureAwait(false);
@@ -1494,7 +1494,7 @@ namespace Opc.Ua.Sessions.Tests
             using IDisposable expectation = MockController.WhenRequest<ActivateSessionRequest, ActivateSessionResponse>(
                 (req, resp) =>
                 {
-                    int n = resp.Results == null ? 0 : resp.Results.Count;
+                    int n = resp.Results == null! ? 0 : resp.Results.Count;
                     var mutated = new StatusCode[Math.Max(n, 1)];
                     for (int i = 0; i < mutated.Length; i++)
                     {
@@ -1503,7 +1503,7 @@ namespace Opc.Ua.Sessions.Tests
                     resp.Results = mutated.ToArrayOf();
                 });
 
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await OpenAuxSessionAsync().ConfigureAwait(false);
@@ -1536,7 +1536,7 @@ namespace Opc.Ua.Sessions.Tests
             ArrayOf<EndpointDescription> endpoints = await ClientFixture
                 .GetEndpointsAsync(ServerUrl)
                 .ConfigureAwait(false);
-            EndpointDescription selected = null;
+            EndpointDescription? selected = null;
             for (int i = 0; i < endpoints.Count; i++)
             {
                 EndpointDescription candidate = endpoints[i];

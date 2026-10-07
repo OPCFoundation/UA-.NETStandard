@@ -105,8 +105,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 ctx,
                 nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
-                rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                rootResolver: q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                nodeIdResolver: id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 typeIdResolver: _ => []);
 
             return (builder, v);
@@ -168,8 +168,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 ctx,
                 nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
-                rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                rootResolver: q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                nodeIdResolver: id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 typeIdResolver: _ => []);
 
             INodeBuilder nb = builder.Node("Root");
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             (NodeManagerBuilder b, BaseDataVariableState v) =
                 CreateBuilderForVariable<int>(DataTypeIds.Int32);
 
-            ISystemContext seenContext = null;
+            ISystemContext? seenContext = null;
             b.Variable<int>("Root/Var").OnRead(c =>
             {
                 seenContext = c;
@@ -234,8 +234,8 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             IVariableBuilder<int> tb = b.Variable<int>("Root/Var");
 
-            Assert.Throws<ArgumentNullException>(() => tb.OnRead((Func<int>)null));
-            Assert.Throws<ArgumentNullException>(() => tb.OnRead((Func<ISystemContext, int>)null));
+            Assert.Throws<ArgumentNullException>(() => tb.OnRead((Func<int>)null!));
+            Assert.Throws<ArgumentNullException>(() => tb.OnRead((Func<ISystemContext, int>)null!));
         }
 
         // -----------------------------------------------------------------
@@ -334,7 +334,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             (NodeManagerBuilder b, BaseDataVariableState v) =
                 CreateBuilderForVariable<double>(DataTypeIds.Double);
 
-            ISystemContext seenContext = null;
+            ISystemContext? seenContext = null;
             double captured = 0;
             b.Variable<double>("Root/Var").OnWrite((c, x) =>
             {
@@ -360,9 +360,9 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             IVariableBuilder<double> tb = b.Variable<double>("Root/Var");
 
-            Assert.Throws<ArgumentNullException>(() => tb.OnWrite((Action<double>)null));
+            Assert.Throws<ArgumentNullException>(() => tb.OnWrite((Action<double>)null!));
             Assert.Throws<ArgumentNullException>(
-                () => tb.OnWrite((Action<ISystemContext, double>)null));
+                () => tb.OnWrite((Action<ISystemContext, double>)null!));
         }
 
         // -----------------------------------------------------------------
@@ -403,7 +403,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CreateBuilderForVariable<double>(DataTypeIds.Double);
 
             using var cts = new CancellationTokenSource();
-            ISystemContext seenContext = null;
+            ISystemContext? seenContext = null;
             CancellationToken seenToken = default;
 
             b.Variable<double>("Root/Var").OnWrite(
@@ -438,7 +438,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             // Hook a writer that captures whatever the framework hands us;
             // we want to verify ReadValue can yield a default(string) if
             // OnRead returns null.
-            b.Variable<string>("Root/Var").OnRead(() => null);
+            b.Variable<string>("Root/Var").OnRead(() => null!);
 
             var dv = new DataValue();
             ServiceResult result = v.ReadAttribute(
@@ -454,7 +454,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             (NodeManagerBuilder b, BaseDataVariableState v) =
                 CreateBuilderForVariable<string>(DataTypeIds.String);
 
-            string captured = null;
+            string? captured = null;
             b.Variable<string>("Root/Var").OnWrite(s => captured = s);
 
             var dv = new DataValue(

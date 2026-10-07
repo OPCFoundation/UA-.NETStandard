@@ -35,8 +35,6 @@ using System.Threading.Tasks;
 using System.Xml;
 using NUnit.Framework;
 
-#nullable enable
-
 namespace Opc.Ua.Types.Tests.Encoders
 {
     /// <summary>

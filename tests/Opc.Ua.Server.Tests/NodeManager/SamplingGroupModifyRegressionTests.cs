@@ -198,9 +198,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             DiscardOldest = true
                         }
                     },
-                    null,
-                    null,
-                    revisedSamplingInterval: 100);
+                    null!,
+                    null!,
+                    revisedSamplingInterval: 100)!;
 
                 Assert.That(ServiceResult.IsGood(result), Is.True);
                 Assert.That(item.QueueSize, Is.EqualTo(1));
@@ -218,8 +218,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static int GroupCount(SamplingGroupManager manager)
         {
             FieldInfo field = typeof(SamplingGroupManager).GetField(
-                "m_samplingGroups", BindingFlags.Instance | BindingFlags.NonPublic);
-            return ((ICollection)field.GetValue(manager)).Count;
+                "m_samplingGroups", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            return ((ICollection)field!.GetValue(manager)!).Count;
         }
 
         private static OperationContext CreateContext()
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var session = new Mock<ISession>();
             session.SetupGet(value => value.Id).Returns(new NodeId(1));
             return new OperationContext(
-                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
+                new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
         }
 
         private static MonitoredItem CreateItem(

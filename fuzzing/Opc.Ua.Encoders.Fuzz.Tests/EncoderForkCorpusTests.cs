@@ -121,7 +121,7 @@ namespace Opc.Ua.Fuzzing
 
             Assert.That(matrix.Elements().Select(element => element.Name.LocalName),
                 Is.EqualTo(s_legacyMatrixFields));
-            Assert.That(matrix.Element(ns + "Elements").Elements().Single().Name, Is.EqualTo(ns + elementName));
+            Assert.That(matrix.Element(ns + "Elements")!.Elements().Single().Name, Is.EqualTo(ns + elementName));
             Assert.That(() => DecodeOriginal(input, "Xml"),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
@@ -161,7 +161,7 @@ namespace Opc.Ua.Fuzzing
                 Is.EqualTo(spanCount));
             Assert.That(callbacks.Count(name => name.StartsWith("Aflfuzz", StringComparison.Ordinal)),
                 Is.EqualTo(aflCount));
-            Assert.That(FuzzableCode.JsonEncodingModes.ToArray().Select(mode => mode.Name),
+            Assert.That(FuzzableCode.JsonEncodingModes.ToArray()!.Select(mode => mode.Name),
                 Is.EqualTo(s_jsonModes));
         }
 
@@ -357,7 +357,7 @@ namespace Opc.Ua.Fuzzing
             AssertAdditionalHeader(request.RequestHeader.AdditionalHeader);
             Assert.That(request.MaxAge, Is.EqualTo(1000));
             Assert.That(request.TimestampsToReturn, Is.EqualTo(TimestampsToReturn.Source));
-            Assert.That(request.NodesToRead.ToArray().Select(node => node.NodeId), Is.EqualTo(new[]
+            Assert.That(request.NodesToRead.ToArray()!.Select(node => node.NodeId), Is.EqualTo(new[]
             {
                 new NodeId(123),
                 new NodeId(4444, 2),
@@ -368,7 +368,7 @@ namespace Opc.Ua.Fuzzing
                 new NodeId(4444, 2),
                 new NodeId(ByteString.From([66, 22, 55, 44, 11]))
             }));
-            Assert.That(request.NodesToRead.ToArray().Select(node => node.AttributeId), Is.EqualTo(s_readAttributes));
+            Assert.That(request.NodesToRead.ToArray()!.Select(node => node.AttributeId), Is.EqualTo(s_readAttributes));
             Assert.That(request.NodesToRead[2].IndexRange, Is.EqualTo("1:2"));
             Assert.That(request.NodesToRead[2].DataEncoding.IsNull, Is.True);
         }
@@ -379,7 +379,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(response.ResponseHeader.StringTable.ToArray(), Is.EqualTo(s_readStrings));
             AssertAdditionalHeader(response.ResponseHeader.AdditionalHeader);
-            AssertDiagnostics(response.ResponseHeader.ServiceDiagnostics,
+            AssertDiagnostics(response.ResponseHeader.ServiceDiagnostics!,
                 s_serviceDiagnostics, "NodeId not found");
             Assert.That(response.Results.Count, Is.EqualTo(11));
             Assert.That(response.Results[0].WrappedValue.TryGetValue(out string greeting), Is.True);
@@ -413,14 +413,14 @@ namespace Opc.Ua.Fuzzing
                 Assert.That(response.Results[i].StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTooManyOperations));
                 Assert.That(response.Results[i].SourceTimestamp, Is.EqualTo(captured));
             }
-            Assert.That(response.Results[9].WrappedValue.TryGetStructure(out ThreeDVector vector), Is.True);
-            AssertVector(vector);
+            Assert.That(response.Results[9].WrappedValue.TryGetStructure<ThreeDVector>(out ThreeDVector? vector), Is.True);
+            AssertVector(vector!);
             Assert.That(response.Results[10].WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> vectors), Is.True);
             Assert.That(vectors.Count, Is.EqualTo(2));
             foreach (ExtensionObject item in vectors)
             {
-                Assert.That(item.TryGetValue(out ThreeDVector element), Is.True);
-                AssertVector(element);
+                Assert.That(item.TryGetValue(out ThreeDVector? element), Is.True);
+                AssertVector(element!);
             }
             Assert.That(response.DiagnosticInfos.Count, Is.EqualTo(1));
             AssertNestedDiagnostic(response.DiagnosticInfos[0]);
@@ -441,8 +441,8 @@ namespace Opc.Ua.Fuzzing
             Assert.That(response.NotificationMessage.PublishTime, Is.EqualTo(captured));
             Assert.That(response.NotificationMessage.NotificationData.Count, Is.EqualTo(1));
             Assert.That(response.NotificationMessage.NotificationData[0]
-                .TryGetValue(out DataChangeNotification notification), Is.True);
-            Assert.That(notification.MonitoredItems.ToArray().Select(item => item.ClientHandle),
+                .TryGetValue(out DataChangeNotification? notification), Is.True);
+            Assert.That(notification!.MonitoredItems.ToArray()!.Select(item => item.ClientHandle),
                 Is.EqualTo(s_clientHandles));
             Assert.That(notification.MonitoredItems[0].Value.WrappedValue.TryGetValue(out string greeting), Is.True);
             Assert.That(greeting, Is.EqualTo("Hello World"));
@@ -476,7 +476,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(notification.MonitoredItems[10].Value.WrappedValue.TryGetValue(out ArrayOf<uint> array),
                 Is.True);
             Assert.That(array.ToArray(), Is.EqualTo(s_uintArray));
-            Assert.That(notification.MonitoredItems.ToArray().Select(item => item.Value.StatusCode),
+            Assert.That(notification.MonitoredItems.ToArray()!.Select(item => item.Value.StatusCode),
                 Is.All.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(notification.DiagnosticInfos.Count, Is.Zero);
             Assert.That(response.Results.Count, Is.Zero);
@@ -488,7 +488,7 @@ namespace Opc.Ua.Fuzzing
         {
             AssertRequestHeader(request.RequestHeader);
             Assert.That(request.RequestHeader.AdditionalHeader.IsNull, Is.True);
-            Assert.That(request.NodesToWrite.ToArray().Select(node => node.NodeId), Is.EqualTo(new[]
+            Assert.That(request.NodesToWrite.ToArray()!.Select(node => node.NodeId), Is.EqualTo(new[]
             {
                 new NodeId(123), new NodeId(124), new NodeId(125), new NodeId(126), new NodeId(127), new NodeId(128),
                 new NodeId("s=\"FastCounter\"", 2),
@@ -498,7 +498,7 @@ namespace Opc.Ua.Fuzzing
                     : "11b4c177-c253-437e-a2bd-20fa3e20edad")),
                 new NodeId(132, 3)
             }));
-            Assert.That(request.NodesToWrite.ToArray().Select(node => node.AttributeId), Is.EqualTo(s_writeAttributes));
+            Assert.That(request.NodesToWrite.ToArray()!.Select(node => node.AttributeId), Is.EqualTo(s_writeAttributes));
             Assert.That(request.NodesToWrite[0].IndexRange, Is.EqualTo("1:2"));
             Assert.That(request.NodesToWrite[0].Value.WrappedValue.TryGetValue(out string greeting), Is.True);
             Assert.That(greeting, Is.EqualTo("Hello World"));
@@ -524,7 +524,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(doubles.ToArray(), Is.EqualTo(s_doubles));
             Assert.That(request.NodesToWrite[9].Value.WrappedValue.TryGetValue(out ArrayOf<string> strings), Is.True);
             Assert.That(strings.ToArray(), Is.EqualTo(s_strings));
-            Assert.That(request.NodesToWrite.ToArray().Select(node => node.Value.StatusCode),
+            Assert.That(request.NodesToWrite.ToArray()!.Select(node => node.Value.StatusCode),
                 Is.All.EqualTo((StatusCode)StatusCodes.Good));
         }
 
@@ -537,8 +537,8 @@ namespace Opc.Ua.Fuzzing
 
         private static void AssertAdditionalHeader(ExtensionObject header)
         {
-            Assert.That(header.TryGetValue(out AdditionalParametersType parameters), Is.True);
-            Assert.That(parameters.Parameters.Count, Is.EqualTo(1));
+            Assert.That(header.TryGetValue(out AdditionalParametersType? parameters), Is.True);
+            Assert.That(parameters!.Parameters.Count, Is.EqualTo(1));
             Assert.That(parameters.Parameters[0].Key, Is.EqualTo(new QualifiedName("traceparent")));
             Assert.That(parameters.Parameters[0].Value.TryGetValue(out string trace), Is.True);
             Assert.That(trace, Is.EqualTo(kTraceParent));
@@ -561,13 +561,13 @@ namespace Opc.Ua.Fuzzing
             for (int i = 0; i < statuses.Length; i++)
             {
                 Assert.That(diagnostic, Is.Not.Null);
-                Assert.That(diagnostic.SymbolicId, Is.EqualTo(-1));
+                Assert.That(diagnostic!.SymbolicId, Is.EqualTo(-1));
                 Assert.That(diagnostic.NamespaceUri, Is.EqualTo(-1));
                 Assert.That(diagnostic.Locale, Is.EqualTo(-1));
                 Assert.That(diagnostic.LocalizedText, Is.EqualTo(-1));
                 Assert.That(diagnostic.AdditionalInfo, Is.EqualTo(i == 0 ? firstMessage : "Hello World"));
                 Assert.That(diagnostic.InnerStatusCode, Is.EqualTo(statuses[i]));
-                diagnostic = diagnostic.InnerDiagnosticInfo;
+                diagnostic = diagnostic.InnerDiagnosticInfo!;
             }
             Assert.That(diagnostic, Is.Null);
         }
@@ -612,12 +612,12 @@ namespace Opc.Ua.Fuzzing
             }
             using var encoder = new XmlEncoder(FuzzableCode.MessageContext);
             encoder.EncodeMessage(message, message.TypeId);
-            return Encoding.UTF8.GetBytes(encoder.CloseAndReturnText());
+            return Encoding.UTF8.GetBytes(encoder.CloseAndReturnText()!);
         }
 
         private static void AssertJsonGenerations(IEncodeable source, string wire, string messageName, string mode)
         {
-            JsonEncoderOptions options = FuzzableCode.JsonEncodingModes.ToArray().Single(option => option.Name == mode);
+            JsonEncoderOptions options = FuzzableCode.JsonEncodingModes.ToArray()!.Single(option => option.Name == mode);
             FuzzableCode.FuzzJsonRoundTripCore(source, options);
             string encoded = FuzzableCode.EncodeJsonMessage(source, options);
             IEncodeable second = FuzzableCode.DecodeJsonWithMetadata(

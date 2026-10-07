@@ -32,8 +32,6 @@
 // CA2016: cleanup intentionally ignores the test cancellation token.
 #pragma warning disable CA2000, CA2007, CA2016
 
-#nullable enable
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;

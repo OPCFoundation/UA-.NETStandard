@@ -126,7 +126,7 @@ namespace Opc.Ua.Sessions.Tests
                 TransportBindingRegistry = registry
             };
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies =
+            m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies =
             [
                 new UserTokenPolicy(UserTokenType.Anonymous),
                 new UserTokenPolicy(UserTokenType.UserName),
@@ -183,12 +183,12 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public void TheEndpointOffersAnAnonymousUserTokenPolicyOnlyWithMutualTls()
         {
-            EndpointDescription endpoint = m_server.GetEndpoints().ToArray()
-                .First(ep => Utils.IsUriHttpsScheme(ep.EndpointUrl) &&
+            EndpointDescription endpoint = m_server.GetEndpoints().ToArray()!
+                .First(ep => Utils.IsUriHttpsScheme(ep.EndpointUrl!) &&
                     ep.TransportProfileUri == Profiles.HttpsBinaryTransport);
 
             Assert.That(
-                endpoint.UserIdentityTokens.ToArray().Any(t => t.TokenType == UserTokenType.Anonymous),
+                endpoint.UserIdentityTokens.ToArray()!.Any(t => t.TokenType == UserTokenType.Anonymous),
                 Is.EqualTo(m_mutualTls));
             Assert.That(
                 endpoint.SecurityMode,

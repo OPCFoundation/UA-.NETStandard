@@ -138,7 +138,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="InvalidOperationException"></exception>
-        public static T FindNode<T>(
+        public static T? FindNode<T>(
             this IModelDesign validator,
             XmlQualifiedName symbolicId,
             string sourceName,
@@ -148,7 +148,7 @@ namespace Opc.Ua.Schema.Model
                 symbolicId,
                 sourceName,
                 referenceName,
-                out T target))
+                out T? target))
             {
                 throw new InvalidOperationException(CoreUtils.Format(
                     "The {0} reference for node {1} is not the expected type: {2}.",
@@ -193,7 +193,7 @@ namespace Opc.Ua.Schema.Model
             XmlQualifiedName symbolicId,
             string sourceName,
             string referenceName,
-            out T target) where T : NodeDesign
+            out T? target) where T : NodeDesign
         {
             if (!validator.TryFindNode(
                 symbolicId,

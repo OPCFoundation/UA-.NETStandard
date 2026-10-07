@@ -76,8 +76,8 @@ namespace Opc.Ua.Lds.Server
         private readonly IRegisteredServerStore m_store;
         private readonly ILogger m_logger;
         private readonly bool m_loopbackOnly;
-        private MulticastService m_service;
-        private ServiceDiscovery m_discovery;
+        private MulticastService? m_service;
+        private ServiceDiscovery? m_discovery;
         private readonly List<ServiceProfile> m_profiles = [];
         private bool m_started;
         private bool m_disposed;
@@ -93,7 +93,7 @@ namespace Opc.Ua.Lds.Server
         public MulticastDiscovery(
             IRegisteredServerStore store,
             bool loopbackOnly = false,
-            ILogger logger = null)
+            ILogger? logger = null)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_loopbackOnly = loopbackOnly;
@@ -142,7 +142,7 @@ namespace Opc.Ua.Lds.Server
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            Func<IEnumerable<NetworkInterface>, IEnumerable<NetworkInterface>> filter = m_loopbackOnly
+            Func<IEnumerable<NetworkInterface>, IEnumerable<NetworkInterface>>? filter = m_loopbackOnly
                 ? nics => nics.Where(nic => nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
                 : null;
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Lds.Server
 
             foreach (string url in discoveryUrls)
             {
-                ServiceProfile profile = TryBuildProfile(applicationUri, url, capabilities);
+                ServiceProfile? profile = TryBuildProfile(applicationUri, url, capabilities);
                 if (profile != null)
                 {
                     m_profiles.Add(profile);
@@ -194,7 +194,7 @@ namespace Opc.Ua.Lds.Server
                 {
                     try
                     {
-                        m_discovery.Unadvertise(profile);
+                        m_discovery!.Unadvertise(profile);
                     }
                     catch (Exception ex)
                     {
@@ -235,7 +235,7 @@ namespace Opc.Ua.Lds.Server
             }
         }
 
-        private void OnServiceInstanceDiscovered(object sender, ServiceInstanceDiscoveryEventArgs e)
+        private void OnServiceInstanceDiscovered(object? sender, ServiceInstanceDiscoveryEventArgs e)
         {
             try
             {
@@ -246,14 +246,14 @@ namespace Opc.Ua.Lds.Server
                 }
 
                 // Extract SRV (host+port), A/AAAA (address), TXT (path/caps).
-                SRVRecord srv = msg.AdditionalRecords.OfType<SRVRecord>().FirstOrDefault()
+                SRVRecord? srv = msg.AdditionalRecords.OfType<SRVRecord>().FirstOrDefault()
                     ?? msg.Answers.OfType<SRVRecord>().FirstOrDefault();
                 if (srv == null)
                 {
                     return;
                 }
 
-                string instanceName = e.ServiceInstanceName?.ToString() ?? srv.Name?.ToString();
+                string? instanceName = e.ServiceInstanceName?.ToString() ?? srv.Name?.ToString();
                 if (string.IsNullOrEmpty(instanceName))
                 {
                     return;
@@ -264,7 +264,7 @@ namespace Opc.Ua.Lds.Server
                     ?? msg.AdditionalRecords.OfType<AAAARecord>().FirstOrDefault()?.Address
                     ?? IPAddress.Loopback;
 
-                TXTRecord txt = msg.AdditionalRecords.OfType<TXTRecord>().FirstOrDefault()
+                TXTRecord? txt = msg.AdditionalRecords.OfType<TXTRecord>().FirstOrDefault()
                     ?? msg.Answers.OfType<TXTRecord>().FirstOrDefault();
 
                 string path = "/";
@@ -321,7 +321,7 @@ namespace Opc.Ua.Lds.Server
             }
         }
 
-        private ServiceProfile TryBuildProfile(
+        private ServiceProfile? TryBuildProfile(
             string applicationUri,
             string discoveryUrl,
             IList<string> capabilities)

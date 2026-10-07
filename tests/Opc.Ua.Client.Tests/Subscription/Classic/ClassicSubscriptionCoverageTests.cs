@@ -208,7 +208,7 @@ namespace Opc.Ua.Client.Tests
             using Subscription subscription = CreateSubscription();
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => subscription.AddItem(null));
+                () => subscription.AddItem(null!));
 
             Assert.That(ex.ParamName, Is.EqualTo("monitoredItem"));
         }
@@ -224,7 +224,7 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1u));
-                Assert.That(subscription.FindItemByClientHandle(202u).DisplayName, Is.EqualTo("First"));
+                Assert.That(subscription.FindItemByClientHandle(202u)!.DisplayName, Is.EqualTo("First"));
             });
         }
 
@@ -244,7 +244,7 @@ namespace Opc.Ua.Client.Tests
             using Subscription subscription = CreateSubscription();
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => subscription.AddItems(null));
+                () => subscription.AddItems(null!));
 
             Assert.That(ex.ParamName, Is.EqualTo("monitoredItems"));
         }
@@ -272,7 +272,7 @@ namespace Opc.Ua.Client.Tests
             using Subscription subscription = CreateSubscription();
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => subscription.RemoveItem(null));
+                () => subscription.RemoveItem(null!));
 
             Assert.That(ex.ParamName, Is.EqualTo("monitoredItem"));
         }
@@ -306,7 +306,7 @@ namespace Opc.Ua.Client.Tests
             using Subscription subscription = CreateSubscription();
 
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => subscription.RemoveItems(null));
+                () => subscription.RemoveItems(null!));
 
             Assert.That(ex.ParamName, Is.EqualTo("monitoredItems"));
         }
@@ -422,7 +422,7 @@ namespace Opc.Ua.Client.Tests
         public void TemplateConstructorNullThrowsArgumentNullException()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => new Subscription((Subscription)null));
+                () => new Subscription((Subscription)null!));
 
             Assert.That(ex.ParamName, Is.EqualTo("template"));
         }
@@ -1188,7 +1188,7 @@ namespace Opc.Ua.Client.Tests
                 It.IsAny<CancellationToken>()), Times.Never);
         }
 
-        private static Mock<ISession> CreateItemSession(uint subscriptionId, Action onCreateItems = null)
+        private static Mock<ISession> CreateItemSession(uint subscriptionId, Action? onCreateItems = null)
         {
             var session = new Mock<ISession>();
             session

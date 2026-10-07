@@ -136,8 +136,8 @@ namespace Opc.Ua.Fuzzing.Tests
         {
             byte[] buffer = [0x58, 0x00, 0xff, 0xc3, 0xa9, 0x59];
             byte[] expected = length == 0 ? [] : [0x00, 0xff, 0xc3, 0xa9];
-            byte[] actual = null;
-            Stream observedStream = null;
+            byte[]? actual = null;
+            Stream? observedStream = null;
             int calls = 0;
             FuzzMethods.AflFuzzStream target = stream =>
             {
@@ -155,7 +155,7 @@ namespace Opc.Ua.Fuzzing.Tests
 
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(actual, Is.EqualTo(expected));
-            Assert.That(observedStream.CanRead, Is.False);
+            Assert.That(observedStream!.CanRead, Is.False);
             Assert.That(() => observedStream.ReadByte(), Throws.TypeOf<ObjectDisposedException>());
         }
 
@@ -165,7 +165,7 @@ namespace Opc.Ua.Fuzzing.Tests
         {
             byte[] buffer = [0x58, 0x00, 0xff, 0xc3, 0xa9, 0x59];
             byte[] expected = length == 0 ? [] : [0x00, 0xff, 0xc3, 0xa9];
-            byte[] actual = null;
+            byte[]? actual = null;
             int calls = 0;
             FuzzMethods.LibFuzzSpan target = input =>
             {
@@ -183,7 +183,7 @@ namespace Opc.Ua.Fuzzing.Tests
         public void StringReplayDecodesTheUtf8SliceExactlyOnce(byte[] input, string expected)
         {
             byte[] buffer = [0x58, .. input, 0x59];
-            string actual = null;
+            string? actual = null;
             int calls = 0;
             FuzzMethods.AflFuzzString target = text =>
             {
@@ -206,7 +206,7 @@ namespace Opc.Ua.Fuzzing.Tests
             Delegate method = FuzzMethods.FindFuzzMethod(TextWriter.Null, target);
 
             InvalidOperationException exception =
-                Assert.Throws<InvalidOperationException>(() => FuzzMethods.Replay(method, input));
+                Assert.Throws<InvalidOperationException>(() => FuzzMethods.Replay(method, input))!;
 
             Assert.That(exception, Is.SameAs(FuzzableCode.InjectedFailure));
             Assert.That(FuzzableCode.Invocations.Select(call => call.Target), Is.EqualTo(new[] { target }));
@@ -216,7 +216,7 @@ namespace Opc.Ua.Fuzzing.Tests
         [Test]
         public void StreamReplayDisposesTheStreamWhenTheTargetThrows()
         {
-            Stream observedStream = null;
+            Stream? observedStream = null;
             FuzzMethods.AflFuzzStream target = stream =>
             {
                 observedStream = stream;
@@ -224,10 +224,10 @@ namespace Opc.Ua.Fuzzing.Tests
             };
 
             InvalidOperationException exception =
-                Assert.Throws<InvalidOperationException>(() => FuzzMethods.Replay(target, new byte[] { 0x41 }));
+                Assert.Throws<InvalidOperationException>(() => FuzzMethods.Replay(target, new byte[] { 0x41 }))!;
 
             Assert.That(exception, Is.SameAs(FuzzableCode.InjectedFailure));
-            Assert.That(observedStream.CanRead, Is.False);
+            Assert.That(observedStream!.CanRead, Is.False);
         }
 
         [Test]
@@ -237,9 +237,9 @@ namespace Opc.Ua.Fuzzing.Tests
             Action<Stream> unsupported = _ => calls++;
 
             ArgumentException exception =
-                Assert.Throws<ArgumentException>(() => FuzzMethods.Replay(unsupported, new byte[] { 0x41 }));
+                Assert.Throws<ArgumentException>(() => FuzzMethods.Replay(unsupported, new byte[] { 0x41 }))!;
 
-            Assert.That(exception.ParamName, Is.EqualTo("fuzzingMethod"));
+            Assert.That(exception!.ParamName, Is.EqualTo("fuzzingMethod"));
             Assert.That(calls, Is.Zero);
         }
 
@@ -247,9 +247,9 @@ namespace Opc.Ua.Fuzzing.Tests
         public void ReplayRejectsANullDelegate()
         {
             ArgumentException exception =
-                Assert.Throws<ArgumentException>(() => FuzzMethods.Replay(null, ReadOnlySpan<byte>.Empty));
+                Assert.Throws<ArgumentException>(() => FuzzMethods.Replay(null!, ReadOnlySpan<byte>.Empty))!;
 
-            Assert.That(exception.ParamName, Is.EqualTo("fuzzingMethod"));
+            Assert.That(exception!.ParamName, Is.EqualTo("fuzzingMethod"));
         }
 
         [TestCase(false)]
@@ -260,9 +260,9 @@ namespace Opc.Ua.Fuzzing.Tests
             Action unsupported = () => calls++;
 
             ArgumentException exception =
-                Assert.Throws<ArgumentException>(() => FuzzMethods.RunFuzzMethod(unsupported, outOfProcess));
+                Assert.Throws<ArgumentException>(() => FuzzMethods.RunFuzzMethod(unsupported, outOfProcess))!;
 
-            Assert.That(exception.ParamName, Is.EqualTo("fuzzingMethod"));
+            Assert.That(exception!.ParamName, Is.EqualTo("fuzzingMethod"));
             Assert.That(calls, Is.Zero);
         }
 

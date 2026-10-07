@@ -143,7 +143,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
             Assert.That(
-                result.Identity.GrantedRoleIds.ToArray(),
+                result.Identity!.GrantedRoleIds.ToArray(),
                 Does.Contain(ExpandedNodeId.ToNodeId(
                     ObjectIds.WellKnownRole_DiscoveryAdmin,
                     host.Server.NamespaceUris)));
@@ -369,7 +369,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 s => s.AddSingleton<IUserDatabase>(new StubUserDatabase()),
                 builder => builder.AddStartupTask((_, _, _) =>
                     throw new InvalidOperationException("startup task failed")),
-                null);
+                null!);
 
             using ServiceProvider provider = services.BuildServiceProvider();
             GdsServerHostedService hostedService = provider.GetServices<IHostedService>()
@@ -378,8 +378,8 @@ namespace Opc.Ua.Gds.Tests.Hosting
             try
             {
                 await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
-                Task executeTask = hostedService.ExecuteTask;
-                Task completed = await Task.WhenAny(executeTask, Task.Delay(TimeSpan.FromSeconds(60)))
+                Task executeTask = hostedService.ExecuteTask!;
+                Task completed = await Task.WhenAny(executeTask!, Task.Delay(TimeSpan.FromSeconds(60)))
                     .ConfigureAwait(false);
 
                 Assert.That(completed, Is.SameAs(executeTask));
@@ -399,7 +399,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             string name,
             Action<IServiceCollection> configureServices,
             Action<IGdsServerBuilder> configureGds,
-            Action<GdsServerOptions> configureOptions = null)
+            Action<GdsServerOptions>? configureOptions = null)
         {
             string testRoot = CreateTestRoot();
             var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -418,7 +418,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                         return default;
                     });
                 },
-                configureOptions);
+                configureOptions!);
 
             ServiceProvider provider = services.BuildServiceProvider();
             GdsServerHostedService hostedService = provider.GetServices<IHostedService>()
@@ -430,7 +430,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
                 Task completed = await Task.WhenAny(
                     started.Task,
-                    hostedService.ExecuteTask,
+                    hostedService.ExecuteTask!,
                     Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
                 if (completed == hostedService.ExecuteTask)
                 {
@@ -521,20 +521,20 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(registry, Is.TypeOf<ServerIdentityRegistry>());
             FieldInfo field = typeof(ServerIdentityRegistry).GetField(
                 "m_order",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            return ((IEnumerable)field.GetValue(registry)).Cast<IUserTokenAuthenticator>().ToList();
+            return ((IEnumerable)field.GetValue(registry)!).Cast<IUserTokenAuthenticator>().ToList();
         }
 
         private static UserTokenType[] GetAdvertisedTokenTypes(GdsServerHostedService hostedService)
         {
             FieldInfo field = typeof(GdsServerHostedService).GetField(
                 "m_application",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            var application = (IApplicationInstance)field.GetValue(hostedService);
+            var application = (IApplicationInstance)field.GetValue(hostedService)!;
             ArrayOf<UserTokenPolicy> policies =
-                application.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+                application!.ApplicationConfiguration!.ServerConfiguration!.UserTokenPolicies;
             var tokenTypes = new UserTokenType[policies.Count];
             for (int i = 0; i < tokenTypes.Length; i++)
             {
@@ -584,7 +584,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public UserTokenType TokenType => UserTokenType.UserName;
 
-            public string IssuedTokenProfileUri => null;
+            public string IssuedTokenProfileUri => null!;
 
             public ValueTask<AuthenticationResult> AuthenticateAsync(
                 AuthenticationContext context,

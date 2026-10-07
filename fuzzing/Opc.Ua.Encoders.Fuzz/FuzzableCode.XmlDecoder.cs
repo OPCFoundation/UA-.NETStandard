@@ -162,13 +162,13 @@ namespace Opc.Ua.Fuzzing
             {
                 if (!throwAll)
                 {
-                    return null;
+                    return null!;
                 }
                 throw new ServiceResultException(StatusCodes.BadDecodingError, exception.Message, exception);
             }
             catch (ServiceResultException exception) when (!throwAll && IsExpectedDecodingError(exception))
             {
-                return null;
+                return null!;
             }
         }
     }

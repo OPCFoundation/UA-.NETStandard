@@ -43,7 +43,7 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public async Task AppMgmt001AddApplicationAsync()
         {
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public async Task AppMgmt003RemoveApplicationAsync()
         {
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -169,7 +169,7 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public async Task AppMgmt005RemoveAllApplicationsAsync()
         {
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -241,7 +241,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<BrowseResponse> BrowseForwardAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             return await session.BrowseAsync(
@@ -264,7 +264,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<NodeId> FindMethodAsync(
             NodeId parentId,
             string methodName,
-            ISession session = null)
+            ISession? session = null)
         {
             BrowseResponse response =
                 await BrowseForwardAsync(parentId, session)
@@ -293,7 +293,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<NodeId> FindChildAsync(
             NodeId parentId,
             string childName,
-            ISession session = null)
+            ISession? session = null)
         {
             BrowseResponse response =
                 await BrowseForwardAsync(parentId, session)
@@ -320,7 +320,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<DataValue> ReadPropertyValueAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             ReadResponse response = await session.ReadAsync(
@@ -398,7 +398,7 @@ namespace Opc.Ua.Core.Security.Tests
                         continue;
                     }
 
-                    if (ep.UserIdentityTokens == default)
+                    if (ep.UserIdentityTokens == default!)
                     {
                         continue;
                     }
@@ -408,13 +408,13 @@ namespace Opc.Ua.Core.Security.Tests
                     {
                         if (t.TokenType == UserTokenType.UserName)
                         {
-                            return ep.SecurityPolicyUri;
+                            return ep.SecurityPolicyUri!;
                         }
                     }
                 }
             }
 
-            return null;
+            return null!;
         }
 
         private async Task<ArrayOf<EndpointDescription>>

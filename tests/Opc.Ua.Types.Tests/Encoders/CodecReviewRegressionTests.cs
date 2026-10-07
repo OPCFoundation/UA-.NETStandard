@@ -160,8 +160,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             ExtensionObject value = decoder.ReadExtensionObject("F");
 
-            Assert.That(value.TryGetValue(out Sample sample), Is.True);
-            Assert.That(sample.Value, Is.EqualTo(7));
+            Assert.That(value.TryGetValue(out Sample? sample), Is.True);
+            Assert.That(sample!.Value, Is.EqualTo(7));
         }
 
         [Test]
@@ -179,12 +179,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 encoder.WriteExpandedNodeId(null, input);
                 encoder.WriteExpandedNodeId(null, new ExpandedNodeId(5u, 1));
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var streamNamespaces = new NamespaceTable();
             streamNamespaces.Append("urn:test:a");
-            using var decoder = new BinaryDecoder(buffer, context);
+            using var decoder = new BinaryDecoder(buffer!, context);
             decoder.SetMappingTables(streamNamespaces, null);
 
             ExpandedNodeId withUri = decoder.ReadExpandedNodeId(null);
@@ -237,14 +237,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             string xml;
             using (var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", kCompanionNs),
-                null,
+                null!,
                 context))
             {
                 encoder.PushNamespace(kCompanionNs);
                 encoder.WriteExtensionObject("F", new ExtensionObject(typeId));
                 encoder.WriteInt32("After", 42);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Not.Contain("Body"));
@@ -289,11 +289,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             parser.PushNamespace(kNs);
             AssertDiagnostics(parser.ReadDiagnosticInfoArray("D"));
 
-            static void AssertDiagnostics(ArrayOf<DiagnosticInfo> output)
+            static void AssertDiagnostics(ArrayOf<DiagnosticInfo?> output)
             {
                 Assert.That(output.Count, Is.EqualTo(3));
                 Assert.That(output[0], Is.Null);
-                Assert.That(output[1].SymbolicId, Is.EqualTo(1));
+                Assert.That(output[1]!.SymbolicId, Is.EqualTo(1));
                 Assert.That(output[2], Is.Null);
             }
         }
@@ -491,12 +491,12 @@ namespace Opc.Ua.Types.Tests.Encoders
                 {
                     encoder.WriteExtensionObject(null, input);
                     encoder.WriteInt32(null, 42);
-                    buffer = encoder.CloseAndReturnBuffer();
+                    buffer = encoder.CloseAndReturnBuffer()!;
                 }
 
                 // TypeId (four byte NodeId 0x01, ns 0, UInt16 4711) then the
                 // encoding byte.
-                Assert.That(buffer[4], Is.EqualTo((byte)ExtensionObjectEncoding.None));
+                Assert.That(buffer![4], Is.EqualTo((byte)ExtensionObjectEncoding.None));
 
                 using var decoder = new BinaryDecoder(buffer, context);
                 ExtensionObject output = decoder.ReadExtensionObject(null);
@@ -517,10 +517,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(context))
             {
                 encoder.WriteExtensionObject(null, input);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
-            Assert.That(buffer[4], Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
+            Assert.That(buffer![4], Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
         }
 
         [Test]
@@ -649,7 +649,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
             XmlNodeList bodies = document.GetElementsByTagName("Body", kNs);
             Assert.That(bodies, Has.Count.EqualTo(1));
-            XmlNode body = bodies[0]!.FirstChild;
+            XmlNode body = bodies[0]!.FirstChild!;
             Assert.That(body, Is.Not.Null);
             Assert.That(body.NodeType, Is.EqualTo(XmlNodeType.Element));
             Assert.That(body.LocalName, Is.EqualTo("Subtyped"));
@@ -658,7 +658,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using XmlDecoder decoder = CreateXmlDecoder(xml, context);
             decoder.PushNamespace(kNs);
             ExtensionObject value = decoder.ReadExtensionObject("F");
-            Assert.That(value.TryGetValue(out IEncodeable decoded), Is.True);
+            Assert.That(value.TryGetValue(out IEncodeable? decoded), Is.True);
             Assert.That(decoded, Is.InstanceOf<Structure>());
             Assert.That(((Structure)decoded)["Value"], Is.EqualTo(new Variant(42)));
         }
@@ -676,9 +676,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                     using (var encoder = new BinaryEncoder(context))
                     {
                         input.Encode(encoder);
-                        buffer = encoder.CloseAndReturnBuffer();
+                        buffer = encoder.CloseAndReturnBuffer()!;
                     }
-                    using (var decoder = new BinaryDecoder(buffer, context))
+                    using (var decoder = new BinaryDecoder(buffer!, context))
                     {
                         output.Decode(decoder);
                     }
@@ -757,12 +757,12 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using var encoder = new XmlEncoder(
                 new XmlQualifiedName("Root", kNs),
-                null,
+                null!,
                 context);
             encoder.PushNamespace(kNs);
             write(encoder);
             encoder.PopNamespace();
-            return encoder.CloseAndReturnText();
+            return encoder.CloseAndReturnText()!;
         }
 
         private static XmlDecoder CreateXmlDecoder(string xml, ServiceMessageContext context)

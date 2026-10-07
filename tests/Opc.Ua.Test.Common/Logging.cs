@@ -87,7 +87,7 @@ namespace Opc.Ua.Tests
             try
             {
                 var result = new NUnitTelemetryContext(factory);
-                factory = null; // ownership transferred
+                factory = null!; // ownership transferred
                 return result;
             }
             finally
@@ -111,7 +111,7 @@ namespace Opc.Ua.Tests
             try
             {
                 var result = new NUnitTelemetryContext(factory);
-                factory = null; // ownership transferred
+                factory = null!; // ownership transferred
                 return result;
             }
             finally
@@ -143,7 +143,7 @@ namespace Opc.Ua.Tests
             {
                 public Logger(
                     LogLevel logLevel,
-                    BenchmarkDotNet.Loggers.ILogger logger = null)
+                    BenchmarkDotNet.Loggers.ILogger? logger = null)
                 {
                     MinimumLogLevel = logLevel;
                     m_logger = logger ??
@@ -154,7 +154,7 @@ namespace Opc.Ua.Tests
                 public LogLevel MinimumLogLevel { get; set; } = LogLevel.Information;
 
                 /// <inheritdoc/>
-                public IDisposable BeginScope<TState>(TState state)
+                public IDisposable BeginScope<TState>(TState state) where TState : notnull
                 {
                     return this;
                 }
@@ -174,7 +174,7 @@ namespace Opc.Ua.Tests
                     LogLevel logLevel,
                     EventId eventId,
                     TState state,
-                    Exception exception,
+                    Exception? exception,
                     Func<TState, Exception, string> formatter)
                 {
                     if (logLevel < MinimumLogLevel)
@@ -188,7 +188,7 @@ namespace Opc.Ua.Tests
                                 CultureInfo.InvariantCulture,
                                 "{0:yy-MM-dd HH:mm:ss.fff}: ",
                                 DateTime.UtcNow)
-                            .Append(formatter(state, exception));
+                            .Append(formatter(state, exception!));
                         if (exception != null)
                         {
                             sb
@@ -261,7 +261,7 @@ namespace Opc.Ua.Tests
                 public LogLevel MinimumLogLevel { get; set; }
 
                 /// <inheritdoc/>
-                public IDisposable BeginScope<TState>(TState state)
+                public IDisposable BeginScope<TState>(TState state) where TState : notnull
                 {
                     return this;
                 }
@@ -299,7 +299,7 @@ namespace Opc.Ua.Tests
                     LogLevel logLevel,
                     EventId eventId,
                     TState state,
-                    Exception exception,
+                    Exception? exception,
                     Func<TState, Exception, string> formatter)
                 {
                     if (logLevel < MinimumLogLevel)
@@ -318,7 +318,7 @@ namespace Opc.Ua.Tests
                             .Append(m_categoryName)
                             .Append(']')
                             .Append(' ')
-                            .Append(formatter(state, exception));
+                            .Append(formatter(state, exception!));
                         if (exception != null)
                         {
                             sb

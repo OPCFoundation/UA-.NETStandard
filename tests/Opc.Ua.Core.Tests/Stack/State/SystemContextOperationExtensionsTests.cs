@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void GetOperationContextThrowsArgumentNullExceptionWhenContextNull()
         {
             Assert.That(
-                () => SystemContextOperationExtensions.GetOperationContext(null),
+                () => SystemContextOperationExtensions.GetOperationContext(null!),
                 Throws.ArgumentNullException);
         }
 

@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.AMB.Client</PackageId>
     <RootNamespace>Opc.Ua.AMB.Client</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Client-side helpers for OPC 10000-110 Asset Management Basics (AMB): discover the manageable assets of a server through the AMB alias categories, read their identification and write the AssetId, follow health alarms with their root causes and maintenance activities, read and edit documentation links, browse locations, sub-assets and relations, and take an asset snapshot in one call.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

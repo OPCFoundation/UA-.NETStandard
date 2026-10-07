@@ -282,8 +282,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                 DiscardOldest = true
                             }
                         },
-                        null,
-                        null,
+                        null!,
+                        null!,
                         0,
                         false,
                         sourceSamplingInterval: 1);
@@ -391,8 +391,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                 DiscardOldest = true
                             }
                         },
-                        null,
-                        null,
+                        null!,
+                        null!,
                         60000,
                         1,
                         false,
@@ -440,7 +440,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var session = new Mock<ISession>();
             session.SetupGet(value => value.Id).Returns(new NodeId(1));
             return new OperationContext(
-                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
+                new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
         }
 
         private static Mock<ISampledDataChangeMonitoredItem> CreateItem(uint id, double samplingInterval)

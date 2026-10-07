@@ -181,7 +181,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 BaseType = new XmlQualifiedName("BaseType", "http://test.org"),
                 IsAbstract = false,
                 NoClassGeneration = false,
-                BaseTypeNode = null
+                BaseTypeNode = null!
             };
 
             // Act
@@ -413,7 +413,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 BaseType = null,
                 IsAbstract = false,
                 NoClassGeneration = false,
-                BaseTypeNode = null
+                BaseTypeNode = null!
             };
 
             // Act
@@ -871,7 +871,7 @@ namespace Opc.Ua.Schema.Model.Tests
             TypeDesign typeDesign = CreateTypeDesign("ClassName1", "BaseType1", true, false);
 
             // Act
-            bool result = typeDesign.Equals(null);
+            bool result = typeDesign.Equals(null!);
 
             // Assert
             Assert.That(result, Is.False);
@@ -942,7 +942,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_OneClassNameNull_ReturnsFalse()
         {
             // Arrange
-            TypeDesign typeDesign1 = CreateTypeDesign(null, "BaseType1", true, false);
+            TypeDesign typeDesign1 = CreateTypeDesign(null!, "BaseType1", true, false);
             TypeDesign typeDesign2 = CreateTypeDesign("ClassName2", "BaseType1", true, false);
 
             // Act
@@ -961,8 +961,8 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_BothClassNamesNull_ReturnsTrue()
         {
             // Arrange
-            TypeDesign typeDesign1 = CreateTypeDesign(null, "BaseType1", true, false);
-            TypeDesign typeDesign2 = CreateTypeDesign(null, "BaseType1", true, false);
+            TypeDesign typeDesign1 = CreateTypeDesign(null!, "BaseType1", true, false);
+            TypeDesign typeDesign2 = CreateTypeDesign(null!, "BaseType1", true, false);
 
             // Act
             bool result = typeDesign1.Equals(typeDesign2);
@@ -1032,8 +1032,8 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_BothBaseTypesNull_ReturnsTrue()
         {
             // Arrange
-            TypeDesign typeDesign1 = CreateTypeDesign("ClassName1", null, true, false);
-            TypeDesign typeDesign2 = CreateTypeDesign("ClassName1", null, true, false);
+            TypeDesign typeDesign1 = CreateTypeDesign("ClassName1", null!, true, false);
+            TypeDesign typeDesign2 = CreateTypeDesign("ClassName1", null!, true, false);
 
             // Act
             bool result = typeDesign1.Equals(typeDesign2);
@@ -1051,7 +1051,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void Equals_OneBaseTypeNull_ReturnsFalse()
         {
             // Arrange
-            TypeDesign typeDesign1 = CreateTypeDesign("ClassName1", null, true, false);
+            TypeDesign typeDesign1 = CreateTypeDesign("ClassName1", null!, true, false);
             TypeDesign typeDesign2 = CreateTypeDesign("ClassName1", "BaseType1", true, false);
 
             // Act
@@ -1136,10 +1136,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             TypeDesign typeDesign1 = CreateTypeDesign("ClassName1", "BaseType1", true, false);
-            typeDesign1.BaseTypeNode = null;
+            typeDesign1.BaseTypeNode = null!;
 
             TypeDesign typeDesign2 = CreateTypeDesign("ClassName1", "BaseType1", true, false);
-            typeDesign2.BaseTypeNode = null;
+            typeDesign2.BaseTypeNode = null!;
 
             // Act
             bool result = typeDesign1.Equals(typeDesign2);
@@ -1160,7 +1160,7 @@ namespace Opc.Ua.Schema.Model.Tests
             TypeDesign baseTypeNode = CreateTypeDesign("BaseClass1", "Root", false, false);
 
             TypeDesign typeDesign1 = CreateTypeDesign("ClassName1", "BaseType1", true, false);
-            typeDesign1.BaseTypeNode = null;
+            typeDesign1.BaseTypeNode = null!;
 
             TypeDesign typeDesign2 = CreateTypeDesign("ClassName1", "BaseType1", true, false);
             typeDesign2.BaseTypeNode = baseTypeNode;
@@ -1319,7 +1319,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = typeDesign.Equals(null);
+            bool result = typeDesign.Equals(null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert

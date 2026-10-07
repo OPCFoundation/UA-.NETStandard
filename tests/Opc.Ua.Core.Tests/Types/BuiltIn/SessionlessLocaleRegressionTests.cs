@@ -46,7 +46,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void MalformedSessionlessTableEntryReturnsBadDecodingError(
             [Values] bool json,
             [Values("NamespaceUris", "ServerUris", "LocaleIds")] string table,
-            [Values(null, "")] string entry)
+            [Values(null, "")] string? entry)
         {
             var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             context.ServerUris.Append("urn:local");
@@ -54,21 +54,21 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             if (json)
             {
                 using var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose);
-                WriteMalformedTables(encoder, table, entry);
+                WriteMalformedTables(encoder, table, entry!);
                 encoded = Encoding.UTF8.GetBytes(encoder.CloseAndReturnText());
             }
             else
             {
                 using var encoder = new BinaryEncoder(context);
                 encoder.WriteNodeId(null, DataTypeIds.SessionlessInvokeRequestType);
-                WriteMalformedTables(encoder, table, entry);
-                encoded = encoder.CloseAndReturnBuffer();
+                WriteMalformedTables(encoder, table, entry!);
+                encoded = encoder.CloseAndReturnBuffer()!;
             }
 
             Assert.That(
                 () => json
-                    ? SessionLessMessage.DecodeAsJson(encoded, context)
-                    : SessionLessMessage.DecodeAsBinary(encoded, context),
+                    ? SessionLessMessage.DecodeAsJson(encoded!, context)
+                    : SessionLessMessage.DecodeAsBinary(encoded!, context),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
         }
@@ -100,13 +100,13 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             };
             using var encoder = new BinaryEncoder(context);
             message.Encode(encoder);
-            byte[] encoded = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(encoded, context);
+            byte[] encoded = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(encoded!, context);
             var restored = new SessionLessServiceMessage();
             restored.Decode(decoder);
 
             Assert.That(restored.UriVersion, Is.EqualTo(7));
-            Assert.That(restored.LocaleIds.ToArray(), Is.EqualTo(locales.ToArray()));
+            Assert.That(restored.LocaleIds!.ToArray(), Is.EqualTo(locales.ToArray()));
         }
 
         private static void WriteMalformedTables(IEncoder encoder, string table, string entry)

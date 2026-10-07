@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var manager = new CertificateManager(m_telemetry);
 
             Certificate cert = manager.CertificateProvider
-                .TryGetPrivateKeyCertificate("0000000000000000000000000000000000000000");
+                .TryGetPrivateKeyCertificate("0000000000000000000000000000000000000000")!;
 
             Assert.That(cert, Is.Null);
         }
@@ -90,9 +90,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Thumbprint = "0000000000000000000000000000000000000000"
                 };
 
-                Certificate cert = await manager.CertificateProvider
+                Certificate cert = (await manager.CertificateProvider
                     .GetPrivateKeyCertificateAsync(id)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
 
                 Assert.That(cert, Is.Null,
                     "Empty store + unknown thumbprint must yield null.");
@@ -138,9 +138,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 };
 
                 // Cold path: first call hits the store.
-                using Certificate firstHit = await manager.CertificateProvider
+                using Certificate firstHit = (await manager.CertificateProvider
                     .GetPrivateKeyCertificateAsync(id)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 Assert.That(firstHit, Is.Not.Null);
                 Assert.That(firstHit.HasPrivateKey, Is.True);
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // Pre-.NET 6 the underlying CertificateCache is a
                 // no-op passthrough, so this assertion is only valid
                 // on net6.0+.
-                using Certificate cached = manager.CertificateProvider
+                using Certificate? cached = manager.CertificateProvider
                     .TryGetPrivateKeyCertificate(created.Thumbprint);
                 Assert.That(cached, Is.Not.Null,
                     "After GetAsync, TryGet must return the cached private-key cert.");

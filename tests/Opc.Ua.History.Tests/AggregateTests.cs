@@ -267,7 +267,7 @@ namespace Opc.Ua.History.Tests
                 Assert.Fail("No history data returned.");
             }
 
-            foreach (DataValue dv in historyData.DataValues)
+            foreach (DataValue dv in historyData!.DataValues)
             {
                 Assert.That(
                     dv.SourceTimestamp,
@@ -687,7 +687,7 @@ namespace Opc.Ua.History.Tests
             List<string> names = [];
             foreach (ReferenceDescription r in result.References)
             {
-                names.Add(r.BrowseName.Name);
+                names.Add(r.BrowseName.Name!);
             }
 
             Assert.That(names, Does.Contain("Interpolative"));

@@ -1268,7 +1268,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             foreach (BaseInstanceState node in subtree)
             {
                 Assert.That(node.NodeId.NamespaceIndex, Is.EqualTo(ns), node.BrowseName.ToString());
-                Assert.That(h.Manager.PredefinedNodes.TryGetValue(node.NodeId, out NodeState indexed), Is.True);
+                Assert.That(h.Manager.PredefinedNodes.TryGetValue(node.NodeId, out NodeState? indexed), Is.True);
                 Assert.That(indexed, Is.SameAs(node));
                 Assert.That(node.IsPartOfTypeHierarchy, Is.False);
                 Assert.That(node.ModellingRuleId.IsNull, Is.True);
@@ -1465,7 +1465,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 foreach (GeneralModelChangeEventState e in invocation.Arguments.OfType<GeneralModelChangeEventState>())
                 {
-                    ArrayOf<ModelChangeStructureDataType> reported = e.Changes.Value;
+                    ArrayOf<ModelChangeStructureDataType> reported = e.Changes!.Value;
                     for (int ii = 0; ii < reported.Count; ii++)
                     {
                         changes.Add(reported[ii]);
@@ -1496,7 +1496,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var children = new List<BaseInstanceState>();
             node.GetChildren(h.Context, children);
-            return children.FirstOrDefault(c => c.BrowseName.Name == name);
+            return children.FirstOrDefault(c => c.BrowseName.Name == name)!;
         }
 
         private static void CollectDescendants(Harness h, NodeState node, List<BaseInstanceState> result)

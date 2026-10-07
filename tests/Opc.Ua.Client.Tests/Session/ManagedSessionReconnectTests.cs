@@ -70,7 +70,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             NodeId originalSessionId = harness.Session.SessionId;
             DefaultSubscriptionEngine originalEngine = harness.EngineFactory.Engine;
             ISubscriptionManager originalManager = originalEngine.SubscriptionManager;
-            Assert.That(harness.Session.TryGetSubscriptionManager(out ISubscriptionManager manager), Is.True);
+            Assert.That(harness.Session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
             Assert.That(manager, Is.SameAs(originalManager));
 
             ISubscription subscription = harness.AddSubscription();
@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(initialItems.ItemsToCreate, Has.Count.EqualTo(1));
             uint clientHandle = initialItems.ItemsToCreate[0].RequestedParameters.ClientHandle;
             Assert.That(subscription.MonitoredItems.TryGetMonitoredItemByClientHandle(
-                clientHandle, out IMonitoredItem monitoredItem), Is.True);
+                clientHandle, out IMonitoredItem? monitoredItem), Is.True);
 
             WirePublish initialPublish = await WaitForPhaseAsync(
                 harness.NextWirePublishAsync().AsTask(), "initial wire publish").ConfigureAwait(false);
@@ -90,7 +90,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             initialPublish.ReplyWithValue(clientHandle, 101);
             ReceivedData initial = await WaitForPhaseAsync(
                 harness.NextNotificationAsync().AsTask(), "initial notification").ConfigureAwait(false);
-            AssertNotification(initial, subscription, monitoredItem, 101);
+            AssertNotification(initial, subscription, monitoredItem!, 101);
             await WaitForPhaseAsync(harness.FirstNotification.Entered, "initial notification acknowledgement gate")
                 .ConfigureAwait(false);
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(harness.Session.SessionId, Is.EqualTo(new NodeId("session-2", 1)));
             Assert.That(harness.EngineFactory.Engine, Is.SameAs(originalEngine));
             Assert.That(harness.EngineFactory.CreateCount, Is.EqualTo(1));
-            Assert.That(harness.Session.TryGetSubscriptionManager(out ISubscriptionManager resumedManager), Is.True);
+            Assert.That(harness.Session.TryGetSubscriptionManager(out ISubscriptionManager? resumedManager), Is.True);
             Assert.That(resumedManager, Is.SameAs(originalManager));
             Assert.That(resumedManager.Items.Single(), Is.SameAs(subscription));
 
@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             resumedPublish.ReplyWithValue(clientHandle, 202);
             ReceivedData resumed = await WaitForPhaseAsync(
                 harness.NextNotificationAsync().AsTask(), "notification after recreate").ConfigureAwait(false);
-            AssertNotification(resumed, subscription, monitoredItem, 202);
+            AssertNotification(resumed, subscription, monitoredItem!, 202);
 
             WirePublish acknowledgement = await WaitForPhaseAsync(
                 harness.NextWirePublishAsync().AsTask(), "acknowledgement of the new generation").ConfigureAwait(false);
@@ -887,7 +887,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(items.ItemsToCreate, Has.Count.EqualTo(1));
             uint clientHandle = items.ItemsToCreate[0].RequestedParameters.ClientHandle;
             Assert.That(subscription.MonitoredItems.TryGetMonitoredItemByClientHandle(
-                clientHandle, out IMonitoredItem monitoredItem), Is.True);
+                clientHandle, out IMonitoredItem? monitoredItem), Is.True);
             WirePublish publish = await WaitForPhaseAsync(
                 harness.NextWirePublishAsync().AsTask(), "initial wire publish").ConfigureAwait(false);
             PublishAttempt attempt = await WaitForPhaseAsync(
@@ -897,10 +897,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             publish.ReplyWithValue(clientHandle, 101);
             ReceivedData notification = await WaitForPhaseAsync(
                 harness.NextNotificationAsync().AsTask(), "initial data").ConfigureAwait(false);
-            AssertNotification(notification, subscription, monitoredItem, 101);
+            AssertNotification(notification, subscription, monitoredItem!, 101);
             await WaitForPhaseAsync(harness.FirstNotification.Entered, "initial notification completion gate")
                 .ConfigureAwait(false);
-            return new LiveSubscription(subscription, monitoredItem, clientHandle, harness.EngineFactory.Engine);
+            return new LiveSubscription(subscription, monitoredItem!, clientHandle, harness.EngineFactory.Engine);
         }
 
         private static async Task<(Task Recovery, PublishAttempt Parked)> StartBoundedRecoveryAsync(
@@ -1071,7 +1071,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             Assert.That(harness.EngineFactory.Engine, Is.SameAs(live.Engine));
             Assert.That(harness.EngineFactory.CreateCount, Is.EqualTo(1));
-            Assert.That(harness.Session.TryGetSubscriptionManager(out ISubscriptionManager manager), Is.True);
+            Assert.That(harness.Session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
             Assert.That(manager, Is.SameAs(live.Engine.SubscriptionManager));
             Assert.That(manager.Items.Single(), Is.SameAs(live.Subscription));
             Assert.That(live.Engine.PublishWorkerCount, Is.EqualTo(1));

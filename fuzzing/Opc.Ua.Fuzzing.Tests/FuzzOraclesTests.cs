@@ -60,9 +60,9 @@ namespace Opc.Ua.Fuzzing.Tests
             long overBudget = FuzzOracles.GetAllocationBudget(16) + (1024 * 1024);
 
             ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(
-                () => FuzzOracles.MeasureAllocation("Allocating", 16, () => AllocateChunks(overBudget)));
+                () => FuzzOracles.MeasureAllocation("Allocating", 16, () => AllocateChunks(overBudget)))!;
 
-            Assert.That(ex.Kind, Is.EqualTo(ResourceFindingKind.Allocation));
+            Assert.That(ex!.Kind, Is.EqualTo(ResourceFindingKind.Allocation));
             Assert.That(ex.Message, Does.Contain("Allocating"));
         }
 
@@ -89,9 +89,9 @@ namespace Opc.Ua.Fuzzing.Tests
                 {
                     _ = AllocateChunks(overBudget);
                     throw new FormatException("End of input.");
-                }));
+                }))!;
 
-            Assert.That(ex.Kind, Is.EqualTo(ResourceFindingKind.Allocation));
+            Assert.That(ex!.Kind, Is.EqualTo(ResourceFindingKind.Allocation));
             Assert.That(ex.InnerException, Is.TypeOf<FormatException>());
         }
 
@@ -101,7 +101,7 @@ namespace Opc.Ua.Fuzzing.Tests
             var expected = new FormatException("End of input.");
 
             FormatException ex = Assert.Throws<FormatException>(
-                () => FuzzOracles.MeasureAllocation("Throwing", 16, () => throw expected));
+                () => FuzzOracles.MeasureAllocation("Throwing", 16, () => throw expected))!;
 
             Assert.That(ex, Is.SameAs(expected));
         }
@@ -126,9 +126,9 @@ namespace Opc.Ua.Fuzzing.Tests
                 {
                     runs++;
                     Thread.Sleep(200);
-                }, budget: 50));
+                }, budget: 50))!;
 
-            Assert.That(ex.Kind, Is.EqualTo(ResourceFindingKind.Time));
+            Assert.That(ex!.Kind, Is.EqualTo(ResourceFindingKind.Time));
             Assert.That(ex.Message, Does.Contain("Slow"));
             Assert.That(runs, Is.EqualTo(FuzzOracles.TimeConfirmationRuns + 1));
         }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Fuzzing.Tests
                 {
                     worker = Environment.CurrentManagedThreadId;
                     throw expected;
-                }));
+                }))!;
 
             Assert.That(ex, Is.SameAs(expected));
             Assert.That(worker, Is.Not.EqualTo(caller));
@@ -253,6 +253,6 @@ namespace Opc.Ua.Fuzzing.Tests
             return startInfo;
         }
 
-        private TestInputDirectory m_inputs;
+        private TestInputDirectory m_inputs = null!;
     }
 }

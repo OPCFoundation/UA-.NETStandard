@@ -126,7 +126,7 @@ namespace Opc.Ua.Client.Tests
         public void ConstructorThrowsOnNullContext()
         {
             Assert.That(
-                () => new DefaultSubscriptionEngine(null),
+                () => new DefaultSubscriptionEngine(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -261,7 +261,7 @@ namespace Opc.Ua.Client.Tests
         public void BridgeConstructorThrowsOnNullSink()
         {
             Assert.That(
-                () => new SubscriptionBridge(null),
+                () => new SubscriptionBridge(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -384,10 +384,10 @@ namespace Opc.Ua.Client.Tests
             ExtensionObject ext = captured.NotificationData[0];
             Assert.That(
                 ext.TryGetValue(
-                    out DataChangeNotification dcn),
+                    out DataChangeNotification? dcn),
                 Is.True);
             Assert.That(
-                dcn.DiagnosticInfos.Count, Is.EqualTo(1));
+                dcn!.DiagnosticInfos.Count, Is.EqualTo(1));
             Assert.That(
                 dcn.DiagnosticInfos[0].AdditionalInfo,
                 Is.EqualTo("test-diag"));

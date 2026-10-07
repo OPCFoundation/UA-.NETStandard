@@ -46,7 +46,7 @@ namespace Opc.Ua.Fuzzing
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public static void Run(string directoryPath, bool stackTrace, ITelemetryContext telemetry)
         {
-            Run(directoryPath, stackTrace, telemetry, null);
+            Run(directoryPath, stackTrace, telemetry, null!);
         }
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Opc.Ua.Fuzzing
             else
             {
                 // .NET Framework rejects wildcards in GetFullPath, so normalize only the parent.
-                string parent = Path.GetDirectoryName(directoryPath);
+                string parent = Path.GetDirectoryName(directoryPath)!;
                 parent = Path.GetFullPath(string.IsNullOrEmpty(parent) ? "." : parent);
                 string pattern = Path.GetFileName(directoryPath);
                 fullPath = Path.Combine(parent, pattern);

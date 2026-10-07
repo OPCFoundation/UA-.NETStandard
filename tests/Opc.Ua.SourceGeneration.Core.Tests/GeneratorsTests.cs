@@ -149,7 +149,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Act & Assert
             Assert.DoesNotThrow(() => nodesets.GenerateCode(
                 mockFileSystem.Object,
-                null,
+                null!,
                 mockTelemetry.Object));
         }
 
@@ -247,7 +247,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 mockFileSystem.Object,
                 "output",
                 mockTelemetry.Object,
-                options: null));
+                options: null!));
         }
 
         /// <summary>
