@@ -98,6 +98,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 | C30 | Query Applications `036.js` | Expects `rcp+` DiscoveryUrls the test never registered. | [11412](https://mantis.opcfoundation.org/view.php?id=11412) |
 | C31 | Query Applications `038.js` | Treats applicationType 3 as invalid. | [11413](https://mantis.opcfoundation.org/view.php?id=11413) |
 | C51 | Application Directory `066.js`, `079.js`; Query Applications `039.js` (pass only because the server returns NA records) | Register the reference Servers with ServerCapabilities `NA` and expect them in query results, which OPC 10000-12 §6.5.10/§6.5.11 excludes; with the exclusion 40 test cases fail. | [11458](https://mantis.opcfoundation.org/view.php?id=11458) |
+| C57 | Application Directory `011.js`, `018.js`, `028.js` | Expect the ApplicationRegistrationChangedAuditEvents on the Session of the DiscoveryAdmin user, but the GDS NodeSet grants ReceiveEvents on that EventType only to SecurityAdmin (OPC 10000-3 §8.55); the subscription belongs on a second Session of the `SecurityAdminUser`. | [11482](https://mantis.opcfoundation.org/view.php?id=11482) |
 
 ### Alarms and Conditions
 
@@ -174,22 +175,6 @@ CTT project configuration notes follow the tables. The procedure for running the
   EURange is not configured", which the server returns since #4629 (Create and Modify alike). Monitor Basic
   `Err-022.js` already accepts `Bad_FilterNotAllowed` for non-analog items; the accepted list of `Err-006.js`
   needs `Bad_DeadbandFilterInvalid`. Draft ready, not filed yet.
-- **C57. GDS Application Directory `011.js`, `018.js`, `028.js`** subscribe to the events of the Server Object on
-  the Session of the GDS `AdministrativeUser` (a DiscoveryAdmin) and expect the
-  `ApplicationRegistrationChangedAuditEventType` events of the RegisterApplication, UnregisterApplication and
-  UpdateApplication calls they make ("Step 3: Did not receive any Events after calling Publish."). A Client only
-  receives an Event if it has ReceiveEvents on the EventType Node (OPC 10000-3 §8.55), and the GDS NodeSet
-  grants it on that EventType (AuditEventDefaultPermissions) only to SecurityAdmin. The server enforces this
-  since #4675, so the three test cases pass only if the subscription is made on a second Session of the
-  `SecurityAdminUser`, which the CU already defines (a script patch with that change passes all three;
-  `GdsApplicationRegistrationAuditEventTests` covers both sides). Draft Mantis text:
-  > **GDS Application Directory 011/018/028: audit events are expected on a DiscoveryAdmin Session.** The test
-  > cases subscribe to the Server Object as the AdministrativeUser (DiscoveryAdmin) and expect the
-  > ApplicationRegistrationChangedAuditEventType events of the Methods they call. The GDS NodeSet grants
-  > ReceiveEvents on ApplicationRegistrationChangedAuditEventType only to SecurityAdmin
-  > (AuditEventDefaultPermissions), and OPC 10000-3 §8.55 delivers an Event only if the Client has
-  > ReceiveEvents on its EventType, so a compliant GDS does not send these events to a DiscoveryAdmin. Please
-  > create the event subscription on a separate Session activated with the SecurityAdminUser.
 - **Aggregate expected-value differences.**
   - Non-numeric nodes: status-only aggregates (DurationGood/Bad, PercentGood/Bad, WorstQuality2, DurationInState*)
     differ on Boolean/String nodes from numeric nodes with the same status timeline, and the CTT returns
