@@ -91,6 +91,7 @@ namespace Opc.Ua.Server
             m_maxFailedAuthenticationAttempts = configuration.ServerConfiguration
                 .MaxFailedAuthenticationAttempts;
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
+            m_httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls;
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration
                 .MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration
@@ -1650,12 +1651,84 @@ namespace Opc.Ua.Server
 
             if (options.AllowAnonymous)
             {
+                ValidateAnonymousSessionlessChannel(endpoint, secureChannelContext);
                 return new UserIdentity();
             }
 
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenInvalid,
                 "The Session-less request carries no Access Token.");
+        }
+
+        /// <summary>
+        /// Checks that a Session-less request without an Access Token may run
+        /// as an anonymous user on the channel it arrived on.
+        /// </summary>
+        /// <remarks>
+        /// "If application authentication through the SecureChannel is
+        /// sufficient, Servers may not require the Access Token and assume an
+        /// anonymous user" (OPC 10000-4 §6.3.1). The request therefore has to
+        /// meet what the endpoint demands of CreateSession and ActivateSession:
+        /// the client application certificate of the channel where the
+        /// endpoint uses security, or HTTPS with mutual TLS, and an anonymous
+        /// user token policy.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// The channel does not authenticate the application, or the endpoint
+        /// offers no anonymous user token policy.
+        /// </exception>
+        private void ValidateAnonymousSessionlessChannel(
+            EndpointDescription? endpoint,
+            SecureChannelContext secureChannelContext)
+        {
+            if (endpoint == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityModeInsufficient,
+                    "The endpoint of the Session-less request is not known.");
+            }
+
+            // An application certificate is required as ActivateSession requires it
+            // for a new channel; HTTPS with mutual TLS asks for it on every request.
+            bool requiresClientCertificate =
+                endpoint.SecurityMode != MessageSecurityMode.None ||
+                !string.Equals(endpoint.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal) ||
+                (m_httpsMutualTls &&
+                    endpoint.EndpointUrl != null &&
+                    Utils.IsUriHttpsScheme(endpoint.EndpointUrl));
+            if (requiresClientCertificate &&
+                (secureChannelContext.ClientChannelCertificate == null ||
+                    secureChannelContext.ClientChannelCertificate.Length == 0))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The Session-less request carries no Access Token and its channel has no client certificate.");
+            }
+
+            // Anonymous only where an anonymous Session would be possible: the
+            // check of ActivateSession for an anonymous user identity token.
+            if (!endpoint.UserIdentityTokens.IsEmpty && !OffersAnonymousUserTokenPolicy(endpoint))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "Anonymous user token policy not supported.");
+            }
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="endpoint"/> lists an anonymous user token policy.
+        /// </summary>
+        private static bool OffersAnonymousUserTokenPolicy(EndpointDescription endpoint)
+        {
+            for (int ii = 0; ii < endpoint.UserIdentityTokens.Count; ii++)
+            {
+                if (endpoint.UserIdentityTokens[ii].TokenType == UserTokenType.Anonymous)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -2427,6 +2500,7 @@ namespace Opc.Ua.Server
         private readonly int m_minSessionTimeout;
         private readonly int m_maxSessionTimeout;
         private readonly int m_maxSessionCount;
+        private readonly bool m_httpsMutualTls;
         private readonly int m_maxRequestAge;
 
         private readonly int m_maxBrowseContinuationPoints;
