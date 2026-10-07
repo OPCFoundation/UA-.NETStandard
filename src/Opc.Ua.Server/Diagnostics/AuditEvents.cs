@@ -2414,6 +2414,44 @@ namespace Opc.Ua.Server
             StatusCode statusCode,
             ILogger logger)
         {
+            ReportTrustListUpdatedAuditEvent(
+                null,
+                node,
+                systemContext,
+                objectId,
+                sourceName,
+                methodId,
+                inputParameters,
+                statusCode,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an TrustListUpdatedAudit event through the server, so it
+        /// reaches Clients subscribed to the Server Object like every other
+        /// audit event. Falls back to the TrustList node when no server is
+        /// supplied.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="node">The trustlist node.</param>
+        /// <param name="systemContext">The current system context</param>
+        /// <param name="objectId">The object id where the truest list update methods was called</param>
+        /// <param name="sourceName">The source name string</param>
+        /// <param name="methodId">The id of the method that was called</param>
+        /// <param name="inputParameters">The input parameters of the called method</param>
+        /// <param name="statusCode">The status code resulted when the TrustList was updated </param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportTrustListUpdatedAuditEvent(
+            this IAuditEventServer? server,
+            TrustListState? node,
+            ISystemContext systemContext,
+            NodeId objectId,
+            string sourceName,
+            NodeId methodId,
+            ArrayOf<Variant> inputParameters,
+            StatusCode statusCode,
+            ILogger logger)
+        {
             try
             {
                 var e = new TrustListUpdatedAuditEventState(null);
@@ -2443,7 +2481,14 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
                 e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
 
-                node?.ReportEvent(systemContext, e);
+                if (server != null)
+                {
+                    server.ReportAuditEvent(systemContext, e);
+                }
+                else
+                {
+                    node?.ReportEvent(systemContext, e);
+                }
             }
             catch (Exception ex)
             {
@@ -2463,6 +2508,40 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportTrustListUpdateRequestedAuditEvent(
             this TrustListState node,
+            ISystemContext systemContext,
+            NodeId objectId,
+            string sourceName,
+            NodeId methodId,
+            ArrayOf<Variant> inputParameters,
+            ILogger logger)
+        {
+            ReportTrustListUpdateRequestedAuditEvent(
+                null,
+                node,
+                systemContext,
+                objectId,
+                sourceName,
+                methodId,
+                inputParameters,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an TrustListUpdateRequestedAudit event through the server,
+        /// so it reaches Clients subscribed to the Server Object. Falls back to
+        /// the TrustList node when no server is supplied.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="node">The trustlist node.</param>
+        /// <param name="systemContext">The current system context</param>
+        /// <param name="objectId">The object id where the truest list update methods was called</param>
+        /// <param name="sourceName">The source name string</param>
+        /// <param name="methodId">The id of the method that was called</param>
+        /// <param name="inputParameters">The input parameters of the called method</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportTrustListUpdateRequestedAuditEvent(
+            this IAuditEventServer? server,
+            TrustListState? node,
             ISystemContext systemContext,
             NodeId objectId,
             string sourceName,
@@ -2492,7 +2571,14 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
                 e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
 
-                node?.ReportEvent(systemContext, e);
+                if (server != null)
+                {
+                    server.ReportAuditEvent(systemContext, e);
+                }
+                else
+                {
+                    node?.ReportEvent(systemContext, e);
+                }
             }
             catch (Exception ex)
             {

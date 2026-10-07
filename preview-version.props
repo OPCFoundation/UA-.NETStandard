@@ -35,6 +35,6 @@
     property has no effect.
   -->
   <PropertyGroup>
-    <PreviewPackageBuildNumber Condition="'$(PreviewPackageBuildNumber)' == ''">100</PreviewPackageBuildNumber>
+    <PreviewPackageBuildNumber Condition="'$(PreviewPackageBuildNumber)' == ''">200</PreviewPackageBuildNumber>
   </PropertyGroup>
 </Project>

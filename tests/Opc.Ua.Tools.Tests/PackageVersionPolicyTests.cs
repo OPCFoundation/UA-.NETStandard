@@ -71,9 +71,9 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Client", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.ISA95.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.ISA95.Client", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.Di.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Di.Server", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector", true),
@@ -139,6 +139,9 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("2.0.0-preview.1.gabc123def0", "2.0.0-preview.1.gabc123def0", Description = "Already preview with commit id: unchanged")]
         [TestCase("2.0.1-preview.3+build5", "2.0.1-preview.3+build5", Description = "Already preview with build metadata: unchanged")]
         [TestCase("2.0.0-rc.1", "2.0.0-preview.rc.1", Description = "Other prerelease label: preview-prefixed")]
+        [TestCase("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295", Description = "Commit id only: numbered 0")]
+        [TestCase("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5", Description = "Commit id and metadata: numbered 0")]
+        [TestCase("2.0.0-gamma.1", "2.0.0-preview.gamma.1", Description = "A label that merely starts with 'g' is not a commit id")]
         public async Task ConvertToPreviewPackageVersionIsIdempotentForExistingPrereleaseAsync(
             string input,
             string expected)
@@ -172,6 +175,117 @@ namespace Opc.Ua.Tools.Tests
         }
 
         [Test]
+        public async Task VersionTargetsAppliesTheSamePreviewVersionRulesAsConvertToPreviewPackageVersionAsync()
+        {
+            // ApplyPreviewPackageVersion in version.targets is what actually
+            // stamps package versions; ConvertTo-PreviewPackageVersion is an
+            // independent re-implementation the validators use. Evaluate the
+            // real target through MSBuild so the two cannot drift apart.
+            (string Input, string Expected)[] cases =
+            [
+                ("2.0.0", "2.0.0-preview.42"),
+                ("2.0.0+gabc123def0", "2.0.0-preview.42+gabc123def0"),
+                ("2.0.0-preview.6", "2.0.0-preview.6"),
+                ("2.0.1-preview.5.gfa06c66dbb", "2.0.1-preview.5.gfa06c66dbb"),
+                ("2.0.0-rc.1", "2.0.0-preview.rc.1"),
+                ("2.0.0-gamma.1", "2.0.0-preview.gamma.1"),
+                ("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295"),
+                ("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5"),
+            ];
+
+            string fixtureDirectory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "package-version-policy-fixtures",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(fixtureDirectory);
+            string projectPath = Path.Combine(fixtureDirectory, "versions.proj");
+            string resultPath = Path.Combine(fixtureDirectory, "versions.txt");
+            string versionTargetsPath = Path.Combine(FindRepositoryRoot(), "version.targets");
+            string items = string.Concat(cases.Select(c => $"<Case Include=\"{c.Input}\" />"));
+
+            // A plain (non-SDK) project imports no Directory.Build.* files, so
+            // only version.targets contributes. NBGV_PublicRelease skips the
+            // GetBuildVersion dependency, as on a release branch build.
+            await File.WriteAllTextAsync(
+                projectPath,
+                $$"""
+                <Project DefaultTargets="Run">
+                  <PropertyGroup>
+                    <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
+                    <PackageId>OPCFoundation.NetStandard.Opc.Ua.AI</PackageId>
+                    <IsPackable>true</IsPackable>
+                    <NBGV_PublicRelease>True</NBGV_PublicRelease>
+                    <PreviewPackageBuildNumber>42</PreviewPackageBuildNumber>
+                    <PackageVersion>$(InputVersion)</PackageVersion>
+                  </PropertyGroup>
+                  <ItemGroup>{{items}}</ItemGroup>
+                  <Import Project="{{versionTargetsPath}}" />
+                  <Target Name="Map" DependsOnTargets="ApplyPreviewPackageVersion" Returns="@(Mapped)">
+                    <ItemGroup>
+                      <Mapped Include="$(InputVersion)" Actual="$(PackageVersion)" />
+                    </ItemGroup>
+                  </Target>
+                  <Target Name="Run">
+                    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Map" Properties="InputVersion=%(Case.Identity)">
+                      <Output TaskParameter="TargetOutputs" ItemName="Result" />
+                    </MSBuild>
+                    <WriteLinesToFile File="{{resultPath}}" Lines="@(Result->'%(Identity)=%(Actual)')" Overwrite="true" />
+                  </Target>
+                </Project>
+                """).ConfigureAwait(false);
+
+            try
+            {
+                using var process = new Process();
+                process.StartInfo.FileName = "dotnet";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.ArgumentList.Add("msbuild");
+                process.StartInfo.ArgumentList.Add(projectPath);
+                process.StartInfo.ArgumentList.Add("-nologo");
+                process.StartInfo.ArgumentList.Add("-nodeReuse:false");
+
+                Assert.That(process.Start(), Is.True);
+                Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+                Task<string> standardError = process.StandardError.ReadToEndAsync();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+                string output = await standardOutput.ConfigureAwait(false);
+                string error = await standardError.ConfigureAwait(false);
+                Assert.That(process.ExitCode, Is.Zero, $"dotnet msbuild failed:\n{output}\n{error}");
+
+                Dictionary<string, string> actual = (await File.ReadAllLinesAsync(resultPath).ConfigureAwait(false))
+                    .Select(line => line.Split('=', 2))
+                    .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.Ordinal);
+
+                JsonElement policy = await RunPolicyScriptAsync(
+                    $$"""
+                    . '{{PolicyScriptPath}}'
+                    $inputs = @({{string.Join(",", cases.Select(c => $"'{c.Input}'"))}})
+                    $results = foreach ($input in $inputs) {
+                        ConvertTo-PreviewPackageVersion -Version $input -PreviewPackageBuildNumber '42'
+                    }
+                    $results | ConvertTo-Json -AsArray
+                    """).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    for (int i = 0; i < cases.Length; i++)
+                    {
+                        (string input, string expected) = cases[i];
+                        Assert.That(actual.TryGetValue(input, out string? mapped), Is.True, $"version.targets produced no result for '{input}'.");
+                        Assert.That(mapped, Is.EqualTo(expected), $"version.targets mapped '{input}' incorrectly.");
+                        Assert.That(policy[i].GetString(), Is.EqualTo(expected), $"ConvertTo-PreviewPackageVersion mapped '{input}' incorrectly.");
+                    }
+                });
+            }
+            finally
+            {
+                Directory.Delete(fixtureDirectory, recursive: true);
+            }
+        }
+
+        [Test]
         public async Task GetExpectedPackageVersionAppliesPolicyOnlyToPreviewFamiliesAsync()
         {
             JsonElement result = await RunPolicyScriptAsync(
@@ -180,7 +294,7 @@ namespace Opc.Ua.Tools.Tests
                 @{
                     preview = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.XRegistry' -BaseVersion '2.0.0')
                     core = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Core' -BaseVersion '2.0.0')
-                    previewDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Di' -BaseVersion '2.0.0-preview.9')
+                    previewDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Robotics' -BaseVersion '2.0.0-preview.9')
                     coreDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Core' -BaseVersion '2.0.0-preview.9')
                 } | ConvertTo-Json
                 """).ConfigureAwait(false);
@@ -465,9 +579,7 @@ namespace Opc.Ua.Tools.Tests
                 "Opc.Ua.Redundancy",
                 "Opc.Ua.Positioning",
                 "Opc.Ua.OpenUsd",
-                "Opc.Ua.ISA95",
                 "Opc.Ua.AI",
-                "Opc.Ua.Di",
                 "Opc.Ua.Mcp.Robotics",
                 "Opc.Ua.Mcp.Vision",
                 "Opc.Ua.OpenUsd.Connector",

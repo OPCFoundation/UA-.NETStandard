@@ -527,6 +527,7 @@ namespace Opc.Ua.Gds.Server
                 // supplies the validation rules.
                 trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
             }
+            trustList.SetAuditEventServer(Server);
             certificateGroup.DefaultTrustList.Handle = trustList;
         }
 

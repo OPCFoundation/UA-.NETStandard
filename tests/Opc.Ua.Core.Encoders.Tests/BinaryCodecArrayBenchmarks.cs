@@ -233,7 +233,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                     encoder.WriteEncodeableArray(null, (ArrayOf<ReadValueId>)m_readValueIds);
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(Kind));
+                    throw new InvalidOperationException($"Unsupported array kind {Kind}.");
             }
         }
 
@@ -252,7 +252,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 CodecArrayKind.EncodeableByTypeId => decoder.ReadEncodeableArray<ReadValueId>(
                     null,
                     DataTypeIds.ReadValueId).Count,
-                _ => throw new ArgumentOutOfRangeException(nameof(Kind))
+                _ => throw new InvalidOperationException($"Unsupported array kind {Kind}.")
             };
         }
 
@@ -362,7 +362,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 CodecMessageKind.ReadResponse => CreateReadResponse(Count),
                 CodecMessageKind.PublishResponse => CreatePublishResponse(Count),
                 CodecMessageKind.NestedVariant => CreateNestedVariant(Count),
-                _ => throw new ArgumentOutOfRangeException(nameof(Kind))
+                _ => throw new InvalidOperationException($"Unsupported message kind {Kind}.")
             };
             m_encoded = BinaryEncoder.EncodeMessage(m_message, m_context);
             m_stream = new MemoryStream(m_encoded.Length * 2);

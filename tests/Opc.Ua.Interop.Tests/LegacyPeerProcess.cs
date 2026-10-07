@@ -467,7 +467,7 @@ namespace Opc.Ua.Interop.Tests
             {
                 return argument;
             }
-            return "\"" + argument.Replace("\"", "\\\"") + "\"";
+            return "\"" + string.Join("\\\"", argument.Split('"')) + "\"";
         }
     }
 }
