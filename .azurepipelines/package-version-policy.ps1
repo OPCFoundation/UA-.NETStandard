@@ -250,6 +250,108 @@ function Get-NuGetPackageContentDigest {
     }
 }
 
+function Invoke-FeedRequest {
+    <#
+    .SYNOPSIS
+        Invoke-WebRequest that retries transient failures only and returns
+        the final response for the caller to judge by status code.
+
+    .DESCRIPTION
+        Invoke-WebRequest's own -MaximumRetryCount retries every status from
+        400 to 599, so each 404 - the normal "this id/version is not
+        published" answer the release gates ask for once per package - cost
+        three pointless retries and ~15 s. Across a full package set on two
+        feeds that turned a read-only check into an hour-long step.
+
+        Only a network failure, 408, 429 or 5xx is retried here. Every other
+        status is returned straight away; after the last retry the final
+        response is returned (or the network error rethrown), so callers keep
+        failing closed on anything they do not recognise.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Uri,
+        [hashtable]$Headers = @{},
+        [string]$OutFile,
+        [ValidateRange(0, 10)][int]$MaximumRetryCount = 3,
+        [ValidateRange(0, 60)][int]$RetryIntervalSec = 5
+    )
+
+    $parameters = @{
+        Uri = $Uri
+        Headers = $Headers
+        SkipHttpErrorCheck = $true
+    }
+    if ($OutFile) {
+        $parameters['OutFile'] = $OutFile
+        $parameters['PassThru'] = $true
+    }
+
+    for ($attempt = 0; ; $attempt++) {
+        try {
+            $response = Invoke-WebRequest @parameters
+        }
+        catch {
+            # -SkipHttpErrorCheck means only failures without an HTTP
+            # status (DNS, connection reset, timeout) reach this block.
+            if ($attempt -ge $MaximumRetryCount) {
+                throw
+            }
+            Start-Sleep -Seconds $RetryIntervalSec
+            continue
+        }
+
+        $status = [int]$response.StatusCode
+        $transient = $status -eq 408 -or $status -eq 429 -or $status -ge 500
+        if (-not $transient -or $attempt -ge $MaximumRetryCount) {
+            return $response
+        }
+        Start-Sleep -Seconds $RetryIntervalSec
+    }
+}
+
+function Get-PreviousReleaseTag {
+    <#
+    .SYNOPSIS
+        Returns the release tag GitHub should generate release notes from:
+        the greatest semantic version of the same major that is strictly
+        lower than $Tag, or $null when there is none.
+
+    .DESCRIPTION
+        Without a previous tag GitHub diffs against the latest release, which
+        can be a 1.5.378 maintenance release on another branch; the 2.0.0
+        notes generated that way exceeded the 125000-character body limit.
+        Choosing by version instead of publication time keeps a servicing
+        promotion (2.0.1 after 2.1.0) on its own line. Tags that are not
+        semantic versions, such as the four-component 1.5.378.x, are ignored.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Tag,
+        [AllowEmptyCollection()][string[]]$ReleaseTags = @()
+    )
+
+    $target = $null
+    if (-not [System.Management.Automation.SemanticVersion]::TryParse($Tag, [ref]$target)) {
+        throw "Release tag '$Tag' is not a semantic version."
+    }
+
+    $best = $null
+    $bestTag = $null
+    foreach ($candidateTag in $ReleaseTags) {
+        $candidate = $null
+        if (-not [System.Management.Automation.SemanticVersion]::TryParse($candidateTag, [ref]$candidate)) {
+            continue
+        }
+        if ($candidate.Major -ne $target.Major -or $candidate -ge $target) {
+            continue
+        }
+        if ($null -eq $best -or $candidate -gt $best) {
+            $best = $candidate
+            $bestTag = $candidateTag
+        }
+    }
+    return $bestTag
+}
+
 function Test-StablePackageVersion {
     <#
     .SYNOPSIS
