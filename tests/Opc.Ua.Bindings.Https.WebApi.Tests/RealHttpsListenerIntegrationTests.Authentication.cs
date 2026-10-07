@@ -476,6 +476,100 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             };
         }
 
+        [Test]
+        public async Task OpenApiWebSocketUpgradeIsRefusedWhenTheAuthenticatorThrowsAsync()
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync("basic").ConfigureAwait(false);
+            IServiceRequest warmUp = await WarmUpPipelineAsync(listener).ConfigureAwait(false);
+            listener.Listener.WssOpenApiUpgradeAuthenticator =
+                _ => throw new InvalidOperationException("authenticator failure");
+
+            using ClientWebSocket socket = await listener
+                .ConnectWebSocketAsync(Profiles.OpcUaWsSubProtocolOpenApi, CreateAuthorizationHeader("basic-valid"))
+                .ConfigureAwait(false);
+
+            Assert.That(socket.State, Is.Not.EqualTo(WebSocketState.Open));
+            Assert.That(socket.HttpStatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(listener.Callback.LastRequest, Is.SameAs(warmUp));
+        }
+
+        [Test]
+        public async Task OpenApiWebSocketUpgradeIsRefusedWhenTheIdentityCannotBeResolvedAsync()
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync("basic").ConfigureAwait(false);
+            IServiceRequest warmUp = await WarmUpPipelineAsync(listener).ConfigureAwait(false);
+            listener.Listener.WssOpenApiIdentityResolver =
+                _ => throw new InvalidOperationException("identity failure");
+
+            using ClientWebSocket socket = await listener
+                .ConnectWebSocketAsync(Profiles.OpcUaWsSubProtocolOpenApi, CreateAuthorizationHeader("basic-valid"))
+                .ConfigureAwait(false);
+
+            Assert.That(socket.State, Is.Not.EqualTo(WebSocketState.Open));
+            Assert.That(socket.HttpStatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+            Assert.That(listener.Callback.LastRequest, Is.SameAs(warmUp));
+        }
+
+        [TestCase("1700000000", 1_700_000_000_000L)]
+        [TestCase("1700000000.25", 1_700_000_000_250L)]
+        public void CredentialExpiryIsReadFromTheExpClaim(string exp, long expectedUnixMilliseconds)
+        {
+            DateTimeOffset? expiry = HttpsTransportListener.GetCredentialExpiry(CreatePrincipal(exp));
+
+            Assert.That(expiry, Is.EqualTo(DateTimeOffset.FromUnixTimeMilliseconds(expectedUnixMilliseconds)));
+        }
+
+        [Test]
+        public void CredentialExpiryOutOfRangeIsClamped()
+        {
+            Assert.That(
+                HttpsTransportListener.GetCredentialExpiry(CreatePrincipal("-1e300")),
+                Is.EqualTo(DateTimeOffset.MinValue),
+                "An exp before the representable range must count as expired.");
+            Assert.That(
+                HttpsTransportListener.GetCredentialExpiry(CreatePrincipal("1e300")),
+                Is.EqualTo(DateTimeOffset.MaxValue));
+        }
+
+        [TestCase(null)]
+        [TestCase("not-a-number")]
+        [TestCase("NaN")]
+        public void CredentialWithoutUsableExpClaimHasNoExpiry(string? exp)
+        {
+            Assert.That(HttpsTransportListener.GetCredentialExpiry(CreatePrincipal(exp)), Is.Null);
+        }
+
+        [Test]
+        public void UnauthenticatedPrincipalHasNoCredentialExpiry()
+        {
+            var anonymous = new ClaimsPrincipal(new ClaimsIdentity([new Claim("exp", "1")]));
+
+            Assert.That(HttpsTransportListener.GetCredentialExpiry(anonymous), Is.Null);
+            Assert.That(HttpsTransportListener.GetCredentialExpiry(null), Is.Null);
+        }
+
+        /// <summary>
+        /// The listener builds its pipeline, and with it the contributor's
+        /// WebSocket hooks, on the first request; send one so a test can
+        /// replace a hook afterwards. Returns the request the server saw.
+        /// </summary>
+        private static async Task<IServiceRequest> WarmUpPipelineAsync(AuthListener listener)
+        {
+            using HttpResponseMessage response = await listener
+                .PostReadAsync(CreateAuthorizationHeader("basic-valid"))
+                .ConfigureAwait(false);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            return listener.Callback.LastRequest!;
+        }
+
+        private static ClaimsPrincipal CreatePrincipal(string? exp)
+        {
+            Claim[] claims = exp == null
+                ? [new Claim(ClaimTypes.Name, "alice")]
+                : [new Claim(ClaimTypes.Name, "alice"), new Claim("exp", exp)];
+            return new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"));
+        }
+
         private async Task<AuthListener> OpenAuthListenerAsync(
             string authMode,
             X509Certificate2? clientCertificate = null,
@@ -711,6 +805,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             }
 
             public StubTransportListenerCallback Callback { get; }
+
+            public HttpsTransportListener Listener => m_listener;
 
             public void Connect(int port, X509Certificate2? clientCertificate)
             {
