@@ -390,7 +390,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     Is.EqualTo(new Variant(default(MatrixOf<int>))));
                 Assert.That(
                     variant,
-                    Is.Not.EqualTo(Variant.From(new[] { true }.ToArrayOf().ToMatrix(1, 1))));
+                    Is.Not.EqualTo(Variant.From(((ArrayOf<bool>)[true]).ToMatrix(1, 1))));
             });
         }
 

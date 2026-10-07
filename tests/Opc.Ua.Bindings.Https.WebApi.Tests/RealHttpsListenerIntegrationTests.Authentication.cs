@@ -62,6 +62,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private const string kJwtIssuer = "https://issuer.example";
         private const string kJwtAudience = "opcua-rest";
         private static readonly byte[] s_jwtSigningKey = RandomNumberGenerator.GetBytes(64);
+        private static readonly string[] s_expectedUsers = ["alice", "alice"];
 
         [TestCase("basic", "none", HttpStatusCode.Unauthorized)]
         [TestCase("basic", "basic-wrong", HttpStatusCode.Unauthorized)]
@@ -249,7 +250,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             }
 
-            Assert.That(recorder.Users, Is.EqualTo(new[] { "alice", "alice" }),
+            Assert.That(recorder.Users, Is.EqualTo(s_expectedUsers),
                 "The application's provider must see the principal authenticated on the listener.");
             Assert.That(recorder.Dependencies.Distinct().Count(), Is.EqualTo(2),
                 "A scoped provider must get a fresh scope per request.");
@@ -434,6 +435,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             public ConcurrentQueue<ScopedDependency> Dependencies { get; } = new();
         }
 
+        // Instantiated by the DI container through AddScoped registrations.
+        // TODO: Remove the pragma when CA1812 tracks DI registrations.
+#pragma warning disable CA1812
         private sealed class ScopedDependency : IDisposable
         {
             public bool Disposed { get; private set; }
@@ -462,6 +466,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 return null;
             }
         }
+#pragma warning restore CA1812
 
         /// <summary>
         /// A listener whose REST authentication comes from an application

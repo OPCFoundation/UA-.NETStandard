@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -58,6 +59,11 @@ namespace Opc.Ua.Interop.Tests
         private const string kUserName = "interop";
         private const string kPassword = "interop-password";
         private static readonly TimeSpan s_startTimeout = TimeSpan.FromMinutes(2);
+        private static readonly string[] s_interopVariableNames =
+            ["Int32", "Double", "String", "Range", "Counter", "Add", "Int32Array"];
+        private static readonly int[] s_initialInt32Array = [1, 2, 3];
+        private static readonly string[] s_initialStringArray = ["a", "b", "c"];
+        private static readonly int[] s_writtenInt32Array = [7, 8, 9, 10];
 
         private ITelemetryContext m_telemetry;
         private LegacyPeerProcess m_server;
@@ -234,7 +240,7 @@ namespace Opc.Ua.Interop.Tests
             string[] names = [.. response.Results[0].References.ToArray().Select(r => r.BrowseName.Name)];
             Assert.That(
                 names,
-                Is.SupersetOf(new[] { "Int32", "Double", "String", "Range", "Counter", "Add", "Int32Array" }));
+                Is.SupersetOf(s_interopVariableNames));
         }
 
         [Test]
@@ -306,9 +312,9 @@ namespace Opc.Ua.Interop.Tests
             Assert.That(values[10].WrappedValue.TryGetValue(out NodeId nodeId), Is.True, "NodeId");
             Assert.That(nodeId, Is.EqualTo(new NodeId("Interop", m_ns)));
             Assert.That(values[11].WrappedValue.TryGetValue(out ArrayOf<int> ints), Is.True, "Int32Array");
-            Assert.That(ints.ToArray(), Is.EqualTo(new[] { 1, 2, 3 }));
+            Assert.That(ints.ToArray(), Is.EqualTo(s_initialInt32Array));
             Assert.That(values[12].WrappedValue.TryGetValue(out ArrayOf<string> strings), Is.True, "StringArray");
-            Assert.That(strings.ToArray(), Is.EqualTo(new[] { "a", "b", "c" }));
+            Assert.That(strings.ToArray(), Is.EqualTo(s_initialStringArray));
         }
 
         [Test]
@@ -359,7 +365,7 @@ namespace Opc.Ua.Interop.Tests
             [
                 Write("Double", new Variant(-1.5e-300)),
                 Write("String", new Variant("written by 2.0 äöü 中")),
-                Write("Int32Array", new Variant(new[] { 7, 8, 9, 10 })),
+                Write("Int32Array", new Variant((ArrayOf<int>)[7, 8, 9, 10])),
                 Write("Range", new Variant(new ExtensionObject(new Range { Low = -5, High = 5 })))
             ];
             WriteResponse response = await m_session
@@ -377,7 +383,7 @@ namespace Opc.Ua.Interop.Tests
             Assert.That(values[1].WrappedValue.TryGetValue(out string s), Is.True);
             Assert.That(s, Is.EqualTo("written by 2.0 äöü 中"));
             Assert.That(values[2].WrappedValue.TryGetValue(out ArrayOf<int> ints), Is.True);
-            Assert.That(ints.ToArray(), Is.EqualTo(new[] { 7, 8, 9, 10 }));
+            Assert.That(ints.ToArray(), Is.EqualTo(s_writtenInt32Array));
             Assert.That(values[3].WrappedValue.TryGetStructure(out Range range), Is.True);
             Assert.That(range.Low, Is.EqualTo(-5));
             Assert.That(range.High, Is.EqualTo(5));
@@ -505,7 +511,10 @@ namespace Opc.Ua.Interop.Tests
         public async Task LargeByteStringRoundTripAsync()
         {
             byte[] value = new byte[900 * 1024];
-            new Random(4711).NextBytes(value);
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(value);
+            }
             await WriteAndCompareAsync("ByteString", new Variant(ByteString.From(value))).ConfigureAwait(false);
         }
 

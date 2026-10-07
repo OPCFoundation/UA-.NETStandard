@@ -233,16 +233,16 @@ explains how they relate to the base model. These libraries assume the server
 path and, for typed client access, the client path. The packages load the
 models that each model depends on.
 
-- [Device Integration](DeviceIntegration.md) (OPC 10000-100; preview package) —
+- [Device Integration](DeviceIntegration.md) (OPC 10000-100) —
   devices, topology, and locking.
 - [Asset Management Basics](AMB.md) (OPC 10000-110; preview
   package) — make devices, machines, pumps or scales manageable assets:
   discovery, identification, health alarms, maintenance, documentation links
   and locations. Read Device Integration first.
-- [Software update](SoftwareUpdate.md) (OPC 10000-100; preview package) —
+- [Software update](SoftwareUpdate.md) (OPC 10000-100) —
   software package storage, installation, and confirmation. Read Device
   Integration first.
-- [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4; preview package) — the common
+- [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4) — the common
   model and job control.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.

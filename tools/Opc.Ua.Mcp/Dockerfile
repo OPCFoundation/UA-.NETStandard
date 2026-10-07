@@ -6,17 +6,32 @@
 #
 # Defaults to the stdio MCP transport (run with `docker run -i ...`). For the
 # HTTP/SSE transport run with `--transport sse --port 5100`.
-FROM mcr.microsoft.com/dotnet/sdk AS build
+#
+# The SDK stage always runs on the build platform ($BUILDPLATFORM): the
+# publish output is portable IL, so a multi-platform build never compiles
+# under emulation. Images CI publishes every sample once in a native pre-job
+# and selects the "prebuilt" stage instead, so the image legs only copy files:
+#   --build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=<folder>
+ARG PUBLISH_SOURCE=build
+
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .
 RUN dotnet publish "tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" \
     -c Release -f net10.0 -p:PublishAot=false -p:CustomTestTarget=net10.0 \
+    -p:UseAppHost=false \
     -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet AS final
+FROM scratch AS prebuilt
+ARG PUBLISH_DIR=artifacts/docker/publish
+COPY ${PUBLISH_DIR}/ /app/publish/
+
+FROM ${PUBLISH_SOURCE} AS publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-azurelinux3.0-distroless-extra AS final
 WORKDIR /app
-COPY --from=build /app/publish .
+COPY --from=publish /app/publish .
 # HTTP/SSE MCP transport port (see --transport sse --port).
 EXPOSE 5100
 ENTRYPOINT ["dotnet", "Opc.Ua.Mcp.dll"]
