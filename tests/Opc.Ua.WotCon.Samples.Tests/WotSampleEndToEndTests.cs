@@ -465,7 +465,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task BadTargetMappingFailsRefreshAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+            // Uploading and refreshing the full sample document set takes close to four minutes
+            // on a Windows Debug runner, so use the same budget as the other full workflows.
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -488,7 +490,11 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task UnavailableUpstreamEndpointFailsMappedReadAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+            // The budget covers the whole workflow, not only the failing read: uploading and
+            // refreshing the full sample document set takes close to four minutes on a Windows
+            // Debug runner, and on Windows every refused loopback connect costs about two seconds
+            // of SYN retries, so the mapped read adds a further half minute there.
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
