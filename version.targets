@@ -65,6 +65,19 @@
            to do. -->
       <_PreviewPackageVersion
           Condition="$([System.String]::Copy('$(_PreviewSourceVersion)').Contains('-preview'))">$(_PreviewSourceVersion)</_PreviewPackageVersion>
+      <!-- Case 2a: the root version's only prerelease identifier is a commit
+           id (e.g. "2.0.0-gabcdef0123"). Nerdbank.GitVersioning produces
+           this for a stable version.json built from a non-public-release
+           ref, such as master briefly carrying "2.0.0". Case 2 would turn it
+           into "2.0.0-preview.gabcdef0123", and SemVer 2 ranks the
+           alphanumeric "g..." identifier above every numeric one, so it
+           would outrank every "-preview.N" ever released from that base -
+           permanently, because published versions are immutable. Number it
+           0 instead so it sorts below any committed
+           PreviewPackageBuildNumber. ConvertTo-PreviewPackageVersion in
+           .azurepipelines/package-version-policy.ps1 applies the same rule. -->
+      <_PreviewPackageVersion
+          Condition="'$(_PreviewPackageVersion)' == '' AND $([System.Text.RegularExpressions.Regex]::IsMatch('$(_PreviewSourceVersion)', '^[^-+]+-g[0-9a-f]+(\+.*)?$'))">$([System.Text.RegularExpressions.Regex]::Replace('$(_PreviewSourceVersion)', '^([^-+]+)-(g[0-9a-f]+)', '$1-preview.0.$2'))</_PreviewPackageVersion>
       <!-- Case 2: the root version carries some other prerelease label
            (for example a hypothetical "-rc.1"). Preserve that label but
            mark the selected families as preview under it too. -->
