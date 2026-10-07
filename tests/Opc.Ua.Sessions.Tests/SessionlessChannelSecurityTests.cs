@@ -65,7 +65,7 @@ namespace Opc.Ua.Sessions.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public class SessionlessChannelSecurityTests
+    public sealed class SessionlessChannelSecurityTests
     {
         private const int kTimeout = 30_000;
         private const string kAccessToken = "channel.security.access-token";
