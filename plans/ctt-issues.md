@@ -8,7 +8,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 
 - "Resolved / fixed" in Mantis means the fix is in the CTT script repository. It ships with a script
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
-- The ids (1–19, C1–C56, U1–U5) are stable references for notes and commit messages; missing ids were
+- The ids (1–19, C1–C57, U1–U5) are stable references for notes and commit messages; missing ids were
   withdrawn or no longer fail against the reference server.
 - Mantis states were last checked on 2026-09-25.
 
@@ -98,6 +98,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 | C30 | Query Applications `036.js` | Expects `rcp+` DiscoveryUrls the test never registered. | [11412](https://mantis.opcfoundation.org/view.php?id=11412) |
 | C31 | Query Applications `038.js` | Treats applicationType 3 as invalid. | [11413](https://mantis.opcfoundation.org/view.php?id=11413) |
 | C51 | Application Directory `066.js`, `079.js`; Query Applications `039.js` (pass only because the server returns NA records) | Register the reference Servers with ServerCapabilities `NA` and expect them in query results, which OPC 10000-12 §6.5.10/§6.5.11 excludes; with the exclusion 40 test cases fail. | [11458](https://mantis.opcfoundation.org/view.php?id=11458) |
+| C57 | Application Directory `011.js`, `018.js`, `028.js` | Expect the ApplicationRegistrationChangedAuditEvents on the Session of the DiscoveryAdmin user, but the GDS NodeSet grants ReceiveEvents on that EventType only to SecurityAdmin (OPC 10000-3 §8.55); the subscription belongs on a second Session of the `SecurityAdminUser`. | [11482](https://mantis.opcfoundation.org/view.php?id=11482) |
 
 ### Alarms and Conditions
 

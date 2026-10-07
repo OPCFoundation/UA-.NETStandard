@@ -2,7 +2,7 @@ function Test-PreviewPackageId {
     param([Parameter(Mandatory)][string]$PackageId)
 
     $baseId = $PackageId -replace '\.Debug$', ''
-    return $baseId -match '^OPCFoundation\.NetStandard\.Opc\.Ua\.(XRegistry|WotCon|Vision|Robotics|Redundancy|Positioning|OpenUsd|ISA95|AI|Di)(\.|$)' -or
+    return $baseId -match '^OPCFoundation\.NetStandard\.Opc\.Ua\.(XRegistry|WotCon|Vision|Robotics|Redundancy|Positioning|OpenUsd|AI)(\.|$)' -or
         $baseId -in @(
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics',
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision',
@@ -44,6 +44,13 @@ function ConvertTo-PreviewPackageVersion {
 
     if ($Version -match '-preview(?:[.+-]|$)') {
         return $Version
+    }
+    if ($Version -cmatch '^[^-+]+-g[0-9a-f]+(\+.*)?$') {
+        # A commit id as the only prerelease identifier (a non-public build
+        # of a stable version.json). "-preview.g<commit>" would outrank every
+        # numbered preview under SemVer 2, so number it 0; version.targets
+        # applies the same rule.
+        return $Version -creplace '^([^-+]+)-(g[0-9a-f]+)', '$1-preview.0.$2'
     }
     if ($Version.Contains('-')) {
         return $Version.Replace('-', '-preview.')

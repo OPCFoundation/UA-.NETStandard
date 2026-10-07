@@ -42,17 +42,19 @@ namespace Quickstarts.ReferenceServer
     {
         public ReferenceServerMainNodeManagerFactory(
             ApplicationConfiguration applicationConfiguration,
-            IServerInternal server)
+            IServerInternal server,
+            ServerConfigurationOptions? serverConfigurationOptions = null)
         {
             m_applicationConfiguration = applicationConfiguration;
             m_server = server;
+            m_serverConfigurationOptions = serverConfigurationOptions;
         }
 
         /// <inheritdoc/>
         public IConfigurationNodeManager CreateConfigurationNodeManager()
         {
             return new ReferenceServerConfigurationNodeManager(
-                m_server, m_applicationConfiguration);
+                m_server, m_applicationConfiguration, m_serverConfigurationOptions);
         }
 
         /// <inheritdoc/>
@@ -64,5 +66,6 @@ namespace Quickstarts.ReferenceServer
 
         private readonly ApplicationConfiguration m_applicationConfiguration;
         private readonly IServerInternal m_server;
+        private readonly ServerConfigurationOptions? m_serverConfigurationOptions;
     }
 }

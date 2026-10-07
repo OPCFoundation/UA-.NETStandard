@@ -280,6 +280,24 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports the TrustListUpdateRequested and TrustListUpdated audit
+        /// events (OPC 10000-12 §7.8.2.10/§7.8.2.11) through
+        /// <paramref name="auditEventServer"/>, so Clients subscribed to the
+        /// Server Object receive them like every other audit event. Without a
+        /// call to this method the events are reported on the TrustList node
+        /// only, which is not an event notifier.
+        /// </summary>
+        /// <param name="auditEventServer">The server that reports audit events.</param>
+        /// <exception cref="ArgumentNullException">
+        /// When <paramref name="auditEventServer"/> is <see langword="null"/>.
+        /// </exception>
+        public void SetAuditEventServer(IAuditEventServer auditEventServer)
+        {
+            m_auditServer = auditEventServer ??
+                throw new ArgumentNullException(nameof(auditEventServer));
+        }
+
+        /// <summary>
         /// Disposes the trusted and issuer store instances this TrustList
         /// holds open across its operations. The owner of the TrustList
         /// (the node manager hosting the handler) calls this at shutdown;
@@ -1233,7 +1251,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             ArrayOf<Variant> inputParameters = [fileHandle];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            m_auditServer.ReportTrustListUpdateRequestedAuditEvent(
+                m_node,
                 context,
                 objectId,
                 "Method/CloseAndUpdate",
@@ -1252,7 +1271,8 @@ namespace Opc.Ua.Server
                 }
                 catch (ServiceResultException ex)
                 {
-                    m_node.ReportTrustListUpdatedAuditEvent(
+                    m_auditServer.ReportTrustListUpdatedAuditEvent(
+                        m_node,
                         context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters,
                         ex.StatusCode, m_logger);
                     return new CloseAndUpdateMethodStateResult
@@ -1453,7 +1473,8 @@ namespace Opc.Ua.Server
                     crlChanged: updateAttempted && (masks &
                         (int)(TrustListMasks.IssuerCrls | TrustListMasks.TrustedCrls)) != 0);
 
-                m_node.ReportTrustListUpdatedAuditEvent(
+                m_auditServer.ReportTrustListUpdatedAuditEvent(
+                    m_node,
                     context,
                     objectId,
                     "Method/CloseAndUpdate",
@@ -1609,7 +1630,8 @@ namespace Opc.Ua.Server
                         previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
                         updateTimeChanged = true;
 
-                        m_node.ReportTrustListUpdatedAuditEvent(
+                        m_auditServer.ReportTrustListUpdatedAuditEvent(
+                            m_node,
                             context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters,
                             StatusCodes.Good, m_logger);
                     },
@@ -1674,7 +1696,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             ArrayOf<Variant> inputParameters = [certificate, isTrustedCertificate];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            m_auditServer.ReportTrustListUpdateRequestedAuditEvent(
+                m_node,
                 context,
                 objectId,
                 "Method/AddCertificate",
@@ -1776,6 +1799,17 @@ namespace Opc.Ua.Server
 
                 if (cert != null)
                 {
+                    // OPC 10000-12 §7.8.2.6: AddCertificate cannot supply a CRL.
+                    // With RejectUnknownRevocationStatus every certificate issued
+                    // by a CA added without a CRL is rejected, so tell the
+                    // administrator why such a CA does not take effect.
+                    if (m_validationConfiguration?.RejectUnknownRevocationStatus == true &&
+                        X509Utils.IsCertificateAuthority(cert) &&
+                        !await HasCrlForIssuerAsync(cert, cancellationToken).ConfigureAwait(false))
+                    {
+                        m_logger.TrustListCaAddedWithoutCrl(cert.Subject);
+                    }
+
                     if (m_coordinator == null)
                     {
                         // Legacy non-transactional behavior: apply immediately.
@@ -1785,7 +1819,7 @@ namespace Opc.Ua.Server
                                 ? m_trustedStore
                                 : m_issuerStore;
                             ICertificateStore store = GetStore(storeIdentifier);
-                            await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
+                            await AddIfMissingAsync(store, cert, cancellationToken).ConfigureAwait(false);
                         }
                         finally
                         {
@@ -1805,6 +1839,7 @@ namespace Opc.Ua.Server
                         Certificate stagedCert = cert;
                         string stagedThumbprint = cert.Thumbprint;
                         DateTimeUtc previousUpdateTime = default;
+                        bool addedByCommit = false;
                         m_coordinator.Stage(sessionId, new PushConfigurationOperation
                         {
                             AffectedTrustList = trustListId,
@@ -1814,11 +1849,19 @@ namespace Opc.Ua.Server
                                     ? m_trustedStore
                                     : m_issuerStore;
                                 ICertificateStore store = GetStore(storeIdentifier);
-                                await store.AddAsync(stagedCert, null, ct).ConfigureAwait(false);
+                                // Re-adding a certificate that is already in the
+                                // TrustList succeeds without changing it: the
+                                // commit must not fail the whole transaction
+                                // because the store refuses a second copy, and
+                                // the rollback must not delete the copy that was
+                                // there before.
+                                addedByCommit = await AddIfMissingAsync(store, stagedCert, ct)
+                                    .ConfigureAwait(false);
 
                                 previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
 
-                                m_node.ReportTrustListUpdatedAuditEvent(
+                                m_auditServer.ReportTrustListUpdatedAuditEvent(
+                                    m_node,
                                     context, objectId, "Method/AddCertificate", method.NodeId, inputParameters,
                                     StatusCodes.Good, m_logger);
                             },
@@ -1828,7 +1871,8 @@ namespace Opc.Ua.Server
                                     ? m_trustedStore
                                     : m_issuerStore;
                                 ICertificateStore store = GetStore(storeIdentifier);
-                                if (!await store.DeleteAsync(stagedThumbprint, ct).ConfigureAwait(false))
+                                if (addedByCommit &&
+                                    !await store.DeleteAsync(stagedThumbprint, ct).ConfigureAwait(false))
                                 {
                                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid,
                                         "Failed to remove the staged certificate during rollback.");
@@ -1848,7 +1892,8 @@ namespace Opc.Ua.Server
                 // path, report their own "updated" audit event
                 // synchronously; the transactional success path reports
                 // it from the deferred commit instead.
-                m_node.ReportTrustListUpdatedAuditEvent(
+                m_auditServer.ReportTrustListUpdatedAuditEvent(
+                    m_node,
                     context,
                     objectId,
                     "Method/AddCertificate",
@@ -1893,7 +1938,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             ArrayOf<Variant> inputParameters = [thumbprint, isTrustedCertificate];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            m_auditServer.ReportTrustListUpdateRequestedAuditEvent(
+                m_node,
                 context,
                 objectId,
                 "Method/RemoveCertificate",
@@ -2089,7 +2135,8 @@ namespace Opc.Ua.Server
 
                                     previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
 
-                                    m_node.ReportTrustListUpdatedAuditEvent(
+                                    m_auditServer.ReportTrustListUpdatedAuditEvent(
+                                        m_node,
                                         context, objectId, "Method/RemoveCertificate", method.NodeId, inputParameters,
                                         StatusCodes.Good, m_logger);
                                 },
@@ -2125,7 +2172,8 @@ namespace Opc.Ua.Server
                 // path, report their own "updated" audit event
                 // synchronously; the transactional success path reports
                 // it from the deferred commit instead.
-                m_node.ReportTrustListUpdatedAuditEvent(
+                m_auditServer.ReportTrustListUpdatedAuditEvent(
+                    m_node,
                     context,
                     objectId,
                     "Method/RemoveCertificate",
@@ -2190,7 +2238,8 @@ namespace Opc.Ua.Server
             SecurityConfiguration securityConfiguration,
             CancellationToken cancellationToken)
         {
-            if (issuerCertificates == null && trustedCertificates == null)
+            if (issuerCertificates == null && trustedCertificates == null &&
+                issuerCrls == null && trustedCrls == null)
             {
                 return ServiceResult.Good;
             }
@@ -2208,6 +2257,15 @@ namespace Opc.Ua.Server
             X509CRLCollection newTrustedCrls = trustedCrls ??
                 await GetStore(m_trustedStore).EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
             X509CRL[] crlPool = [.. newIssuerCrls.Concat(newTrustedCrls)];
+
+            // Every CRL of the resulting TrustList is checked against the
+            // resulting certificates: a kept CRL list must not retain the CRL
+            // of a CA that this update removes.
+            ServiceResult crlResult = ValidateCrlIssuers(pool, crlPool);
+            if (ServiceResult.IsBad(crlResult))
+            {
+                return crlResult;
+            }
 
             foreach (Certificate issuer in issuerCertificates ?? [])
             {
@@ -2262,6 +2320,16 @@ namespace Opc.Ua.Server
             IReadOnlyList<X509CRL> crls,
             CancellationToken cancellationToken)
         {
+            // OPC 10000-6 §6.2.2: only X.509 v3 certificates are allowed; a
+            // structural error is not suppressible (OPC 10000-4 Table 100).
+            if (!X509Utils.IsX509Version3(certificate))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadCertificateInvalid,
+                    "Certificate {0} is not an X.509 version 3 certificate.",
+                    certificate.Subject);
+            }
+
             using var validationChain = new CertificateCollection { certificate };
             foreach (Certificate issuer in issuers)
             {
@@ -2399,6 +2467,75 @@ namespace Opc.Ua.Server
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Whether the TrustList holds a CRL issued by <paramref name="ca"/>.
+        /// </summary>
+        private async Task<bool> HasCrlForIssuerAsync(Certificate ca, CancellationToken ct)
+        {
+            foreach (CertificateStoreIdentifier storeIdentifier in new[] { m_trustedStore, m_issuerStore })
+            {
+                X509CRLCollection crls = await GetStore(storeIdentifier)
+                    .EnumerateCRLsAsync(ct).ConfigureAwait(false);
+                if (crls.Any(crl => X509Utils.CompareDistinguishedName(crl.IssuerName, ca.SubjectName)))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Adds <paramref name="certificate"/> to <paramref name="store"/>
+        /// unless a certificate with the same thumbprint is already present.
+        /// Returns whether the store was changed.
+        /// </summary>
+        private static async Task<bool> AddIfMissingAsync(
+            ICertificateStore store,
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            using (CertificateCollection existing = await store
+                .FindByThumbprintAsync(certificate.Thumbprint, ct).ConfigureAwait(false))
+            {
+                if (existing.Count > 0)
+                {
+                    return false;
+                }
+            }
+
+            await store.AddAsync(certificate, null, ct).ConfigureAwait(false);
+            return true;
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.8.2.5: every CRL of the new TrustList must be
+        /// issued by a CA of the new TrustList and carry a valid signature of
+        /// that CA. A CRL of an unknown issuer, or one that only claims the
+        /// name of a known CA, is rejected when CloseAndUpdate is called
+        /// instead of failing the later ApplyChanges.
+        /// </summary>
+        private static ServiceResult ValidateCrlIssuers(
+            IReadOnlyList<Certificate> pool,
+            IReadOnlyList<X509CRL> crls)
+        {
+            foreach (X509CRL crl in crls)
+            {
+                bool verified = pool.Any(issuer =>
+                    X509Utils.IsCertificateAuthority(issuer) &&
+                    X509Utils.CompareDistinguishedName(issuer.SubjectName, crl.IssuerName) &&
+                    crl.VerifySignature(issuer, false));
+                if (!verified)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateInvalid,
+                        "The CRL of {0} is not signed by a CA certificate of the TrustList.",
+                        crl.Issuer);
+                }
+            }
+
+            return ServiceResult.Good;
         }
 
         private static bool IsIssuedBy(Certificate certificate, Certificate issuer)
@@ -2593,6 +2730,7 @@ namespace Opc.Ua.Server
         private readonly TrustListState m_node;
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
         private SecurityConfiguration? m_validationConfiguration;
+        private IAuditEventServer? m_auditServer;
         private readonly int m_effectiveMaxTrustListSize;
         private ICertificateTrustListManager? m_changeNotifier;
         private TrustListIdentifier? m_changeNotifierScope;
@@ -2693,5 +2831,13 @@ namespace Opc.Ua.Server
             this ILogger logger,
             uint fileHandle,
             double activityTimeout);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 6, Level = LogLevel.Warning,
+            Message = "AddCertificate added the CA certificate {Subject} without a CRL. " +
+                "RejectUnknownRevocationStatus is enabled, so certificates issued by this CA " +
+                "are rejected until a CRL of the CA is written with the TrustList file.")]
+        public static partial void TrustListCaAddedWithoutCrl(
+            this ILogger logger,
+            string subject);
     }
 }
