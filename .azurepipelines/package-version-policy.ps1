@@ -45,6 +45,13 @@ function ConvertTo-PreviewPackageVersion {
     if ($Version -match '-preview(?:[.+-]|$)') {
         return $Version
     }
+    if ($Version -cmatch '^[^-+]+-g[0-9a-f]+(\+.*)?$') {
+        # A commit id as the only prerelease identifier (a non-public build
+        # of a stable version.json). "-preview.g<commit>" would outrank every
+        # numbered preview under SemVer 2, so number it 0; version.targets
+        # applies the same rule.
+        return $Version -creplace '^([^-+]+)-(g[0-9a-f]+)', '$1-preview.0.$2'
+    }
     if ($Version.Contains('-')) {
         return $Version.Replace('-', '-preview.')
     }
