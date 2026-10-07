@@ -351,7 +351,21 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             var callback = new StubTransportListenerCallback();
             var factory = new HttpsTransportListenerFactory();
             factory.StartupContributors.Add(provider.GetRequiredService<WebApiHttpsStartupContributor>());
-            var listener = (HttpsTransportListener)factory.Create(m_telemetry!);
+            HttpsTransportListener listener;
+            int port;
+            try
+            {
+                (listener, port) = await OpenListenerOnFreePortAsync(
+                    () => (HttpsTransportListener)factory.Create(m_telemetry!),
+                    p => CreateListenerSettings(m_certificateRegistry!, p, mutualTls: authMode == "mtls"),
+                    callback).ConfigureAwait(false);
+            }
+            catch
+            {
+                await provider.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+
             var result = new AuthListener(
                 provider,
                 provider.GetRequiredService<WebApiServer>(),
@@ -359,11 +373,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 callback);
             try
             {
-                int port = FindAvailableTcpPort();
-                await listener.OpenAsync(
-                    new Uri($"https://localhost:{port}/"),
-                    CreateListenerSettings(m_certificateRegistry!, port, mutualTls: authMode == "mtls"),
-                    callback).ConfigureAwait(false);
                 await WaitForListenerReadyAsync(port).ConfigureAwait(false);
                 result.Connect(port, clientCertificate);
                 return result;
