@@ -1,6 +1,8 @@
 name: NuGet Publish
 
-# Builds the complete signed NuGet package set on every branch. Release
+# Builds the complete signed NuGet package set on every branch (a feature-branch
+# push that only changed documentation is skipped, and a superseded
+# feature-branch run is cancelled; see `concurrency` and `changes`). Release
 # configuration supplies all normal package IDs; Debug configuration supplies
 # only package IDs ending in .Debug.
 #
@@ -25,13 +27,58 @@ on:
 permissions:
   contents: read
 
+# A newer push to a feature branch supersedes the package set of the previous
+# one, which nothing consumes, so that run is cancelled. Protected lines and
+# tags are never cancelled: their runs publish previews, and release.yml
+# promotes a release branch's run by ID, so every such commit has to finish.
 concurrency:
   group: nuget-publish-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/develop/') || startsWith(github.ref, 'refs/tags/')) }}
 
 jobs:
+  # Skips the two signed Windows builds when a push to a feature branch changed
+  # only documentation since the previous push, using the same rule that gates
+  # the build in buildandtest.yml (.github/scripts/get-path-relevance.ps1). It
+  # can only ever skip on a feature branch: protected lines, tags, manual runs,
+  # a branch's first push and a force push whose previous head is gone are
+  # always packed.
+  changes:
+    name: Detect package-relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.relevance.outputs.relevant }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve path relevance
+        id: relevance
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PROTECTED_REF: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/develop/') || startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          $relevant = $true
+          if ($env:EVENT_NAME -eq 'push' -and $env:PROTECTED_REF -ne 'true' -and
+              $env:BEFORE_SHA -match '^[0-9a-f]{40}$' -and $env:BEFORE_SHA -notmatch '^0+$') {
+              $changed = @(& git diff --name-only "$($env:BEFORE_SHA)" "$($env:GITHUB_SHA)" 2>$null)
+              if ($LASTEXITCODE -eq 0) {
+                  $relevant = [bool](& ./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed)
+                  Write-Host "Changed files since $($env:BEFORE_SHA): $($changed.Count); package-relevant: $relevant"
+              }
+              else {
+                  Write-Host "The previous head $($env:BEFORE_SHA) is not in the history (force push); packing."
+              }
+          }
+          "relevant=$($relevant.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
   pack:
     name: Build and sign ${{ matrix.configuration }}
+    needs: changes
+    if: ${{ needs.changes.outputs.relevant == 'true' }}
     runs-on: windows-2025
     strategy:
       fail-fast: false
