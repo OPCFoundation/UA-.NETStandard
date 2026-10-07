@@ -446,6 +446,8 @@ The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategor
 | `Opc.Ua.Stress.Tests` (`ChaosTCP`) | [`.github/workflows/stress-test.yml`](../.github/workflows/stress-test.yml), opt-in |
 | `ConnectionStability` in `Opc.Ua.Sessions.Tests` | [`.github/workflows/stability-test.yml`](../.github/workflows/stability-test.yml), opt-in |
 | `SampleHaLongHaul` in `Opc.Ua.Redundancy.Samples.Tests` | [`.github/workflows/sample-ha-longhaul.yml`](../.github/workflows/sample-ha-longhaul.yml), opt-in |
+| `Opc.Ua.Aot.Tests` and the `.Historian` / `.Mcp` companions | `aot-test` job (both workflows) — published and run as native executables, not through `dotnet test` |
+| `Opc.Ua.OneFuzz.Validator.Tests` | `fuzz-drop` job — it pins net10.0 to match the drop it validates |
 
 The opt-in workflows run on their schedule, on demand from the Actions tab, and on a pull request that carries their label. Like `interop` for the [foreign stack interop](../.github/workflows/interop-foreign.yml) run, the label is not a required check: add it to start a run, and each later push to the pull request restarts it, cancelling the run in progress. Adding an unrelated label does not restart it.
 
@@ -456,8 +458,6 @@ The opt-in workflows run on their schedule, on demand from the Actions tab, and 
 | `interop` | Foreign stack interop | Every peer, as nightly |
 
 Each opt-in workflow fails when its filter matched no test, so a moved or renamed test cannot leave it green while testing nothing.
-| `Opc.Ua.Aot.Tests` and the `.Historian` / `.Mcp` companions | `aot-test` job (both workflows) — published and run as native executables, not through `dotnet test` |
-| `Opc.Ua.OneFuzz.Validator.Tests` | `fuzz-drop` job — it pins net10.0 to match the drop it validates |
 
 ### Running the full scope
 
