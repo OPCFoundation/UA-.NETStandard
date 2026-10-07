@@ -414,7 +414,16 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 
 A profile pins its target framework through `CustomTestTarget`, not `--framework`, because that is the mechanism [`targets.props`](../targets.props) uses.
 
-GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. The project fan-out is therefore **batched**: each matrix entry carries several projects that [`.github/scripts/run-dotnet-tests.ps1`](../.github/scripts/run-dotnet-tests.ps1) runs in sequence, keeping per-project results and per-project timeouts. The batch size is the smallest one that fits the budget, so it grows by itself as test projects are added instead of silently truncating the matrix. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, and that a narrowed matrix can never expand to nothing.
+The project fan-out is **batched**: each matrix entry carries several projects that [`.github/scripts/run-dotnet-tests.ps1`](../.github/scripts/run-dotnet-tests.ps1) runs in sequence, keeping per-project results and per-project timeouts. Batches are packed by **duration**, not by count. Every batch pays a fixed cost of several minutes (checkout, SDK install and the cold build of the shared dependency graph), while each further project in it only adds an incremental build of under a minute plus its tests. So projects are packed, in path order, up to `BatchTargetMinutes` (30) of weight from [`.github/ci-test-durations.json`](../.github/ci-test-durations.json), with at most as many projects as the job timeout can budget for. Path order keeps related projects (`PubSub.*`, `Redundancy.*`, `WotCon.*`) together. Packing two projects per job, as before, spent almost half of the pull-request matrix recompiling the same assemblies.
+
+The weights only steer balance, never what runs: a project missing from the table is weighted with its `defaultMinutes`. Each weight is the slowest pull-request profile's test minutes, rounded up, plus one minute of incremental build. The executor records every project's build and test seconds in `batch-summary.json` and in the job summary, so the table can be refreshed from any run:
+
+```bash
+gh run download <run-id> --pattern 'dotnet-results-*' --dir ./ci-results
+./.github/scripts/update-test-durations.ps1 -ResultsPath ./ci-results -Source 'Run <run-id>'
+```
+
+GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, that each profile runs each of its projects exactly once, that only a project heavier than the target exceeds it, and that a narrowed matrix can never expand to nothing.
 
 The executor fails a project when its build fails, when the TRX counters report any failure, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
