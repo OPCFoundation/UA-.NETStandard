@@ -47,6 +47,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using Microsoft.IdentityModel.Tokens;
 using NUnit.Framework;
 using Opc.Ua.Bindings.WebApi;
@@ -410,22 +411,50 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(listener.Callback.LastRequest, Is.Null);
         }
 
-        [Test]
-        public async Task OpenApiWebSocketIsClosedWhenTheTokenExpiresAsync()
+        // 40 days exceeds a single timer wait, so the expiry wait re-arms.
+        [TestCase(5.0)]
+        [TestCase(40 * 24 * 60.0)]
+        public async Task OpenApiWebSocketIsClosedWhenTheTokenExpiresAsync(double lifetimeMinutes)
         {
-            await using AuthListener listener = await OpenAuthListenerAsync("bearer").ConfigureAwait(false);
-            DateTime now = DateTime.UtcNow;
-            string token = CreateJwt(s_jwtSigningKey, notBefore: now.AddMinutes(-1), expires: now.AddSeconds(3));
+            TimeSpan lifetime = TimeSpan.FromMinutes(lifetimeMinutes);
+            // The listener enforces the expiry on its own clock, so the
+            // handshake is not raced against a short real-time token.
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            await using AuthListener listener = await OpenAuthListenerAsync("bearer", timeProvider: clock)
+                .ConfigureAwait(false);
+            DateTime now = clock.GetUtcNow().UtcDateTime;
+            string token = CreateJwt(s_jwtSigningKey, notBefore: now.AddMinutes(-1), expires: now + lifetime);
 
             using ClientWebSocket socket = await listener
                 .ConnectWebSocketAsync(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + token, authorization: null)
                 .ConfigureAwait(false);
             Assert.That(socket.State, Is.EqualTo(WebSocketState.Open));
 
+            // A served request proves the server's receive loop, and with it
+            // the expiry wait armed before it, is running.
+            Assert.That(
+                await listener.SendWebSocketRequestAsync(socket, CreateReadRequest(9)).ConfigureAwait(false),
+                Is.InstanceOf<ReadResponse>());
+
+            // Shortly before the expiry the channel still serves requests.
+            clock.Advance(lifetime - TimeSpan.FromMinutes(1));
+            Assert.That(
+                await listener.SendWebSocketRequestAsync(socket, CreateReadRequest(10)).ConfigureAwait(false),
+                Is.InstanceOf<ReadResponse>());
+
+            // Step past the expiry. The server re-arms its wait on a pool
+            // thread, possibly from a time read before the last step, so
+            // keep stepping by a whole lifetime (the longest wait it can
+            // arm) until the channel is dropped.
             byte[] buffer = new byte[1024];
             Task<WebSocketReceiveResult> receive = socket.ReceiveAsync(new ArraySegment<byte>(buffer), default);
-            Task completed = await Task.WhenAny(receive, Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
-            Assert.That(completed, Is.SameAs(receive),
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            while (!receive.IsCompleted && elapsed.Elapsed < TimeSpan.FromSeconds(30))
+            {
+                clock.Advance(lifetime);
+                await Task.WhenAny(receive, Task.Delay(100)).ConfigureAwait(false);
+            }
+            Assert.That(receive.IsCompleted, Is.True,
                 "The server must drop the channel when the token of its upgrade expires.");
             try
             {
@@ -436,13 +465,23 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             {
                 // Aborted by the server.
             }
+
+        }
+
+        private static ReadRequest CreateReadRequest(uint requestHandle)
+        {
+            return new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = requestHandle, Timestamp = DateTime.UtcNow }
+            };
         }
 
         private async Task<AuthListener> OpenAuthListenerAsync(
             string authMode,
             X509Certificate2? clientCertificate = null,
             Action<IServiceCollection>? configureServices = null,
-            Action<WebApiTransportOptions>? configureWebApi = null)
+            Action<WebApiTransportOptions>? configureWebApi = null,
+            TimeProvider? timeProvider = null)
         {
             var services = new ServiceCollection();
             configureServices?.Invoke(services);
@@ -512,6 +551,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             var factory = new HttpsTransportListenerFactory();
             factory.StartupContributors.Add(provider.GetRequiredService<WebApiHttpsStartupContributor>());
             var listener = (HttpsTransportListener)factory.Create(m_telemetry!);
+            listener.TimeProvider = timeProvider ?? TimeProvider.System;
             var result = new AuthListener(
                 provider,
                 provider.GetRequiredService<WebApiServer>(),

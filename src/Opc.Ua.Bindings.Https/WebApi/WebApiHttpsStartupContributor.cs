@@ -355,8 +355,9 @@ namespace Opc.Ua.Bindings.WebApi
         /// one <c>RequireAuthorization()</c> applies to the REST routes, so
         /// Basic, Bearer (<c>Authorization</c> header) and the client
         /// certificate are honoured. On failure the request is answered
-        /// with the challenge (401 and <c>WWW-Authenticate</c>) or forbid
-        /// (403) of the registered schemes.
+        /// by the authorization middleware result handler, with the
+        /// challenge (401 and <c>WWW-Authenticate</c>) or forbid (403) of
+        /// the policy's schemes.
         /// </summary>
         /// <param name="context">The upgrade request.</param>
         /// <returns><c>true</c> when the upgrade may be accepted.</returns>
@@ -371,21 +372,20 @@ namespace Opc.Ua.Bindings.WebApi
             AuthenticateResult authentication = await evaluator
                 .AuthenticateAsync(policy, context)
                 .ConfigureAwait(false);
+            // The authorization middleware passes the HttpContext as the
+            // resource; requirements of the default policy see the same.
             PolicyAuthorizationResult authorization = await evaluator
-                .AuthorizeAsync(policy, authentication, context, resource: null)
+                .AuthorizeAsync(policy, authentication, context, resource: context)
                 .ConfigureAwait(false);
             if (authorization.Succeeded)
             {
                 return true;
             }
-            if (authorization.Forbidden)
-            {
-                await context.ForbidAsync().ConfigureAwait(false);
-            }
-            else
-            {
-                await context.ChallengeAsync().ConfigureAwait(false);
-            }
+            // Challenge or forbid with the policy's schemes exactly as the
+            // authorization middleware does for the REST routes.
+            await services.GetRequiredService<IAuthorizationMiddlewareResultHandler>()
+                .HandleAsync(static _ => Task.CompletedTask, context, policy, authorization)
+                .ConfigureAwait(false);
             return false;
         }
 

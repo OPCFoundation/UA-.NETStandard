@@ -1356,6 +1356,12 @@ namespace Opc.Ua.Bindings
         internal Func<HttpContext, IUserIdentity?>? WssOpenApiIdentityResolver { get; set; }
 
         /// <summary>
+        /// The clock against which the credential expiry of an
+        /// <c>opcua+openapi</c> WebSocket is checked and enforced.
+        /// </summary>
+        internal TimeProvider TimeProvider { get; set; } = TimeProvider.System;
+
+        /// <summary>
         /// Holds physical connection admission through the host pipeline and releases it after transport closure.
         /// </summary>
         internal static async Task RunHttpsConnectionAsync(
@@ -2504,7 +2510,7 @@ namespace Opc.Ua.Bindings
             // already expired is refused and the channel closes when it
             // expires.
             DateTimeOffset? credentialExpiry = GetCredentialExpiry(context.User);
-            if (credentialExpiry is DateTimeOffset expiry && expiry <= DateTimeOffset.UtcNow)
+            if (credentialExpiry is DateTimeOffset expiry && expiry <= TimeProvider.GetUtcNow())
             {
                 m_logger.OpenApiCredentialExpired(expiry);
                 await WriteResponseAsync(
@@ -2538,7 +2544,6 @@ namespace Opc.Ua.Bindings
                 .ConfigureAwait(false);
             lease.SetAbortAction(ws.Abort);
             lease.CompleteHandshake();
-            using CancellationTokenSource? expiryTimer = StartCredentialExpiryTimer(credentialExpiry, ws);
 
             CancellationToken ct = context.RequestAborted;
 
@@ -2581,11 +2586,35 @@ namespace Opc.Ua.Bindings
                 UpstreamIdentity = upstreamIdentity
             };
 
-            await ReceiveOpenApiWebSocketMessagesAsync(
-                ws,
-                channelContext,
-                MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort),
-                ct).ConfigureAwait(false);
+            var expiryWatch = new CancellationTokenSource();
+            Task expiryWatcher = Task.CompletedTask;
+            try
+            {
+                if (credentialExpiry is DateTimeOffset expiresAt)
+                {
+#pragma warning disable CA2025 // The watcher is awaited in the finally below before the source is disposed.
+                    expiryWatcher = WatchCredentialExpiryAsync(expiresAt, ws, expiryWatch.Token);
+#pragma warning restore CA2025
+                }
+                await ReceiveOpenApiWebSocketMessagesAsync(
+                    ws,
+                    channelContext,
+                    MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort),
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    expiryWatch.Cancel();
+                    await expiryWatcher.ConfigureAwait(false);
+                }
+                finally
+                {
+                    // Only after the watcher has completed.
+                    expiryWatch.Dispose();
+                }
+            }
         }
 
         /// <summary>
@@ -2621,30 +2650,37 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Aborts the OpenAPI WebSocket when the credential of its upgrade
-        /// expires. Returns <c>null</c> when there is no expiry or it lies
-        /// beyond the range of a timer.
+        /// expires, unless <paramref name="ct"/> is cancelled first. A
+        /// single timer wait is capped, so the wait is re-armed until the
+        /// expiry however far away it lies.
         /// </summary>
-        private CancellationTokenSource? StartCredentialExpiryTimer(DateTimeOffset? expiry, WebSocket ws)
+        private async Task WatchCredentialExpiryAsync(
+            DateTimeOffset expiresAt,
+            WebSocket ws,
+            CancellationToken ct)
         {
-            if (expiry is not DateTimeOffset expiresAt)
+            try
             {
-                return null;
-            }
-            TimeSpan delay = expiresAt - DateTimeOffset.UtcNow;
-            if (delay > s_maxCredentialExpiryDelay)
-            {
-                return null;
-            }
-            var timer = new CancellationTokenSource(delay > TimeSpan.Zero ? delay : TimeSpan.Zero);
-            timer.Token.Register(() =>
-            {
+                TimeSpan remaining;
+                while ((remaining = expiresAt - TimeProvider.GetUtcNow()) > TimeSpan.Zero)
+                {
+                    TimeSpan delay = remaining < s_maxTimerDelay ? remaining : s_maxTimerDelay;
+#if NET8_0_OR_GREATER
+                    await Task.Delay(delay, TimeProvider, ct).ConfigureAwait(false);
+#else
+                    await TimeProvider.Delay(delay, ct).ConfigureAwait(false);
+#endif
+                }
                 m_logger.OpenApiWebSocketCredentialExpired(expiresAt);
                 ws.Abort();
-            });
-            return timer;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The WebSocket ended before its credential expired.
+            }
         }
 
-        private static readonly TimeSpan s_maxCredentialExpiryDelay = TimeSpan.FromMilliseconds(int.MaxValue);
+        private static readonly TimeSpan s_maxTimerDelay = TimeSpan.FromMilliseconds(int.MaxValue);
 
         /// <summary>
         /// Receives concurrent OpenAPI requests with admission before copying or scheduling.
