@@ -336,6 +336,13 @@ namespace Opc.Ua.Bindings
         public const double TokenActivationPeriod = 0.95;
 
         /// <summary>
+        /// The fraction of the lifetime a client keeps accepting messages secured with an expired
+        /// token (OPC 10000-4 5.6.2.1), so a response the server secured just before the token
+        /// expired is not rejected because of network delay or clock drift.
+        /// </summary>
+        public const double TokenExpiryGracePeriod = 0.25;
+
+        /// <summary>
         /// The certificates that have the key size larger than KeySizeExtraPadding need an extra padding byte in the transport message
         /// </summary>
         public const int KeySizeExtraPadding = 2048;
