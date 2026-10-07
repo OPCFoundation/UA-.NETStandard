@@ -30,14 +30,17 @@
 using System;
 using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -278,6 +281,163 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(listener.Callback.LastRequest, Is.InstanceOf<FindServersRequest>());
         }
 
+        [TestCase("basic", "none", false)]
+        [TestCase("basic", "basic-wrong", false)]
+        [TestCase("basic", "bearer-valid", false)]
+        [TestCase("basic", "basic-valid", true)]
+        [TestCase("bearer", "none", false)]
+        [TestCase("bearer", "bearer-bogus", false)]
+        [TestCase("bearer", "bearer-forged", false)]
+        [TestCase("bearer", "basic-valid", false)]
+        [TestCase("bearer", "bearer-valid", true)]
+        [TestCase("mtls", "none", false)]
+        [TestCase("mtls", "basic-valid", false)]
+        [TestCase("mtls", "client-cert", true)]
+        public async Task PlainOpenApiWebSocketUpgradeIsEnforcedLikeTheRestRoutesAsync(
+            string authMode,
+            string credential,
+            bool expectOpen)
+        {
+            var identities = new UpstreamIdentityProvider();
+            using X509Certificate2? clientCertificate = credential == "client-cert"
+                ? CreateClientCertificate()
+                : null;
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                authMode,
+                clientCertificate,
+                configureServices: services => services.AddSingleton<ISessionlessIdentityProvider>(identities))
+                .ConfigureAwait(false);
+
+            using ClientWebSocket socket = await listener
+                .ConnectWebSocketAsync(Profiles.OpcUaWsSubProtocolOpenApi, CreateAuthorizationHeader(credential))
+                .ConfigureAwait(false);
+
+            if (!expectOpen)
+            {
+                Assert.That(socket.State, Is.Not.EqualTo(WebSocketState.Open));
+                Assert.That(socket.HttpStatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+                Assert.That(listener.Callback.LastRequest, Is.Null,
+                    "An upgrade without a valid credential must not reach the server.");
+                string[] challenges = [.. socket.HttpResponseHeaders?
+                    .Where(h => string.Equals(h.Key, "WWW-Authenticate", StringComparison.OrdinalIgnoreCase))
+                    .SelectMany(h => h.Value)
+                    .Select(v => v.Split(' ')[0]) ?? []];
+                switch (authMode)
+                {
+                    case "basic":
+                        Assert.That(challenges, Does.Contain("Basic"));
+                        break;
+                    case "bearer":
+                        Assert.That(challenges, Does.Contain("Bearer"));
+                        break;
+                }
+                return;
+            }
+
+            Assert.That(socket.State, Is.EqualTo(WebSocketState.Open));
+            Assert.That(socket.SubProtocol, Is.EqualTo(Profiles.OpcUaWsSubProtocolOpenApi));
+            IServiceResponse response = await listener
+                .SendWebSocketRequestAsync(
+                    socket,
+                    new ReadRequest
+                    {
+                        RequestHeader = new RequestHeader { RequestHandle = 7, Timestamp = DateTime.UtcNow }
+                    })
+                .ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<ReadResponse>());
+            Assert.That(listener.Callback.LastRequest, Is.InstanceOf<ReadRequest>());
+            Assert.That(identities.LastAuthenticated, Is.True,
+                "The identity provider must see the principal authenticated on the upgrade.");
+            Assert.That(listener.Callback.LastChannelContext!.UpstreamIdentity, Is.Not.Null);
+            Assert.That(
+                listener.Callback.LastChannelContext!.UpstreamIdentity,
+                Is.SameAs(identities.LastIdentity),
+                "The channel must carry the identity mapped from the upgrade's principal.");
+        }
+
+        [Test]
+        public async Task TokenOpenApiWebSocketUpgradeCarriesUpstreamIdentityAsync()
+        {
+            var identities = new UpstreamIdentityProvider();
+            await using AuthListener listener = await OpenAuthListenerAsync(
+                "bearer",
+                configureServices: services => services.AddSingleton<ISessionlessIdentityProvider>(identities))
+                .ConfigureAwait(false);
+
+            using ClientWebSocket socket = await listener
+                .ConnectWebSocketAsync(
+                    Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + CreateJwt(s_jwtSigningKey),
+                    authorization: null)
+                .ConfigureAwait(false);
+            Assert.That(socket.State, Is.EqualTo(WebSocketState.Open));
+            IServiceResponse response = await listener
+                .SendWebSocketRequestAsync(
+                    socket,
+                    new ReadRequest
+                    {
+                        RequestHeader = new RequestHeader { RequestHandle = 8, Timestamp = DateTime.UtcNow }
+                    })
+                .ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<ReadResponse>());
+            Assert.That(identities.LastAuthenticated, Is.True);
+            Assert.That(
+                listener.Callback.LastChannelContext!.UpstreamIdentity,
+                Is.SameAs(identities.LastIdentity));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task OpenApiWebSocketUpgradeWithExpiredTokenIsRejectedAsync(bool tokenInSubProtocol)
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync("bearer").ConfigureAwait(false);
+            // Expired, but within the JwtBearer default clock skew of five
+            // minutes, so the scheme alone still accepts it.
+            DateTime now = DateTime.UtcNow;
+            string token = CreateJwt(s_jwtSigningKey, notBefore: now.AddMinutes(-2), expires: now.AddSeconds(-30));
+
+            using ClientWebSocket socket = tokenInSubProtocol
+                ? await listener.ConnectWebSocketAsync(
+                    Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + token,
+                    authorization: null).ConfigureAwait(false)
+                : await listener.ConnectWebSocketAsync(
+                    Profiles.OpcUaWsSubProtocolOpenApi,
+                    new AuthenticationHeaderValue("Bearer", token)).ConfigureAwait(false);
+
+            Assert.That(socket.State, Is.Not.EqualTo(WebSocketState.Open));
+            Assert.That(socket.HttpStatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(listener.Callback.LastRequest, Is.Null);
+        }
+
+        [Test]
+        public async Task OpenApiWebSocketIsClosedWhenTheTokenExpiresAsync()
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync("bearer").ConfigureAwait(false);
+            DateTime now = DateTime.UtcNow;
+            string token = CreateJwt(s_jwtSigningKey, notBefore: now.AddMinutes(-1), expires: now.AddSeconds(3));
+
+            using ClientWebSocket socket = await listener
+                .ConnectWebSocketAsync(Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + token, authorization: null)
+                .ConfigureAwait(false);
+            Assert.That(socket.State, Is.EqualTo(WebSocketState.Open));
+
+            byte[] buffer = new byte[1024];
+            Task<WebSocketReceiveResult> receive = socket.ReceiveAsync(new ArraySegment<byte>(buffer), default);
+            Task completed = await Task.WhenAny(receive, Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(receive),
+                "The server must drop the channel when the token of its upgrade expires.");
+            try
+            {
+                WebSocketReceiveResult result = await receive.ConfigureAwait(false);
+                Assert.That(result.MessageType, Is.EqualTo(WebSocketMessageType.Close));
+            }
+            catch (WebSocketException)
+            {
+                // Aborted by the server.
+            }
+        }
+
         private async Task<AuthListener> OpenAuthListenerAsync(
             string authMode,
             X509Certificate2? clientCertificate = null,
@@ -392,15 +552,15 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             };
         }
 
-        private static string CreateJwt(byte[] signingKey)
+        private static string CreateJwt(byte[] signingKey, DateTime? notBefore = null, DateTime? expires = null)
         {
             DateTime now = DateTime.UtcNow;
             var token = new JwtSecurityToken(
                 issuer: kJwtIssuer,
                 audience: kJwtAudience,
                 claims: [new Claim(JwtRegisteredClaimNames.Sub, "alice")],
-                notBefore: now.AddMinutes(-1),
-                expires: now.AddMinutes(5),
+                notBefore: notBefore ?? now.AddMinutes(-1),
+                expires: expires ?? now.AddMinutes(5),
                 signingCredentials: new SigningCredentials(
                     new SymmetricSecurityKey(signingKey),
                     Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256));
@@ -427,6 +587,23 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 certificate.Export(X509ContentType.Pfx),
                 password: null,
                 keyStorageFlags: X509KeyStorageFlags.Exportable);
+        }
+
+        /// <summary>
+        /// Maps every principal to a fresh identity and records the last
+        /// mapping, so a test can tell which identity a channel carries.
+        /// </summary>
+        private sealed class UpstreamIdentityProvider : ISessionlessIdentityProvider
+        {
+            public IUserIdentity? LastIdentity { get; private set; }
+            public bool LastAuthenticated { get; private set; }
+
+            public IUserIdentity? Resolve(HttpContext context)
+            {
+                LastAuthenticated = context.User.Identity?.IsAuthenticated == true;
+                LastIdentity = new UserIdentity("upstream", Encoding.UTF8.GetBytes("unused"));
+                return LastIdentity;
+            }
         }
 
         private sealed class IdentityProviderRecorder
@@ -479,6 +656,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             private readonly HttpsTransportListener m_listener;
             private HttpClientHandler? m_handler;
             private HttpClient? m_client;
+            private int m_port;
 
             public AuthListener(
                 ServiceProvider provider,
@@ -496,6 +674,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             public void Connect(int port, X509Certificate2? clientCertificate)
             {
+                m_port = port;
                 m_handler = new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = static (_, _, _, _) => true
@@ -551,6 +730,71 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 message.Headers.Authorization = authorization;
                 return await m_client!.SendAsync(message, HttpCompletionOption.ResponseContentRead)
                     .ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Upgrades to a WebSocket with the given sub-protocol. A
+            /// refused upgrade returns the socket with the HTTP status of
+            /// the refusal instead of throwing.
+            /// </summary>
+            public async Task<ClientWebSocket> ConnectWebSocketAsync(
+                string subProtocol,
+                AuthenticationHeaderValue? authorization)
+            {
+                var socket = new ClientWebSocket();
+                socket.Options.AddSubProtocol(subProtocol);
+                socket.Options.CollectHttpResponseDetails = true;
+                if (authorization != null)
+                {
+                    socket.Options.SetRequestHeader("Authorization", authorization.ToString());
+                }
+                // The REST client's handler carries the server certificate
+                // validation and the client certificate.
+                using var invoker = new HttpMessageInvoker(m_handler!, disposeHandler: false);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                try
+                {
+                    await socket.ConnectAsync(new Uri($"wss://localhost:{m_port}/"), invoker, timeout.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (WebSocketException)
+                {
+                    // Refused upgrade: HttpStatusCode carries the reason.
+                }
+                return socket;
+            }
+
+            public async Task<IServiceResponse> SendWebSocketRequestAsync(
+                ClientWebSocket socket,
+                ReadRequest request)
+            {
+                byte[] payload;
+                using (var stream = new MemoryStream())
+                {
+                    using (var encoder = new JsonEncoder(stream, m_server.MessageContext, JsonEncoderOptions.Compact))
+                    {
+                        encoder.EncodeMessage(request, request.TypeId);
+                    }
+                    payload = stream.ToArray();
+                }
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                await socket.SendAsync(
+                    new ArraySegment<byte>(payload),
+                    WebSocketMessageType.Text,
+                    endOfMessage: true,
+                    timeout.Token).ConfigureAwait(false);
+
+                using var received = new MemoryStream();
+                byte[] buffer = new byte[8192];
+                WebSocketReceiveResult result;
+                do
+                {
+                    result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), timeout.Token)
+                        .ConfigureAwait(false);
+                    received.Write(buffer, 0, result.Count);
+                }
+                while (!result.EndOfMessage);
+                return JsonDecoder.DecodeMessage<IServiceResponse>(received.ToArray(), m_server.MessageContext);
             }
 
             public async ValueTask DisposeAsync()

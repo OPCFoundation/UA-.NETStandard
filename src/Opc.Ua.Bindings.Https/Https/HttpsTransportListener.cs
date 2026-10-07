@@ -36,6 +36,7 @@ using System.Net.WebSockets;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1333,6 +1334,28 @@ namespace Opc.Ua.Bindings
         internal Func<HttpContext, string, Task<bool>>? WssBearerTokenValidator { get; set; }
 
         /// <summary>
+        /// Optional authenticator of the plain <c>opcua+openapi</c>
+        /// WebSocket upgrade. Registered by the WebApi contributor when
+        /// the application opted into REST authentication, so the upgrade
+        /// is held to the same credential as the REST routes (the route
+        /// authorization never sees the upgrade, which the terminal
+        /// dispatcher handles). It returns <c>true</c> when the request
+        /// authenticated and is authorized; otherwise it has answered the
+        /// request (401 with the scheme challenges, or 403) and returns
+        /// <c>false</c>. When it is not registered no HTTP-level
+        /// authentication is configured and the upgrade is accepted.
+        /// </summary>
+        internal Func<HttpContext, Task<bool>>? WssOpenApiUpgradeAuthenticator { get; set; }
+
+        /// <summary>
+        /// Optional mapping of the principal authenticated on an
+        /// <c>opcua+openapi</c> WebSocket upgrade to the OPC UA identity
+        /// published on <see cref="SecureChannelContext.UpstreamIdentity"/>
+        /// of the channel, the same hook the REST routes use.
+        /// </summary>
+        internal Func<HttpContext, IUserIdentity?>? WssOpenApiIdentityResolver { get; set; }
+
+        /// <summary>
         /// Holds physical connection admission through the host pipeline and releases it after transport closure.
         /// </summary>
         internal static async Task RunHttpsConnectionAsync(
@@ -1845,6 +1868,13 @@ namespace Opc.Ua.Bindings
             UaScConnectionAdmission.Lease lease)
         {
             m_activeUpgrades.TryAdd(lease, 0);
+            // A refused upgrade ends the connection. The accepted upgrade
+            // replaces this header with "Connection: Upgrade"; HTTP/2
+            // forbids connection-specific headers.
+            if (context.Request.Protocol.StartsWith("HTTP/1.", StringComparison.Ordinal))
+            {
+                context.Response.Headers["Connection"] = "close";
+            }
             try
             {
                 if (Volatile.Read(ref m_admissionStopped) != 0)
@@ -1857,6 +1887,16 @@ namespace Opc.Ua.Bindings
             finally
             {
                 m_activeUpgrades.TryRemove(lease, out _);
+                if (context.Response.HasStarted &&
+                    context.Response.StatusCode != (int)HttpStatusCode.SwitchingProtocols &&
+                    !context.RequestAborted.IsCancellationRequested)
+                {
+                    // The upgrade was refused with an HTTP response (401,
+                    // 403, 503, ...). Aborting now would reset the
+                    // connection before Kestrel has sent that response;
+                    // Kestrel closes it after the response instead.
+                    lease.SetAbortAction(static () => { });
+                }
                 lease.Close();
             }
         }
@@ -1876,6 +1916,45 @@ namespace Opc.Ua.Bindings
             }
             if (string.Equals(selected, Profiles.OpcUaWsSubProtocolOpenApi, StringComparison.Ordinal))
             {
+                // The REST route authorization does not cover the upgrade,
+                // so hold it to the configured credential here.
+                Func<HttpContext, Task<bool>>? authenticator = WssOpenApiUpgradeAuthenticator;
+                if (authenticator != null)
+                {
+                    bool authenticated;
+                    try
+                    {
+                        authenticated = await authenticator(context).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.OpenApiUpgradeAuthenticatorThrew(ex);
+                        if (!context.Response.HasStarted)
+                        {
+                            await WriteResponseAsync(
+                                context.Response,
+                                "HTTPSLISTENER - opcua+openapi upgrade authentication failed.",
+                                HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                        }
+                        return;
+                    }
+                    if (!authenticated)
+                    {
+                        // The challenge sets the status and the
+                        // WWW-Authenticate header but leaves the response
+                        // unsent; complete it before the lease closes the
+                        // connection, or the client sees a reset instead
+                        // of the 401.
+                        if (!context.Response.HasStarted)
+                        {
+                            await WriteResponseAsync(
+                                context.Response,
+                                "HTTPSLISTENER - opcua+openapi upgrade not authorized.",
+                                (HttpStatusCode)context.Response.StatusCode).ConfigureAwait(false);
+                        }
+                        return;
+                    }
+                }
                 await AcceptWebSocketOpenApiAsync(context, lease, accessToken: null).ConfigureAwait(false);
                 return;
             }
@@ -2420,11 +2499,46 @@ namespace Opc.Ua.Bindings
                 ? Profiles.OpcUaWsSubProtocolOpenApi
                 : Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + accessToken;
 
+            // A scheme may skip lifetime validation or allow clock skew;
+            // the channel outlives the upgrade, so a credential that has
+            // already expired is refused and the channel closes when it
+            // expires.
+            DateTimeOffset? credentialExpiry = GetCredentialExpiry(context.User);
+            if (credentialExpiry is DateTimeOffset expiry && expiry <= DateTimeOffset.UtcNow)
+            {
+                m_logger.OpenApiCredentialExpired(expiry);
+                await WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - the credential of the opcua+openapi upgrade has expired.",
+                    HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                return;
+            }
+
+            IUserIdentity? upstreamIdentity = null;
+            Func<HttpContext, IUserIdentity?>? identityResolver = WssOpenApiIdentityResolver;
+            if (identityResolver != null)
+            {
+                try
+                {
+                    upstreamIdentity = identityResolver(context);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.OpenApiIdentityResolverThrew(ex);
+                    await WriteResponseAsync(
+                        context.Response,
+                        "HTTPSLISTENER - the identity of the opcua+openapi upgrade could not be resolved.",
+                        HttpStatusCode.InternalServerError).ConfigureAwait(false);
+                    return;
+                }
+            }
+
             WebSocket ws = await context.WebSockets
                 .AcceptWebSocketAsync(selectedSubProtocol)
                 .ConfigureAwait(false);
             lease.SetAbortAction(ws.Abort);
             lease.CompleteHandshake();
+            using CancellationTokenSource? expiryTimer = StartCredentialExpiryTimer(credentialExpiry, ws);
 
             CancellationToken ct = context.RequestAborted;
 
@@ -2460,7 +2574,12 @@ namespace Opc.Ua.Bindings
                 RequestEncoding.Json,
                 context.Connection.ClientCertificate?.RawData,
                 ServerChannelCertificate,
-                peerAddress: context.Connection.RemoteIpAddress);
+                peerAddress: context.Connection.RemoteIpAddress)
+            {
+                // Publish the principal authenticated on the upgrade like
+                // the REST routes do for each request.
+                UpstreamIdentity = upstreamIdentity
+            };
 
             await ReceiveOpenApiWebSocketMessagesAsync(
                 ws,
@@ -2468,6 +2587,64 @@ namespace Opc.Ua.Bindings
                 MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort),
                 ct).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Returns the expiry (<c>exp</c> claim, RFC 7519 NumericDate) of
+        /// the credential the request authenticated with, or <c>null</c>
+        /// when the principal carries none (Basic, mutual TLS).
+        /// </summary>
+        internal static DateTimeOffset? GetCredentialExpiry(ClaimsPrincipal? user)
+        {
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                return null;
+            }
+            Claim? exp = user.FindFirst("exp");
+            if (exp == null ||
+                !double.TryParse(exp.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds) ||
+                double.IsNaN(seconds))
+            {
+                return null;
+            }
+            // Out-of-range values clamp, so a garbage exp fails closed
+            // (minimum) or never fires (maximum).
+            if (seconds <= DateTimeOffset.MinValue.ToUnixTimeSeconds())
+            {
+                return DateTimeOffset.MinValue;
+            }
+            if (seconds >= DateTimeOffset.MaxValue.ToUnixTimeSeconds())
+            {
+                return DateTimeOffset.MaxValue;
+            }
+            return DateTimeOffset.FromUnixTimeMilliseconds((long)(seconds * 1000));
+        }
+
+        /// <summary>
+        /// Aborts the OpenAPI WebSocket when the credential of its upgrade
+        /// expires. Returns <c>null</c> when there is no expiry or it lies
+        /// beyond the range of a timer.
+        /// </summary>
+        private CancellationTokenSource? StartCredentialExpiryTimer(DateTimeOffset? expiry, WebSocket ws)
+        {
+            if (expiry is not DateTimeOffset expiresAt)
+            {
+                return null;
+            }
+            TimeSpan delay = expiresAt - DateTimeOffset.UtcNow;
+            if (delay > s_maxCredentialExpiryDelay)
+            {
+                return null;
+            }
+            var timer = new CancellationTokenSource(delay > TimeSpan.Zero ? delay : TimeSpan.Zero);
+            timer.Token.Register(() =>
+            {
+                m_logger.OpenApiWebSocketCredentialExpired(expiresAt);
+                ws.Abort();
+            });
+            return timer;
+        }
+
+        private static readonly TimeSpan s_maxCredentialExpiryDelay = TimeSpan.FromMilliseconds(int.MaxValue);
 
         /// <summary>
         /// Receives concurrent OpenAPI requests with admission before copying or scheduling.
@@ -3287,5 +3464,21 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 14, Level = LogLevel.Error,
             Message = "WSSLISTENER - failed to close one or more admitted connections during listener shutdown.")]
         public static partial void WssAdmissionStopFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 15, Level = LogLevel.Error,
+            Message = "WSSLISTENER - opcua+openapi upgrade rejected: authenticator threw.")]
+        public static partial void OpenApiUpgradeAuthenticatorThrew(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 16, Level = LogLevel.Warning,
+            Message = "WSSLISTENER - opcua+openapi upgrade rejected: the credential expired at {Expiry}.")]
+        public static partial void OpenApiCredentialExpired(this ILogger logger, DateTimeOffset expiry);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 17, Level = LogLevel.Information,
+            Message = "WSSLISTENER - opcua+openapi WebSocket closed: the credential expired at {Expiry}.")]
+        public static partial void OpenApiWebSocketCredentialExpired(this ILogger logger, DateTimeOffset expiry);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 18, Level = LogLevel.Error,
+            Message = "WSSLISTENER - opcua+openapi upgrade rejected: identity resolution threw.")]
+        public static partial void OpenApiIdentityResolverThrew(this ILogger logger, Exception exception);
     }
 }
