@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Tests
     [Category("GDS")]
     [Category("GDSApplicationDirectory")]
     [Category("Audit")]
-    public class GdsApplicationRegistrationAuditEventTests : GdsTestFixture
+    public sealed class GdsApplicationRegistrationAuditEventTests : GdsTestFixture
     {
         [OneTimeSetUp]
         public async Task AuditEventSetUpAsync()
