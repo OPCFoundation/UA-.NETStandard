@@ -3433,6 +3433,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The <see cref="ServerState"/> the server enters once it has
+        /// started. <see cref="ServerState.Running"/> by default; a server that
+        /// starts in the application setup state (OPC 10000-12 Annex G.2,
+        /// for example to wait for its certificates and TrustList to be
+        /// provisioned) returns <see cref="ServerState.NoConfiguration"/>.
+        /// The server accepts requests in both states.
+        /// </summary>
+        protected virtual ServerState StartupServerState => ServerState.Running;
+
+        /// <summary>
         /// Updates the server state.
         /// </summary>
         /// <param name="state">The state.</param>
@@ -4730,8 +4740,9 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
-            // set the server status as running.
-            SetServerState(ServerState.Running);
+            // set the server status as running, or NoConfiguration while the
+            // application is in the application setup state (OPC 10000-12 G.2).
+            SetServerState(StartupServerState);
 
             // all initialization is complete.
             m_logger.ServerStarted();

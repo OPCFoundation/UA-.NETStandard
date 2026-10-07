@@ -1983,7 +1983,7 @@ namespace Opc.Ua
         /// <summary>
         /// The string representation of the certificate
         /// </summary>
-        /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448</value>
+        /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448, Https</value>
         [DataTypeField(Order = 6)]
         public string? CertificateTypeString
         {

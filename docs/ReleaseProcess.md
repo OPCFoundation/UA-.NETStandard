@@ -37,7 +37,7 @@ without any other context.
   [Versioning](DeveloperGuide.md#versioning)). Every package in the solution
   shares the same root version except the **preview-only families**.
 - **Preview-only families** - the XRegistry, WoT Connectivity, Vision,
-  Robotics, Redundancy, Positioning, OpenUSD, ISA95, AI, and DI package
+  Robotics, Redundancy, Positioning, OpenUSD, and AI package
   families, the Robotics/Vision MCP extensions, and the OpenUSD connector
   tools. `version.targets` keeps these on a `-preview.N` suffix even when the
   root version is an exact stable release. The full, single source of truth
@@ -116,7 +116,7 @@ Every procedure below starts here.
        ConvertFrom-Json | ForEach-Object name
    ```
    Repeat for a representative sample of the preview-only families (at
-   minimum XRegistry, DI, and one MCP/connector package); they are versioned
+   minimum XRegistry, Robotics, and one MCP/connector package); they are versioned
    together but published independently, so check more than one. If any
    published number is greater than or equal to the committed
    `PreviewPackageBuildNumber`, raise it (in the same PR that changes the

@@ -137,7 +137,7 @@ namespace Opc.Ua.Gds.Tests
                 // FindAlias on the aggregated category answers from the merged list.
                 AliasNameDataType[] inDevices = await FindAliasAsync(ToNodeId(devices.NodeId), "%")
                     .ConfigureAwait(false);
-                Assert.That(inDevices.Select(a => a.AliasName.Name), Is.EquivalentTo(new[] { "Pump1_Status", "Heater_Power" }));
+                Assert.That(inDevices.Select(a => a.AliasName.Name), Is.EquivalentTo(s_deviceAliases));
             }
             finally
             {
@@ -179,7 +179,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task ServerWithoutAliasCapabilityIsNotAggregatedAsync()
         {
             ApplicationRecordDataType record = AliasSourceRecord(m_sourceUrl);
-            record.ServerCapabilities = new[] { "DA" }.ToArrayOf();
+            record.ServerCapabilities = ["DA"];
 
             NodeId applicationId = await RegisterAsync(record).ConfigureAwait(false);
             try
@@ -203,7 +203,7 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationNames = new LocalizedText[] { new("en-US", "AliasName source") }.ToArrayOf(),
                 ProductUri = "urn:opcfoundation.org:tests:alias-source",
                 DiscoveryUrls = new[] { discoveryUrl }.ToArrayOf(),
-                ServerCapabilities = new[] { "ALIAS" }.ToArrayOf()
+                ServerCapabilities = ["ALIAS"]
             };
         }
 
@@ -294,6 +294,7 @@ namespace Opc.Ua.Gds.Tests
                 $"UnregisterApplication failed: {response.Results[0].StatusCode}");
         }
 
+        private static readonly string[] s_deviceAliases = ["Pump1_Status", "Heater_Power"];
         private ServerFixture<AliasSourceServer> m_source;
         private string m_sourcePkiRoot;
         private string m_sourceUri;

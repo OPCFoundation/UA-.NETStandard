@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -323,7 +324,10 @@ namespace Opc.Ua.Server.Tests
             Task<CreateSubscriptionResponse> creating;
             try
             {
+                // TODO: Remove when CA2025 recognizes NUnit's Assert.ThrowsAsync task completion.
+#pragma warning disable CA2025 // awaited below, before the manager is disposed
                 creating = StartCreateSubscription(manager, session);
+#pragma warning restore CA2025
                 Assert.That(creating.IsCompleted, Is.False);
                 session.Closing = true;
             }
@@ -392,34 +396,21 @@ namespace Opc.Ua.Server.Tests
             SemaphoreSlim semaphore = GetPrivateField<SemaphoreSlim>(manager, "m_semaphoreSlim");
 
             await semaphore.WaitAsync().ConfigureAwait(false);
-            var creating = new List<Task<CreateSubscriptionResponse>>();
+            Task<(int Succeeded, int Rejected)> creating;
             try
             {
-                for (int ii = 0; ii < 3; ii++)
-                {
-                    creating.Add(StartCreateSubscription(manager, session));
-                }
+                // TODO: Remove when CA2025 recognizes the helper's finally drain.
+#pragma warning disable CA2025 // The helper drains every started request before completing.
+                creating = StartConcurrentCreateSubscriptionsAsync(
+                    () => StartCreateSubscription(manager, session));
+#pragma warning restore CA2025
             }
             finally
             {
                 semaphore.Release();
             }
 
-            int succeeded = 0;
-            int rejected = 0;
-            foreach (Task<CreateSubscriptionResponse> task in creating)
-            {
-                try
-                {
-                    await task.ConfigureAwait(false);
-                    succeeded++;
-                }
-                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadTooManySubscriptions)
-                {
-                    rejected++;
-                }
-            }
-
+            (int succeeded, int rejected) = await creating.ConfigureAwait(false);
             Assert.That(succeeded, Is.EqualTo(1));
             Assert.That(rejected, Is.EqualTo(2));
             Assert.That(manager.GetSubscriptions(), Has.Count.EqualTo(1));
@@ -823,6 +814,59 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish: 0,
                 publishingEnabled: true,
                 priority: 0).AsTask();
+        }
+
+        /// <summary>
+        /// Starts the concurrent subscription requests and drains every request before returning.
+        /// </summary>
+        private static async Task<(int Succeeded, int Rejected)> StartConcurrentCreateSubscriptionsAsync(
+            Func<Task<CreateSubscriptionResponse>> startCreateSubscription)
+        {
+            var creating = new List<Task<CreateSubscriptionResponse>>();
+            int succeeded = 0;
+            int rejected = 0;
+            ExceptionDispatchInfo failure = null;
+            try
+            {
+                for (int ii = 0; ii < 3; ii++)
+                {
+                    creating.Add(startCreateSubscription());
+                }
+
+                foreach (Task<CreateSubscriptionResponse> task in creating)
+                {
+                    try
+                    {
+                        await task.ConfigureAwait(false);
+                        succeeded++;
+                    }
+                    catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadTooManySubscriptions)
+                    {
+                        rejected++;
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                failure = ExceptionDispatchInfo.Capture(exception);
+            }
+            finally
+            {
+                try
+                {
+                    await Task.WhenAll(creating).ConfigureAwait(false);
+                }
+                catch (ServiceResultException) when (failure is null)
+                {
+                }
+                catch (Exception exception)
+                {
+                    failure ??= ExceptionDispatchInfo.Capture(exception);
+                }
+            }
+
+            failure?.Throw();
+            return (succeeded, rejected);
         }
 
         private static SessionPublishQueue GetPublishQueue(SubscriptionManager manager, NodeId sessionId)

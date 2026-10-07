@@ -2636,6 +2636,16 @@ namespace Opc.Ua.Server.Tests
             // Verify provisioning mode is enabled
             Assert.That(server.ProvisioningMode, Is.True, "Server should be in provisioning mode");
 
+            // OPC 10000-12 Annex G.2: the application setup state is reported
+            // as ServerState NoConfiguration and through InApplicationSetup.
+            Assert.That(server.CurrentInstance.CurrentState, Is.EqualTo(ServerState.NoConfiguration));
+            Assert.That(server.CurrentInstance.IsRunning, Is.True, "NoConfiguration still serves requests");
+            var configurationManager = (ConfigurationNodeManager)server.CurrentInstance.ConfigurationNodeManager;
+            ServerConfigurationState configuration = configurationManager
+                .FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
+            Assert.That(configuration.InApplicationSetup, Is.Not.Null);
+            Assert.That(configuration.InApplicationSetup.Value, Is.True);
+
             // Get endpoints - in provisioning mode, anonymous authentication should not be allowed
             ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
             Assert.That(endpoints.IsNull, Is.False);

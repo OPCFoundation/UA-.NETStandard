@@ -71,9 +71,9 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Client", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.ISA95.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.ISA95.Client", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.Di.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Di.Server", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector", true),
@@ -180,7 +180,7 @@ namespace Opc.Ua.Tools.Tests
                 @{
                     preview = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.XRegistry' -BaseVersion '2.0.0')
                     core = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Core' -BaseVersion '2.0.0')
-                    previewDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Di' -BaseVersion '2.0.0-preview.9')
+                    previewDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Robotics' -BaseVersion '2.0.0-preview.9')
                     coreDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Core' -BaseVersion '2.0.0-preview.9')
                 } | ConvertTo-Json
                 """).ConfigureAwait(false);
@@ -465,9 +465,7 @@ namespace Opc.Ua.Tools.Tests
                 "Opc.Ua.Redundancy",
                 "Opc.Ua.Positioning",
                 "Opc.Ua.OpenUsd",
-                "Opc.Ua.ISA95",
                 "Opc.Ua.AI",
-                "Opc.Ua.Di",
                 "Opc.Ua.Mcp.Robotics",
                 "Opc.Ua.Mcp.Vision",
                 "Opc.Ua.OpenUsd.Connector",

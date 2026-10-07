@@ -52,6 +52,7 @@ namespace Opc.Ua.Types.Tests.Encoders
     {
         private const string kNs = Namespaces.OpcUaXsd;
         private const string kCompanionNs = "urn:test:companion:Types.xsd";
+        private static readonly int[] s_twoByTwoDimensions = [2, 2];
 
         private static ServiceMessageContext CreateContext()
         {
@@ -589,8 +590,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // which the decoders read as Variants (a misparse in binary).
             ServiceMessageContext context = CreateContext();
             Structure input = CreateNumberStructure();
-            input["I"] = new Variant(new[] { 1, 2, 3 }.ToArrayOf());
-            input["M"] = Variant.From(new[] { 1.5, 2.5, 3.5, 4.5 }.ToArrayOf().ToMatrix(2, 2));
+            input["I"] = new Variant((ArrayOf<int>)[1, 2, 3]);
+            input["M"] = Variant.From(((ArrayOf<double>)[1.5, 2.5, 3.5, 4.5]).ToMatrix(2, 2));
 
             Structure output = RoundTrip(context, input, encoding);
 
@@ -598,7 +599,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(values.Count, Is.EqualTo(3));
             Assert.That(values[2], Is.EqualTo(new Variant(3)));
             Assert.That(output["M"].TryGetValue(out MatrixOf<Variant> matrix), Is.True);
-            Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 2, 2 }));
+            Assert.That(matrix.Dimensions, Is.EqualTo(s_twoByTwoDimensions));
             Assert.That(matrix.Span[3], Is.EqualTo(new Variant(4.5)));
         }
 
